@@ -1,0 +1,6 @@
+db
+dist
+.cabal-sandbox
+cabal.sandbox.config
+hscope.out
+codex.tags

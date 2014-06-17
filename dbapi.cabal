@@ -13,7 +13,8 @@ cabal-version:       >=1.10
 executable dbapi
   main-is:             Main.hs
   -- other-modules:       
-  -- other-extensions:    
+  other-extensions:    OverloadedStrings
   build-depends:       base >=4.7 && <4.8
+                     , postgresql-simple
   -- hs-source-dirs:      
   default-language:    Haskell2010
