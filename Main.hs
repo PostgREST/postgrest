@@ -1,21 +1,32 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 
 module Main where
+
+import GHC.Generics
+import Data.ByteString.Lazy
 
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.FromRow
 import Control.Applicative
+
+import Network.Wai
+import Network.Wai.Handler.Warp hiding (Connection)
+import Network.HTTP.Types.Status
+
+import qualified Data.Aeson as JSON
 
 data View = View {
   viewSchema :: String
 , viewName :: String
 , viewUpdatable :: Bool
 , viewInsertable :: Bool
-} deriving (Show)
+} deriving (Show, Generic)
 
 instance FromRow View where
   fromRow = View <$> field <*> field <*>
     fmap toBool field <*> fmap toBool field
+
+instance JSON.ToJSON View
 
 toBool :: String -> Bool
 toBool = (== "YES")
@@ -32,8 +43,8 @@ data Column = Column {
 , colPrecision :: Maybe Int
 } deriving (Show)
 
-views :: Connection -> String -> IO [View]
-views conn s = query conn q $ Only s
+views :: String -> Connection -> IO [View]
+views s conn = query conn q $ Only s
   where q = "select table_schema, table_name,\
             \       is_updatable, is_insertable_into \
             \  from information_schema.views\
@@ -41,7 +52,17 @@ views conn s = query conn q $ Only s
 
 main :: IO ()
 main = do
-  conn <- connect defaultConnectInfo {
-    connectDatabase = "dbapi_test"
-  }
-  mapM_ print =<< views conn "base"
+  let port = 3000
+  Prelude.putStrLn $ "Listening on port " ++ show port
+  run port app
+
+payload :: Connection -> IO ByteString
+payload conn = JSON.encode <$> views "base" conn
+
+app :: Application
+app req respond =
+  respond =<< responseLBS status200 [] <$> (payload =<< conn)
+  where
+    conn = connect defaultConnectInfo {
+      connectDatabase = "dbapi_test"
+    }
