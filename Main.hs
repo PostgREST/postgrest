@@ -16,17 +16,23 @@ import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
 
 import qualified Data.Aeson as JSON
+import Data.Aeson ((.=))
 
 data Table = Table {
   viewSchema :: String
 , viewName :: String
 , viewInsertable :: Bool
-} deriving (Show, Generic)
+} deriving (Show)
 
 instance FromRow Table where
   fromRow = Table <$> field <*> field <*> fmap toBool field
 
-instance JSON.ToJSON Table
+instance JSON.ToJSON Table where
+  toJSON v = JSON.object [
+    "schema" .= (viewSchema v),
+    "name"   .= (viewName v),
+    "insertable" .= (viewInsertable v)
+    ]
 
 toBool :: String -> Bool
 toBool = (== "YES")
