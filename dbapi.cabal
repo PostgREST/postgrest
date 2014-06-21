@@ -14,7 +14,7 @@ executable dbapi
   main-is:             Main.hs
   -- other-modules:       
   other-extensions:    OverloadedStrings
-  build-depends:       base >=4.7 && <4.8
+  build-depends:       base >=4.6 && <5
                      , postgresql-simple
                      , warp, wai, http-types
                      , bytestring, aeson
