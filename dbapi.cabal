@@ -18,5 +18,6 @@ executable dbapi
                      , postgresql-simple
                      , warp, wai, http-types
                      , bytestring, aeson
+                     , text
   -- hs-source-dirs:      
   default-language:    Haskell2010

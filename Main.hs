@@ -5,6 +5,8 @@ module Main where
 import GHC.Generics
 import Data.ByteString.Lazy
 
+import Data.Text.Encoding (encodeUtf8)
+
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.FromRow
 import Control.Applicative
@@ -15,18 +17,16 @@ import Network.HTTP.Types.Status
 
 import qualified Data.Aeson as JSON
 
-data View = View {
+data Table = Table {
   viewSchema :: String
 , viewName :: String
-, viewUpdatable :: Bool
 , viewInsertable :: Bool
 } deriving (Show, Generic)
 
-instance FromRow View where
-  fromRow = View <$> field <*> field <*>
-    fmap toBool field <*> fmap toBool field
+instance FromRow Table where
+  fromRow = Table <$> field <*> field <*> fmap toBool field
 
-instance JSON.ToJSON View
+instance JSON.ToJSON Table
 
 toBool :: String -> Bool
 toBool = (== "YES")
@@ -43,11 +43,11 @@ data Column = Column {
 , colPrecision :: Maybe Int
 } deriving (Show)
 
-views :: String -> Connection -> IO [View]
+views :: String -> Connection -> IO [Table]
 views s conn = query conn q $ Only s
   where q = "select table_schema, table_name,\
-            \       is_updatable, is_insertable_into \
-            \  from information_schema.views\
+            \       is_insertable_into \
+            \  from information_schema.tables\
             \ where table_schema = ?"
 
 main :: IO ()
@@ -61,8 +61,12 @@ payload conn = JSON.encode <$> views "base" conn
 
 app :: Application
 app req respond =
-  respond =<< responseLBS status200 [] <$> (payload =<< conn)
+  case path of
+    [] -> respond =<< responseLBS status200 [] <$> (payload =<< conn)
+    -- [table] -> respond $ responseLBS status200 [] $ encodeUtf8 table
+    _ -> respond $ responseLBS status404 [] ""
   where
+    path = pathInfo req
     conn = connect defaultConnectInfo {
       connectDatabase = "dbapi_test"
     }
