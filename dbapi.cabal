@@ -19,5 +19,6 @@ executable dbapi
                      , warp, wai, http-types
                      , bytestring, aeson, network
                      , text, optparse-applicative
+                     , unordered-containers
   -- hs-source-dirs:      
   default-language:    Haskell2010

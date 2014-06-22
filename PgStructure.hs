@@ -5,6 +5,7 @@ module PgStructure where
 import Control.Applicative
 
 import Data.Text
+import Data.HashMap.Strict
 import Data.ByteString.Lazy
 
 import Database.PostgreSQL.Simple
@@ -75,8 +76,11 @@ columns t conn = query conn q $ Only t
             \  from information_schema.columns\
             \ where table_name = ?"
 
+namedColumnHash :: [Column] -> HashMap String Column
+namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
+
 printTables :: Connection -> IO ByteString
 printTables conn = JSON.encode <$> tables "base" conn
 
 printColumns :: Text -> Connection -> IO ByteString
-printColumns table conn = JSON.encode <$> columns table conn
+printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn
