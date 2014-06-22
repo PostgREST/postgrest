@@ -17,7 +17,7 @@ executable dbapi
   build-depends:       base >=4.6 && <5
                      , postgresql-simple
                      , warp, wai, http-types
-                     , bytestring, aeson
-                     , text
+                     , bytestring, aeson, network
+                     , text, optparse-applicative
   -- hs-source-dirs:      
   default-language:    Haskell2010

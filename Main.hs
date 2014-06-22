@@ -5,8 +5,6 @@ module Main where
 import Data.ByteString.Lazy
 
 import Data.Text
-import Data.Text.Encoding (encodeUtf8)
-import Text.Read
 
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.FromRow
@@ -19,10 +17,12 @@ import Network.HTTP.Types.Status
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.=))
 
+import Options.Applicative hiding (columns)
+
 data Table = Table {
-  viewSchema :: String
-, viewName :: String
-, viewInsertable :: Bool
+  tableSchema :: String
+, tableName :: String
+, tableInsertable :: Bool
 } deriving (Show)
 
 instance FromRow Table where
@@ -30,9 +30,9 @@ instance FromRow Table where
 
 instance JSON.ToJSON Table where
   toJSON v = JSON.object [
-      "schema"     .= viewSchema v
-    , "name"       .= viewName v
-    , "insertable" .= viewInsertable v ]
+      "schema"     .= tableSchema v
+    , "name"       .= tableName v
+    , "insertable" .= tableInsertable v ]
 
 toBool :: String -> Bool
 toBool = (== "YES")
@@ -81,24 +81,40 @@ columns t conn = query conn q $ Only t
             \  from information_schema.columns\
             \ where table_name = ?"
 
-main :: IO ()
-main = do
-  let port = 3000
+data AppConfig = AppConfig {
+    configDb   :: String
+  , configPort :: Int }
+
+argParser :: Parser AppConfig
+argParser = AppConfig
+  <$> strOption (long "db" <> short 'd' <> metavar "URI"
+    <> help "database uri to expose, e.g. postgres://user:pass@host:port/database")
+  <*> option (long "port" <> short 'p' <> metavar "NUMBER" <> value 3000
+    <> help "port number on which to run HTTP server")
+
+exposeDb :: AppConfig -> IO ()
+exposeDb conf = do
   Prelude.putStrLn $ "Listening on port " ++ show port
   run port app
+    where
+      port = configPort conf
+
+main :: IO ()
+main = execParser (info (helper <*> argParser) describe) >>= exposeDb
+  where describe = progDesc "create a REST API to an existing Postgres database"
 
 printTables :: Connection -> IO ByteString
 printTables conn = JSON.encode <$> tables "base" conn
 
 printColumns :: Text -> Connection -> IO ByteString
-printColumns tableName conn = JSON.encode <$> columns tableName conn
+printColumns table conn = JSON.encode <$> columns table conn
 
 app :: Application
 app req respond =
   case path of
     []      -> respond =<< responseLBS status200 [] <$> (printTables =<< conn)
     [table] -> respond =<< responseLBS status200 [] <$> (printColumns table =<< conn)
-    _       -> respond $ responseLBS status404 [] ""
+    _       -> respond $   responseLBS status404 [] ""
   where
     path = pathInfo req
     conn = connect defaultConnectInfo {
