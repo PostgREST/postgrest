@@ -5,7 +5,9 @@ module Main where
 import GHC.Generics
 import Data.ByteString.Lazy
 
+import Data.Text
 import Data.Text.Encoding (encodeUtf8)
+import Text.Read
 
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.FromRow
@@ -49,12 +51,37 @@ data Column = Column {
 , colPrecision :: Maybe Int
 } deriving (Show)
 
-views :: String -> Connection -> IO [Table]
-views s conn = query conn q $ Only s
+instance FromRow Column where
+  fromRow = Column <$> field <*> field <*> field <*> field <*>
+                       fmap toBool field <*> field <*>
+                       fmap toBool field <*>
+                       field <*> field
+
+instance JSON.ToJSON Column where
+  toJSON c = JSON.object [
+      "schema" .= (colSchema c)
+    , "name"   .= (colName c)
+    , "position" .= (colPosition c)
+    , "nullable" .= (colNullable c)
+    , "type"   .= (colType c)
+    , "updatable" .= (colUpdatable c)
+    , "maxLen" .= (colMaxLen c)
+    , "precision" .= (colPrecision c) ]
+
+tables :: String -> Connection -> IO [Table]
+tables s conn = query conn q $ Only s
   where q = "select table_schema, table_name,\
             \       is_insertable_into \
             \  from information_schema.tables\
             \ where table_schema = ?"
+
+columns :: Text -> Connection -> IO [Column]
+columns t conn = query conn q $ Only t
+  where q = "select table_schema, table_name, column_name, ordinal_position,\
+            \       is_nullable, data_type, is_updatable,\
+            \       character_maximum_length, numeric_precision\
+            \  from information_schema.columns\
+            \ where table_name = ?"
 
 main :: IO ()
 main = do
@@ -62,15 +89,18 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++ show port
   run port app
 
-payload :: Connection -> IO ByteString
-payload conn = JSON.encode <$> views "base" conn
+printTables :: Connection -> IO ByteString
+printTables conn = JSON.encode <$> tables "base" conn
+
+printColumns :: Text -> Connection -> IO ByteString
+printColumns tableName conn = JSON.encode <$> columns tableName conn
 
 app :: Application
 app req respond =
   case path of
-    [] -> respond =<< responseLBS status200 [] <$> (payload =<< conn)
-    -- [table] -> respond $ responseLBS status200 [] $ encodeUtf8 table
-    _ -> respond $ responseLBS status404 [] ""
+    []      -> respond =<< responseLBS status200 [] <$> (printTables =<< conn)
+    [table] -> respond =<< responseLBS status200 [] <$> (printColumns table =<< conn)
+    _       -> respond $ responseLBS status404 [] ""
   where
     path = pathInfo req
     conn = connect defaultConnectInfo {
