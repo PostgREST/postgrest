@@ -12,7 +12,7 @@ cabal-version:       >=1.10
 
 executable dbapi
   main-is:             Main.hs
-  -- other-modules:       
+  other-modules:       PgStructure
   other-extensions:    OverloadedStrings
   build-depends:       base >=4.6 && <5
                      , postgresql-simple
