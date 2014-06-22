@@ -1,8 +1,7 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
-import GHC.Generics
 import Data.ByteString.Lazy
 
 import Data.Text
@@ -31,10 +30,9 @@ instance FromRow Table where
 
 instance JSON.ToJSON Table where
   toJSON v = JSON.object [
-    "schema" .= (viewSchema v),
-    "name"   .= (viewName v),
-    "insertable" .= (viewInsertable v)
-    ]
+      "schema"     .= viewSchema v
+    , "name"       .= viewName v
+    , "insertable" .= viewInsertable v ]
 
 toBool :: String -> Bool
 toBool = (== "YES")
@@ -59,14 +57,14 @@ instance FromRow Column where
 
 instance JSON.ToJSON Column where
   toJSON c = JSON.object [
-      "schema" .= (colSchema c)
-    , "name"   .= (colName c)
-    , "position" .= (colPosition c)
-    , "nullable" .= (colNullable c)
-    , "type"   .= (colType c)
-    , "updatable" .= (colUpdatable c)
-    , "maxLen" .= (colMaxLen c)
-    , "precision" .= (colPrecision c) ]
+      "schema"    .= colSchema c
+    , "name"      .= colName c
+    , "position"  .= colPosition c
+    , "nullable"  .= colNullable c
+    , "type"      .= colType c
+    , "updatable" .= colUpdatable c
+    , "maxLen"    .= colMaxLen c
+    , "precision" .= colPrecision c ]
 
 tables :: String -> Connection -> IO [Table]
 tables s conn = query conn q $ Only s
