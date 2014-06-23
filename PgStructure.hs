@@ -4,14 +4,18 @@ module PgStructure where
 
 import Control.Applicative
 
-import Data.Text
 import Data.HashMap.Strict
-import Data.ByteString.Lazy
 
-import Database.PostgreSQL.Simple
-import Database.PostgreSQL.Simple.FromRow
+import qualified Data.Text as T
+import qualified Data.ByteString.Lazy as BL
 
 import qualified Data.Aeson as JSON
+
+import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.Types
+import Database.PostgreSQL.Simple.FromRow
+--import Database.PostgreSQL.Simple.Arrays (esc)
+
 import Data.Aeson ((.=))
 
 data Table = Table {
@@ -68,7 +72,7 @@ tables s conn = query conn q $ Only s
             \  from information_schema.tables\
             \ where table_schema = ?"
 
-columns :: Text -> Connection -> IO [Column]
+columns :: T.Text -> Connection -> IO [Column]
 columns t conn = query conn q $ Only t
   where q = "select table_schema, table_name, column_name, ordinal_position,\
             \       is_nullable, data_type, is_updatable,\
@@ -79,8 +83,13 @@ columns t conn = query conn q $ Only t
 namedColumnHash :: [Column] -> HashMap String Column
 namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
 
-printTables :: Connection -> IO ByteString
+printTables :: Connection -> IO BL.ByteString
 printTables conn = JSON.encode <$> tables "base" conn
 
-printColumns :: Text -> Connection -> IO ByteString
+printColumns :: T.Text -> Connection -> IO BL.ByteString
 printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn
+
+selectAll :: T.Text -> Connection -> IO JSON.Value
+selectAll table conn = fromOnly <$> Prelude.head <$> query conn sql (Only $ QualifiedIdentifier (Just "base") table)
+  where sql = "select array_to_json(array_agg(row_to_json(t)))\
+            \  from (select * from ?) t;"

@@ -9,10 +9,13 @@ import Database.PostgreSQL.Simple
 import Network.Wai
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
+import Network.HTTP.Types.Method
+
+import Data.Aeson (encode)
 
 import Options.Applicative hiding (columns)
 
-import PgStructure (printTables, printColumns)
+import PgStructure (printTables, printColumns, selectAll)
 
 data AppConfig = AppConfig {
     configDb   :: String
@@ -41,10 +44,13 @@ app :: Application
 app req respond =
   case path of
     []      -> respond =<< responseLBS status200 [] <$> (printTables =<< conn)
-    [table] -> respond =<< responseLBS status200 [] <$> (printColumns table =<< conn)
-    _       -> respond $   responseLBS status404 [] ""
+    [table] -> if verb == methodOptions
+              then respond =<< responseLBS status200 [] <$> (printColumns table =<< conn)
+              else respond =<< responseLBS status200 [] <$> encode <$> (selectAll table =<< conn)
+    _       -> respond $ responseLBS status404 [] ""
   where
     path = pathInfo req
+    verb = requestMethod req
     conn = connect defaultConnectInfo {
       connectDatabase = "dbapi_test"
     }
