@@ -18,6 +18,9 @@ import Options.Applicative hiding (columns)
 
 import PgStructure (printTables, printColumns, selectAll)
 
+import Data.Text (unpack)
+import Web.Heroku.Postgres (parseDatabaseUrl)
+
 data AppConfig = AppConfig {
     configDb   :: String
   , configPort :: Int }
@@ -36,13 +39,25 @@ main = execParser (info (helper <*> argParser) describe) >>= exposeDb
 exposeDb :: AppConfig -> IO ()
 exposeDb conf = do
   Prelude.putStrLn $ "Listening on port " ++ show port
-  run port app
+  run port $ app conf
 
   where
     port = configPort conf
 
-app :: Application
-app req respond =
+connInfo :: AppConfig -> ConnectInfo
+connInfo config = defaultConnectInfo {
+    connectHost = host,
+    connectUser = user,
+    connectPassword = pass,
+    connectDatabase = db
+  }
+  where
+    opts = parseDatabaseUrl $ configDb config
+    fromOpt key = maybe (connectHost defaultConnectInfo) unpack $ lookup key opts
+    [host, user, pass, db] = map fromOpt ["host", "user", "password", "dbname"]
+
+app ::  AppConfig -> Application
+app config req respond =
   case path of
     []      -> respond =<< responseLBS status200 [json] <$> (printTables =<< conn)
     [table] -> if verb == methodOptions
@@ -52,7 +67,5 @@ app req respond =
   where
     path = pathInfo req
     verb = requestMethod req
-    conn = connect defaultConnectInfo {
-      connectDatabase = "dbapi_test"
-    }
     json = (hContentType, "application/json")
+    conn = connect $ connInfo config

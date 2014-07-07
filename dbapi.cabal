@@ -7,7 +7,7 @@ author:              Joe Nelson
 maintainer:          cred+github@begriffs.com
 category:            Web
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 executable dbapi
@@ -21,5 +21,6 @@ executable dbapi
                      , bytestring, aeson, network
                      , text, optparse-applicative
                      , unordered-containers
-  -- hs-source-dirs:      
+                     , heroku
+  -- hs-source-dirs:
   default-language:    Haskell2010
