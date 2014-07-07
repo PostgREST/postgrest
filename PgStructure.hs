@@ -68,9 +68,9 @@ instance JSON.ToJSON Column where
 tables :: String -> Connection -> IO [Table]
 tables s conn = query conn q $ Only s
   where q = [sql|
-              select table_schema, table_name,\
-                     is_insertable_into \
-                from information_schema.tables\
+              select table_schema, table_name,
+                     is_insertable_into
+                from information_schema.tables
                where table_schema = ? |]
 
 columns :: T.Text -> Connection -> IO [Column]
