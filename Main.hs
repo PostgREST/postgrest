@@ -9,6 +9,7 @@ import Database.PostgreSQL.Simple
 import Network.Wai
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
+import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
 
 import Data.Aeson (encode)
@@ -43,10 +44,10 @@ exposeDb conf = do
 app :: Application
 app req respond =
   case path of
-    []      -> respond =<< responseLBS status200 [] <$> (printTables =<< conn)
+    []      -> respond =<< responseLBS status200 [json] <$> (printTables =<< conn)
     [table] -> if verb == methodOptions
-              then respond =<< responseLBS status200 [] <$> (printColumns table =<< conn)
-              else respond =<< responseLBS status200 [] <$> encode <$> (selectAll table =<< conn)
+              then respond =<< responseLBS status200 [json] <$> (printColumns table =<< conn)
+              else respond =<< responseLBS status200 [json] <$> encode <$> (selectAll table =<< conn)
     _       -> respond $ responseLBS status404 [] ""
   where
     path = pathInfo req
@@ -54,3 +55,4 @@ app req respond =
     conn = connect defaultConnectInfo {
       connectDatabase = "dbapi_test"
     }
+    json = (hContentType, "application/json")
