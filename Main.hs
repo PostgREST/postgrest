@@ -53,8 +53,8 @@ connInfo config = defaultConnectInfo {
   }
   where
     opts = parseDatabaseUrl $ configDb config
-    fromOpt key = maybe (connectHost defaultConnectInfo) unpack $ lookup key opts
-    [host, user, pass, db] = map fromOpt ["host", "user", "password", "dbname"]
+    fromOpt (fn, key) = maybe (fn defaultConnectInfo) unpack $ lookup key opts
+    [host, user, pass, db] = map fromOpt [(connectHost, "host"), (connectUser, "user"), (connectPassword, "password"), (connectDatabase, "dbname")]
 
 app ::  AppConfig -> Application
 app config req respond =
