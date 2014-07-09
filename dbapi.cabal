@@ -16,11 +16,10 @@ executable dbapi
   other-modules:       PgStructure
   other-extensions:    OverloadedStrings
   build-depends:       base >=4.6 && <5
-                     , postgresql-simple
+                     , HDBC, HDBC-postgresql
                      , warp, wai, http-types
                      , bytestring, aeson, network
                      , text, optparse-applicative
                      , unordered-containers
-                     , heroku
   -- hs-source-dirs:
   default-language:    Haskell2010
