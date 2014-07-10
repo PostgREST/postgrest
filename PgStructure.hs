@@ -106,22 +106,23 @@ printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn
 
 selectAll :: T.Text -> Connection -> IO BL.ByteString
 selectAll table conn = do
-  sql <- prepareDynamic conn
+  statement <- prepareDynamic conn
     "select array_to_json(array_agg(row_to_json(t)))\
     \  from (select * from %I.%I) t" [toSql (T.pack "base"), toSql table]
-  r <- quickQuery conn sql []
+  _ <- execute statement []
+  r <- fetchAllRows statement
   return $ case r of
                 [[json]] -> fromSql json
                 _        -> "" :: BL.ByteString
 
-prepareDynamic :: Connection -> String -> [SqlValue] -> IO String
+prepareDynamic :: Connection -> String -> [SqlValue] -> IO Statement
 prepareDynamic conn sql args = do
-  let q = (concat [ "select format('", sql, "', ", placeholders args, ")" ])
-  r <- quickQuery conn q args
+  [[escaped]] <- quickQuery conn q args
 
-  return $ case r of
-                [[formatted]] -> fromSql formatted
-                _             -> ""
+  prepare conn $ fromSql escaped
 
   where
+    q = concat [ "select format('", sql, "', ", placeholders args, ")" ]
+
+    placeholders :: [a] -> [Char]
     placeholders = intercalate ", " . map (const "?::varchar")
