@@ -3,18 +3,27 @@
 module Main where
 
 import Control.Applicative
+import Data.Maybe (fromMaybe)
+import qualified Data.ByteString.Char8 as BS
 
 import Database.HDBC.PostgreSQL (connectPostgreSQL)
 
 import Network.Wai
+import Network.URI (uriQuery, parseURI)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
+import Network.HTTP.Types.URI (parseSimpleQuery)
 
 import Options.Applicative hiding (columns)
 
-import PgStructure (printTables, printColumns, selectAll)
+import PgStructure (printTables, printColumns, selectWhere)
+
+import Debug.Trace
+
+traceThis :: (Show a) => a -> a
+traceThis x = trace (show x) x
 
 data AppConfig = AppConfig {
     configDbUri :: String
@@ -43,10 +52,12 @@ app config req respond =
     []      -> respond =<< responseLBS status200 [json] <$> (printTables =<< conn)
     [table] -> respond =<< if verb == methodOptions
                               then responseLBS status200 [json] <$> (printColumns table =<< conn)
-                              else responseLBS status200 [json] <$> (selectAll table =<< conn)
+                              else responseLBS status200 [json] <$> (selectWhere table qq =<< conn)
     _       -> respond $ responseLBS status404 [] ""
   where
     path = pathInfo req
     verb = requestMethod req
     json = (hContentType, "application/json")
     conn = connectPostgreSQL $ configDbUri config
+    --qq   = fromMaybe [] $ parseSimpleQuery . BS.pack . uriQuery <$> traceThis (parseURI . BS.unpack $ traceThis $ rawPathInfo req)
+    qq   = queryString req
