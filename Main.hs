@@ -3,18 +3,14 @@
 module Main where
 
 import Control.Applicative
-import Data.Maybe (fromMaybe)
-import qualified Data.ByteString.Char8 as BS
 
 import Database.HDBC.PostgreSQL (connectPostgreSQL)
 
 import Network.Wai
-import Network.URI (uriQuery, parseURI)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
-import Network.HTTP.Types.URI (parseSimpleQuery)
 
 import Options.Applicative hiding (columns)
 
@@ -59,5 +55,4 @@ app config req respond =
     verb = requestMethod req
     json = (hContentType, "application/json")
     conn = connectPostgreSQL $ configDbUri config
-    --qq   = fromMaybe [] $ parseSimpleQuery . BS.pack . uriQuery <$> traceThis (parseURI . BS.unpack $ traceThis $ rawPathInfo req)
     qq   = queryString req

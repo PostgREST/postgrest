@@ -112,43 +112,57 @@ printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn
 traceThis :: (Show a) => a -> a
 traceThis x = trace (show x) x
 
+
 selectWhere :: T.Text -> Query -> Connection -> IO BL.ByteString
 selectWhere table qq conn = do
-  let sql = unwords [
-        "select array_to_json(array_agg(row_to_json(t)))\
-        \  from (select * from %I.%I) t", whereClause qq ]
-  statement <- prepareDynamic conn sql
-     [toSql (T.pack "base"), toSql table]
-  _ <- execute statement []
-  r <- fetchAllRows statement
+  s <- selectSql
+  w <- whereClause conn qq
+  r <- quickQuery conn (BS.unpack $ s <> w) []
   return $ case r of
                 [[json]] -> fromSql json
                 _        -> "" :: BL.ByteString
 
   where
-    wherePred :: QueryItem -> BS.ByteString
-    wherePred (column, predicate) =
-      let opCode:rest = BS.split ':' $ fromMaybe "" predicate
-          value = BS.intercalate ":" rest
-          op = case opCode of
-                    "eq"  -> "="
-                    "gt"  -> ">"
-                    "lt"  -> "<"
-                    "gte" -> ">="
-                    "lte" -> "<="
-                    "neq" -> "<>"
-                    _     -> "="
-       in BS.intercalate " " ["t." <> column, op, value]
+    selectSql = pgFormat conn
+          "select array_to_json(array_agg(row_to_json(t)))\
+          \  from (select * from %I.%I) t"
+        [toSql (T.pack "base"), toSql table]
 
-    whereClause :: Query -> String
-    whereClause [] = ""
-    whereClause qs = BS.unpack $ "where " <> BS.intercalate " and " (map wherePred qs)
 
-prepareDynamic :: Connection -> String -> [SqlValue] -> IO Statement
-prepareDynamic conn sql args = do
+whereClause :: Connection -> Query -> IO BS.ByteString
+whereClause _    [] = return ""
+whereClause conn qs =
+  (" where " <>) <$> clause
+
+  where
+    clause :: IO BS.ByteString
+    clause = BS.intercalate " and " <$> preds
+
+    preds :: IO [BS.ByteString]
+    preds = sequence $ map (wherePred conn) qs
+
+
+wherePred :: Connection -> QueryItem -> IO BS.ByteString
+wherePred conn (column, predicate) =
+  pgFormat conn ("t.%I " <> op <> "%L") $ map toSql [column, value]
+
+  where
+    opCode:rest = BS.split ':' $ fromMaybe "" predicate
+    value = BS.intercalate ":" rest
+    op = case opCode of
+              "eq"  -> "="
+              "gt"  -> ">"
+              "lt"  -> "<"
+              "gte" -> ">="
+              "lte" -> "<="
+              "neq" -> "<>"
+              _     -> "="
+
+
+pgFormat :: Connection -> String -> [SqlValue] -> IO BS.ByteString
+pgFormat conn sql args = do
   [[escaped]] <- quickQuery conn q args
-
-  prepare conn $ fromSql escaped
+  return $ fromSql escaped
 
   where
     q = concat [ "select format('", sql, "', ", placeholders args, ")" ]
