@@ -14,6 +14,7 @@ executable dbapi
   main-is:             Main.hs
   ghc-options:         -Wall
   other-modules:       PgStructure
+                     , PgQuery
   other-extensions:    OverloadedStrings
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql

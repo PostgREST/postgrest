@@ -14,7 +14,8 @@ import Network.HTTP.Types.Method
 
 import Options.Applicative hiding (columns)
 
-import PgStructure (printTables, printColumns, selectWhere)
+import PgStructure (printTables, printColumns)
+import PgQuery     (selectWhere)
 
 import Debug.Trace
 
