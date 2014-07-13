@@ -3,8 +3,10 @@
 module Main where
 
 import Control.Applicative
+import Control.Exception (try)
 
 import Database.HDBC.PostgreSQL (connectPostgreSQL)
+import Database.HDBC.Types (SqlError, seErrorMsg)
 
 import Network.Wai
 import Network.Wai.Handler.Warp hiding (Connection)
@@ -13,6 +15,9 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
 
 import Options.Applicative hiding (columns)
+
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Char8 as BS
 
 import PgStructure (printTables, printColumns)
 import PgQuery     (selectWhere)
@@ -45,7 +50,7 @@ main = do
 
 app ::  AppConfig -> Application
 app config req respond = do
-  r <-
+  r <- try $
     case path of
       []      -> responseLBS status200 [json] <$> (printTables =<< conn)
       [table] -> responseLBS status200 [json] <$>
@@ -54,7 +59,7 @@ app config req respond = do
                   else selectWhere table qq =<< conn )
       _       -> return $ responseLBS status404 [] ""
 
-  respond r
+  respond $ either sqlErrorHandler id r
 
   where
     path = pathInfo req
@@ -62,3 +67,7 @@ app config req respond = do
     json = (hContentType, "application/json")
     conn = connectPostgreSQL $ configDbUri config
     qq   = queryString req
+
+sqlErrorHandler :: SqlError -> Response
+sqlErrorHandler e =
+  responseLBS status400 [] $ BL.fromChunks [BS.pack (seErrorMsg e)]
