@@ -47,9 +47,10 @@ app ::  AppConfig -> Application
 app config req respond =
   case path of
     []      -> respond =<< responseLBS status200 [json] <$> (printTables =<< conn)
-    [table] -> respond =<< if verb == methodOptions
-                              then responseLBS status200 [json] <$> (printColumns table =<< conn)
-                              else responseLBS status200 [json] <$> (selectWhere table qq =<< conn)
+    [table] -> respond =<< (<$>) (responseLBS status200 [json])
+                               ( if verb == methodOptions
+                                 then printColumns table =<< conn
+                                 else selectWhere table qq =<< conn )
     _       -> respond $ responseLBS status404 [] ""
   where
     path = pathInfo req
