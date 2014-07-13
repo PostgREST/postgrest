@@ -44,14 +44,18 @@ main = do
     describe = progDesc "create a REST API to an existing Postgres database"
 
 app ::  AppConfig -> Application
-app config req respond =
-  case path of
-    []      -> respond =<< responseLBS status200 [json] <$> (printTables =<< conn)
-    [table] -> respond =<< (<$>) (responseLBS status200 [json])
-                               ( if verb == methodOptions
-                                 then printColumns table =<< conn
-                                 else selectWhere table qq =<< conn )
-    _       -> respond $ responseLBS status404 [] ""
+app config req respond = do
+  r <-
+    case path of
+      []      -> responseLBS status200 [json] <$> (printTables =<< conn)
+      [table] -> responseLBS status200 [json] <$>
+                ( if verb == methodOptions
+                  then printColumns table =<< conn
+                  else selectWhere table qq =<< conn )
+      _       -> return $ responseLBS status404 [] ""
+
+  respond r
+
   where
     path = pathInfo req
     verb = requestMethod req
