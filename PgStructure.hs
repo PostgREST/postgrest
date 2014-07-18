@@ -97,8 +97,8 @@ columns t conn = do
 namedColumnHash :: [Column] -> HashMap String Column
 namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
 
-printTables :: Connection -> IO BL.ByteString
-printTables conn = JSON.encode <$> tables "base" conn
+printTables :: Int -> Connection -> IO BL.ByteString
+printTables schema conn = JSON.encode <$> tables (show schema) conn
 
 printColumns :: T.Text -> Connection -> IO BL.ByteString
 printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn

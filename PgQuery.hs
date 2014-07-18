@@ -16,8 +16,8 @@ import Database.HDBC.PostgreSQL
 
 import Network.HTTP.Types.URI
 
-selectWhere :: T.Text -> Query -> Connection -> IO BL.ByteString
-selectWhere table qq conn = do
+selectWhere :: T.Text -> T.Text -> Query -> Connection -> IO BL.ByteString
+selectWhere ver table qq conn = do
   s <- selectSql
   w <- whereClause conn qq
   r <- quickQuery conn (BS.unpack $ s <> w) []
@@ -29,7 +29,7 @@ selectWhere table qq conn = do
     selectSql = pgFormat conn
           "select array_to_json(array_agg(row_to_json(t)))\
           \  from (select * from %I.%I) t"
-        [toSql (T.pack "base"), toSql table]
+        [toSql ver, toSql table]
 
 
 whereClause :: Connection -> Query -> IO BS.ByteString

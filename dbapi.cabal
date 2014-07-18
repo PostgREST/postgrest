@@ -22,5 +22,6 @@ executable dbapi
                      , bytestring, aeson, network
                      , text, optparse-applicative
                      , unordered-containers
+                     , http-media, regex-posix
   -- hs-source-dirs:
   default-language:    Haskell2010

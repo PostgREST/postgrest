@@ -22,10 +22,10 @@ import qualified Data.ByteString.Char8 as BS
 import PgStructure (printTables, printColumns)
 import PgQuery     (selectWhere)
 
-import Debug.Trace
-
-traceThis :: (Show a) => a -> a
-traceThis x = trace (show x) x
+import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
+import Text.Regex.Posix ((=~))
+import Text.Read (readMaybe)
 
 data AppConfig = AppConfig {
     configDbUri :: String
@@ -52,11 +52,11 @@ app ::  AppConfig -> Application
 app config req respond = do
   r <- try $
     case path of
-      []      -> responseLBS status200 [json] <$> (printTables =<< conn)
+      []      -> responseLBS status200 [json] <$> (printTables ver =<< conn)
       [table] -> responseLBS status200 [json] <$>
                 ( if verb == methodOptions
                   then printColumns table =<< conn
-                  else selectWhere table qq =<< conn )
+                  else selectWhere (T.pack $ show ver) table qq =<< conn )
       _       -> return $ responseLBS status404 [] ""
 
   respond $ either sqlErrorHandler id r
@@ -67,6 +67,17 @@ app config req respond = do
     json = (hContentType, "application/json")
     conn = connectPostgreSQL $ configDbUri config
     qq   = queryString req
+    ver  = fromMaybe 1 $ requestedVersion (requestHeaders req)
+
+requestedVersion :: RequestHeaders -> Maybe Int
+requestedVersion hdrs =
+  case verStr of
+       Just [[_, ver]] -> readMaybe ver
+       _ -> Nothing
+
+  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
+        accept = BS.unpack <$> lookup hAccept hdrs :: Maybe String
+        verStr = (=~ verRegex) <$> accept :: Maybe [[String]]
 
 sqlErrorHandler :: SqlError -> Response
 sqlErrorHandler e =
