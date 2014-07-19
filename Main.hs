@@ -55,7 +55,7 @@ app config req respond = do
       []      -> responseLBS status200 [json] <$> (printTables ver =<< conn)
       [table] -> responseLBS status200 [json] <$>
                 ( if verb == methodOptions
-                  then printColumns table =<< conn
+                  then printColumns ver table =<< conn
                   else selectWhere (T.pack $ show ver) table qq =<< conn )
       _       -> return $ responseLBS status404 [] ""
 

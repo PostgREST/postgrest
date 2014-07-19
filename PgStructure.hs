@@ -71,14 +71,15 @@ tables s conn = do
         (toBool (fromSql insertable))
     mkTable _ = Nothing
 
-columns :: T.Text -> Connection -> IO [Column]
-columns t conn = do
+columns :: Int -> T.Text -> Connection -> IO [Column]
+columns s t conn = do
   r <- quickQuery conn
         "select table_schema, table_name, column_name, ordinal_position,\
         \       is_nullable, data_type, is_updatable,\
         \       character_maximum_length, numeric_precision\
         \  from information_schema.columns\
-        \ where table_name = ?" [toSql t]
+        \ where table_schema = ?\
+        \   and table_name = ?" [toSql (show s), toSql t]
   return $ mapMaybe mkColumn r
 
   where
@@ -100,5 +101,5 @@ namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
 printTables :: Int -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables (show schema) conn
 
-printColumns :: T.Text -> Connection -> IO BL.ByteString
-printColumns table conn = JSON.encode . namedColumnHash <$> columns table conn
+printColumns :: Int -> T.Text -> Connection -> IO BL.ByteString
+printColumns schema table conn = JSON.encode . namedColumnHash <$> columns schema table conn
