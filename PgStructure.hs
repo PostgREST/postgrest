@@ -5,6 +5,8 @@ module PgStructure where
 import Data.Functor ( (<$>) )
 import Data.Maybe (mapMaybe)
 
+import Control.Applicative ( (<*>) )
+
 import Data.HashMap.Strict hiding (map)
 
 import qualified Data.Text as T
@@ -55,6 +57,16 @@ instance JSON.ToJSON Column where
     , "maxLen"    .= colMaxLen c
     , "precision" .= colPrecision c ]
 
+data TableOptions = TableOptions {
+  tblOptcolumns :: HashMap String Column
+, tblOptpkey :: [String]
+}
+
+instance JSON.ToJSON TableOptions where
+  toJSON t = JSON.object [
+      "columns" .= tblOptcolumns t
+    , "pkey"   .= tblOptpkey t ]
+
 tables :: String -> Connection -> IO [Table]
 tables s conn = do
   r <- quickQuery conn
@@ -102,4 +114,25 @@ printTables :: Int -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables (show schema) conn
 
 printColumns :: Int -> T.Text -> Connection -> IO BL.ByteString
-printColumns schema table conn = JSON.encode . namedColumnHash <$> columns schema table conn
+printColumns schema table conn =
+  JSON.encode <$> (TableOptions <$> cols <*> pkey)
+  where
+    cols :: IO (HashMap String Column)
+    cols = namedColumnHash <$> columns schema table conn
+    pkey :: IO [String]
+    pkey = primaryKeyColumns schema table conn
+
+primaryKeyColumns :: Int -> T.Text -> Connection -> IO [String]
+primaryKeyColumns s t conn = do
+  r <- quickQuery conn
+        "select kc.column_name \
+        \  from \
+        \    information_schema.table_constraints tc, \
+        \    information_schema.key_column_usage kc \
+        \where \
+        \  tc.constraint_type = 'PRIMARY KEY' \
+        \  and kc.table_name = tc.table_name and kc.table_schema = tc.table_schema \
+        \  and kc.constraint_name = tc.constraint_name \
+        \  and kc.table_schema = ? \
+        \  and kc.table_name  = ?" [toSql (show s), toSql t]
+  return $ map fromSql (concat r)
