@@ -31,7 +31,6 @@ selectWhere ver table qq conn = do
           \  from (select * from %I.%I) t"
         [toSql ver, toSql table]
 
-
 whereClause :: Connection -> Query -> IO BS.ByteString
 whereClause _    [] = return ""
 whereClause conn qs =

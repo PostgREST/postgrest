@@ -15,6 +15,7 @@ executable dbapi
   ghc-options:         -Wall
   other-modules:       PgStructure
                      , PgQuery
+                     , RangeQuery
   other-extensions:    OverloadedStrings
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql
@@ -22,6 +23,8 @@ executable dbapi
                      , bytestring, aeson, network
                      , text, optparse-applicative
                      , unordered-containers
-                     , http-media, regex-posix
+                     , regex-base
+                     , http-media, regex-tdfa
+                     , Ranged-sets
   -- hs-source-dirs:
   default-language:    Haskell2010

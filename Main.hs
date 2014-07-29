@@ -21,10 +21,11 @@ import qualified Data.ByteString.Char8 as BS
 
 import PgStructure (printTables, printColumns)
 import PgQuery     (selectWhere)
+import RangeQuery
 
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
-import Text.Regex.Posix ((=~))
+import Text.Regex.TDFA ((=~))
 import Text.Read (readMaybe)
 
 data AppConfig = AppConfig {
