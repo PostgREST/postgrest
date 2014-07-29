@@ -16,11 +16,11 @@ import Data.Maybe (fromMaybe, listToMaybe)
 
 rangeGeq :: Int -> Range Int
 rangeGeq n =
-  head $ rangeUnion (singletonRange n) $ Range (BoundaryAbove n) BoundaryAboveAll
+  Range (BoundaryBelow n) BoundaryAboveAll
 
 rangeLeq :: Int -> Range Int
 rangeLeq n =
-  head $ rangeUnion (singletonRange n) $ Range BoundaryBelowAll (BoundaryBelow n)
+  Range BoundaryBelowAll (BoundaryAbove n)
 
 parseRange :: String -> Maybe(Range Int)
 parseRange range = do
