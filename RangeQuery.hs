@@ -14,15 +14,17 @@ import Text.Read (readMaybe)
 
 import Data.Maybe (fromMaybe, listToMaybe)
 
-rangeGeq :: Int -> Range Int
+type NonnegRange = Range Int
+
+rangeGeq :: Int -> NonnegRange
 rangeGeq n =
   Range (BoundaryBelow n) BoundaryAboveAll
 
-rangeLeq :: Int -> Range Int
+rangeLeq :: Int -> NonnegRange
 rangeLeq n =
   Range BoundaryBelowAll (BoundaryAbove n)
 
-parseRange :: String -> Maybe(Range Int)
+parseRange :: String -> Maybe NonnegRange
 parseRange range = do
   let rangeRegex = "^([0-9]+)-([0-9]*)$" :: String
 
@@ -34,5 +36,17 @@ parseRange range = do
 
   return $ rangeIntersection lower upper
 
-requestedRange :: RequestHeaders -> Maybe(Range Int)
+requestedRange :: RequestHeaders -> Maybe NonnegRange
 requestedRange hdrs = parseRange =<< BS.unpack <$> lookup hRange hdrs
+
+limit :: NonnegRange -> Maybe Int
+limit range =
+  case [rangeLower range, rangeUpper range]
+    of [BoundaryBelow from, BoundaryAbove to] -> Just (1 + to - from)
+       _ -> Nothing
+
+offset :: NonnegRange -> Int
+offset range =
+  case rangeLower range
+    of BoundaryBelow from -> from
+       _ -> 0 -- should never happen

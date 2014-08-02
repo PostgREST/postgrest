@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- {{{ Imports
+
 module Main where
 
 import Control.Applicative
@@ -28,6 +30,12 @@ import qualified Data.Text as T
 import Text.Regex.TDFA ((=~))
 import Text.Read (readMaybe)
 
+import Data.Ranged.Ranges (emptyRange)
+
+import Debug.Trace
+
+-- }}}
+
 data AppConfig = AppConfig {
     configDbUri :: String
   , configPort  :: Int }
@@ -49,26 +57,33 @@ main = do
   where
     describe = progDesc "create a REST API to an existing Postgres database"
 
+traceThis :: (Show a) => a -> a
+traceThis x = trace (show x) x
+
 app ::  AppConfig -> Application
 app config req respond = do
   r <- try $
     case path of
       []      -> responseLBS status200 [json] <$> (printTables ver =<< conn)
-      [table] -> responseLBS status200 [json] <$>
+      [table] -> if range == Just emptyRange
+                then return $ responseLBS status416 [] "HTTP Range error"
+                else responseLBS status200 [json] <$>
                 ( if verb == methodOptions
                   then printColumns ver table =<< conn
-                  else selectWhere (T.pack $ show ver) table qq =<< conn )
+                  else
+                      selectWhere (T.pack $ show ver) table qq range =<< conn )
       _       -> return $ responseLBS status404 [] ""
 
   respond $ either sqlErrorHandler id r
 
   where
-    path = pathInfo req
-    verb = requestMethod req
-    json = (hContentType, "application/json")
-    conn = connectPostgreSQL $ configDbUri config
-    qq   = queryString req
-    ver  = fromMaybe 1 $ requestedVersion (requestHeaders req)
+    path   = pathInfo req
+    verb   = requestMethod req
+    json   = (hContentType, "application/json")
+    conn   = connectPostgreSQL $ configDbUri config
+    qq     = queryString req
+    ver    = fromMaybe 1 $ requestedVersion (requestHeaders req)
+    range  = requestedRange (requestHeaders req)
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =
