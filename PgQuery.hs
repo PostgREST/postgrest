@@ -31,6 +31,7 @@ selectWhere ver table qq range conn = do
   r <- quickQuery conn (BS.unpack $ s <> w) []
 
   let body = case r of
+             [[SqlNull]] -> "[]"::BL.ByteString
              [[json]] -> fromSql json
              _        -> "" :: BL.ByteString
   return body
