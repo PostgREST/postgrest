@@ -17,15 +17,23 @@ import Database.HDBC.PostgreSQL
 
 import Network.HTTP.Types.URI
 
+data RangedResult = RangedResult {
+  rrFrom  :: Int
+, rrTo    :: Int
+, rrTotal :: Int
+, rrBody  :: BL.ByteString
+}
+
 selectWhere :: T.Text -> T.Text -> Query -> Maybe R.NonnegRange -> Connection -> IO BL.ByteString
 selectWhere ver table qq range conn = do
   s <- selectSql
   w <- whereClause conn qq
   r <- quickQuery conn (BS.unpack $ s <> w) []
 
-  return $ case r of
-                [[json]] -> fromSql json
-                _        -> "" :: BL.ByteString
+  let body = case r of
+             [[json]] -> fromSql json
+             _        -> "" :: BL.ByteString
+  return body
 
   where
     limit = fromMaybe "ALL" $ show <$> (R.limit =<< range)

@@ -14,7 +14,6 @@ import Network.Wai
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
-import Network.HTTP.Types.Method
 
 import Options.Applicative hiding (columns)
 
@@ -63,16 +62,20 @@ traceThis x = trace (show x) x
 app ::  AppConfig -> Application
 app config req respond = do
   r <- try $
-    case path of
-      []      -> responseLBS status200 [json] <$> (printTables ver =<< conn)
-      [table] -> if range == Just emptyRange
-                then return $ responseLBS status416 [] "HTTP Range error"
-                else responseLBS status200 [json] <$>
-                ( if verb == methodOptions
-                  then printColumns ver table =<< conn
-                  else
-                      selectWhere (T.pack $ show ver) table qq range =<< conn )
-      _       -> return $ responseLBS status404 [] ""
+    case (path, verb) of
+      ([], _) ->
+        responseLBS status200 [json] <$> (printTables ver =<< conn)
+      ([table], "OPTIONS") ->
+        responseLBS status200 [json] <$> (printColumns ver table =<< conn)
+      ([table], "GET") ->
+        if range == Just emptyRange
+        then return $ responseLBS status416 [] "HTTP Range error"
+        else responseLBS status200 [json] <$> (
+          selectWhere (T.pack $ show ver) table qq range =<< conn
+        )
+      (_, _) ->
+        return $ responseLBS status404 [] ""
+
 
   respond $ either sqlErrorHandler id r
 
