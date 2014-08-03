@@ -9,7 +9,6 @@ import Control.Applicative ( (<*>) )
 
 import Data.HashMap.Strict hiding (map)
 
-import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL
 
 import qualified Data.Aeson as JSON
@@ -83,7 +82,7 @@ tables s conn = do
         (toBool (fromSql insertable))
     mkTable _ = Nothing
 
-columns :: Int -> T.Text -> Connection -> IO [Column]
+columns :: Int -> String -> Connection -> IO [Column]
 columns s t conn = do
   r <- quickQuery conn
         "select table_schema, table_name, column_name, ordinal_position,\
@@ -113,7 +112,7 @@ namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
 printTables :: Int -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables (show schema) conn
 
-printColumns :: Int -> T.Text -> Connection -> IO BL.ByteString
+printColumns :: Int -> String -> Connection -> IO BL.ByteString
 printColumns schema table conn =
   JSON.encode <$> (TableOptions <$> cols <*> pkey)
   where
@@ -122,7 +121,7 @@ printColumns schema table conn =
     pkey :: IO [String]
     pkey = primaryKeyColumns schema table conn
 
-primaryKeyColumns :: Int -> T.Text -> Connection -> IO [String]
+primaryKeyColumns :: Int -> String -> Connection -> IO [String]
 primaryKeyColumns s t conn = do
   r <- quickQuery conn
         "select kc.column_name \

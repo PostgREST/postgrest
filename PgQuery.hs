@@ -1,21 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- {{{ Imports
+
 module PgQuery where
 
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe)
-import Data.List (intercalate)
-import Data.Monoid ((<>))
+import Data.List (intersperse, intercalate)
+import Data.Monoid ((<>), mconcat)
 
 import qualified RangeQuery as R
-import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy as BL
 
 import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
 
-import Network.HTTP.Types.URI
+import qualified Network.HTTP.Types.URI as Net
+
+-- }}}
 
 data RangedResult = RangedResult {
   rrFrom  :: Int
@@ -24,43 +27,35 @@ data RangedResult = RangedResult {
 , rrBody  :: BL.ByteString
 }
 
-selectWhere :: T.Text -> T.Text -> Query -> Maybe R.NonnegRange -> Connection -> IO BL.ByteString
-selectWhere ver table qq range conn = do
-  s <- selectSql
-  w <- whereClause conn qq
-  r <- quickQuery conn (BS.unpack $ s <> w) []
+type QuotedSql = (String, [SqlValue])
+
+getRows :: String -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
+getRows schema table qq range conn = do
+  query <- populateSql conn
+    $ jsonArrayRows
+    $ selectStarClause schema table
+      <> whereClause qq
+      <> limitClause range
+  r <- quickQuery conn query []
 
   let body = case r of
-             [[SqlNull]] -> "[]"::BL.ByteString
-             [[json]] -> fromSql json
-             _        -> "" :: BL.ByteString
-  return body
+             [[SqlNull]] -> "[]"
+             [[json]]    -> fromSql json
+             _           -> ""
+  return $ RangedResult 0 0 0 body
+
+
+whereClause :: Net.Query -> QuotedSql
+whereClause qs =
+  if null qs then ("", []) else (" where ", []) <> conjunction
 
   where
-    limit = fromMaybe "ALL" $ show <$> (R.limit =<< range)
-    offset = fromMaybe 0 (R.offset <$> range)
-    selectSql = pgFormat conn
-          "select array_to_json(array_agg(row_to_json(t)))\
-          \  from (select * from %I.%I LIMIT %s OFFSET %s) t"
-        [toSql ver, toSql table, toSql limit, toSql offset]
+    conjunction = mconcat $ intersperse (" and ", []) (map wherePred qs)
 
 
-whereClause :: Connection -> Query -> IO BS.ByteString
-whereClause _    [] = return ""
-whereClause conn qs =
-  (" where " <>) <$> clause
-
-  where
-    clause :: IO BS.ByteString
-    clause = BS.intercalate " and " <$> preds
-
-    preds :: IO [BS.ByteString]
-    preds = mapM (wherePred conn) qs
-
-
-wherePred :: Connection -> QueryItem -> IO BS.ByteString
-wherePred conn (column, predicate) =
-  pgFormat conn ("t.%I " <> op <> "%L") $ map toSql [column, value]
+wherePred :: Net.QueryItem -> QuotedSql
+wherePred (column, predicate) =
+  ("t.%I " <> op <> "%L", map toSql [column, value])
 
   where
     opCode:rest = BS.split ':' $ fromMaybe "" predicate
@@ -75,13 +70,33 @@ wherePred conn (column, predicate) =
               _     -> "="
 
 
-pgFormat :: Connection -> String -> [SqlValue] -> IO BS.ByteString
-pgFormat conn sql args = do
-  [[escaped]] <- quickQuery conn q args
+limitClause :: Maybe R.NonnegRange -> QuotedSql
+limitClause range =
+  (" LIMIT %s OFFSET %s ", [toSql limit, toSql offset])
+
+  where
+    limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
+    offset = fromMaybe 0     $ R.offset <$> range
+
+selectStarClause :: String -> String -> QuotedSql
+selectStarClause schema table =
+  (" select * from %I.%I ", map toSql [schema, table])
+
+selectCountClause :: String -> String -> QuotedSql
+selectCountClause schema table =
+  (" select count(1) from %I.%I ", map toSql [schema, table])
+
+jsonArrayRows :: QuotedSql -> QuotedSql
+jsonArrayRows q =
+  ("select array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
+
+populateSql :: Connection -> QuotedSql -> IO String
+populateSql conn sql = do
+  [[escaped]] <- quickQuery conn q (snd sql)
   return $ fromSql escaped
 
   where
-    q = concat [ "select format('", sql, "', ", placeholders args, ")" ]
+    q = concat [ "select format('", fst sql, "', ", placeholders (snd sql), ")" ]
 
     placeholders :: [a] -> String
     placeholders = intercalate ", " . map (const "?::varchar")

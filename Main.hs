@@ -21,13 +21,13 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BS
 
 import PgStructure (printTables, printColumns)
-import PgQuery     (selectWhere)
+import PgQuery
 import RangeQuery
 
 import Data.Maybe (fromMaybe)
-import qualified Data.Text as T
 import Text.Regex.TDFA ((=~))
 import Text.Read (readMaybe)
+import Data.Text (unpack)
 
 import Data.Ranged.Ranges (emptyRange)
 
@@ -66,13 +66,12 @@ app config req respond = do
       ([], _) ->
         responseLBS status200 [json] <$> (printTables ver =<< conn)
       ([table], "OPTIONS") ->
-        responseLBS status200 [json] <$> (printColumns ver table =<< conn)
+        responseLBS status200 [json] <$> (printColumns ver (unpack table) =<< conn)
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
-        else responseLBS status200 [json] <$> (
-          selectWhere (T.pack $ show ver) table qq range =<< conn
-        )
+        else responseLBS status200 [json] . rrBody <$>
+          (getRows (show ver) (unpack table) qq range =<< conn)
       (_, _) ->
         return $ responseLBS status404 [] ""
 
