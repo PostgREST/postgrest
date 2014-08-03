@@ -36,14 +36,16 @@ getRows schema table qq range conn = do
     $ selectStarClause schema table
       <> whereClause qq
       <> limitClause range
+  count <- populateSql conn
+    $ selectCountClause schema table
+      <> whereClause qq
   r <- quickQuery conn query []
+  [[n]] <- quickQuery conn count []
 
-  let body = case r of
-             [[SqlNull]] -> "[]"
-             [[json]]    -> fromSql json
-             _           -> ""
-  return $ RangedResult 0 0 0 body
-
+  return $ case r of
+             [[SqlNull]] -> RangedResult 0 0 0 ""
+             [[json]]    -> RangedResult 0 0 (fromSql n) (fromSql json)
+             _           -> RangedResult 0 0 0 ""
 
 whereClause :: Net.Query -> QuotedSql
 whereClause qs =
@@ -55,7 +57,7 @@ whereClause qs =
 
 wherePred :: Net.QueryItem -> QuotedSql
 wherePred (column, predicate) =
-  ("t.%I " <> op <> "%L", map toSql [column, value])
+  ("%I " <> op <> "%L", map toSql [column, value])
 
   where
     opCode:rest = BS.split ':' $ fromMaybe "" predicate

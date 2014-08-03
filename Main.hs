@@ -70,11 +70,10 @@ app config req respond = do
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
-        else responseLBS status200 [json] . rrBody <$>
+        else respondWithRangedResult <$>
           (getRows (show ver) (unpack table) qq range =<< conn)
       (_, _) ->
         return $ responseLBS status404 [] ""
-
 
   respond $ either sqlErrorHandler id r
 
@@ -86,6 +85,13 @@ app config req respond = do
     qq     = queryString req
     ver    = fromMaybe 1 $ requestedVersion (requestHeaders req)
     range  = requestedRange (requestHeaders req)
+
+respondWithRangedResult :: RangedResult -> Response
+respondWithRangedResult rr =
+  responseLBS status206 [json, ("Content-Range", "*/" <> (BS.pack . show . rrTotal) rr)] (rrBody rr)
+
+  where
+    json = (hContentType, "application/json")
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =
