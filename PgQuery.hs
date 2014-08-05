@@ -32,7 +32,7 @@ type QuotedSql = (String, [SqlValue])
 getRows :: String -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
   query <- populateSql conn
-    $ globalAndLimitedCounts schema table <>
+    $ globalAndLimitedCounts schema table qq <>
       jsonArrayRows
       (selectStarClause schema table
         <> whereClause qq
@@ -40,6 +40,7 @@ getRows schema table qq range conn = do
   r <- quickQuery conn query []
 
   return $ case r of
+           [[_, _, SqlNull]] -> RangedResult 0 0 0 ""
            [[total, limited_total, json]] ->
             RangedResult offset (offset + fromSql limited_total - 1)
                          (fromSql total) (fromSql json)
@@ -81,9 +82,12 @@ limitClause range =
     limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
     offset = fromMaybe 0     $ R.offset <$> range
 
-globalAndLimitedCounts :: String -> String -> QuotedSql
-globalAndLimitedCounts schema table =
-  (" select (select count(1) from %I.%I), count(t), ", map toSql [schema, table])
+globalAndLimitedCounts :: String -> String -> Net.Query -> QuotedSql
+globalAndLimitedCounts schema table qq =
+  (" select ", [])
+  <> ("(select count(1) from %I.%I ", map toSql [schema, table])
+  <> whereClause qq
+  <> ("), count(t), ", [])
 
 selectStarClause :: String -> String -> QuotedSql
 selectStarClause schema table =
