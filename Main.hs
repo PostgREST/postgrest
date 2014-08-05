@@ -88,7 +88,12 @@ app config req respond = do
 
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =
-  responseLBS status206 [json, ("Content-Range", "*/" <> (BS.pack . show . rrTotal) rr)] (rrBody rr)
+  responseLBS status206 [
+    json,
+    ("Content-Range",
+       "0-" <> (BS.pack . show . rrTo) rr <> "/"
+            <> (BS.pack . show . rrTotal) rr)
+  ] (rrBody rr)
 
   where
     json = (hContentType, "application/json")

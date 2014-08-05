@@ -32,20 +32,17 @@ type QuotedSql = (String, [SqlValue])
 getRows :: String -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
   query <- populateSql conn
-    $ jsonArrayRows
-    $ selectStarClause schema table
-      <> whereClause qq
-      <> limitClause range
-  count <- populateSql conn
-    $ selectCountClause schema table
-      <> whereClause qq
+    $ globalAndLimitedCounts schema table <>
+      jsonArrayRows
+      (selectStarClause schema table
+        <> whereClause qq
+        <> limitClause range)
   r <- quickQuery conn query []
-  [[n]] <- quickQuery conn count []
 
   return $ case r of
-             [[SqlNull]] -> RangedResult 0 0 0 ""
-             [[json]]    -> RangedResult 0 0 (fromSql n) (fromSql json)
-             _           -> RangedResult 0 0 0 ""
+           [[total, limited_total, json]] ->
+            RangedResult 0 (fromSql limited_total) (fromSql total) (fromSql json)
+           _ -> RangedResult 0 0 0 ""
 
 whereClause :: Net.Query -> QuotedSql
 whereClause qs =
@@ -80,6 +77,10 @@ limitClause range =
     limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
     offset = fromMaybe 0     $ R.offset <$> range
 
+globalAndLimitedCounts :: String -> String -> QuotedSql
+globalAndLimitedCounts schema table =
+  (" select (select count(1) from %I.%I), count(t), ", map toSql [schema, table])
+
 selectStarClause :: String -> String -> QuotedSql
 selectStarClause schema table =
   (" select * from %I.%I ", map toSql [schema, table])
@@ -90,7 +91,7 @@ selectCountClause schema table =
 
 jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
-  ("select array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
+  ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
 
 populateSql :: Connection -> QuotedSql -> IO String
 populateSql conn sql = do
