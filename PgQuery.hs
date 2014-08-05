@@ -41,8 +41,12 @@ getRows schema table qq range conn = do
 
   return $ case r of
            [[total, limited_total, json]] ->
-            RangedResult 0 (fromSql limited_total) (fromSql total) (fromSql json)
+            RangedResult offset (offset + fromSql limited_total - 1)
+                         (fromSql total) (fromSql json)
            _ -> RangedResult 0 0 0 ""
+
+  where
+    offset = fromMaybe 0 $ R.offset <$> range
 
 whereClause :: Net.Query -> QuotedSql
 whereClause qs =

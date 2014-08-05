@@ -91,8 +91,10 @@ respondWithRangedResult rr =
   responseLBS status206 [
     json,
     ("Content-Range",
-       "0-" <> (BS.pack . show . rrTo) rr <> "/"
-            <> (BS.pack . show . rrTotal) rr)
+        (BS.pack . show . rrFrom ) rr <> "-"
+      <> (BS.pack . show . rrTo   ) rr <> "/"
+      <> (BS.pack . show . rrTotal) rr
+    )
   ] (rrBody rr)
 
   where
