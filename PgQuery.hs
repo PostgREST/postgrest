@@ -62,7 +62,7 @@ wherePred (column, predicate) =
   ("%I " <> op <> "%L", map toSql [column, value])
 
   where
-    opCode:rest = BS.split ':' $ fromMaybe "" predicate
+    opCode:rest = BS.split ':' $ fromMaybe ":" predicate
     value = BS.intercalate ":" rest
     op = case opCode of
               "eq"  -> "="
