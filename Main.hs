@@ -23,11 +23,13 @@ import qualified Data.ByteString.Char8 as BS
 import PgStructure (printTables, printColumns)
 import PgQuery
 import RangeQuery
+import Types (SqlRow)
 
 import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Text.Read (readMaybe)
-import Data.Text (unpack)
+import Data.Text (pack, unpack)
+import qualified Data.Aeson as JSON
 
 import Data.Ranged.Ranges (emptyRange)
 
@@ -59,19 +61,39 @@ main = do
 traceThis :: (Show a) => a -> a
 traceThis x = trace (show x) x
 
+jsonContentType :: (HeaderName, BS.ByteString)
+jsonContentType = (hContentType, "application/json")
+
+jsonBodyAction :: Request -> (SqlRow -> IO Response) -> IO Response
+jsonBodyAction req handler = do
+  parse <- jsonBody req
+  case parse of
+    Left err -> return $ responseLBS status400 [jsonContentType] json
+      where json = JSON.encode . JSON.object $ [("error", JSON.String $ pack err)]
+    Right body -> handler body
+
+jsonBody :: Request -> IO (Either String SqlRow)
+jsonBody = (fmap JSON.eitherDecode) . strictRequestBody
+
 app ::  AppConfig -> Application
 app config req respond = do
+  conn <- connectPostgreSQL $ configDbUri config
   r <- try $
     case (path, verb) of
       ([], _) ->
-        responseLBS status200 [json] <$> (printTables ver =<< conn)
+        responseLBS status200 [jsonContentType] <$> (printTables ver conn)
       ([table], "OPTIONS") ->
-        responseLBS status200 [json] <$> (printColumns ver (unpack table) =<< conn)
+        responseLBS status200 [jsonContentType] <$> (
+          printColumns ver (unpack table) conn)
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
         else respondWithRangedResult <$>
-          (getRows (show ver) (unpack table) qq range =<< conn)
+          (getRows (show ver) (unpack table) qq range conn)
+      ([table], "POST") ->
+        jsonBodyAction req (\row ->
+          responseLBS status200 [jsonContentType] <$> (
+            insert (pack $ show ver) table row conn))
       (_, _) ->
         return $ responseLBS status404 [] ""
 
@@ -80,8 +102,6 @@ app config req respond = do
   where
     path   = pathInfo req
     verb   = requestMethod req
-    json   = (hContentType, "application/json")
-    conn   = connectPostgreSQL $ configDbUri config
     qq     = queryString req
     ver    = fromMaybe 1 $ requestedVersion (requestHeaders req)
     range  = requestedRange (requestHeaders req)
@@ -89,7 +109,7 @@ app config req respond = do
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =
   responseLBS status206 [
-    json,
+    jsonContentType,
     ("Content-Range",
       if rrTotal rr == 0
       then "*/0"
@@ -98,9 +118,6 @@ respondWithRangedResult rr =
          <> (BS.pack . show . rrTotal) rr
     )
   ] (rrBody rr)
-
-  where
-    json = (hContentType, "application/json")
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =

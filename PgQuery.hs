@@ -4,10 +4,13 @@
 
 module PgQuery where
 
+import Data.Text (Text)
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe)
 import Data.List (intersperse, intercalate)
 import Data.Monoid ((<>), mconcat)
+import Data.HashMap.Strict (fromList)
+import qualified Data.Aeson as JSON
 
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
@@ -17,6 +20,8 @@ import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
 
 import qualified Network.HTTP.Types.URI as Net
+
+import Types (SqlRow, getRow)
 
 -- }}}
 
@@ -56,7 +61,6 @@ whereClause qs =
   where
     conjunction = mconcat $ intersperse (" and ", []) (map wherePred qs)
 
-
 wherePred :: Net.QueryItem -> QuotedSql
 wherePred (column, predicate) =
   ("%I " <> op <> "%L", map toSql [column, value])
@@ -72,7 +76,6 @@ wherePred (column, predicate) =
               "lte" -> "<="
               "neq" -> "<>"
               _     -> "="
-
 
 limitClause :: Maybe R.NonnegRange -> QuotedSql
 limitClause range =
@@ -100,6 +103,20 @@ selectCountClause schema table =
 jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
   ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
+
+insert :: Text -> Text -> SqlRow -> Connection -> IO BL.ByteString
+insert schema table row conn = do
+  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ schema:table:cols)
+  stmt <- prepare conn (query ++ " values ("++phs++") returning *")
+  _ <- execute stmt values
+  keys <- getColumnNames stmt
+  Just vals <- fetchRow stmt
+  let rowMap = fromList $ zip keys vals
+  return $ JSON.encode rowMap
+  where
+    (cols, values) = unzip . getRow $ row
+    colIds = intercalate ", " $ map (const "%I") cols
+    phs = intercalate ", " $ map (const "?") values
 
 populateSql :: Connection -> QuotedSql -> IO String
 populateSql conn sql = do
