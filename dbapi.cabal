@@ -1,13 +1,13 @@
-name:                dbapi
-version:             0.1.0.0
-synopsis:            The database is your api
-license:             MIT
-license-file:        LICENSE
-author:              Joe Nelson
-maintainer:          cred+github@begriffs.com
-category:            Web
-build-type:          Simple
-cabal-version:       >=1.10
+name:                  dbapi
+version:               0.1.0.0
+synopsis:              The database is your api
+license:               MIT
+license-file:          LICENSE
+author:                Joe Nelson, Adam Baker
+maintainer:            cred+github@begriffs.com
+category:              Web
+build-type:            Simple
+cabal-version:         >=1.10
 
 executable dbapi
   main-is:             Main.hs
@@ -26,5 +26,15 @@ executable dbapi
                      , regex-base
                      , http-media, regex-tdfa
                      , Ranged-sets
+                     , transformers
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+Test-Suite spec
+  Type:                exitcode-stdio-1.0
+  Default-Language:    Haskell2010
+  Hs-Source-Dirs:      src , test
+  Ghc-Options:         -Wall
+  Main-Is:             Spec.hs
+  Build-Depends:       base, hspec2, HDBC,
+                       HDBC-postgresql
