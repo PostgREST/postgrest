@@ -17,7 +17,6 @@ loadFixture name = do
   runRaw conn "drop schema if exists public cascade"
   runRaw conn "create schema public"
   runRaw conn sql
-  commit conn
   return conn
 
 main :: IO ()
@@ -31,7 +30,6 @@ spec = beforeAll (loadFixture "schema") $ do
           ("non_nullable_string", toSql ("a string that isn't null" :: String))
         ]) conn
       r <- quickQuery conn "select count(1) from auto_incrementing_pk" []
-      commit conn
       [[toSql (1 :: Int)]] `shouldBe` r
 
   describe "insert again" $

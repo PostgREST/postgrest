@@ -109,6 +109,7 @@ insert schema table row conn = do
   query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ schema:table:cols)
   stmt <- prepare conn (query ++ " values ("++phs++") returning *")
   _ <- execute stmt values
+  commit conn
   keys <- getColumnNames stmt
   Just vals <- fetchRow stmt
   let rowMap = fromList $ zip keys vals
