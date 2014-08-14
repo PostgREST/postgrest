@@ -1,2 +1,6 @@
 language: haskell
 ghc: 7.8.2
+addons:
+  postgresql: "9.3"
+before_script:
+  - psql -c 'create database dbapi_test;' -U postgres
