@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module PgQuerySpec where
+module Unit.PgQuerySpec where
 
 import Test.Hspec
 
@@ -14,8 +14,7 @@ loadFixture :: String -> IO Connection
 loadFixture name = do
   conn <- connectPostgreSQL "postgres://postgres:@localhost:5432/dbapi_test"
   sql <- readFile $ "test/fixtures/" ++ name ++ ".sql"
-  runRaw conn "drop schema if exists public cascade"
-  runRaw conn "create schema public"
+  runRaw conn "drop schema if exists \"1\" cascade"
   runRaw conn sql
   return conn
 
@@ -26,7 +25,7 @@ spec :: Spec
 spec = beforeAll (loadFixture "schema") $ do
   describe "insert" $
     it "can insert into an empty table" $ \conn -> do
-      _ <- insert "public" "auto_incrementing_pk" (SqlRow [
+      _ <- insert 1 "auto_incrementing_pk" (SqlRow [
           ("non_nullable_string", toSql ("a string that isn't null" :: String))
         ]) conn
       r <- quickQuery conn "select count(1) from auto_incrementing_pk" []

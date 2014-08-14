@@ -4,7 +4,7 @@
 
 module PgQuery where
 
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe)
 import Data.List (intersperse, intercalate)
@@ -106,7 +106,7 @@ jsonArrayRows q =
 
 insert :: Int -> Text -> SqlRow -> Connection -> IO BL.ByteString
 insert schema table row conn = do
-  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ (show schema):table:cols)
+  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ (pack . show $ schema):table:cols)
   stmt <- prepare conn (query ++ " values ("++phs++") returning *")
   _ <- execute stmt values
   commit conn
