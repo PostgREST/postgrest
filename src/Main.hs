@@ -93,7 +93,7 @@ app config req respond = do
       ([table], "POST") ->
         jsonBodyAction req (\row ->
           responseLBS status200 [jsonContentType] <$> (
-            insert (pack $ show ver) table row conn))
+            insert ver table row conn))
       (_, _) ->
         return $ responseLBS status404 [] ""
 

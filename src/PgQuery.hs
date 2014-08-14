@@ -104,9 +104,9 @@ jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
   ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
 
-insert :: Text -> Text -> SqlRow -> Connection -> IO BL.ByteString
+insert :: Int -> Text -> SqlRow -> Connection -> IO BL.ByteString
 insert schema table row conn = do
-  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ schema:table:cols)
+  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ (show schema):table:cols)
   stmt <- prepare conn (query ++ " values ("++phs++") returning *")
   _ <- execute stmt values
   commit conn

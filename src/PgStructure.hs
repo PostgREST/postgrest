@@ -1,4 +1,7 @@
+-- {{{ Imports
+
 {-# LANGUAGE OverloadedStrings #-}
+
 
 module PgStructure where
 
@@ -17,6 +20,8 @@ import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
 
 import Data.Aeson ((.=))
+
+-- }}}
 
 data Table = Table {
   tableSchema :: String
