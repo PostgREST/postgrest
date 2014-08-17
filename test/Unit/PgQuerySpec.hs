@@ -5,18 +5,11 @@ module Unit.PgQuerySpec where
 import Test.Hspec
 
 import Database.HDBC
-import Database.HDBC.PostgreSQL
 
 import PgQuery (insert)
 import Types (SqlRow(..))
 
-loadFixture :: String -> IO Connection
-loadFixture name = do
-  conn <- connectPostgreSQL "postgres://postgres:@localhost:5432/dbapi_test"
-  sql <- readFile $ "test/fixtures/" ++ name ++ ".sql"
-  runRaw conn "drop schema if exists \"1\" cascade"
-  runRaw conn sql
-  return conn
+import SpecHelper
 
 main :: IO ()
 main = hspec spec

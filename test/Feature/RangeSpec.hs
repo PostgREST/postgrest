@@ -5,16 +5,15 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Dbapi (AppConfig(..), app)
+import SpecHelper
+
+import Dbapi (app)
 
 main :: IO ()
 main = hspec spec
 
-cfg :: AppConfig
-cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000
-
 spec :: Spec
-spec = with (return $ app cfg) $ do
+spec = with (prepareAppDb "schema" $ app cfg) $ do
   describe "GET /" $ do
     it "responds with 200" $ do
       get "/" `shouldRespondWith` 200
