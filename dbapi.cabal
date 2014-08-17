@@ -9,13 +9,7 @@ category:              Web
 build-type:            Simple
 cabal-version:         >=1.10
 
-executable dbapi
-  main-is:             Main.hs
-  ghc-options:         -Wall
-  other-modules:       PgStructure
-                     , PgQuery
-                     , RangeQuery
-  other-extensions:    OverloadedStrings
+library
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
@@ -27,6 +21,28 @@ executable dbapi
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
+  exposed-modules:     Dbapi
+                     , PgStructure
+                     , PgQuery
+                     , RangeQuery
+  other-extensions:    OverloadedStrings
+  hs-source-dirs:      src
+
+executable dbapi
+  main-is:             Main.hs
+  ghc-options:         -Wall
+  build-depends:       base >=4.6 && <5
+                     , HDBC, HDBC-postgresql
+                     , warp, wai >= 3.0.1 && < 3.0.2
+                     , http-types, scientific, time
+                     , bytestring, aeson, network
+                     , text, optparse-applicative
+                     , unordered-containers
+                     , regex-base
+                     , http-media, regex-tdfa
+                     , Ranged-sets
+                     , transformers
+  Other-Modules:       Dbapi
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -36,7 +52,9 @@ Test-Suite spec
   Hs-Source-Dirs:      src , test
   Ghc-Options:         -Wall
   Main-Is:             Spec.hs
+  Other-Modules:       Dbapi
   Build-Depends:       base, hspec2
+                     , hspec-wai
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , http-types, scientific, time
