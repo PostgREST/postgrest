@@ -10,9 +10,6 @@ import SpecHelper
 import Network.HTTP.Types
 import Dbapi (app)
 
-main :: IO ()
-main = hspec spec
-
 spec :: Spec
 spec = with (prepareAppDb "schema" $ app cfg) $ do
   describe "GET /" $ do
