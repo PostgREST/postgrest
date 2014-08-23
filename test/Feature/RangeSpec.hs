@@ -11,7 +11,7 @@ import Network.HTTP.Types
 import Dbapi (app)
 
 spec :: Spec
-spec = with (prepareAppDb "schema" $ app cfg) $ do
+spec = around appWithFixture $ do
   describe "GET /" $ do
     it "responds with 200" $ do
       get "/" `shouldRespondWith` 200
@@ -22,7 +22,7 @@ spec = with (prepareAppDb "schema" $ app cfg) $ do
       |]
 
   describe "Table info" $ do
-    it "available with OPTIONS verb" $ do
+    it "is available with OPTIONS verb" $ do
       -- {{{ big json object
       request methodOptions "/auto_incrementing_pk" "" `shouldRespondWith` [json|
       {
@@ -67,3 +67,14 @@ spec = with (prepareAppDb "schema" $ app cfg) $ do
       }
       |]
       -- }}}
+
+  describe "GET /view" $ do
+    context "without range headers" $ do
+      context "with response under server size limit" $ do
+        it "returns whole range with status 200" $ do
+          get "/auto_incrementing_pk" `shouldRespondWith` 206
+
+  -- describe "Posting new record" $ do
+  --   context "into a table with auto-incrementing pk" $ do
+  --     it "does not require pk in the payload" $ do
+  --       undefined

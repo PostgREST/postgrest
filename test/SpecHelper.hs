@@ -1,23 +1,43 @@
 module SpecHelper where
 
 import Network.Wai
+import Test.Hspec
 
 import Database.HDBC
 import Database.HDBC.PostgreSQL
 
-import Dbapi (AppConfig(..))
+import Control.Exception.Base (bracket)
+
+import Dbapi (app, AppConfig(..))
+
+import Debug.Trace
 
 cfg :: AppConfig
 cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000
 
-loadFixture :: String -> IO Connection
-loadFixture name = do
-  conn <- connectPostgreSQL $ configDbUri cfg
-  sql <- readFile $ "test/fixtures/" ++ name ++ ".sql"
-  runRaw conn "drop schema if exists \"1\" cascade"
-  runRaw conn sql
-  commit conn
-  return conn
+openConnection :: IO Connection
+openConnection = connectPostgreSQL' $ configDbUri cfg
 
-prepareAppDb :: String -> Application -> IO Application
-prepareAppDb = (. return) . (>>) . loadFixture
+withDatabaseConnection :: (Connection -> IO ()) -> IO ()
+withDatabaseConnection = bracket openConnection disconnect
+
+loadFixture :: String -> Connection -> IO ()
+loadFixture name conn = do
+  runRaw conn "begin;"
+  sql <- readFile $ "test/fixtures/" ++ name ++ ".sql"
+  runRaw conn sql
+
+rollbackFixture :: Connection -> IO ()
+rollbackFixture = flip runRaw "rollback;"
+
+dbWithSchema :: ActionWith Connection -> IO ()
+dbWithSchema action = withDatabaseConnection $ \c -> do
+  trace "Load fixture" loadFixture "schema" c
+  trace "act" action (c)
+  trace "rollback" rollbackFixture c
+
+appWithFixture :: ActionWith Application -> IO ()
+appWithFixture action = withDatabaseConnection $ \c -> do
+  loadFixture "schema" c
+  action (app cfg)
+  rollbackFixture c
