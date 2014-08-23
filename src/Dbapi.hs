@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- {{{ Imports
 module Dbapi where
 
 import Types (SqlRow)
@@ -20,7 +21,7 @@ import Network.Wai
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BS
 
-import Database.HDBC.PostgreSQL (connectPostgreSQL)
+import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Database.HDBC.Types (SqlError, seErrorMsg)
 import PgStructure (printTables, printColumns)
 
@@ -30,6 +31,8 @@ import Data.Text (pack, unpack)
 import PgQuery
 import RangeQuery
 import Data.Ranged.Ranges (emptyRange)
+
+-- }}}
 
 data AppConfig = AppConfig {
     configDbUri :: String
@@ -51,7 +54,7 @@ jsonBody = (fmap JSON.eitherDecode) . strictRequestBody
 
 app ::  AppConfig -> Application
 app config req respond = do
-  conn <- connectPostgreSQL $ configDbUri config
+  conn <- connectPostgreSQL' $ configDbUri config
   r <- try $
     case (path, verb) of
       ([], _) ->
