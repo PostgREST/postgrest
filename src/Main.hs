@@ -5,6 +5,7 @@
 module Main where
 import Dbapi
 import Network.Wai.Handler.Warp hiding (Connection)
+import Database.HDBC.PostgreSQL (connectPostgreSQL')
 
 import Control.Applicative
 import Options.Applicative hiding (columns)
@@ -21,10 +22,12 @@ argParser = AppConfig
 main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
+  let port = configPort conf
+  let dburi = configDbUri conf
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
-  run (configPort conf) $ app conf
+  conn <- connectPostgreSQL' dburi
+  run port $ app conn
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
-

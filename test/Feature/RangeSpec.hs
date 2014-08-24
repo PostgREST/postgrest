@@ -8,7 +8,6 @@ import Test.Hspec.Wai.JSON
 import SpecHelper
 
 import Network.HTTP.Types
-import Dbapi (app)
 
 spec :: Spec
 spec = around appWithFixture $ do
@@ -74,7 +73,9 @@ spec = around appWithFixture $ do
         it "returns whole range with status 200" $ do
           get "/auto_incrementing_pk" `shouldRespondWith` 206
 
-  -- describe "Posting new record" $ do
-  --   context "into a table with auto-incrementing pk" $ do
-  --     it "does not require pk in the payload" $ do
-  --       undefined
+  describe "Posting new record" $ do
+    context "into a table with auto-incrementing pk" $ do
+      it "does not require pk in the payload" $ do
+        post "/auto_incrementing_pk" [json|
+          { "non_nullable_string":"not null"} |]
+          `shouldRespondWith` 200

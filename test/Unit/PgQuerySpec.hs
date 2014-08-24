@@ -6,7 +6,7 @@ import Test.Hspec
 
 import Database.HDBC
 
-import PgQuery (insert)
+import PgQuery (insert, getRows, RangedResult(..))
 import Types (SqlRow(..))
 
 import SpecHelper
@@ -20,7 +20,3 @@ spec = around dbWithSchema $ do
         ]) conn
       r <- quickQuery conn "select count(1) from auto_incrementing_pk" []
       [[toSql (1 :: Int)]] `shouldBe` r
-
-  describe "insert again" $
-    it "is true" $ \_ ->
-      True `shouldBe` True

@@ -21,7 +21,7 @@ import Network.Wai
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BS
 
-import Database.HDBC.PostgreSQL (connectPostgreSQL')
+import Database.HDBC.PostgreSQL (Connection)
 import Database.HDBC.Types (SqlError, seErrorMsg)
 import PgStructure (printTables, printColumns)
 
@@ -52,9 +52,8 @@ jsonBodyAction req handler = do
 jsonBody :: Request -> IO (Either String SqlRow)
 jsonBody = (fmap JSON.eitherDecode) . strictRequestBody
 
-app ::  AppConfig -> Application
-app config req respond = do
-  conn <- connectPostgreSQL' $ configDbUri config
+app :: Connection -> Application
+app conn req respond = do
   r <- try $
     case (path, verb) of
       ([], _) ->
