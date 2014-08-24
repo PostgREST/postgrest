@@ -68,7 +68,7 @@ app conn req respond = do
           (getRows (show ver) (unpack table) qq range conn)
       ([table], "POST") ->
         jsonBodyAction req (\row ->
-          responseLBS status200 [jsonContentType] <$> (
+          responseLBS status201 [jsonContentType] <$> (
             insert ver table row conn))
       (_, _) ->
         return $ responseLBS status404 [] ""
