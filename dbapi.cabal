@@ -57,6 +57,7 @@ Test-Suite spec
                      , hspec-wai
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
+                     , wai-extra
                      , http-types, scientific, time
                      , bytestring, aeson, network
                      , text, optparse-applicative

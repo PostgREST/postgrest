@@ -8,6 +8,28 @@ import Test.Hspec.Wai.JSON
 import SpecHelper
 
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse(..))
+
+import qualified Data.Aeson as JSON
+import Data.Aeson ((.:))
+import Data.Maybe (fromJust)
+import Control.Applicative ((<$>), (<*>))
+import Control.Monad (mzero)
+
+data IncPK = IncPK {
+  incId :: Int
+, incNullableStr :: Maybe String
+, incStr :: String
+, incInsert :: String
+} deriving (Show)
+
+instance JSON.FromJSON IncPK where
+  parseJSON (JSON.Object r) = IncPK <$>
+    r .: "id" <*>
+    r .: "nullable_string" <*>
+    r .: "non_nullable_string" <*>
+    r .: "inserted_at"
+  parseJSON _ = mzero
 
 spec :: Spec
 spec = around appWithFixture $ do
@@ -75,7 +97,17 @@ spec = around appWithFixture $ do
 
   describe "Posting new record" $ do
     context "into a table with auto-incrementing pk" $ do
-      it "does not require pk in the payload" $ do
+      it "does not require pk in the payload" $
         post "/auto_incrementing_pk" [json|
           { "non_nullable_string":"not null"} |]
-          `shouldRespondWith` 200
+          `shouldRespondWith` 201
+
+      it "responds with the created row" $ do
+        r <- post "/auto_incrementing_pk" [json|
+          { "non_nullable_string":"not null"} |]
+        let row = fromJust (JSON.decode $ simpleBody r :: Maybe IncPK)
+        liftIO $ do
+          incStr row `shouldBe` "not null"
+          incNullableStr row `shouldBe` Nothing
+        -- Add assertions to check timestamp and id
+        -- OR: change behavior to return no body at all
