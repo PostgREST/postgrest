@@ -69,7 +69,7 @@ data TableOptions = TableOptions {
 instance JSON.ToJSON TableOptions where
   toJSON t = JSON.object [
       "columns" .= tblOptcolumns t
-    , "pkey"   .= tblOptpkey t ]
+    , "pkey"    .= tblOptpkey t ]
 
 tables :: String -> Connection -> IO [Table]
 tables s conn = do

@@ -12,7 +12,10 @@ import Options.Applicative hiding (columns)
 import Data.Maybe (fromMaybe)
 import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
+import Data.Map (intersection, fromList, toList)
+import Data.Convertible.Base (convert)
 
+import Network.HTTP.Base (urlEncodeVars)
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
 
@@ -23,10 +26,12 @@ import qualified Data.ByteString.Char8 as BS
 
 import Database.HDBC.PostgreSQL (Connection)
 import Database.HDBC.Types (SqlError, seErrorMsg)
-import PgStructure (printTables, printColumns)
+import Database.HDBC.SqlValue (SqlValue(..))
+import PgStructure (printTables, printColumns, primaryKeyColumns)
 
 import qualified Data.Aeson as JSON
 import Data.Text (pack, unpack)
+import Data.Text.Encoding (encodeUtf8)
 
 import PgQuery
 import RangeQuery
@@ -50,26 +55,33 @@ jsonBodyAction req handler = do
     Right body -> handler body
 
 jsonBody :: Request -> IO (Either String SqlRow)
-jsonBody = (fmap JSON.eitherDecode) . strictRequestBody
+jsonBody = fmap JSON.eitherDecode . strictRequestBody
 
 app :: Connection -> Application
 app conn req respond = do
   r <- try $
     case (path, verb) of
       ([], _) ->
-        responseLBS status200 [jsonContentType] <$> (printTables ver conn)
+        responseLBS status200 [jsonContentType] <$> printTables ver conn
       ([table], "OPTIONS") ->
-        responseLBS status200 [jsonContentType] <$> (
-          printColumns ver (unpack table) conn)
+        responseLBS status200 [jsonContentType] <$>
+          printColumns ver (unpack table) conn
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
         else respondWithRangedResult <$>
-          (getRows (show ver) (unpack table) qq range conn)
+          getRows (show ver) (unpack table) qq range conn
       ([table], "POST") ->
-        jsonBodyAction req (\row ->
-          responseLBS status201 [jsonContentType] <$> (
-            insert ver table row conn))
+        jsonBodyAction req (\row -> do
+          allvals <- insert ver table row conn
+          keys <- primaryKeyColumns ver (unpack table) conn
+          let keyvals = allvals `intersection` fromList (zip keys $ repeat SqlNull)
+          let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
+          return $ responseLBS status201
+            [ jsonContentType
+            , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
+            ] ""
+        )
       (_, _) ->
         return $ responseLBS status404 [] ""
 

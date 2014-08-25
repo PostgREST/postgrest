@@ -9,8 +9,7 @@ import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe)
 import Data.List (intersperse, intercalate)
 import Data.Monoid ((<>), mconcat)
-import Data.HashMap.Strict (fromList)
-import qualified Data.Aeson as JSON
+import qualified Data.Map as M
 
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
@@ -66,8 +65,8 @@ wherePred (column, predicate) =
   ("%I " <> op <> "%L", map toSql [column, value])
 
   where
-    opCode:rest = BS.split ':' $ fromMaybe ":" predicate
-    value = BS.intercalate ":" rest
+    opCode:rest = BS.split '.' $ fromMaybe "." predicate
+    value = BS.intercalate "." rest
     op = case opCode of
               "eq"  -> "="
               "gt"  -> ">"
@@ -104,15 +103,14 @@ jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
   ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
 
-insert :: Int -> Text -> SqlRow -> Connection -> IO BL.ByteString
+insert :: Int -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
 insert schema table row conn = do
-  query <- populateSql conn  ("insert into %I.%I ("++colIds++")", map toSql $ (pack . show $ schema):table:cols)
-  stmt <- prepare conn (query ++ " values ("++phs++") returning *")
-  _ <- execute stmt values
-  keys <- getColumnNames stmt
-  Just vals <- fetchRow stmt
-  let rowMap = fromList $ zip keys vals
-  return $ JSON.encode rowMap
+  query  <- populateSql conn  ("insert into %I.%I ("++colIds++")",
+                        map toSql $ (pack . show $ schema):table:cols)
+  stmt   <- prepare conn (query ++ " values ("++phs++") returning *")
+  _      <- execute stmt values
+  Just m <- fetchRowMap stmt
+  return m
   where
     (cols, values) = unzip . getRow $ row
     colIds = intercalate ", " $ map (const "%I") cols

@@ -8,11 +8,9 @@ import Test.Hspec.Wai.JSON
 import SpecHelper
 
 import Network.HTTP.Types
-import Network.Wai.Test (SResponse(..))
 
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.:))
-import Data.Maybe (fromJust)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
 
@@ -102,12 +100,11 @@ spec = around appWithFixture $ do
           { "non_nullable_string":"not null"} |]
           `shouldRespondWith` 201
 
-      it "responds with the created row" $ do
-        r <- post "/auto_incrementing_pk" [json|
+      it "links to the created resource" $ do
+        post "/auto_incrementing_pk" [json|
           { "non_nullable_string":"not null"} |]
-        let row = fromJust (JSON.decode $ simpleBody r :: Maybe IncPK)
-        liftIO $ do
-          incStr row `shouldBe` "not null"
-          incNullableStr row `shouldBe` Nothing
-        -- Add assertions to check timestamp and id
-        -- OR: change behavior to return no body at all
+          `shouldRespondWith` ResponseMatcher {
+            matchBody = Nothing,
+            matchStatus = 201,
+            matchHeaders = [("Location", "/auto_incrementing_pk?id=eq.2")]
+          }
