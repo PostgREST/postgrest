@@ -32,16 +32,16 @@ instance JSON.FromJSON IncPK where
 spec :: Spec
 spec = around appWithFixture $ do
   describe "GET /" $ do
-    it "responds with 200" $ do
+    it "responds with 200" $
       get "/" `shouldRespondWith` 200
 
-    it "lists views in schema" $ do
+    it "lists views in schema" $
       get "/" `shouldRespondWith` [json|
         [{"schema":"1","name":"auto_incrementing_pk","insertable":true}]
       |]
 
-  describe "Table info" $ do
-    it "is available with OPTIONS verb" $ do
+  describe "Table info" $
+    it "is available with OPTIONS verb" $
       -- {{{ big json object
       request methodOptions "/auto_incrementing_pk" "" `shouldRespondWith` [json|
       {
@@ -87,20 +87,20 @@ spec = around appWithFixture $ do
       |]
       -- }}}
 
-  describe "GET /view" $ do
-    context "without range headers" $ do
-      context "with response under server size limit" $ do
-        it "returns whole range with status 200" $ do
+  describe "GET /view" $
+    context "without range headers" $
+      context "with response under server size limit" $
+        it "returns whole range with status 200" $
           get "/auto_incrementing_pk" `shouldRespondWith` 206
 
-  describe "Posting new record" $ do
+  describe "Posting new record" $
     context "into a table with auto-incrementing pk" $ do
       it "does not require pk in the payload" $
         post "/auto_incrementing_pk" [json|
           { "non_nullable_string":"not null"} |]
           `shouldRespondWith` 201
 
-      it "links to the created resource" $ do
+      it "links to the created resource" $
         post "/auto_incrementing_pk" [json|
           { "non_nullable_string":"not null"} |]
           `shouldRespondWith` ResponseMatcher {
