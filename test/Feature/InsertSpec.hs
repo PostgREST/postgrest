@@ -32,7 +32,7 @@ instance JSON.FromJSON IncPK where
 
 spec :: Spec
 spec = around appWithFixture $
-  describe "Posting new record" $
+  describe "Posting new record" $ do
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and link" $ do
@@ -50,5 +50,14 @@ spec = around appWithFixture $
 
       context "into a table with simple pk" $
         it "fails with 400 and error" $
-          post "/contacts" [json| { "name":"J Doe"} |]
+          post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
+
+    context "with compound pk supplied" $
+      it "builds response location header appropriately" $
+        post "/compound_pk" [json| { "k1":12, "k2":42 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "compare with error",
+            matchStatus  = 201,
+            matchHeaders = [("Location", "/auto_incrementing_pk?k1=eq.12&k2=eq.42")]
+          }
