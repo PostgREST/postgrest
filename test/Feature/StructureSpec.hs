@@ -14,7 +14,10 @@ spec = around appWithFixture $ do
   describe "GET /" $
     it "lists views in schema" $
       get "/" `shouldRespondWith`
-        [json| [{"schema":"1","name":"auto_incrementing_pk","insertable":true}] |]
+        [json| [
+          {"schema":"1","name":"auto_incrementing_pk","insertable":true},
+          {"schema":"1","name":"contacts","insertable":true}]
+        |]
         {matchStatus = 200}
 
   describe "Table info" $

@@ -33,7 +33,7 @@ instance JSON.FromJSON IncPK where
 spec :: Spec
 spec = around appWithFixture $
   describe "Posting new record" $
-    context "with no pk supplied" $
+    context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and link" $ do
           post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
@@ -47,3 +47,8 @@ spec = around appWithFixture $
           liftIO $ do
             incStr record `shouldBe` "not null"
             incNullableStr record `shouldBe` Nothing
+
+      context "into a table with simple pk" $
+        it "fails with 400 and error" $
+          post "/contacts" [json| { "name":"J Doe"} |]
+            `shouldRespondWith` 400
