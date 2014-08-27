@@ -17,6 +17,7 @@ spec = around appWithFixture $ do
         [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
+        , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}
         ] |]
         {matchStatus = 200}

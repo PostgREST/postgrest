@@ -33,6 +33,14 @@ instance JSON.FromJSON IncPK where
 spec :: Spec
 spec = around appWithFixture $
   describe "Posting new record" $ do
+    it "accepts disparate json types" $
+      post "/menagerie"
+        [json| {
+          "integer": 13, "double": 3.14159, "varchar": "testing!"
+        , "boolean": false, "date": "01/01/1900", "money": "$3.99"
+        } |]
+        `shouldRespondWith` 201
+
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and link" $ do
