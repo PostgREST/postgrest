@@ -57,7 +57,7 @@ spec = around appWithFixture $
       it "builds response location header appropriately" $
         post "/compound_pk" [json| { "k1":12, "k2":42 } |]
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "compare with error",
+            matchBody    = Nothing,
             matchStatus  = 201,
-            matchHeaders = [("Location", "/auto_incrementing_pk?k1=eq.12&k2=eq.42")]
+            matchHeaders = [("Location", "/compound_pk?k1=eq.12&k2=eq.42")]
           }

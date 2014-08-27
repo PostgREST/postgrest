@@ -2,22 +2,22 @@
 
 module Types(SqlRow(SqlRow), getRow) where
 
-import Database.HDBC (toSql, SqlValue(..))
+import Database.HDBC (toSql, iToSql, SqlValue(..))
 
 import qualified Data.Aeson as JSON
 import Data.Aeson.Types (Parser)
 
-import Data.Scientific (toRealFloat)
+import Data.Scientific (floatingOrInteger)
 import Data.HashMap.Strict (foldlWithKey')
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Time.Calendar (showGregorian)
 
-import Control.Monad(mzero)
+import Control.Monad (mzero)
 
 instance JSON.FromJSON SqlValue where
+  parseJSON (JSON.Number n)    = return $ either toSql iToSql (floatingOrInteger n :: Either Double Int)
   parseJSON (JSON.String s)    = return $ toSql s
-  parseJSON (JSON.Number n)    = return $ toSql (toRealFloat n::Double)
   parseJSON (JSON.Bool   b)    = return $ toSql b
   parseJSON JSON.Null          = return SqlNull
   parseJSON (JSON.Object o)    = return . toSql $ JSON.encode o
@@ -42,7 +42,8 @@ instance JSON.ToJSON SqlValue where
   toJSON x                     = JSON.toJSON $ show x
 
 
-newtype SqlRow = SqlRow {getRow :: [(Text, SqlValue)] }
+newtype SqlRow = SqlRow {getRow :: [(Text, SqlValue)] } deriving (Show)
+
 instance JSON.FromJSON SqlRow where
   parseJSON (JSON.Object m) = foldlWithKey' add (return $ SqlRow []) m
     where
