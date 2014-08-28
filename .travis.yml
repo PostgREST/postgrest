@@ -1,5 +1,5 @@
 language: haskell
-ghc: 7.8.2
+ghc: 7.8
 addons:
   postgresql: "9.3"
 before_script:
