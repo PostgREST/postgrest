@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.3.4
 -- Dumped by pg_dump version 9.3.1
--- Started on 2014-08-27 12:28:12 PDT
+-- Started on 2014-08-27 12:59:06 PDT
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -14,7 +14,7 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
--- TOC entry 6 (class 2615 OID 230753)
+-- TOC entry 6 (class 2615 OID 230856)
 -- Name: 1; Type: SCHEMA; Schema: -; Owner: -
 --
 
@@ -22,7 +22,7 @@ CREATE SCHEMA "1";
 
 
 --
--- TOC entry 175 (class 3079 OID 12018)
+-- TOC entry 176 (class 3079 OID 12018)
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -30,8 +30,8 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 
 --
--- TOC entry 2226 (class 0 OID 0)
--- Dependencies: 175
+-- TOC entry 2231 (class 0 OID 0)
+-- Dependencies: 176
 -- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: -
 --
 
@@ -45,7 +45,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- TOC entry 170 (class 1259 OID 230754)
+-- TOC entry 170 (class 1259 OID 230857)
 -- Name: auto_incrementing_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -58,7 +58,7 @@ CREATE TABLE auto_incrementing_pk (
 
 
 --
--- TOC entry 171 (class 1259 OID 230761)
+-- TOC entry 171 (class 1259 OID 230864)
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE; Schema: 1; Owner: -
 --
 
@@ -71,7 +71,7 @@ CREATE SEQUENCE auto_incrementing_pk_id_seq
 
 
 --
--- TOC entry 2227 (class 0 OID 0)
+-- TOC entry 2232 (class 0 OID 0)
 -- Dependencies: 171
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE OWNED BY; Schema: 1; Owner: -
 --
@@ -80,7 +80,7 @@ ALTER SEQUENCE auto_incrementing_pk_id_seq OWNED BY auto_incrementing_pk.id;
 
 
 --
--- TOC entry 172 (class 1259 OID 230763)
+-- TOC entry 172 (class 1259 OID 230866)
 -- Name: compound_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -92,7 +92,7 @@ CREATE TABLE compound_pk (
 
 
 --
--- TOC entry 174 (class 1259 OID 230780)
+-- TOC entry 173 (class 1259 OID 230869)
 -- Name: menagerie; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -107,7 +107,18 @@ CREATE TABLE menagerie (
 
 
 --
--- TOC entry 173 (class 1259 OID 230766)
+-- TOC entry 175 (class 1259 OID 230891)
+-- Name: no_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
+--
+
+CREATE TABLE no_pk (
+    a character varying,
+    b character varying
+);
+
+
+--
+-- TOC entry 174 (class 1259 OID 230875)
 -- Name: simple_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -118,7 +129,7 @@ CREATE TABLE simple_pk (
 
 
 --
--- TOC entry 2105 (class 2604 OID 230772)
+-- TOC entry 2110 (class 2604 OID 230881)
 -- Name: id; Type: DEFAULT; Schema: 1; Owner: -
 --
 
@@ -126,7 +137,7 @@ ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_
 
 
 --
--- TOC entry 2107 (class 2606 OID 230774)
+-- TOC entry 2112 (class 2606 OID 230883)
 -- Name: auto_incrementing_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -135,7 +146,7 @@ ALTER TABLE ONLY auto_incrementing_pk
 
 
 --
--- TOC entry 2109 (class 2606 OID 230776)
+-- TOC entry 2114 (class 2606 OID 230885)
 -- Name: compound_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -144,7 +155,7 @@ ALTER TABLE ONLY compound_pk
 
 
 --
--- TOC entry 2111 (class 2606 OID 230778)
+-- TOC entry 2118 (class 2606 OID 230887)
 -- Name: contacts_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -153,7 +164,7 @@ ALTER TABLE ONLY simple_pk
 
 
 --
--- TOC entry 2113 (class 2606 OID 230787)
+-- TOC entry 2116 (class 2606 OID 230889)
 -- Name: menagerie_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -161,7 +172,7 @@ ALTER TABLE ONLY menagerie
     ADD CONSTRAINT menagerie_pkey PRIMARY KEY ("integer");
 
 
--- Completed on 2014-08-27 12:28:12 PDT
+-- Completed on 2014-08-27 12:59:06 PDT
 
 --
 -- PostgreSQL database dump complete
