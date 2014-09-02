@@ -15,6 +15,7 @@ library
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , http-types, scientific, time
                      , HTTP, convertible
+                     , case-insensitive
                      , bytestring, aeson, network
                      , text, optparse-applicative
                      , unordered-containers
@@ -38,6 +39,7 @@ executable dbapi
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , HTTP, convertible
+                     , case-insensitive
                      , http-types, scientific, time
                      , bytestring, aeson, network
                      , text, optparse-applicative
@@ -63,6 +65,7 @@ Test-Suite spec
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , HTTP, convertible
+                     , case-insensitive
                      , wai-extra, containers
                      , http-types, scientific, time
                      , bytestring, aeson, network

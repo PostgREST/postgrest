@@ -2,10 +2,11 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 module Feature.InsertSpec where
 
+-- {{{ Imports
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Network.Wai.Test (SResponse(simpleBody))
+import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
 import SpecHelper
 
@@ -14,6 +15,15 @@ import Data.Aeson ((.:))
 import Data.Maybe (fromJust)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
+import qualified Data.HashMap.Strict as Hash
+import qualified Data.ByteString.Char8 as BS
+import Data.CaseInsensitive
+
+import Text.Regex.TDFA ((=~))
+import Network.HTTP.Types.Header
+import Network.HTTP.Types.Status
+
+-- }}}
 
 data IncPK = IncPK {
   incId :: Int
@@ -30,6 +40,14 @@ instance JSON.FromJSON IncPK where
     r .: "inserted_at"
   parseJSON _ = mzero
 
+getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
+getHeader name headers =
+  Hash.lookup name $ Hash.fromList headers
+
+matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
+matchHeader name valRegex headers =
+  maybe False (=~ valRegex) $ getHeader name headers
+
 spec :: Spec
 spec = around appWithFixture $
   describe "Posting new record" $ do
@@ -44,13 +62,13 @@ spec = around appWithFixture $
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and link" $ do
-          post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing,
-              matchStatus  = 201,
-              matchHeaders = [("Location", "/auto_incrementing_pk?id=eq.1")]
-            }
-          r <- get "/auto_incrementing_pk?id=eq.1"
+          p <- post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
+          liftIO $ do
+            simpleBody p `shouldBe` ""
+            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/auto_incrementing_pk\\?id=eq\\.[0-9]+"
+            simpleStatus p `shouldBe` created201
+          let Just location = getHeader hLocation $ simpleHeaders p
+          r <- get location
           let [record] = fromJust (JSON.decode $ simpleBody r :: Maybe [IncPK])
           liftIO $ do
             incStr record `shouldBe` "not null"
