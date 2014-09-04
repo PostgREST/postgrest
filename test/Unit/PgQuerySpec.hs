@@ -5,7 +5,7 @@ module Unit.PgQuerySpec where
 import Test.Hspec
 
 import Database.HDBC (IConnection, SqlValue, toSql, prepare, execute,
-                     SqlError, seState, fetchAllRowsAL)
+                     seState, fetchAllRowsAL)
 
 import PgQuery (insert)
 import Types (SqlRow(SqlRow))
