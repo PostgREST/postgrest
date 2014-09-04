@@ -11,10 +11,7 @@ import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 import SpecHelper
 
 import qualified Data.Aeson as JSON
-import Data.Aeson ((.:))
 import Data.Maybe (fromJust)
-import Control.Applicative ((<$>), (<*>))
-import Control.Monad (mzero)
 import qualified Data.HashMap.Strict as Hash
 import qualified Data.ByteString.Char8 as BS
 import Data.CaseInsensitive
@@ -23,22 +20,9 @@ import Text.Regex.TDFA ((=~))
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
 
+import TestTypes(IncPK, incStr, incNullableStr)
+
 -- }}}
-
-data IncPK = IncPK {
-  incId :: Int
-, incNullableStr :: Maybe String
-, incStr :: String
-, incInsert :: String
-} deriving (Show)
-
-instance JSON.FromJSON IncPK where
-  parseJSON (JSON.Object r) = IncPK <$>
-    r .: "id" <*>
-    r .: "nullable_string" <*>
-    r .: "non_nullable_string" <*>
-    r .: "inserted_at"
-  parseJSON _ = mzero
 
 getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
 getHeader name headers =
