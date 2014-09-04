@@ -42,8 +42,8 @@ executable dbapi
                      , case-insensitive
                      , http-types, scientific, time
                      , bytestring, aeson, network
-                     , text, optparse-applicative
-                     , containers
+                     , text , containers
+                     , optparse-applicative >= 0.9.1 && < 0.10
                      , unordered-containers
                      , regex-base
                      , http-media, regex-tdfa
