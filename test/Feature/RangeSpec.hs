@@ -42,6 +42,22 @@ spec = around appWithFixture $
             , matchHeaders = [("Content-Range", "*/0")]
             }
 
+        it "allows one-item requests" $ do
+          r <- request methodGet  "/items"
+                       (rangeHdrs $ ByteRangeFromTo 0 0) ""
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "0-0/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "handles ranges beyond collection length via truncation" $ do
+          r <- request methodGet  "/items"
+                       (rangeHdrs $ ByteRangeFromTo 10 100) ""
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "10-14/15"
+            simpleStatus r `shouldBe` partialContent206
+
       context "of invalid range" $ do
         it "fails with 416 for offside range" $
           request methodGet  "/items"
