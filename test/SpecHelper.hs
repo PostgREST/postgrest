@@ -11,6 +11,8 @@ import Control.Exception.Base (bracket)
 
 import Network.HTTP.Types.Header
 import Data.CaseInsensitive (CI(..))
+import Text.Regex.TDFA ((=~))
+import qualified Data.HashMap.Strict as Hash
 import qualified Data.ByteString.Char8 as BS
 
 import Dbapi (app, AppConfig(..))
@@ -46,3 +48,11 @@ rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
 
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")
+
+getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
+getHeader name headers =
+  Hash.lookup name $ Hash.fromList headers
+
+matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
+matchHeader name valRegex headers =
+  maybe False (=~ valRegex) $ getHeader name headers

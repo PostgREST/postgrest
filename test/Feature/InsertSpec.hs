@@ -12,25 +12,12 @@ import SpecHelper
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
-import qualified Data.HashMap.Strict as Hash
-import qualified Data.ByteString.Char8 as BS
-import Data.CaseInsensitive
-
-import Text.Regex.TDFA ((=~))
 import Network.HTTP.Types.Header
-import Network.HTTP.Types.Status
+import Network.HTTP.Types
 
 import TestTypes(IncPK, incStr, incNullableStr)
 
 -- }}}
-
-getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
-getHeader name headers =
-  Hash.lookup name $ Hash.fromList headers
-
-matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
-matchHeader name valRegex headers =
-  maybe False (=~ valRegex) $ getHeader name headers
 
 spec :: Spec
 spec = around appWithFixture $
