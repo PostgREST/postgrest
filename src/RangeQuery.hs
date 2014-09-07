@@ -49,4 +49,4 @@ offset :: NonnegRange -> Int
 offset range =
   case rangeLower range
     of BoundaryBelow from -> from
-       _ -> 0 -- should never happen
+       _ -> error "range without lower bound" -- should never happen

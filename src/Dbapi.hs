@@ -99,11 +99,11 @@ respondWithRangedResult rr =
   responseLBS status [
     jsonContentType,
     ("Content-Range",
-      if rrTotal rr == 0
-      then "*/0"
-      else (BS.pack $ show from)  <> "-"
-         <> (BS.pack $ show to)    <> "/"
-         <> (BS.pack $ show total)
+      if total == 0 || from > total
+      then "*/" <> BS.pack (show total)
+      else BS.pack (show from)  <> "-"
+         <> BS.pack (show to)    <> "/"
+         <> BS.pack (show total)
     )
   ] (rrBody rr)
 
@@ -111,9 +111,11 @@ respondWithRangedResult rr =
     from   = rrFrom rr
     to     = rrTo   rr
     total  = rrTotal rr
-    status = if total == 0 then status204
-             else if (1 + to - from) < total then status206
-             else status200
+    status
+      | from > total            = status416
+      | total == 0               = status204
+      | (1 + to - from) < total = status206
+      | otherwise               = status200
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =

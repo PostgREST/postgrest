@@ -39,11 +39,29 @@ spec = around appWithFixture $
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 204
-            , matchHeaders = []
+            , matchHeaders = [("Content-Range", "*/0")]
             }
 
-      context "of invalid range" $
+      context "of invalid range" $ do
         it "fails with 416 for offside range" $
           request methodGet  "/items"
                   (rangeHdrs $ ByteRangeFromTo 1 0) ""
             `shouldRespondWith` 416
+
+        it "refuses a range with nonzero start when there are no items" $
+          request methodGet "/menagerie"
+                  (rangeHdrs $ ByteRangeFromTo 1 2) ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = [("Content-Range", "*/0")]
+            }
+
+        it "refuses a range requesting start past last item" $
+          request methodGet "/items"
+                  (rangeHdrs $ ByteRangeFromTo 100 199) ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = [("Content-Range", "*/15")]
+            }
