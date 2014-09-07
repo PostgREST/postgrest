@@ -17,6 +17,7 @@ spec = around appWithFixture $ do
         [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
+        , {"schema":"1","name":"items","insertable":true}
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}
@@ -26,7 +27,7 @@ spec = around appWithFixture $ do
   describe "Table info" $
     it "is available with OPTIONS verb" $
       -- {{{ big json object
-      request methodOptions "/auto_incrementing_pk" "" `shouldRespondWith` [json|
+      request methodOptions "/auto_incrementing_pk" [] "" `shouldRespondWith` [json|
       {
         "pkey":["id"],
         "columns":{

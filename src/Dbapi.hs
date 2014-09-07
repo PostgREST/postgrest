@@ -96,16 +96,22 @@ app conn req respond = do
 
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =
-  responseLBS status206 [
+  responseLBS status [
     jsonContentType,
     ("Content-Range",
       if rrTotal rr == 0
       then "*/0"
-      else (BS.pack . show . rrFrom ) rr <> "-"
-         <> (BS.pack . show . rrTo   ) rr <> "/"
-         <> (BS.pack . show . rrTotal) rr
+      else (BS.pack $ show from)  <> "-"
+         <> (BS.pack $ show to)    <> "/"
+         <> (BS.pack $ show total)
     )
   ] (rrBody rr)
+
+  where
+    from   = rrFrom rr
+    to     = rrTo   rr
+    total  = rrTotal rr
+    status = if (1 + to - from) < total then status206 else status200
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =

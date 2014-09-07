@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module SpecHelper where
 
 import Network.Wai
@@ -7,6 +8,10 @@ import Database.HDBC
 import Database.HDBC.PostgreSQL
 
 import Control.Exception.Base (bracket)
+
+import Network.HTTP.Types.Header
+import Data.CaseInsensitive (CI(..))
+import qualified Data.ByteString.Char8 as BS
 
 import Dbapi (app, AppConfig(..))
 
@@ -35,3 +40,9 @@ appWithFixture action = withDatabaseConnection $ \c -> do
   runRaw c "begin;"
   action $ app c
   rollback c
+
+rangeHdrs :: ByteRange -> [Header]
+rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
+
+rangeUnit :: Header
+rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")

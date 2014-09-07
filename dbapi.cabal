@@ -61,7 +61,7 @@ Test-Suite spec
   Main-Is:             Main.hs
   Other-Modules:       Dbapi, Spec, SpecHelper
   Build-Depends:       base, hspec2
-                     , hspec-wai
+                     , hspec-wai >= 0.4.0
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , HTTP, convertible
