@@ -75,7 +75,9 @@ app conn req respond = do
         jsonBodyAction req (\row -> do
           allvals <- insert ver table row conn
           keys <- primaryKeyColumns ver (unpack table) conn
-          let keyvals = allvals `intersection` fromList (zip keys $ repeat SqlNull)
+          let keyvals = if null keys
+                        then allvals
+                        else allvals `intersection` fromList (zip keys $ repeat SqlNull)
           let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
           return $ responseLBS status201
             [ jsonContentType

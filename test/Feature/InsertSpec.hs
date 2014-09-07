@@ -50,6 +50,14 @@ spec = around appWithFixture $
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
 
+      context "into a table with no pk" $
+        it "succeeds with 201 and a link including all fields" $ do
+          p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` ""
+            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.foo&b=eq.bar"
+            simpleStatus p `shouldBe` created201
+
     context "with compound pk supplied" $
       it "builds response location header appropriately" $
         post "/compound_pk" [json| { "k1":12, "k2":42 } |]
