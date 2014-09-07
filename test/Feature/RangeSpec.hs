@@ -25,13 +25,22 @@ spec = around appWithFixture $
                        (rangeHdrs $ ByteRangeFromTo 0 1) ""
           liftIO $ do
             simpleHeaders r `shouldSatisfy`
-              matchHeader "Content-Range" "0-1/[0-9]+"
+              matchHeader "Content-Range" "0-1/15"
             simpleStatus r `shouldBe` partialContent206
 
         it "understands open-ended ranges" $
           request methodGet "/items"
                   (rangeHdrs $ ByteRangeFrom 0) ""
             `shouldRespondWith` 200
+
+        it "returns an empty body when there are no results" $
+          request methodGet "/menagerie"
+                  (rangeHdrs $ ByteRangeFromTo 0 1) ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 204
+            , matchHeaders = []
+            }
 
       context "of invalid range" $
         it "fails with 416 for offside range" $

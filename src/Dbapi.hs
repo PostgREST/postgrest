@@ -111,7 +111,9 @@ respondWithRangedResult rr =
     from   = rrFrom rr
     to     = rrTo   rr
     total  = rrTotal rr
-    status = if (1 + to - from) < total then status206 else status200
+    status = if total == 0 then status204
+             else if (1 + to - from) < total then status206
+             else status200
 
 requestedVersion :: RequestHeaders -> Maybe Int
 requestedVersion hdrs =
