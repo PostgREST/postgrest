@@ -6,6 +6,8 @@ module Dbapi where
 import Types (SqlRow)
 
 import Control.Exception (try)
+import Control.Monad (join)
+import Control.Arrow ((***))
 import Control.Applicative
 import Options.Applicative hiding (columns)
 
@@ -13,13 +15,17 @@ import Data.Maybe (fromMaybe)
 import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Map (intersection, fromList, toList)
+import Data.List (sort)
 import Data.Convertible.Base (convert)
 
-import Network.HTTP.Base (urlEncodeVars)
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
+import Network.HTTP.Types.URI
+
+import Network.HTTP.Base (urlEncodeVars)
 
 import Network.Wai
+import Network.Wai.Internal
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BS
@@ -69,8 +75,16 @@ app conn req respond = do
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
-        else respondWithRangedResult <$>
-          getRows (show ver) (unpack table) qq range conn
+        else do
+          r <- respondWithRangedResult <$> getRows (show ver) (unpack table) qq range conn
+          let canonical = urlEncodeVars $ sort $
+                          map (join (***) BS.unpack) $
+                          parseSimpleQuery $
+                          rawQueryString req
+          return $ addHeaders [
+            ("Content-Location",
+             "/" <> encodeUtf8 table <> "?" <> BS.pack canonical
+            )] r
       ([table], "POST") ->
         jsonBodyAction req (\row -> do
           allvals <- insert ver table row conn
@@ -132,3 +146,13 @@ requestedVersion hdrs =
 sqlErrorHandler :: SqlError -> Response
 sqlErrorHandler e =
   responseLBS status400 [] $ BL.fromChunks [BS.pack (seErrorMsg e)]
+
+addHeaders :: ResponseHeaders -> Response -> Response
+addHeaders hdrs (ResponseFile    s headers fp m) =
+                 ResponseFile    s (headers ++ hdrs) fp m
+addHeaders hdrs (ResponseBuilder s headers b)    =
+                 ResponseBuilder s (headers ++ hdrs) b
+addHeaders hdrs (ResponseStream  s headers b)    =
+                 ResponseStream  s (headers ++ hdrs) b
+addHeaders hdrs (ResponseRaw     s resp)         =
+                 ResponseRaw     s (addHeaders hdrs resp)
