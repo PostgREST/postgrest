@@ -20,7 +20,7 @@ import TestTypes(IncPK, incStr, incNullableStr)
 -- }}}
 
 spec :: Spec
-spec = around appWithFixture $
+spec = around appWithFixture $ do
   describe "Posting new record" $ do
     it "accepts disparate json types" $
       post "/menagerie"
@@ -66,3 +66,43 @@ spec = around appWithFixture $
             matchStatus  = 201,
             matchHeaders = [("Location", "/compound_pk?k1=eq.12&k2=eq.42")]
           }
+
+  describe "Putting record" $ do
+
+    context "to unkonwn uri" $
+      it "gives a 404" $
+        request methodPut "/fake" []
+          [json| { "real": false } |]
+            `shouldRespondWith` 404
+
+    context "to a known uri" $ do
+      context "without a fully-specified primary key" $
+        it "is not an allowed operation" $
+          request methodPut "/compound_pk?k1=eq.12" []
+            [json| { "k1":12, "k2":42 } |]
+              `shouldRespondWith` 405
+
+      context "with a fully-specified primary key" $ do
+
+        context "with Content-Range header" $
+          it "fails as per RFC7231" $
+            request methodPut "/compound_pk?k1=eq.1&k2=eq.2"
+              [("Content-Range", "0-0")]
+              [json| { "k1":1, "k2":2, "extra":3 } |]
+                `shouldRespondWith` 400
+
+        context "not specifying every column in the table" $
+          it "is rejected for lack of idempotence" $
+            request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
+              [json| { "k1":12, "k2":42 } |]
+                `shouldRespondWith` 400
+
+        context "specifying every column in the table" $
+          it "succeeds with 201 and link" $ do
+            p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
+                 [json| { "k1":12, "k2":42, "extra":3 } |]
+            liftIO $ do
+              simpleStatus p `shouldBe` created201
+              simpleHeaders p `shouldSatisfy` matchHeader
+                hLocation "/compound_pk\\?k1=eq\\.12&k2=eq\\.42"
+              simpleBody p `shouldBe` ""

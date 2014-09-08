@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Types(SqlRow(SqlRow), getRow) where
+module Types where
 
 import Database.HDBC (toSql, iToSql, SqlValue(..))
 
@@ -43,6 +43,12 @@ instance JSON.ToJSON SqlValue where
 
 
 newtype SqlRow = SqlRow {getRow :: [(Text, SqlValue)] } deriving (Show)
+
+sqlRowColumns :: SqlRow -> [Text]
+sqlRowColumns = map fst . getRow
+
+sqlRowValues :: SqlRow -> [SqlValue]
+sqlRowValues = map snd . getRow
 
 instance JSON.FromJSON SqlRow where
   parseJSON (JSON.Object m) = foldlWithKey' add (return $ SqlRow []) m

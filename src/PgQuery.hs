@@ -20,7 +20,7 @@ import Database.HDBC.PostgreSQL
 
 import qualified Network.HTTP.Types.URI as Net
 
-import Types (SqlRow, getRow)
+import Types (SqlRow, getRow, sqlRowColumns, sqlRowValues)
 
 -- }}}
 
@@ -105,16 +105,58 @@ jsonArrayRows q =
 
 insert :: Int -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
 insert schema table row conn = do
-  query  <- populateSql conn  ("insert into %I.%I ("++colIds++")",
-                        map toSql $ (pack . show $ schema):table:cols)
-  stmt   <- prepare conn (query ++ " values ("++phs++") returning *")
-  _      <- execute stmt values
+  sql    <- populateSql conn $ insertClause schema table row
+  stmt   <- prepare conn sql
+  _      <- execute stmt $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
-  where
-    (cols, values) = unzip . getRow $ row
-    colIds = intercalate ", " $ map (const "%I") cols
-    phs = intercalate ", " $ map (const "?") values
+
+upsert :: Int -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
+upsert schema table row qq conn = do
+  sql    <- populateSql conn $ upsertClause schema table row qq
+  stmt   <- prepare conn sql
+  _      <- execute stmt $ sqlRowValues row
+  Just m <- fetchRowMap stmt
+  return m
+
+placeholders :: String -> SqlRow -> String
+placeholders symbol = intercalate ", " . map (const symbol) . getRow
+
+insertClause :: Int -> Text -> SqlRow -> QuotedSql
+insertClause schema table row =
+    ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+  <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
+
+updateClause :: Int -> Text -> SqlRow -> QuotedSql
+updateClause schema table row =
+    ("update %I.%I set (" ++ placeholders "%I" row ++ ")",
+     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+  <> (" = (" ++ placeholders "?" row ++ ")", sqlRowValues row)
+
+upsertClause :: Int -> Text -> SqlRow -> Net.Query -> QuotedSql
+upsertClause schema table row qq =
+  ("with upsert as ", []) <> updateClause schema table row
+  <> whereClause qq
+  <> (" returning *) ", []) <> insertClause schema table row
+  <> (" where not exists (select * from upsert)", [])
+
+-- WITH upsert AS ($update RETURNING *) $insert WHERE NOT EXISTS (SELECT * FROM upsert);
+
+-- $insert = "INSERT INTO spider_count (spider, tally) SELECT 'Googlebot', 1";
+-- $update = "UPDATE spider_count SET tally=tally+1 WHERE date='today' AND spider='Googlebot'";
+
+-- UPDATE weather SET (temp_lo, temp_hi, prcp) = (temp_lo+1, temp_lo+15, DEFAULT)
+--   WHERE city = 'San Francisco' AND date = '2003-07-03';
+
+-- upsert :: Int -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
+-- upsert schema table row conn = do
+--   query  <- populateSql conn  ("update %I.%I ("++colIds++")",
+--                         map toSql $ (pack . show $ schema):table:cols)
+--   where
+--     (cols, values) = unzip . getRow $ row
+--     colIds = intercalate ", " $ map (const "%I") cols
+--     phs = intercalate ", " $ map (const "?") values
 
 populateSql :: Connection -> QuotedSql -> IO String
 populateSql conn sql = do
@@ -122,7 +164,7 @@ populateSql conn sql = do
   return $ fromSql escaped
 
   where
-    q = concat [ "select format('", fst sql, "', ", placeholders (snd sql), ")" ]
+    q = concat [ "select format('", fst sql, "', ", ph (snd sql), ")" ]
 
-    placeholders :: [a] -> String
-    placeholders = intercalate ", " . map (const "?::varchar")
+    ph :: [a] -> String
+    ph = intercalate ", " . map (const "?::varchar")

@@ -16,6 +16,7 @@ import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Map (intersection, fromList, toList)
 import Data.List (sort)
+import qualified Data.Set as S
 import Data.Convertible.Base (convert)
 
 import Network.HTTP.Types.Status
@@ -69,9 +70,11 @@ app conn req respond = do
     case (path, verb) of
       ([], _) ->
         responseLBS status200 [jsonContentType] <$> printTables ver conn
+
       ([table], "OPTIONS") ->
         responseLBS status200 [jsonContentType] <$>
           printColumns ver (unpack table) conn
+
       ([table], "GET") ->
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
@@ -85,6 +88,7 @@ app conn req respond = do
             ("Content-Location",
              "/" <> encodeUtf8 table <> "?" <> BS.pack canonical
             )] r
+
       ([table], "POST") ->
         jsonBodyAction req (\row -> do
           allvals <- insert ver table row conn
@@ -98,6 +102,25 @@ app conn req respond = do
             , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
             ] ""
         )
+
+      ([table], "PUT") ->
+        jsonBodyAction req (\row -> do
+          keys <- primaryKeyColumns ver (unpack table) conn
+          let specifiedKeys = map (BS.unpack . fst) qq
+          if S.fromList keys /= S.fromList specifiedKeys
+              then return $ responseLBS status405 []
+                   "You must speficy all and only primary keys as params"
+              else do
+                _ <- upsert ver table row qq conn
+                return $ responseLBS status201 [] "hi"
+          -- allvals <- insert ver table row conn
+          -- let keyvals = allvals `intersection` fromList (zip keys $ repeat SqlNull)
+          -- let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
+            -- [ jsonContentType
+            -- , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
+            -- ] ""
+        )
+
       (_, _) ->
         return $ responseLBS status404 [] ""
 
