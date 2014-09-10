@@ -102,7 +102,7 @@ spec = around appWithFixture $ do
             p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
                  [json| { "k1":12, "k2":42, "extra":3 } |]
             liftIO $ do
+              simpleBody p `shouldBe` ""
               simpleStatus p `shouldBe` created201
               simpleHeaders p `shouldSatisfy` matchHeader
                 hLocation "/compound_pk\\?k1=eq\\.12&k2=eq\\.42"
-              simpleBody p `shouldBe` ""

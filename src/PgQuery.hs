@@ -11,6 +11,8 @@ import Data.List (intersperse, intercalate)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
 
+import Control.Monad (join)
+
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
@@ -21,6 +23,8 @@ import Database.HDBC.PostgreSQL
 import qualified Network.HTTP.Types.URI as Net
 
 import Types (SqlRow, getRow, sqlRowColumns, sqlRowValues)
+
+import Debug.Trace
 
 -- }}}
 
@@ -114,10 +118,10 @@ insert schema table row conn = do
 upsert :: Int -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
   sql    <- populateSql conn $ upsertClause schema table row qq
-  stmt   <- prepare conn sql
-  _      <- execute stmt $ sqlRowValues row
+  stmt   <- prepare conn (traceShow sql sql)
+  _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
   Just m <- fetchRowMap stmt
-  return m
+  return (traceShow m m)
 
 placeholders :: String -> SqlRow -> String
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
@@ -128,18 +132,33 @@ insertClause schema table row =
      map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
   <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
 
+
+insertClauseViaSelect :: Int -> Text -> SqlRow -> QuotedSql
+insertClauseViaSelect schema table row =
+    ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+  <> (" select " ++ placeholders "?" row, sqlRowValues row)
+
 updateClause :: Int -> Text -> SqlRow -> QuotedSql
 updateClause schema table row =
     ("update %I.%I set (" ++ placeholders "%I" row ++ ")",
      map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
-  <> (" = (" ++ placeholders "?" row ++ ")", sqlRowValues row)
+  <> (" = (" ++ placeholders "?" row ++ ")", [])
+
+--sqlRowValues row
 
 upsertClause :: Int -> Text -> SqlRow -> Net.Query -> QuotedSql
 upsertClause schema table row qq =
-  ("with upsert as ", []) <> updateClause schema table row
+  ("with upsert as (", []) <> updateClause schema table row
   <> whereClause qq
-  <> (" returning *) ", []) <> insertClause schema table row
-  <> (" where not exists (select * from upsert)", [])
+  <> (" returning *) ", []) <> insertClauseViaSelect schema table row
+  <> (" where not exists (select * from upsert) returning *", [])
+
+-- with upsert as
+-- (update "1".compound_pk set (k1, k2, extra) = (?, ?, ?)
+--   where k1 ='12' and k2 ='42' returning *)
+-- insert into "1".compound_pk (k1, k2, extra) values (?, ?, ?) returning *
+-- where not exists (select * from upsert)
 
 -- WITH upsert AS ($update RETURNING *) $insert WHERE NOT EXISTS (SELECT * FROM upsert);
 

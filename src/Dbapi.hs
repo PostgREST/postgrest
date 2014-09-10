@@ -112,7 +112,7 @@ app conn req respond = do
                    "You must speficy all and only primary keys as params"
               else do
                 _ <- upsert ver table row qq conn
-                return $ responseLBS status201 [] "hi"
+                return $ responseLBS status201 [] ""
           -- allvals <- insert ver table row conn
           -- let keyvals = allvals `intersection` fromList (zip keys $ repeat SqlNull)
           -- let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
