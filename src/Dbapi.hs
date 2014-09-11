@@ -11,7 +11,7 @@ import Control.Arrow ((***))
 import Control.Applicative
 import Options.Applicative hiding (columns)
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Map (intersection, fromList, toList)
@@ -109,18 +109,32 @@ app conn req respond = do
           keys <- primaryKeyColumns ver (unpack table) conn
           let specifiedKeys = map (BS.unpack . fst) qq
           if S.fromList keys /= S.fromList specifiedKeys
-              then return $ responseLBS status405 []
-                   "You must speficy all and only primary keys as params"
+            then return $ responseLBS status405 []
+                 "You must speficy all and only primary keys as params"
+            else
+              if isJust cRange
+                 then return $ responseLBS status400 []
+                      "Content-Range is not allowed in PUT request"
               else do
                 cols <- columns ver (unpack table) conn
                 let colNames = S.fromList $ map (pack . colName) cols
                 let specifiedCols = S.fromList $ map fst $ getRow row
                 if colNames == specifiedCols then do
-                  _ <- upsert ver table row qq conn
-                  return $ responseLBS status201 [] ""
-                  else return $ responseLBS status400 []
-                    "Missing column(s) in PUT request"
+                  allvals <- upsert ver table row qq conn
+                  let keyvals = if null keys
+                                then allvals
+                                else allvals `intersection` fromList (zip keys $ repeat SqlNull)
+                  let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
+                  return $ responseLBS status201
+                    [ jsonContentType
+                    , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
+                    ] ""
+
+                  else return $ if S.null colNames then responseLBS status404 [] ""
+                    else responseLBS status400 []
+                       "You must specify all columns in PUT request"
         )
+
       (_, _) ->
         return $ responseLBS status404 [] ""
 
@@ -132,6 +146,7 @@ app conn req respond = do
     qq     = queryString req
     ver    = fromMaybe 1 $ requestedVersion (requestHeaders req)
     range  = requestedRange (requestHeaders req)
+    cRange = requestedContentRange (requestHeaders req)
 
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =

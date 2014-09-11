@@ -39,6 +39,9 @@ parseRange range = do
 requestedRange :: RequestHeaders -> Maybe NonnegRange
 requestedRange hdrs = parseRange =<< BS.unpack <$> lookup hRange hdrs
 
+requestedContentRange :: RequestHeaders -> Maybe NonnegRange
+requestedContentRange hdrs = parseRange =<< BS.unpack <$> lookup "Content-Range" hdrs
+
 limit :: NonnegRange -> Maybe Int
 limit range =
   case [rangeLower range, rangeUpper range]
