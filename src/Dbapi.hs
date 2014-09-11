@@ -14,7 +14,7 @@ import Options.Applicative hiding (columns)
 import Data.Maybe (fromMaybe, isJust)
 import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
-import Data.Map (intersection, fromList, toList)
+import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sort)
 import qualified Data.Set as S
 import Data.Convertible.Base (convert)
@@ -33,7 +33,6 @@ import qualified Data.ByteString.Char8 as BS
 
 import Database.HDBC.PostgreSQL (Connection)
 import Database.HDBC.Types (SqlError, seErrorMsg)
-import Database.HDBC.SqlValue (SqlValue(..))
 import PgStructure (printTables, printColumns, primaryKeyColumns,
                     columns, Column(colName))
 
@@ -65,6 +64,11 @@ jsonBodyAction req handler = do
 jsonBody :: Request -> IO (Either String SqlRow)
 jsonBody = fmap JSON.eitherDecode . strictRequestBody
 
+filterByKeys :: Ord a => Map a b -> [a] -> Map a b
+filterByKeys m keys =
+  if null keys then m else
+    m `intersection` fromList (zip keys $ repeat undefined)
+
 app :: Connection -> Application
 app conn req respond = do
   r <- try $
@@ -94,10 +98,7 @@ app conn req respond = do
         jsonBodyAction req (\row -> do
           allvals <- insert ver table row conn
           keys <- primaryKeyColumns ver (unpack table) conn
-          let keyvals = if null keys
-                        then allvals
-                        else allvals `intersection` fromList (zip keys $ repeat SqlNull)
-          let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
+          let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
           return $ responseLBS status201
             [ jsonContentType
             , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
@@ -121,10 +122,7 @@ app conn req respond = do
                 let specifiedCols = S.fromList $ map fst $ getRow row
                 if colNames == specifiedCols then do
                   allvals <- upsert ver table row qq conn
-                  let keyvals = if null keys
-                                then allvals
-                                else allvals `intersection` fromList (zip keys $ repeat SqlNull)
-                  let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
+                  let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
                   return $ responseLBS status201
                     [ jsonContentType
                     , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
