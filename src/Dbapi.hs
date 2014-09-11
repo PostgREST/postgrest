@@ -3,7 +3,7 @@
 -- {{{ Imports
 module Dbapi where
 
-import Types (SqlRow)
+import Types (SqlRow, getRow)
 
 import Control.Exception (try)
 import Control.Monad (join)
@@ -34,7 +34,8 @@ import qualified Data.ByteString.Char8 as BS
 import Database.HDBC.PostgreSQL (Connection)
 import Database.HDBC.Types (SqlError, seErrorMsg)
 import Database.HDBC.SqlValue (SqlValue(..))
-import PgStructure (printTables, printColumns, primaryKeyColumns)
+import PgStructure (printTables, printColumns, primaryKeyColumns,
+                    columns, Column(colName))
 
 import qualified Data.Aeson as JSON
 import Data.Text (pack, unpack)
@@ -111,16 +112,15 @@ app conn req respond = do
               then return $ responseLBS status405 []
                    "You must speficy all and only primary keys as params"
               else do
-                _ <- upsert ver table row qq conn
-                return $ responseLBS status201 [] ""
-          -- allvals <- insert ver table row conn
-          -- let keyvals = allvals `intersection` fromList (zip keys $ repeat SqlNull)
-          -- let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList keyvals
-            -- [ jsonContentType
-            -- , (hLocation, "/" <> encodeUtf8 table <> "?" <> BS.pack params)
-            -- ] ""
+                cols <- columns ver (unpack table) conn
+                let colNames = S.fromList $ map (pack . colName) cols
+                let specifiedCols = S.fromList $ map fst $ getRow row
+                if colNames == specifiedCols then do
+                  _ <- upsert ver table row qq conn
+                  return $ responseLBS status201 [] ""
+                  else return $ responseLBS status400 []
+                    "Missing column(s) in PUT request"
         )
-
       (_, _) ->
         return $ responseLBS status404 [] ""
 
