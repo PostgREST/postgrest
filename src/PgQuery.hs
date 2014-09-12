@@ -145,37 +145,12 @@ updateClause schema table row =
      map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
   <> (" = (" ++ placeholders "?" row ++ ")", [])
 
---sqlRowValues row
-
 upsertClause :: Int -> Text -> SqlRow -> Net.Query -> QuotedSql
 upsertClause schema table row qq =
   ("with upsert as (", []) <> updateClause schema table row
   <> whereClause qq
   <> (" returning *) ", []) <> insertClauseViaSelect schema table row
   <> (" where not exists (select * from upsert) returning *", [])
-
--- with upsert as
--- (update "1".compound_pk set (k1, k2, extra) = (?, ?, ?)
---   where k1 ='12' and k2 ='42' returning *)
--- insert into "1".compound_pk (k1, k2, extra) values (?, ?, ?) returning *
--- where not exists (select * from upsert)
-
--- WITH upsert AS ($update RETURNING *) $insert WHERE NOT EXISTS (SELECT * FROM upsert);
-
--- $insert = "INSERT INTO spider_count (spider, tally) SELECT 'Googlebot', 1";
--- $update = "UPDATE spider_count SET tally=tally+1 WHERE date='today' AND spider='Googlebot'";
-
--- UPDATE weather SET (temp_lo, temp_hi, prcp) = (temp_lo+1, temp_lo+15, DEFAULT)
---   WHERE city = 'San Francisco' AND date = '2003-07-03';
-
--- upsert :: Int -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
--- upsert schema table row conn = do
---   query  <- populateSql conn  ("update %I.%I ("++colIds++")",
---                         map toSql $ (pack . show $ schema):table:cols)
---   where
---     (cols, values) = unzip . getRow $ row
---     colIds = intercalate ", " $ map (const "%I") cols
---     phs = intercalate ", " $ map (const "?") values
 
 populateSql :: Connection -> QuotedSql -> IO String
 populateSql conn sql = do
