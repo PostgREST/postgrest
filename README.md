@@ -7,6 +7,7 @@
 ```sh
 brew install postgres
 createuser -d postgres
+createdb dbapi_test -O postgres
 cabal install -j --enable-tests --reorder-goals
 ```
 
