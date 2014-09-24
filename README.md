@@ -21,5 +21,5 @@ dbapi -p 3000 -d postgres://postgres:@localhost:5432/dbapi_test
 ### Running tests
 
 ```sh
-cabal test
+cabal test --show-details=always --test-options="--color"
 ```
