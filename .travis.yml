@@ -11,7 +11,7 @@ before_install:
   - export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
 install:
   - cabal sandbox init
-  - cabal install -j --enable-tests --disable-library-profiling --disable-executable-profiling --disable-library-coverage --disable-benchmarks --enable-executable-stripping --disable-split-objs
+  - cabal install -j --disable-documentation --enable-tests
   - cabal install -j --disable-documentation hlint
 cache:
   directories:
