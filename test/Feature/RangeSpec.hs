@@ -39,7 +39,7 @@ spec = around appWithFixture $
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 204
-            , matchHeaders = [("Content-Range", "*/0")]
+            , matchHeaders = ["Content-Range" <:> "*/0"]
             }
 
         it "allows one-item requests" $ do
@@ -70,7 +70,7 @@ spec = around appWithFixture $
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = [("Content-Range", "*/0")]
+            , matchHeaders = ["Content-Range" <:> "*/0"]
             }
 
         it "refuses a range requesting start past last item" $
@@ -79,5 +79,5 @@ spec = around appWithFixture $
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = [("Content-Range", "*/15")]
+            , matchHeaders = ["Content-Range" <:> "*/15"]
             }

@@ -64,7 +64,7 @@ spec = around appWithFixture $ do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
             matchStatus  = 201,
-            matchHeaders = [("Location", "/compound_pk?k1=eq.12&k2=eq.42")]
+            matchHeaders = ["Location" <:> "/compound_pk?k1=eq.12&k2=eq.42"]
           }
 
   describe "Putting record" $ do

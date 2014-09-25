@@ -26,7 +26,6 @@ spec = around appWithFixture $ do
 
   describe "Table info" $
     it "is available with OPTIONS verb" $
-      -- {{{ big json object
       request methodOptions "/auto_incrementing_pk" [] "" `shouldRespondWith` [json|
       {
         "pkey":["id"],
@@ -69,4 +68,3 @@ spec = around appWithFixture $ do
             "position":2}}
       }
       |]
-      -- }}}

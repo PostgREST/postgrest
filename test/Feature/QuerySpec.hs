@@ -17,7 +17,7 @@ spec = around appWithFixture $ do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "[{\"id\":5}]"
           , matchStatus  = 200
-          , matchHeaders = [("Content-Range", "0-0/1")]
+          , matchHeaders = ["Content-Range" <:> "0-0/1"]
           }
 
   describe "Canonical location" $
@@ -26,5 +26,5 @@ spec = around appWithFixture $ do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Nothing
         , matchStatus  = 204
-        , matchHeaders = [("Content-Location", "/no_pk?a=eq.1&b=eq.1")]
+        , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
         }
