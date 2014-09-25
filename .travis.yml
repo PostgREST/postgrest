@@ -10,4 +10,8 @@ before_install:
   - travis_retry sudo apt-get install --force-yes happy-1.19.3 alex-3.1.3
   - export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
 script:
-  - cabal configure --enable-tests && cabal build && cabal test --show-details=always --test-options="--color"
+  - cabal configure --enable-tests
+  - cabal build
+  - cabal install hlint
+  - hlint src/*.hs test/*.hs test/*/*.hs
+  - cabal test --show-details=always --test-options="--color"
