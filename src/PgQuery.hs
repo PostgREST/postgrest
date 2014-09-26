@@ -2,7 +2,12 @@
 
 -- {{{ Imports
 
-module PgQuery where
+module PgQuery (
+  getRows,
+  insert,
+  upsert,
+  RangedResult(..),
+) where
 
 import Data.Text (Text, pack)
 import Data.Functor ( (<$>) )
@@ -100,9 +105,9 @@ selectStarClause :: Schema -> String -> QuotedSql
 selectStarClause schema table =
   (" select * from %I.%I ", map toSql [schema, table])
 
-selectCountClause :: Schema -> String -> QuotedSql
-selectCountClause schema table =
-  (" select count(1) from %I.%I ", map toSql [schema, table])
+-- selectCountClause :: Schema -> String -> QuotedSql
+-- selectCountClause schema table =
+--   (" select count(1) from %I.%I ", map toSql [schema, table])
 
 jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
