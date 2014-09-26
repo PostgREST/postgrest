@@ -26,7 +26,7 @@ spec = around dbWithSchema $ do
   describe "insert" $
     describe "with an auto-increment key" $ do
       it "inserts and responds with a full object description" $ \conn -> do
-        r <- insert 1 "auto_incrementing_pk" (SqlRow [
+        r <- insert "1" "auto_incrementing_pk" (SqlRow [
             ("non_nullable_string", toSql ("a string"::String))]) conn
         let returnRow = fromList . toList $ r
         incStr returnRow `shouldBe` "a string"
@@ -37,13 +37,17 @@ spec = around dbWithSchema $ do
         [returnRow] `shouldBe` map fromList tRows
 
       it "throws an exception if the PK is not unique" $ \conn -> do
-        r <- insert 1 "auto_incrementing_pk" (SqlRow [
+        r <- insert "1" "auto_incrementing_pk" (SqlRow [
             ("non_nullable_string", toSql ("a string"::String))]) conn
         let row = SqlRow .  map (\(k, v) -> (pack k, v)) . toList $ r
-        insert 1 "auto_incrementing_pk" row conn `shouldThrow` \e ->
+        insert "1" "auto_incrementing_pk" row conn `shouldThrow` \e ->
           seState e == "23505" -- uniqueness violation code
 
       it "throws an exception if a required value is missing" $ \conn -> do
-        insert 1 "auto_incrementing_pk" (SqlRow [
+        insert "1" "auto_incrementing_pk" (SqlRow [
           ("nullable_string", toSql ("a string"::String))]) conn
           `shouldThrow` \e -> seState e == "23502"
+
+  describe "addUser" $ do
+    it "adds a correct user to the right table" $ \_ -> do
+      pending

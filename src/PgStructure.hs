@@ -88,7 +88,7 @@ tables s conn = do
         (toBool (fromSql insertable))
     mkTable _ = Nothing
 
-columns :: Int -> String -> Connection -> IO [Column]
+columns :: String -> String -> Connection -> IO [Column]
 columns s t conn = do
   r <- quickQuery conn
         "select table_schema, table_name, column_name, ordinal_position,\
@@ -96,7 +96,7 @@ columns s t conn = do
         \       character_maximum_length, numeric_precision\
         \  from information_schema.columns\
         \ where table_schema = ?\
-        \   and table_name = ?" [toSql (show s), toSql t]
+        \   and table_name = ?" [toSql s, toSql t]
   return $ mapMaybe mkColumn r
 
   where
@@ -115,10 +115,10 @@ columns s t conn = do
 namedColumnHash :: [Column] -> HashMap String Column
 namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
 
-printTables :: Int -> Connection -> IO BL.ByteString
-printTables schema conn = JSON.encode <$> tables (show schema) conn
+printTables :: String -> Connection -> IO BL.ByteString
+printTables schema conn = JSON.encode <$> tables schema conn
 
-printColumns :: Int -> String -> Connection -> IO BL.ByteString
+printColumns :: String -> String -> Connection -> IO BL.ByteString
 printColumns schema table conn =
   JSON.encode <$> (TableOptions <$> cols <*> pkey)
   where
@@ -127,7 +127,7 @@ printColumns schema table conn =
     pkey :: IO [String]
     pkey = primaryKeyColumns schema table conn
 
-primaryKeyColumns :: Int -> String -> Connection -> IO [String]
+primaryKeyColumns :: String -> String -> Connection -> IO [String]
 primaryKeyColumns s t conn = do
   r <- quickQuery conn
         "select kc.column_name \
@@ -139,5 +139,5 @@ primaryKeyColumns s t conn = do
         \  and kc.table_name = tc.table_name and kc.table_schema = tc.table_schema \
         \  and kc.constraint_name = tc.constraint_name \
         \  and kc.table_schema = ? \
-        \  and kc.table_name  = ?" [toSql (show s), toSql t]
+        \  and kc.table_name  = ?" [toSql s, toSql t]
   return $ map fromSql (concat r)

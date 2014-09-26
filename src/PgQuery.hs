@@ -36,8 +36,9 @@ data RangedResult = RangedResult {
 } deriving (Show)
 
 type QuotedSql = (String, [SqlValue])
+type Schema = String
 
-getRows :: String -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
+getRows :: Schema -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
   query <- populateSql conn
     $ globalAndLimitedCounts schema table qq <>
@@ -88,18 +89,18 @@ limitClause range =
     limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
     offset = fromMaybe 0     $ R.offset <$> range
 
-globalAndLimitedCounts :: String -> String -> Net.Query -> QuotedSql
+globalAndLimitedCounts :: Schema -> String -> Net.Query -> QuotedSql
 globalAndLimitedCounts schema table qq =
   (" select ", [])
   <> ("(select count(1) from %I.%I ", map toSql [schema, table])
   <> whereClause qq
   <> ("), count(t), ", [])
 
-selectStarClause :: String -> String -> QuotedSql
+selectStarClause :: Schema -> String -> QuotedSql
 selectStarClause schema table =
   (" select * from %I.%I ", map toSql [schema, table])
 
-selectCountClause :: String -> String -> QuotedSql
+selectCountClause :: Schema -> String -> QuotedSql
 selectCountClause schema table =
   (" select count(1) from %I.%I ", map toSql [schema, table])
 
@@ -107,7 +108,7 @@ jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
   ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
 
-insert :: Int -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
+insert :: Schema -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
 insert schema table row conn = do
   sql    <- populateSql conn $ insertClause schema table row
   stmt   <- prepare conn sql
@@ -115,7 +116,7 @@ insert schema table row conn = do
   Just m <- fetchRowMap stmt
   return m
 
-upsert :: Int -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
+upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
   sql    <- populateSql conn $ upsertClause schema table row qq
   stmt   <- prepare conn (traceShow sql sql)
@@ -126,26 +127,26 @@ upsert schema table row qq conn = do
 placeholders :: String -> SqlRow -> String
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
 
-insertClause :: Int -> Text -> SqlRow -> QuotedSql
+insertClause :: Schema -> Text -> SqlRow -> QuotedSql
 insertClause schema table row =
     ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+     map toSql $ (pack schema) : table : sqlRowColumns row)
   <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
 
 
-insertClauseViaSelect :: Int -> Text -> SqlRow -> QuotedSql
+insertClauseViaSelect :: Schema -> Text -> SqlRow -> QuotedSql
 insertClauseViaSelect schema table row =
     ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+     map toSql $ (pack schema) : table : sqlRowColumns row)
   <> (" select " ++ placeholders "?" row, sqlRowValues row)
 
-updateClause :: Int -> Text -> SqlRow -> QuotedSql
+updateClause :: Schema -> Text -> SqlRow -> QuotedSql
 updateClause schema table row =
     ("update %I.%I set (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack . show $ schema) : table : sqlRowColumns row)
+     map toSql $ (pack schema) : table : sqlRowColumns row)
   <> (" = (" ++ placeholders "?" row ++ ")", [])
 
-upsertClause :: Int -> Text -> SqlRow -> Net.Query -> QuotedSql
+upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> QuotedSql
 upsertClause schema table row qq =
   ("with upsert as (", []) <> updateClause schema table row
   <> whereClause qq

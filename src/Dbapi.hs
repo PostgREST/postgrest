@@ -12,7 +12,6 @@ import Control.Applicative
 import Options.Applicative hiding (columns)
 
 import Data.Maybe (fromMaybe, isJust)
-import Text.Read (readMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sort)
@@ -84,7 +83,7 @@ app conn req respond = do
         if range == Just emptyRange
         then return $ responseLBS status416 [] "HTTP Range error"
         else do
-          r <- respondWithRangedResult <$> getRows (show ver) (unpack table) qq range conn
+          r <- respondWithRangedResult <$> getRows ver (unpack table) qq range conn
           let canonical = urlEncodeVars $ sort $
                           map (join (***) BS.unpack) $
                           parseSimpleQuery $
@@ -142,7 +141,7 @@ app conn req respond = do
     path   = pathInfo req
     verb   = requestMethod req
     qq     = queryString req
-    ver    = fromMaybe 1 $ requestedVersion (requestHeaders req)
+    ver    = fromMaybe "1" $ requestedVersion (requestHeaders req)
     range  = requestedRange (requestHeaders req)
     cRange = requestedContentRange (requestHeaders req)
 
@@ -169,10 +168,10 @@ respondWithRangedResult rr =
       | (1 + to - from) < total = status206
       | otherwise               = status200
 
-requestedVersion :: RequestHeaders -> Maybe Int
+requestedVersion :: RequestHeaders -> Maybe String
 requestedVersion hdrs =
   case verStr of
-       Just [[_, ver]] -> readMaybe ver
+       Just [[_, ver]] -> Just ver
        _ -> Nothing
 
   where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String

@@ -9,6 +9,7 @@ main :: IO ()
 main = do
   c <-openConnection
   runRaw c "drop schema if exists \"1\" cascade"
+  runRaw c "drop schema if exists dbapi cascade"
   loadFixture "schema" c
   disconnect c
   hspec spec
