@@ -4,10 +4,10 @@ module Unit.PgQuerySpec where
 
 import Test.Hspec
 
-import Database.HDBC (IConnection, SqlValue, toSql, prepare, execute,
-                     seState, fetchAllRowsAL)
+import Database.HDBC (IConnection, SqlValue, toSql, fromSql, prepare, execute,
+                     seState, fetchAllRowsAL, quickQuery)
 
-import PgQuery (insert)
+import PgQuery (insert, addUser)
 import Types (SqlRow(SqlRow))
 import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
@@ -50,5 +50,8 @@ spec = around dbWithSchema $ do
           `shouldThrow` \e -> seState e == "23502"
 
   describe "addUser" $ do
-    it "adds a correct user to the right table" $ \_ -> do
-      pending
+    it "adds a correct user to the right table" $ \conn -> do
+      let {key = "a sill key"; role = "test_default_role"}
+      addUser key role conn
+      [newUser] <- quickQuery conn "select * from dbapi.auth" []
+      (map fromSql newUser :: [String]) `shouldBe` [key, role]

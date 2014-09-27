@@ -6,6 +6,7 @@ module PgQuery (
   getRows,
   insert,
   upsert,
+  addUser,
   RangedResult(..),
 ) where
 
@@ -28,7 +29,7 @@ import Database.HDBC.PostgreSQL
 
 import qualified Network.HTTP.Types.URI as Net
 
-import Types (SqlRow, getRow, sqlRowColumns, sqlRowValues)
+import Types (SqlRow(..), getRow, sqlRowColumns, sqlRowValues)
 
 import Debug.Trace
 
@@ -121,6 +122,12 @@ insert schema table row conn = do
   _      <- execute stmt $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
+
+addUser :: String -> String -> Connection -> IO ()
+addUser identity role conn =
+  insert "dbapi" "auth" (SqlRow [
+      ("id", toSql identity), ("rolname", toSql role)
+    ]) conn >> return ()
 
 upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
