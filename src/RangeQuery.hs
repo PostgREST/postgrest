@@ -8,7 +8,7 @@ import Network.HTTP.Types.Header
 import Data.Ranged.Boundaries
 import Data.Ranged.Ranges
 
-import qualified Data.ByteString.Char8 as BS
+import Data.String.Conversions (cs)
 import Text.Regex.TDFA ((=~))
 import Text.Read (readMaybe)
 
@@ -37,10 +37,10 @@ parseRange range = do
   return $ rangeIntersection lower upper
 
 requestedRange :: RequestHeaders -> Maybe NonnegRange
-requestedRange hdrs = parseRange =<< BS.unpack <$> lookup hRange hdrs
+requestedRange hdrs = parseRange =<< cs <$> lookup hRange hdrs
 
 requestedContentRange :: RequestHeaders -> Maybe NonnegRange
-requestedContentRange hdrs = parseRange =<< BS.unpack <$> lookup "Content-Range" hdrs
+requestedContentRange hdrs = parseRange =<< cs <$> lookup "Content-Range" hdrs
 
 limit :: NonnegRange -> Maybe Int
 limit range =

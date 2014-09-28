@@ -24,6 +24,7 @@ executable dbapi
                      , optparse-applicative >= 0.9.1 && < 0.10
                      , unordered-containers
                      , regex-base
+                     , string-conversions
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
@@ -53,6 +54,7 @@ Test-Suite spec
                      , text, optparse-applicative
                      , unordered-containers
                      , regex-base
+                     , string-conversions
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers

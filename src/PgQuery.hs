@@ -9,7 +9,8 @@ module PgQuery (
   RangedResult(..),
 ) where
 
-import Data.Text (Text, pack)
+import Data.Text (Text)
+import Data.String.Conversions (cs)
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe)
 import Data.List (intersperse, intercalate)
@@ -135,20 +136,20 @@ placeholders symbol = intercalate ", " . map (const symbol) . getRow
 insertClause :: Schema -> Text -> SqlRow -> QuotedSql
 insertClause schema table row =
     ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack schema) : table : sqlRowColumns row)
+     map toSql $ cs schema : table : sqlRowColumns row)
   <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
 
 
 insertClauseViaSelect :: Schema -> Text -> SqlRow -> QuotedSql
 insertClauseViaSelect schema table row =
     ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack schema) : table : sqlRowColumns row)
+     map toSql $ cs schema : table : sqlRowColumns row)
   <> (" select " ++ placeholders "?" row, sqlRowValues row)
 
 updateClause :: Schema -> Text -> SqlRow -> QuotedSql
 updateClause schema table row =
     ("update %I.%I set (" ++ placeholders "%I" row ++ ")",
-     map toSql $ (pack schema) : table : sqlRowColumns row)
+     map toSql $ cs schema : table : sqlRowColumns row)
   <> (" = (" ++ placeholders "?" row ++ ")", [])
 
 upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> QuotedSql
