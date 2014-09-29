@@ -10,8 +10,6 @@ import Data.Maybe (mapMaybe)
 
 import Control.Applicative ( (<*>) )
 
-import Data.HashMap.Strict hiding (map)
-
 import qualified Data.ByteString.Lazy as BL
 
 import qualified Data.Aeson as JSON
@@ -62,7 +60,7 @@ instance JSON.ToJSON Column where
     , "precision" .= colPrecision c ]
 
 data TableOptions = TableOptions {
-  tblOptcolumns :: HashMap String Column
+  tblOptcolumns :: [Column]
 , tblOptpkey :: [String]
 }
 
@@ -112,9 +110,6 @@ columns s t conn = do
         (fromSql precision)
     mkColumn _ = Nothing
 
-namedColumnHash :: [Column] -> HashMap String Column
-namedColumnHash = fromList . (Prelude.zip =<< Prelude.map colName)
-
 printTables :: String -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables schema conn
 
@@ -122,8 +117,8 @@ printColumns :: String -> String -> Connection -> IO BL.ByteString
 printColumns schema table conn =
   JSON.encode <$> (TableOptions <$> cols <*> pkey)
   where
-    cols :: IO (HashMap String Column)
-    cols = namedColumnHash <$> columns schema table conn
+    cols :: IO [Column]
+    cols = columns schema table conn
     pkey :: IO [String]
     pkey = primaryKeyColumns schema table conn
 

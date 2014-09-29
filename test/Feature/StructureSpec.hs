@@ -29,42 +29,44 @@ spec = around appWithFixture $ do
       request methodOptions "/auto_incrementing_pk" [] "" `shouldRespondWith` [json|
       {
         "pkey":["id"],
-        "columns":{
-          "inserted_at":{
-            "precision":null,
-            "updatable":true,
-            "schema":"1",
-            "name":"inserted_at",
-            "type":"timestamp with time zone",
-            "maxLen":null,
-            "nullable":true,
-            "position":4},
-          "id":{
-            "precision":32,
-            "updatable":true,
-            "schema":"1",
-            "name":"id",
-            "type":"integer",
-            "maxLen":null,
-            "nullable":false,
-            "position":1},
-          "non_nullable_string":{
-            "precision":null,
-            "updatable":true,
-            "schema":"1",
-            "name":"non_nullable_string",
-            "type":"character varying",
-            "maxLen":null,
-            "nullable":false,
-            "position":3},
-          "nullable_string":{
-            "precision":null,
-            "updatable":true,
-            "schema":"1",
-            "name":"nullable_string",
-            "type":"character varying",
-            "maxLen":null,
-            "nullable":true,
-            "position":2}}
+        "columns":[
+          {
+            "precision": 32,
+            "updatable": true,
+            "schema": "1",
+            "name": "id",
+            "type": "integer",
+            "maxLen": null,
+            "nullable": false,
+            "position": 1
+          }, {
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "nullable_string",
+            "type": "character varying",
+            "maxLen": null,
+            "nullable": true,
+            "position": 2
+          }, {
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "non_nullable_string",
+            "type": "character varying",
+            "maxLen": null,
+            "nullable": false,
+            "position": 3
+          }, {
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "inserted_at",
+            "type": "timestamp with time zone",
+            "maxLen": null,
+            "nullable": true,
+            "position": 4
+          }
+        ]
       }
       |]
