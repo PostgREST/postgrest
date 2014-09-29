@@ -45,7 +45,10 @@ import Data.Ranged.Ranges (emptyRange)
 
 data AppConfig = AppConfig {
     configDbUri :: String
-  , configPort  :: Int }
+  , configPort  :: Int
+  , configSslCert :: FilePath
+  , configSslKey  :: FilePath
+  }
 
 jsonContentType :: (HeaderName, BS.ByteString)
 jsonContentType = (hContentType, "application/json")

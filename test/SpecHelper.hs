@@ -18,7 +18,7 @@ import qualified Data.ByteString.Char8 as BS
 import Dbapi (app, AppConfig(..))
 
 cfg :: AppConfig
-cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000
+cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key"
 
 openConnection :: IO Connection
 openConnection = connectPostgreSQL' $ configDbUri cfg

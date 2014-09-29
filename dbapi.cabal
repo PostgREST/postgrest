@@ -16,6 +16,7 @@ executable dbapi
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
+                     , wai-extra
                      , HTTP, convertible
                      , case-insensitive
                      , http-types, scientific, time
@@ -28,6 +29,7 @@ executable dbapi
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
+                     , warp-tls
                      , bcrypt
   Other-Modules:       Dbapi
                      , PgStructure
@@ -58,4 +60,5 @@ Test-Suite spec
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
+                     , warp-tls
                      , bcrypt
