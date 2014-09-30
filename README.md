@@ -6,20 +6,20 @@
 
 ```sh
 brew install postgres
-createuser -d postgres
-psql template1 -c "ALTER ROLE postgres WITH SUPERUSER;"
-createdb dbapi_test -O postgres
-cabal install -j --enable-tests --reorder-goals
+cabal install -j --enable-tests
 ```
 
 Example usage:
 
 ```sh
-dbapi -p 3000 -d postgres://postgres:@localhost:5432/dbapi_test
+dbapi -p 3000 -d postgres://[user]:@localhost:5432/[database]
 ```
 
 ### Running tests
 
 ```sh
+createuser --superuser --no-password dbapi_test
+createdb -O dbapi_test -U postgres dbapi_test
+
 cabal test --show-details=always --test-options="--color"
 ```
