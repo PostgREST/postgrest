@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.3.4
 -- Dumped by pg_dump version 9.3.4
--- Started on 2014-09-26 17:50:41 PDT
+-- Started on 2014-09-29 17:06:36 PDT
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -14,7 +14,7 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
--- TOC entry 6 (class 2615 OID 47486)
+-- TOC entry 6 (class 2615 OID 278520)
 -- Name: 1; Type: SCHEMA; Schema: -; Owner: -
 --
 
@@ -22,7 +22,7 @@ CREATE SCHEMA "1";
 
 
 --
--- TOC entry 7 (class 2615 OID 47487)
+-- TOC entry 7 (class 2615 OID 278521)
 -- Name: dbapi; Type: SCHEMA; Schema: -; Owner: -
 --
 
@@ -30,7 +30,7 @@ CREATE SCHEMA dbapi;
 
 
 --
--- TOC entry 180 (class 3079 OID 11756)
+-- TOC entry 180 (class 3079 OID 12018)
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -38,7 +38,7 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 
 --
--- TOC entry 1998 (class 0 OID 0)
+-- TOC entry 2260 (class 0 OID 0)
 -- Dependencies: 180
 -- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: -
 --
@@ -49,7 +49,7 @@ COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 193 (class 1255 OID 47488)
+-- TOC entry 193 (class 1255 OID 278522)
 -- Name: check_role_exists(); Type: FUNCTION; Schema: dbapi; Owner: -
 --
 
@@ -67,7 +67,7 @@ $$;
 
 
 --
--- TOC entry 194 (class 1255 OID 47489)
+-- TOC entry 194 (class 1255 OID 278523)
 -- Name: create_role_if_not_exists(name); Type: FUNCTION; Schema: dbapi; Owner: -
 --
 
@@ -92,7 +92,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- TOC entry 171 (class 1259 OID 47490)
+-- TOC entry 171 (class 1259 OID 278524)
 -- Name: auto_incrementing_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -105,7 +105,7 @@ CREATE TABLE auto_incrementing_pk (
 
 
 --
--- TOC entry 172 (class 1259 OID 47497)
+-- TOC entry 172 (class 1259 OID 278531)
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE; Schema: 1; Owner: -
 --
 
@@ -118,7 +118,7 @@ CREATE SEQUENCE auto_incrementing_pk_id_seq
 
 
 --
--- TOC entry 1999 (class 0 OID 0)
+-- TOC entry 2261 (class 0 OID 0)
 -- Dependencies: 172
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE OWNED BY; Schema: 1; Owner: -
 --
@@ -127,7 +127,7 @@ ALTER SEQUENCE auto_incrementing_pk_id_seq OWNED BY auto_incrementing_pk.id;
 
 
 --
--- TOC entry 173 (class 1259 OID 47499)
+-- TOC entry 173 (class 1259 OID 278533)
 -- Name: compound_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -139,7 +139,7 @@ CREATE TABLE compound_pk (
 
 
 --
--- TOC entry 174 (class 1259 OID 47502)
+-- TOC entry 174 (class 1259 OID 278536)
 -- Name: items; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -149,7 +149,7 @@ CREATE TABLE items (
 
 
 --
--- TOC entry 175 (class 1259 OID 47505)
+-- TOC entry 175 (class 1259 OID 278539)
 -- Name: items_id_seq; Type: SEQUENCE; Schema: 1; Owner: -
 --
 
@@ -162,7 +162,7 @@ CREATE SEQUENCE items_id_seq
 
 
 --
--- TOC entry 2000 (class 0 OID 0)
+-- TOC entry 2262 (class 0 OID 0)
 -- Dependencies: 175
 -- Name: items_id_seq; Type: SEQUENCE OWNED BY; Schema: 1; Owner: -
 --
@@ -171,7 +171,7 @@ ALTER SEQUENCE items_id_seq OWNED BY items.id;
 
 
 --
--- TOC entry 176 (class 1259 OID 47507)
+-- TOC entry 176 (class 1259 OID 278541)
 -- Name: menagerie; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -186,7 +186,7 @@ CREATE TABLE menagerie (
 
 
 --
--- TOC entry 177 (class 1259 OID 47513)
+-- TOC entry 177 (class 1259 OID 278547)
 -- Name: no_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -197,7 +197,7 @@ CREATE TABLE no_pk (
 
 
 --
--- TOC entry 178 (class 1259 OID 47519)
+-- TOC entry 178 (class 1259 OID 278553)
 -- Name: simple_pk; Type: TABLE; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -210,20 +210,21 @@ CREATE TABLE simple_pk (
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 179 (class 1259 OID 47525)
+-- TOC entry 179 (class 1259 OID 278559)
 -- Name: auth; Type: TABLE; Schema: dbapi; Owner: -; Tablespace: 
 --
 
 CREATE TABLE auth (
     id character varying NOT NULL,
-    rolname name NOT NULL
+    rolname name NOT NULL,
+    pass character(60) NOT NULL
 );
 
 
 SET search_path = "1", pg_catalog;
 
 --
--- TOC entry 1862 (class 2604 OID 47531)
+-- TOC entry 2124 (class 2604 OID 278565)
 -- Name: id; Type: DEFAULT; Schema: 1; Owner: -
 --
 
@@ -231,7 +232,7 @@ ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_
 
 
 --
--- TOC entry 1863 (class 2604 OID 47532)
+-- TOC entry 2125 (class 2604 OID 278566)
 -- Name: id; Type: DEFAULT; Schema: 1; Owner: -
 --
 
@@ -239,7 +240,7 @@ ALTER TABLE ONLY items ALTER COLUMN id SET DEFAULT nextval('items_id_seq'::regcl
 
 
 --
--- TOC entry 1984 (class 0 OID 47490)
+-- TOC entry 2246 (class 0 OID 278524)
 -- Dependencies: 171
 -- Data for Name: auto_incrementing_pk; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -247,16 +248,16 @@ ALTER TABLE ONLY items ALTER COLUMN id SET DEFAULT nextval('items_id_seq'::regcl
 
 
 --
--- TOC entry 2001 (class 0 OID 0)
+-- TOC entry 2263 (class 0 OID 0)
 -- Dependencies: 172
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE SET; Schema: 1; Owner: -
 --
 
-SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 25, true);
+SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 29, true);
 
 
 --
--- TOC entry 1986 (class 0 OID 47499)
+-- TOC entry 2248 (class 0 OID 278533)
 -- Dependencies: 173
 -- Data for Name: compound_pk; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -264,7 +265,7 @@ SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 25, true);
 
 
 --
--- TOC entry 1987 (class 0 OID 47502)
+-- TOC entry 2249 (class 0 OID 278536)
 -- Dependencies: 174
 -- Data for Name: items; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -287,7 +288,7 @@ INSERT INTO items (id) VALUES (15);
 
 
 --
--- TOC entry 2002 (class 0 OID 0)
+-- TOC entry 2264 (class 0 OID 0)
 -- Dependencies: 175
 -- Name: items_id_seq; Type: SEQUENCE SET; Schema: 1; Owner: -
 --
@@ -296,7 +297,7 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
--- TOC entry 1989 (class 0 OID 47507)
+-- TOC entry 2251 (class 0 OID 278541)
 -- Dependencies: 176
 -- Data for Name: menagerie; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -304,7 +305,7 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
--- TOC entry 1990 (class 0 OID 47513)
+-- TOC entry 2252 (class 0 OID 278547)
 -- Dependencies: 177
 -- Data for Name: no_pk; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -312,7 +313,7 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
--- TOC entry 1991 (class 0 OID 47519)
+-- TOC entry 2253 (class 0 OID 278553)
 -- Dependencies: 178
 -- Data for Name: simple_pk; Type: TABLE DATA; Schema: 1; Owner: -
 --
@@ -322,7 +323,7 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 1992 (class 0 OID 47525)
+-- TOC entry 2254 (class 0 OID 278559)
 -- Dependencies: 179
 -- Data for Name: auth; Type: TABLE DATA; Schema: dbapi; Owner: -
 --
@@ -332,7 +333,7 @@ SET search_path = dbapi, pg_catalog;
 SET search_path = "1", pg_catalog;
 
 --
--- TOC entry 1865 (class 2606 OID 47534)
+-- TOC entry 2127 (class 2606 OID 278568)
 -- Name: auto_incrementing_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -341,7 +342,7 @@ ALTER TABLE ONLY auto_incrementing_pk
 
 
 --
--- TOC entry 1867 (class 2606 OID 47536)
+-- TOC entry 2129 (class 2606 OID 278570)
 -- Name: compound_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -350,7 +351,7 @@ ALTER TABLE ONLY compound_pk
 
 
 --
--- TOC entry 1873 (class 2606 OID 47538)
+-- TOC entry 2135 (class 2606 OID 278572)
 -- Name: contacts_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -359,7 +360,7 @@ ALTER TABLE ONLY simple_pk
 
 
 --
--- TOC entry 1869 (class 2606 OID 47540)
+-- TOC entry 2131 (class 2606 OID 278574)
 -- Name: items_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -368,7 +369,7 @@ ALTER TABLE ONLY items
 
 
 --
--- TOC entry 1871 (class 2606 OID 47542)
+-- TOC entry 2133 (class 2606 OID 278576)
 -- Name: menagerie_pkey; Type: CONSTRAINT; Schema: 1; Owner: -; Tablespace: 
 --
 
@@ -379,7 +380,7 @@ ALTER TABLE ONLY menagerie
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 1875 (class 2606 OID 47544)
+-- TOC entry 2137 (class 2606 OID 278578)
 -- Name: auth_pkey; Type: CONSTRAINT; Schema: dbapi; Owner: -; Tablespace: 
 --
 
@@ -388,14 +389,14 @@ ALTER TABLE ONLY auth
 
 
 --
--- TOC entry 1876 (class 2620 OID 47546)
+-- TOC entry 2138 (class 2620 OID 278580)
 -- Name: ensure_auth_role_exists; Type: TRIGGER; Schema: dbapi; Owner: -
 --
 
 CREATE CONSTRAINT TRIGGER ensure_auth_role_exists AFTER INSERT OR UPDATE ON auth NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE PROCEDURE check_role_exists();
 
 
--- Completed on 2014-09-26 17:50:41 PDT
+-- Completed on 2014-09-29 17:06:36 PDT
 
 --
 -- PostgreSQL database dump complete

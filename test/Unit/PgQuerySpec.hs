@@ -4,10 +4,10 @@ module Unit.PgQuerySpec where
 
 import Test.Hspec
 
-import Database.HDBC (IConnection, SqlValue, toSql, fromSql, prepare, execute,
-                     seState, fetchAllRowsAL, quickQuery)
+import Database.HDBC (IConnection, SqlValue, toSql, prepare,
+                      execute, seState, fetchAllRowsAL)
 
-import PgQuery (insert, addUser)
+import PgQuery (insert, addUser, signInRole)
 import Types (SqlRow(SqlRow))
 import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
@@ -44,14 +44,27 @@ spec = around dbWithSchema $ do
         insert "1" "auto_incrementing_pk" row conn `shouldThrow` \e ->
           seState e == "23505" -- uniqueness violation code
 
-      it "throws an exception if a required value is missing" $ \conn -> do
+      it "throws an exception if a required value is missing" $ \conn ->
         insert "1" "auto_incrementing_pk" (SqlRow [
           ("nullable_string", toSql ("a string"::String))]) conn
           `shouldThrow` \e -> seState e == "23502"
 
-  describe "addUser" $ do
+  describe "addUser and signInRole" $ do
     it "adds a correct user to the right table" $ \conn -> do
-      let {key = "a sill key"; role = "test_default_role"}
-      addUser key role conn
-      [newUser] <- quickQuery conn "select * from dbapi.auth" []
-      (map fromSql newUser :: [String]) `shouldBe` [key, role]
+      let {user = "jdoe"; pass = "secret"; role = "test_default_role"}
+
+      r <- signInRole user pass conn
+      r `shouldBe` Nothing
+
+      addUser user pass role conn
+
+      r2 <- signInRole user pass conn
+      r2 `shouldBe` Just role
+
+      r3 <- signInRole user (pass++"crap") conn
+      r3 `shouldBe` Nothing
+
+    it "will not add a user with an unknown role" $ \conn -> do
+      let {user = "jdoe"; pass = "secret"; role = "fake_role"}
+
+      addUser user pass role conn `shouldThrow` anyException

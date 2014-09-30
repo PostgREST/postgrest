@@ -7,6 +7,7 @@ module PgQuery (
   insert,
   upsert,
   addUser,
+  signInRole,
   RangedResult(..),
 ) where
 
@@ -30,8 +31,7 @@ import Database.HDBC.PostgreSQL
 import qualified Network.HTTP.Types.URI as Net
 
 import Types (SqlRow(..), getRow, sqlRowColumns, sqlRowValues)
-
-import Debug.Trace
+import Crypto.BCrypt (hashPasswordUsingPolicy, fastBcryptHashingPolicy, validatePassword)
 
 -- }}}
 
@@ -44,6 +44,7 @@ data RangedResult = RangedResult {
 
 type QuotedSql = (String, [SqlValue])
 type Schema = String
+type DbRole = String
 
 getRows :: Schema -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
@@ -107,10 +108,6 @@ selectStarClause :: Schema -> String -> QuotedSql
 selectStarClause schema table =
   (" select * from %I.%I ", map toSql [schema, table])
 
--- selectCountClause :: Schema -> String -> QuotedSql
--- selectCountClause schema table =
---   (" select count(1) from %I.%I ", map toSql [schema, table])
-
 jsonArrayRows :: QuotedSql -> QuotedSql
 jsonArrayRows q =
   ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
@@ -123,19 +120,31 @@ insert schema table row conn = do
   Just m <- fetchRowMap stmt
   return m
 
-addUser :: String -> String -> Connection -> IO ()
-addUser identity role conn =
-  insert "dbapi" "auth" (SqlRow [
-      ("id", toSql identity), ("rolname", toSql role)
-    ]) conn >> return ()
+addUser :: String -> String -> String -> Connection -> IO ()
+addUser identity pass role conn = do
+  hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy $ cs pass
+  _ <- insert "dbapi" "auth" (SqlRow [
+      ("id", toSql identity), ("pass", toSql hashed), ("rolname", toSql role)
+    ]) conn
+  return ()
+
+signInRole :: String -> String -> Connection -> IO(Maybe DbRole)
+signInRole user pass conn = do
+  u <- quickQuery conn "select pass, rolname from dbapi.auth where id = ?" [toSql user]
+  return $ case u of
+    [[hashed, role]] ->
+      if validatePassword (fromSql hashed) (cs pass)
+         then Just $ fromSql role
+         else Nothing
+    _ -> Nothing
 
 upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
   sql    <- populateSql conn $ upsertClause schema table row qq
-  stmt   <- prepare conn (traceShow sql sql)
+  stmt   <- prepare conn sql
   _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
   Just m <- fetchRowMap stmt
-  return (traceShow m m)
+  return m
 
 placeholders :: String -> SqlRow -> String
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
