@@ -31,6 +31,7 @@ executable dbapi
                      , transformers
                      , warp-tls
                      , bcrypt
+                     , base64-string
   Other-Modules:       Dbapi
                      , PgStructure
                      , PgQuery
@@ -62,3 +63,4 @@ Test-Suite spec
                      , transformers
                      , warp-tls
                      , bcrypt
+                     , base64-string

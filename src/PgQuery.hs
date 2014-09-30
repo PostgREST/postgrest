@@ -8,7 +8,10 @@ module PgQuery (
   upsert,
   addUser,
   signInRole,
+  pgSetRole,
+  pgResetRole,
   RangedResult(..),
+  DbRole
 ) where
 
 import Data.Text (Text)
@@ -19,7 +22,7 @@ import Data.List (intersperse, intercalate)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
 
-import Control.Monad (join)
+import Control.Monad (join, void)
 
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
@@ -44,7 +47,7 @@ data RangedResult = RangedResult {
 
 type QuotedSql = (String, [SqlValue])
 type Schema = String
-type DbRole = String
+type DbRole = BS.ByteString
 
 getRows :: Schema -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
@@ -120,7 +123,7 @@ insert schema table row conn = do
   Just m <- fetchRowMap stmt
   return m
 
-addUser :: String -> String -> String -> Connection -> IO ()
+addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> Connection -> IO ()
 addUser identity pass role conn = do
   hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy $ cs pass
   _ <- insert "dbapi" "auth" (SqlRow [
@@ -128,7 +131,7 @@ addUser identity pass role conn = do
     ]) conn
   return ()
 
-signInRole :: String -> String -> Connection -> IO(Maybe DbRole)
+signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO(Maybe DbRole)
 signInRole user pass conn = do
   u <- quickQuery conn "select pass, rolname from dbapi.auth where id = ?" [toSql user]
   return $ case u of
@@ -185,3 +188,11 @@ populateSql conn sql = do
 
     ph :: [a] -> String
     ph = intercalate ", " . map (const "?::varchar")
+
+pgSetRole :: Connection -> DbRole -> IO ()
+pgSetRole conn role = do
+  query <- populateSql conn ("set role %I", [toSql role])
+  void $ run conn query []
+
+pgResetRole :: Connection -> IO ()
+pgResetRole conn = void $ run conn "reset role" []

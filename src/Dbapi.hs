@@ -7,6 +7,7 @@ import Types (SqlRow, getRow)
 
 import Control.Exception (try)
 import Control.Monad (join)
+import Control.Exception.Base (bracket_)
 import Control.Arrow ((***))
 import Control.Applicative
 import Options.Applicative hiding (columns)
@@ -40,6 +41,7 @@ import qualified Data.Aeson as JSON
 import PgQuery
 import RangeQuery
 import Data.Ranged.Ranges (emptyRange)
+import Codec.Binary.Base64.String (decode)
 
 -- }}}
 
@@ -48,6 +50,7 @@ data AppConfig = AppConfig {
   , configPort  :: Int
   , configSslCert :: FilePath
   , configSslKey  :: FilePath
+  , configAnonRole :: String
   }
 
 jsonContentType :: (HeaderName, BS.ByteString)
@@ -69,72 +72,85 @@ filterByKeys m keys =
   if null keys then m else
     m `intersection` fromList (zip keys $ repeat undefined)
 
-app :: Connection -> Application
-app conn req respond = do
-  r <- try $
-    case (path, verb) of
-      ([], _) ->
-        responseLBS status200 [jsonContentType] <$> printTables ver conn
+httpRequesterRole :: RequestHeaders -> Connection -> IO(Maybe DbRole)
+httpRequesterRole hdrs conn = do
+  let auth = fromMaybe "" $ lookup hAuthorization hdrs
+  case BS.split ' ' (cs auth) of
+    ("Basic " : b64 : _) ->
+      case BS.split ':' $ cs (decode $ cs b64) of
+        (u:p:_) -> signInRole u p conn
+        _ -> return Nothing
+    _ -> return Nothing
 
-      ([table], "OPTIONS") ->
-        responseLBS status200 [jsonContentType] <$>
-          printColumns ver (cs table) conn
+app :: Connection -> DbRole -> Application
+app conn anonymous req respond = do
+  r <- try $ do
+    role <- fromMaybe anonymous <$> httpRequesterRole hdrs conn
 
-      ([table], "GET") ->
-        if range == Just emptyRange
-        then return $ responseLBS status416 [] "HTTP Range error"
-        else do
-          r <- respondWithRangedResult <$> getRows ver (cs table) qq range conn
-          let canonical = urlEncodeVars $ sort $
-                          map (join (***) cs) $
-                          parseSimpleQuery $
-                          rawQueryString req
-          return $ addHeaders [
-            ("Content-Location",
-             "/" <> cs table <> "?" <> cs canonical
-            )] r
+    bracket_ (pgSetRole conn role) (pgResetRole conn) $
+      case (path, verb) of
+        ([], _) ->
+          responseLBS status200 [jsonContentType] <$> printTables ver conn
 
-      ([table], "POST") ->
-        jsonBodyAction req (\row -> do
-          allvals <- insert ver table row conn
-          keys <- primaryKeyColumns ver (cs table) conn
-          let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
-          return $ responseLBS status201
-            [ jsonContentType
-            , (hLocation, "/" <> cs table <> "?" <> cs params)
-            ] ""
-        )
+        ([table], "OPTIONS") ->
+          responseLBS status200 [jsonContentType] <$>
+            printColumns ver (cs table) conn
 
-      ([table], "PUT") ->
-        jsonBodyAction req (\row -> do
-          keys <- primaryKeyColumns ver (cs table) conn
-          let specifiedKeys = map (cs . fst) qq
-          if S.fromList keys /= S.fromList specifiedKeys
-            then return $ responseLBS status405 []
-                 "You must speficy all and only primary keys as params"
-            else
-              if isJust cRange
-                 then return $ responseLBS status400 []
-                      "Content-Range is not allowed in PUT request"
-              else do
-                cols <- columns ver (cs table) conn
-                let colNames = S.fromList $ map (cs . colName) cols
-                let specifiedCols = S.fromList $ map fst $ getRow row
-                if colNames == specifiedCols then do
-                  allvals <- upsert ver table row qq conn
-                  let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
-                  return $ responseLBS status201
-                    [ jsonContentType
-                    , (hLocation, "/" <> cs table <> "?" <> cs params)
-                    ] ""
+        ([table], "GET") ->
+          if range == Just emptyRange
+          then return $ responseLBS status416 [] "HTTP Range error"
+          else do
+            r <- respondWithRangedResult <$> getRows ver (cs table) qq range conn
+            let canonical = urlEncodeVars $ sort $
+                            map (join (***) cs) $
+                            parseSimpleQuery $
+                            rawQueryString req
+            return $ addHeaders [
+              ("Content-Location",
+               "/" <> cs table <> "?" <> cs canonical
+              )] r
 
-                  else return $ if S.null colNames then responseLBS status404 [] ""
-                    else responseLBS status400 []
-                       "You must specify all columns in PUT request"
-        )
+        ([table], "POST") ->
+          jsonBodyAction req (\row -> do
+            allvals <- insert ver table row conn
+            keys <- primaryKeyColumns ver (cs table) conn
+            let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
+            return $ responseLBS status201
+              [ jsonContentType
+              , (hLocation, "/" <> cs table <> "?" <> cs params)
+              ] ""
+          )
 
-      (_, _) ->
-        return $ responseLBS status404 [] ""
+        ([table], "PUT") ->
+          jsonBodyAction req (\row -> do
+            keys <- primaryKeyColumns ver (cs table) conn
+            let specifiedKeys = map (cs . fst) qq
+            if S.fromList keys /= S.fromList specifiedKeys
+              then return $ responseLBS status405 []
+                   "You must speficy all and only primary keys as params"
+              else
+                if isJust cRange
+                   then return $ responseLBS status400 []
+                        "Content-Range is not allowed in PUT request"
+                else do
+                  cols <- columns ver (cs table) conn
+                  let colNames = S.fromList $ map (cs . colName) cols
+                  let specifiedCols = S.fromList $ map fst $ getRow row
+                  if colNames == specifiedCols then do
+                    allvals <- upsert ver table row qq conn
+                    let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
+                    return $ responseLBS status201
+                      [ jsonContentType
+                      , (hLocation, "/" <> cs table <> "?" <> cs params)
+                      ] ""
+
+                    else return $ if S.null colNames then responseLBS status404 [] ""
+                      else responseLBS status400 []
+                         "You must specify all columns in PUT request"
+          )
+
+        (_, _) ->
+          return $ responseLBS status404 [] ""
 
   respond $ either sqlErrorHandler id r
 
@@ -142,9 +158,10 @@ app conn req respond = do
     path   = pathInfo req
     verb   = requestMethod req
     qq     = queryString req
-    ver    = fromMaybe "1" $ requestedVersion (requestHeaders req)
-    range  = requestedRange (requestHeaders req)
-    cRange = requestedContentRange (requestHeaders req)
+    hdrs   = requestHeaders req
+    ver    = fromMaybe "1" $ requestedVersion hdrs
+    range  = requestedRange hdrs
+    cRange = requestedContentRange hdrs
 
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =

@@ -6,6 +6,7 @@ module Main where
 import Dbapi
 import Network.Wai.Handler.Warp hiding (Connection)
 import Database.HDBC.PostgreSQL (connectPostgreSQL')
+import Data.String.Conversions (cs)
 
 import Control.Applicative
 import Options.Applicative hiding (columns)
@@ -24,6 +25,8 @@ argParser = AppConfig
     <> help "path to SSL cert file")
   <*> strOption (long "sslkey" <> short 'k' <> metavar "PATH" <> value "test/test.key"
     <> help "path to SSL key file")
+  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE" <> value "dbapi_anon"
+    <> help "postgres role to use for non-authenticated requests")
 
 main :: IO ()
 main = do
@@ -36,7 +39,7 @@ main = do
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
   conn <- connectPostgreSQL' dburi
-  runTLS tls settings $ gzip def $ app conn
+  runTLS tls settings $ gzip def $ app conn (cs $ configAnonRole conf)
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"

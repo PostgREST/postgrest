@@ -18,7 +18,7 @@ import qualified Data.ByteString.Char8 as BS
 import Dbapi (app, AppConfig(..))
 
 cfg :: AppConfig
-cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key"
+cfg = AppConfig "postgres://postgres:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key" "postgres"
 
 openConnection :: IO Connection
 openConnection = connectPostgreSQL' $ configDbUri cfg
@@ -40,7 +40,7 @@ dbWithSchema action = withDatabaseConnection $ \c -> do
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
   runRaw c "begin;"
-  action $ app c
+  action $ app c "postgres"
   rollback c
 
 rangeHdrs :: ByteRange -> [Header]

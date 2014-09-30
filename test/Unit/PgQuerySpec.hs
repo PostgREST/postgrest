@@ -11,12 +11,16 @@ import PgQuery (insert, addUser, signInRole)
 import Types (SqlRow(SqlRow))
 import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
+import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Control.Arrow
 
 import SpecHelper(dbWithSchema)
 
-quickALQuery :: IConnection conn => conn -> String -> [SqlValue] -> IO [[(String, SqlValue)]]
+quickALQuery :: IConnection conn => conn ->
+                String ->
+                [SqlValue] ->
+                IO [[(String, SqlValue)]]
 quickALQuery conn q bind = do
   sth <- prepare conn q
   _ <- execute sth bind
@@ -61,7 +65,7 @@ spec = around dbWithSchema $ do
       r2 <- signInRole user pass conn
       r2 `shouldBe` Just role
 
-      r3 <- signInRole user (pass++"crap") conn
+      r3 <- signInRole user (pass <> "crap") conn
       r3 `shouldBe` Nothing
 
     it "will not add a user with an unknown role" $ \conn -> do
