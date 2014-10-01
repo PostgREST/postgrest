@@ -10,6 +10,7 @@ module PgQuery (
   signInRole,
   pgSetRole,
   pgResetRole,
+  checkPass,
   RangedResult(..),
   DbRole
 ) where
@@ -131,12 +132,15 @@ addUser identity pass role conn = do
     ]) conn
   return ()
 
+checkPass :: BS.ByteString -> BS.ByteString -> Bool
+checkPass = validatePassword
+
 signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO(Maybe DbRole)
 signInRole user pass conn = do
   u <- quickQuery conn "select pass, rolname from dbapi.auth where id = ?" [toSql user]
   return $ case u of
     [[hashed, role]] ->
-      if validatePassword (fromSql hashed) (cs pass)
+      if checkPass (fromSql hashed) (cs pass)
          then Just $ fromSql role
          else Nothing
     _ -> Nothing
