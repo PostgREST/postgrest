@@ -4,8 +4,8 @@ module Unit.PgQuerySpec where
 
 import Test.Hspec
 
-import Database.HDBC (IConnection, SqlValue, toSql, prepare, quickQuery,
-  fromSql, execute, seState, fetchAllRowsAL)
+import Database.HDBC (IConnection, SqlValue, SqlError, toSql, prepare,
+  quickQuery, fromSql, execute, seState, fetchAllRowsAL)
 
 import PgQuery (insert, addUser, signInRole, checkPass)
 import Types (SqlRow(SqlRow))
@@ -64,7 +64,8 @@ spec = around dbWithSchema $ do
       checkPass (cs encryptedPass) pass `shouldBe` True
 
     it "will not add a user with an unknown role" $ \conn -> do
-      addUser user pass "not-a-real-role" conn `shouldThrow` anyException
+      addUser user pass "not-a-real-role" conn `shouldThrow` \e ->
+        take 2 (seState e) == "23" --integrity constraint violation
 
   describe "signInRole" $ beforeWith (\conn -> do
     addUser user pass role conn
