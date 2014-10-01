@@ -4,7 +4,7 @@ module Unit.PgQuerySpec where
 
 import Test.Hspec
 
-import Database.HDBC (IConnection, SqlValue, SqlError, toSql, prepare,
+import Database.HDBC (IConnection, SqlValue, toSql, prepare,
   quickQuery, fromSql, execute, seState, fetchAllRowsAL)
 
 import PgQuery (insert, addUser, signInRole, checkPass)
