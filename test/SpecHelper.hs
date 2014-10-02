@@ -7,9 +7,15 @@ import Test.Hspec
 import Database.HDBC
 import Database.HDBC.PostgreSQL
 
-import Control.Exception.Base (bracket)
+import Data.String.Conversions (cs)
+import Data.Either (isLeft)
 
-import Network.HTTP.Types.Header
+import Control.Exception.Base (bracket, tryJust)
+import Control.Monad (when)
+
+import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
+                                  hRange, hAuthorization)
+import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Text.Regex.TDFA ((=~))
 import qualified Data.HashMap.Strict as Hash
@@ -40,9 +46,18 @@ dbWithSchema action = withDatabaseConnection $ \c -> do
 
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
-  runRaw c "begin;"
-  action $ cors corsPolicy $ app c "dbapi_anonymous"
-  rollback c
+  result <- tryJust transactionAborted $ do
+    runRaw c "begin;"
+    action $ cors corsPolicy $ app c "dbapi_anonymous"
+    rollback c
+
+  when (isLeft result) $
+    putStrLn "note: commands ignored after aborted transaction"
+
+  where
+    transactionAborted :: SqlError -> Maybe ()
+    transactionAborted e =
+      if seState e == "25P02" then Just () else Nothing
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
@@ -57,3 +72,7 @@ getHeader name headers =
 matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
 matchHeader name valRegex headers =
   maybe False (=~ valRegex) $ getHeader name headers
+
+authHeader :: String -> String -> Header
+authHeader user pass =
+  (hAuthorization, cs $ "Basic: " ++ encode (user ++ ":" ++ pass))
