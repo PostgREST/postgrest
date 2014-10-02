@@ -557,22 +557,9 @@ CREATE TRIGGER articles_owner_track BEFORE INSERT OR UPDATE ON articles FOR EACH
 -- Name: 1; Type: ACL; Schema: -; Owner: dbapi_test
 --
 
-REVOKE ALL ON SCHEMA "1" FROM PUBLIC;
 REVOKE ALL ON SCHEMA "1" FROM dbapi_test;
 GRANT ALL ON SCHEMA "1" TO dbapi_test;
 GRANT USAGE ON SCHEMA "1" TO dbapi_anonymous;
-
-
---
--- TOC entry 2287 (class 0 OID 0)
--- Dependencies: 5
--- Name: public; Type: ACL; Schema: -; Owner: j
---
-
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-REVOKE ALL ON SCHEMA public FROM j;
-GRANT ALL ON SCHEMA public TO j;
-GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
 SET search_path = "1", pg_catalog;
@@ -583,7 +570,6 @@ SET search_path = "1", pg_catalog;
 -- Name: authors_only; Type: ACL; Schema: 1; Owner: dbapi_test_author
 --
 
-REVOKE ALL ON TABLE authors_only FROM PUBLIC;
 REVOKE ALL ON TABLE authors_only FROM dbapi_test_author;
 GRANT ALL ON TABLE authors_only TO dbapi_test_author;
 GRANT ALL ON TABLE authors_only TO author;
@@ -595,7 +581,6 @@ GRANT ALL ON TABLE authors_only TO author;
 -- Name: auto_incrementing_pk; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE auto_incrementing_pk FROM PUBLIC;
 REVOKE ALL ON TABLE auto_incrementing_pk FROM dbapi_test;
 GRANT ALL ON TABLE auto_incrementing_pk TO dbapi_test;
 GRANT ALL ON TABLE auto_incrementing_pk TO dbapi_anonymous;
@@ -607,7 +592,6 @@ GRANT ALL ON TABLE auto_incrementing_pk TO dbapi_anonymous;
 -- Name: auto_incrementing_pk_id_seq; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON SEQUENCE auto_incrementing_pk_id_seq FROM PUBLIC;
 REVOKE ALL ON SEQUENCE auto_incrementing_pk_id_seq FROM dbapi_test;
 GRANT ALL ON SEQUENCE auto_incrementing_pk_id_seq TO dbapi_test;
 GRANT USAGE ON SEQUENCE auto_incrementing_pk_id_seq TO dbapi_anonymous;
@@ -619,7 +603,6 @@ GRANT USAGE ON SEQUENCE auto_incrementing_pk_id_seq TO dbapi_anonymous;
 -- Name: compound_pk; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE compound_pk FROM PUBLIC;
 REVOKE ALL ON TABLE compound_pk FROM dbapi_test;
 GRANT ALL ON TABLE compound_pk TO dbapi_test;
 GRANT ALL ON TABLE compound_pk TO dbapi_anonymous;
@@ -631,7 +614,6 @@ GRANT ALL ON TABLE compound_pk TO dbapi_anonymous;
 -- Name: items; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE items FROM PUBLIC;
 REVOKE ALL ON TABLE items FROM dbapi_test;
 GRANT ALL ON TABLE items TO dbapi_test;
 GRANT ALL ON TABLE items TO dbapi_anonymous;
@@ -643,7 +625,6 @@ GRANT ALL ON TABLE items TO dbapi_anonymous;
 -- Name: items_id_seq; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON SEQUENCE items_id_seq FROM PUBLIC;
 REVOKE ALL ON SEQUENCE items_id_seq FROM dbapi_test;
 GRANT ALL ON SEQUENCE items_id_seq TO dbapi_test;
 GRANT USAGE ON SEQUENCE items_id_seq TO dbapi_anonymous;
@@ -655,7 +636,6 @@ GRANT USAGE ON SEQUENCE items_id_seq TO dbapi_anonymous;
 -- Name: menagerie; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE menagerie FROM PUBLIC;
 REVOKE ALL ON TABLE menagerie FROM dbapi_test;
 GRANT ALL ON TABLE menagerie TO dbapi_test;
 GRANT ALL ON TABLE menagerie TO dbapi_anonymous;
@@ -667,7 +647,6 @@ GRANT ALL ON TABLE menagerie TO dbapi_anonymous;
 -- Name: no_pk; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE no_pk FROM PUBLIC;
 REVOKE ALL ON TABLE no_pk FROM dbapi_test;
 GRANT ALL ON TABLE no_pk TO dbapi_test;
 GRANT ALL ON TABLE no_pk TO dbapi_anonymous;
@@ -679,7 +658,6 @@ GRANT ALL ON TABLE no_pk TO dbapi_anonymous;
 -- Name: simple_pk; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE simple_pk FROM PUBLIC;
 REVOKE ALL ON TABLE simple_pk FROM dbapi_test;
 GRANT ALL ON TABLE simple_pk TO dbapi_test;
 GRANT ALL ON TABLE simple_pk TO dbapi_anonymous;
@@ -693,7 +671,6 @@ SET search_path = private, pg_catalog;
 -- Name: articles; Type: ACL; Schema: private; Owner: dbapi_test
 --
 
-REVOKE ALL ON TABLE articles FROM PUBLIC;
 REVOKE ALL ON TABLE articles FROM dbapi_test;
 GRANT ALL ON TABLE articles TO dbapi_test;
 
