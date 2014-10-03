@@ -3,6 +3,7 @@ module SpecHelper where
 
 import Network.Wai
 import Test.Hspec
+import Test.Hspec.Wai
 
 import Database.HDBC
 import Database.HDBC.PostgreSQL
@@ -76,3 +77,11 @@ matchHeader name valRegex headers =
 authHeader :: String -> String -> Header
 authHeader user pass =
   (hAuthorization, cs $ "Basic: " ++ encode (user ++ ":" ++ pass))
+
+-- for hspec-wai
+pending_ :: WaiSession ()
+pending_ = liftIO pending
+
+-- for hspec-wai
+pendingWith_ :: String -> WaiSession ()
+pendingWith_ = liftIO . pendingWith
