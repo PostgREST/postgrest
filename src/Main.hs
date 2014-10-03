@@ -12,6 +12,7 @@ import Control.Applicative
 import Options.Applicative hiding (columns)
 import Network.Wai.Handler.WarpTLS (tlsSettings, runTLS)
 import Network.Wai.Middleware.Gzip (gzip, def)
+import Network.Wai.Middleware.Cors (cors)
 
 -- }}}
 
@@ -39,7 +40,7 @@ main = do
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
   conn <- connectPostgreSQL' dburi
-  runTLS tls settings $ gzip def $ app conn (cs $ configAnonRole conf)
+  runTLS tls settings $ gzip def $ cors corsPolicy $ app conn (cs $ configAnonRole conf)
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"

@@ -18,6 +18,7 @@ import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sort)
 import qualified Data.Set as S
 import Data.Convertible.Base (convert)
+import Data.Text (strip)
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
@@ -27,9 +28,11 @@ import Network.HTTP.Base (urlEncodeVars)
 
 import Network.Wai
 import Network.Wai.Internal
+import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 
 import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
+import qualified Data.CaseInsensitive as CI
 
 import Database.HDBC.PostgreSQL (Connection)
 import Database.HDBC.Types (SqlError, seErrorMsg)
@@ -162,6 +165,25 @@ app conn anonymous req respond = do
     ver    = fromMaybe "1" $ requestedVersion hdrs
     range  = requestedRange hdrs
     cRange = requestedContentRange hdrs
+
+defaultCorsPolicy :: CorsResourcePolicy
+defaultCorsPolicy =  CorsResourcePolicy Nothing
+  ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
+  (Just $ 60*60*24) False False True
+
+corsPolicy :: Request -> Maybe CorsResourcePolicy
+corsPolicy req = case lookup "origin" headers of
+  Just origin -> Just defaultCorsPolicy {
+      corsOrigins = Just ([origin], True),
+      corsRequestHeaders = "Authentication":accHeaders
+    }
+  Nothing -> Nothing
+  where
+    headers = requestHeaders req
+    accHeaders = case lookup "access-control-request-headers" headers of
+      Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
+      Nothing -> []
+
 
 respondWithRangedResult :: RangedResult -> Response
 respondWithRangedResult rr =
