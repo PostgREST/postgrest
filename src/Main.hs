@@ -35,14 +35,14 @@ argParser = AppConfig
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
-  ["GET", "POST", "PUT", "PATCH", "DELETE"] ["authorization"] Nothing
+  ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
   (Just $ 60*60*24) False False True
 
 corsPolicy :: Request -> Maybe CorsResourcePolicy
 corsPolicy req = case lookup "origin" headers of
   Just origin -> Just defaultCorsPolicy {
       corsOrigins = Just ([origin], True),
-      corsRequestHeaders = "authentication":accHeaders
+      corsRequestHeaders = "Authentication":accHeaders
     }
   Nothing -> Nothing
   where
