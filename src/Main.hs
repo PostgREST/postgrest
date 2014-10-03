@@ -25,7 +25,7 @@ argParser = AppConfig
     <> help "path to SSL cert file")
   <*> strOption (long "sslkey" <> short 'k' <> metavar "PATH" <> value "test/test.key"
     <> help "path to SSL key file")
-  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE" <> value "dbapi_anon"
+  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE"
     <> help "postgres role to use for non-authenticated requests")
 
 main :: IO ()
