@@ -572,7 +572,6 @@ SET search_path = "1", pg_catalog;
 
 REVOKE ALL ON TABLE authors_only FROM dbapi_test_author;
 GRANT ALL ON TABLE authors_only TO dbapi_test_author;
-GRANT ALL ON TABLE authors_only TO author;
 
 
 --
