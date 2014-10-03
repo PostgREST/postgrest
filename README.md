@@ -26,7 +26,7 @@ cabal test --show-details=always --test-options="--color"
 
 ### Other setup
 
-#### TEST SSL CERT
+##### TEST SSL CERT
 The test certificate lives in this project. One solution for testing is to grant access at the OS level:
 http://www.robpeck.com/2010/10/google-chrome-mac-os-x-and-self-signed-ssl-certificates/
 
