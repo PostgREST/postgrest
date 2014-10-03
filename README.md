@@ -12,7 +12,7 @@ cabal install -j --enable-tests
 Example usage:
 
 ```sh
-dbapi -p 3000 -d postgres://[user]:@localhost:5432/[database]
+cabal run -- -p 3000 -d postgres://[user]:@localhost:5432/[database] -a [role]
 ```
 
 ### Running tests
@@ -28,4 +28,4 @@ cabal test --show-details=always --test-options="--color"
 The test certificate lives in this project. One solution for testing is to grant access at the OS level:
 http://www.robpeck.com/2010/10/google-chrome-mac-os-x-and-self-signed-ssl-certificates/
 
-In chrome, I also had to click "proceed unsafe" or something
+In chrome, I also had to click "proceed unsafe" as well once visiting the url
