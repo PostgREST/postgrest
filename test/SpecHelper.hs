@@ -14,8 +14,9 @@ import Data.CaseInsensitive (CI(..))
 import Text.Regex.TDFA ((=~))
 import qualified Data.HashMap.Strict as Hash
 import qualified Data.ByteString.Char8 as BS
+import Network.Wai.Middleware.Cors (cors)
 
-import Dbapi (app, AppConfig(..))
+import Dbapi (app, corsPolicy, AppConfig(..))
 
 cfg :: AppConfig
 cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key" "dbapi_anonymous"
@@ -40,7 +41,7 @@ dbWithSchema action = withDatabaseConnection $ \c -> do
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
   runRaw c "begin;"
-  action $ app c "dbapi_anonymous"
+  action $ cors corsPolicy $ app c "dbapi_anonymous"
   rollback c
 
 rangeHdrs :: ByteRange -> [Header]
