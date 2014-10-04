@@ -9,8 +9,12 @@ before_install:
   - travis_retry sudo apt-get update
   - travis_retry sudo apt-get install --force-yes happy-1.19.3 alex-3.1.3
   - export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
-before_script:
-  - cabal configure --enable-tests
-  - cabal build
+install:
+  - curl http://bin.begriffs.com/dbapi/cabal-sandbox.tar.xz | tar xJ
+  - chmod a+x .cabal-sandbox/bin/*
+  - cabal sandbox init
+  - cabal install --enable-test --dependencies-only
+  - cabal install --enable-test
 script:
   - cabal test --show-details=always --test-options="--color"
+  - .cabal-sandbox/bin/hlint src/*.hs test/**/*.hs
