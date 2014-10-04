@@ -63,7 +63,7 @@ spec = around dbWithSchema $ do
       cs newRole `shouldBe` role
       checkPass (cs encryptedPass) pass `shouldBe` True
 
-    it "will not add a user with an unknown role" $ \conn -> do
+    it "will not add a user with an unknown role" $ \conn ->
       addUser user pass "not-a-real-role" conn `shouldThrow` \e ->
         take 2 (seState e) == "23" --integrity constraint violation
 
