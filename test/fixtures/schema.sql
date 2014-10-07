@@ -5,6 +5,7 @@
 -- Dumped from database version 9.3.4
 -- Dumped by pg_dump version 9.3.4
 -- Started on 2014-10-01 13:41:39 PDT
+-- Started on 2014-10-07 16:46:34 PDT
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -24,7 +25,7 @@ CREATE SCHEMA "1";
 ALTER SCHEMA "1" OWNER TO dbapi_test;
 
 --
--- TOC entry 9 (class 2615 OID 280933)
+-- TOC entry 8 (class 2615 OID 50928)
 -- Name: dbapi; Type: SCHEMA; Schema: -; Owner: dbapi_test
 --
 
@@ -34,7 +35,7 @@ CREATE SCHEMA dbapi;
 ALTER SCHEMA dbapi OWNER TO dbapi_test;
 
 --
--- TOC entry 10 (class 2615 OID 280934)
+-- TOC entry 9 (class 2615 OID 50929)
 -- Name: private; Type: SCHEMA; Schema: -; Owner: dbapi_test
 --
 
@@ -133,7 +134,7 @@ CREATE TABLE auto_incrementing_pk (
 ALTER TABLE "1".auto_incrementing_pk OWNER TO dbapi_test;
 
 --
--- TOC entry 176 (class 1259 OID 280944)
+-- TOC entry 182 (class 1259 OID 50939)
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE; Schema: 1; Owner: dbapi_test
 --
 
@@ -171,7 +172,45 @@ CREATE TABLE compound_pk (
 ALTER TABLE "1".compound_pk OWNER TO dbapi_test;
 
 --
--- TOC entry 178 (class 1259 OID 280949)
+-- TOC entry 184 (class 1259 OID 50944)
+-- Name: has_fk; Type: TABLE; Schema: 1; Owner: dbapi_test; Tablespace: 
+--
+
+CREATE TABLE has_fk (
+    id bigint NOT NULL,
+    auto_inc_fk integer,
+    simple_fk character varying(255)
+);
+
+
+ALTER TABLE "1".has_fk OWNER TO dbapi_test;
+
+--
+-- TOC entry 185 (class 1259 OID 50947)
+-- Name: has_fk_id_seq; Type: SEQUENCE; Schema: 1; Owner: dbapi_test
+--
+
+CREATE SEQUENCE has_fk_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE "1".has_fk_id_seq OWNER TO dbapi_test;
+
+--
+-- TOC entry 2042 (class 0 OID 0)
+-- Dependencies: 185
+-- Name: has_fk_id_seq; Type: SEQUENCE OWNED BY; Schema: 1; Owner: dbapi_test
+--
+
+ALTER SEQUENCE has_fk_id_seq OWNED BY has_fk.id;
+
+
+--
+-- TOC entry 186 (class 1259 OID 50949)
 -- Name: items; Type: TABLE; Schema: 1; Owner: dbapi_test; Tablespace: 
 --
 
@@ -183,7 +222,7 @@ CREATE TABLE items (
 ALTER TABLE "1".items OWNER TO dbapi_test;
 
 --
--- TOC entry 179 (class 1259 OID 280952)
+-- TOC entry 187 (class 1259 OID 50952)
 -- Name: items_id_seq; Type: SEQUENCE; Schema: 1; Owner: dbapi_test
 --
 
@@ -316,7 +355,15 @@ ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_
 
 
 --
--- TOC entry 2141 (class 2604 OID 280987)
+-- TOC entry 1886 (class 2604 OID 50987)
+-- Name: id; Type: DEFAULT; Schema: 1; Owner: dbapi_test
+--
+
+ALTER TABLE ONLY has_fk ALTER COLUMN id SET DEFAULT nextval('has_fk_id_seq'::regclass);
+
+
+--
+-- TOC entry 1887 (class 2604 OID 50988)
 -- Name: id; Type: DEFAULT; Schema: 1; Owner: dbapi_test
 --
 
@@ -351,26 +398,34 @@ SET search_path = "1", pg_catalog;
 
 
 
---
--- TOC entry 2302 (class 0 OID 0)
--- Dependencies: 176
+-- TOC entry 2051 (class 0 OID 0)
+-- Dependencies: 182
 -- Name: auto_incrementing_pk_id_seq; Type: SEQUENCE SET; Schema: 1; Owner: dbapi_test
 --
 
-SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 46, true);
+SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 50, true);
 
 
 --
--- TOC entry 2270 (class 0 OID 280946)
--- Dependencies: 177
+-- TOC entry 2018 (class 0 OID 50941)
+-- Dependencies: 183
 -- Data for Name: compound_pk; Type: TABLE DATA; Schema: 1; Owner: dbapi_test
 --
 
 
 
 --
--- TOC entry 2271 (class 0 OID 280949)
--- Dependencies: 178
+-- TOC entry 2052 (class 0 OID 0)
+-- Dependencies: 185
+-- Name: has_fk_id_seq; Type: SEQUENCE SET; Schema: 1; Owner: dbapi_test
+--
+
+SELECT pg_catalog.setval('has_fk_id_seq', 1, false);
+
+
+--
+-- TOC entry 2021 (class 0 OID 50949)
+-- Dependencies: 186
 -- Data for Name: items; Type: TABLE DATA; Schema: 1; Owner: dbapi_test
 --
 
@@ -401,52 +456,33 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
--- TOC entry 2273 (class 0 OID 280954)
--- Dependencies: 180
--- Data for Name: menagerie; Type: TABLE DATA; Schema: 1; Owner: dbapi_test
---
-
-
-
---
+-- TOC entry 2023 (class 0 OID 50954)
+-- Dependencies: 188
 -- TOC entry 2274 (class 0 OID 280960)
 -- Dependencies: 181
+-- TOC entry 2024 (class 0 OID 50960)
+-- Dependencies: 189
 -- Data for Name: no_pk; Type: TABLE DATA; Schema: 1; Owner: dbapi_test
 --
 
 
 
 --
--- TOC entry 2275 (class 0 OID 280966)
--- Dependencies: 182
--- Data for Name: simple_pk; Type: TABLE DATA; Schema: 1; Owner: dbapi_test
---
-
 
 
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 2276 (class 0 OID 280972)
--- Dependencies: 183
--- Data for Name: auth; Type: TABLE DATA; Schema: dbapi; Owner: dbapi_test
 --
-
 
 
 SET search_path = private, pg_catalog;
 
 --
--- TOC entry 2277 (class 0 OID 280978)
--- Dependencies: 184
--- Data for Name: articles; Type: TABLE DATA; Schema: private; Owner: dbapi_test
---
 
 
 
 --
--- TOC entry 2304 (class 0 OID 0)
--- Dependencies: 185
 -- Name: articles_id_seq; Type: SEQUENCE SET; Schema: private; Owner: dbapi_test
 --
 
@@ -456,9 +492,6 @@ SELECT pg_catalog.setval('articles_id_seq', 1, false);
 SET search_path = "1", pg_catalog;
 
 --
--- TOC entry 2158 (class 2606 OID 281013)
--- Name: authors_only_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test_author; Tablespace: 
---
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
@@ -466,7 +499,6 @@ ALTER TABLE ONLY authors_only
 
 --
 -- TOC entry 2144 (class 2606 OID 280990)
--- Name: auto_incrementing_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
 --
 
 ALTER TABLE ONLY auto_incrementing_pk
@@ -474,7 +506,7 @@ ALTER TABLE ONLY auto_incrementing_pk
 
 
 --
--- TOC entry 2146 (class 2606 OID 280992)
+-- TOC entry 1892 (class 2606 OID 50993)
 -- Name: compound_pk_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
 --
 
@@ -483,8 +515,6 @@ ALTER TABLE ONLY compound_pk
 
 
 --
--- TOC entry 2152 (class 2606 OID 280994)
--- Name: contacts_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
 --
 
 ALTER TABLE ONLY simple_pk
@@ -492,8 +522,16 @@ ALTER TABLE ONLY simple_pk
 
 
 --
--- TOC entry 2148 (class 2606 OID 280996)
--- Name: items_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
+-- TOC entry 1894 (class 2606 OID 50997)
+-- Name: has_fk_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
+--
+
+ALTER TABLE ONLY has_fk
+    ADD CONSTRAINT has_fk_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1896 (class 2606 OID 50999)
 --
 
 ALTER TABLE ONLY items
@@ -501,7 +539,6 @@ ALTER TABLE ONLY items
 
 
 --
--- TOC entry 2150 (class 2606 OID 280998)
 -- Name: menagerie_pkey; Type: CONSTRAINT; Schema: 1; Owner: dbapi_test; Tablespace: 
 --
 
@@ -512,7 +549,6 @@ ALTER TABLE ONLY menagerie
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 2154 (class 2606 OID 281000)
 -- Name: auth_pkey; Type: CONSTRAINT; Schema: dbapi; Owner: dbapi_test; Tablespace: 
 --
 
@@ -523,7 +559,6 @@ ALTER TABLE ONLY auth
 SET search_path = private, pg_catalog;
 
 --
--- TOC entry 2156 (class 2606 OID 281002)
 -- Name: articles_pkey; Type: CONSTRAINT; Schema: private; Owner: dbapi_test; Tablespace: 
 --
 
@@ -534,7 +569,6 @@ ALTER TABLE ONLY articles
 SET search_path = dbapi, pg_catalog;
 
 --
--- TOC entry 2159 (class 2620 OID 281004)
 -- Name: ensure_auth_role_exists; Type: TRIGGER; Schema: dbapi; Owner: dbapi_test
 --
 
@@ -544,16 +578,33 @@ CREATE CONSTRAINT TRIGGER ensure_auth_role_exists AFTER INSERT OR UPDATE ON auth
 SET search_path = private, pg_catalog;
 
 --
--- TOC entry 2160 (class 2620 OID 281005)
 -- Name: articles_owner_track; Type: TRIGGER; Schema: private; Owner: dbapi_test
 --
 
 CREATE TRIGGER articles_owner_track BEFORE INSERT OR UPDATE ON articles FOR EACH ROW EXECUTE PROCEDURE dbapi.update_owner();
 
 
+SET search_path = "1", pg_catalog;
+
 --
--- TOC entry 2285 (class 0 OID 0)
--- Dependencies: 11
+-- TOC entry 1905 (class 2606 OID 51009)
+-- Name: has_fk_fk_fkey; Type: FK CONSTRAINT; Schema: 1; Owner: dbapi_test
+--
+
+ALTER TABLE ONLY has_fk
+    ADD CONSTRAINT has_fk_fk_fkey FOREIGN KEY (auto_inc_fk) REFERENCES auto_incrementing_pk(id);
+
+
+--
+-- TOC entry 1906 (class 2606 OID 51015)
+-- Name: has_fk_simple_fk_fkey; Type: FK CONSTRAINT; Schema: 1; Owner: dbapi_test
+--
+
+ALTER TABLE ONLY has_fk
+    ADD CONSTRAINT has_fk_simple_fk_fkey FOREIGN KEY (simple_fk) REFERENCES simple_pk(k);
+
+
+--
 -- Name: 1; Type: ACL; Schema: -; Owner: dbapi_test
 --
 
@@ -562,7 +613,17 @@ GRANT ALL ON SCHEMA "1" TO dbapi_test;
 GRANT USAGE ON SCHEMA "1" TO dbapi_anonymous;
 
 
-SET search_path = "1", pg_catalog;
+--
+-- TOC entry 2036 (class 0 OID 0)
+-- Dependencies: 15
+-- Name: public; Type: ACL; Schema: -; Owner: postgres
+--
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM postgres;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
 
 --
 -- TOC entry 2289 (class 0 OID 0)
@@ -586,31 +647,8 @@ GRANT ALL ON TABLE auto_incrementing_pk TO dbapi_anonymous;
 
 
 --
--- TOC entry 2292 (class 0 OID 0)
--- Dependencies: 176
--- Name: auto_incrementing_pk_id_seq; Type: ACL; Schema: 1; Owner: dbapi_test
---
-
-REVOKE ALL ON SEQUENCE auto_incrementing_pk_id_seq FROM dbapi_test;
-GRANT ALL ON SEQUENCE auto_incrementing_pk_id_seq TO dbapi_test;
-GRANT USAGE ON SEQUENCE auto_incrementing_pk_id_seq TO dbapi_anonymous;
-
-
---
--- TOC entry 2293 (class 0 OID 0)
--- Dependencies: 177
--- Name: compound_pk; Type: ACL; Schema: 1; Owner: dbapi_test
---
-
-REVOKE ALL ON TABLE compound_pk FROM dbapi_test;
-GRANT ALL ON TABLE compound_pk TO dbapi_test;
-GRANT ALL ON TABLE compound_pk TO dbapi_anonymous;
-
-
---
--- TOC entry 2294 (class 0 OID 0)
--- Dependencies: 178
--- Name: items; Type: ACL; Schema: 1; Owner: dbapi_test
+-- TOC entry 2043 (class 0 OID 0)
+-- Dependencies: 186
 --
 
 REVOKE ALL ON TABLE items FROM dbapi_test;
@@ -630,8 +668,8 @@ GRANT USAGE ON SEQUENCE items_id_seq TO dbapi_anonymous;
 
 
 --
--- TOC entry 2297 (class 0 OID 0)
--- Dependencies: 180
+-- TOC entry 2046 (class 0 OID 0)
+-- Dependencies: 188
 -- Name: menagerie; Type: ACL; Schema: 1; Owner: dbapi_test
 --
 
@@ -673,10 +711,4 @@ SET search_path = private, pg_catalog;
 REVOKE ALL ON TABLE articles FROM dbapi_test;
 GRANT ALL ON TABLE articles TO dbapi_test;
 
-
--- Completed on 2014-10-01 13:41:40 PDT
-
---
--- PostgreSQL database dump complete
---
 
