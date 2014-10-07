@@ -96,7 +96,7 @@ app conn anonymous req respond = do
           responseLBS status200 [jsonContentType] <$> printTables ver conn
 
         ([table], "OPTIONS") ->
-          responseLBS status200 [jsonContentType] <$>
+          responseLBS status200 [jsonContentType, allOrigins] <$>
             printColumns ver (cs table) conn
 
         ([table], "GET") ->
@@ -165,6 +165,7 @@ app conn anonymous req respond = do
     ver    = fromMaybe "1" $ requestedVersion hdrs
     range  = requestedRange hdrs
     cRange = requestedContentRange hdrs
+    allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
@@ -174,8 +175,8 @@ defaultCorsPolicy =  CorsResourcePolicy Nothing
 corsPolicy :: Request -> Maybe CorsResourcePolicy
 corsPolicy req = case lookup "origin" headers of
   Just origin -> Just defaultCorsPolicy {
-      corsOrigins = Just ([origin], True),
-      corsRequestHeaders = "Authentication":accHeaders
+      corsOrigins = Just ([origin], True)
+    , corsRequestHeaders = "Authentication":accHeaders
     }
   Nothing -> Nothing
   where
