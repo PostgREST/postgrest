@@ -46,6 +46,7 @@ data Column = Column {
 , colUpdatable :: Bool
 , colMaxLen :: Maybe Int
 , colPrecision :: Maybe Int
+, colDefault :: Maybe String
 } deriving (Show)
 
 instance JSON.ToJSON Column where
@@ -57,7 +58,8 @@ instance JSON.ToJSON Column where
     , "type"      .= colType c
     , "updatable" .= colUpdatable c
     , "maxLen"    .= colMaxLen c
-    , "precision" .= colPrecision c ]
+    , "precision" .= colPrecision c
+    , "default"   .= colDefault c ]
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
@@ -91,14 +93,15 @@ columns s t conn = do
   r <- quickQuery conn
         "select table_schema, table_name, column_name, ordinal_position,\
         \       is_nullable, data_type, is_updatable,\
-        \       character_maximum_length, numeric_precision\
+        \       character_maximum_length, numeric_precision,\
+        \       column_default\
         \  from information_schema.columns\
         \ where table_schema = ?\
         \   and table_name = ?" [toSql s, toSql t]
   return $ mapMaybe mkColumn r
 
   where
-    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision] =
+    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal] =
       Just $ Column (fromSql schema)
         (fromSql table)
         (fromSql name)
@@ -108,6 +111,7 @@ columns s t conn = do
         (toBool (fromSql updatable))
         (fromSql maxlen)
         (fromSql precision)
+        (fromSql defVal)
     mkColumn _ = Nothing
 
 printTables :: String -> Connection -> IO BL.ByteString

@@ -38,7 +38,8 @@ spec = around appWithFixture $ do
             "type": "integer",
             "maxLen": null,
             "nullable": false,
-            "position": 1
+            "position": 1,
+            "default": "nextval('\"1\".auto_incrementing_pk_id_seq'::regclass)"
           }, {
             "precision": null,
             "updatable": true,
@@ -47,7 +48,8 @@ spec = around appWithFixture $ do
             "type": "character varying",
             "maxLen": null,
             "nullable": true,
-            "position": 2
+            "position": 2,
+            "default": null
           }, {
             "precision": null,
             "updatable": true,
@@ -56,7 +58,8 @@ spec = around appWithFixture $ do
             "type": "character varying",
             "maxLen": null,
             "nullable": false,
-            "position": 3
+            "position": 3,
+            "default": null
           }, {
             "precision": null,
             "updatable": true,
@@ -65,7 +68,8 @@ spec = around appWithFixture $ do
             "type": "timestamp with time zone",
             "maxLen": null,
             "nullable": true,
-            "position": 4
+            "position": 4,
+            "default": "now()"
           }
         ]
       }
