@@ -36,6 +36,7 @@ executable dbapi
                      , PgStructure
                      , PgQuery
                      , RangeQuery
+                     , Middleware
   hs-source-dirs:      src
 
 Test-Suite spec

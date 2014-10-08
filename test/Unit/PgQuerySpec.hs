@@ -7,7 +7,7 @@ import Test.Hspec
 import Database.HDBC (IConnection, SqlValue, toSql, prepare,
   quickQuery, fromSql, execute, seState, fetchAllRowsAL)
 
-import PgQuery (insert, addUser, signInRole, checkPass)
+import PgQuery (LoginAttempt(..), insert, addUser, signInRole, checkPass)
 import Types (SqlRow(SqlRow))
 import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
@@ -67,12 +67,13 @@ spec = around dbWithSchema $ do
       addUser user pass "not-a-real-role" conn `shouldThrow` \e ->
         take 2 (seState e) == "23" --integrity constraint violation
 
+
   describe "signInRole" $ beforeWith (\conn -> do
     addUser user pass role conn
     return conn) $ do
     it "accepts correct credentials and return the role" $ \conn ->
-      signInRole user pass conn `shouldReturn` Just role
+      signInRole user pass conn `shouldReturn` LoginSuccess role
 
     it "returns nothing with bad creds" $ \conn -> do
-      signInRole "not-a-user" pass conn `shouldReturn` Nothing
-      signInRole user (pass <> "crap") conn `shouldReturn` Nothing
+      signInRole "not-a-user" pass conn `shouldReturn` LoginFailed
+      signInRole user (pass <> "crap") conn `shouldReturn` LoginFailed

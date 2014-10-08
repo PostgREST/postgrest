@@ -3,16 +3,17 @@
 -- {{{ Imports
 
 module PgQuery (
-  getRows,
-  insert,
-  upsert,
-  addUser,
-  signInRole,
-  pgSetRole,
-  pgResetRole,
-  checkPass,
-  RangedResult(..),
-  DbRole
+  getRows
+, insert
+, upsert
+, addUser
+, signInRole
+, pgSetRole
+, pgResetRole
+, checkPass
+, RangedResult(..)
+, LoginAttempt(..)
+, DbRole
 ) where
 
 import Data.Text (Text)
@@ -49,6 +50,13 @@ data RangedResult = RangedResult {
 type QuotedSql = (String, [SqlValue])
 type Schema = String
 type DbRole = BS.ByteString
+
+data LoginAttempt =
+    NoCredentials
+  | MalformedAuth
+  | LoginFailed
+  | LoginSuccess DbRole
+  deriving (Eq, Show)
 
 getRows :: Schema -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
@@ -132,18 +140,18 @@ addUser identity pass role conn = do
     ]) conn
   return ()
 
-checkPass :: BS.ByteString -> BS.ByteString -> Bool
-checkPass = validatePassword
-
-signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO(Maybe DbRole)
+signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO LoginAttempt
 signInRole user pass conn = do
   u <- quickQuery conn "select pass, rolname from dbapi.auth where id = ?" [toSql user]
   return $ case u of
     [[hashed, role]] ->
       if checkPass (fromSql hashed) (cs pass)
-         then Just $ fromSql role
-         else Nothing
-    _ -> Nothing
+         then LoginSuccess $ fromSql role
+         else LoginFailed
+    _ -> LoginFailed
+
+checkPass :: BS.ByteString -> BS.ByteString -> Bool
+checkPass = validatePassword
 
 upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
