@@ -36,6 +36,9 @@ data ForeignKey = ForeignKey {
   fkTable::String, fkCol::String
 } deriving (Eq, Show)
 
+instance JSON.ToJSON ForeignKey where
+  toJSON fk = JSON.object ["table".=fkTable fk, "column".=fkCol fk]
+
 foreignKeys :: String -> String -> Connection -> IO (Map.Map String ForeignKey)
 foreignKeys schema table conn = do
   r <- quickQuery conn
@@ -78,6 +81,7 @@ instance JSON.ToJSON Column where
     , "updatable" .= colUpdatable c
     , "maxLen"    .= colMaxLen c
     , "precision" .= colPrecision c
+    , "references".= colFK c
     , "default"   .= colDefault c ]
 
 data TableOptions = TableOptions {
