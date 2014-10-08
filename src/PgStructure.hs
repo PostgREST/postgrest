@@ -11,8 +11,8 @@ import Data.Maybe (mapMaybe)
 import Control.Applicative ( (<*>) )
 
 import qualified Data.ByteString.Lazy as BL
-
 import qualified Data.Aeson as JSON
+import qualified Data.Map as Map
 
 import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
@@ -37,10 +37,10 @@ toBool :: String -> Bool
 toBool = (== "YES")
 
 data ForeignKey = ForeignKey {
-  fkCol::String, fkTableReferred::String, fkColReferred::String
+  fkTable::String, fkCol::String
 } deriving (Eq, Show)
 
-foreignKeys :: String -> String -> Connection -> IO [ForeignKey]
+foreignKeys :: String -> String -> Connection -> IO (Map.Map String ForeignKey)
 foreignKeys schema table conn = do
   r <- quickQuery conn
     "select kcu.column_name, ccu.table_name AS foreign_table_name,\
@@ -53,8 +53,10 @@ foreignKeys schema table conn = do
     \where constraint_type = 'FOREIGN KEY' \
     \  and tc.table_name=? and tc.table_schema = ? \
     \order by kcu.column_name" (map toSql [table, schema])
-  return [ForeignKey col reftab refcol | [col, reftab, refcol] <-
-    map (map fromSql) r]
+  return $ foldl addKey Map.empty $ map (map fromSql) r
+  where
+    addKey m [col, ftab, fcol] = Map.insert col (ForeignKey ftab fcol) m
+    addKey m _ = m --should never happen
 
 data Column = Column {
   colSchema :: String

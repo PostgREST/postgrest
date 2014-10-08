@@ -6,6 +6,7 @@ import PgStructure (Table(..), tables, Column(..), columns, ForeignKey(..),
 
 import Database.HDBC (quickQuery)
 import SpecHelper(dbWithSchema)
+import qualified Data.Map as M;
 
 spec :: Spec
 spec = around dbWithSchema $ beforeWith setRole $ do
@@ -23,10 +24,7 @@ spec = around dbWithSchema $ beforeWith setRole $ do
 
   describe "foreignKeys" $
     it "has a description of the foreign key columns" $ \conn ->
-      foreignKeys "1" "has_fk" conn `shouldReturn` [
-        ForeignKey { fkCol="auto_inc_fk",
-                   fkTableReferred="auto_incrementing_pk", fkColReferred="id"},
-        ForeignKey { fkCol="simple_fk", fkTableReferred="simple_pk",
-                   fkColReferred="k"}
-        ]
+      foreignKeys "1" "has_fk" conn `shouldReturn` M.fromList [
+        ("auto_inc_fk", ForeignKey {fkTable="auto_incrementing_pk", fkCol="id"}),
+        ("simple_fk", ForeignKey { fkTable="simple_pk", fkCol="k"})]
   where setRole conn = quickQuery conn "set role dbapi_test" [] >> return conn
