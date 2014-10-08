@@ -9,10 +9,7 @@ import Database.HDBC
 import Database.HDBC.PostgreSQL
 
 import Data.String.Conversions (cs)
-import Data.Either (isLeft)
-import Control.Exception.Base (bracket, finally)
-
-import Control.Exception.Base (bracket, tryJust)
+import Control.Exception.Base (bracket, finally, tryJust)
 import Control.Monad (when)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
@@ -26,6 +23,10 @@ import Network.Wai.Middleware.Cors (cors)
 
 import Dbapi (app, corsPolicy, AppConfig(..))
 import PgQuery(addUser)
+
+isLeft :: Either a b -> Bool
+isLeft (Left _ ) = True
+isLeft _ = False
 
 cfg :: AppConfig
 cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key" "dbapi_anonymous"
