@@ -1,7 +1,5 @@
--- {{{ Imports
-
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
-
 
 module PgStructure where
 
@@ -18,8 +16,6 @@ import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
 
 import Data.Aeson ((.=))
-
--- }}}
 
 data Table = Table {
   tableSchema :: String
@@ -69,6 +65,7 @@ data Column = Column {
 , colMaxLen :: Maybe Int
 , colPrecision :: Maybe Int
 , colDefault :: Maybe String
+, colFK :: Maybe ForeignKey
 } deriving (Show)
 
 instance JSON.ToJSON Column where
@@ -120,11 +117,15 @@ columns s t conn = do
         \  from information_schema.columns\
         \ where table_schema = ?\
         \   and table_name = ?" [toSql s, toSql t]
-  return $ mapMaybe mkColumn r
+  fks <- foreignKeys s t conn
+  let lookupFK (_:_:name:_) = Map.lookup (fromSql name) fks
+      lookupFK _ = Nothing
+  let cols = zipWith ($) (map mkColumn r) (map lookupFK r)
+  return cols
 
   where
-    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal] =
-      Just $ Column (fromSql schema)
+    --TODO: handle failed pattern match with an appropriate exception
+    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal] = Column (fromSql schema)
         (fromSql table)
         (fromSql name)
         (fromSql pos)
@@ -134,7 +135,6 @@ columns s t conn = do
         (fromSql maxlen)
         (fromSql precision)
         (fromSql defVal)
-    mkColumn _ = Nothing
 
 printTables :: String -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables schema conn

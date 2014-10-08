@@ -16,11 +16,17 @@ spec = around dbWithSchema $ beforeWith setRole $ do
       map tableName ts `shouldBe` ["auto_incrementing_pk","compound_pk",
         "has_fk","items","menagerie","no_pk", "simple_pk"]
 
-  describe "columns" $
+  describe "columns" $ do
     it "responds with each column for the table" $ \conn -> do
       cs <- columns "1" "auto_incrementing_pk" conn
       map colName cs `shouldBe` ["id","nullable_string","non_nullable_string",
         "inserted_at"]
+
+    it "includes foreign key data" $ \conn -> do
+      cs <- columns "1" "has_fk" conn
+      map colFK cs `shouldBe` [Nothing,
+        Just $ ForeignKey "auto_incrementing_pk" "id",
+        Just $ ForeignKey "simple_pk" "k"]
 
   describe "foreignKeys" $
     it "has a description of the foreign key columns" $ \conn ->
