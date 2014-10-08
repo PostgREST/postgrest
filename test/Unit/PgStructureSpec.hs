@@ -13,8 +13,8 @@ spec = around dbWithSchema $ beforeWith setRole $ do
   describe "tables" $
     it "shows all the tables" $ \conn -> do
       ts <- tables "1" conn
-      map tableName ts `shouldBe` ["auto_incrementing_pk","compound_pk",
-        "has_fk","items","menagerie","no_pk", "simple_pk"]
+      map tableName ts `shouldBe` ["authors_only","auto_incrementing_pk",
+        "compound_pk","has_fk","items","menagerie","no_pk", "simple_pk"]
 
   describe "columns" $ do
     it "responds with each column for the table" $ \conn -> do
@@ -33,4 +33,5 @@ spec = around dbWithSchema $ beforeWith setRole $ do
       foreignKeys "1" "has_fk" conn `shouldReturn` M.fromList [
         ("auto_inc_fk", ForeignKey {fkTable="auto_incrementing_pk", fkCol="id"}),
         ("simple_fk", ForeignKey { fkTable="simple_pk", fkCol="k"})]
+
   where setRole conn = quickQuery conn "set role dbapi_test" [] >> return conn
