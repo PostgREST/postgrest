@@ -1,7 +1,8 @@
 module Unit.PgStructureSpec where
 
 import Test.Hspec
-import PgStructure (Table(..), tables, Column(..), columns)
+import PgStructure (Table(..), tables, Column(..), columns, ForeignKey(..),
+  foreignKeys)
 
 import Database.HDBC (quickQuery)
 import SpecHelper(dbWithSchema)
@@ -20,4 +21,12 @@ spec = around dbWithSchema $ beforeWith setRole $ do
       map colName cs `shouldBe` ["id","nullable_string","non_nullable_string",
         "inserted_at"]
 
-  where setRole = \conn -> quickQuery conn "set role dbapi_test" [] >> return conn
+  describe "foreignKeys" $
+    it "has a description of the foreign key columns" $ \conn ->
+      foreignKeys "1" "has_fk" conn `shouldReturn` [
+        ForeignKey { fkCol="auto_inc_fk",
+                   fkTableReferred="auto_incrementing_pk", fkColReferred="id"},
+        ForeignKey { fkCol="simple_fk", fkTableReferred="simple_pk",
+                   fkColReferred="k"}
+        ]
+  where setRole conn = quickQuery conn "set role dbapi_test" [] >> return conn

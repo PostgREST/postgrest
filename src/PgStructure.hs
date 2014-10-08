@@ -36,6 +36,26 @@ instance JSON.ToJSON Table where
 toBool :: String -> Bool
 toBool = (== "YES")
 
+data ForeignKey = ForeignKey {
+  fkCol::String, fkTableReferred::String, fkColReferred::String
+} deriving (Eq, Show)
+
+foreignKeys :: String -> String -> Connection -> IO [ForeignKey]
+foreignKeys schema table conn = do
+  r <- quickQuery conn
+    "select kcu.column_name, ccu.table_name AS foreign_table_name,\
+    \  ccu.column_name AS foreign_column_name \
+    \from information_schema.table_constraints AS tc \
+    \  join information_schema.key_column_usage AS kcu \
+    \    on tc.constraint_name = kcu.constraint_name \
+    \  join information_schema.constraint_column_usage AS ccu \
+    \    on ccu.constraint_name = tc.constraint_name \
+    \where constraint_type = 'FOREIGN KEY' \
+    \  and tc.table_name=? and tc.table_schema = ? \
+    \order by kcu.column_name" (map toSql [table, schema])
+  return [ForeignKey col reftab refcol | [col, reftab, refcol] <-
+    map (map fromSql) r]
+
 data Column = Column {
   colSchema :: String
 , colTable :: String
