@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module PgStructure where
@@ -151,7 +150,6 @@ columns s t conn = do
   return cols
 
   where
-    --TODO: handle failed pattern match with an appropriate exception
     mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal, enum] = Column (fromSql schema)
         (fromSql table)
         (fromSql name)
@@ -163,6 +161,8 @@ columns s t conn = do
         (fromSql precision)
         (fromSql defVal)
         (splitOn "," <$> fromSql enum)
+    mkColumn _ =  error $ "Incomplete column data received for table " ++
+      t ++ " in schema " ++ s ++ "."
 
 printTables :: String -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables schema conn
