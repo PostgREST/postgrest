@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 module Feature.StructureSpec where
 
@@ -13,12 +12,10 @@ import Codec.Binary.Base64.String (encode)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 
-uName = "a user"
-uPass = "nobody can ever know"
-uRole = "dbapi_test"
-
 spec :: Spec
-spec = around withDatabaseConnection $
+spec = let {uName = "a user"; uPass = "nobody can ever know";
+uRole = "dbapi_test"} in
+  around withDatabaseConnection $
   aroundWith (withUser uName uPass uRole) $ aroundWith withApp $ do
   describe "GET /" $
     it "lists views in schema" $
