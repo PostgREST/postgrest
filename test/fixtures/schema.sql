@@ -169,7 +169,7 @@ CREATE TABLE compound_pk (
 );
 
 
-ALTER TABLE "1".compound_pk OWNER TO dbapi_test;
+ALTER TABLE "1".compound_pk OWNER TO dbapi_anonymous;
 
 --
 -- TOC entry 184 (class 1259 OID 50944)
