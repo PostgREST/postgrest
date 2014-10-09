@@ -1,7 +1,5 @@
--- {{{ Imports
-
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
-
 
 module PgStructure where
 
@@ -14,13 +12,12 @@ import qualified Data.ByteString.Lazy as BL
 import Data.List.Split (splitOn)
 
 import qualified Data.Aeson as JSON
+import qualified Data.Map as Map
 
 import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
 
 import Data.Aeson ((.=))
-
--- }}}
 
 data Table = Table {
   tableSchema :: String
@@ -37,6 +34,31 @@ instance JSON.ToJSON Table where
 toBool :: String -> Bool
 toBool = (== "YES")
 
+data ForeignKey = ForeignKey {
+  fkTable::String, fkCol::String
+} deriving (Eq, Show)
+
+instance JSON.ToJSON ForeignKey where
+  toJSON fk = JSON.object ["table".=fkTable fk, "column".=fkCol fk]
+
+foreignKeys :: String -> String -> Connection -> IO (Map.Map String ForeignKey)
+foreignKeys schema table conn = do
+  r <- quickQuery conn
+    "select kcu.column_name, ccu.table_name AS foreign_table_name,\
+    \  ccu.column_name AS foreign_column_name \
+    \from information_schema.table_constraints AS tc \
+    \  join information_schema.key_column_usage AS kcu \
+    \    on tc.constraint_name = kcu.constraint_name \
+    \  join information_schema.constraint_column_usage AS ccu \
+    \    on ccu.constraint_name = tc.constraint_name \
+    \where constraint_type = 'FOREIGN KEY' \
+    \  and tc.table_name=? and tc.table_schema = ? \
+    \order by kcu.column_name" (map toSql [table, schema])
+  return $ foldl addKey Map.empty $ map (map fromSql) r
+  where
+    addKey m [col, ftab, fcol] = Map.insert col (ForeignKey ftab fcol) m
+    addKey m _ = m --should never happen
+
 data Column = Column {
   colSchema :: String
 , colTable :: String
@@ -49,6 +71,7 @@ data Column = Column {
 , colPrecision :: Maybe Int
 , colDefault :: Maybe String
 , colEnum :: Maybe [String]
+, colFK :: Maybe ForeignKey
 } deriving (Show)
 
 instance JSON.ToJSON Column where
@@ -61,6 +84,7 @@ instance JSON.ToJSON Column where
     , "updatable" .= colUpdatable c
     , "maxLen"    .= colMaxLen c
     , "precision" .= colPrecision c
+    , "references".= colFK c
     , "default"   .= colDefault c
     , "enum"      .= colEnum c ]
 
@@ -120,11 +144,15 @@ columns s t conn = do
     \   ) as enum_info                                                                 \
     \   on (info.udt_name = enum_info.n)                                               \
     \order by position" [toSql s, toSql t]
-  return $ mapMaybe mkColumn r
+  fks <- foreignKeys s t conn
+  let lookupFK (_:_:name:_) = Map.lookup (fromSql name) fks
+      lookupFK _ = Nothing
+  let cols = zipWith ($) (map mkColumn r) (map lookupFK r)
+  return cols
 
   where
-    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal, enum] =
-      Just $ Column (fromSql schema)
+    --TODO: handle failed pattern match with an appropriate exception
+    mkColumn [schema, table, name, pos, nullable, colT, updatable, maxlen, precision, defVal, enum] = Column (fromSql schema)
         (fromSql table)
         (fromSql name)
         (fromSql pos)
@@ -135,7 +163,6 @@ columns s t conn = do
         (fromSql precision)
         (fromSql defVal)
         (splitOn "," <$> fromSql enum)
-    mkColumn _ = Nothing
 
 printTables :: String -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables schema conn

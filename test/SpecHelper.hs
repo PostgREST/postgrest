@@ -9,9 +9,7 @@ import Database.HDBC
 import Database.HDBC.PostgreSQL
 
 import Data.String.Conversions (cs)
-import Data.Either (isLeft)
-
-import Control.Exception.Base (bracket, tryJust)
+import Control.Exception.Base (bracket, finally, tryJust)
 import Control.Monad (when)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
@@ -24,6 +22,11 @@ import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
 
 import Dbapi (app, corsPolicy, AppConfig(..))
+import PgQuery(addUser)
+
+isLeft :: Either a b -> Bool
+isLeft (Left _ ) = True
+isLeft _ = False
 
 cfg :: AppConfig
 cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key" "dbapi_anonymous"
@@ -44,6 +47,20 @@ dbWithSchema action = withDatabaseConnection $ \c -> do
   runRaw c "begin;"
   action c
   rollback c
+
+withUser :: BS.ByteString -> BS.ByteString -> BS.ByteString ->
+            ActionWith Connection -> ActionWith Connection
+withUser name pass role action conn = do
+  addUser name pass role conn
+  finally (action conn) $ do
+    _ <- run conn "delete from dbapi.auth where id=?" [toSql name]
+    runRaw conn "commit"
+
+withApp :: ActionWith Application -> ActionWith Connection
+withApp action conn = do
+  runRaw conn "begin;"
+  action $ cors corsPolicy $ app conn "dbapi_anonymous"
+  rollback conn
 
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do

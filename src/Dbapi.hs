@@ -77,7 +77,7 @@ httpRequesterRole :: RequestHeaders -> Connection -> IO LoginAttempt
 httpRequesterRole hdrs conn = do
   let auth = fromMaybe "" $ lookup hAuthorization hdrs
   case BS.split ' ' (cs auth) of
-    ("Basic " : b64 : _) ->
+    ("Basic" : b64 : _) ->
       case BS.split ':' $ cs (decode $ cs b64) of
         (u:p:_) -> signInRole u p conn
         _ -> return MalformedAuth
