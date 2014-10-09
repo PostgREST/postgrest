@@ -27,6 +27,7 @@ spec = around appWithFixture $ do
         [json| {
           "integer": 13, "double": 3.14159, "varchar": "testing!"
         , "boolean": false, "date": "01/01/1900", "money": "$3.99"
+        , "enum": ["foo"]
         } |]
         `shouldRespondWith` 201
 

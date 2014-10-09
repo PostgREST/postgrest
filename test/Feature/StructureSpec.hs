@@ -26,50 +26,91 @@ spec = around appWithFixture $ do
 
   describe "Table info" $
     it "is available with OPTIONS verb" $
-      request methodOptions "/auto_incrementing_pk" [] "" `shouldRespondWith` [json|
+      request methodOptions "/menagerie" [] "" `shouldRespondWith`
+      [json|
       {
-        "pkey":["id"],
+        "pkey":["integer"],
         "columns":[
           {
+            "default": null,
             "precision": 32,
             "updatable": true,
             "schema": "1",
-            "name": "id",
+            "name": "integer",
             "type": "integer",
             "maxLen": null,
+            "enum": null,
             "nullable": false,
-            "position": 1,
-            "default": "nextval('\"1\".auto_incrementing_pk_id_seq'::regclass)"
+            "position": 1
           }, {
+            "default": null,
+            "precision": 53,
+            "updatable": true,
+            "schema": "1",
+            "name": "double",
+            "type": "double precision",
+            "maxLen": null,
+            "enum": null,
+            "nullable": false,
+            "position": 2
+          }, {
+            "default": null,
             "precision": null,
             "updatable": true,
             "schema": "1",
-            "name": "nullable_string",
+            "name": "varchar",
             "type": "character varying",
             "maxLen": null,
-            "nullable": true,
-            "position": 2,
-            "default": null
-          }, {
-            "precision": null,
-            "updatable": true,
-            "schema": "1",
-            "name": "non_nullable_string",
-            "type": "character varying",
-            "maxLen": null,
+            "enum": null,
             "nullable": false,
-            "position": 3,
-            "default": null
+            "position": 3
           }, {
+            "default": null,
             "precision": null,
             "updatable": true,
             "schema": "1",
-            "name": "inserted_at",
-            "type": "timestamp with time zone",
+            "name": "boolean",
+            "type": "boolean",
             "maxLen": null,
-            "nullable": true,
-            "position": 4,
-            "default": "now()"
+            "enum": null,
+            "nullable": false,
+            "position": 4
+          }, {
+            "default": null,
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "date",
+            "type": "date",
+            "maxLen": null,
+            "enum": null,
+            "nullable": false,
+            "position": 5
+          }, {
+            "default": null,
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "money",
+            "type": "money",
+            "maxLen": null,
+            "enum": null,
+            "nullable": false,
+            "position": 6
+          }, {
+            "default": null,
+            "precision": null,
+            "updatable": true,
+            "schema": "1",
+            "name": "enum",
+            "type": "USER-DEFINED",
+            "maxLen": null,
+            "enum": [
+              "foo",
+              "bar"
+            ],
+            "nullable": false,
+            "position": 7
           }
         ]
       }

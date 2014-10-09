@@ -32,6 +32,7 @@ executable dbapi
                      , warp-tls
                      , bcrypt
                      , base64-string
+                     , split
   Other-Modules:       Dbapi
                      , PgStructure
                      , PgQuery
@@ -65,3 +66,4 @@ Test-Suite spec
                      , warp-tls
                      , bcrypt
                      , base64-string
+                     , split
