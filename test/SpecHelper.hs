@@ -59,14 +59,14 @@ withUser name pass role action conn = do
 withApp :: ActionWith Application -> ActionWith Connection
 withApp action conn = do
   runRaw conn "begin;"
-  action $ cors corsPolicy $ app conn "dbapi_anonymous"
+  action $ cors corsPolicy $ app "dbapi_anonymous" conn
   rollback conn
 
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
   result <- tryJust transactionAborted $ do
     runRaw c "begin;"
-    action $ cors corsPolicy $ app c "dbapi_anonymous"
+    action $ cors corsPolicy $ app "dbapi_anonymous" c
     rollback c
 
   when (isLeft result) $
