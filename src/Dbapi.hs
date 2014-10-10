@@ -149,15 +149,10 @@ appWithRole conn req respond =
               cols <- columns ver (cs table) conn
               let colNames = S.fromList $ map (cs . colName) cols
               let specifiedCols = S.fromList $ map fst $ getRow row
-              if colNames == specifiedCols then do
-                allvals <- upsert ver table row qq conn
-                let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
-                return $ responseLBS status201
-                  [ jsonContentType
-                  , (hLocation, "/" <> cs table <> "?" <> cs params)
-                  ] ""
+              return $ if colNames == specifiedCols then
+                responseLBS status200 [ jsonContentType ] ""
 
-                else return $ if S.null colNames then responseLBS status404 [] ""
+                else if S.null colNames then responseLBS status404 [] ""
                   else responseLBS status400 []
                      "You must specify all columns in PUT request"
       )

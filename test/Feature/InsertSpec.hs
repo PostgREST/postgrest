@@ -105,6 +105,20 @@ spec = around appWithFixture $ do
                  [json| { "k1":12, "k2":42, "extra":3 } |]
             liftIO $ do
               simpleBody p `shouldBe` ""
-              simpleStatus p `shouldBe` created201
-              simpleHeaders p `shouldSatisfy` matchHeader
-                hLocation "/compound_pk\\?k1=eq\\.12&k2=eq\\.42"
+              simpleStatus p `shouldBe` status200
+
+      context "with an auto-incrementing primary key" $
+
+        it "succeeds with 201 and link" $
+          request methodPut "/auto_incrementing_pk?id=eq.1" []
+               [json| {
+                 "id":1,
+                 "nullable_string":"hi",
+                 "non_nullable_string":"bye",
+                 "inserted_at": "now()"
+               } |]
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing,
+              matchStatus  = 200,
+              matchHeaders = []
+            }
