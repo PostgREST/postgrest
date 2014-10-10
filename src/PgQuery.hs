@@ -165,9 +165,11 @@ placeholders :: String -> SqlRow -> String
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
 
 insertClause :: Schema -> Text -> SqlRow -> QuotedSql
+insertClause schema table (SqlRow []) =
+  ("insert into %I.%I default values returning *", [toSql schema, toSql table])
 insertClause schema table row =
-    ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ cs schema : table : sqlRowColumns row)
+  ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+  map toSql $ cs schema : table : sqlRowColumns row)
   <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
 
 

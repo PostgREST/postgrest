@@ -53,6 +53,12 @@ spec = around dbWithSchema $ do
           ("nullable_string", toSql ("a string"::String))]) conn
           `shouldThrow` \e -> seState e == "23502"
 
+      it "generates a default values query if no data is provided" $ \c -> do
+        r <- insert "1" "items" (SqlRow []) c
+        let [row] = toList r
+        quickALQuery c "select * from \"1\".items where id = ?" [snd row]
+          `shouldReturn` [[row]]
+
   let {user = "jdoe"; pass = "secret"; role = "test_default_role"}
   describe "addUser" $ do
     it "adds a correct user to the right table" $ \conn -> do
