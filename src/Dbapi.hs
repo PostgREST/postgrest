@@ -4,6 +4,7 @@
 module Dbapi where
 
 import Types (SqlRow, getRow)
+import Middleware(reportPgErrors)
 
 import Control.Monad (join)
 import Control.Exception.Base (bracket_)
@@ -100,8 +101,17 @@ app anonymous conn req respond = do
 
 
 appWithRole :: Connection -> Application
-appWithRole conn req respond =
-  respond =<< case (path, verb) of
+appWithRole conn = reportPgErrors (\req respond ->
+  let
+      path   = pathInfo req
+      verb   = requestMethod req
+      qq     = queryString req
+      hdrs   = requestHeaders req
+      ver    = fromMaybe "1" $ requestedVersion hdrs
+      range  = requestedRange hdrs
+      cRange = requestedContentRange hdrs
+      allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+   in respond =<< case (path, verb) of
     ([], _) ->
       responseLBS status200 [jsonContentType] <$> printTables ver conn
 
@@ -159,16 +169,7 @@ appWithRole conn req respond =
 
     (_, _) ->
       return $ responseLBS status404 [] ""
-
-  where
-    path   = pathInfo req
-    verb   = requestMethod req
-    qq     = queryString req
-    hdrs   = requestHeaders req
-    ver    = fromMaybe "1" $ requestedVersion hdrs
-    range  = requestedRange hdrs
-    cRange = requestedContentRange hdrs
-    allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+  )
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing

@@ -4,7 +4,7 @@
 
 module Main where
 import Dbapi
-import Middleware (reportPgErrors)
+import Middleware (inTransaction)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Data.String.Conversions (cs)
@@ -41,7 +41,8 @@ main = do
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
   conn <- connectPostgreSQL' dburi
-  runTLS tls settings $ gzip def $ cors corsPolicy $ reportPgErrors $ app (cs $ configAnonRole conf) conn
+  runTLS tls settings $ gzip def $ cors corsPolicy $
+    inTransaction conn (app (cs $ configAnonRole conf))
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
