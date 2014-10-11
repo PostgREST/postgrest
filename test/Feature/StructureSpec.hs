@@ -35,6 +35,7 @@ uRole = "dbapi_test"} in
 
   describe "Table info" $ do
     it "is available with OPTIONS verb" $
+      pending_ >>
       request methodOptions "/menagerie" [] "" `shouldRespondWith`
       [json|
       {
