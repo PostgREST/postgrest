@@ -84,8 +84,8 @@ httpRequesterRole hdrs conn = do
     _ -> return NoCredentials
 
 
-app :: Connection -> DbRole -> Application
-app conn anonymous req respond = do
+app :: DbRole -> Connection -> Application
+app anonymous conn req respond = do
   attempt <- httpRequesterRole (requestHeaders req) conn
 
   case attempt of
