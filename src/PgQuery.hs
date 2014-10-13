@@ -8,8 +8,8 @@ module PgQuery (
 , upsert
 , addUser
 , signInRole
-, pgSetRole
-, pgResetRole
+, setRole
+, resetRole
 , checkPass
 , RangedResult(..)
 , LoginAttempt(..)
@@ -203,10 +203,10 @@ populateSql conn sql = do
     ph :: [a] -> String
     ph = intercalate ", " . map (const "?::varchar")
 
-pgSetRole :: Connection -> DbRole -> IO ()
-pgSetRole conn role = do
+setRole :: Connection -> DbRole -> IO ()
+setRole conn role = do
   query <- populateSql conn ("set role %I", [toSql role])
   void $ run conn query []
 
-pgResetRole :: Connection -> IO ()
-pgResetRole conn = void $ run conn "reset role" []
+resetRole :: Connection -> IO ()
+resetRole conn = void $ run conn "reset role" []
