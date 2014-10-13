@@ -84,7 +84,7 @@ matchHeader name valRegex headers =
 
 authHeader :: String -> String -> Header
 authHeader user pass =
-  (hAuthorization, cs $ "Basic: " ++ encode (user ++ ":" ++ pass))
+  (hAuthorization, cs $ "Basic " ++ encode (user ++ ":" ++ pass))
 
 -- for hspec-wai
 pending_ :: WaiSession ()
