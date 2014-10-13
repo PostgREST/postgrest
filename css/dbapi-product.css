@@ -77,23 +77,23 @@ p {
   margin-left: 0;
 }
 .number:nth-child(5n+1) {
-  background: url(/img/1.jpg) center repeat-x;
+  background: url(../img/1.jpg) center repeat-x;
   background-size: auto 100%;
 }
 .number:nth-child(5n+2) {
-  background: url(/img/2.jpg) center repeat-x;
+  background: url(../img/2.jpg) center repeat-x;
   background-size: auto 100%;
 }
 .number:nth-child(5n+3) {
-  background: url(/img/3.jpg) center repeat-x;
+  background: url(../img/3.jpg) center repeat-x;
   background-size: auto 100%;
 }
 .number:nth-child(5n+4) {
-  background: url(/img/4.jpg) center repeat-x;
+  background: url(../img/4.jpg) center repeat-x;
   background-size: auto 100%;
 }
 .number:nth-child(5n+5) {
-  background: url(/img/5.jpg) center repeat-x;
+  background: url(../img/5.jpg) center repeat-x;
   background-size: auto 100%;
 }
 .callToAction {
