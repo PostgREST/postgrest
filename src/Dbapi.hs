@@ -49,9 +49,8 @@ import Codec.Binary.Base64.String (decode)
 data AppConfig = AppConfig {
     configDbUri :: String
   , configPort  :: Int
-  , configSslCert :: FilePath
-  , configSslKey  :: FilePath
   , configAnonRole :: String
+  , configSecure :: Bool
   }
 
 jsonContentType :: (HeaderName, BS.ByteString)
