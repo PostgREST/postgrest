@@ -1,0 +1,84 @@
+// Mixins
+// --------------------------------------------------
+
+// Utilities
+@import "mixins/hide-text.less";
+@import "mixins/opacity.less";
+@import "mixins/image.less";
+@import "mixins/labels.less";
+@import "mixins/reset-filter.less";
+@import "mixins/resize.less";
+@import "mixins/responsive-visibility.less";
+@import "mixins/size.less";
+@import "mixins/tab-focus.less";
+@import "mixins/text-emphasis.less";
+@import "mixins/text-overflow.less";
+@import "mixins/vendor-prefixes.less";
+
+// Components
+@import "mixins/alerts.less";
+@import "mixins/buttons.less";
+@import "mixins/panels.less";
+@import "mixins/pagination.less";
+@import "mixins/list-group.less";
+@import "mixins/nav-divider.less";
+@import "mixins/forms.less";
+@import "mixins/progress-bar.less";
+@import "mixins/table-row.less";
+
+// Skins
+@import "mixins/background-variant.less";
+@import "mixins/border-radius.less";
+@import "mixins/gradients.less";
+
+// Layout
+@import "mixins/clearfix.less";
+@import "mixins/center-block.less";
+@import "mixins/nav-vertical-align.less";
+@import "mixins/grid-framework.less";
+@import "mixins/grid.less";
+
+.transition(@what: all, @time: 0.2s, @transition: ease-in-out) {
+	-webkit-transition: @what @time @transition;
+	-moz-transition:    @what @time @transition;
+	-ms-transition:     @what @time @transition;
+	-o-transition:      @what @time @transition;
+	transition:         @what @time @transition;
+}
+
+.helvetica {
+	font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.aktiv {
+	font-family: 'Aktiv Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.quotes {
+	font-family: Baskerville, Palatino, "Book Antiqua", serif;
+	font-weight: bold;
+}
+
+strong {
+	font-weight: 500;
+}
+
+.ital {
+	font-style: italic;
+}
+
+@aktiv: 'Aktiv Grotesk', 'Helvetica Neue', Helvetica, Arial, san-serif;
+
+select,   textarea,   input[type="text"],   input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"] { font-size: 16px; }
+
+@red: #ee3424;
+@lightblue: #a0daf3;
+@greyblue: #80b2c0;
+@green: #009d9c;
+@yellow: #ffe252;
+@lightgreen: #bce7a9;
+@lightgrey: #f4f2f2;
+@darkgrey: #cccccc;
+
+.aqua {background: aqua;
+height: 100%;}

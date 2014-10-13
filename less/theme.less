@@ -1,0 +1,339 @@
+
+//
+// Load core variables and mixins
+// --------------------------------------------------
+
+@import "vendor.less";
+
+@expo: "expo-sans-pro", 'helvetica neue', helvetica, arial, sans-serif;
+@sans-serif: 'helvetica neue', helvetica, arial, sans-serif;
+
+@blue: rgba(175, 211, 238, 1);
+@red: rgb(232, 152, 152, 1);
+@yellow: rgba(253, 235, 171, 1);
+@green: rgba(151, 208, 180, 1);
+@purple: rgba(167, 171, 193, 1);
+@lightGrey: #5a5a5a;
+@lighterGrey: #a0a0a0;
+@fontSm: .9em;
+@fontMd: 1.8em;
+@fontLg: 2em;
+@fontXl: 4.8em;
+
+.verticalAlign {
+  position: relative;
+  top: 50%;
+  -webkit-transform: translateY(-50%);
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%);
+}
+
+body {
+  background-color: rgb(255, 255, 255);
+  color: #444;
+  font-family: @expo;
+  font-size: 12px;
+  font-size: 3.3vw;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
+}
+
+.transition(@what: all, @time: 0.2s, @transition: ease-in-out) {
+	-webkit-transition: @what @time @transition;
+	-moz-transition:    @what @time @transition;
+	-ms-transition:     @what @time @transition;
+	-o-transition:      @what @time @transition;
+	transition:         @what @time @transition;
+}
+
+h1, h2, h3, h4, h5, h6, p, a {
+
+	margin-top: 0;
+	margin-bottom: 0;
+	font-style: normal !important;
+}
+
+.container-fluid {
+	width: 100% !important;
+	position: relative;
+}
+
+p {
+	margin-bottom: 1em;
+	font-size: 1.6em;
+	font-size: 4.5vw;
+}
+
+
+.row-centered {
+    text-align:center;
+}
+.col-centered {
+    display:inline-block;
+    float:none;
+    /* reset the text-align */
+    text-align:left;
+    /* inline-block space fix */
+    margin-right:-4px;
+}
+// -------------------------------------|
+
+// COMPONENTS
+
+
+// #intro
+
+.introSection {
+	height: 800px;
+	height: 100vh;
+	overflow-y: hidden;
+	border-top: 4px solid #000;
+}
+
+.logo {
+	font-weight: 700;
+	color: #000;
+	margin-top: 20px;
+}
+
+.numbers {
+	position: absolute;
+	width: 100%;
+	overflow: hidden;
+	height: calc(100vh - 100px);
+	top: 80px;
+	bottom: 0;
+	margin-left: -15px;
+}	
+
+.number {
+	width: 10000%;
+	height: 50px;
+	margin-left: 0;
+}
+
+.number:nth-child(5n+1) {
+	background: url(/img/1.jpg) center repeat-x;
+	background-size: auto 100%;
+}
+
+.number:nth-child(5n+2) {
+	background: url(/img/2.jpg) center repeat-x;
+	background-size: auto 100%;
+}
+
+
+.number:nth-child(5n+3) {
+	background: url(/img/3.jpg) center repeat-x;
+	background-size: auto 100%;
+}
+
+
+.number:nth-child(5n+4) {
+	background: url(/img/4.jpg) center repeat-x;
+	background-size: auto 100%;
+}
+
+
+.number:nth-child(5n+5) {
+	background: url(/img/5.jpg) center repeat-x;
+	background-size: auto 100%;
+}
+
+.callToAction {
+	.verticalAlign;
+	top: 40%;
+}
+
+.callToActionBox {
+	font-family: @sans-serif;
+	background: rgba(255,255,255,0.98);
+	padding: 6% 4% 6% 4%;
+}
+
+.callToActionText {
+	text-transform: uppercase;
+	font-weight: 400;
+	font-size: @fontLg;
+}
+
+.smallGithubBtn {
+	border: 2px solid rgb(84, 89, 110);
+	color: rgb(84, 89, 110);
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	border-radius: 5px;
+	display: block;
+	width: 80%;
+	margin-left: 10%;
+	padding: 3%;
+	margin-top: 20px;
+	text-decoration: none;
+	.transition();
+
+	&:hover {
+		background-color: rgba(84, 89, 110, 0.025);
+		text-decoration: none;
+
+	}
+
+	img {
+		margin-top: -4px;
+	}
+}
+
+// -------------------------------------|
+
+// #info
+
+.section {
+	margin-top: 50px;
+	border-top: 4px solid #000;
+	padding-top: 50px;
+	width: 100%;
+	overflow-x: hidden;
+}
+
+.sectionHeadline {
+	font-size: @fontLg;
+	margin-bottom: 50px;
+}
+
+.infoTextHeadline {
+	font-family: @sans-serif;
+	text-transform: uppercase;
+	font-weight: 500;
+	font-size: @fontMd;
+	margin-bottom: 25px;
+}
+
+.exampleWindow {
+	width: 100%;
+	height: auto;
+	margin-bottom: 25px;
+}
+
+// -------------------------------------|
+
+// #features
+
+.feature {
+	margin-bottom: 50px;
+}
+
+.featureInner {
+	border: 6px solid @blue;
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+	border-radius: 10px;
+	padding: 10%;
+}
+
+.feature:nth-child(5n + 1) .featureInner {
+	border-color: @blue;
+}
+
+.feature:nth-child(5n + 2) .featureInner {
+	border-color: @red;
+}
+
+.feature:nth-child(5n + 3) .featureInner {
+	border-color: @yellow;
+}
+
+.feature:nth-child(5n + 4) .featureInner {
+	border-color: @green;
+}
+
+.feature:nth-child(5n + 5) .featureInner {
+	border-color: @purple;
+}
+
+.featureHeadline {
+	font-size: @fontMd;
+	margin-bottom: 25px;
+	text-align: center;
+}
+
+.featureText {
+	font-size: .9em;
+	line-height: .95em;
+}
+
+.footerSection {
+	font-size: .9em;
+	padding-bottom: 50px;
+}
+
+.looprecurLogo {
+	width: 200px;
+	height: auto;
+}
+
+
+
+/* Small devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+
+.container-fluid {
+	width: 100% !important;
+}
+
+body {
+	font-size: 14px;
+	font-size: 2vw;
+}
+
+p {
+	font-size: 1.2em;
+}
+
+.section {
+	margin-top: 100px;
+	padding-top: 100px;
+}
+
+.sectionHeadline {
+	margin-bottom: 100px;
+}
+
+.smallGithubBtn {
+	width: 40%;
+	margin-left: 30%;
+	padding: 1%;
+}
+
+.callToActionBox {
+	padding: 2% 4% 3% 4%;
+}
+
+.exampleWindow {
+	width: 125%;
+	height: auto;
+	margin-left: -10%;
+}
+
+
+}
+
+/* Medium devices (desktops, 992px and up) */
+@media (min-width: 992px) { 
+
+body {
+	font-size: 18px;
+	font-size: 1.25vw;
+}
+
+}
+
+/* Large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) { 
+	body {font-size: 1vw;}
+
+}
