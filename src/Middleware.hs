@@ -68,8 +68,8 @@ instance ToJSON SqlError where
       ]
     ]
 
-reportPgErrors :: Application -> Application
-reportPgErrors app req respond =
+clientErrors :: Application -> Application
+clientErrors app req respond =
   catchJust isPgException (app req respond) (
       respond . responseLBS status400 [(hContentType, "application/json")]
               . encode
