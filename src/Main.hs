@@ -1,10 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- {{{ Imports
-
 module Main where
 import Dbapi
-import Middleware (inTransaction)
+import Middleware (inTransaction, authenticated, withSavepoint, clientErrors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Data.String.Conversions (cs)
@@ -14,8 +12,6 @@ import Options.Applicative hiding (columns)
 import Network.Wai.Handler.WarpTLS (tlsSettings, runTLS)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
-
--- }}}
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -41,8 +37,8 @@ main = do
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
   conn <- connectPostgreSQL' dburi
-  runTLS tls settings . gzip def . cors corsPolicy $
-    inTransaction (app (cs $ configAnonRole conf)) conn
+  runTLS tls settings . gzip def . cors corsPolicy . clientErrors $ (
+    inTransaction . authenticated (cs $ configAnonRole conf) . withSavepoint) app conn
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
