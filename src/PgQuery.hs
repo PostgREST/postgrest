@@ -71,11 +71,11 @@ getRows schema table qq range conn = do
   r <- quickQuery conn query []
 
   return $ case r of
-           [[total, _, SqlNull]] -> RangedResult offset 0 (fromSql total) ""
+           [[total, _, SqlNull]] -> RangedResult offset 0 (fromSql total) "[]"
            [[total, limited_total, json]] ->
             RangedResult offset (offset + fromSql limited_total - 1)
                          (fromSql total) (fromSql json)
-           _ -> RangedResult 0 0 0 ""
+           _ -> RangedResult 0 0 0 "[]"
 
   where
     offset = fromMaybe 0 $ R.offset <$> range

@@ -40,7 +40,7 @@ spec = around appWithFixture $ do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Nothing
-        , matchStatus  = 204
+          matchBody    = Just "[]"
+        , matchStatus  = 200
         , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
         }
