@@ -17,7 +17,7 @@ executable dbapi
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , wai-extra, wai-cors
-                     , wai-middleware-static
+                     , wai-middleware-static >= 0.6.0
                      , HTTP, convertible
                      , case-insensitive
                      , http-types, scientific, time
@@ -55,7 +55,7 @@ Test-Suite spec
                      , HTTP, convertible
                      , case-insensitive
                      , wai-extra, wai-cors, containers
-                     , wai-middleware-static
+                     , wai-middleware-static >= 0.6.0
                      , http-types, scientific, time
                      , bytestring, aeson, network >= 2.6
                      , text, optparse-applicative
