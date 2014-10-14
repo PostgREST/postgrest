@@ -9,17 +9,17 @@ import Database.HDBC
 import Database.HDBC.PostgreSQL
 
 import Data.String.Conversions (cs)
-import Control.Exception.Base (bracket, finally, tryJust)
-import Control.Monad (when)
+import Control.Exception.Base (bracket, finally)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization)
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Text.Regex.TDFA ((=~))
-import qualified Data.HashMap.Strict as Hash
 import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
+
+import Middleware(clientErrors, withSavepoint, authenticated)
 
 import Dbapi (app, corsPolicy, AppConfig(..))
 import PgQuery(addUser)
@@ -59,23 +59,15 @@ withUser name pass role action conn = do
 withApp :: ActionWith Application -> ActionWith Connection
 withApp action conn = do
   runRaw conn "begin;"
-  action $ cors corsPolicy $ app conn "dbapi_anonymous"
+  action $ cors corsPolicy $ authenticated "dbapi_anonymous" app conn
   rollback conn
 
 appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
-  result <- tryJust transactionAborted $ do
-    runRaw c "begin;"
-    action $ cors corsPolicy $ app c "dbapi_anonymous"
-    rollback c
-
-  when (isLeft result) $
-    putStrLn "note: commands ignored after aborted transaction"
-
-  where
-    transactionAborted :: SqlError -> Maybe ()
-    transactionAborted e =
-      if seState e == "25P02" then Just () else Nothing
+  runRaw c "begin;"
+  action $ cors corsPolicy . clientErrors  $
+    (authenticated "dbapi_anonymous" . withSavepoint) app c
+  rollback c
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
@@ -84,8 +76,7 @@ rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")
 
 getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
-getHeader name headers =
-  Hash.lookup name $ Hash.fromList headers
+getHeader = lookup
 
 matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
 matchHeader name valRegex headers =
@@ -93,12 +84,12 @@ matchHeader name valRegex headers =
 
 authHeader :: String -> String -> Header
 authHeader user pass =
-  (hAuthorization, cs $ "Basic: " ++ encode (user ++ ":" ++ pass))
+  (hAuthorization, cs $ "Basic " ++ encode (user ++ ":" ++ pass))
 
 -- for hspec-wai
 pending_ :: WaiSession ()
-pending_ = liftIO pending
+pending_ = liftIO Test.Hspec.pending
 
 -- for hspec-wai
 pendingWith_ :: String -> WaiSession ()
-pendingWith_ = liftIO . pendingWith
+pendingWith_ = liftIO . Test.Hspec.pendingWith

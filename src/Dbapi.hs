@@ -6,7 +6,6 @@ module Dbapi where
 import Types (SqlRow, getRow)
 
 import Control.Monad (join)
-import Control.Exception.Base (bracket_)
 import Control.Arrow ((***))
 import Control.Applicative
 import Options.Applicative hiding (columns)
@@ -42,7 +41,6 @@ import qualified Data.Aeson as JSON
 import PgQuery
 import RangeQuery
 import Data.Ranged.Ranges (emptyRange)
-import Codec.Binary.Base64.String (decode)
 
 -- }}}
 
@@ -72,34 +70,8 @@ filterByKeys m keys =
   if null keys then m else
     m `intersection` fromList (zip keys $ repeat undefined)
 
-httpRequesterRole :: RequestHeaders -> Connection -> IO LoginAttempt
-httpRequesterRole hdrs conn = do
-  let auth = fromMaybe "" $ lookup hAuthorization hdrs
-  case BS.split ' ' (cs auth) of
-    ("Basic" : b64 : _) ->
-      case BS.split ':' $ cs (decode $ cs b64) of
-        (u:p:_) -> signInRole u p conn
-        _ -> return MalformedAuth
-    _ -> return NoCredentials
-
-
-app :: Connection -> DbRole -> Application
-app conn anonymous req respond = do
-  attempt <- httpRequesterRole (requestHeaders req) conn
-
-  case attempt of
-    MalformedAuth ->
-      respond $ responseLBS status400 [] "Malformed basic auth header"
-    LoginFailed ->
-      respond $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role ->
-      bracket_ (pgSetRole conn role) (pgResetRole conn) $ appWithRole conn req respond
-    NoCredentials ->
-      bracket_ (pgSetRole conn anonymous) (pgResetRole conn) $ appWithRole conn req respond
-
-
-appWithRole :: Connection -> Application
-appWithRole conn req respond =
+app :: Connection -> Application
+app conn req respond =
   respond =<< case (path, verb) of
     ([], _) ->
       responseLBS status200 [jsonContentType] <$> printTables ver conn

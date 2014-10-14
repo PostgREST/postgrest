@@ -8,8 +8,8 @@ module PgQuery (
 , upsert
 , addUser
 , signInRole
-, pgSetRole
-, pgResetRole
+, setRole
+, resetRole
 , checkPass
 , RangedResult(..)
 , LoginAttempt(..)
@@ -165,9 +165,11 @@ placeholders :: String -> SqlRow -> String
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
 
 insertClause :: Schema -> Text -> SqlRow -> QuotedSql
+insertClause schema table (SqlRow []) =
+  ("insert into %I.%I default values returning *", [toSql schema, toSql table])
 insertClause schema table row =
-    ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
-     map toSql $ cs schema : table : sqlRowColumns row)
+  ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+  map toSql $ cs schema : table : sqlRowColumns row)
   <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
 
 
@@ -201,10 +203,10 @@ populateSql conn sql = do
     ph :: [a] -> String
     ph = intercalate ", " . map (const "?::varchar")
 
-pgSetRole :: Connection -> DbRole -> IO ()
-pgSetRole conn role = do
+setRole :: Connection -> DbRole -> IO ()
+setRole conn role = do
   query <- populateSql conn ("set role %I", [toSql role])
   void $ run conn query []
 
-pgResetRole :: Connection -> IO ()
-pgResetRole conn = void $ run conn "reset role" []
+resetRole :: Connection -> IO ()
+resetRole conn = void $ run conn "reset role" []
