@@ -13,6 +13,7 @@ import Control.Applicative
 import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
+import Network.Wai.Middleware.Static (staticPolicy, only)
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -37,7 +38,10 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
   conn <- connectPostgreSQL' dburi
   run port $ (if configSecure conf then redirectInsecure else id)
-    . gzip def . cors corsPolicy . clientErrors
+    . gzip def
+    . cors corsPolicy
+    . clientErrors
+    . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
     $ (inTransaction . authenticated (cs $ configAnonRole conf) . withSavepoint)
     app conn
   where
