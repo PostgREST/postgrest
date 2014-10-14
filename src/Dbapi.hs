@@ -179,7 +179,6 @@ respondWithRangedResult rr =
     total  = rrTotal rr
     status
       | from > total            = status416
-      | total == 0               = status204
       | (1 + to - from) < total = status206
       | otherwise               = status200
 

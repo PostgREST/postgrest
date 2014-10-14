@@ -37,8 +37,8 @@ spec = around appWithFixture $
           request methodGet "/menagerie"
                   (rangeHdrs $ ByteRangeFromTo 0 1) ""
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing
-            , matchStatus  = 204
+              matchBody    = Just "[]"
+            , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
 
