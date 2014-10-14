@@ -12,7 +12,7 @@ import SpecHelper
 spec :: Spec
 spec = around appWithFixture $
   describe "authorization" $ do
-    it "hides tables that anonymous does not own" $ do
+    it "hides tables that anonymous does not own" $
       get "/authors_only" `shouldRespondWith` 400 -- TODO: should be 404
     it "indicates login failure" $ do
       let auth = authHeader "dbapi_test_author_a" "fakefake"

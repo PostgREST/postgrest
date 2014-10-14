@@ -21,9 +21,9 @@ spec = let
     runRaw conn "select 1/0"
     _ <- insert "1" "items" (SqlRow []) conn
     res $ responseLBS ok200 [("Content-Type", "application/json")] "{}"
-  in around dbWithSchema $ do
+  in around dbWithSchema $
 
-    describe "withSavepoint" $ do
+    describe "withSavepoint" $
       it "allows partial rollback of request" $ \c -> do
         let app = withSavepoint dbErrApp c
         [[beforeCount]] <- quickQuery c "select count(*) from \"1\".items" []

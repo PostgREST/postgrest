@@ -47,7 +47,7 @@ spec = around appWithFixture $ do
             incNullableStr record `shouldBe` Nothing
 
       context "into a table with simple pk" $
-        it "fails with 400 and error" $ do
+        it "fails with 400 and error" $
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
 
