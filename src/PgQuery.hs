@@ -19,8 +19,9 @@ module PgQuery (
 import Data.Text (Text)
 import Data.String.Conversions (cs)
 import Data.Functor ( (<$>) )
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (intersperse, intercalate)
+import Data.List.Split (splitOn)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
 
@@ -65,6 +66,7 @@ getRows schema table qq range conn = do
       jsonArrayRows
       (selectStarClause schema table
         <> whereClause qq
+        <> orderClause qq
         <> limitClause range)
   r <- quickQuery conn query []
 
@@ -78,12 +80,46 @@ getRows schema table qq range conn = do
   where
     offset = fromMaybe 0 $ R.offset <$> range
 
+
 whereClause :: Net.Query -> QuotedSql
 whereClause qs =
   if null qs then ("", []) else (" where ", []) <> conjunction
 
   where
-    conjunction = mconcat $ intersperse (" and ", []) (map wherePred qs)
+    cols = [ col | col <- qs, fst col `notElem` ["order"] ]
+    conjunction = mconcat $ intersperse (" and ", []) (map wherePred cols)
+
+
+orderClause :: Net.Query -> QuotedSql
+orderClause qs = do
+  let order = fromMaybe "" $ join $ lookup "order" qs
+      terms = mapMaybe parseOrderTerm $ splitOn "," $ cs order
+      termPred = mconcat $ intersperse (", ", []) (map orderTermSql terms)
+
+  if null terms
+     then ("", [])
+     else (" order by ", []) <> termPred
+
+  where
+    parseOrderTerm :: String -> Maybe OrderTerm
+    parseOrderTerm s =
+      case splitOn "." s of
+           [d,c] ->
+             if d `elem` ["asc", "desc"]
+                then Just $ OrderTerm d c
+                else Nothing
+           _ -> Nothing
+
+    orderTermSql :: OrderTerm -> QuotedSql
+    orderTermSql t =
+      ("%I " <> otDirection t, [toSql $ otColumn t])
+
+
+data OrderTerm = OrderTerm {
+  otDirection :: String
+, otColumn :: String
+}
+
 
 wherePred :: Net.QueryItem -> QuotedSql
 wherePred (column, predicate) =
