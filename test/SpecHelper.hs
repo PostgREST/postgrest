@@ -75,12 +75,9 @@ rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")
 
-getHeader :: CI BS.ByteString -> [Header] -> Maybe BS.ByteString
-getHeader = lookup
-
 matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
 matchHeader name valRegex headers =
-  maybe False (=~ valRegex) $ getHeader name headers
+  maybe False (=~ valRegex) $ lookup name headers
 
 authHeader :: String -> String -> Header
 authHeader user pass =

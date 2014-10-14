@@ -39,7 +39,7 @@ spec = around appWithFixture $ do
             simpleBody p `shouldBe` ""
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/auto_incrementing_pk\\?id=eq\\.[0-9]+"
             simpleStatus p `shouldBe` created201
-          let Just location = getHeader hLocation $ simpleHeaders p
+          let Just location = lookup hLocation $ simpleHeaders p
           r <- get location
           let [record] = fromJust (JSON.decode $ simpleBody r :: Maybe [IncPK])
           liftIO $ do
