@@ -91,7 +91,7 @@ app conn req respond =
                         rawQueryString req
         return $ addHeaders [
           ("Content-Location",
-           "/" <> cs table <> "?" <> cs canonical
+           "/" <> cs table <> if null canonical then "" else "?" <> cs canonical
           )] r
 
     ([table], "POST") ->

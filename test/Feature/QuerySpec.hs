@@ -36,11 +36,19 @@ spec = around appWithFixture $ do
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
 
-  describe "Canonical location" $
+  describe "Canonical location" $ do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "[]"
         , matchStatus  = 200
         , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
+        }
+
+    it "Omits question mark when there are no params" $
+      get "/no_pk"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just "[]"
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Location" <:> "/no_pk"]
         }
