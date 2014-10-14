@@ -1,5 +1,5 @@
 name:                  dbapi
-version:               0.1.0.0
+version:               0.2.0.0
 synopsis:              The database is your api
 license:               MIT
 license-file:          LICENSE
@@ -20,7 +20,7 @@ executable dbapi
                      , HTTP, convertible
                      , case-insensitive
                      , http-types, scientific, time
-                     , bytestring, aeson, network
+                     , bytestring, aeson, network >= 2.6
                      , text , containers
                      , optparse-applicative >= 0.9.1 && < 0.10
                      , unordered-containers
@@ -29,10 +29,10 @@ executable dbapi
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
-                     , warp-tls
                      , bcrypt
                      , base64-string
                      , split
+                     , network-uri >= 2.6
   Other-Modules:       Dbapi
                      , PgStructure
                      , PgQuery
@@ -55,7 +55,7 @@ Test-Suite spec
                      , case-insensitive
                      , wai-extra, wai-cors, containers
                      , http-types, scientific, time
-                     , bytestring, aeson, network
+                     , bytestring, aeson, network >= 2.6
                      , text, optparse-applicative
                      , unordered-containers
                      , regex-base
@@ -63,7 +63,7 @@ Test-Suite spec
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers
-                     , warp-tls
                      , bcrypt
                      , base64-string
                      , split
+                     , network-uri >= 2.6

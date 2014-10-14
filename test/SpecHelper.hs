@@ -29,7 +29,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "test/test.crt" "test/test.key" "dbapi_anonymous"
+cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "dbapi_anonymous" False
 
 openConnection :: IO Connection
 openConnection = connectPostgreSQL' $ configDbUri cfg
@@ -88,8 +88,8 @@ authHeader user pass =
 
 -- for hspec-wai
 pending_ :: WaiSession ()
-pending_ = liftIO pending
+pending_ = liftIO Test.Hspec.pending
 
 -- for hspec-wai
 pendingWith_ :: String -> WaiSession ()
-pendingWith_ = liftIO . pendingWith
+pendingWith_ = liftIO . Test.Hspec.pendingWith
