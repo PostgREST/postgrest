@@ -68,6 +68,15 @@ spec = around appWithFixture $ do
             matchHeaders = ["Location" <:> "/compound_pk?k1=eq.12&k2=eq.42"]
           }
 
+    context "with invalid json payload" $
+      it "fails with 400 and error" $
+        post "/simple_pk" "}{ x = 2"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| {"error":"Failed to parse JSON payload. Failed reading: satisfy"} |]
+          , matchStatus  = 400
+          , matchHeaders = []
+          }
+
   describe "Putting record" $ do
 
     context "to unkonwn uri" $
