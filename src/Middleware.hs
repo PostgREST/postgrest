@@ -18,7 +18,7 @@ import Control.Exception (finally, throw, catchJust, catch, SomeException,
 
 import Network.HTTP.Types.Header (RequestHeaders, hContentType, hAuthorization,
   hLocation)
-import Network.HTTP.Types.Status (status400, status401, status301)
+import Network.HTTP.Types.Status (status400, status401, status404, status301)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
                    rawQueryString, isSecure)
 import Network.URI (URI(..), parseURI)
@@ -72,10 +72,10 @@ instance ToJSON SqlError where
 
 clientErrors :: Application -> Application
 clientErrors app req respond =
-  catchJust isPgException (app req respond) (
-      respond . responseLBS status400 [(hContentType, "application/json")]
-              . encode
-    )
+  catchJust isPgException (app req respond) $ \err ->
+    respond $ if seState err == "42P01"
+       then responseLBS status404 [] ""
+       else responseLBS status400 [(hContentType, "application/json")] (encode err)
 
   where
     isPgException :: SqlError -> Maybe SqlError
