@@ -9,6 +9,10 @@ import SpecHelper
 
 spec :: Spec
 spec = around appWithFixture $ do
+  describe "Querying a nonexistent table" $
+    it "causes a 404" $
+      get "/faketable" `shouldRespondWith` 404
+
   describe "Filtering response" $
     context "column equality" $
 
