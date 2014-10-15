@@ -59,7 +59,7 @@ jsonBodyAction req handler = do
   parse <- jsonBody req
   case parse of
     Left err -> return $ responseLBS status400 [jsonContentType] json
-      where json = JSON.encode . JSON.object $ [("error", JSON.String $ cs err)]
+      where json = JSON.encode . JSON.object $ [("error", JSON.String $ "Failed to parse JSON payload. " <> cs err) ]
     Right body -> handler body
 
 jsonBody :: Request -> IO (Either String SqlRow)
