@@ -136,7 +136,7 @@ columns s t conn = do
     \   left outer join ( \
     \     select n.nspname as s, \
     \            t.typname as n, \
-    \            array_agg(e.enumlabel) as vals \
+    \            array_agg(e.enumlabel ORDER BY e.enumsortorder) as vals \
     \     from pg_type t \
     \        join pg_enum e on t.oid = e.enumtypid \
     \        join pg_catalog.pg_namespace n ON n.oid = t.typnamespace \
