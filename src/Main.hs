@@ -3,9 +3,8 @@
 module Main where
 import Dbapi
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
-  redirectInsecure)
+  redirectInsecure, withDBConnection)
 import Network.Wai.Handler.Warp hiding (Connection)
-import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Data.String.Conversions (cs)
 
 import Control.Monad (unless)
@@ -14,6 +13,15 @@ import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Middleware.Static (staticPolicy, only)
+import Database.HDBC (disconnect)
+import Database.HDBC.PostgreSQL(connectPostgreSQL')
+import Data.Pool(createPool)
+import System.Process
+
+import Control.Concurrent(threadDelay)
+
+import Network.HTTP.Types.Status
+import Network.Wai
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -29,8 +37,9 @@ argParser = AppConfig
 main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
-  let port = configPort conf
   let dburi = configDbUri conf
+  pool <- createPool (putStrLn "creating connection" >> connectPostgreSQL' (configDbUri conf)) (\c-> putStrLn "destroying connection" >> disconnect c) 1 600 10
+  let port = configPort conf
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
