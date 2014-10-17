@@ -16,7 +16,6 @@ import Data.String.Conversions(cs)
 import qualified Data.ByteString.Char8 as BS
 import Control.Exception (finally, throw, catchJust, catch, SomeException,
     bracket_)
-import Control.Concurrent(threadDelay)
 
 import Network.HTTP.Types.Header (RequestHeaders, hContentType, hAuthorization,
   hLocation)
@@ -53,9 +52,9 @@ authenticated anon app conn req respond = do
     LoginFailed ->
       respond $ responseLBS status401 [] "Invalid username or password"
     LoginSuccess role ->
-      bracket_ (setRole conn role >> threadDelay 10000000) (resetRole conn) $ app conn req respond
+      bracket_ (setRole conn role) (resetRole conn) $ app conn req respond
     NoCredentials ->
-      bracket_ (setRole conn anon >> threadDelay 10000000) (resetRole conn) $ app conn req respond
+      bracket_ (setRole conn anon) (resetRole conn) $ app conn req respond
 
  where
    httpRequesterRole :: RequestHeaders -> IO LoginAttempt

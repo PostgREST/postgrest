@@ -16,12 +16,6 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Database.HDBC (disconnect)
 import Database.HDBC.PostgreSQL(connectPostgreSQL')
 import Data.Pool(createPool)
-import System.Process
-
-import Control.Concurrent(threadDelay)
-
-import Network.HTTP.Types.Status
-import Network.Wai
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -37,21 +31,17 @@ argParser = AppConfig
 main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
-  let dburi = configDbUri conf
-  pool <- createPool (putStrLn "creating connection" >> connectPostgreSQL' (configDbUri conf)) (\c-> putStrLn "destroying connection" >> disconnect c) 1 600 10
+  pool <- createPool (connectPostgreSQL' (configDbUri conf)) disconnect 1 600 10
   let port = configPort conf
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
-  conn <- connectPostgreSQL' dburi
   run port $ (if configSecure conf then redirectInsecure else id)
-    . gzip def
-    . cors corsPolicy
-    . clientErrors
+    . gzip def . cors corsPolicy . clientErrors
     . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-    $ (inTransaction . authenticated (cs $ configAnonRole conf) . withSavepoint)
-    app conn
+    . withDBConnection pool . inTransaction
+    . authenticated (cs $ configAnonRole conf) . withSavepoint $ app
   where
     describe = progDesc "create a REST API to an existing Postgres database"
