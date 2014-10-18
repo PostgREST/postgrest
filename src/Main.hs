@@ -3,9 +3,8 @@
 module Main where
 import Dbapi
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
-  redirectInsecure)
+  redirectInsecure, withDBConnection)
 import Network.Wai.Handler.Warp hiding (Connection)
-import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Data.String.Conversions (cs)
 
 import Control.Monad (unless)
@@ -14,6 +13,9 @@ import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Middleware.Static (staticPolicy, only)
+import Database.HDBC (disconnect)
+import Database.HDBC.PostgreSQL(connectPostgreSQL')
+import Data.Pool(createPool)
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -29,20 +31,17 @@ argParser = AppConfig
 main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
+  pool <- createPool (connectPostgreSQL' (configDbUri conf)) disconnect 1 600 10
   let port = configPort conf
-  let dburi = configDbUri conf
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
 
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
-  conn <- connectPostgreSQL' dburi
   run port $ (if configSecure conf then redirectInsecure else id)
-    . gzip def
-    . cors corsPolicy
-    . clientErrors
+    . gzip def . cors corsPolicy . clientErrors
     . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-    $ (inTransaction . authenticated (cs $ configAnonRole conf) . withSavepoint)
-    app conn
+    . withDBConnection pool . inTransaction
+    . authenticated (cs $ configAnonRole conf) . withSavepoint $ app
   where
     describe = progDesc "create a REST API to an existing Postgres database"

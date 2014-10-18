@@ -6,6 +6,7 @@ module Middleware where
 import Data.Aeson ((.=), toJSON, ToJSON, object, encode)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
+import Data.Pool(withResource, Pool)
 
 import Database.HDBC (runRaw)
 import Database.HDBC.PostgreSQL (Connection)
@@ -25,6 +26,11 @@ import Network.URI (URI(..), parseURI)
 
 import PgQuery(LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
+
+
+withDBConnection :: Pool Connection -> (Connection -> Application) -> Application
+withDBConnection pool app req respond =
+  withResource pool (\c -> app c req respond)
 
 inTransaction :: (Connection -> Application) -> Connection -> Application
 inTransaction app conn req respond =

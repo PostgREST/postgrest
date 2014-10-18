@@ -18,22 +18,19 @@ executable dbapi
                      , warp, wai >= 3.0.1 && < 3.0.2
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
-                     , HTTP, convertible
+                     , HTTP, convertible, http-types
                      , case-insensitive
-                     , http-types, scientific, time
-                     , bytestring, aeson, network >= 2.6
-                     , text , containers
+                     , scientific, time
+                     , aeson, network >= 2.6
+                     , bytestring, text, split, string-conversions
+                     , containers, unordered-containers
                      , optparse-applicative >= 0.9.1 && < 0.10
-                     , unordered-containers
-                     , regex-base
-                     , string-conversions
-                     , http-media, regex-tdfa
+                     , regex-base, regex-tdfa
                      , Ranged-sets
                      , transformers
-                     , bcrypt
-                     , base64-string
-                     , split
+                     , bcrypt, base64-string
                      , network-uri >= 2.6
+                     , resource-pool, process
   Other-Modules:       Dbapi
                      , PgStructure
                      , PgQuery
@@ -69,3 +66,4 @@ Test-Suite spec
                      , base64-string
                      , split
                      , network-uri >= 2.6
+                     , resource-pool

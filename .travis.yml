@@ -12,7 +12,7 @@ before_install:
   - travis_retry sudo apt-get install --force-yes happy-1.19.3 alex-3.1.3
   - export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
 install:
-  - curl http://bin.begriffs.com/dbapi/cabal-sandbox.tar.xz | tar xJ
+  - travis_retry curl http://bin.begriffs.com/dbapi/cabal-sandbox.tar.xz | tar xJ
   - chmod a+x .cabal-sandbox/bin/*
   - cabal sandbox init
   - cabal install --enable-test --dependencies-only
