@@ -32,18 +32,18 @@ withDBConnection :: Pool Connection -> (Connection -> Application) -> Applicatio
 withDBConnection pool app req respond =
   withResource pool (\c -> app c req respond)
 
-inTransaction :: (Connection -> Application) -> (Connection -> Application)
+inTransaction :: (Connection -> Application) -> Connection -> Application
 inTransaction app conn req respond =
   finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
 
-withSavepoint :: (Connection -> Application) -> (Connection -> Application)
+withSavepoint :: (Connection -> Application) -> Connection -> Application
 withSavepoint app conn req respond = do
   runRaw conn "savepoint req_sp"
   catch (app conn req respond) (\e -> let _ = (e::SomeException) in
     runRaw conn "rollback to savepoint req_sp" >> throw e)
 
-authenticated :: BS.ByteString -> (Connection -> Application) ->
-                 (Connection -> Application)
+authenticated :: BS.ByteString -> Connection -> Application ->
+                 Connection -> Application
 authenticated anon app conn req respond = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
