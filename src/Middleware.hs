@@ -42,7 +42,7 @@ withSavepoint app conn req respond = do
   catch (app conn req respond) (\e -> let _ = (e::SomeException) in
     runRaw conn "rollback to savepoint req_sp" >> throw e)
 
-authenticated :: BS.ByteString -> Connection -> Application ->
+authenticated :: BS.ByteString -> (Connection -> Application) ->
                  Connection -> Application
 authenticated anon app conn req respond = do
   attempt <- httpRequesterRole (requestHeaders req)
