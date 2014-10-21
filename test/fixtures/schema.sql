@@ -291,6 +291,9 @@ CREATE TABLE auth (
 
 ALTER TABLE dbapi.auth OWNER TO dbapi_test;
 
+REVOKE ALL ON TABLE dbapi.auth FROM dbapi_anonymous;
+GRANT INSERT ON TABLE dbapi.auth TO dbapi_anonymous;
+
 SET search_path = private, pg_catalog;
 
 --
@@ -597,8 +600,15 @@ ALTER TABLE ONLY has_fk
 
 REVOKE ALL ON SCHEMA "1" FROM dbapi_test;
 GRANT ALL ON SCHEMA "1" TO dbapi_test;
+
+REVOKE ALL ON SCHEMA "1" FROM dbapi_anonymous;
 GRANT USAGE ON SCHEMA "1" TO dbapi_anonymous;
 
+REVOKE ALL ON SCHEMA "dbapi" FROM dbapi_anonymous;
+GRANT USAGE ON SCHEMA "dbapi" TO dbapi_anonymous;
+
+REVOKE ALL ON SCHEMA "1" FROM dbapi_test_author;
+GRANT USAGE ON SCHEMA "1" TO dbapi_test_author;
 
 --
 -- TOC entry 2036 (class 0 OID 0)
