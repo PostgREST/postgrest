@@ -170,10 +170,10 @@ insert schema table row conn = do
 
 addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> Connection -> IO ()
 addUser identity pass role conn = do
-  hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy $ cs pass
-  _ <- insert "dbapi" "auth" (SqlRow [
-      ("id", toSql identity), ("pass", toSql hashed), ("rolname", toSql role)
-    ]) conn
+  Just hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy $ cs pass
+  _ <- quickQuery conn
+         "insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)"
+         $ map toSql [identity, hashed, role]
   return ()
 
 signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO LoginAttempt

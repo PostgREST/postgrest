@@ -5,7 +5,7 @@ module Dbapi where
 
 import Types (SqlRow, getRow)
 
-import Control.Monad (join)
+import Control.Monad (join, mzero)
 import Control.Arrow ((***))
 import Control.Applicative
 import Options.Applicative hiding (columns)
@@ -51,6 +51,19 @@ data AppConfig = AppConfig {
   , configSecure :: Bool
   }
 
+data AuthUser = AuthUser {
+    userId :: String
+  , userPass :: String
+  , userRole :: String
+  }
+
+instance JSON.FromJSON AuthUser where
+  parseJSON (JSON.Object v) = AuthUser <$>
+                         v JSON..: "id" <*>
+                         v JSON..: "pass" <*>
+                         v JSON..: "role"
+  parseJSON _          = mzero
+
 jsonContentType :: (HeaderName, BS.ByteString)
 jsonContentType = (hContentType, "application/json")
 
@@ -75,6 +88,20 @@ app conn req respond =
   respond =<< case (path, verb) of
     ([], _) ->
       responseLBS status200 [jsonContentType] <$> printTables ver conn
+
+    (["dbapi", "users"], "POST") -> do
+      body <- strictRequestBody req
+      let parse = JSON.eitherDecode body
+
+      case parse of
+        Left err -> return $ responseLBS status400 [jsonContentType] json
+          where json = JSON.encode . JSON.object $ [("error", JSON.String $ "Failed to parse JSON payload. " <> cs err) ]
+        Right u -> do
+          addUser (cs $ userId u) (cs $ userPass u) (cs $ userRole u) conn
+          return $ responseLBS status201
+            [ jsonContentType
+            , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
+            ] ""
 
     ([table], "OPTIONS") ->
       responseLBS status200 [jsonContentType, allOrigins] <$>

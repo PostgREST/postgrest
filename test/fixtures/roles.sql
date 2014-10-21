@@ -15,5 +15,3 @@ select pg_temp.create_role_if_not_exists('dbapi_anonymous', 'with nologin');
 select pg_temp.create_role_if_not_exists('test_default_role', 'with nologin');
 
 select pg_temp.create_role_if_not_exists('dbapi_test_author', 'with nologin');
-select pg_temp.create_role_if_not_exists('dbapi_test_author_a', 'with nologin in role dbapi_test_author');
-select pg_temp.create_role_if_not_exists('dbapi_test_author_b', 'with nologin in role dbapi_test_author');
