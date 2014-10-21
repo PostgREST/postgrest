@@ -49,6 +49,7 @@ data AppConfig = AppConfig {
   , configPort  :: Int
   , configAnonRole :: String
   , configSecure :: Bool
+  , configPool :: Int
   }
 
 data AuthUser = AuthUser {
