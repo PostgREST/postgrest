@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
+
+import Paths_dbapi (version)
+
 import Dbapi
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
   redirectInsecure, withDBConnection)
@@ -15,8 +18,10 @@ import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Middleware.Static (staticPolicy, only)
 import Database.HDBC (disconnect)
-import Database.HDBC.PostgreSQL(connectPostgreSQL')
+import Database.HDBC.PostgreSQL (connectPostgreSQL')
 import Data.Pool(createPool, destroyAllResources)
+import Data.List (intercalate)
+import Data.Version (versionBranch)
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -45,7 +50,10 @@ main = do
         putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
 
       Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
-      run port $ (if configSecure conf then redirectInsecure else id)
+      let settings = setPort port
+                   . setServerName (cs $ "dbapi/" <> prettyVersion)
+                   $ defaultSettings
+      runSettings settings $ (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
         . withDBConnection pool . inTransaction
@@ -53,3 +61,4 @@ main = do
       )
   where
     describe = progDesc "create a REST API to an existing Postgres database"
+    prettyVersion = intercalate "." $ map show $ versionBranch version
