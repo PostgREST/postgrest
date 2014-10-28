@@ -9,13 +9,14 @@ import Data.String.Conversions (cs)
 
 import Control.Monad (unless)
 import Control.Applicative
+import Control.Exception(bracket)
 import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Middleware.Static (staticPolicy, only)
 import Database.HDBC (disconnect)
 import Database.HDBC.PostgreSQL(connectPostgreSQL')
-import Data.Pool(createPool)
+import Data.Pool(createPool, destroyAllResources)
 
 argParser :: Parser AppConfig
 argParser = AppConfig
@@ -33,17 +34,22 @@ argParser = AppConfig
 main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
-  pool <- createPool (connectPostgreSQL' (configDbUri conf)) disconnect 1 600 (configPool conf)
-  let port = configPort conf
+  bracket
+    (createPool (connectPostgreSQL' (configDbUri conf))
+      disconnect 1 600 (configPool conf))
+    destroyAllResources
+    (\pool -> do
+      let port = configPort conf
 
-  unless (configSecure conf) $
-    putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
+      unless (configSecure conf) $
+        putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
 
-  Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
-  run port $ (if configSecure conf then redirectInsecure else id)
-    . gzip def . cors corsPolicy . clientErrors
-    . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-    . withDBConnection pool . inTransaction
-    . authenticated (cs $ configAnonRole conf) . withSavepoint $ app
+      Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
+      run port $ (if configSecure conf then redirectInsecure else id)
+        . gzip def . cors corsPolicy . clientErrors
+        . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+        . withDBConnection pool . inTransaction
+        . authenticated (cs $ configAnonRole conf) . withSavepoint $ app
+      )
   where
     describe = progDesc "create a REST API to an existing Postgres database"
