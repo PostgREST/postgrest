@@ -1,5 +1,5 @@
 name:                  dbapi
-version:               0.2.4.1
+version:               0.2.4.2
 synopsis:              The database is your api
 license:               MIT
 license-file:          LICENSE
@@ -11,7 +11,7 @@ cabal-version:         >=1.10
 
 executable dbapi
   main-is:             Main.hs
-  ghc-options:         -Wall -W -Werror
+  ghc-options:         -Wall -W -Werror -O2
   default-language:    Haskell2010
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql
