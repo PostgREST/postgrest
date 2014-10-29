@@ -34,10 +34,15 @@ createdb -O dbapi_test -U postgres dbapi_test
 cabal test --show-details=always --test-options="--color"
 ```
 
-### Accessing server on localhost
+### Distributing Heroku build
 
-Dbapi permits only secure https access. By default it uses a
-self-signed key which will cause Chrome and other rest clients to
-complain. You will need to configure your system to trust this key.
-On mac follow [these
-instructions](http://www.robpeck.com/2010/10/google-chrome-mac-os-x-and-self-signed-ssl-certificates/).
+```sh
+heroku create --stack=cedar --buildpack https://github.com/begriffs/heroku-buildpack-ghc.git
+git push heroku master
+
+heroku config:set S3_ACCESS_KEY=abc
+heroku config:set S3_SECRET_KEY=123
+heroku config:set S3_BUCKET=s3://foo/bar
+
+heroku run scripts/release_s3.sh
+```
