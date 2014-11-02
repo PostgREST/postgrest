@@ -23,7 +23,7 @@ import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
 
-import Control.Monad (join, void)
+import Control.Monad (join)
 
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
@@ -239,7 +239,7 @@ populateSql conn sql = do
     ph = intercalate ", " . map (const "?::varchar")
 
 setRole :: Connection -> DbRole -> IO ()
-setRole conn role = void $ run conn "set role ?" [toSql role]
+setRole conn role = runRaw conn $ "set role " <> cs role
 
 resetRole :: Connection -> IO ()
 resetRole conn = runRaw conn "reset role"
