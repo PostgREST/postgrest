@@ -16,12 +16,10 @@ module PgQuery (
 , DbRole
 ) where
 
-import Data.Text (Text)
+import Data.Text (Text, splitOn, intercalate)
 import Data.String.Conversions (cs)
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe, mapMaybe)
-import Data.List (intersperse, intercalate)
-import Data.List.Split (splitOn)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
 
@@ -30,6 +28,7 @@ import Control.Monad (join, void)
 import qualified RangeQuery as R
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List as L
 
 import Database.HDBC hiding (colType, colNullable)
 import Database.HDBC.PostgreSQL
@@ -48,7 +47,7 @@ data RangedResult = RangedResult {
 , rrBody  :: BL.ByteString
 } deriving (Show)
 
-type QuotedSql = (String, [SqlValue])
+type QuotedSql = (Text, [SqlValue])
 type Schema = String
 type DbRole = BS.ByteString
 
@@ -68,7 +67,7 @@ getRows schema table qq range conn = do
         <> whereClause qq
         <> orderClause qq
         <> limitClause range)
-  r <- quickQuery conn query []
+  r <- quickQuery conn (cs query) []
 
   return $ case r of
            [[total, _, SqlNull]] -> RangedResult offset 0 (fromSql total) "[]"
@@ -87,21 +86,21 @@ whereClause qs =
 
   where
     cols = [ col | col <- qs, fst col `notElem` ["order"] ]
-    conjunction = mconcat $ intersperse (" and ", []) (map wherePred cols)
+    conjunction = mconcat $ L.intersperse (" and ", []) (map wherePred cols)
 
 
 orderClause :: Net.Query -> QuotedSql
 orderClause qs = do
   let order = fromMaybe "" $ join $ lookup "order" qs
       terms = mapMaybe parseOrderTerm $ splitOn "," $ cs order
-      termPred = mconcat $ intersperse (", ", []) (map orderTermSql terms)
+      termPred = mconcat $ L.intersperse (", ", []) (map orderTermSql terms)
 
   if null terms
      then ("", [])
      else (" order by ", []) <> termPred
 
   where
-    parseOrderTerm :: String -> Maybe OrderTerm
+    parseOrderTerm :: Text -> Maybe OrderTerm
     parseOrderTerm s =
       case splitOn "." s of
            [d,c] ->
@@ -116,8 +115,8 @@ orderClause qs = do
 
 
 data OrderTerm = OrderTerm {
-  otDirection :: String
-, otColumn :: String
+  otDirection :: Text
+, otColumn :: Text
 }
 
 
@@ -163,7 +162,7 @@ jsonArrayRows q =
 insert :: Schema -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
 insert schema table row conn = do
   sql    <- populateSql conn $ insertClause schema table row
-  stmt   <- prepare conn sql
+  stmt   <- prepare conn $ cs sql
   _      <- execute stmt $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
@@ -192,34 +191,34 @@ checkPass = validatePassword
 upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
   sql    <- populateSql conn $ upsertClause schema table row qq
-  stmt   <- prepare conn sql
+  stmt   <- prepare conn $ cs sql
   _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
 
-placeholders :: String -> SqlRow -> String
+placeholders :: Text -> SqlRow -> Text
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
 
 insertClause :: Schema -> Text -> SqlRow -> QuotedSql
 insertClause schema table (SqlRow []) =
   ("insert into %I.%I default values returning *", [toSql schema, toSql table])
 insertClause schema table row =
-  ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+  ("insert into %I.%I (" <> placeholders "%I" row <> ")",
   map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" values (" ++ placeholders "?" row ++ ") returning *", sqlRowValues row)
+  <> (" values (" <> placeholders "?" row <> ") returning *", sqlRowValues row)
 
 
 insertClauseViaSelect :: Schema -> Text -> SqlRow -> QuotedSql
 insertClauseViaSelect schema table row =
-    ("insert into %I.%I (" ++ placeholders "%I" row ++ ")",
+    ("insert into %I.%I (" <> placeholders "%I" row <> ")",
      map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" select " ++ placeholders "?" row, sqlRowValues row)
+  <> (" select " <> placeholders "?" row, sqlRowValues row)
 
 updateClause :: Schema -> Text -> SqlRow -> QuotedSql
 updateClause schema table row =
-    ("update %I.%I set (" ++ placeholders "%I" row ++ ")",
+    ("update %I.%I set (" <> placeholders "%I" row <> ")",
      map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" = (" ++ placeholders "?" row ++ ")", [])
+  <> (" = (" <> placeholders "?" row <> ")", [])
 
 upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> QuotedSql
 upsertClause schema table row qq =
@@ -228,21 +227,19 @@ upsertClause schema table row qq =
   <> (" returning *) ", []) <> insertClauseViaSelect schema table row
   <> (" where not exists (select * from upsert) returning *", [])
 
-populateSql :: Connection -> QuotedSql -> IO String
+populateSql :: Connection -> QuotedSql -> IO Text
 populateSql conn sql = do
-  [[escaped]] <- quickQuery conn q (snd sql)
+  [[escaped]] <- quickQuery conn (cs q) (snd sql)
   return $ fromSql escaped
 
   where
-    q = concat [ "select format('", fst sql, "', ", ph (snd sql), ")" ]
+    q = mconcat [ "select format('", fst sql, "', ", ph (snd sql), ")" ]
 
-    ph :: [a] -> String
+    ph :: [a] -> Text
     ph = intercalate ", " . map (const "?::varchar")
 
 setRole :: Connection -> DbRole -> IO ()
-setRole conn role = do
-  query <- populateSql conn ("set role %I", [toSql role])
-  void $ run conn query []
+setRole conn role = void $ run conn "set role ?" [toSql role]
 
 resetRole :: Connection -> IO ()
-resetRole conn = void $ run conn "reset role" []
+resetRole conn = runRaw conn "reset role"
