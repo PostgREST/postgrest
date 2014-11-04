@@ -26,6 +26,7 @@ executable dbapi
                      , containers, unordered-containers
                      , optparse-applicative >= 0.9.1 && < 0.10
                      , regex-base, regex-tdfa
+                     , regex-tdfa-text
                      , Ranged-sets
                      , transformers
                      , bcrypt, base64-string
@@ -45,7 +46,7 @@ Test-Suite spec
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
   Other-Modules:       Dbapi, Spec, SpecHelper
-  Build-Depends:       base, hspec2
+  Build-Depends:       base, hspec2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
@@ -60,6 +61,7 @@ Test-Suite spec
                      , regex-base
                      , string-conversions
                      , http-media, regex-tdfa
+                     , regex-tdfa-text
                      , Ranged-sets
                      , transformers
                      , bcrypt

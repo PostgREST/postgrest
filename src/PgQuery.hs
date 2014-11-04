@@ -11,17 +11,22 @@ module PgQuery (
 , setRole
 , resetRole
 , checkPass
+, pgFormatIdentifier
+, pgFormatLiteral
 , RangedResult(..)
 , LoginAttempt(..)
 , DbRole
 ) where
 
-import Data.Text (Text, splitOn, intercalate)
+import Data.Text (Text, splitOn, intercalate, replace, takeWhile)
 import Data.String.Conversions (cs)
 import Data.Functor ( (<$>) )
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid ((<>), mconcat)
 import qualified Data.Map as M
+
+import Text.Regex.TDFA ((=~))
+import Text.Regex.TDFA.Text ()
 
 import Control.Monad (join)
 
@@ -237,6 +242,27 @@ populateSql conn sql = do
 
     ph :: [a] -> Text
     ph = intercalate ", " . map (const "?::varchar")
+
+pgFormatIdentifier :: Text -> Text
+pgFormatIdentifier x =
+  let escaped = replace "\"" "\"\"" (trimNullChars x) in
+  if escaped =~ danger
+    then "\"" <> escaped <> "\""
+    else escaped
+
+  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: Text
+
+pgFormatLiteral :: Text -> Text
+pgFormatLiteral x =
+  let trimmed = trimNullChars x
+      escaped = "'" <> replace "'" "''" trimmed <> "'"
+      slashed = replace "\\" "\\\\" escaped in
+  if escaped =~ ("\\\\" :: Text)
+    then "E" <> slashed
+    else slashed
+
+trimNullChars :: Text -> Text
+trimNullChars = Data.Text.takeWhile (/= '\x0')
 
 setRole :: Connection -> DbRole -> IO ()
 setRole conn role = runRaw conn $ "set role " <> cs role
