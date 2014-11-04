@@ -11,8 +11,8 @@ module PgQuery (
 , setRole
 , resetRole
 , checkPass
-, pgFormatIdentifier
-, pgFormatLiteral
+, pgFmtIdent
+, pgFmtLit
 , RangedResult(..)
 , LoginAttempt(..)
 , DbRole
@@ -52,8 +52,7 @@ data RangedResult = RangedResult {
 , rrBody  :: BL.ByteString
 } deriving (Show)
 
-type QuotedSql = (Text, [SqlValue])
-type Schema = String
+type Schema = Text
 type DbRole = BS.ByteString
 
 data LoginAttempt =
@@ -63,15 +62,8 @@ data LoginAttempt =
   | LoginSuccess DbRole
   deriving (Eq, Show)
 
-getRows :: Schema -> String -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
+getRows :: Schema -> Text -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
 getRows schema table qq range conn = do
-  query <- populateSql conn
-    $ globalAndLimitedCounts schema table qq <>
-      jsonArrayRows
-      (selectStarClause schema table
-        <> whereClause qq
-        <> orderClause qq
-        <> limitClause range)
   r <- quickQuery conn (cs query) []
 
   return $ case r of
@@ -83,26 +75,31 @@ getRows schema table qq range conn = do
 
   where
     offset = fromMaybe 0 $ R.offset <$> range
+    query  = globalAndLimitedCounts schema table qq <> jsonArrayRows (
+        selectStarClause schema table
+        <> whereClause qq
+        <> orderClause qq
+        <> limitClause range)
 
 
-whereClause :: Net.Query -> QuotedSql
+whereClause :: Net.Query -> Text
 whereClause qs =
-  if null qs then ("", []) else (" where ", []) <> conjunction
+  if null qs then "" else " where " <> conjunction
 
   where
     cols = [ col | col <- qs, fst col `notElem` ["order"] ]
-    conjunction = mconcat $ L.intersperse (" and ", []) (map wherePred cols)
+    conjunction = mconcat $ L.intersperse " and " (map wherePred cols)
 
 
-orderClause :: Net.Query -> QuotedSql
+orderClause :: Net.Query -> Text
 orderClause qs = do
   let order = fromMaybe "" $ join $ lookup "order" qs
       terms = mapMaybe parseOrderTerm $ splitOn "," $ cs order
-      termPred = mconcat $ L.intersperse (", ", []) (map orderTermSql terms)
+      termPred = mconcat $ L.intersperse ", " (map orderTermSql terms)
 
   if null terms
-     then ("", [])
-     else (" order by ", []) <> termPred
+     then ""
+     else " order by " <> termPred
 
   where
     parseOrderTerm :: Text -> Maybe OrderTerm
@@ -114,9 +111,8 @@ orderClause qs = do
                 else Nothing
            _ -> Nothing
 
-    orderTermSql :: OrderTerm -> QuotedSql
-    orderTermSql t =
-      ("%I " <> otDirection t, [toSql $ otColumn t])
+    orderTermSql :: OrderTerm -> Text
+    orderTermSql t = pgFmtIdent (otColumn t) <> " " <> otDirection t
 
 
 data OrderTerm = OrderTerm {
@@ -125,9 +121,9 @@ data OrderTerm = OrderTerm {
 }
 
 
-wherePred :: Net.QueryItem -> QuotedSql
+wherePred :: Net.QueryItem -> Text
 wherePred (column, predicate) =
-  ("%I " <> op <> "%L", map toSql [column, value])
+  pgFmtIdent (cs column) <> " " <> op <> " " <> pgFmtLit (cs value)
 
   where
     opCode:rest = BS.split '.' $ fromMaybe "." predicate
@@ -141,36 +137,37 @@ wherePred (column, predicate) =
               "neq" -> "<>"
               _     -> "="
 
-limitClause :: Maybe R.NonnegRange -> QuotedSql
+limitClause :: Maybe R.NonnegRange -> Text
 limitClause range =
-  (" LIMIT %s OFFSET %s ", [toSql limit, toSql offset])
+  cs $ " LIMIT " <> limit <> " OFFSET " <> show offset <> " "
 
   where
     limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
     offset = fromMaybe 0     $ R.offset <$> range
 
-globalAndLimitedCounts :: Schema -> String -> Net.Query -> QuotedSql
+globalAndLimitedCounts :: Schema -> Text -> Net.Query -> Text
 globalAndLimitedCounts schema table qq =
-  (" select ", [])
-  <> ("(select count(1) from %I.%I ", map toSql [schema, table])
+  " select "
+  <> "(select count(1) from " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " "
   <> whereClause qq
-  <> ("), count(t), ", [])
+  <> "), count(t), "
 
-selectStarClause :: Schema -> String -> QuotedSql
+selectStarClause :: Schema -> Text -> Text
 selectStarClause schema table =
-  (" select * from %I.%I ", map toSql [schema, table])
+  " select * from " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " "
 
-jsonArrayRows :: QuotedSql -> QuotedSql
+jsonArrayRows :: Text -> Text
 jsonArrayRows q =
-  ("array_to_json(array_agg(row_to_json(t))) from (", []) <> q <> (") t", [])
+  "array_to_json(array_agg(row_to_json(t))) from (" <> q <> ") t"
 
 insert :: Schema -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
 insert schema table row conn = do
-  sql    <- populateSql conn $ insertClause schema table row
   stmt   <- prepare conn $ cs sql
   _      <- execute stmt $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
+
+  where sql = insertClause schema table row
 
 addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> Connection -> IO ()
 addUser identity pass role conn = do
@@ -195,56 +192,45 @@ checkPass = validatePassword
 
 upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
-  sql    <- populateSql conn $ upsertClause schema table row qq
   stmt   <- prepare conn $ cs sql
   _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
   Just m <- fetchRowMap stmt
   return m
 
+  where sql = upsertClause schema table row qq
+
 placeholders :: Text -> SqlRow -> Text
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
 
-insertClause :: Schema -> Text -> SqlRow -> QuotedSql
+insertClause :: Schema -> Text -> SqlRow -> Text
 insertClause schema table (SqlRow []) =
-  ("insert into %I.%I default values returning *", [toSql schema, toSql table])
+  "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " default values returning *"
 insertClause schema table row =
-  ("insert into %I.%I (" <> placeholders "%I" row <> ")",
-  map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" values (" <> placeholders "?" row <> ") returning *", sqlRowValues row)
+  "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " (" <>
+    intercalate ", " (map pgFmtIdent (sqlRowColumns row))
+  <> ") values (" <> placeholders "?" row <> ") returning *"
 
-
-insertClauseViaSelect :: Schema -> Text -> SqlRow -> QuotedSql
+insertClauseViaSelect :: Schema -> Text -> SqlRow -> Text
 insertClauseViaSelect schema table row =
-    ("insert into %I.%I (" <> placeholders "%I" row <> ")",
-     map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" select " <> placeholders "?" row, sqlRowValues row)
+    "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " (" <>
+      intercalate ", " (map pgFmtIdent (sqlRowColumns row))
+  <> ") select " <> placeholders "?" row
 
-updateClause :: Schema -> Text -> SqlRow -> QuotedSql
+updateClause :: Schema -> Text -> SqlRow -> Text
 updateClause schema table row =
-    ("update %I.%I set (" <> placeholders "%I" row <> ")",
-     map toSql $ cs schema : table : sqlRowColumns row)
-  <> (" = (" <> placeholders "?" row <> ")", [])
+    "update " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " set (" <>
+      intercalate ", " (map pgFmtIdent (sqlRowColumns row))
+  <> ") = (" <> placeholders "?" row <> ")"
 
-upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> QuotedSql
+upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> Text
 upsertClause schema table row qq =
-  ("with upsert as (", []) <> updateClause schema table row
+  "with upsert as (" <> updateClause schema table row
   <> whereClause qq
-  <> (" returning *) ", []) <> insertClauseViaSelect schema table row
-  <> (" where not exists (select * from upsert) returning *", [])
+  <> " returning *) " <> insertClauseViaSelect schema table row
+  <> " where not exists (select * from upsert) returning *"
 
-populateSql :: Connection -> QuotedSql -> IO Text
-populateSql conn sql = do
-  [[escaped]] <- quickQuery conn (cs q) (snd sql)
-  return $ fromSql escaped
-
-  where
-    q = mconcat [ "select format('", fst sql, "', ", ph (snd sql), ")" ]
-
-    ph :: [a] -> Text
-    ph = intercalate ", " . map (const "?::varchar")
-
-pgFormatIdentifier :: Text -> Text
-pgFormatIdentifier x =
+pgFmtIdent :: Text -> Text
+pgFmtIdent x =
   let escaped = replace "\"" "\"\"" (trimNullChars x) in
   if escaped =~ danger
     then "\"" <> escaped <> "\""
@@ -252,8 +238,8 @@ pgFormatIdentifier x =
 
   where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: Text
 
-pgFormatLiteral :: Text -> Text
-pgFormatLiteral x =
+pgFmtLit :: Text -> Text
+pgFmtLit x =
   let trimmed = trimNullChars x
       escaped = "'" <> replace "'" "''" trimmed <> "'"
       slashed = replace "\\" "\\\\" escaped in
