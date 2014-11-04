@@ -16,7 +16,7 @@ import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sort)
 import qualified Data.Set as S
 import Data.Convertible.Base (convert)
-import Data.Text (strip)
+import Data.Text (strip, Text)
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
@@ -125,7 +125,7 @@ app conn req respond =
     ([table], "POST") ->
       jsonBodyAction req (\row -> do
         allvals <- insert ver table row conn
-        keys <- primaryKeyColumns ver (cs table) conn
+        keys <- map cs <$> primaryKeyColumns ver (cs table) conn
         let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
         return $ responseLBS status201
           [ jsonContentType
@@ -210,15 +210,15 @@ respondWithRangedResult rr =
       | (1 + to - from) < total = status206
       | otherwise               = status200
 
-requestedVersion :: RequestHeaders -> Maybe String
+requestedVersion :: RequestHeaders -> Maybe Text
 requestedVersion hdrs =
   case verStr of
        Just [[_, ver]] -> Just ver
        _ -> Nothing
 
   where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
-        accept = cs <$> lookup hAccept hdrs :: Maybe String
-        verStr = (=~ verRegex) <$> accept :: Maybe [[String]]
+        accept = cs <$> lookup hAccept hdrs :: Maybe Text
+        verStr = (=~ verRegex) <$> accept :: Maybe [[Text]]
 
 
 addHeaders :: ResponseHeaders -> Response -> Response

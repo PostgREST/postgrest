@@ -4,11 +4,13 @@ module PgStructure where
 
 import Data.Functor ( (<$>) )
 import Data.Maybe (mapMaybe)
+import Data.Text hiding (foldl, map, zipWith, concat)
+import Data.Monoid ((<>))
+import Data.String.Conversions (cs)
 
 import Control.Applicative ( (<*>) )
 
 import qualified Data.ByteString.Lazy as BL
-import Data.List.Split (splitOn)
 
 import qualified Data.Aeson as JSON
 import qualified Data.Map as Map
@@ -19,8 +21,8 @@ import Database.HDBC.PostgreSQL
 import Data.Aeson ((.=))
 
 data Table = Table {
-  tableSchema :: String
-, tableName :: String
+  tableSchema :: Text
+, tableName :: Text
 , tableInsertable :: Bool
 } deriving (Show)
 
@@ -30,17 +32,17 @@ instance JSON.ToJSON Table where
     , "name"       .= tableName v
     , "insertable" .= tableInsertable v ]
 
-toBool :: String -> Bool
+toBool :: Text -> Bool
 toBool = (== "YES")
 
 data ForeignKey = ForeignKey {
-  fkTable::String, fkCol::String
+  fkTable::Text, fkCol::Text
 } deriving (Eq, Show)
 
 instance JSON.ToJSON ForeignKey where
   toJSON fk = JSON.object ["table".=fkTable fk, "column".=fkCol fk]
 
-foreignKeys :: String -> String -> Connection -> IO (Map.Map String ForeignKey)
+foreignKeys :: Text -> Text -> Connection -> IO (Map.Map Text ForeignKey)
 foreignKeys schema table conn = do
   r <- quickQuery conn
     "select kcu.column_name, ccu.table_name AS foreign_table_name,\
@@ -59,17 +61,17 @@ foreignKeys schema table conn = do
     addKey m _ = m --should never happen
 
 data Column = Column {
-  colSchema :: String
-, colTable :: String
-, colName :: String
+  colSchema :: Text
+, colTable :: Text
+, colName :: Text
 , colPosition :: Int
 , colNullable :: Bool
-, colType :: String
+, colType :: Text
 , colUpdatable :: Bool
 , colMaxLen :: Maybe Int
 , colPrecision :: Maybe Int
-, colDefault :: Maybe String
-, colEnum :: Maybe [String]
+, colDefault :: Maybe Text
+, colEnum :: Maybe [Text]
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
@@ -89,7 +91,7 @@ instance JSON.ToJSON Column where
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
-, tblOptpkey :: [String]
+, tblOptpkey :: [Text]
 }
 
 instance JSON.ToJSON TableOptions where
@@ -97,7 +99,7 @@ instance JSON.ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"    .= tblOptpkey t ]
 
-tables :: String -> Connection -> IO [Table]
+tables :: Text -> Connection -> IO [Table]
 tables s conn = do
   r <- quickQuery conn
         "select table_schema, table_name,\
@@ -114,7 +116,7 @@ tables s conn = do
         (toBool (fromSql insertable))
     mkTable _ = Nothing
 
-columns :: String -> String -> Connection -> IO [Column]
+columns :: Text -> Text -> Connection -> IO [Column]
 columns s t conn = do
   r <- quickQuery conn
     "select info.table_schema as schema, info.table_name as table_name, \
@@ -161,23 +163,23 @@ columns s t conn = do
         (fromSql maxlen)
         (fromSql precision)
         (fromSql defVal)
-        (splitOn "," <$> fromSql enum)
-    mkColumn _ =  error $ "Incomplete column data received for table " ++
-      t ++ " in schema " ++ s ++ "."
+        (Data.Text.splitOn "," <$> fromSql enum)
+    mkColumn _ =  error $ "Incomplete column data received for table " <>
+      cs t <> " in schema " <> cs s <> "."
 
-printTables :: String -> Connection -> IO BL.ByteString
+printTables :: Text -> Connection -> IO BL.ByteString
 printTables schema conn = JSON.encode <$> tables schema conn
 
-printColumns :: String -> String -> Connection -> IO BL.ByteString
+printColumns :: Text -> Text -> Connection -> IO BL.ByteString
 printColumns schema table conn =
   JSON.encode <$> (TableOptions <$> cols <*> pkey)
   where
     cols :: IO [Column]
     cols = columns schema table conn
-    pkey :: IO [String]
+    pkey :: IO [Text]
     pkey = primaryKeyColumns schema table conn
 
-primaryKeyColumns :: String -> String -> Connection -> IO [String]
+primaryKeyColumns :: Text -> Text -> Connection -> IO [Text]
 primaryKeyColumns s t conn = do
   r <- quickQuery conn
         "select kc.column_name \

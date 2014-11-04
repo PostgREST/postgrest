@@ -3,11 +3,14 @@
 module Unit.PgQuerySpec where
 
 import Test.Hspec
+import Test.QuickCheck
+import Test.QuickCheck.Monadic
 
 import Database.HDBC (IConnection, SqlValue, toSql, prepare,
   quickQuery, fromSql, execute, seState, fetchAllRowsAL)
 
-import PgQuery (LoginAttempt(..), insert, addUser, signInRole, checkPass)
+import PgQuery (LoginAttempt(..), insert, addUser, signInRole, checkPass
+              , pgFmtIdent, pgFmtLit)
 import Types (SqlRow(SqlRow))
 import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
@@ -83,3 +86,17 @@ spec = around dbWithSchema $ do
     it "returns nothing with bad creds" $ \conn -> do
       signInRole "not-a-user" pass conn `shouldReturn` LoginFailed
       signInRole user (pass <> "crap") conn `shouldReturn` LoginFailed
+
+  describe "pgFmtIdent" $
+    it "Does what format %I would do" $ \conn ->
+      property $ monadicIO $ do
+        fuzz <- pick arbitrary
+        [[row]] <- run $ quickALQuery conn "select format('%I', ? :: varchar)" [toSql (fuzz :: String)]
+        assert $ fromSql (snd row) == pgFmtIdent (cs fuzz)
+
+  describe "pgFmtLit" $
+    it "Does what format %L would do" $ \conn ->
+      property $ monadicIO $ do
+        fuzz <- pick arbitrary
+        [[row]] <- run $ quickALQuery conn "select format('%L', ? :: varchar)" [toSql (fuzz :: String)]
+        assert $ fromSql (snd row) == pgFmtLit (cs fuzz)
