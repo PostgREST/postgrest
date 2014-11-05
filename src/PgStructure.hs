@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module PgStructure where
 
 import Data.Functor ( (<$>) )

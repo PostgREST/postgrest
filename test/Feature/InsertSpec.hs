@@ -1,5 +1,4 @@
-
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Feature.InsertSpec where
 
 -- {{{ Imports

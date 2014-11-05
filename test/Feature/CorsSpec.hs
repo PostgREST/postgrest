@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Feature.CorsSpec where
 
 -- {{{ Imports

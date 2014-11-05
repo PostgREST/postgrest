@@ -1,5 +1,3 @@
-
-{-# LANGUAGE OverloadedStrings #-}
 module Feature.QuerySpec where
 
 import Test.Hspec
