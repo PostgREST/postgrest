@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Unit.PgQuerySpec where
 
 import Test.Hspec

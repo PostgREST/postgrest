@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Feature.StructureSpec where
 
 import Test.Hspec

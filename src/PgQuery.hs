@@ -1,7 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- {{{ Imports
-
 module PgQuery (
   getRows
 , insert

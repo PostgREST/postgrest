@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module SpecHelper where
 
 import Network.Wai

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Unit.ErrorsSpec where
 
 import Test.Hspec

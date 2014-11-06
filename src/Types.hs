@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Types where
 
 import Database.HDBC (toSql, iToSql, SqlValue(..))

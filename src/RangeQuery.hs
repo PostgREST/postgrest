@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module RangeQuery where
 
 import Control.Applicative

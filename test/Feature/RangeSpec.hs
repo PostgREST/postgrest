@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Feature.RangeSpec where
 
 import Test.Hspec

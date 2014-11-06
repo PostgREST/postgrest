@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module TestTypes (
   IncPK(..),
   fromList

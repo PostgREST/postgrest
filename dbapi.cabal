@@ -13,6 +13,7 @@ executable dbapi
   main-is:             Main.hs
   ghc-options:         -Wall -W -Werror -O2
   default-language:    Haskell2010
+  default-extensions:  OverloadedStrings
   build-depends:       base >=4.6 && <5
                      , HDBC, HDBC-postgresql
                      , warp, wai >= 3.0.1 && < 3.0.2
@@ -42,6 +43,8 @@ executable dbapi
 Test-Suite spec
   Type:                exitcode-stdio-1.0
   Default-Language:    Haskell2010
+  default-extensions:  OverloadedStrings
+  other-extensions:    QuasiQuotes
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Unit.PgStructureSpec where
 
 import Test.Hspec
