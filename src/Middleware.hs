@@ -34,22 +34,22 @@ withDBConnection :: Pool Connection -> (Connection -> Application) -> Applicatio
 withDBConnection pool app req respond =
   withResource pool (\c -> app c req respond)
 
+safeAction :: Request -> Bool
+safeAction = (`notElem` ["PATCH", "PUT"]) . requestMethod
+
 inTransaction :: Environment -> (Connection -> Application) ->
                  Connection -> Application
 inTransaction env app conn req respond =
-  if env == Production && readOnlyRequest req
+  if env == Production && safeAction req
     then
       app conn req respond
     else
       finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
 
-readOnlyRequest :: Request -> Bool
-readOnlyRequest req = requestMethod req `elem` ["GET", "HEAD", "OPTIONS"]
-
 withSavepoint :: Environment -> (Connection -> Application) ->
                  Connection -> Application
 withSavepoint env app conn req respond =
-  if env == Production && readOnlyRequest req
+  if env == Production && safeAction req
     then app conn req respond
     else do
       runRaw conn "savepoint req_sp"
