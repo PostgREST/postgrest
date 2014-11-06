@@ -18,7 +18,7 @@ import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
 
-import Middleware(clientErrors, withSavepoint, authenticated)
+import Middleware(clientErrors, withSavepoint, authenticated, Environment(..))
 
 import Dbapi (app, corsPolicy, AppConfig(..))
 import PgQuery(addUser)
@@ -65,7 +65,7 @@ appWithFixture :: ActionWith Application -> IO ()
 appWithFixture action = withDatabaseConnection $ \c -> do
   runRaw c "begin;"
   action $ cors corsPolicy . clientErrors  $
-    (authenticated "dbapi_anonymous" . withSavepoint) app c
+    (authenticated "dbapi_anonymous" . withSavepoint Test) app c
   rollback c
 
 rangeHdrs :: ByteRange -> [Header]

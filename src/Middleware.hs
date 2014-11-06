@@ -20,26 +20,41 @@ import Network.HTTP.Types.Header (RequestHeaders, hContentType, hAuthorization,
   hLocation)
 import Network.HTTP.Types.Status (status400, status401, status404, status301)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
-                   rawQueryString, isSecure)
+                   rawQueryString, isSecure, requestMethod, Request)
 import Network.URI (URI(..), parseURI)
 
 import PgQuery(LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
+import Debug.Trace
+
+data Environment = Test | Production deriving (Eq)
 
 withDBConnection :: Pool Connection -> (Connection -> Application) -> Application
 withDBConnection pool app req respond =
   withResource pool (\c -> app c req respond)
 
-inTransaction :: (Connection -> Application) -> Connection -> Application
-inTransaction app conn req respond =
-  finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
+safeAction :: Request -> Bool
+safeAction = (`notElem` ["PATCH", "PUT"]) . requestMethod
 
-withSavepoint :: (Connection -> Application) -> Connection -> Application
-withSavepoint app conn req respond = do
-  runRaw conn "savepoint req_sp"
-  catch (app conn req respond) (\e -> let _ = (e::SomeException) in
-    runRaw conn "rollback to savepoint req_sp" >> throw e)
+inTransaction :: Environment -> (Connection -> Application) ->
+                 Connection -> Application
+inTransaction env app conn req respond =
+  if env == Production && safeAction req
+    then
+      app conn req respond
+    else
+      finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
+
+withSavepoint :: Environment -> (Connection -> Application) ->
+                 Connection -> Application
+withSavepoint env app conn req respond =
+  if env == Production && safeAction req
+    then app conn req respond
+    else do
+      runRaw conn "savepoint req_sp"
+      catch (app conn req respond) (\e -> let _ = (e::SomeException) in
+        runRaw conn "rollback to savepoint req_sp" >> throw e)
 
 authenticated :: BS.ByteString -> (Connection -> Application) ->
                  Connection -> Application
@@ -84,7 +99,7 @@ clientErrors app req respond =
 
   where
     isPgException :: SqlError -> Maybe SqlError
-    isPgException = Just
+    isPgException x = Just (traceShow x x)
 
 
 redirectInsecure :: Application -> Application

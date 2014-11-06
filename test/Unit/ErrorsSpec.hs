@@ -4,7 +4,7 @@ import Test.Hspec
 
 import Database.HDBC (runRaw, quickQuery, fromSql, SqlError)
 import SpecHelper (dbWithSchema)
-import Middleware (withSavepoint)
+import Middleware (withSavepoint, Environment(..))
 import PgQuery (insert)
 import Types(SqlRow(..))
 import Control.Exception(catch)
@@ -24,7 +24,7 @@ spec = let
 
     describe "withSavepoint" $
       it "allows partial rollback of request" $ \c -> do
-        let app = withSavepoint dbErrApp c
+        let app = withSavepoint Test dbErrApp c
         [[beforeCount]] <- quickQuery c "select count(*) from \"1\".items" []
         runRaw c "set role dbapi_anonymous"
         _ <- insert "1" "items" (SqlRow []) c

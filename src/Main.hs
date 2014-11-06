@@ -4,7 +4,7 @@ import Paths_dbapi (version)
 
 import Dbapi
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
-  redirectInsecure, withDBConnection)
+  redirectInsecure, withDBConnection, Environment(..))
 import Network.Wai.Handler.Warp hiding (Connection)
 import Data.String.Conversions (cs)
 
@@ -54,8 +54,8 @@ main = do
       runSettings settings $ (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-        . withDBConnection pool . inTransaction
-        . authenticated (cs $ configAnonRole conf) . withSavepoint $ app
+        . withDBConnection pool . inTransaction Production
+        . authenticated (cs $ configAnonRole conf) . withSavepoint Production $ app
       )
   where
     describe = progDesc "create a REST API to an existing Postgres database"
