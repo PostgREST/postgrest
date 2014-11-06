@@ -2,8 +2,6 @@ language: haskell
 ghc: 7.8
 addons:
   postgresql: "9.3"
-notifications:
-  slack: looprecur:z2nPS2Cfx2D33LE2obyU2FyQ
 before_install:
   - createuser --superuser --no-password dbapi_test
   - createdb -O dbapi_test -U postgres dbapi_test
