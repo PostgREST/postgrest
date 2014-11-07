@@ -1,6 +1,8 @@
 module TestTypes (
-  IncPK(..),
-  fromList
+  IncPK(..)
+, CompoundPK(..)
+, incFromList
+, compoundFromList
 ) where
 
 import qualified Data.Aeson as JSON
@@ -26,9 +28,28 @@ instance JSON.FromJSON IncPK where
     r .: "inserted_at"
   parseJSON _ = mzero
 
-fromList :: [(String, SqlValue)] -> IncPK
-fromList row = IncPK
+incFromList :: [(String, SqlValue)] -> IncPK
+incFromList row = IncPK
   (fromSql . fromJust $ lookup "id" row)
   (fromSql . fromJust $ lookup "nullable_string" row)
   (fromSql . fromJust $ lookup "non_nullable_string" row)
   (fromSql . fromJust $ lookup "inserted_at" row)
+
+data CompoundPK = CompoundPK {
+  compoundK1 :: Int
+, compoundK2 :: Int
+, compoundExtra :: Maybe Int
+}
+
+instance JSON.FromJSON CompoundPK where
+  parseJSON (JSON.Object r) = CompoundPK <$>
+    r .: "k1" <*>
+    r .: "k2" <*>
+    r .: "extra"
+  parseJSON _ = mzero
+
+compoundFromList :: [(String, SqlValue)] -> CompoundPK
+compoundFromList row = CompoundPK
+  (fromSql . fromJust $ lookup "k1" row)
+  (fromSql . fromJust $ lookup "k2" row)
+  (fromSql . fromJust $ lookup "extra" row)

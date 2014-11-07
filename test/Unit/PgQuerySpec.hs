@@ -10,7 +10,7 @@ import Database.HDBC (IConnection, SqlValue, toSql, prepare,
 import PgQuery (LoginAttempt(..), insert, addUser, signInRole, checkPass
               , pgFmtIdent, pgFmtLit)
 import Types (SqlRow(SqlRow))
-import TestTypes (fromList, incStr, incNullableStr, incInsert, incId)
+import TestTypes (incFromList, incStr, incNullableStr, incInsert, incId)
 import Data.Map (toList)
 import Data.String.Conversions (cs)
 import Data.Monoid ((<>))
@@ -34,13 +34,13 @@ spec = around dbWithSchema $ do
       it "inserts and responds with a full object description" $ \conn -> do
         r <- insert "1" "auto_incrementing_pk" (SqlRow [
             ("non_nullable_string", toSql ("a string"::String))]) conn
-        let returnRow = fromList . toList $ r
+        let returnRow = incFromList . toList $ r
         incStr returnRow `shouldBe` "a string"
         incNullableStr returnRow `shouldBe` Nothing
         incInsert returnRow `shouldSatisfy` not . null
         incId returnRow `shouldSatisfy` (>= 0)
         tRows <- quickALQuery conn "select * from \"1\".auto_incrementing_pk" []
-        [returnRow] `shouldBe` map fromList tRows
+        [returnRow] `shouldBe` map incFromList tRows
 
       it "throws an exception if the PK is not unique" $ \conn -> do
         r <- insert "1" "auto_incrementing_pk" (SqlRow [
