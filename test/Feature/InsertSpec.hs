@@ -13,6 +13,7 @@ import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
+import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
@@ -152,7 +153,7 @@ spec = around appWithFixture $ do
               matchHeaders = []
             }
 
-  describe "Patching record" $
+  describe "Patching record" $ do
 
     context "to unkonwn uri" $
       it "gives a 404" $
@@ -160,5 +161,32 @@ spec = around appWithFixture $ do
           [json| { "real": false } |]
             `shouldRespondWith` 404
 
-    -- context "on an empty table" $
-    --   it "succeeds
+    context "on an empty table" $
+      it "succeeds with no effect" $
+        request methodPatch "/simple_pk" []
+          [json| { "extra":20 } |]
+            `shouldRespondWith` 204
+
+    context "in a nonempty table" $ do
+      it "can update a single item" $ do
+        g <- get "/items?id=eq.42"
+        liftIO $ simpleHeaders g
+          `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
+        request methodPatch "/items?id=eq.1" []
+          [json| { "id":42 } |]
+            `shouldRespondWith` 204
+        g' <- get "/items?id=eq.42"
+        liftIO $ simpleHeaders g'
+          `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
+
+      it "can update multiple items" $ do
+        replicateM_ 10 $ post "/auto_incrementing_pk"
+          [json| { non_nullable_string: "a" } |]
+        replicateM_ 10 $ post "/auto_incrementing_pk"
+          [json| { non_nullable_string: "b" } |]
+        _ <- request methodPatch
+          "/auto_incrementing_pk?non_nullable_string=eq.a" []
+          [json| { non_nullable_string: "c" } |]
+        g <- get "/auto_incrementing_pk?non_nullable_string=eq.c"
+        liftIO $ simpleHeaders g
+          `shouldSatisfy` matchHeader "Content-Range" "0-9/10"

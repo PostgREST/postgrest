@@ -2,6 +2,7 @@
 module PgQuery (
   getRows
 , insert
+, update
 , upsert
 , addUser
 , signInRole
@@ -187,14 +188,21 @@ signInRole user pass conn = do
 checkPass :: BS.ByteString -> BS.ByteString -> Bool
 checkPass = validatePassword
 
-upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map String SqlValue)
+upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection ->
+          IO (M.Map String SqlValue)
 upsert schema table row qq conn = do
-  stmt   <- prepare conn $ cs sql
+  stmt   <- prepare conn $ cs $ upsertClause schema table row qq
   _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
   m <- fetchRowMap stmt
   return $ fromMaybe M.empty m
 
-  where sql = upsertClause schema table row qq
+update :: Schema -> Text -> SqlRow -> Net.Query -> Connection ->
+          IO (M.Map String SqlValue)
+update schema table row qq conn = do
+  stmt   <- prepare conn $ cs $ updateClause schema table row qq
+  _      <- execute stmt $ sqlRowValues row
+  m <- fetchRowMap stmt
+  return $ fromMaybe M.empty m
 
 placeholders :: Text -> SqlRow -> Text
 placeholders symbol = intercalate ", " . map (const symbol) . getRow
@@ -213,16 +221,16 @@ insertClauseViaSelect schema table row =
       intercalate ", " (map pgFmtIdent (sqlRowColumns row))
   <> ") select " <> placeholders "?" row
 
-updateClause :: Schema -> Text -> SqlRow -> Text
-updateClause schema table row =
+updateClause :: Schema -> Text -> SqlRow -> Net.Query -> Text
+updateClause schema table row qq =
     "update " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " set (" <>
       intercalate ", " (map pgFmtIdent (sqlRowColumns row))
   <> ") = (" <> placeholders "?" row <> ")"
+  <> whereClause qq
 
 upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> Text
 upsertClause schema table row qq =
-  "with upsert as (" <> updateClause schema table row
-  <> whereClause qq
+  "with upsert as (" <> updateClause schema table row qq
   <> " returning *) " <> insertClauseViaSelect schema table row
   <> " where not exists (select * from upsert) returning *"
 

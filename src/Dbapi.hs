@@ -155,6 +155,12 @@ app conn req respond =
                      "You must specify all columns in PUT request"
       )
 
+    ([table], "PATCH") ->
+      jsonBodyAction req (\row -> do
+        _ <- update ver table row qq conn
+        return $ responseLBS status204 [ jsonContentType ] ""
+      )
+
     (_, _) ->
       return $ responseLBS status404 [] ""
 

@@ -15,7 +15,6 @@ import Network.HTTP.Types.Status (ok200)
 spec :: Spec
 spec = let
   dbErrApp conn _ res = do
-    putStrLn "In fake app"
     _ <- insert "1" "items" (SqlRow []) conn
     runRaw conn "select 1/0"
     _ <- insert "1" "items" (SqlRow []) conn
