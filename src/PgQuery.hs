@@ -191,8 +191,8 @@ upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection -> IO (M.Map Strin
 upsert schema table row qq conn = do
   stmt   <- prepare conn $ cs sql
   _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
-  Just m <- fetchRowMap stmt
-  return m
+  m <- fetchRowMap stmt
+  return $ fromMaybe M.empty m
 
   where sql = upsertClause schema table row qq
 

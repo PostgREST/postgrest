@@ -14,7 +14,7 @@ import Data.Maybe (fromJust)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 
-import TestTypes(IncPK, incStr, incNullableStr)
+import TestTypes(IncPK(..), CompoundPK(..))
 
 -- }}}
 
@@ -106,17 +106,39 @@ spec = around appWithFixture $ do
               [json| { "k1":12, "k2":42 } |]
                 `shouldRespondWith` 400
 
-        context "specifying every column in the table" $
-          it "succeeds with 201 and link" $ do
+        context "specifying every column in the table" $ do
+          it "can create a new record" $ do
             p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
                  [json| { "k1":12, "k2":42, "extra":3 } |]
             liftIO $ do
               simpleBody p `shouldBe` ""
-              simpleStatus p `shouldBe` status200
+              simpleStatus p `shouldBe` status204
+
+            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
+            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
+            liftIO $ do
+              length rows `shouldBe` 1
+              let record = head rows
+              compoundK1 record `shouldBe` 12
+              compoundK2 record `shouldBe` 42
+              compoundExtra record `shouldBe` Just 3
+
+          it "can update an existing record" $ do
+            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
+                 [json| { "k1":12, "k2":42, "extra":4 } |]
+            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
+                 [json| { "k1":12, "k2":42, "extra":5 } |]
+
+            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
+            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
+            liftIO $ do
+              length rows `shouldBe` 1
+              let record = head rows
+              compoundExtra record `shouldBe` Just 5
 
       context "with an auto-incrementing primary key" $
 
-        it "succeeds with 201 and link" $
+        it "succeeds with 204" $
           request methodPut "/auto_incrementing_pk?id=eq.1" []
                [json| {
                  "id":1,
@@ -126,6 +148,17 @@ spec = around appWithFixture $ do
                } |]
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing,
-              matchStatus  = 200,
+              matchStatus  = 204,
               matchHeaders = []
             }
+
+  describe "Patching record" $
+
+    context "to unkonwn uri" $
+      it "gives a 404" $
+        request methodPatch "/fake" []
+          [json| { "real": false } |]
+            `shouldRespondWith` 404
+
+    -- context "on an empty table" $
+    --   it "succeeds
