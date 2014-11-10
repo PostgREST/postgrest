@@ -1,4 +1,13 @@
-module PgQuery where
+module PgQuery (
+  CompleteQuery
+, QualifiedTable
+, limitT
+, whereT
+, orderT
+, countRows
+, asJsonWithCount
+, orderParse
+) where
 
 import RangeQuery
 import Database.PostgreSQL.Simple
@@ -7,26 +16,18 @@ import qualified Data.ByteString.Char8 as BS
 import Data.ByteString.Search (split)
 import qualified Network.HTTP.Types.URI as Net
 import Blaze.ByteString.Builder.ByteString (fromByteString)
-import Data.Text hiding (map, intersperse, split)
 import Data.Monoid
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
+import Control.Monad (join)
 import Data.String.Conversions (cs)
 import qualified Data.List as L
 
-data RangedResult = RangedResult {
-  rrFrom  :: Int
-, rrTo    :: Int
-, rrTotal :: Int
-, rrBody  :: BS.ByteString
-} deriving (Show)
-
 type CompleteQuery = (Query, [Action])
 type CompleteQueryT = CompleteQuery -> CompleteQuery
-type JsonQuery = CompleteQuery
 data QualifiedTable = QualifiedTable {
-  qtSchema :: Text
-, qtName   :: Text
+  qtSchema :: BS.ByteString
+, qtName   :: BS.ByteString
 } deriving (Show)
 
 data OrderTerm = OrderTerm {
@@ -48,7 +49,7 @@ whereT params q =
    else q <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
-   conjunction = mconcat $ L.intersperse (" and ",[]) (map wherePred cols)
+   conjunction = mconcat $ L.intersperse andq (map wherePred cols)
 
 orderT :: [OrderTerm] -> CompleteQueryT
 orderT ts q =
@@ -56,15 +57,23 @@ orderT ts q =
     then q
     else q <> (" order by ",[]) <> clause
   where
-   clause = mconcat $ L.intersperse (", ",[]) (map queryTerm ts)
+   clause = mconcat $ L.intersperse commaq (map queryTerm ts)
    queryTerm :: OrderTerm -> CompleteQuery
    queryTerm t =
      (" ? ? ",
        [EscapeIdentifier (otTerm t), Plain (fromByteString $ otDirection t)]
      )
-    -- order = fromMaybe "" $ join (lookup "order" qs)
-    -- terms = mapMaybe parseOrderTerm $ splitOn "," $ cs order
-    -- termPred = mconcat $ L.intersperse ", " (map orderTermSql terms)
+
+countRows :: QualifiedTable -> CompleteQuery
+countRows t =
+  ("select count(1) from ?.?",
+   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+
+asJsonWithCount :: CompleteQueryT
+asJsonWithCount (sql, params) = (
+    "count(t), array_to_json(array_agg(row_to_json(t))) from (" <> sql <> ") t"
+  , params
+  )
 
 wherePred :: Net.QueryItem -> CompleteQuery
 wherePred (col, predicate) =
@@ -82,6 +91,12 @@ wherePred (col, predicate) =
                           "neq" -> "<>"
                           _     -> "="
 
+orderParse :: Net.Query -> [OrderTerm]
+orderParse q =
+  mapMaybe orderParseTerm . split "," $ cs order
+  where
+    order = fromMaybe "" $ join (lookup "order" q)
+
 orderParseTerm :: BS.ByteString -> Maybe OrderTerm
 orderParseTerm s =
   case split "." s of
@@ -91,3 +106,9 @@ orderParseTerm s =
               if d == "asc" then "asc" else "desc"
             else Nothing
        _ -> Nothing
+
+commaq :: CompleteQuery
+commaq  = (", ", [])
+
+andq :: CompleteQuery
+andq = (" and ", [])
