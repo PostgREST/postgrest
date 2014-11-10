@@ -1,6 +1,6 @@
 module PgQuery (
   CompleteQuery
-, QualifiedTable
+, QualifiedTable(..)
 , limitT
 , whereT
 , orderT
