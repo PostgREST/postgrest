@@ -7,10 +7,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
 import Data.Pool(withResource, Pool)
 
-import Database.HDBC (runRaw)
-import Database.HDBC.PostgreSQL (Connection)
-import Database.HDBC.Types (SqlError(..))
-
 import Data.String.Conversions(cs)
 import qualified Data.ByteString.Char8 as BS
 import Control.Exception (finally, throw, catchJust, catch, SomeException,

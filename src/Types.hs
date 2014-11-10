@@ -1,8 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Types where
 
-import Database.HDBC (toSql, iToSql, SqlValue(..))
-
 import qualified Data.Aeson as JSON
 import Data.Aeson.Types (Parser)
 

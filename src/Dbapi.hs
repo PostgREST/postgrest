@@ -30,7 +30,6 @@ import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
 import qualified Data.CaseInsensitive as CI
 
-import Database.HDBC.PostgreSQL (Connection)
 import PgStructure (printTables, printColumns, primaryKeyColumns,
                     columns, Column(colName))
 
