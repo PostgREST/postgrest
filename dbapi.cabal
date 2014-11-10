@@ -14,8 +14,9 @@ executable dbapi
   ghc-options:         -Wall -W -Werror -O2
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
+  other-extensions:    QuasiQuotes
   build-depends:       base >=4.6 && <5
-                     , HDBC, HDBC-postgresql
+                     , postgresql-simple >= 0.4.7.0
                      , warp >= 3.0.2, wai >= 3.0.1
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
@@ -24,6 +25,7 @@ executable dbapi
                      , scientific, time
                      , aeson, network >= 2.6
                      , bytestring, text, split, string-conversions
+                     , stringsearch
                      , containers, unordered-containers
                      , optparse-applicative >= 0.9.1 && < 0.10
                      , regex-base, regex-tdfa
@@ -33,6 +35,7 @@ executable dbapi
                      , bcrypt, base64-string
                      , network-uri >= 2.6
                      , resource-pool, process
+                     , blaze-builder
   Other-Modules:       Dbapi
                      , PgStructure
                      , PgQuery
@@ -51,7 +54,7 @@ Test-Suite spec
   Other-Modules:       Dbapi, Spec, SpecHelper
   Build-Depends:       base, hspec2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
-                     , HDBC, HDBC-postgresql
+                     , postgresql-simple >= 0.4.7.0
                      , warp >= 3.0.2, wai >= 3.0.1
                      , HTTP, convertible
                      , case-insensitive
@@ -60,6 +63,7 @@ Test-Suite spec
                      , http-types, scientific, time
                      , bytestring, aeson, network >= 2.6
                      , text, optparse-applicative
+                     , stringsearch
                      , unordered-containers
                      , regex-base
                      , string-conversions
@@ -72,3 +76,4 @@ Test-Suite spec
                      , split
                      , network-uri >= 2.6
                      , resource-pool
+                     , blaze-builder
