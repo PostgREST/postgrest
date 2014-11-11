@@ -1,13 +1,4 @@
-module PgQuery (
-  CompleteQuery
-, QualifiedTable(..)
-, limitT
-, whereT
-, orderT
-, countRows
-, asJsonWithCount
-, orderParse
-) where
+module PgQuery where
 
 import RangeQuery
 import Database.PostgreSQL.Simple
@@ -64,6 +55,10 @@ orderT ts q =
        [EscapeIdentifier (otTerm t), Plain (fromByteString $ otDirection t)]
      )
 
+parentheticT :: CompleteQueryT
+parentheticT (sql, params) =
+  (" (" <> sql <> ") ", params)
+
 countRows :: QualifiedTable -> CompleteQuery
 countRows t =
   ("select count(1) from ?.?",
@@ -74,6 +69,11 @@ asJsonWithCount (sql, params) = (
     "count(t), array_to_json(array_agg(row_to_json(t))) from (" <> sql <> ") t"
   , params
   )
+
+selectStar :: QualifiedTable -> CompleteQuery
+selectStar t =
+  ("select count(1) from ?.?",
+   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
 
 wherePred :: Net.QueryItem -> CompleteQuery
 wherePred (col, predicate) =

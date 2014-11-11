@@ -2,7 +2,7 @@ module Main where
 
 import Paths_dbapi (version)
 
-import Dbapi
+import App
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
   redirectInsecure, withDBConnection, Environment(..))
 import Network.Wai.Handler.Warp hiding (Connection)
@@ -18,6 +18,14 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Data.Pool(createPool, destroyAllResources)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
+
+data AppConfig = AppConfig {
+    configDbUri :: String
+  , configPort  :: Int
+  , configAnonRole :: String
+  , configSecure :: Bool
+  , configPool :: Int
+  }
 
 argParser :: Parser AppConfig
 argParser = AppConfig

@@ -4,17 +4,16 @@ module PgStructure where
 import PgQuery (QualifiedTable(..))
 import Data.Functor ( (<$>) )
 import Data.Text hiding (foldl, map, zipWith, concat)
+import Data.Aeson
 
 import Control.Applicative ( (<*>) )
 
 import qualified Data.List as L
-import qualified Data.Aeson as JSON
 import qualified Data.Map as Map
 
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple.FromRow
-import Data.Aeson ((.=))
 
 foreignKeys :: Connection -> QualifiedTable -> IO (Map.Map Text ForeignKey)
 foreignKeys c table = do
@@ -122,21 +121,12 @@ instance FromRow Column where
 vanishNull :: [a] -> Maybe [a]
 vanishNull xs = if L.null xs then Nothing else Just xs
 
-instance JSON.ToJSON Table where
-  toJSON v = JSON.object [
-      "schema"     .= tableSchema v
-    , "name"       .= tableName v
-    , "insertable" .= tableInsertable v ]
-
 toBool :: Text -> Bool
 toBool = (== "YES")
 
 data ForeignKey = ForeignKey {
   fkTable::Text, fkCol::Text
 } deriving (Eq, Show)
-
-instance JSON.ToJSON ForeignKey where
-  toJSON fk = JSON.object ["table".=fkTable fk, "column".=fkCol fk]
 
 data Column = Column {
   colSchema :: Text
@@ -153,8 +143,8 @@ data Column = Column {
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
-instance JSON.ToJSON Column where
-  toJSON c = JSON.object [
+instance ToJSON Column where
+  toJSON c = object [
       "schema"    .= colSchema c
     , "name"      .= colName c
     , "position"  .= colPosition c
@@ -166,3 +156,12 @@ instance JSON.ToJSON Column where
     , "references".= colFK c
     , "default"   .= colDefault c
     , "enum"      .= colEnum c ]
+
+instance ToJSON ForeignKey where
+  toJSON fk = object ["table".=fkTable fk, "column".=fkCol fk]
+
+instance ToJSON Table where
+  toJSON v = object [
+      "schema"     .= tableSchema v
+    , "name"       .= tableName v
+    , "insertable" .= tableInsertable v ]

@@ -1,6 +1,9 @@
 module Auth where
 
+import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Char8 as BS
+import Control.Monad (mzero)
+import Control.Applicative ( (<*>), (<$>) )
 import Crypto.BCrypt
 import Database.PostgreSQL.Simple
 import GHC.Int
@@ -10,6 +13,13 @@ data AuthUser = AuthUser {
   , userPass :: String
   , userRole :: String
   }
+
+instance JSON.FromJSON AuthUser where
+  parseJSON (JSON.Object v) = AuthUser <$>
+                         v JSON..: "id" <*>
+                         v JSON..: "pass" <*>
+                         v JSON..: "role"
+  parseJSON _          = mzero
 
 type DbRole = BS.ByteString
 
