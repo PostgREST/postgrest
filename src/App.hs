@@ -131,6 +131,15 @@ app conn req respond =
                    "You must specify all columns in PUT request"
       )
 
+    ([table], "PATCH") ->
+      handleJsonObj req (\obj -> do
+        let qt = QualifiedTable schema (cs table)
+        _  <- uncurry (execute conn)
+          $ whereT qq
+          $ update qt (map cs $ keys obj) (elems obj)
+        return $ responseLBS status204 [ jsonH ] ""
+      )
+
     (_, _) ->
       return $ responseLBS status404 [] ""
 
@@ -220,12 +229,6 @@ instance ToJSON TableOptions where
 --             , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
 --             ] ""
 
-
---     ([table], "PATCH") ->
---       jsonBodyAction req (\row -> do
---         _ <- update ver table row qq conn
---         return $ responseLBS status204 [ jsonContentType ] ""
---       )
 
 --     (_, _) ->
 --       return $ responseLBS status404 [] ""

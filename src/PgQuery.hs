@@ -39,7 +39,7 @@ whereT :: Net.Query -> CompleteQueryT
 whereT params q =
  if L.null params
    then q
-   else q <> conjunction
+   else q <> (" where ",[]) <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
