@@ -61,8 +61,8 @@ parentheticT :: CompleteQueryT
 parentheticT (sql, params) =
   (" (" <> sql <> ") ", params)
 
-aIffNotBT :: CompleteQuery -> CompleteQueryT
-aIffNotBT (aq, ap) (bq, bp) =
+iffNotT :: CompleteQuery -> CompleteQueryT
+iffNotT (aq, ap) (bq, bp) =
   ("WITH aaa AS (" <> aq <> " returning *) " <>
     bq <> "WHERE NOT EXISTS (SELECT * FROM aaa)"
   , ap ++ bp

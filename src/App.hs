@@ -12,6 +12,7 @@ import Data.Text hiding (map)
 import Data.Maybe (listToMaybe, fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
+import Data.Ranged.Ranges (emptyRange)
 import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 -- import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sortBy)
@@ -39,7 +40,7 @@ import Database.PostgreSQL.Simple
 import PgQuery
 import RangeQuery
 import PgStructure
-import Data.Ranged.Ranges (emptyRange)
+import Auth
 
 app :: Connection -> Application
 app conn req respond =
@@ -86,12 +87,28 @@ app conn req respond =
         return $ responseLBS status
           [jsonH, contentRange,
             ("Content-Location",
-             "/" <> cs table <> if Prelude.null canonical then "" else "?" <> cs canonical
+             "/" <> cs table <>
+                if Prelude.null canonical then "" else "?" <> cs canonical
             )
           ] (cs body)
 
+    (["dbapi", "users"], "POST") -> do
+      body <- strictRequestBody req
+      let user = decode body :: Maybe AuthUser
+
+      case user of
+        Nothing -> return $ responseLBS status400 [jsonH] $
+          encode . object $ [("error", String "Failed to parse user.")]
+        Just u -> do
+          _ <- addUser conn (cs $ userId u)
+                 (cs $ userPass u) (cs $ userRole u)
+          return $ responseLBS status201
+            [ jsonH
+            , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
+            ] ""
+
     ([table], "POST") ->
-      handleJsonObj req (\obj -> do
+      handleJsonObj req $ \obj -> do
         let qt = QualifiedTable schema (cs table)
         _  <- uncurry (execute conn)
           $ insertInto qt (map cs $ keys obj) (elems obj)
@@ -104,10 +121,9 @@ app conn req respond =
           [ jsonH
           , (hLocation, "/" <> cs table <> "?" <> cs params)
           ] ""
-      )
 
     ([table], "PUT") ->
-      handleJsonObj req (\obj -> do
+      handleJsonObj req $ \obj -> do
         let qt = QualifiedTable schema (cs table)
         primaryKeys <- primaryKeyColumns conn qt
         let specifiedKeys = map (cs . fst) qq
@@ -119,26 +135,23 @@ app conn req respond =
             let cols = map cs $ keys obj
             if S.fromList tableCols == S.fromList cols then do
               let vals = elems obj
-              let upsert =
-                    aIffNotBT (whereT qq $ update qt cols vals)
+              _  <- uncurry (execute conn) $ iffNotT
+                      (whereT qq $ update qt cols vals)
                       (insertInto qt cols vals)
-              _  <- uncurry (execute conn) upsert
               return $ responseLBS status204 [ jsonH ] ""
 
               else return $ if Prelude.null tableCols
                 then responseLBS status404 [] ""
                 else responseLBS status400 []
                    "You must specify all columns in PUT request"
-      )
 
     ([table], "PATCH") ->
-      handleJsonObj req (\obj -> do
+      handleJsonObj req $ \obj -> do
         let qt = QualifiedTable schema (cs table)
         _  <- uncurry (execute conn)
           $ whereT qq
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
-      )
 
     (_, _) ->
       return $ responseLBS status404 [] ""
@@ -209,40 +222,6 @@ instance ToJSON TableOptions where
     , "pkey"   .= tblOptpkey t ]
 
 
--- app :: Connection -> Application
--- app conn req respond =
---   respond =<< case (path, verb) of
---     ([], _) ->
---       responseLBS status200 [jsonContentType] <$> printTables ver conn
-
---     (["dbapi", "users"], "POST") -> do
---       body <- strictRequestBody req
---       let parse = JSON.eitherDecode body
-
---       case parse of
---         Left err -> return $ responseLBS status400 [jsonContentType] json
---           where json = JSON.encode . JSON.object $ [("error", JSON.String $ "Failed to parse JSON payload. " <> cs err) ]
---         Right u -> do
---           addUser (cs $ userId u) (cs $ userPass u) (cs $ userRole u) conn
---           return $ responseLBS status201
---             [ jsonContentType
---             , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
---             ] ""
-
-
---     (_, _) ->
---       return $ responseLBS status404 [] ""
-
---   where
---     path   = pathInfo req
---     verb   = requestMethod req
---     qq     = queryString req
---     hdrs   = requestHeaders req
---     ver    = fromMaybe "1" $ requestedVersion hdrs
---     range  = requestedRange hdrs
---     cRange = requestedContentRange hdrs
---     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-
 -- defaultCorsPolicy :: CorsResourcePolicy
 -- defaultCorsPolicy =  CorsResourcePolicy Nothing
 --   ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
@@ -260,29 +239,6 @@ instance ToJSON TableOptions where
 --     accHeaders = case lookup "access-control-request-headers" headers of
 --       Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
 --       Nothing -> []
-
-
--- respondWithRangedResult :: RangedResult -> Response
--- respondWithRangedResult rr =
---   responseLBS status [
---     jsonContentType,
---     ("Content-Range",
---       if total == 0 || from > total
---       then "*/" <> cs (show total)
---       else cs (show from)  <> "-"
---          <> cs (show to)    <> "/"
---          <> cs (show total)
---     )
---   ] (rrBody rr)
-
---   where
---     from   = rrFrom rr
---     to     = rrTo   rr
---     total  = rrTotal rr
---     status
---       | from > total            = status416
---       | (1 + to - from) < total = status206
---       | otherwise               = status200
 
 
 -- addHeaders :: ResponseHeaders -> Response -> Response
