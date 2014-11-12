@@ -1,4 +1,4 @@
-module App where
+module App (app) where
 
 -- import Types (SqlRow, getRow)
 
@@ -12,6 +12,7 @@ import Data.Text hiding (map)
 import Data.Maybe (listToMaybe, fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
+import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 -- import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sortBy)
 -- import qualified Data.Set as S
@@ -28,7 +29,7 @@ import Network.Wai
 -- import Network.Wai.Internal
 -- import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 
-import Data.ByteString.Char8 hiding (zip, map)
+import Data.ByteString.Char8 hiding (zip, map, elem)
 import Data.String.Conversions (cs)
 -- import qualified Data.CaseInsensitive as CI
 
@@ -73,7 +74,6 @@ app conn req respond =
                   . whereT qq
                   $ selectStar qt
                 )
-
         row <- listToMaybe <$> uncurry (query conn) select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, "" :: ByteString) row
@@ -86,13 +86,28 @@ app conn req respond =
                           . map (join (***) cs)
                           . parseSimpleQuery
                           $ rawQueryString req
-
         return $ responseLBS status
           [jsonH, contentRange,
             ("Content-Location",
              "/" <> cs table <> if Prelude.null canonical then "" else "?" <> cs canonical
             )
           ] (cs body)
+
+    ([table], "POST") ->
+      handleJsonObj req (\obj -> do
+        let qt = QualifiedTable schema (cs table)
+        _  <- uncurry (execute conn)
+          $ insertInto qt (map cs $ keys obj) (elems obj)
+        primaryKeys <- map cs <$> primaryKeyColumns conn qt
+        let primaries = filterWithKey (const . (`elem` primaryKeys)) obj
+        let params = urlEncodeVars
+              $ map (\t -> (cs $ fst t, "eq." <> cs (encode $ snd t)))
+              $ toList primaries
+        return $ responseLBS status201
+          [ jsonH
+          , (hLocation, "/" <> cs table <> "?" <> cs params)
+          ] ""
+      )
 
     (_, _) ->
       return $ responseLBS status404 [] ""
@@ -133,12 +148,24 @@ requestedSchema hdrs =
         accept = lookup hAccept hdrs :: Maybe ByteString
         verStr = (=~ verRegex) <$> accept :: Maybe [[ByteString]]
 
-parsePayload :: FromJSON j => Request -> IO (Either String j)
-parsePayload = fmap eitherDecode . strictRequestBody
-
 jsonH :: Header
 jsonH = (hContentType, "application/json")
 
+handleJsonObj :: Request -> (Object -> IO Response) -> IO Response
+handleJsonObj req handler = do
+  parse <- fmap eitherDecode . strictRequestBody $ req
+  case parse of
+    Left err ->
+      return $ responseLBS status400 [jsonH] jErr
+      where
+        jErr = encode . object $
+          [("error", String $ "Failed to parse JSON payload. " <> cs err)]
+    Right (Object o) -> handler o
+    Right _ ->
+      return $ responseLBS status400 [jsonH] jErr
+      where
+        jErr = encode . object $
+          [("error", String "Expecting a JSON object")]
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
@@ -150,19 +177,6 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
--- jsonBodyAction :: Request -> (SqlRow -> IO Response) -> IO Response
--- jsonBodyAction req handler = do
---   parse <- jsonBody req
---   case parse of
---     Left err -> return $ responseLBS status400 [jsonContentType] json
---       where json = JSON.encode . JSON.object $ [("error", JSON.String $ "Failed to parse JSON payload. " <> cs err) ]
---     Right body -> handler body
-
-
--- filterByKeys :: Ord a => Map a b -> [a] -> Map a b
--- filterByKeys m keys =
---   if null keys then m else
---     m `intersection` fromList (zip keys $ repeat undefined)
 
 -- app :: Connection -> Application
 -- app conn req respond =
@@ -183,24 +197,6 @@ instance ToJSON TableOptions where
 --             [ jsonContentType
 --             , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
 --             ] ""
-
---     ([table], "OPTIONS") ->
---       responseLBS status200 [jsonContentType, allOrigins] <$>
---         printColumns ver (cs table) conn
-
---     ([table], "GET") ->
---       if range == Just emptyRange
---       then return $ responseLBS status416 [] "HTTP Range error"
---       else do
---         r <- respondWithRangedResult <$> getRows ver (cs table) qq range conn
---         let canonical = urlEncodeVars $ sort $
---                         map (join (***) cs) $
---                         parseSimpleQuery $
---                         rawQueryString req
---         return $ addHeaders [
---           ("Content-Location",
---            "/" <> cs table <> if null canonical then "" else "?" <> cs canonical
---           )] r
 
 --     ([table], "POST") ->
 --       jsonBodyAction req (\row -> do

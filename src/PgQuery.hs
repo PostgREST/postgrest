@@ -3,6 +3,7 @@ module PgQuery where
 import RangeQuery
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.ToField
+import Database.PostgreSQL.Simple.Types (Query(..))
 import qualified Data.ByteString.Char8 as BS
 import Data.ByteString.Search (split)
 import qualified Network.HTTP.Types.URI as Net
@@ -12,6 +13,7 @@ import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
 import Control.Monad (join)
 import Data.String.Conversions (cs)
+import Data.Aeson.Types (Value)
 import qualified Data.List as L
 
 type CompleteQuery = (Query, [Action])
@@ -74,6 +76,21 @@ selectStar :: QualifiedTable -> CompleteQuery
 selectStar t =
   ("select count(1) from ?.?",
    [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+
+insertInto :: QualifiedTable -> [BS.ByteString] -> [Value] ->
+              CompleteQuery
+insertInto t [] _ =
+  ("insert into ?.? default values returning *",
+   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+insertInto t cols vals =
+  ("insert into ?.? (" <>
+    Query (BS.intercalate ", " (map (const "?") cols)) <>
+    ") values (" <>
+    Query (BS.intercalate ", " (map (const "?") vals)) <>
+    ") returning *"
+  , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
+    ++ map EscapeIdentifier cols ++ map toField vals
+  )
 
 wherePred :: Net.QueryItem -> CompleteQuery
 wherePred (col, predicate) =
