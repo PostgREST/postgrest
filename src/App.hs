@@ -2,24 +2,25 @@ module App where
 
 -- import Types (SqlRow, getRow)
 
-import Control.Monad (join, mzero)
+import Control.Monad (join)
 import Data.Monoid ( (<>) )
--- import Control.Arrow ((***))
+import Control.Arrow ((***))
 import Control.Applicative
 -- import Options.Applicative hiding (columns)
 
 import Data.Text hiding (map)
--- import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (listToMaybe, fromMaybe)
 import Text.Regex.TDFA ((=~))
+import Data.Ord (comparing)
 -- import Data.Map (intersection, fromList, toList, Map)
--- import Data.List (sort)
+import Data.List (sortBy)
 -- import qualified Data.Set as S
 -- import Data.Convertible.Base (convert)
 -- import Data.Text (strip, Text)
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
--- import Network.HTTP.Types.URI
+import Network.HTTP.Types.URI (parseSimpleQuery)
 
 import Network.HTTP.Base (urlEncodeVars)
 
@@ -46,7 +47,7 @@ app :: Connection -> Application
 app conn req respond =
   respond =<< case (path, verb) of
     ([], _) -> do
-      body <- encode <$> (tables conn $ cs schema)
+      body <- encode <$> tables conn (cs schema)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -56,31 +57,42 @@ app conn req respond =
       return $ responseLBS status200 [jsonH, allOrigins]
         $ encode (TableOptions cols pkey)
 
-    ([table], "GET") -> do
+    ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
-        let qt = QualifiedTable schema table
+        let qt = QualifiedTable schema (cs table)
         let select =
-              ("select ",[]) <> (
-                parentheticT
-                $ whereT qq $ countRows qt
-              ) <> commaq <> (
-                asJsonWithCount
-                $ limitT range
-                $ orderT (orderParse qq)
-                $ whereT qq
-                $ selectStar qt
-              )
-        r <- respondWithRangedResult <$> getRows ver (cs table) qq range conn
-        let canonical = urlEncodeVars $ sort $
-                        map (join (***) cs) $
-                        parseSimpleQuery $
-                        rawQueryString req
-        return $ addHeaders [
-          ("Content-Location",
-           "/" <> cs table <> if null canonical then "" else "?" <> cs canonical
-          )] r
+              ("select ",[]) <>
+                  parentheticT (
+                    whereT qq $ countRows qt
+                  ) <> commaq <> (
+                  asJsonWithCount
+                  . limitT range
+                  . orderT (orderParse qq)
+                  . whereT qq
+                  $ selectStar qt
+                )
+
+        row <- listToMaybe <$> uncurry (query conn) select
+        let (tableTotal, queryTotal, body) =
+              fromMaybe (0, 0, "" :: ByteString) row
+            from = fromMaybe 0 $ rangeOffset <$> range
+            to = from+queryTotal
+            contentRange = contentRangeH from to tableTotal
+            status = rangeStatus from to tableTotal
+            canonical = urlEncodeVars
+                          . sortBy (comparing fst)
+                          . map (join (***) cs)
+                          . parseSimpleQuery
+                          $ rawQueryString req
+
+        return $ responseLBS status
+          [jsonH, contentRange,
+            ("Content-Location",
+             "/" <> cs table <> if Prelude.null canonical then "" else "?" <> cs canonical
+            )
+          ] (cs body)
 
     (_, _) ->
       return $ responseLBS status404 [] ""
@@ -94,6 +106,22 @@ app conn req respond =
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
+
+rangeStatus :: Int -> Int -> Int -> Status
+rangeStatus from to total
+  | from > total            = status416
+  | (1 + to - from) < total = status206
+  | otherwise               = status200
+
+contentRangeH :: Int -> Int -> Int -> Header
+contentRangeH from to total =
+  ("Content-Range",
+    if total == 0 || from > total
+    then "*/" <> cs (show total)
+    else cs (show from)  <> "-"
+       <> cs (show to)    <> "/"
+       <> cs (show total)
+  )
 
 requestedSchema :: RequestHeaders -> ByteString
 requestedSchema hdrs =
