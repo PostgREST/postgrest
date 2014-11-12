@@ -61,6 +61,13 @@ parentheticT :: CompleteQueryT
 parentheticT (sql, params) =
   (" (" <> sql <> ") ", params)
 
+aIffNotBT :: CompleteQuery -> CompleteQueryT
+aIffNotBT (aq, ap) (bq, bp) =
+  ("WITH aaa AS (" <> aq <> " returning *) " <>
+    bq <> "WHERE NOT EXISTS (SELECT * FROM aaa)"
+  , ap ++ bp
+  )
+
 countRows :: QualifiedTable -> CompleteQuery
 countRows t =
   ("select count(1) from ?.?",
@@ -88,6 +95,17 @@ insertInto t cols vals =
     ") values (" <>
     Query (BS.intercalate ", " (map (const "?") vals)) <>
     ") returning *"
+  , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
+    ++ map EscapeIdentifier cols ++ map toField vals
+  )
+
+update :: QualifiedTable -> [BS.ByteString] -> [Value] ->
+          CompleteQuery
+update t cols vals =
+  ("update ?.? set (" <>
+    Query (BS.intercalate ", " (map (const "?") cols)) <>
+    ") = (" <>
+    Query (BS.intercalate ", " (map (const "?") vals)) <> ")"
   , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
     ++ map EscapeIdentifier cols ++ map toField vals
   )

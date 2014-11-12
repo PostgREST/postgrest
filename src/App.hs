@@ -15,7 +15,7 @@ import Data.Ord (comparing)
 import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 -- import Data.Map (intersection, fromList, toList, Map)
 import Data.List (sortBy)
--- import qualified Data.Set as S
+import qualified Data.Set as S
 -- import Data.Convertible.Base (convert)
 -- import Data.Text (strip, Text)
 
@@ -32,9 +32,6 @@ import Network.Wai
 import Data.ByteString.Char8 hiding (zip, map, elem)
 import Data.String.Conversions (cs)
 -- import qualified Data.CaseInsensitive as CI
-
--- import PgStructure (printTables, printColumns, primaryKeyColumns,
---                     columns, Column(colName))
 
 import Data.Aeson
 import Database.PostgreSQL.Simple
@@ -107,6 +104,31 @@ app conn req respond =
           [ jsonH
           , (hLocation, "/" <> cs table <> "?" <> cs params)
           ] ""
+      )
+
+    ([table], "PUT") ->
+      handleJsonObj req (\obj -> do
+        let qt = QualifiedTable schema (cs table)
+        primaryKeys <- primaryKeyColumns conn qt
+        let specifiedKeys = map (cs . fst) qq
+        if S.fromList primaryKeys /= S.fromList specifiedKeys
+          then return $ responseLBS status405 []
+               "You must speficy all and only primary keys as params"
+          else do
+            tableCols <- map (cs . colName) <$> columns conn qt
+            let cols = map cs $ keys obj
+            if S.fromList tableCols == S.fromList cols then do
+              let vals = elems obj
+              let upsert =
+                    aIffNotBT (whereT qq $ update qt cols vals)
+                      (insertInto qt cols vals)
+              _  <- uncurry (execute conn) upsert
+              return $ responseLBS status204 [ jsonH ] ""
+
+              else return $ if Prelude.null tableCols
+                then responseLBS status404 [] ""
+                else responseLBS status400 []
+                   "You must specify all columns in PUT request"
       )
 
     (_, _) ->
@@ -198,40 +220,6 @@ instance ToJSON TableOptions where
 --             , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
 --             ] ""
 
---     ([table], "POST") ->
---       jsonBodyAction req (\row -> do
---         allvals <- insert ver table row conn
---         keys <- map cs <$> primaryKeyColumns ver (cs table) conn
---         let params = urlEncodeVars $ map (\t -> (fst t, "eq." <> convert (snd t) :: String)) $ toList $ filterByKeys allvals keys
---         return $ responseLBS status201
---           [ jsonContentType
---           , (hLocation, "/" <> cs table <> "?" <> cs params)
---           ] ""
---       )
-
---     ([table], "PUT") ->
---       jsonBodyAction req (\row -> do
---         keys <- primaryKeyColumns ver (cs table) conn
---         let specifiedKeys = map (cs . fst) qq
---         if S.fromList keys /= S.fromList specifiedKeys
---           then return $ responseLBS status405 []
---                "You must speficy all and only primary keys as params"
---           else
---             if isJust cRange
---                then return $ responseLBS status400 []
---                     "Content-Range is not allowed in PUT request"
---             else do
---               cols <- columns ver (cs table) conn
---               let colNames = S.fromList $ map (cs . colName) cols
---               let specifiedCols = S.fromList $ map fst $ getRow row
---               if colNames == specifiedCols then do
---                 _ <- upsert ver table row qq conn
---                 return $ responseLBS status204 [ jsonContentType ] ""
-
---                 else return $ if S.null colNames then responseLBS status404 [] ""
---                   else responseLBS status400 []
---                      "You must specify all columns in PUT request"
---       )
 
 --     ([table], "PATCH") ->
 --       jsonBodyAction req (\row -> do
