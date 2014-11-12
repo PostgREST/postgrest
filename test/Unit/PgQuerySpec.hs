@@ -86,9 +86,8 @@ spec = around dbWithSchema $ do
       signInRole user (pass <> "crap") conn `shouldReturn` LoginFailed
 
   describe "pgFmtIdent" $
-    it "Does what format %I would do" $ \conn ->
-      property $ monadicIO $ do
-        fuzz <- pick arbitrary
+    it "Does what format %I would do" $ \conn -> property $ \fuzz ->
+      monadicIO $ do
         [[row]] <- run $ quickALQuery conn "select format('%I', ? :: varchar)" [toSql (fuzz :: String)]
         assert $ fromSql (snd row) == pgFmtIdent (cs fuzz)
 
