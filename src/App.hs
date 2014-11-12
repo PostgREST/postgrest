@@ -1,12 +1,9 @@
 module App (app) where
 
--- import Types (SqlRow, getRow)
-
 import Control.Monad (join)
 import Data.Monoid ( (<>) )
 import Control.Arrow ((***))
 import Control.Applicative
--- import Options.Applicative hiding (columns)
 
 import Data.Text hiding (map)
 import Data.Maybe (listToMaybe, fromMaybe)
@@ -14,25 +11,16 @@ import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
 import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
--- import Data.Map (intersection, fromList, toList, Map)
+import Data.ByteString.Char8 hiding (zip, map, elem)
+import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import qualified Data.Set as S
--- import Data.Convertible.Base (convert)
--- import Data.Text (strip, Text)
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.URI (parseSimpleQuery)
-
 import Network.HTTP.Base (urlEncodeVars)
-
 import Network.Wai
--- import Network.Wai.Internal
--- import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
-
-import Data.ByteString.Char8 hiding (zip, map, elem)
-import Data.String.Conversions (cs)
--- import qualified Data.CaseInsensitive as CI
 
 import Data.Aeson
 import Database.PostgreSQL.Simple
@@ -220,33 +208,3 @@ instance ToJSON TableOptions where
   toJSON t = object [
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
-
-
--- defaultCorsPolicy :: CorsResourcePolicy
--- defaultCorsPolicy =  CorsResourcePolicy Nothing
---   ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
---   (Just $ 60*60*24) False False True
-
--- corsPolicy :: Request -> Maybe CorsResourcePolicy
--- corsPolicy req = case lookup "origin" headers of
---   Just origin -> Just defaultCorsPolicy {
---       corsOrigins = Just ([origin], True)
---     , corsRequestHeaders = "Authentication":accHeaders
---     }
---   Nothing -> Nothing
---   where
---     headers = requestHeaders req
---     accHeaders = case lookup "access-control-request-headers" headers of
---       Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
---       Nothing -> []
-
-
--- addHeaders :: ResponseHeaders -> Response -> Response
--- addHeaders hdrs (ResponseFile    s headers fp m) =
---                  ResponseFile    s (headers ++ hdrs) fp m
--- addHeaders hdrs (ResponseBuilder s headers b)    =
---                  ResponseBuilder s (headers ++ hdrs) b
--- addHeaders hdrs (ResponseStream  s headers b)    =
---                  ResponseStream  s (headers ++ hdrs) b
--- addHeaders hdrs (ResponseRaw     s resp)         =
---                  ResponseRaw     s (addHeaders hdrs resp)
