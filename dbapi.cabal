@@ -36,7 +36,7 @@ executable dbapi
                      , network-uri >= 2.6
                      , resource-pool, process
                      , blaze-builder
-  Other-Modules:       Dbapi
+  Other-Modules:       App
                      , PgStructure
                      , PgQuery
                      , RangeQuery
@@ -51,7 +51,7 @@ Test-Suite spec
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
-  Other-Modules:       Dbapi, Spec, SpecHelper
+  Other-Modules:       App, Spec, SpecHelper
   Build-Depends:       base, hspec2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , postgresql-simple >= 0.4.7.0
