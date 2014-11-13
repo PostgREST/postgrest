@@ -30,9 +30,9 @@ data OrderTerm = OrderTerm {
 
 limitT :: Maybe NonnegRange -> CompleteQueryT
 limitT r q =
-  q <> (" LIMIT ? OFFSET ? ", [toField limit, toField offset])
+  q <> (" LIMIT ? OFFSET ? ", [Plain (fromByteString limit), toField offset])
   where
-    limit  = fromMaybe "ALL" $ show . rangeLimit <$> r
+    limit  = cs $ fromMaybe "ALL" $ show . rangeLimit <$> r
     offset = fromMaybe 0     $ rangeOffset <$> r
 
 whereT :: Net.Query -> CompleteQueryT
@@ -75,13 +75,13 @@ countRows t =
 
 asJsonWithCount :: CompleteQueryT
 asJsonWithCount (sql, params) = (
-    "count(t), array_to_json(array_agg(row_to_json(t))) from (" <> sql <> ") t"
+    "count(t), array_to_json(array_agg(row_to_json(t)))::character varying  from (" <> sql <> ") t"
   , params
   )
 
 selectStar :: QualifiedTable -> CompleteQuery
 selectStar t =
-  ("select count(1) from ?.?",
+  ("select * from ?.?",
    [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
 
 insertInto :: QualifiedTable -> [BS.ByteString] -> [Value] ->
