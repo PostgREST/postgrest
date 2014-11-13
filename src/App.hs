@@ -62,7 +62,7 @@ app conn req respond =
                 )
         row <- listToMaybe <$> uncurry (query conn) select
         let (tableTotal, queryTotal, body) =
-              fromMaybe (0, 0, "" :: ByteString) row
+              fromMaybe (0, 0, Just "" :: Maybe ByteString) row
             from = fromMaybe 0 $ rangeOffset <$> range
             to = from+queryTotal
             contentRange = contentRangeH from to tableTotal
@@ -78,7 +78,7 @@ app conn req respond =
              "/" <> cs table <>
                 if Prelude.null canonical then "" else "?" <> cs canonical
             )
-          ] (cs body)
+          ] (cs $ fromMaybe "[]" body)
 
     (["dbapi", "users"], "POST") -> do
       body <- strictRequestBody req
