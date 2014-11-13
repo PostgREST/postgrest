@@ -13,7 +13,7 @@ import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
 import Control.Monad (join)
 import Data.String.Conversions (cs)
-import Data.Aeson.Types (Value)
+import Data.Aeson (Value(..), encode)
 import qualified Data.List as L
 
 type CompleteQuery = (Query, [Action])
@@ -96,8 +96,12 @@ insertInto t cols vals =
     Query (BS.intercalate ", " (map (const "?") vals)) <>
     ") returning *"
   , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
-    ++ map EscapeIdentifier cols ++ map toField vals
+    ++ map EscapeIdentifier cols ++ map (Escape . rawJsonValue) vals
   )
+
+rawJsonValue :: Value -> BS.ByteString
+rawJsonValue (String s) = cs s
+rawJsonValue v = cs $ encode v
 
 update :: QualifiedTable -> [BS.ByteString] -> [Value] ->
           CompleteQuery
