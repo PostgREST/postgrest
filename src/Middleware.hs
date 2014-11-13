@@ -7,10 +7,10 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
 import Data.Pool(withResource, Pool)
 
+import Database.PostgreSQL.Simple
 import Data.String.Conversions(cs)
 import qualified Data.ByteString.Char8 as BS
-import Control.Exception (finally, throw, catchJust, catch, SomeException,
-    bracket_)
+import Control.Exception (catchJust, bracket_)
 
 import Network.HTTP.Types.Header (RequestHeaders, hContentType, hAuthorization,
   hLocation)
@@ -19,7 +19,7 @@ import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
                    rawQueryString, isSecure, requestMethod, Request)
 import Network.URI (URI(..), parseURI)
 
-import PgQuery(LoginAttempt(..), signInRole, setRole, resetRole)
+import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
 import Debug.Trace
@@ -37,20 +37,17 @@ inTransaction :: Environment -> (Connection -> Application) ->
                  Connection -> Application
 inTransaction env app conn req respond =
   if env == Production && safeAction req
-    then
-      app conn req respond
-    else
-      finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
+    then go
+    else withTransaction conn go
+  where go = app conn req respond
 
 withSavepoint :: Environment -> (Connection -> Application) ->
                  Connection -> Application
 withSavepoint env app conn req respond =
   if env == Production && safeAction req
-    then app conn req respond
-    else do
-      runRaw conn "savepoint req_sp"
-      catch (app conn req respond) (\e -> let _ = (e::SomeException) in
-        runRaw conn "rollback to savepoint req_sp" >> throw e)
+    then go
+    else Database.PostgreSQL.Simple.withSavepoint conn go
+  where go = app conn req respond
 
 authenticated :: BS.ByteString -> (Connection -> Application) ->
                  Connection -> Application
@@ -73,23 +70,24 @@ authenticated anon app conn req respond = do
     case BS.split ' ' (cs auth) of
       ("Basic" : b64 : _) ->
         case BS.split ':' $ cs (decode $ cs b64) of
-          (u:p:_) -> signInRole u p conn
+          (u:p:_) -> signInRole conn u p
           _ -> return MalformedAuth
       _ -> return NoCredentials
 
 instance ToJSON SqlError where
   toJSON t = object [
       "error" .= object [
-          "code"    .= seNativeError t
-        , "message" .= seErrorMsg t
-        , "state"   .= seState t
+          "message" .= (cs $ sqlErrorMsg t :: String)
+        , "detail"  .= (cs $ sqlErrorDetail t :: String)
+        , "state"   .= (cs $ sqlState t :: String)
+        , "hint"    .= (cs $ sqlErrorHint t :: String)
       ]
     ]
 
 clientErrors :: Application -> Application
 clientErrors app req respond =
   catchJust isPgException (app req respond) $ \err ->
-    respond $ if seState err == "42P01"
+    respond $ if sqlState err == "42P01"
        then responseLBS status404 [] ""
        else responseLBS status400 [(hContentType, "application/json")] (encode err)
 

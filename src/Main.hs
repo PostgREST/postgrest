@@ -5,19 +5,24 @@ import Paths_dbapi (version)
 import App
 import Middleware (inTransaction, authenticated, withSavepoint, clientErrors,
   redirectInsecure, withDBConnection, Environment(..))
-import Network.Wai.Handler.Warp hiding (Connection)
 import Data.String.Conversions (cs)
 
+import qualified Data.CaseInsensitive as CI
+import qualified Data.ByteString.Char8 as BS
 import Control.Monad (unless)
 import Control.Applicative
 import Control.Exception(bracket)
 import Options.Applicative hiding (columns)
+import Network.Wai
+import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
-import Network.Wai.Middleware.Cors (cors)
+import Network.Wai.Middleware.Cors (cors, CorsResourcePolicy(..))
 import Network.Wai.Middleware.Static (staticPolicy, only)
 import Data.Pool(createPool, destroyAllResources)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
+import Data.Text (strip)
+import Database.PostgreSQL.Simple
 
 data AppConfig = AppConfig {
     configDbUri :: String
@@ -44,8 +49,8 @@ main :: IO ()
 main = do
   conf <- execParser (info (helper <*> argParser) describe)
   bracket
-    (createPool (connectPostgreSQL' (configDbUri conf))
-      disconnect 1 600 (configPool conf))
+    (createPool (connectPostgreSQL $ cs (configDbUri conf))
+      close 1 600 (configPool conf))
     destroyAllResources
     (\pool -> do
       let port = configPort conf
@@ -61,7 +66,7 @@ main = do
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
         . withDBConnection pool . inTransaction Production
-        . authenticated (cs $ configAnonRole conf) . withSavepoint Production $ app
+        . authenticated (cs $ configAnonRole conf) . Middleware.withSavepoint Production $ app
       )
   where
     describe = progDesc "create a REST API to an existing Postgres database"
