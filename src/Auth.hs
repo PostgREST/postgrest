@@ -5,7 +5,8 @@ import qualified Data.ByteString.Char8 as BS
 import Control.Monad (mzero)
 import Control.Applicative ( (<*>), (<$>) )
 import Crypto.BCrypt
-import Database.PostgreSQL.Simple
+import qualified Hasql as H
+import qualified Hasql.Postgres as H
 import GHC.Int
 
 data AuthUser = AuthUser {

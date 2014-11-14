@@ -16,7 +16,8 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Data.Pool(createPool, destroyAllResources)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
-import Database.PostgreSQL.Simple
+import qualified Hasql as H
+import qualified Hasql.Postgres as H
 import Options.Applicative hiding (columns)
 
 import Config (AppConfig(..), argParser, corsPolicy)

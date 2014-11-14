@@ -1,9 +1,12 @@
 module PgQuery where
 
 import RangeQuery
-import Database.PostgreSQL.Simple
-import Database.PostgreSQL.Simple.ToField
-import Database.PostgreSQL.Simple.Types (Query(..))
+import qualified Hasql as H
+import qualified Hasql.Postgres as H
+import qualified Hasql.Backend as H
+import Data.Text hiding (map)
+import Text.Regex.TDFA
+import Text.Regex.TDFA.Text
 import qualified Data.ByteString.Char8 as BS
 import Data.ByteString.Search (split)
 import qualified Network.HTTP.Types.URI as Net
@@ -16,8 +19,7 @@ import Data.String.Conversions (cs)
 import Data.Aeson (Value(..), encode)
 import qualified Data.List as L
 
-type CompleteQuery = (Query, [Action])
-type CompleteQueryT = CompleteQuery -> CompleteQuery
+type StatementT = H.Statement H.Postgres -> H.Statement H.Postgres
 data QualifiedTable = QualifiedTable {
   qtSchema :: BS.ByteString
 , qtName   :: BS.ByteString
@@ -28,14 +30,14 @@ data OrderTerm = OrderTerm {
 , otDirection :: BS.ByteString
 }
 
-limitT :: Maybe NonnegRange -> CompleteQueryT
+limitT :: Maybe NonnegRange -> StatementT
 limitT r q =
-  q <> (" LIMIT ? OFFSET ? ", [Plain (fromByteString limit), toField offset])
+  q <> (" LIMIT " <> limit <> " OFFSET " <> (cs . show) offset <> " ", [])
   where
     limit  = cs $ fromMaybe "ALL" $ show . rangeLimit <$> r
     offset = fromMaybe 0     $ rangeOffset <$> r
 
-whereT :: Net.Query -> CompleteQueryT
+whereT :: Net.Query -> StatementT
 whereT params q =
  if L.null params
    then q
@@ -44,59 +46,54 @@ whereT params q =
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
 
-orderT :: [OrderTerm] -> CompleteQueryT
+orderT :: [OrderTerm] -> StatementT
 orderT ts q =
   if L.null ts
     then q
     else q <> (" order by ",[]) <> clause
   where
    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
-   queryTerm :: OrderTerm -> CompleteQuery
-   queryTerm t =
-     (" ? ? ",
-       [EscapeIdentifier (otTerm t), Plain (fromByteString $ otDirection t)]
-     )
+   queryTerm :: OrderTerm -> H.Statement H.Postgres
+   queryTerm t = (" " <> (pgFmtIdent $ otTerm t) <> " "
+                      <> otDirection t           <> " "
+                  , [])
 
-parentheticT :: CompleteQueryT
+parentheticT :: StatementT
 parentheticT (sql, params) =
   (" (" <> sql <> ") ", params)
 
-iffNotT :: CompleteQuery -> CompleteQueryT
+iffNotT :: H.Statement H.Postgres -> StatementT
 iffNotT (aq, ap) (bq, bp) =
   ("WITH aaa AS (" <> aq <> " returning *) " <>
     bq <> "WHERE NOT EXISTS (SELECT * FROM aaa)"
   , ap ++ bp
   )
 
-countRows :: QualifiedTable -> CompleteQuery
+countRows :: QualifiedTable -> H.Statement H.Postgres
 countRows t =
-  ("select count(1) from ?.?",
-   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+  ("select count(1) from " <> fromQt t, [])
 
-asJsonWithCount :: CompleteQueryT
+asJsonWithCount :: StatementT
 asJsonWithCount (sql, params) = (
     "count(t), array_to_json(array_agg(row_to_json(t)))::character varying  from (" <> sql <> ") t"
   , params
   )
 
-selectStar :: QualifiedTable -> CompleteQuery
+selectStar :: QualifiedTable -> H.Statement H.Postgres
 selectStar t =
-  ("select * from ?.?",
-   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+  ("select * from " <> fromQt t, [])
 
 insertInto :: QualifiedTable -> [BS.ByteString] -> [Value] ->
-              CompleteQuery
+              H.Statement H.Postgres
 insertInto t [] _ =
-  ("insert into ?.? default values returning *",
-   [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)])
+  ("insert into " <> fromQt t <> " default values returning *", [])
 insertInto t cols vals =
-  ("insert into ?.? (" <>
-    Query (BS.intercalate ", " (map (const "?") cols)) <>
+  ("insert into " <> fromQt t <> " (" <>
+    BS.intercalate ", " (map pgFmtIdent cols) <>
     ") values (" <>
-    Query (BS.intercalate ", " (map (const "?") vals)) <>
+    BS.intercalate ", " (map (const "?") vals) <>
     ") returning *"
-  , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
-    ++ map EscapeIdentifier cols ++ map (Escape . rawJsonValue) vals
+  , vals
   )
 
 rawJsonValue :: Value -> BS.ByteString
@@ -104,41 +101,40 @@ rawJsonValue (String s) = cs s
 rawJsonValue v = cs $ encode v
 
 update :: QualifiedTable -> [BS.ByteString] -> [Value] ->
-          CompleteQuery
+          H.Statement H.Postgres
 update t cols vals =
-  ("update ?.? set (" <>
-    Query (BS.intercalate ", " (map (const "?") cols)) <>
+  ("update " <> fromQt t <> " set (" <>
+    BS.intercalate ", " (map pgFmtIdent cols) <>
     ") = (" <>
-    Query (BS.intercalate ", " (map (const "?") vals)) <> ")"
-  , [EscapeIdentifier (qtSchema t), EscapeIdentifier (qtName t)]
-    ++ map EscapeIdentifier cols ++ map toField vals
+    BS.intercalate ", " (map (const "?") vals) <> ")"
+  , vals
   )
 
-wherePred :: Net.QueryItem -> CompleteQuery
+wherePred :: Net.QueryItem -> H.Statement H.Postgres
 wherePred (col, predicate) =
-  (" ? ? ? ", [EscapeIdentifier col, Plain op, toField value])
+  (" " <> pgFmtIdent col <> " " <> op <> " ? ", [value])
 
   where
     opCode:rest = BS.split '.' $ fromMaybe "." predicate
     value = BS.intercalate "." rest
-    op = fromByteString $ case opCode of
-                          "eq"  -> "="
-                          "gt"  -> ">"
-                          "lt"  -> "<"
-                          "gte" -> ">="
-                          "lte" -> "<="
-                          "neq" -> "<>"
-                          _     -> "="
+    op = case opCode of
+         "eq"  -> "="
+         "gt"  -> ">"
+         "lt"  -> "<"
+         "gte" -> ">="
+         "lte" -> "<="
+         "neq" -> "<>"
+         _     -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
-  mapMaybe orderParseTerm . split "," $ cs order
+  mapMaybe orderParseTerm . BS.split "," $ cs order
   where
     order = fromMaybe "" $ join (lookup "order" q)
 
 orderParseTerm :: BS.ByteString -> Maybe OrderTerm
 orderParseTerm s =
-  case split "." s of
+  case BS.split "." s of
        [d,c] ->
          if d `elem` ["asc", "desc"]
             then Just $ OrderTerm (cs c) $
@@ -146,8 +142,32 @@ orderParseTerm s =
             else Nothing
        _ -> Nothing
 
-commaq :: CompleteQuery
+commaq :: H.Statement H.Postgres
 commaq  = (", ", [])
 
-andq :: CompleteQuery
+andq :: H.Statement H.Postgres
 andq = (" and ", [])
+
+pgFmtIdent :: BS.ByteString -> BS.ByteString
+pgFmtIdent x =
+  let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
+  cs $ if escaped =~ danger
+    then "\"" <> escaped <> "\""
+    else escaped
+
+  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
+
+pgFmtLit :: Text -> Text
+pgFmtLit x =
+  let trimmed = trimNullChars x
+      escaped = "'" <> replace "'" "''" trimmed <> "'"
+      slashed = replace "\\" "\\\\" escaped in
+  if escaped =~ ("\\\\" :: Text)
+    then "E" <> slashed
+    else slashed
+
+trimNullChars :: Text -> Text
+trimNullChars = Data.Text.takeWhile (/= '\x0')
+
+fromQt :: QualifiedTable -> BS.ByteString
+fromQt t = pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)

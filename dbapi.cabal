@@ -16,7 +16,7 @@ executable dbapi
   default-extensions:  OverloadedStrings
   other-extensions:    QuasiQuotes
   build-depends:       base >=4.6 && <5
-                     , postgresql-simple >= 0.4.7.0
+                     , hasql, hasql-backend, hasql-postgres
                      , warp >= 3.0.2, wai >= 3.0.1
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
@@ -55,7 +55,7 @@ Test-Suite spec
   Other-Modules:       App, Config, Spec, SpecHelper
   Build-Depends:       base, hspec2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
-                     , postgresql-simple >= 0.4.7.0
+                     , hasql, hasql-backend, hasql-postgres
                      , warp >= 3.0.2, wai >= 3.0.1
                      , HTTP, convertible
                      , case-insensitive
