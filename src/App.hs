@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module App (app) where
+module App (runApp, app) where
 
 import Control.Monad (join)
 import Data.Monoid ( (<>) )
@@ -8,7 +8,7 @@ import Control.Applicative
 import Control.Monad.IO.Class (liftIO, MonadIO)
 
 import Data.Text hiding (map)
-import Data.Maybe (listToMaybe, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
@@ -32,6 +32,10 @@ import PgQuery
 import RangeQuery
 import PgStructure
 import Auth
+
+runApp :: H.Postgres -> H.SessionSettings -> Application
+runApp pg sess req respond =
+  respond =<< H.session pg sess (app req)
 
 app :: Request -> H.Session H.Postgres IO Response
 app req =
@@ -64,9 +68,9 @@ app req =
                   . whereT qq
                   $ selectStar qt
                 )
-        row <- H.tx Nothing $ listToMaybe <$> H.list select
+        row <- H.tx Nothing $ H.single select
         let (tableTotal, queryTotal, body) =
-              fromMaybe (0, 0, Just "" :: Maybe ByteString) row
+              fromMaybe (0, 0, Just "" :: Maybe Text) row
             from = fromMaybe 0 $ rangeOffset <$> range
             to = from+queryTotal
             contentRange = contentRangeH from to tableTotal

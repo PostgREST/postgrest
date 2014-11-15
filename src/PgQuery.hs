@@ -74,7 +74,7 @@ countRows t =
 
 asJsonWithCount :: StatementT
 asJsonWithCount (sql, params) = (
-    "count(t), array_to_json(array_agg(row_to_json(t)))::character varying  from (" <> sql <> ") t"
+    "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from (" <> sql <> ") t"
   , params
   )
 

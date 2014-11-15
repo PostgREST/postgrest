@@ -8,7 +8,6 @@ import Middleware
 
 import Control.Monad (unless)
 import Data.String.Conversions (cs)
-import Network.Wai
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
@@ -32,26 +31,22 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
 
 
-  let pgSettings = H.Postgres "localhost" 5432 "postgres" "" "postgres"
+  let pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
 
   sessSettings <- maybe (fail "Improper session settings") return $
-                    H.sessionSettings 6 30
+                    H.sessionSettings 95 30
 
-  let settings = setPort port
-               . setServerName (cs $ "dbapi/" <> prettyVersion)
-               $ defaultSettings
+  let appSettings = setPort port
+                  . setServerName (cs $ "dbapi/" <> prettyVersion)
+                  $ defaultSettings
       middle =
         (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")]) in
 
-    runSettings settings $ middle (runApp pgSettings sessSettings)
+    runSettings appSettings $ middle (runApp pgSettings sessSettings)
  --     . authenticated (cs $ configAnonRole conf) $ app
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
     prettyVersion = intercalate "." $ map show $ versionBranch version
-
-runApp :: H.Postgres -> H.SessionSettings -> Application
-runApp pg sess req respond =
-  respond =<< H.session pg sess (app req)
