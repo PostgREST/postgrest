@@ -1,9 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 module App (app) where
 
 import Control.Monad (join)
 import Data.Monoid ( (<>) )
 import Control.Arrow ((***))
 import Control.Applicative
+import Control.Monad.IO.Class (liftIO, MonadIO)
 
 import Data.Text hiding (map)
 import Data.Maybe (listToMaybe, fromMaybe)
@@ -31,19 +33,20 @@ import RangeQuery
 import PgStructure
 import Auth
 
-app :: Connection -> Application
-app conn req respond =
-  respond =<< case (path, verb) of
+app :: Request -> H.Session H.Postgres IO Response
+app req =
+  case (path, verb) of
     ([], _) -> do
-      body <- encode <$> tables conn (cs schema)
+      body <- H.tx Nothing $ encode <$> tables (cs schema)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
       let t = QualifiedTable schema (cs table)
-      cols <- columns conn t
-      pkey <- map cs <$> primaryKeyColumns conn t
-      return $ responseLBS status200 [jsonH, allOrigins]
-        $ encode (TableOptions cols pkey)
+      H.tx Nothing $ do
+        cols <- columns t
+        pkey <- map cs <$> primaryKeyColumns t
+        return $ responseLBS status200 [jsonH, allOrigins]
+          $ encode (TableOptions cols pkey)
 
     ([table], "GET") ->
       if range == Just emptyRange
@@ -61,7 +64,7 @@ app conn req respond =
                   . whereT qq
                   $ selectStar qt
                 )
-        row <- listToMaybe <$> uncurry (query conn) select
+        row <- H.tx Nothing $ listToMaybe <$> H.list select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe ByteString) row
             from = fromMaybe 0 $ rangeOffset <$> range
@@ -82,26 +85,25 @@ app conn req respond =
           ] (cs $ fromMaybe "[]" body)
 
     (["dbapi", "users"], "POST") -> do
-      body <- strictRequestBody req
+      body <- liftIO $ strictRequestBody req
       let user = decode body :: Maybe AuthUser
 
       case user of
         Nothing -> return $ responseLBS status400 [jsonH] $
           encode . object $ [("error", String "Failed to parse user.")]
         Just u -> do
-          _ <- addUser conn (cs $ userId u)
-                 (cs $ userPass u) (cs $ userRole u)
+          _ <- liftIO $ addUser (cs $ userId u)
+            (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH
             , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
             ] ""
 
     ([table], "POST") ->
-      handleJsonObj req $ \obj -> do
+      handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
-        _  <- uncurry (execute conn)
-          $ insertInto qt (map cs $ keys obj) (elems obj)
-        primaryKeys <- map cs <$> primaryKeyColumns conn qt
+        H.unit $ insertInto qt (map cs $ keys obj) (elems obj)
+        primaryKeys <- map cs <$> primaryKeyColumns qt
         let primaries = filterWithKey (const . (`elem` primaryKeys)) obj
         let params = urlEncodeVars
               $ map (\t -> (cs $ fst t, "eq." <> cs (encode $ snd t)))
@@ -112,19 +114,19 @@ app conn req respond =
           ] ""
 
     ([table], "PUT") ->
-      handleJsonObj req $ \obj -> do
+      handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
-        primaryKeys <- primaryKeyColumns conn qt
+        primaryKeys <- primaryKeyColumns qt
         let specifiedKeys = map (cs . fst) qq
         if S.fromList primaryKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []
                "You must speficy all and only primary keys as params"
           else do
-            tableCols <- map (cs . colName) <$> columns conn qt
+            tableCols <- map (cs . colName) <$> columns qt
             let cols = map cs $ keys obj
             if S.fromList tableCols == S.fromList cols then do
               let vals = elems obj
-              _  <- uncurry (execute conn) $ iffNotT
+              H.unit $ iffNotT
                       (whereT qq $ update qt cols vals)
                       (insertInto qt cols vals)
               return $ responseLBS status204 [ jsonH ] ""
@@ -135,9 +137,9 @@ app conn req respond =
                    "You must specify all columns in PUT request"
 
     ([table], "PATCH") ->
-      handleJsonObj req $ \obj -> do
+     handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
-        _  <- uncurry (execute conn)
+        H.unit
           $ whereT qq
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
@@ -184,9 +186,9 @@ requestedSchema hdrs =
 jsonH :: Header
 jsonH = (hContentType, "application/json")
 
-handleJsonObj :: Request -> (Object -> IO Response) -> IO Response
+handleJsonObj :: MonadIO m => Request -> (Object -> m Response) -> m Response
 handleJsonObj req handler = do
-  parse <- fmap eitherDecode . strictRequestBody $ req
+  parse <- liftIO $ fmap eitherDecode . strictRequestBody $ req
   case parse of
     Left err ->
       return $ responseLBS status400 [jsonH] jErr
