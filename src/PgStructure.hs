@@ -1,23 +1,27 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes, MultiParamTypeClasses, ScopedTypeVariables #-}
 module PgStructure where
 
 import PgQuery (QualifiedTable(..))
 import Data.Functor ( (<$>) )
 import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
+import Data.Functor.Identity
+import qualified Data.Vector as V
+import qualified Data.ByteString.Char8 as BS
+import Data.String.Conversions (cs)
 
 import Control.Applicative ( (<*>) )
 
 import qualified Data.List as L
 import qualified Data.Map as Map
 
-import Database.PostgreSQL.Simple
-import Database.PostgreSQL.Simple.SqlQQ
-import Database.PostgreSQL.Simple.FromRow
+import qualified Hasql as H
+import qualified Hasql.Backend as H
+import qualified Hasql.Postgres as H
 
-foreignKeys :: Connection -> QualifiedTable -> IO (Map.Map Text ForeignKey)
-foreignKeys c table = do
-  r <- query c [sql|
+foreignKeys :: QualifiedTable -> H.Tx H.Postgres s (Map.Map BS.ByteString ForeignKey)
+foreignKeys table = do
+  r :: [(BS.ByteString, BS.ByteString, BS.ByteString)] <- H.list $ [H.q|
       select kcu.column_name, ccu.table_name AS foreign_table_name,
         ccu.column_name AS foreign_column_name
       from information_schema.table_constraints AS tc
@@ -28,29 +32,27 @@ foreignKeys c table = do
       where constraint_type = 'FOREIGN KEY'
         and tc.table_name=? and tc.table_schema = ?
         order by kcu.column_name
-    |]
-    (qtName table, qtSchema table)
+    |] (qtName table) (qtSchema table)
 
   return $ foldl addKey Map.empty r
   where
-    addKey m [col, ftab, fcol] = Map.insert col (ForeignKey ftab fcol) m
-    addKey _ _ = error "foreignKeys: should never happen"
+    addKey m (col, ftab, fcol) = Map.insert col (ForeignKey (cs ftab) (cs fcol)) m
 
 
-tables :: Connection -> Text -> IO [Table]
-tables c schema =
-  query c [sql|
+tables :: BS.ByteString -> H.Tx H.Postgres s [Table]
+tables schema =
+  H.list $ [H.q|
       select table_schema, table_name,
              is_insertable_into
         from information_schema.tables
        where table_schema = ?
        order by table_name
-    |] $ Only schema
+    |] schema
 
 
-columns :: Connection -> QualifiedTable -> IO [Column]
-columns c table = do
-  cols <- query c [sql|
+columns :: QualifiedTable -> H.Tx H.Postgres s [Column]
+columns table = do
+  cols <- H.list $ [H.q|
     select info.table_schema as schema, info.table_name as table_name,
            info.column_name as name, info.ordinal_position as position,
            info.is_nullable as nullable, info.data_type as col_type,
@@ -77,15 +79,15 @@ columns c table = do
          group by s, n
        ) as enum_info
        on (info.udt_name = enum_info.n)
-    order by position |] (qtSchema table, qtName table)
+    order by position |] (qtSchema table) (qtName table)
 
-  fks <- foreignKeys c table
-  return $ map (\col -> col { colFK = Map.lookup (colName col) fks }) cols
+  fks <- foreignKeys table
+  return $ map (\col -> col { colFK = Map.lookup (cs . colName $ col) fks }) cols
 
 
-primaryKeyColumns :: Connection -> QualifiedTable -> IO [Text]
-primaryKeyColumns c table = do
-  r <- query c [sql|
+primaryKeyColumns :: QualifiedTable -> H.Tx H.Postgres s [BS.ByteString]
+primaryKeyColumns table = do
+  r :: [Identity BS.ByteString] <- H.list $ [H.q|
     select kc.column_name
       from
         information_schema.table_constraints tc,
@@ -95,34 +97,34 @@ primaryKeyColumns c table = do
       and kc.table_name = tc.table_name and kc.table_schema = tc.table_schema
       and kc.constraint_name = tc.constraint_name
       and kc.table_schema = ?
-      and kc.table_name  = ? |] (qtSchema table, qtName table)
-  return $ concat r
+      and kc.table_name  = ? |] (qtSchema table) (qtName table)
+  return $ map runIdentity r
 
 
-data Table = Table {
-  tableSchema :: Text
-, tableName :: Text
-, tableInsertable :: Bool
-} deriving (Show)
+-- instance FromRow Table where
+--   fromRow = Table <$> field <*> field <*> (toBool <$> field)
 
-instance FromRow Table where
-  fromRow = Table <$> field <*> field <*> (toBool <$> field)
-
-instance FromRow Column where
-  fromRow = Column <$>
-    field <*> field <*> field <*> field
-    <*> (toBool <$> field)
-    <*> field
-    <*> (toBool <$> field)
-    <*> field <*> field <*> field
-    <*> (vanishNull . splitOn "," <$> field)
-    <*> return Nothing
+-- instance FromRow Column where
+--   fromRow = Column <$>
+--     field <*> field <*> field <*> field
+--     <*> (toBool <$> field)
+--     <*> field
+--     <*> (toBool <$> field)
+--     <*> field <*> field <*> field
+--     <*> (vanishNull . splitOn "," <$> field)
+--     <*> return Nothing
 
 vanishNull :: [a] -> Maybe [a]
 vanishNull xs = if L.null xs then Nothing else Just xs
 
 toBool :: Text -> Bool
 toBool = (== "YES")
+
+data Table = Table {
+  tableSchema :: Text
+, tableName :: Text
+, tableInsertable :: Bool
+} deriving (Show)
 
 data ForeignKey = ForeignKey {
   fkTable::Text, fkCol::Text
@@ -142,6 +144,35 @@ data Column = Column {
 , colEnum :: Maybe [Text]
 , colFK :: Maybe ForeignKey
 } deriving (Show)
+
+instance H.RowParser H.Postgres Column where
+  parseRow r =
+    let schema     = H.parseResult $ r V.! 0
+        table      = H.parseResult $ r V.! 1
+        name       = H.parseResult $ r V.! 2
+        position   = H.parseResult $ r V.! 3
+        nullable   = H.parseResult $ r V.! 4
+        typ        = H.parseResult $ r V.! 5
+        updatable  = H.parseResult $ r V.! 6
+        maxLen     = H.parseResult $ r V.! 7
+        precision  = H.parseResult $ r V.! 8
+        defValue   = H.parseResult $ r V.! 9
+        enum       = H.parseResult $ r V.! 10 in
+    if V.length r /= 11
+       then Left "Wrong number of fields in Column"
+       else Column <$> schema <*> table <*> name <*> position <*> nullable
+                   <*> typ <*> updatable <*> maxLen <*> precision
+                   <*> defValue <*> enum <*> return Nothing
+
+
+instance H.RowParser H.Postgres Table where
+  parseRow r =
+    let schema     = H.parseResult $ r V.! 0
+        name       = H.parseResult $ r V.! 2
+        insertable = H.parseResult $ r V.! 3 in
+    if V.length r /= 3
+       then Left "Wrong number of fields in Table"
+       else Table <$> schema <*> name <*> insertable
 
 instance ToJSON Column where
   toJSON c = object [

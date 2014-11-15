@@ -23,7 +23,6 @@ import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
 
 import Data.Aeson
-import Database.PostgreSQL.Simple
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
 

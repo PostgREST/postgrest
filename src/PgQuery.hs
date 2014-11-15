@@ -1,22 +1,21 @@
 module PgQuery where
 
 import RangeQuery
-import qualified Hasql as H
+
 import qualified Hasql.Postgres as H
 import qualified Hasql.Backend as H
+
 import Data.Text hiding (map)
-import Text.Regex.TDFA
-import Text.Regex.TDFA.Text
+import Text.Regex.TDFA ( (=~) )
+import Text.Regex.TDFA.Text ()
 import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Search (split)
 import qualified Network.HTTP.Types.URI as Net
-import Blaze.ByteString.Builder.ByteString (fromByteString)
 import Data.Monoid
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
 import Control.Monad (join)
 import Data.String.Conversions (cs)
-import Data.Aeson (Value(..), encode)
+import qualified Data.Aeson as JSON
 import qualified Data.List as L
 
 type StatementT = H.Statement H.Postgres -> H.Statement H.Postgres
@@ -54,8 +53,8 @@ orderT ts q =
   where
    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
    queryTerm :: OrderTerm -> H.Statement H.Postgres
-   queryTerm t = (" " <> (pgFmtIdent $ otTerm t) <> " "
-                      <> otDirection t           <> " "
+   queryTerm t = (" " <> pgFmtIdent (otTerm t) <> " "
+                      <> otDirection t         <> " "
                   , [])
 
 parentheticT :: StatementT
@@ -83,7 +82,7 @@ selectStar :: QualifiedTable -> H.Statement H.Postgres
 selectStar t =
   ("select * from " <> fromQt t, [])
 
-insertInto :: QualifiedTable -> [BS.ByteString] -> [Value] ->
+insertInto :: QualifiedTable -> [BS.ByteString] -> [JSON.Value] ->
               H.Statement H.Postgres
 insertInto t [] _ =
   ("insert into " <> fromQt t <> " default values returning *", [])
@@ -93,26 +92,22 @@ insertInto t cols vals =
     ") values (" <>
     BS.intercalate ", " (map (const "?") vals) <>
     ") returning *"
-  , vals
+  , map pgParam vals
   )
 
-rawJsonValue :: Value -> BS.ByteString
-rawJsonValue (String s) = cs s
-rawJsonValue v = cs $ encode v
-
-update :: QualifiedTable -> [BS.ByteString] -> [Value] ->
+update :: QualifiedTable -> [BS.ByteString] -> [JSON.Value] ->
           H.Statement H.Postgres
 update t cols vals =
   ("update " <> fromQt t <> " set (" <>
     BS.intercalate ", " (map pgFmtIdent cols) <>
     ") = (" <>
     BS.intercalate ", " (map (const "?") vals) <> ")"
-  , vals
+  , map pgParam vals
   )
 
 wherePred :: Net.QueryItem -> H.Statement H.Postgres
 wherePred (col, predicate) =
-  (" " <> pgFmtIdent col <> " " <> op <> " ? ", [value])
+  (" " <> pgFmtIdent col <> " " <> op <> " ? ", [H.renderValue value])
 
   where
     opCode:rest = BS.split '.' $ fromMaybe "." predicate
@@ -128,13 +123,13 @@ wherePred (col, predicate) =
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
-  mapMaybe orderParseTerm . BS.split "," $ cs order
+  mapMaybe orderParseTerm . BS.split ',' $ cs order
   where
     order = fromMaybe "" $ join (lookup "order" q)
 
 orderParseTerm :: BS.ByteString -> Maybe OrderTerm
 orderParseTerm s =
-  case BS.split "." s of
+  case BS.split '.' s of
        [d,c] ->
          if d `elem` ["asc", "desc"]
             then Just $ OrderTerm (cs c) $
@@ -171,3 +166,11 @@ trimNullChars = Data.Text.takeWhile (/= '\x0')
 
 fromQt :: QualifiedTable -> BS.ByteString
 fromQt t = pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
+
+pgParam :: JSON.Value -> H.StatementArgument H.Postgres
+pgParam (JSON.Number n) = H.renderValue n
+pgParam (JSON.String s) = H.renderValue s
+pgParam (JSON.Bool      b) = H.renderValue b
+pgParam JSON.Null       = H.renderValue (Nothing :: Maybe String)
+pgParam (JSON.Object o) = H.renderValue $ JSON.encode o
+pgParam (JSON.Array  a) = H.renderValue $ JSON.encode a

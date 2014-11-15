@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
 module Auth where
 
 import qualified Data.Aeson as JSON
@@ -7,7 +8,6 @@ import Control.Applicative ( (<*>), (<$>) )
 import Crypto.BCrypt
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
-import GHC.Int
 
 data AuthUser = AuthUser {
     userId :: String
@@ -20,7 +20,7 @@ instance JSON.FromJSON AuthUser where
                          v JSON..: "id" <*>
                          v JSON..: "pass" <*>
                          v JSON..: "role"
-  parseJSON _          = mzero
+  parseJSON _ = mzero
 
 type DbRole = BS.ByteString
 
@@ -34,25 +34,25 @@ data LoginAttempt =
 checkPass :: BS.ByteString -> BS.ByteString -> Bool
 checkPass = validatePassword
 
-setRole :: Connection -> DbRole -> IO Int64
-setRole conn role = execute conn "set role ?" (Only role)
+setRole :: BS.ByteString -> H.Tx H.Postgres s ()
+setRole role = H.unit $ [H.q| set role ?|] role
 
-resetRole :: Connection -> IO Int64
-resetRole = flip execute_ "reset role"
+resetRole :: H.Tx H.Postgres s ()
+resetRole = H.unit [H.q|reset role|]
 
-addUser :: Connection -> BS.ByteString -> BS.ByteString -> BS.ByteString -> IO Int64
-addUser c identity pass role = do
+addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO(H.Tx H.Postgres s ())
+addUser identity pass role = do
   Just hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy pass
-  execute c
-    "insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)"
-    (identity, hashed, role)
+  return $ H.unit $
+    [H.q|insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)|]
+      identity hashed role
 
-signInRole :: Connection -> BS.ByteString -> BS.ByteString -> IO LoginAttempt
-signInRole c user pass = do
-  u <- query c "select pass, rolname from dbapi.auth where id = ?" $ Only user
-  return $ case u of
-    [[hashed, role]] ->
+signInRole :: BS.ByteString -> BS.ByteString -> H.Tx H.Postgres s LoginAttempt
+signInRole user pass = do
+  u <- H.single $ [H.q|select pass, rolname from dbapi.auth where id = ?|] user
+  return $ maybe LoginFailed (\r ->
+      let (hashed, role) = r in
       if checkPass hashed pass
          then LoginSuccess role
          else LoginFailed
-    _ -> LoginFailed
+    ) u
