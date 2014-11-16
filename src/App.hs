@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module App (runApp, app) where
+module App (app) where
 
 import Control.Monad (join)
 import Data.Monoid ( (<>) )
@@ -32,10 +32,6 @@ import PgQuery
 import RangeQuery
 import PgStructure
 import Auth
-
-runApp :: H.Postgres -> H.SessionSettings -> Application
-runApp pg sess req respond =
-  respond =<< H.session pg sess (app req)
 
 app :: Request -> H.Session H.Postgres IO Response
 app req =

@@ -37,6 +37,7 @@ executable dbapi
                      , resource-pool, process
                      , blaze-builder
                      , vector
+                     , mtl
   Other-Modules:       App
                      , Auth
                      , Config
@@ -81,3 +82,4 @@ Test-Suite spec
                      , resource-pool
                      , blaze-builder
                      , vector
+                     , mtl

@@ -7,6 +7,8 @@ import App
 import Middleware
 
 import Control.Monad (unless)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (runReaderT, ask)
 import Data.String.Conversions (cs)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
@@ -44,7 +46,11 @@ main = do
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")]) in
 
-    runSettings appSettings $ middle (runApp pgSettings sessSettings)
+    H.session pgSettings sessSettings $ do
+      session' <- flip runReaderT <$> ask
+      let runApp req respond = respond =<< session' (app req) in
+
+        liftIO $ runSettings appSettings $ middle runApp
  --     . authenticated (cs $ configAnonRole conf) $ app
 
   where
