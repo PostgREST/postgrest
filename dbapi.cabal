@@ -56,7 +56,7 @@ Test-Suite spec
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
   Other-Modules:       App, Auth, Config, Spec, SpecHelper
-  Build-Depends:       base, hspec2, QuickCheck
+  Build-Depends:       base, hspec >= 2.0, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , hasql, hasql-backend, hasql-postgres
                      , warp >= 3.0.2, wai >= 3.0.1

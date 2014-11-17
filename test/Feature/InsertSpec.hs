@@ -20,7 +20,7 @@ import TestTypes(IncPK(..), CompoundPK(..))
 -- }}}
 
 spec :: Spec
-spec = around appWithFixture $ do
+spec = around withApp $ do
   describe "Posting new record" $ do
     it "accepts disparate json types" $
       post "/menagerie"

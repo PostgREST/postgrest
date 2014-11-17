@@ -12,7 +12,7 @@ import Network.HTTP.Types
 -- }}}
 
 spec :: Spec
-spec = around appWithFixture $
+spec = around withApp $
   describe "CORS" $ do
     let preflightHeaders = [
           ("Accept", "*/*"),

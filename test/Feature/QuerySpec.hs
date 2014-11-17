@@ -5,8 +5,21 @@ import Test.Hspec.Wai
 
 import SpecHelper
 
+-- around :: (ActionWith a -> IO ()) -> SpecWith a -> Spec
+-- type Spec = SpecWith ()
+-- type ActionWith a = a -> IO ()
+--
+-- get :: ByteString -> WaiSession SResponse
+-- newtype WaiSession a = WaiSession {unWaiSession :: Session a}
+-- type Session = ReaderT Application (StateT ClientState IO)
+--
+-- type Application =
+--   Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+--
+-- runApp :: Request -> (Response -> IO Postgres) -> IO Postgres
+
 spec :: Spec
-spec = around appWithFixture $ do
+spec = around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404

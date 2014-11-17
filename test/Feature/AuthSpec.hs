@@ -11,7 +11,7 @@ import SpecHelper
 -- }}}
 
 spec :: Spec
-spec = around appWithFixture $
+spec = around withApp $
   describe "authorization" $ do
     it "hides tables that anonymous does not own" $
       get "/authors_only" `shouldRespondWith` 400 -- TODO: should be 404
