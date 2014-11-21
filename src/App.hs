@@ -2,7 +2,6 @@
 module App (app) where
 
 import Control.Monad (join)
-import Data.Monoid ( (<>) )
 import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.IO.Class (liftIO, MonadIO)
@@ -13,7 +12,6 @@ import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
 import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
-import Data.ByteString.Char8 hiding (zip, map, elem)
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import qualified Data.Set as S
@@ -25,6 +23,8 @@ import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
 
 import Data.Aeson
+import Data.Coerce
+import Data.Monoid
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
 
@@ -53,8 +53,8 @@ app req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = QualifiedTable schema (cs table)
-        let select =
-              ("select ",[]) <>
+        let select = coerce $
+              ("select ",[],mempty) <>
                   parentheticT (
                     whereT qq $ countRows qt
                   ) <> commaq <> (
@@ -102,7 +102,7 @@ app req =
     ([table], "POST") ->
       handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
-        H.unit $ insertInto qt (map cs $ keys obj) (elems obj)
+        H.unit . coerce $ insertInto qt (map cs $ keys obj) (elems obj)
         primaryKeys <- map cs <$> primaryKeyColumns qt
         let primaries = filterWithKey (const . (`elem` primaryKeys)) obj
         let params = urlEncodeVars
@@ -126,7 +126,7 @@ app req =
             let cols = map cs $ keys obj
             if S.fromList tableCols == S.fromList cols then do
               let vals = elems obj
-              H.unit $ iffNotT
+              H.unit . coerce $ iffNotT
                       (whereT qq $ update qt cols vals)
                       (insertInto qt cols vals)
               return $ responseLBS status204 [ jsonH ] ""
@@ -140,6 +140,7 @@ app req =
      handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
         H.unit
+          $ coerce
           $ whereT qq
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
@@ -173,15 +174,15 @@ contentRangeH from to total =
        <> cs (show total)
   )
 
-requestedSchema :: RequestHeaders -> ByteString
+requestedSchema :: RequestHeaders -> Text
 requestedSchema hdrs =
   case verStr of
        Just [[_, ver]] -> ver
        _ -> "1"
 
   where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
-        accept = lookup hAccept hdrs :: Maybe ByteString
-        verStr = (=~ verRegex) <$> accept :: Maybe [[ByteString]]
+        accept = cs <$> lookup hAccept hdrs :: Maybe Text
+        verStr = (=~ verRegex) <$> accept :: Maybe [[Text]]
 
 jsonH :: Header
 jsonH = (hContentType, "application/json")

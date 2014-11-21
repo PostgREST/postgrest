@@ -13,7 +13,7 @@ main :: IO ()
 main = do
   roles <- loadFixture "roles"
   schema <- loadFixture "schema"
-  H.session pgSettings testSettings $ do
+  H.session pgSettings testSettings $
     H.tx Nothing $ do
       H.unit [H.q| drop schema if exists "1" cascade |]
       H.unit [H.q| drop schema if exists private cascade |]
@@ -26,4 +26,4 @@ main = do
 loadFixture :: FilePath -> IO(H.Statement H.Postgres)
 loadFixture name = do
   query <- BS.readFile $ "test/fixtures/" ++ name ++ ".sql"
-  return (query, [])
+  return (query, [], False)

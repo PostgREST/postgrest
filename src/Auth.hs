@@ -2,12 +2,13 @@
 module Auth where
 
 import qualified Data.Aeson as JSON
-import qualified Data.ByteString.Char8 as BS
 import Control.Monad (mzero)
 import Control.Applicative ( (<*>), (<$>) )
 import Crypto.BCrypt
+import Data.Text
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
+import Data.String.Conversions (cs)
 
 data AuthUser = AuthUser {
     userId :: String
@@ -22,7 +23,7 @@ instance JSON.FromJSON AuthUser where
                          v JSON..: "role"
   parseJSON _ = mzero
 
-type DbRole = BS.ByteString
+type DbRole = Text
 
 data LoginAttempt =
     NoCredentials
@@ -31,23 +32,23 @@ data LoginAttempt =
   | LoginSuccess DbRole
   deriving (Eq, Show)
 
-checkPass :: BS.ByteString -> BS.ByteString -> Bool
-checkPass = validatePassword
+checkPass :: Text -> Text -> Bool
+checkPass = (. cs) . validatePassword . cs
 
-setRole :: BS.ByteString -> H.Tx H.Postgres s ()
+setRole :: Text -> H.Tx H.Postgres s ()
 setRole role = H.unit $ [H.q| set role ?|] role
 
 resetRole :: H.Tx H.Postgres s ()
 resetRole = H.unit [H.q|reset role|]
 
-addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO(H.Tx H.Postgres s ())
+addUser :: Text -> Text -> Text -> IO(H.Tx H.Postgres s ())
 addUser identity pass role = do
-  Just hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy pass
+  Just hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
   return $ H.unit $
     [H.q|insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)|]
       identity hashed role
 
-signInRole :: BS.ByteString -> BS.ByteString -> H.Tx H.Postgres s LoginAttempt
+signInRole :: Text -> Text -> H.Tx H.Postgres s LoginAttempt
 signInRole user pass = do
   u <- H.single $ [H.q|select pass, rolname from dbapi.auth where id = ?|] user
   return $ maybe LoginFailed (\r ->

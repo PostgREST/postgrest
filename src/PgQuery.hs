@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module PgQuery where
 
 import RangeQuery
@@ -8,8 +9,8 @@ import qualified Hasql.Backend as H
 import Data.Text hiding (map)
 import Text.Regex.TDFA ( (=~) )
 import Text.Regex.TDFA.Text ()
-import qualified Data.ByteString.Char8 as BS
 import qualified Network.HTTP.Types.URI as Net
+import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
@@ -18,29 +19,32 @@ import Data.String.Conversions (cs)
 import qualified Data.Aeson as JSON
 import qualified Data.List as L
 
-type StatementT = H.Statement H.Postgres -> H.Statement H.Postgres
+type DynamicSQL = (BS.ByteString, [H.StatementArgument H.Postgres], All)
+
+type StatementT = DynamicSQL -> DynamicSQL
+
 data QualifiedTable = QualifiedTable {
-  qtSchema :: BS.ByteString
-, qtName   :: BS.ByteString
+  qtSchema :: Text
+, qtName   :: Text
 } deriving (Show)
 
 data OrderTerm = OrderTerm {
-  otTerm :: BS.ByteString
+  otTerm :: Text
 , otDirection :: BS.ByteString
 }
 
 limitT :: Maybe NonnegRange -> StatementT
 limitT r q =
-  q <> (" LIMIT " <> limit <> " OFFSET " <> (cs . show) offset <> " ", [])
+  q <> (" LIMIT " <> limit <> " OFFSET " <> offset <> " ", [], mempty)
   where
-    limit  = cs $ fromMaybe "ALL" $ show . rangeLimit <$> r
-    offset = fromMaybe 0     $ rangeOffset <$> r
+    limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
+    offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
 
 whereT :: Net.Query -> StatementT
 whereT params q =
  if L.null params
    then q
-   else q <> (" where ",[]) <> conjunction
+   else q <> (" where ",[],mempty) <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
@@ -49,69 +53,70 @@ orderT :: [OrderTerm] -> StatementT
 orderT ts q =
   if L.null ts
     then q
-    else q <> (" order by ",[]) <> clause
+    else q <> (" order by ",[],mempty) <> clause
   where
    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
-   queryTerm :: OrderTerm -> H.Statement H.Postgres
-   queryTerm t = (" " <> pgFmtIdent (otTerm t) <> " "
-                      <> otDirection t         <> " "
-                  , [])
+   queryTerm :: OrderTerm -> DynamicSQL
+   queryTerm t = (" " <> cs (pgFmtIdent $ otTerm t) <> " "
+                      <> otDirection t              <> " "
+                  , [], mempty)
 
 parentheticT :: StatementT
-parentheticT (sql, params) =
-  (" (" <> sql <> ") ", params)
+parentheticT (sql, params, pre) =
+  (" (" <> sql <> ") ", params, pre)
 
-iffNotT :: H.Statement H.Postgres -> StatementT
-iffNotT (aq, ap) (bq, bp) =
+iffNotT :: DynamicSQL -> StatementT
+iffNotT (aq, ap, apre) (bq, bp, bpre) =
   ("WITH aaa AS (" <> aq <> " returning *) " <>
     bq <> "WHERE NOT EXISTS (SELECT * FROM aaa)"
   , ap ++ bp
+  , All $ getAll apre && getAll bpre
   )
 
-countRows :: QualifiedTable -> H.Statement H.Postgres
+countRows :: QualifiedTable -> DynamicSQL
 countRows t =
-  ("select count(1) from " <> fromQt t, [])
+  ("select count(1) from " <> fromQt t, [], mempty)
 
 asJsonWithCount :: StatementT
-asJsonWithCount (sql, params) = (
+asJsonWithCount (sql, params, pre) = (
     "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from (" <> sql <> ") t"
-  , params
+  , params, pre
   )
 
-selectStar :: QualifiedTable -> H.Statement H.Postgres
+selectStar :: QualifiedTable -> DynamicSQL
 selectStar t =
-  ("select * from " <> fromQt t, [])
+  ("select * from " <> fromQt t, [], mempty)
 
-insertInto :: QualifiedTable -> [BS.ByteString] -> [JSON.Value] ->
-              H.Statement H.Postgres
+insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
 insertInto t [] _ =
-  ("insert into " <> fromQt t <> " default values returning *", [])
+  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
 insertInto t cols vals =
   ("insert into " <> fromQt t <> " (" <>
-    BS.intercalate ", " (map pgFmtIdent cols) <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") values (" <>
-    BS.intercalate ", " (map (const "?") vals) <>
-    ") returning *"
+    cs (intercalate ", " (map (const "?") vals)) <>
+    ")"
   , map pgParam vals
+  , mempty
   )
 
-update :: QualifiedTable -> [BS.ByteString] -> [JSON.Value] ->
-          H.Statement H.Postgres
+update :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
 update t cols vals =
   ("update " <> fromQt t <> " set (" <>
-    BS.intercalate ", " (map pgFmtIdent cols) <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") = (" <>
-    BS.intercalate ", " (map (const "?") vals) <> ")"
+    cs (intercalate ", " (map (const "?") vals)) <> ")"
   , map pgParam vals
+  , mempty
   )
 
-wherePred :: Net.QueryItem -> H.Statement H.Postgres
+wherePred :: Net.QueryItem -> DynamicSQL
 wherePred (col, predicate) =
-  (" " <> pgFmtIdent col <> " " <> op <> " ? ", [H.renderValue value])
+  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> " ", [], mempty)
 
   where
-    opCode:rest = BS.split '.' $ fromMaybe "." predicate
-    value = BS.intercalate "." rest
+    opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
+    value = intercalate "." rest
     op = case opCode of
          "eq"  -> "="
          "gt"  -> ">"
@@ -123,41 +128,41 @@ wherePred (col, predicate) =
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
-  mapMaybe orderParseTerm . BS.split ',' $ cs order
+  mapMaybe orderParseTerm . split (==',') $ cs order
   where
     order = fromMaybe "" $ join (lookup "order" q)
 
-orderParseTerm :: BS.ByteString -> Maybe OrderTerm
+orderParseTerm :: Text -> Maybe OrderTerm
 orderParseTerm s =
-  case BS.split '.' s of
+  case split (=='.') s of
        [d,c] ->
          if d `elem` ["asc", "desc"]
-            then Just $ OrderTerm (cs c) $
+            then Just $ OrderTerm c $
               if d == "asc" then "asc" else "desc"
             else Nothing
        _ -> Nothing
 
-commaq :: H.Statement H.Postgres
-commaq  = (", ", [])
+commaq :: DynamicSQL
+commaq  = (", ", [], mempty)
 
-andq :: H.Statement H.Postgres
-andq = (" and ", [])
+andq :: DynamicSQL
+andq = (" and ", [], mempty)
 
-pgFmtIdent :: BS.ByteString -> BS.ByteString
+pgFmtIdent :: Text -> Text
 pgFmtIdent x =
   let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
-  cs $ if escaped =~ danger
+  if escaped =~ danger
     then "\"" <> escaped <> "\""
     else escaped
 
-  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
+  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: Text
 
 pgFmtLit :: Text -> Text
 pgFmtLit x =
   let trimmed = trimNullChars x
       escaped = "'" <> replace "'" "''" trimmed <> "'"
       slashed = replace "\\" "\\\\" escaped in
-  if escaped =~ ("\\\\" :: Text)
+  cs $ if escaped =~ ("\\\\" :: Text)
     then "E" <> slashed
     else slashed
 
@@ -165,7 +170,7 @@ trimNullChars :: Text -> Text
 trimNullChars = Data.Text.takeWhile (/= '\x0')
 
 fromQt :: QualifiedTable -> BS.ByteString
-fromQt t = pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
+fromQt t = cs $ pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
 
 pgParam :: JSON.Value -> H.StatementArgument H.Postgres
 pgParam (JSON.Number n) = H.renderValue n

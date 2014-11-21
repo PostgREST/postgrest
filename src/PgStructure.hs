@@ -7,7 +7,6 @@ import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
 import Data.Functor.Identity
 import qualified Data.Vector as V
-import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
 
 import Control.Applicative ( (<*>) )
@@ -19,9 +18,9 @@ import qualified Hasql as H
 import qualified Hasql.Backend as H
 import qualified Hasql.Postgres as H
 
-foreignKeys :: QualifiedTable -> H.Tx H.Postgres s (Map.Map BS.ByteString ForeignKey)
+foreignKeys :: QualifiedTable -> H.Tx H.Postgres s (Map.Map Text ForeignKey)
 foreignKeys table = do
-  r :: [(BS.ByteString, BS.ByteString, BS.ByteString)] <- H.list $ [H.q|
+  r :: [(Text, Text, Text)] <- H.list $ [H.q|
       select kcu.column_name, ccu.table_name AS foreign_table_name,
         ccu.column_name AS foreign_column_name
       from information_schema.table_constraints AS tc
@@ -39,7 +38,7 @@ foreignKeys table = do
     addKey m (col, ftab, fcol) = Map.insert col (ForeignKey (cs ftab) (cs fcol)) m
 
 
-tables :: BS.ByteString -> H.Tx H.Postgres s [Table]
+tables :: Text -> H.Tx H.Postgres s [Table]
 tables schema =
   H.list $ [H.q|
       select table_schema, table_name,
@@ -85,9 +84,9 @@ columns table = do
   return $ map (\col -> col { colFK = Map.lookup (cs . colName $ col) fks }) cols
 
 
-primaryKeyColumns :: QualifiedTable -> H.Tx H.Postgres s [BS.ByteString]
+primaryKeyColumns :: QualifiedTable -> H.Tx H.Postgres s [Text]
 primaryKeyColumns table = do
-  r :: [Identity BS.ByteString] <- H.list $ [H.q|
+  r :: [Identity Text] <- H.list $ [H.q|
     select kc.column_name
       from
         information_schema.table_constraints tc,
@@ -100,19 +99,6 @@ primaryKeyColumns table = do
       and kc.table_name  = ? |] (qtSchema table) (qtName table)
   return $ map runIdentity r
 
-
--- instance FromRow Table where
---   fromRow = Table <$> field <*> field <*> (toBool <$> field)
-
--- instance FromRow Column where
---   fromRow = Column <$>
---     field <*> field <*> field <*> field
---     <*> (toBool <$> field)
---     <*> field
---     <*> (toBool <$> field)
---     <*> field <*> field <*> field
---     <*> (vanishNull . splitOn "," <$> field)
---     <*> return Nothing
 
 vanishNull :: [a] -> Maybe [a]
 vanishNull xs = if L.null xs then Nothing else Just xs
@@ -151,9 +137,9 @@ instance H.RowParser H.Postgres Column where
         table      = H.parseResult $ r V.! 1
         name       = H.parseResult $ r V.! 2
         position   = H.parseResult $ r V.! 3
-        nullable   = H.parseResult $ r V.! 4
+        nullable   = toBool <$> (H.parseResult $ r V.! 4 :: Either Text Text)
         typ        = H.parseResult $ r V.! 5
-        updatable  = H.parseResult $ r V.! 6
+        updatable  = toBool <$> (H.parseResult $ r V.! 6 :: Either Text Text)
         maxLen     = H.parseResult $ r V.! 7
         precision  = H.parseResult $ r V.! 8
         defValue   = H.parseResult $ r V.! 9
@@ -169,7 +155,7 @@ instance H.RowParser H.Postgres Table where
   parseRow r =
     let schema     = H.parseResult $ r V.! 0
         name       = H.parseResult $ r V.! 2
-        insertable = H.parseResult $ r V.! 3 in
+        insertable = toBool <$> (H.parseResult $ r V.! 3 :: Either Text Text) in
     if V.length r /= 3
        then Left "Wrong number of fields in Table"
        else Table <$> schema <*> name <*> insertable
