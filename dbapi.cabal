@@ -83,3 +83,4 @@ Test-Suite spec
                      , blaze-builder
                      , vector
                      , mtl
+                     , process
