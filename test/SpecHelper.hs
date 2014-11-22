@@ -21,10 +21,10 @@ import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
--- import Network.Wai.Middleware.Cors (cors)
+import Network.Wai.Middleware.Cors (cors)
 
 import App (app, sqlErrHandler, isSqlError)
--- import Config (corsPolicy, AppConfig(..))
+import Config (corsPolicy)
 -- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
@@ -42,11 +42,13 @@ pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
 
 withApp :: ActionWith Application -> IO ()
 withApp perform =
-  perform $ \req resp ->
+  perform $ middle $ \req resp ->
     H.session pgSettings testSettings $ do
       session' <- flip runReaderT <$> ask
       liftIO $ resp =<< catchJust isSqlError (session' $ app req)
         sqlErrHandler
+
+  where middle = cors corsPolicy
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
