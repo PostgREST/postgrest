@@ -68,7 +68,7 @@ parentheticT (sql, params, pre) =
 iffNotT :: DynamicSQL -> StatementT
 iffNotT (aq, ap, apre) (bq, bp, bpre) =
   ("WITH aaa AS (" <> aq <> " returning *) " <>
-    bq <> "WHERE NOT EXISTS (SELECT * FROM aaa)"
+    bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)"
   , ap ++ bp
   , All $ getAll apre && getAll bpre
   )
@@ -96,6 +96,18 @@ insertInto t cols vals =
     ") values (" <>
     cs (intercalate ", " (map (const "?") vals)) <>
     ")"
+  , map pgParam vals
+  , mempty
+  )
+
+insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
+insertSelect t [] _ =
+  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
+insertSelect t cols vals =
+  ("insert into " <> fromQt t <> " (" <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
+    ") select " <>
+    cs (intercalate ", " (map (const "?") vals))
   , map pgParam vals
   , mempty
   )

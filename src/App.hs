@@ -130,7 +130,7 @@ app req =
               let vals = elems obj
               H.unit . coerce $ iffNotT
                       (whereT qq $ update qt cols vals)
-                      (insertInto qt cols vals)
+                      (insertSelect qt cols vals)
               return $ responseLBS status204 [ jsonH ] ""
 
               else return $ if Prelude.null tableCols
