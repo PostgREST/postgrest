@@ -12,6 +12,7 @@ import Data.String.Conversions (cs)
 import Control.Monad.Reader (runReaderT, ask)
 -- import Control.Monad (void)
 import Control.Applicative ( (<$>) )
+import Control.Exception
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization)
@@ -22,7 +23,7 @@ import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 -- import Network.Wai.Middleware.Cors (cors)
 
-import App (app)
+import App (app, sqlErrHandler, isSqlError)
 -- import Config (corsPolicy, AppConfig(..))
 -- import Auth (addUser)
 
@@ -44,7 +45,8 @@ withApp perform =
   perform $ \req resp ->
     H.session pgSettings testSettings $ do
       session' <- flip runReaderT <$> ask
-      liftIO $ resp =<< session' (app req)
+      liftIO $ resp =<< catchJust isSqlError (session' $ app req)
+        sqlErrHandler
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]

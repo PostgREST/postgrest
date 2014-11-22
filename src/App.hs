@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
-module App (app) where
+module App (app, sqlErrHandler, isSqlError) where
 
 import Control.Monad (join)
 import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.IO.Class (liftIO, MonadIO)
+-- import Control.Exception.Base
 
 import Data.Text hiding (map)
 import Data.Maybe (fromMaybe)
@@ -26,6 +27,7 @@ import Data.Aeson
 import Data.Coerce
 import Data.Monoid
 import qualified Hasql as H
+import qualified Hasql.Backend as HB
 import qualified Hasql.Postgres as H
 
 import PgQuery
@@ -157,6 +159,17 @@ app req =
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
+
+isSqlError :: HB.Error -> Maybe HB.Error
+isSqlError (HB.ErroneousResult x) = Just $ HB.ErroneousResult x
+isSqlError _ = Nothing
+
+sqlErrHandler :: HB.Error -> IO Response
+sqlErrHandler (HB.ErroneousResult err) = do
+  return $ if "42P01" `isInfixOf` err
+    then responseLBS status404 [] ""
+    else responseLBS status400 [] (cs err)
+sqlErrHandler _ = error "just for debugging"
 
 rangeStatus :: Int -> Int -> Int -> Status
 rangeStatus from to total

@@ -9,6 +9,7 @@ import Middleware
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT, ask)
+import Control.Exception
 import Data.String.Conversions (cs)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
@@ -44,13 +45,14 @@ main = do
       middle =
         (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy . clientErrors
-        . staticPolicy (only [("favicon.ico", "static/favicon.ico")]) in
+        . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
 
-    H.session pgSettings sessSettings $ do
-      session' <- flip runReaderT <$> ask
-      let runApp req respond = respond =<< session' (app req) in
+  H.session pgSettings sessSettings $ do
+    session' <- flip runReaderT <$> ask
+    let runApp req respond =
+          respond =<< catchJust isSqlError (session' $ app req) sqlErrHandler
 
-        liftIO $ runSettings appSettings $ middle runApp
+    liftIO $ runSettings appSettings $ middle runApp
  --     . authenticated (cs $ configAnonRole conf) $ app
 
   where
