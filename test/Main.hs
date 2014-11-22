@@ -1,6 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Main where
 
+import Control.Monad (void)
 import qualified Hasql as H
 import System.Process
 import Test.Hspec
@@ -22,4 +23,4 @@ main = do
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
-  callProcess "psql" ["-U", "postgres", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"]
+  void $ readProcess "psql" ["-U", "postgres", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
