@@ -83,6 +83,11 @@ asJsonWithCount (sql, params, pre) = (
   , params, pre
   )
 
+asJsonRow :: StatementT
+asJsonRow (sql, params, pre) = (
+    "row_to_json(t) from (" <> sql <> ") t", params, pre
+  )
+
 selectStar :: QualifiedTable -> DynamicSQL
 selectStar t =
   ("select * from " <> fromQt t, [], mempty)
@@ -95,7 +100,7 @@ insertInto t cols vals =
     cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") values (" <>
     cs (intercalate ", " (map (const "?") vals)) <>
-    ")"
+    ") returning row_to_json(" <> fromQt t <> ".*)"
   , map pgParam vals
   , mempty
   )

@@ -15,6 +15,7 @@ import Data.Ranged.Ranges (emptyRange)
 import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
+import Data.Functor.Identity
 import qualified Data.Set as S
 
 import Network.HTTP.Types.Status
@@ -104,12 +105,17 @@ app req =
     ([table], "POST") ->
       handleJsonObj req $ \obj -> H.tx Nothing $ do
         let qt = QualifiedTable schema (cs table)
-        H.unit . coerce $ insertInto qt (map cs $ keys obj) (elems obj)
+            query = coerce $
+              insertInto qt (map cs $ keys obj) (elems obj)
+        row <- H.single query
+        let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
+            Just inserted = decode (cs insertedJson) :: Maybe Object
+
         primaryKeys <- map cs <$> primaryKeyColumns qt
-        let primaries = filterWithKey (const . (`elem` primaryKeys)) obj
+        let primaries = filterWithKey (const . (`elem` primaryKeys)) inserted
         let params = urlEncodeVars
               $ map (\t -> (cs $ fst t, "eq." <> cs (encode $ snd t)))
-              $ toList primaries
+              $ sortBy (comparing fst) $ toList primaries
         return $ responseLBS status201
           [ jsonH
           , (hLocation, "/" <> cs table <> "?" <> cs params)
@@ -165,7 +171,7 @@ isSqlError (HB.ErroneousResult x) = Just $ HB.ErroneousResult x
 isSqlError _ = Nothing
 
 sqlErrHandler :: HB.Error -> IO Response
-sqlErrHandler (HB.ErroneousResult err) = do
+sqlErrHandler (HB.ErroneousResult err) =
   return $ if "42P01" `isInfixOf` err
     then responseLBS status404 [] ""
     else responseLBS status400 [] (cs err)
