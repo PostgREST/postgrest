@@ -71,7 +71,7 @@ app req =
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
             from = fromMaybe 0 $ rangeOffset <$> range
-            to = from+queryTotal
+            to = from+queryTotal-1
             contentRange = contentRangeH from to tableTotal
             status = rangeStatus from to tableTotal
             canonical = urlEncodeVars
