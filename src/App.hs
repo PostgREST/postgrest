@@ -112,7 +112,9 @@ app req =
             Just inserted = decode (cs insertedJson) :: Maybe Object
 
         primaryKeys <- map cs <$> primaryKeyColumns qt
-        let primaries = filterWithKey (const . (`elem` primaryKeys)) inserted
+        let primaries = if Prelude.null primaryKeys
+            then inserted
+            else filterWithKey (const . (`elem` primaryKeys)) inserted
         let params = urlEncodeVars
               $ map (\t -> (cs $ fst t, "eq." <> cs (encode $ snd t)))
               $ sortBy (comparing fst) $ toList primaries
