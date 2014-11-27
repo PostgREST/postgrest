@@ -94,13 +94,6 @@ spec = around withApp $ do
 
       context "with a fully-specified primary key" $ do
 
-        context "with Content-Range header" $
-          it "fails as per RFC7231" $
-            request methodPut "/compound_pk?k1=eq.1&k2=eq.2"
-              [("Content-Range", "0-0")]
-              [json| { "k1":1, "k2":2, "extra":3 } |]
-                `shouldRespondWith` 400
-
         context "not specifying every column in the table" $
           it "is rejected for lack of idempotence" $
             request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
