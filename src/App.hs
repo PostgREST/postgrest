@@ -116,7 +116,7 @@ app req =
             then inserted
             else filterWithKey (const . (`elem` primaryKeys)) inserted
         let params = urlEncodeVars
-              $ map (\t -> (cs $ fst t, "eq." <> cs (encode $ snd t)))
+              $ map (\t -> (cs $ fst t, "eq." <> cs (unquoted $ snd t)))
               $ sortBy (comparing fst) $ toList primaries
         return $ responseLBS status201
           [ jsonH
@@ -223,6 +223,12 @@ handleJsonObj req handler = do
       where
         jErr = encode . object $
           [("error", String "Expecting a JSON object")]
+
+unquoted :: Value -> Text
+unquoted (String t) = t
+unquoted (Number n) = cs . show $ n
+unquoted (Bool b) = cs . show $ b
+unquoted _ = ""
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

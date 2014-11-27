@@ -1,4 +1,5 @@
-{-# LANGUAGE QuasiQuotes, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes, OverloadedStrings,
+             MultiParamTypeClasses, ScopedTypeVariables #-}
 module PgStructure where
 
 import PgQuery (QualifiedTable(..))
@@ -127,7 +128,7 @@ data Column = Column {
 , colMaxLen :: Maybe Int
 , colPrecision :: Maybe Int
 , colDefault :: Maybe Text
-, colEnum :: Maybe [Text]
+, colEnum :: [Text]
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
@@ -143,19 +144,22 @@ instance H.RowParser H.Postgres Column where
         maxLen     = H.parseResult $ r V.! 7
         precision  = H.parseResult $ r V.! 8
         defValue   = H.parseResult $ r V.! 9
-        enum       = H.parseResult $ r V.! 10 in
+        enum       = either (const $ Right []) (Right . split (==','))
+                       (H.parseResult $ r V.! 10 :: Either Text Text)
+      in
     if V.length r /= 11
        then Left "Wrong number of fields in Column"
        else Column <$> schema <*> table <*> name <*> position <*> nullable
                    <*> typ <*> updatable <*> maxLen <*> precision
-                   <*> defValue <*> enum <*> return Nothing
+                   <*> defValue <*> enum
+                   <*> return Nothing
 
 
 instance H.RowParser H.Postgres Table where
   parseRow r =
     let schema     = H.parseResult $ r V.! 0
-        name       = H.parseResult $ r V.! 2
-        insertable = toBool <$> (H.parseResult $ r V.! 3 :: Either Text Text) in
+        name       = H.parseResult $ r V.! 1
+        insertable = toBool <$> (H.parseResult $ r V.! 2 :: Either Text Text) in
     if V.length r /= 3
        then Left "Wrong number of fields in Table"
        else Table <$> schema <*> name <*> insertable

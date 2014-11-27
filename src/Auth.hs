@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
 module Auth where
 
-import qualified Data.Aeson as JSON
+import Data.Aeson
 import Control.Monad (mzero)
 import Control.Applicative ( (<*>), (<$>) )
 import Crypto.BCrypt
@@ -16,12 +16,18 @@ data AuthUser = AuthUser {
   , userRole :: String
   }
 
-instance JSON.FromJSON AuthUser where
-  parseJSON (JSON.Object v) = AuthUser <$>
-                         v JSON..: "id" <*>
-                         v JSON..: "pass" <*>
-                         v JSON..: "role"
+instance FromJSON AuthUser where
+  parseJSON (Object v) = AuthUser <$>
+                         v .: "id" <*>
+                         v .: "pass" <*>
+                         v .: "role"
   parseJSON _ = mzero
+
+instance ToJSON AuthUser where
+  toJSON u = object [
+      "id" .= userId u
+    , "pass" .= userPass u
+    , "role" .= userRole u ]
 
 type DbRole = Text
 

@@ -23,4 +23,4 @@ main = do
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
-  void $ readProcess "psql" ["-U", "postgres", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+  void $ readProcess "psql" ["-U", "dbapi_test", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
