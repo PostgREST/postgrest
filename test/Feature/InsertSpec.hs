@@ -1,7 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Feature.InsertSpec where
 
--- {{{ Imports
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -17,10 +16,8 @@ import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
--- }}}
-
 spec :: Spec
-spec = around withApp $ do
+spec = before resetDb $ around withApp $ do
   describe "Posting new record" $ do
     it "accepts disparate json types" $
       post "/menagerie"

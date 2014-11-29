@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module SpecHelper where
 
 import Network.Wai
@@ -10,7 +12,7 @@ import Hasql.Postgres as H
 import Data.String.Conversions (cs)
 -- import Control.Exception.Base (bracket, finally)
 import Control.Monad.Reader (runReaderT, ask)
--- import Control.Monad (void)
+import Control.Monad (void)
 import Control.Applicative ( (<$>) )
 import Control.Exception
 
@@ -22,6 +24,7 @@ import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
+import System.Process (readProcess)
 
 import App (app, sqlErrHandler, isSqlError)
 import Config (corsPolicy)
@@ -49,6 +52,24 @@ withApp perform =
         sqlErrHandler
 
   where middle = cors corsPolicy
+
+
+resetDb :: IO ()
+resetDb = do
+  H.session pgSettings testSettings $
+    H.tx Nothing $ do
+      H.unit [H.q| drop schema if exists "1" cascade |]
+      H.unit [H.q| drop schema if exists private cascade |]
+      H.unit [H.q| drop schema if exists dbapi cascade |]
+
+  loadFixture "roles"
+  loadFixture "schema"
+
+
+loadFixture :: FilePath -> IO()
+loadFixture name =
+  void $ readProcess "psql" ["-U", "dbapi_test", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
