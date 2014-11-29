@@ -16,6 +16,7 @@ import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import Data.Functor.Identity
+import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 import qualified Data.Set as S
 
 import Network.HTTP.Types.Status
@@ -226,7 +227,8 @@ handleJsonObj req handler = do
 
 unquoted :: Value -> Text
 unquoted (String t) = t
-unquoted (Number n) = cs . show $ n
+unquoted (Number n) =
+  cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (Bool b) = cs . show $ b
 unquoted _ = ""
 
