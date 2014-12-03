@@ -96,7 +96,7 @@ app req =
         Nothing -> return $ responseLBS status400 [jsonH] $
           encode . object $ [("error", String "Failed to parse user.")]
         Just u -> do
-          _ <- liftIO $ addUser (cs $ userId u)
+          _ <- addUser (cs $ userId u)
             (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH

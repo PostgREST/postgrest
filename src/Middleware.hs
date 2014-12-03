@@ -3,23 +3,25 @@
 module Middleware where
 
 --import Data.Aeson ((.=), toJSON, ToJSON, object, encode)
--- import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
+import Data.Text
 -- import Data.Pool(withResource, Pool)
 
 import qualified Hasql as H
+import qualified Hasql.Postgres as H
 import Data.String.Conversions(cs)
---import qualified Data.ByteString.Char8 as BS
 import Control.Exception (catchJust)
 
-import Network.HTTP.Types.Header (hLocation, hContentType)
-import Network.HTTP.Types.Status (status400, status301)
+import Network.HTTP.Types.Header (hLocation, hContentType, hAuthorization)
+import Network.HTTP.Types (RequestHeaders)
+import Network.HTTP.Types.Status (status400, status401, status301)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
-                   rawQueryString, isSecure)
+                   rawQueryString, isSecure, Request(..), Response)
 import Network.URI (URI(..), parseURI)
 
--- import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
--- import Codec.Binary.Base64.String (decode)
+import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
+import Codec.Binary.Base64.String (decode)
 
 import Debug.Trace
 
@@ -36,30 +38,35 @@ import Debug.Trace
 --     else Database.PostgreSQL.Simple.withSavepoint conn go
 --   where go = app conn req respond
 
--- authenticated :: BS.ByteString -> (Connection -> Application) ->
---                  Connection -> Application
--- authenticated anon app conn req respond = do
---   attempt <- httpRequesterRole (requestHeaders req)
---   case attempt of
---     MalformedAuth ->
---       respond $ responseLBS status400 [] "Malformed basic auth header"
---     LoginFailed ->
---       respond $ responseLBS status401 [] "Invalid username or password"
---     LoginSuccess role ->
---       bracket_ (setRole conn role) (resetRole conn) $ app conn req respond
---     NoCredentials ->
---       bracket_ (setRole conn anon) (resetRole conn) $ app conn req respond
+authenticated :: Text -> (Request -> H.Session H.Postgres IO Response) ->
+       Request -> H.Session H.Postgres IO Response
+authenticated anon app req = do
+  attempt <- httpRequesterRole (requestHeaders req)
+  case attempt of
+    MalformedAuth ->
+      return $ responseLBS status400 [] "Malformed basic auth header"
+    LoginFailed ->
+      return $ responseLBS status401 [] "Invalid username or password"
+    LoginSuccess role -> runInRole role
+    NoCredentials -> runInRole anon
 
---  where
---    httpRequesterRole :: RequestHeaders -> IO LoginAttempt
---    httpRequesterRole hdrs = do
---     let auth = fromMaybe "" $ lookup hAuthorization hdrs
---     case BS.split ' ' (cs auth) of
---       ("Basic" : b64 : _) ->
---         case BS.split ':' $ cs (decode $ cs b64) of
---           (u:p:_) -> signInRole conn u p
---           _ -> return MalformedAuth
---       _ -> return NoCredentials
+ where
+   httpRequesterRole :: RequestHeaders -> H.Session H.Postgres IO LoginAttempt
+   httpRequesterRole hdrs = do
+    let auth = fromMaybe "" $ lookup hAuthorization hdrs
+    case split (==' ') (cs auth) of
+      ("Basic" : b64 : _) ->
+        case split (==':') (cs . decode . cs $ b64) of
+          (u:p:_) -> H.tx Nothing $ signInRole u p
+          _ -> return MalformedAuth
+      _ -> return NoCredentials
+
+   runInRole :: Text -> H.Session H.Postgres IO Response
+   runInRole r = do
+     H.tx Nothing $ setRole r
+     resp <- app req
+     H.tx Nothing resetRole
+     return resp
 
 -- instance ToJSON SqlError where
 --   toJSON t = object [

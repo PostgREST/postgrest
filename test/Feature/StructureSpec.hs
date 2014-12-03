@@ -8,21 +8,17 @@ import Test.Hspec.Wai.JSON
 import SpecHelper
 
 import Network.HTTP.Types
-import Codec.Binary.Base64.String (encode)
-import Data.Monoid ((<>))
-import Data.String.Conversions (cs)
 
 spec :: Spec
 spec = around withApp $ do
-  let uName = "a user"
-      uPass = "nobody can ever know"
   describe "GET /" $
-    it "lists views in schema" $
-      request methodGet "/"
-        [("Authorization", "Basic "<>(uName<>":"<>uPass))] ""
+    it "lists views in schema" $ do
+      _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]
+      let auth = authHeader "jdoe" "1234"
+
+      request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [
-        {"schema":"1","name":"authors_only","insertable":true}
-        , {"schema":"1","name":"auto_incrementing_pk","insertable":true}
+          {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_fk","insertable":true}
         , {"schema":"1","name":"items","insertable":true}
@@ -136,8 +132,7 @@ spec = around withApp $ do
       |]
 
     it "includes foreign key data" $
-      request methodOptions "/has_fk"
-        [("Authorization", "Basic "<>(cs.encode $ cs uName<>":"<>cs uPass))] ""
+      request methodOptions "/has_fk" [] ""
         `shouldRespondWith` [json|
       {
         "pkey": ["id"],

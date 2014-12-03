@@ -3,7 +3,6 @@ module Main where
 import Paths_dbapi (version)
 
 import App
---import Auth
 import Middleware
 
 import Control.Monad (unless)
@@ -50,7 +49,9 @@ main = do
   H.session pgSettings sessSettings $ do
     session' <- flip runReaderT <$> ask
     let runApp req respond =
-          respond =<< catchJust isSqlError (session' $ app req) sqlErrHandler
+          respond =<< catchJust isSqlError
+            (session' $ authenticated (cs $ configAnonRole conf) app req)
+            sqlErrHandler
 
     liftIO $ runSettings appSettings $ middle runApp
  --     . authenticated (cs $ configAnonRole conf) $ app

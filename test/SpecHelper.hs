@@ -27,15 +27,16 @@ import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
 import App (app, sqlErrHandler, isSqlError)
-import Config (corsPolicy)
+import Config (AppConfig(..), corsPolicy)
+import Middleware
 -- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
--- cfg :: AppConfig
--- cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "dbapi_anonymous" False 10
+cfg :: AppConfig
+cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "dbapi_anonymous" False 10
 
 testSettings :: SessionSettings
 testSettings = fromMaybe (error "bad settings") $ H.sessionSettings 1 30
@@ -48,8 +49,9 @@ withApp perform =
   perform $ middle $ \req resp ->
     H.session pgSettings testSettings $ do
       session' <- flip runReaderT <$> ask
-      liftIO $ resp =<< catchJust isSqlError (session' $ app req)
-        sqlErrHandler
+      liftIO $ resp =<< catchJust isSqlError
+          (session' $ authenticated (cs $ configAnonRole cfg) app req)
+          sqlErrHandler
 
   where middle = cors corsPolicy
 
