@@ -16,17 +16,21 @@ import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
+--import Debug.Trace
+
 spec :: Spec
 spec = before resetDb $ around withApp $ do
   describe "Posting new record" $ do
-    it "accepts disparate json types" $
-      post "/menagerie"
+    it "accepts disparate json types" $ do
+      p <- post "/menagerie"
         [json| {
           "integer": 13, "double": 3.14159, "varchar": "testing!"
         , "boolean": false, "date": "01/01/1900", "money": "$3.99"
         , "enum": "foo"
         } |]
-        `shouldRespondWith` 201
+      liftIO $ do
+        simpleBody p `shouldBe` ""
+        simpleStatus p `shouldBe` created201
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
