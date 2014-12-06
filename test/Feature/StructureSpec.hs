@@ -10,7 +10,7 @@ import SpecHelper
 import Network.HTTP.Types
 
 spec :: Spec
-spec = around withApp $ do
+spec = before resetDb $ around withApp $ do
   describe "GET /" $
     it "lists views in schema" $ do
       _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]

@@ -6,7 +6,7 @@ import Test.Hspec.Wai
 import SpecHelper
 
 spec :: Spec
-spec = around withApp $ do
+spec = before resetDb $ around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
