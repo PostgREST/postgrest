@@ -46,3 +46,7 @@ heroku config:set S3_BUCKET=s3://foo/bar
 
 heroku run scripts/release_s3.sh
 ```
+
+### Acknowledgements
+
+Thanks to [Adam Baker](https://github.com/adambaker) for code contributions and many fundamental design discussions. Also thanks to [Loop/Recur](https://looprecur.com) for open-source Fridays to advance the code, and for their courage to use this thing in real projects.
