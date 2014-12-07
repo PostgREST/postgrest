@@ -1,17 +1,15 @@
 module TestTypes (
   IncPK(..)
 , CompoundPK(..)
-, incFromList
-, compoundFromList
+-- , incFromList
+-- , compoundFromList
 ) where
 
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.:))
-import Data.Maybe (fromJust)
+-- import Data.Maybe (fromJust)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
-
-import Database.HDBC (SqlValue, fromSql)
 
 data IncPK = IncPK {
   incId :: Int
@@ -28,12 +26,12 @@ instance JSON.FromJSON IncPK where
     r .: "inserted_at"
   parseJSON _ = mzero
 
-incFromList :: [(String, SqlValue)] -> IncPK
-incFromList row = IncPK
-  (fromSql . fromJust $ lookup "id" row)
-  (fromSql . fromJust $ lookup "nullable_string" row)
-  (fromSql . fromJust $ lookup "non_nullable_string" row)
-  (fromSql . fromJust $ lookup "inserted_at" row)
+-- incFromList :: [(String, SqlValue)] -> IncPK
+-- incFromList row = IncPK
+--   (fromSql . fromJust $ lookup "id" row)
+--   (fromSql . fromJust $ lookup "nullable_string" row)
+--   (fromSql . fromJust $ lookup "non_nullable_string" row)
+--   (fromSql . fromJust $ lookup "inserted_at" row)
 
 data CompoundPK = CompoundPK {
   compoundK1 :: Int
@@ -48,8 +46,8 @@ instance JSON.FromJSON CompoundPK where
     r .: "extra"
   parseJSON _ = mzero
 
-compoundFromList :: [(String, SqlValue)] -> CompoundPK
-compoundFromList row = CompoundPK
-  (fromSql . fromJust $ lookup "k1" row)
-  (fromSql . fromJust $ lookup "k2" row)
-  (fromSql . fromJust $ lookup "extra" row)
+-- compoundFromList :: [(String, SqlValue)] -> CompoundPK
+-- compoundFromList row = CompoundPK
+--   (fromSql . fromJust $ lookup "k1" row)
+--   (fromSql . fromJust $ lookup "k2" row)
+--   (fromSql . fromJust $ lookup "extra" row)

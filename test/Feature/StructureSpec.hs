@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 module Feature.StructureSpec where
 
 import Test.Hspec
@@ -8,22 +8,14 @@ import Test.Hspec.Wai.JSON
 import SpecHelper
 
 import Network.HTTP.Types
-import Codec.Binary.Base64.String (encode)
-import Data.Monoid ((<>))
-import Data.String.Conversions (cs)
 
 spec :: Spec
-spec = let {uName = "a user"; uPass = "nobody can ever know";
-uRole = "dbapi_test"} in
-  around withDatabaseConnection $
-  aroundWith (withUser uName uPass uRole) $ aroundWith withApp $ do
-  describe "GET /" $
+spec = before resetDb $ around withApp $ do
+  describe "GET /" $ do
     it "lists views in schema" $
-      request methodGet "/"
-        [("Authorization", "Basic "<>(cs.encode $ cs uName<>":"<>cs uPass))] ""
+      request methodGet "/" [] ""
         `shouldRespondWith` [json| [
-        {"schema":"1","name":"authors_only","insertable":true}
-        , {"schema":"1","name":"auto_incrementing_pk","insertable":true}
+          {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_fk","insertable":true}
         , {"schema":"1","name":"items","insertable":true}
@@ -32,6 +24,17 @@ uRole = "dbapi_test"} in
         , {"schema":"1","name":"simple_pk","insertable":true}
         ] |]
         {matchStatus = 200}
+
+    it "lists only views user has permission to see" $ do
+      _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]
+      let auth = authHeader "jdoe" "1234"
+
+      request methodGet "/" [auth] ""
+        `shouldRespondWith` [json| [
+          {"schema":"1","name":"authors_only","insertable":true}
+        ] |]
+        {matchStatus = 200}
+
 
   describe "Table info" $ do
     it "is available with OPTIONS verb" $
@@ -48,7 +51,7 @@ uRole = "dbapi_test"} in
             "name": "integer",
             "type": "integer",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "position": 1,
             "references": null,
@@ -61,7 +64,7 @@ uRole = "dbapi_test"} in
             "name": "double",
             "type": "double precision",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "references": null,
             "position": 2
@@ -73,7 +76,7 @@ uRole = "dbapi_test"} in
             "name": "varchar",
             "type": "character varying",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "position": 3,
             "references": null,
@@ -86,7 +89,7 @@ uRole = "dbapi_test"} in
             "name": "boolean",
             "type": "boolean",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "references": null,
             "position": 4
@@ -98,7 +101,7 @@ uRole = "dbapi_test"} in
             "name": "date",
             "type": "date",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "references": null,
             "position": 5
@@ -110,7 +113,7 @@ uRole = "dbapi_test"} in
             "name": "money",
             "type": "money",
             "maxLen": null,
-            "enum": null,
+            "enum": [],
             "nullable": false,
             "position": 6,
             "references": null,
@@ -137,8 +140,7 @@ uRole = "dbapi_test"} in
       |]
 
     it "includes foreign key data" $
-      request methodOptions "/has_fk"
-        [("Authorization", "Basic "<>(cs.encode $ cs uName<>":"<>cs uPass))] ""
+      request methodOptions "/has_fk" [] ""
         `shouldRespondWith` [json|
       {
         "pkey": ["id"],
@@ -153,7 +155,7 @@ uRole = "dbapi_test"} in
             "maxLen": null,
             "nullable": false,
             "position": 1,
-            "enum": null,
+            "enum": [],
             "references": null
           }, {
             "default": null,
@@ -165,7 +167,7 @@ uRole = "dbapi_test"} in
             "maxLen": null,
             "nullable": true,
             "position": 2,
-            "enum": null,
+            "enum": [],
             "references": {"table": "auto_incrementing_pk", "column": "id"}
           }, {
             "default": null,
@@ -177,7 +179,7 @@ uRole = "dbapi_test"} in
             "maxLen": 255,
             "nullable": true,
             "position": 3,
-            "enum": null,
+            "enum": [],
             "references": {"table": "simple_pk", "column": "k"}
           }
         ]

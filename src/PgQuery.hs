@@ -1,242 +1,173 @@
--- {{{ Imports
-module PgQuery (
-  getRows
-, insert
-, update
-, upsert
-, addUser
-, signInRole
-, setRole
-, resetRole
-, checkPass
-, pgFmtIdent
-, pgFmtLit
-, RangedResult(..)
-, LoginAttempt(..)
-, DbRole
-) where
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+module PgQuery where
 
-import Data.Text (Text, splitOn, intercalate, replace, takeWhile)
-import Data.String.Conversions (cs)
-import Data.Functor ( (<$>) )
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Monoid ((<>), mconcat)
-import qualified Data.Map as M
+import RangeQuery
 
-import Text.Regex.TDFA ((=~))
+import qualified Hasql.Postgres as H
+import qualified Hasql.Backend as H
+
+import Data.Text hiding (map)
+import Text.Regex.TDFA ( (=~) )
 import Text.Regex.TDFA.Text ()
-
-import Control.Monad (join)
-
-import qualified RangeQuery as R
+import qualified Network.HTTP.Types.URI as Net
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy as BL
+import Data.Monoid
+import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Functor ( (<$>) )
+import Control.Monad (join)
+import Data.String.Conversions (cs)
+import qualified Data.Aeson as JSON
 import qualified Data.List as L
 
-import Database.HDBC hiding (colType, colNullable)
-import Database.HDBC.PostgreSQL
+type DynamicSQL = (BS.ByteString, [H.StatementArgument H.Postgres], All)
 
-import qualified Network.HTTP.Types.URI as Net
+type StatementT = DynamicSQL -> DynamicSQL
 
-import Types (SqlRow(..), getRow, sqlRowColumns, sqlRowValues)
-import Crypto.BCrypt (hashPasswordUsingPolicy, fastBcryptHashingPolicy, validatePassword)
-
--- }}}
-
-data RangedResult = RangedResult {
-  rrFrom  :: Int
-, rrTo    :: Int
-, rrTotal :: Int
-, rrBody  :: BL.ByteString
+data QualifiedTable = QualifiedTable {
+  qtSchema :: Text
+, qtName   :: Text
 } deriving (Show)
 
-type Schema = Text
-type DbRole = BS.ByteString
-
-data LoginAttempt =
-    NoCredentials
-  | MalformedAuth
-  | LoginFailed
-  | LoginSuccess DbRole
-  deriving (Eq, Show)
-
-getRows :: Schema -> Text -> Net.Query -> Maybe R.NonnegRange -> Connection -> IO RangedResult
-getRows schema table qq range conn = do
-  r <- quickQuery conn (cs query) []
-
-  return $ case r of
-           [[total, _, SqlNull]] -> RangedResult offset 0 (fromSql total) "[]"
-           [[total, limited_total, json]] ->
-            RangedResult offset (offset + fromSql limited_total - 1)
-                         (fromSql total) (fromSql json)
-           _ -> RangedResult 0 0 0 "[]"
-
-  where
-    offset = fromMaybe 0 $ R.offset <$> range
-    query  = globalAndLimitedCounts schema table qq <> jsonArrayRows (
-        selectStarClause schema table
-        <> whereClause qq
-        <> orderClause qq
-        <> limitClause range)
-
-
-whereClause :: Net.Query -> Text
-whereClause qs =
-  if null qs then "" else " where " <> conjunction
-
-  where
-    cols = [ col | col <- qs, fst col `notElem` ["order"] ]
-    conjunction = mconcat $ L.intersperse " and " (map wherePred cols)
-
-
-orderClause :: Net.Query -> Text
-orderClause qs = do
-  let order = fromMaybe "" $ join $ lookup "order" qs
-      terms = mapMaybe parseOrderTerm $ splitOn "," $ cs order
-      termPred = mconcat $ L.intersperse ", " (map orderTermSql terms)
-
-  if null terms
-     then ""
-     else " order by " <> termPred
-
-  where
-    parseOrderTerm :: Text -> Maybe OrderTerm
-    parseOrderTerm s =
-      case splitOn "." s of
-           [d,c] ->
-             if d `elem` ["asc", "desc"]
-                then Just $ OrderTerm d c
-                else Nothing
-           _ -> Nothing
-
-    orderTermSql :: OrderTerm -> Text
-    orderTermSql t = pgFmtIdent (otColumn t) <> " " <> otDirection t
-
-
 data OrderTerm = OrderTerm {
-  otDirection :: Text
-, otColumn :: Text
+  otTerm :: Text
+, otDirection :: BS.ByteString
 }
 
+limitT :: Maybe NonnegRange -> StatementT
+limitT r q =
+  q <> (" LIMIT " <> limit <> " OFFSET " <> offset <> " ", [], mempty)
+  where
+    limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
+    offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
 
-wherePred :: Net.QueryItem -> Text
-wherePred (column, predicate) =
-  pgFmtIdent (cs column) <> " " <> op <> " " <> pgFmtLit (cs value)
+whereT :: Net.Query -> StatementT
+whereT params q =
+ if L.null params
+   then q
+   else q <> (" where ",[],mempty) <> conjunction
+ where
+   cols = [ col | col <- params, fst col `notElem` ["order"] ]
+   conjunction = mconcat $ L.intersperse andq (map wherePred cols)
+
+orderT :: [OrderTerm] -> StatementT
+orderT ts q =
+  if L.null ts
+    then q
+    else q <> (" order by ",[],mempty) <> clause
+  where
+   clause = mconcat $ L.intersperse commaq (map queryTerm ts)
+   queryTerm :: OrderTerm -> DynamicSQL
+   queryTerm t = (" " <> cs (pgFmtIdent $ otTerm t) <> " "
+                      <> otDirection t              <> " "
+                  , [], mempty)
+
+parentheticT :: StatementT
+parentheticT (sql, params, pre) =
+  (" (" <> sql <> ") ", params, pre)
+
+iffNotT :: DynamicSQL -> StatementT
+iffNotT (aq, ap, apre) (bq, bp, bpre) =
+  ("WITH aaa AS (" <> aq <> " returning *) " <>
+    bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)"
+  , ap ++ bp
+  , All $ getAll apre && getAll bpre
+  )
+
+countRows :: QualifiedTable -> DynamicSQL
+countRows t =
+  ("select count(1) from " <> fromQt t, [], mempty)
+
+asJsonWithCount :: StatementT
+asJsonWithCount (sql, params, pre) = (
+    "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from (" <> sql <> ") t"
+  , params, pre
+  )
+
+asJsonRow :: StatementT
+asJsonRow (sql, params, pre) = (
+    "row_to_json(t) from (" <> sql <> ") t", params, pre
+  )
+
+selectStar :: QualifiedTable -> DynamicSQL
+selectStar t =
+  ("select * from " <> fromQt t, [], mempty)
+
+insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
+insertInto t [] _ =
+  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
+insertInto t cols vals =
+  ("insert into " <> fromQt t <> " (" <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
+    ") values (" <>
+    cs (intercalate ", " (map (const "?") vals)) <>
+    ") returning row_to_json(" <> fromQt t <> ".*)"
+  , map pgParam vals
+  , mempty
+  )
+
+insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
+insertSelect t [] _ =
+  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
+insertSelect t cols vals =
+  ("insert into " <> fromQt t <> " (" <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
+    ") select " <>
+    cs (intercalate ", " (map (const "?") vals))
+  , map pgParam vals
+  , mempty
+  )
+
+update :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
+update t cols vals =
+  ("update " <> fromQt t <> " set (" <>
+    cs (intercalate ", " (map pgFmtIdent cols)) <>
+    ") = (" <>
+    cs (intercalate ", " (map (const "?") vals)) <> ")"
+  , map pgParam vals
+  , mempty
+  )
+
+wherePred :: Net.QueryItem -> DynamicSQL
+wherePred (col, predicate) =
+  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> " ", [], mempty)
 
   where
-    opCode:rest = BS.split '.' $ fromMaybe "." predicate
-    value = BS.intercalate "." rest
+    opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
+    value = intercalate "." rest
     op = case opCode of
-              "eq"  -> "="
-              "gt"  -> ">"
-              "lt"  -> "<"
-              "gte" -> ">="
-              "lte" -> "<="
-              "neq" -> "<>"
-              _     -> "="
+         "eq"  -> "="
+         "gt"  -> ">"
+         "lt"  -> "<"
+         "gte" -> ">="
+         "lte" -> "<="
+         "neq" -> "<>"
+         _     -> "="
 
-limitClause :: Maybe R.NonnegRange -> Text
-limitClause range =
-  cs $ " LIMIT " <> limit <> " OFFSET " <> show offset <> " "
-
+orderParse :: Net.Query -> [OrderTerm]
+orderParse q =
+  mapMaybe orderParseTerm . split (==',') $ cs order
   where
-    limit  = fromMaybe "ALL" $ show <$> (R.limit =<< range)
-    offset = fromMaybe 0     $ R.offset <$> range
+    order = fromMaybe "" $ join (lookup "order" q)
 
-globalAndLimitedCounts :: Schema -> Text -> Net.Query -> Text
-globalAndLimitedCounts schema table qq =
-  " select "
-  <> "(select count(1) from " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " "
-  <> whereClause qq
-  <> "), count(t), "
+orderParseTerm :: Text -> Maybe OrderTerm
+orderParseTerm s =
+  case split (=='.') s of
+       [d,c] ->
+         if d `elem` ["asc", "desc"]
+            then Just $ OrderTerm c $
+              if d == "asc" then "asc" else "desc"
+            else Nothing
+       _ -> Nothing
 
-selectStarClause :: Schema -> Text -> Text
-selectStarClause schema table =
-  " select * from " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " "
+commaq :: DynamicSQL
+commaq  = (", ", [], mempty)
 
-jsonArrayRows :: Text -> Text
-jsonArrayRows q =
-  "array_to_json(array_agg(row_to_json(t))) from (" <> q <> ") t"
-
-insert :: Schema -> Text -> SqlRow -> Connection -> IO (M.Map String SqlValue)
-insert schema table row conn = do
-  stmt   <- prepare conn $ cs sql
-  _      <- execute stmt $ sqlRowValues row
-  Just m <- fetchRowMap stmt
-  return m
-
-  where sql = insertClause schema table row
-
-addUser :: BS.ByteString -> BS.ByteString -> BS.ByteString -> Connection -> IO ()
-addUser identity pass role conn = do
-  Just hashed <- hashPasswordUsingPolicy fastBcryptHashingPolicy $ cs pass
-  _ <- quickQuery conn
-         "insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)"
-         $ map toSql [identity, hashed, role]
-  return ()
-
-signInRole :: BS.ByteString -> BS.ByteString -> Connection -> IO LoginAttempt
-signInRole user pass conn = do
-  u <- quickQuery conn "select pass, rolname from dbapi.auth where id = ?" [toSql user]
-  return $ case u of
-    [[hashed, role]] ->
-      if checkPass (fromSql hashed) (cs pass)
-         then LoginSuccess $ fromSql role
-         else LoginFailed
-    _ -> LoginFailed
-
-checkPass :: BS.ByteString -> BS.ByteString -> Bool
-checkPass = validatePassword
-
-upsert :: Schema -> Text -> SqlRow -> Net.Query -> Connection ->
-          IO (M.Map String SqlValue)
-upsert schema table row qq conn = do
-  stmt   <- prepare conn $ cs $ upsertClause schema table row qq
-  _      <- execute stmt $ join $ replicate 2 $ sqlRowValues row
-  m <- fetchRowMap stmt
-  return $ fromMaybe M.empty m
-
-update :: Schema -> Text -> SqlRow -> Net.Query -> Connection ->
-          IO (M.Map String SqlValue)
-update schema table row qq conn = do
-  stmt   <- prepare conn $ cs $ updateClause schema table row qq
-  _      <- execute stmt $ sqlRowValues row
-  m <- fetchRowMap stmt
-  return $ fromMaybe M.empty m
-
-placeholders :: Text -> SqlRow -> Text
-placeholders symbol = intercalate ", " . map (const symbol) . getRow
-
-insertClause :: Schema -> Text -> SqlRow -> Text
-insertClause schema table (SqlRow []) =
-  "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " default values returning *"
-insertClause schema table row =
-  "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " (" <>
-    intercalate ", " (map pgFmtIdent (sqlRowColumns row))
-  <> ") values (" <> placeholders "?" row <> ") returning *"
-
-insertClauseViaSelect :: Schema -> Text -> SqlRow -> Text
-insertClauseViaSelect schema table row =
-    "insert into " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " (" <>
-      intercalate ", " (map pgFmtIdent (sqlRowColumns row))
-  <> ") select " <> placeholders "?" row
-
-updateClause :: Schema -> Text -> SqlRow -> Net.Query -> Text
-updateClause schema table row qq =
-    "update " <> pgFmtIdent schema <> "." <> pgFmtIdent table <> " set (" <>
-      intercalate ", " (map pgFmtIdent (sqlRowColumns row))
-  <> ") = (" <> placeholders "?" row <> ")"
-  <> whereClause qq
-
-upsertClause :: Schema -> Text -> SqlRow -> Net.Query -> Text
-upsertClause schema table row qq =
-  "with upsert as (" <> updateClause schema table row qq
-  <> " returning *) " <> insertClauseViaSelect schema table row
-  <> " where not exists (select * from upsert) returning *"
+andq :: DynamicSQL
+andq = (" and ", [], mempty)
 
 pgFmtIdent :: Text -> Text
 pgFmtIdent x =
-  let escaped = replace "\"" "\"\"" (trimNullChars x) in
+  let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
   if escaped =~ danger
     then "\"" <> escaped <> "\""
     else escaped
@@ -248,15 +179,20 @@ pgFmtLit x =
   let trimmed = trimNullChars x
       escaped = "'" <> replace "'" "''" trimmed <> "'"
       slashed = replace "\\" "\\\\" escaped in
-  if escaped =~ ("\\\\" :: Text)
+  cs $ if escaped =~ ("\\\\" :: Text)
     then "E" <> slashed
     else slashed
 
 trimNullChars :: Text -> Text
 trimNullChars = Data.Text.takeWhile (/= '\x0')
 
-setRole :: Connection -> DbRole -> IO ()
-setRole conn role = runRaw conn $ "set role " <> cs role
+fromQt :: QualifiedTable -> BS.ByteString
+fromQt t = cs $ pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
 
-resetRole :: Connection -> IO ()
-resetRole conn = runRaw conn "reset role"
+pgParam :: JSON.Value -> H.StatementArgument H.Postgres
+pgParam (JSON.Number n) = H.renderValue n
+pgParam (JSON.String s) = H.renderValue s
+pgParam (JSON.Bool      b) = H.renderValue b
+pgParam JSON.Null       = H.renderValue (Nothing :: Maybe String)
+pgParam (JSON.Object o) = H.renderValue $ JSON.encode o
+pgParam (JSON.Array  a) = H.renderValue $ JSON.encode a

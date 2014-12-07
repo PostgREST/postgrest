@@ -1,27 +1,35 @@
+{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
+
 module SpecHelper where
 
 import Network.Wai
 import Test.Hspec
 import Test.Hspec.Wai
 
-import Database.HDBC
-import Database.HDBC.PostgreSQL
+import Hasql as H
+import Hasql.Postgres as H
 
 import Data.String.Conversions (cs)
-import Control.Exception.Base (bracket, finally)
+-- import Control.Exception.Base (bracket, finally)
+import Control.Monad.Reader (runReaderT, ask)
+import Control.Monad (void)
+import Control.Applicative ( (<$>) )
+import Control.Exception
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization)
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
+import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
+import System.Process (readProcess)
 
-import Middleware(clientErrors, withSavepoint, authenticated, Environment(..))
-
-import Dbapi (app, corsPolicy, AppConfig(..))
-import PgQuery(addUser)
+import App (app, sqlErrHandler, isSqlError)
+import Config (AppConfig(..), corsPolicy)
+import Middleware
+-- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
@@ -30,43 +38,40 @@ isLeft _ = False
 cfg :: AppConfig
 cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "dbapi_anonymous" False 10
 
-openConnection :: IO Connection
-openConnection = connectPostgreSQL' $ configDbUri cfg
+testSettings :: SessionSettings
+testSettings = fromMaybe (error "bad settings") $ H.sessionSettings 1 30
 
-withDatabaseConnection :: (Connection -> IO ()) -> IO ()
-withDatabaseConnection = bracket openConnection disconnect
+pgSettings :: Postgres
+pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
 
-loadFixture :: String -> Connection -> IO ()
-loadFixture name conn = do
-  sql <- readFile $ "test/fixtures/" ++ name ++ ".sql"
-  runRaw conn sql
+withApp :: ActionWith Application -> IO ()
+withApp perform =
+  perform $ middle $ \req resp ->
+    H.session pgSettings testSettings $ do
+      session' <- flip runReaderT <$> ask
+      liftIO $ resp =<< catchJust isSqlError
+          (session' $ authenticated (cs $ configAnonRole cfg) app req)
+          sqlErrHandler
 
-dbWithSchema :: ActionWith Connection -> IO ()
-dbWithSchema action = withDatabaseConnection $ \c -> do
-  runRaw c "begin;"
-  action c
-  rollback c
+  where middle = cors corsPolicy
 
-withUser :: BS.ByteString -> BS.ByteString -> BS.ByteString ->
-            ActionWith Connection -> ActionWith Connection
-withUser name pass role action conn = do
-  addUser name pass role conn
-  finally (action conn) $ do
-    _ <- run conn "delete from dbapi.auth where id=?" [toSql name]
-    runRaw conn "commit"
 
-withApp :: ActionWith Application -> ActionWith Connection
-withApp action conn = do
-  runRaw conn "begin;"
-  action $ cors corsPolicy $ authenticated "dbapi_anonymous" app conn
-  rollback conn
+resetDb :: IO ()
+resetDb = do
+  H.session pgSettings testSettings $
+    H.tx Nothing $ do
+      H.unit [H.q| drop schema if exists "1" cascade |]
+      H.unit [H.q| drop schema if exists private cascade |]
+      H.unit [H.q| drop schema if exists dbapi cascade |]
 
-appWithFixture :: ActionWith Application -> IO ()
-appWithFixture action = withDatabaseConnection $ \c -> do
-  runRaw c "begin;"
-  action $ cors corsPolicy . clientErrors  $
-    (authenticated "dbapi_anonymous" . withSavepoint Test) app c
-  rollback c
+  loadFixture "roles"
+  loadFixture "schema"
+
+
+loadFixture :: FilePath -> IO()
+loadFixture name =
+  void $ readProcess "psql" ["-U", "dbapi_test", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
@@ -79,8 +84,8 @@ matchHeader name valRegex headers =
   maybe False (=~ valRegex) $ lookup name headers
 
 authHeader :: String -> String -> Header
-authHeader user pass =
-  (hAuthorization, cs $ "Basic " ++ encode (user ++ ":" ++ pass))
+authHeader u p =
+  (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
 
 -- for hspec-wai
 pending_ :: WaiSession ()

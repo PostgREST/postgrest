@@ -8,7 +8,7 @@ import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
 import SpecHelper
 
 spec :: Spec
-spec = around appWithFixture $
+spec = before resetDb $ around withApp $
   describe "GET /items" $ do
 
     context "without range headers" $

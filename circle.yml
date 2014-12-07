@@ -1,0 +1,6 @@
+machine:
+  pre:
+    - createuser --superuser --no-password dbapi_test
+    - createdb -O dbapi_test -U ubuntu dbapi_test
+  ghc:
+    version: 7.8.3

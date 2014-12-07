@@ -2,103 +2,93 @@
 
 module Middleware where
 
-import Data.Aeson ((.=), toJSON, ToJSON, object, encode)
+--import Data.Aeson ((.=), toJSON, ToJSON, object, encode)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
-import Data.Pool(withResource, Pool)
+import Data.Text
+-- import Data.Pool(withResource, Pool)
 
-import Database.HDBC (runRaw)
-import Database.HDBC.PostgreSQL (Connection)
-import Database.HDBC.Types (SqlError(..))
-
+import qualified Hasql as H
+import qualified Hasql.Postgres as H
 import Data.String.Conversions(cs)
-import qualified Data.ByteString.Char8 as BS
-import Control.Exception (finally, throw, catchJust, catch, SomeException,
-    bracket_)
+import Control.Exception (catchJust)
 
-import Network.HTTP.Types.Header (RequestHeaders, hContentType, hAuthorization,
-  hLocation)
-import Network.HTTP.Types.Status (status400, status401, status404, status301)
+import Network.HTTP.Types.Header (hLocation, hContentType, hAuthorization)
+import Network.HTTP.Types (RequestHeaders)
+import Network.HTTP.Types.Status (status400, status401, status301)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
-                   rawQueryString, isSecure, requestMethod, Request)
+                   rawQueryString, isSecure, Request(..), Response)
 import Network.URI (URI(..), parseURI)
 
-import PgQuery(LoginAttempt(..), signInRole, setRole, resetRole)
+import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
 import Debug.Trace
 
-data Environment = Test | Production deriving (Eq)
+-- data Environment = Test | Production deriving (Eq)
 
-withDBConnection :: Pool Connection -> (Connection -> Application) -> Application
-withDBConnection pool app req respond =
-  withResource pool (\c -> app c req respond)
+-- safeAction :: Request -> Bool
+-- safeAction = (`notElem` ["PATCH", "PUT"]) . requestMethod
 
-safeAction :: Request -> Bool
-safeAction = (`notElem` ["PATCH", "PUT"]) . requestMethod
+-- withSavepoint :: Environment -> (Connection -> Application) ->
+--                  Connection -> Application
+-- withSavepoint env app conn req respond =
+--   if env == Production && safeAction req
+--     then go
+--     else Database.PostgreSQL.Simple.withSavepoint conn go
+--   where go = app conn req respond
 
-inTransaction :: Environment -> (Connection -> Application) ->
-                 Connection -> Application
-inTransaction env app conn req respond =
-  if env == Production && safeAction req
-    then
-      app conn req respond
-    else
-      finally (runRaw conn "begin" >> app conn req respond) (runRaw conn "commit")
-
-withSavepoint :: Environment -> (Connection -> Application) ->
-                 Connection -> Application
-withSavepoint env app conn req respond =
-  if env == Production && safeAction req
-    then app conn req respond
-    else do
-      runRaw conn "savepoint req_sp"
-      catch (app conn req respond) (\e -> let _ = (e::SomeException) in
-        runRaw conn "rollback to savepoint req_sp" >> throw e)
-
-authenticated :: BS.ByteString -> (Connection -> Application) ->
-                 Connection -> Application
-authenticated anon app conn req respond = do
+authenticated :: Text -> (Request -> H.Session H.Postgres IO Response) ->
+       Request -> H.Session H.Postgres IO Response
+authenticated anon app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
     MalformedAuth ->
-      respond $ responseLBS status400 [] "Malformed basic auth header"
+      return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
-      respond $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role ->
-      bracket_ (setRole conn role) (resetRole conn) $ app conn req respond
-    NoCredentials ->
-      bracket_ (setRole conn anon) (resetRole conn) $ app conn req respond
+      return $ responseLBS status401 [] "Invalid username or password"
+    LoginSuccess role -> runInRole role
+    NoCredentials -> runInRole anon
 
  where
-   httpRequesterRole :: RequestHeaders -> IO LoginAttempt
+   httpRequesterRole :: RequestHeaders -> H.Session H.Postgres IO LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
-    case BS.split ' ' (cs auth) of
+    case split (==' ') (cs auth) of
       ("Basic" : b64 : _) ->
-        case BS.split ':' $ cs (decode $ cs b64) of
-          (u:p:_) -> signInRole u p conn
+        case split (==':') (cs . decode . cs $ b64) of
+          (u:p:_) -> H.tx Nothing $ signInRole u p
           _ -> return MalformedAuth
       _ -> return NoCredentials
 
-instance ToJSON SqlError where
-  toJSON t = object [
-      "error" .= object [
-          "code"    .= seNativeError t
-        , "message" .= seErrorMsg t
-        , "state"   .= seState t
-      ]
-    ]
+   runInRole :: Text -> H.Session H.Postgres IO Response
+   runInRole r = do
+     H.tx Nothing $ setRole r
+     resp <- app req
+     H.tx Nothing resetRole
+     return resp
+
+-- instance ToJSON SqlError where
+--   toJSON t = object [
+--       "error" .= object [
+--           "message" .= (cs $ sqlErrorMsg t :: String)
+--         , "detail"  .= (cs $ sqlErrorDetail t :: String)
+--         , "state"   .= (cs $ sqlState t :: String)
+--         , "hint"    .= (cs $ sqlErrorHint t :: String)
+--       ]
+--     ]
 
 clientErrors :: Application -> Application
 clientErrors app req respond =
   catchJust isPgException (app req respond) $ \err ->
-    respond $ if seState err == "42P01"
-       then responseLBS status404 [] ""
-       else responseLBS status400 [(hContentType, "application/json")] (encode err)
+    respond $
+      responseLBS status400 [(hContentType, "application/json")] (cs $ show err)
+      -- if sqlState err == "42P01"
+      --  then responseLBS status404 [] ""
+      --  else responseLBS status400 [(hContentType, "application/json")] (encode err)
 
   where
-    isPgException :: SqlError -> Maybe SqlError
+    isPgException :: H.Error -> Maybe H.Error
     isPgException x = Just (traceShow x x)
 
 
