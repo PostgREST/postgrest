@@ -26,7 +26,6 @@ import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
 
 import Data.Aeson
-import Data.Coerce
 import Data.Monoid
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
@@ -166,6 +165,7 @@ app req =
     schema = requestedSchema hdrs
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+    coerce (q, args, All b) = (q, args, b)
 
 
 isSqlError :: H.Error -> Maybe H.Error
