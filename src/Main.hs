@@ -10,10 +10,12 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT, ask)
 import Control.Exception
 import Data.String.Conversions (cs)
+import Data.List.Split (splitOn)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Static (staticPolicy, only)
+import Network.URI (URI(..), URIAuth(..), parseURI)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
@@ -29,14 +31,17 @@ main = do
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
-
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
 
-
-  let pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
+  let Just uri     = parseURI $ configDbUri conf
+      Just auth    = uriAuthority uri
+      userpass     = uriUserInfo auth
+      [user, pass] = splitOn ":" $ init userpass
+      pgSettings   = H.Postgres (cs $ uriRegName auth) (fromIntegral $ configPort conf)
+                       (cs user) (cs pass) (cs . tail $ uriPath uri)
 
   sessSettings <- maybe (fail "Improper session settings") return $
-                    H.sessionSettings 95 30
+                    H.sessionSettings (fromIntegral $ configPool conf) 30
 
   let appSettings = setPort port
                   . setServerName (cs $ "dbapi/" <> prettyVersion)
@@ -48,13 +53,11 @@ main = do
 
   H.session pgSettings sessSettings $ do
     session' <- flip runReaderT <$> ask
-    let runApp req respond =
-          respond =<< catchJust isSqlError
-            (session' $ authenticated (cs $ configAnonRole conf) app req)
-            sqlErrHandler
 
-    liftIO $ runSettings appSettings $ middle runApp
- --     . authenticated (cs $ configAnonRole conf) $ app
+    liftIO $ runSettings appSettings $ middle $ \req respond ->
+      respond =<< catchJust isSqlError
+        (session' $ authenticated (cs $ configAnonRole conf) app req)
+        sqlErrHandler
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
