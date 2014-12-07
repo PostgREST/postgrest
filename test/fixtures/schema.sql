@@ -741,6 +741,11 @@ GRANT ALL ON TABLE compound_pk TO dbapi_test;
 GRANT ALL ON TABLE compound_pk TO dbapi_anonymous;
 
 
+REVOKE ALL ON TABLE has_fk FROM PUBLIC;
+REVOKE ALL ON TABLE has_fk FROM dbapi_test;
+GRANT ALL ON TABLE has_fk TO dbapi_test;
+GRANT ALL ON TABLE has_fk TO dbapi_anonymous;
+
 --
 -- TOC entry 2328 (class 0 OID 0)
 -- Dependencies: 197

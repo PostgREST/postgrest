@@ -11,12 +11,9 @@ import Network.HTTP.Types
 
 spec :: Spec
 spec = before resetDb $ around withApp $ do
-  describe "GET /" $
-    it "lists views in schema" $ do
-      _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]
-      let auth = authHeader "jdoe" "1234"
-
-      request methodGet "/" [auth] ""
+  describe "GET /" $ do
+    it "lists views in schema" $
+      request methodGet "/" [] ""
         `shouldRespondWith` [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
@@ -27,6 +24,17 @@ spec = before resetDb $ around withApp $ do
         , {"schema":"1","name":"simple_pk","insertable":true}
         ] |]
         {matchStatus = 200}
+
+    it "lists only views user has permission to see" $ do
+      _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]
+      let auth = authHeader "jdoe" "1234"
+
+      request methodGet "/" [auth] ""
+        `shouldRespondWith` [json| [
+          {"schema":"1","name":"authors_only","insertable":true}
+        ] |]
+        {matchStatus = 200}
+
 
   describe "Table info" $ do
     it "is available with OPTIONS verb" $
