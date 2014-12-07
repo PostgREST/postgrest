@@ -11,9 +11,7 @@ import Hasql.Postgres as H
 
 import Data.String.Conversions (cs)
 -- import Control.Exception.Base (bracket, finally)
-import Control.Monad.Reader (runReaderT, ask)
 import Control.Monad (void)
-import Control.Applicative ( (<$>) )
 import Control.Exception
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
@@ -47,10 +45,9 @@ pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
 withApp :: ActionWith Application -> IO ()
 withApp perform =
   perform $ middle $ \req resp ->
-    H.session pgSettings testSettings $ do
-      session' <- flip runReaderT <$> ask
+    H.session pgSettings testSettings $ H.sessionUnlifter >>= \unlift ->
       liftIO $ resp =<< catchJust isSqlError
-          (session' $ authenticated (cs $ configAnonRole cfg) app req)
+          (unlift $ authenticated (cs $ configAnonRole cfg) app req)
           sqlErrHandler
 
   where middle = cors corsPolicy

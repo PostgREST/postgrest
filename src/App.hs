@@ -29,7 +29,6 @@ import Data.Aeson
 import Data.Coerce
 import Data.Monoid
 import qualified Hasql as H
-import qualified Hasql.Backend as HB
 import qualified Hasql.Postgres as H
 
 import PgQuery
@@ -37,7 +36,7 @@ import RangeQuery
 import PgStructure
 import Auth
 
-app :: Request -> H.Session H.Postgres IO Response
+app :: Request -> H.Session H.Postgres s IO Response
 app req =
   case (path, verb) of
     ([], _) -> do
@@ -169,12 +168,12 @@ app req =
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
 
-isSqlError :: HB.Error -> Maybe HB.Error
-isSqlError (HB.ErroneousResult x) = Just $ HB.ErroneousResult x
+isSqlError :: H.Error -> Maybe H.Error
+isSqlError (H.ErroneousResult x) = Just $ H.ErroneousResult x
 isSqlError _ = Nothing
 
-sqlErrHandler :: HB.Error -> IO Response
-sqlErrHandler (HB.ErroneousResult err) =
+sqlErrHandler :: H.Error -> IO Response
+sqlErrHandler (H.ErroneousResult err) =
   return $ if "42P01" `isInfixOf` err
     then responseLBS status404 [] ""
     else responseLBS status400 [] (cs err)

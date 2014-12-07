@@ -7,7 +7,6 @@ import Middleware
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (runReaderT, ask)
 import Control.Exception
 import Data.String.Conversions (cs)
 import Data.List.Split (splitOn)
@@ -51,12 +50,10 @@ main = do
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
 
-  H.session pgSettings sessSettings $ do
-    session' <- flip runReaderT <$> ask
-
+  H.session pgSettings sessSettings $ H.sessionUnlifter >>= \unlift ->
     liftIO $ runSettings appSettings $ middle $ \req respond ->
       respond =<< catchJust isSqlError
-        (session' $ authenticated (cs $ configAnonRole conf) app req)
+        (unlift $ authenticated (cs $ configAnonRole conf) app req)
         sqlErrHandler
 
   where

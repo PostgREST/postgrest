@@ -38,8 +38,8 @@ import Debug.Trace
 --     else Database.PostgreSQL.Simple.withSavepoint conn go
 --   where go = app conn req respond
 
-authenticated :: Text -> (Request -> H.Session H.Postgres IO Response) ->
-       Request -> H.Session H.Postgres IO Response
+authenticated :: Text -> (Request -> H.Session H.Postgres s IO Response) ->
+       Request -> H.Session H.Postgres s IO Response
 authenticated anon app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
@@ -51,7 +51,7 @@ authenticated anon app req = do
     NoCredentials -> runInRole anon
 
  where
-   httpRequesterRole :: RequestHeaders -> H.Session H.Postgres IO LoginAttempt
+   httpRequesterRole :: RequestHeaders -> H.Session H.Postgres s IO LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
     case split (==' ') (cs auth) of
@@ -61,7 +61,6 @@ authenticated anon app req = do
           _ -> return MalformedAuth
       _ -> return NoCredentials
 
-   runInRole :: Text -> H.Session H.Postgres IO Response
    runInRole r = do
      H.tx Nothing $ setRole r
      resp <- app req

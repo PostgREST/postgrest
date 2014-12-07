@@ -50,7 +50,7 @@ setRole role = H.unit ("set role " <> cs (pgFmtLit role), [], True)
 resetRole :: H.Tx H.Postgres s ()
 resetRole = H.unit [H.q|reset role|]
 
-addUser :: Text -> Text -> Text -> H.Session H.Postgres IO ()
+addUser :: Text -> Text -> Text -> H.Session H.Postgres s IO ()
 addUser identity pass role = do
   Just hashed <- liftIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
   H.tx Nothing $ H.unit $
