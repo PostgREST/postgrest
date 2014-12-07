@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 module Feature.StructureSpec where
 
-import Test.Hspec
+import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
@@ -139,7 +139,9 @@ spec = before resetDb $ around withApp $ do
       }
       |]
 
-    it "includes foreign key data" $
+    it "includes foreign key data" $ do
+      pendingWith "have to resolve issue #107"
+
       request methodOptions "/has_fk" [] ""
         `shouldRespondWith` [json|
       {
