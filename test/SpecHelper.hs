@@ -34,7 +34,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgres://dbapi_test:@localhost:5432/dbapi_test" 9000 "dbapi_anonymous" False 10
+cfg = AppConfig "dbapi_test" 5432 "dbapi_test" "" "localhost" 3000 "dbapi_anonymous" False 10
 
 testSettings :: SessionSettings
 testSettings = fromMaybe (error "bad settings") $ H.sessionSettings 1 30
