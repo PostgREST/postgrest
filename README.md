@@ -12,8 +12,11 @@ cabal install -j --enable-tests
 Example usage:
 
 ```sh
-cabal run -p 3000 -d postgres://[auth-role]:@localhost:5432/[database] -a [anonymous-role]
+cabal run -d [database] -U [auth-role] -a [anonymous-role]
 ```
+
+This will connect to a postgres DB at the url
+`postgres://[auth-role]:@localhost:5432/[database]`.
 
 You will need to provide two database roles (which are allowed to
 be the same). One is called the authenticator role (`auth-role`
