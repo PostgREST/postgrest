@@ -133,12 +133,13 @@ app req =
           else do
             tableCols <- map (cs . colName) <$> columns qt
             let cols = map cs $ keys obj
-            if S.fromList tableCols == S.fromList cols then do
-              let vals = elems obj
-              H.unit . coerce $ iffNotT
-                      (whereT qq $ update qt cols vals)
-                      (insertSelect qt cols vals)
-              return $ responseLBS status204 [ jsonH ] ""
+            if S.fromList tableCols == S.fromList cols
+              then do
+                let vals = elems obj
+                H.unit . coerce $ iffNotT
+                        (whereT qq $ update qt cols vals)
+                        (insertSelect qt cols vals)
+                return $ responseLBS status204 [ jsonH ] ""
 
               else return $ if Prelude.null tableCols
                 then responseLBS status404 [] ""
