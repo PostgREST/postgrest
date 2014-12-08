@@ -9,12 +9,10 @@ import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Exception
 import Data.String.Conversions (cs)
-import Data.List.Split (splitOn)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Static (staticPolicy, only)
-import Network.URI (URI(..), URIAuth(..), parseURI)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
@@ -32,12 +30,8 @@ main = do
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
   Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
 
-  let Just uri     = parseURI $ configDbUri conf
-      Just auth    = uriAuthority uri
-      userpass     = uriUserInfo auth
-      [user, pass] = splitOn ":" $ init userpass
-      pgSettings   = H.Postgres (cs $ uriRegName auth) (fromIntegral $ configPort conf)
-                       (cs user) (cs pass) (cs . tail $ uriPath uri)
+  let pgSettings = H.Postgres (cs $ configDbHost conf) (fromIntegral $ configDbPort conf)
+                     (cs $ configDbUser conf) (cs $ configDbPass conf) (cs $ configDbName conf)
 
   sessSettings <- maybe (fail "Improper session settings") return $
                     H.sessionSettings (fromIntegral $ configPool conf) 30

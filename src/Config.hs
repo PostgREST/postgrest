@@ -10,7 +10,12 @@ import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 
 data AppConfig = AppConfig {
-    configDbUri :: String
+    configDbName :: String
+  , configDbPort :: Int
+  , configDbUser :: String
+  , configDbPass :: String
+  , configDbHost :: String
+
   , configPort  :: Int
   , configAnonRole :: String
   , configSecure :: Bool
@@ -19,16 +24,16 @@ data AppConfig = AppConfig {
 
 argParser :: Parser AppConfig
 argParser = AppConfig
-  <$> strOption (long "db" <> short 'd' <> metavar "URI"
-    <> help "database uri to expose, e.g. postgres://user:pass@host:port/database")
-  <*> option (long "port" <> short 'p' <> metavar "NUMBER" <> value 3000
-    <> help "port number on which to run HTTP server")
-  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE"
-    <> help "postgres role to use for non-authenticated requests")
-  <*> switch (long "secure" <> short 's'
-    <> help "Redirect all requests to HTTPS")
-  <*> option (long "db-pool" <> metavar "NUMBER" <> value 10
-    <> help "Max connections in database pool")
+  <$> strOption (long "db-name" <> short 'd'                     <> help "name of database")
+  <*> option    (long "db-port" <> short 'P' <> value 5432        <> help "postgres server port")
+  <*> strOption (long "db-user" <> short 'U'                     <> help "postgres authenticator role")
+  <*> strOption (long "db-pass"             <> value ""          <> help "password for authenticator role")
+  <*> strOption (long "db-host" <> short 'h' <> value "localhost" <> help "postgres server hostname")
+
+  <*> option    (long "port" <> short 'p' <> value 3000 <> help "port number on which to run HTTP server")
+  <*> strOption (long "anonymous" <> short 'a' <> help "postgres role to use for non-authenticated requests")
+  <*> switch    (long "secure" <> short 's' <> help "Redirect all requests to HTTPS")
+  <*> option    (long "db-pool" <> value 10 <> help "Max connections in database pool")
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
