@@ -44,10 +44,14 @@ pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
 
 withApp :: ActionWith Application -> IO ()
 withApp perform =
+  let anonRole = cs $ configAnonRole cfg in
   perform $ middle $ \req resp ->
     H.session pgSettings testSettings $ H.sessionUnlifter >>= \unlift ->
-      liftIO $ resp =<< catchJust isSqlError
-          (unlift $ authenticated (cs $ configAnonRole cfg) app req)
+      liftIO $ do
+        body <- strictRequestBody req
+        resp =<< catchJust isSqlError
+          (unlift $ H.tx Nothing
+                  $ authenticated anonRole (app body) req)
           sqlErrHandler
 
   where middle = cors corsPolicy

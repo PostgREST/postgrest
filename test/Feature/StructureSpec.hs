@@ -31,7 +31,7 @@ spec = before resetDb $ around withApp $ do
 
       request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [
-          {"schema":"1","name":"authors_only","insertable":true}
+            {"schema":"1","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
 

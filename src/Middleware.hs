@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Middleware where
 
@@ -38,8 +39,8 @@ import Debug.Trace
 --     else Database.PostgreSQL.Simple.withSavepoint conn go
 --   where go = app conn req respond
 
-authenticated :: Text -> (Request -> H.Session H.Postgres s IO Response) ->
-       Request -> H.Session H.Postgres s IO Response
+authenticated :: forall s. Text -> (Request -> H.Tx H.Postgres s Response) ->
+       Request -> H.Tx H.Postgres s Response
 authenticated anon app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
@@ -51,21 +52,22 @@ authenticated anon app req = do
     NoCredentials -> runInRole anon
 
  where
-   httpRequesterRole :: RequestHeaders -> H.Session H.Postgres s IO LoginAttempt
+   httpRequesterRole :: RequestHeaders -> H.Tx H.Postgres s LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
     case split (==' ') (cs auth) of
       ("Basic" : b64 : _) ->
         case split (==':') (cs . decode . cs $ b64) of
-          (u:p:_) -> H.tx Nothing $ signInRole u p
+          (u:p:_) -> signInRole u p
           _ -> return MalformedAuth
       _ -> return NoCredentials
 
+   runInRole :: Text -> H.Tx H.Postgres s Response
    runInRole r = do
-     H.tx Nothing $ setRole r
-     resp <- app req
-     H.tx Nothing resetRole
-     return resp
+     setRole r
+     res <- app req
+     resetRole
+     return res
 
 -- instance ToJSON SqlError where
 --   toJSON t = object [

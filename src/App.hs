@@ -4,8 +4,6 @@ module App (app, sqlErrHandler, isSqlError) where
 import Control.Monad (join)
 import Control.Arrow ((***))
 import Control.Applicative
-import Control.Monad.IO.Class (liftIO, MonadIO)
--- import Control.Exception.Base
 
 import Data.Text hiding (map)
 import Data.Maybe (fromMaybe)
@@ -18,6 +16,7 @@ import Data.List (sortBy)
 import Data.Functor.Identity
 import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 import qualified Data.Set as S
+import qualified Data.ByteString.Lazy as BL
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
@@ -35,20 +34,19 @@ import RangeQuery
 import PgStructure
 import Auth
 
-app :: Request -> H.Session H.Postgres s IO Response
-app req =
+app :: BL.ByteString -> Request -> H.Tx H.Postgres s Response
+app reqBody req =
   case (path, verb) of
     ([], _) -> do
-      body <- H.tx Nothing $ encode <$> tables (cs schema)
+      body <- encode <$> tables (cs schema)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
       let t = QualifiedTable schema (cs table)
-      H.tx Nothing $ do
-        cols <- columns t
-        pkey <- map cs <$> primaryKeyColumns t
-        return $ responseLBS status200 [jsonH, allOrigins]
-          $ encode (TableOptions cols pkey)
+      cols <- columns t
+      pkey <- map cs <$> primaryKeyColumns t
+      return $ responseLBS status200 [jsonH, allOrigins]
+        $ encode (TableOptions cols pkey)
 
     ([table], "GET") ->
       if range == Just emptyRange
@@ -66,7 +64,7 @@ app req =
                   . whereT qq
                   $ selectStar qt
                 )
-        row <- H.tx Nothing $ H.single select
+        row <- H.single select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
             from = fromMaybe 0 $ rangeOffset <$> range
@@ -87,8 +85,7 @@ app req =
           ] (cs $ fromMaybe "[]" body)
 
     (["dbapi", "users"], "POST") -> do
-      body <- liftIO $ strictRequestBody req
-      let user = decode body :: Maybe AuthUser
+      let user = decode reqBody :: Maybe AuthUser
 
       case user of
         Nothing -> return $ responseLBS status400 [jsonH] $
@@ -102,7 +99,7 @@ app req =
             ] ""
 
     ([table], "POST") ->
-      handleJsonObj req $ \obj -> H.tx Nothing $ do
+      handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
             query = coerce $
               insertInto qt (map cs $ keys obj) (elems obj)
@@ -123,7 +120,7 @@ app req =
           ] ""
 
     ([table], "PUT") ->
-      handleJsonObj req $ \obj -> H.tx Nothing $ do
+      handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
         primaryKeys <- primaryKeyColumns qt
         let specifiedKeys = map (cs . fst) qq
@@ -147,7 +144,7 @@ app req =
                    "You must specify all columns in PUT request"
 
     ([table], "PATCH") ->
-     handleJsonObj req $ \obj -> H.tx Nothing $ do
+      handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
         H.unit
           $ coerce
@@ -209,9 +206,10 @@ requestedSchema hdrs =
 jsonH :: Header
 jsonH = (hContentType, "application/json")
 
-handleJsonObj :: MonadIO m => Request -> (Object -> m Response) -> m Response
-handleJsonObj req handler = do
-  parse <- liftIO $ fmap eitherDecode . strictRequestBody $ req
+handleJsonObj :: BL.ByteString -> (Object -> H.Tx H.Postgres s Response)
+              -> H.Tx H.Postgres s Response
+handleJsonObj reqBody handler = do
+  let parse = eitherDecode reqBody
   case parse of
     Left err ->
       return $ responseLBS status400 [jsonH] jErr

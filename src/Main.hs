@@ -9,6 +9,7 @@ import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Exception
 import Data.String.Conversions (cs)
+import Network.Wai (strictRequestBody)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
@@ -43,11 +44,14 @@ main = do
         (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy . clientErrors
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+      anonRole = cs $ configAnonRole conf
 
   H.session pgSettings sessSettings $ H.sessionUnlifter >>= \unlift ->
-    liftIO $ runSettings appSettings $ middle $ \req respond ->
+    liftIO $ runSettings appSettings $ middle $ \req respond -> do
+      body <- strictRequestBody req
       respond =<< catchJust isSqlError
-        (unlift $ authenticated (cs $ configAnonRole conf) app req)
+        (unlift $ H.tx Nothing
+                $ authenticated anonRole (app body) req)
         sqlErrHandler
 
   where
