@@ -40,7 +40,7 @@ testSettings :: SessionSettings
 testSettings = fromMaybe (error "bad settings") $ H.sessionSettings 1 30
 
 pgSettings :: Postgres
-pgSettings = H.Postgres "localhost" 5432 "dbapi_test" "" "dbapi_test"
+pgSettings = H.ParamSettings "localhost" 5432 "dbapi_test" "" "dbapi_test"
 
 withApp :: ActionWith Application -> IO ()
 withApp perform =

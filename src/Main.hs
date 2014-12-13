@@ -1,6 +1,6 @@
 module Main where
 
-import Paths_dbapi (version)
+import Paths_postgrest (version)
 
 import App
 import Middleware
@@ -29,10 +29,14 @@ main = do
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
-  Prelude.putStrLn $ "Listening on port " ++ (show $ configPort conf :: String)
+  Prelude.putStrLn $ "Listening on port " ++
+    (show $ configPort conf :: String)
 
-  let pgSettings = H.Postgres (cs $ configDbHost conf) (fromIntegral $ configDbPort conf)
-                     (cs $ configDbUser conf) (cs $ configDbPass conf) (cs $ configDbName conf)
+  let pgSettings = H.ParamSettings (cs $ configDbHost conf)
+                     (fromIntegral $ configDbPort conf)
+                     (cs $ configDbUser conf)
+                     (cs $ configDbPass conf)
+                     (cs $ configDbName conf)
 
   sessSettings <- maybe (fail "Improper session settings") return $
                     H.sessionSettings (fromIntegral $ configPool conf) 30

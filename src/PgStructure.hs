@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings,
+{-# LANGUAGE QuasiQuotes, OverloadedStrings, TypeSynonymInstances,
              MultiParamTypeClasses, ScopedTypeVariables #-}
 module PgStructure where
 

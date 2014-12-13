@@ -14,7 +14,6 @@ import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import Data.Functor.Identity
-import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
 
@@ -222,13 +221,6 @@ handleJsonObj reqBody handler = do
       where
         jErr = encode . object $
           [("error", String "Expecting a JSON object")]
-
-unquoted :: Value -> Text
-unquoted (String t) = t
-unquoted (Number n) =
-  cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (Bool b) = cs . show $ b
-unquoted _ = ""
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

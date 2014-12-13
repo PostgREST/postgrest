@@ -18,6 +18,7 @@ import Control.Monad (join)
 import Data.String.Conversions (cs)
 import qualified Data.Aeson as JSON
 import qualified Data.List as L
+import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 
 type DynamicSQL = (BS.ByteString, [H.StatementArgument H.Postgres], All)
 
@@ -99,9 +100,12 @@ insertInto t cols vals =
   ("insert into " <> fromQt t <> " (" <>
     cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") values (" <>
-    cs (intercalate ", " (map (const "?") vals)) <>
-    ") returning row_to_json(" <> fromQt t <> ".*)"
-  , map pgParam vals
+    cs (
+      intercalate ", " (map
+        ((<> "::unknown") . pgFmtLit . unquoted)
+        vals)
+    ) <> ") returning row_to_json(" <> fromQt t <> ".*)"
+  , []
   , mempty
   )
 
@@ -112,8 +116,12 @@ insertSelect t cols vals =
   ("insert into " <> fromQt t <> " (" <>
     cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") select " <>
-    cs (intercalate ", " (map (const "?") vals))
-  , map pgParam vals
+    cs (
+      intercalate ", " (map
+        ((<> "::unknown") . pgFmtLit . unquoted)
+        vals)
+    )
+  , []
   , mempty
   )
 
@@ -122,14 +130,18 @@ update t cols vals =
   ("update " <> fromQt t <> " set (" <>
     cs (intercalate ", " (map pgFmtIdent cols)) <>
     ") = (" <>
-    cs (intercalate ", " (map (const "?") vals)) <> ")"
-  , map pgParam vals
+    cs (
+      intercalate ", " (map
+        ((<> "::unknown") . pgFmtLit . unquoted)
+        vals)
+    ) <> ")"
+  , []
   , mempty
   )
 
 wherePred :: Net.QueryItem -> DynamicSQL
 wherePred (col, predicate) =
-  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> " ", [], mempty)
+  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> "::unknown ", [], mempty)
 
   where
     opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
@@ -189,10 +201,20 @@ trimNullChars = Data.Text.takeWhile (/= '\x0')
 fromQt :: QualifiedTable -> BS.ByteString
 fromQt t = cs $ pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
 
+unquoted :: JSON.Value -> Text
+unquoted (JSON.String t) = t
+unquoted (JSON.Number n) =
+  cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+unquoted (JSON.Bool b) = cs . show $ b
+unquoted _ = ""
+
 pgParam :: JSON.Value -> H.StatementArgument H.Postgres
-pgParam (JSON.Number n) = H.renderValue n
+pgParam (JSON.Number n) = H.renderValue
+  (cs $ formatScientific Fixed
+       (if isInteger n then Just 0 else Nothing) n :: Text)
 pgParam (JSON.String s) = H.renderValue s
-pgParam (JSON.Bool      b) = H.renderValue b
-pgParam JSON.Null       = H.renderValue (Nothing :: Maybe String)
+pgParam (JSON.Bool      b) = H.renderValue $
+  if b then "t" else "f" :: Text
+pgParam JSON.Null       = H.renderValue (Nothing :: Maybe Text)
 pgParam (JSON.Object o) = H.renderValue $ JSON.encode o
 pgParam (JSON.Array  a) = H.renderValue $ JSON.encode a

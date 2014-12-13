@@ -25,7 +25,7 @@ spec = before resetDb $ around withApp $ do
       p <- post "/menagerie"
         [json| {
           "integer": 13, "double": 3.14159, "varchar": "testing!"
-        , "boolean": false, "date": "01/01/1900", "money": "$3.99"
+        , "boolean": false, "date": "1900-01-01", "money": "$3.99"
         , "enum": "foo"
         } |]
       liftIO $ do
@@ -139,7 +139,7 @@ spec = before resetDb $ around withApp $ do
                  "id":1,
                  "nullable_string":"hi",
                  "non_nullable_string":"bye",
-                 "inserted_at": "now()"
+                 "inserted_at": "2020-11-11"
                } |]
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing,
