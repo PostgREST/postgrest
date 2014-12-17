@@ -42,7 +42,7 @@ main = do
                     H.sessionSettings (fromIntegral $ configPool conf) 30
 
   let appSettings = setPort port
-                  . setServerName (cs $ "dbapi/" <> prettyVersion)
+                  . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
       middle =
         (if configSecure conf then redirectInsecure else id)

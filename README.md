@@ -21,18 +21,19 @@ This will connect to a postgres DB at the url
 You will need to provide two database roles (which are allowed to
 be the same). One is called the authenticator role (`auth-role`
 above) which should have enough privileges to read the `auth` table
-in the `dbapi` schema if you intend to support multi-user applications.
+in the `postgrest` schema if you intend to support multi-user
+applications.
 
 The other role is for anonymous access (`anonymous-role` above).
-Immediately upon acceping any unauthenticated HTTP connection dbapi
+Immediately upon acceping any unauthenticated HTTP connection postgrest
 assumes this role in its queries to postgres. Give this role as
 much or little permissions as you would like.
 
 ### Running tests
 
 ```sh
-createuser --superuser --no-password dbapi_test
-createdb -O dbapi_test -U postgres dbapi_test
+createuser --superuser --no-password postgrest_test
+createdb -O postgrest_test -U postgres postgrest_test
 
 cabal test --show-details=always --test-options="--color"
 ```

@@ -83,7 +83,7 @@ app reqBody req =
             )
           ] (cs $ fromMaybe "[]" body)
 
-    (["dbapi", "users"], "POST") -> do
+    (["postgrest", "users"], "POST") -> do
       let user = decode reqBody :: Maybe AuthUser
 
       case user of
@@ -94,7 +94,7 @@ app reqBody req =
             (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH
-            , (hLocation, "/dbapi/users?id=eq." <> cs (userId u))
+            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
     ([table], "POST") ->

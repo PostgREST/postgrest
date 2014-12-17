@@ -11,6 +11,6 @@ BEGIN
 END;
 $$;
 
-select pg_temp.create_role_if_not_exists('dbapi_anonymous', 'with nologin') as a
+select pg_temp.create_role_if_not_exists('postgrest_anonymous', 'with nologin') as a
      , pg_temp.create_role_if_not_exists('test_default_role', 'with nologin') as b
-     , pg_temp.create_role_if_not_exists('dbapi_test_author', 'with nologin') into temp shh;
+     , pg_temp.create_role_if_not_exists('postgrest_test_author', 'with nologin') into temp shh;

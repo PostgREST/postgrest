@@ -25,7 +25,7 @@ spec = let
       it "allows partial rollback of request" $ \c -> do
         let app = withSavepoint Test dbErrApp c
         [[beforeCount]] <- quickQuery c "select count(*) from \"1\".items" []
-        runRaw c "set role dbapi_anonymous"
+        runRaw c "set role postgrest_anonymous"
         _ <- insert "1" "items" (SqlRow []) c
         catch (void $ app defaultRequest (const undefined) ) $
           \e -> let _ = (e::SqlError) in do

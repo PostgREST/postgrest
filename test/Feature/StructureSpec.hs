@@ -26,7 +26,7 @@ spec = before resetDb $ around withApp $ do
         {matchStatus = 200}
 
     it "lists only views user has permission to see" $ do
-      _ <- post "/dbapi/users" [json| { "id":"jdoe", "pass": "1234", "role": "dbapi_test_author" } |]
+      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
       let auth = authHeader "jdoe" "1234"
 
       request methodGet "/" [auth] ""

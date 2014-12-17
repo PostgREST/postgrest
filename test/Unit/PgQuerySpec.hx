@@ -64,7 +64,7 @@ spec = around dbWithSchema $ do
   describe "addUser" $ do
     it "adds a correct user to the right table" $ \conn -> do
       addUser user pass role conn
-      [r] <- quickQuery conn "select * from dbapi.auth" []
+      [r] <- quickQuery conn "select * from postgrest.auth" []
       let [newUser, newRole, encryptedPass] = map fromSql r :: [String]
       cs newUser `shouldBe` user
       cs newRole `shouldBe` role

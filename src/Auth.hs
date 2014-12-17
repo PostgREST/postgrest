@@ -55,12 +55,12 @@ addUser :: Text -> Text -> Text -> H.Tx H.Postgres s ()
 addUser identity pass role = do
   let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
   H.unit $
-    [H.q|insert into dbapi.auth (id, pass, rolname) values (?, ?, ?)|]
+    [H.q|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
       identity (cs hashed :: Text) role
 
 signInRole :: Text -> Text -> H.Tx H.Postgres s LoginAttempt
 signInRole user pass = do
-  u <- H.single $ [H.q|select pass, rolname from dbapi.auth where id = ?|] user
+  u <- H.single $ [H.q|select pass, rolname from postgrest.auth where id = ?|] user
   return $ maybe LoginFailed (\r ->
       let (hashed, role) = r in
       if checkPass hashed pass

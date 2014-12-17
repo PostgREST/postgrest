@@ -34,4 +34,4 @@ spec = around dbWithSchema $ beforeWith setRole $ do
         ("auto_inc_fk", ForeignKey {fkTable="auto_incrementing_pk", fkCol="id"}),
         ("simple_fk", ForeignKey { fkTable="simple_pk", fkCol="k"})]
 
-  where setRole conn = quickQuery conn "set role dbapi_test" [] >> return conn
+  where setRole conn = quickQuery conn "set role postgrest_test" [] >> return conn

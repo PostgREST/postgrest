@@ -1,6 +1,6 @@
 machine:
   pre:
-    - createuser --superuser --no-password dbapi_test
-    - createdb -O dbapi_test -U ubuntu dbapi_test
+    - createuser --superuser --no-password postgrest_test
+    - createdb -O postgrest_test -U ubuntu postgrest_test
   ghc:
     version: 7.8.3

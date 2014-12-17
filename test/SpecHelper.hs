@@ -34,13 +34,13 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "dbapi_test" 5432 "dbapi_test" "" "localhost" 3000 "dbapi_anonymous" False 10
+cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10
 
 testSettings :: SessionSettings
 testSettings = fromMaybe (error "bad settings") $ H.sessionSettings 1 30
 
 pgSettings :: Postgres
-pgSettings = H.ParamSettings "localhost" 5432 "dbapi_test" "" "dbapi_test"
+pgSettings = H.ParamSettings "localhost" 5432 "postgrest_test" "" "postgrest_test"
 
 withApp :: ActionWith Application -> IO ()
 withApp perform =
@@ -63,7 +63,7 @@ resetDb = do
     H.tx Nothing $ do
       H.unit [H.q| drop schema if exists "1" cascade |]
       H.unit [H.q| drop schema if exists private cascade |]
-      H.unit [H.q| drop schema if exists dbapi cascade |]
+      H.unit [H.q| drop schema if exists postgrest cascade |]
 
   loadFixture "roles"
   loadFixture "schema"
@@ -71,7 +71,7 @@ resetDb = do
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
-  void $ readProcess "psql" ["-U", "dbapi_test", "-d", "dbapi_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 
 rangeHdrs :: ByteRange -> [Header]
