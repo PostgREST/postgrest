@@ -46,7 +46,7 @@ main = do
                   $ defaultSettings
       middle =
         (if configSecure conf then redirectInsecure else id)
-        . gzip def . cors corsPolicy . clientErrors
+        . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
       anonRole = cs $ configAnonRole conf
 
@@ -56,7 +56,7 @@ main = do
       respond =<< catchJust isSqlError
         (unlift $ H.tx Nothing
                 $ authenticated anonRole (app body) req)
-        sqlErrHandler
+        (return . sqlError)
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"

@@ -14,7 +14,7 @@ spec :: Spec
 spec = before resetDb $ around withApp $
   describe "authorization" $ do
     it "hides tables that anonymous does not own" $
-      get "/authors_only" `shouldRespondWith` 400 -- TODO: should be 404
+      get "/authors_only" `shouldRespondWith` 404
     it "indicates login failure" $ do
       let auth = authHeader "postgrest_test_author" "fakefake"
       request methodGet "/authors_only" [auth] ""

@@ -24,7 +24,7 @@ import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
-import App (app, sqlErrHandler, isSqlError)
+import App (app, sqlError, isSqlError)
 import Config (AppConfig(..), corsPolicy)
 import Middleware
 -- import Auth (addUser)
@@ -52,7 +52,7 @@ withApp perform =
         resp =<< catchJust isSqlError
           (unlift $ H.tx Nothing
                   $ authenticated anonRole (app body) req)
-          sqlErrHandler
+          (return . sqlError)
 
   where middle = cors corsPolicy
 

@@ -73,7 +73,7 @@ spec = before resetDb $ around withApp $ do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| {"error":"Failed to parse JSON payload. Failed reading: satisfy"} |]
+            matchBody    = Just [json| {"message":"Failed to parse JSON payload. Failed reading: satisfy"} |]
           , matchStatus  = 400
           , matchHeaders = []
           }

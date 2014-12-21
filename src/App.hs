@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module App (app, sqlErrHandler, isSqlError) where
+module App (app, sqlError, isSqlError) where
 
 import Control.Monad (join)
 import Control.Arrow ((***))
@@ -28,10 +28,12 @@ import Data.Monoid
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
 
+import Auth
 import PgQuery
 import RangeQuery
 import PgStructure
-import Auth
+import PgError
+import Text.Parsec hiding (Column)
 
 app :: BL.ByteString -> Request -> H.Tx H.Postgres s Response
 app reqBody req =
@@ -88,7 +90,7 @@ app reqBody req =
 
       case user of
         Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("error", String "Failed to parse user.")]
+          encode . object $ [("message", String "Failed to parse user.")]
         Just u -> do
           _ <- addUser (cs $ userId u)
             (cs $ userPass u) (cs $ userRole u)
@@ -166,15 +168,32 @@ app reqBody req =
 
 
 isSqlError :: H.Error -> Maybe H.Error
-isSqlError (H.ErroneousResult x) = Just $ H.ErroneousResult x
-isSqlError _ = Nothing
+isSqlError = Just
 
-sqlErrHandler :: H.Error -> IO Response
-sqlErrHandler (H.ErroneousResult err) =
-  return $ if "42P01" `isInfixOf` err
-    then responseLBS status404 [] ""
-    else responseLBS status400 [] (cs err)
-sqlErrHandler _ = error "just for debugging"
+sqlError :: H.Error -> Response
+sqlError err =
+  let inside = case err of
+        H.CantConnect t -> t
+        H.ConnectionLost t -> t
+        H.ErroneousResult t -> t
+        H.UnexpectedResult t -> t
+        H.UnparsableTemplate t -> t
+        H.UnparsableRow t -> t
+        H.NotInTransaction -> "An operation which requires a"
+          <> "database transaction was executed without one"
+      p = parse message
+        "{\"message\": \"failed to parse exception\" }" inside in
+  either
+    (\nope ->
+      responseLBS status500
+      [(hContentType, "application/json")]
+      (cs . show $ nope))
+    (\msg ->
+      responseLBS (httpStatus msg)
+      [(hContentType, "application/json")]
+      (encode msg))
+    p
+
 
 rangeStatus :: Int -> Int -> Int -> Status
 rangeStatus from to total
@@ -208,19 +227,19 @@ jsonH = (hContentType, "application/json")
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx H.Postgres s Response)
               -> H.Tx H.Postgres s Response
 handleJsonObj reqBody handler = do
-  let parse = eitherDecode reqBody
-  case parse of
+  let p = eitherDecode reqBody
+  case p of
     Left err ->
       return $ responseLBS status400 [jsonH] jErr
       where
         jErr = encode . object $
-          [("error", String $ "Failed to parse JSON payload. " <> cs err)]
+          [("message", String $ "Failed to parse JSON payload. " <> cs err)]
     Right (Object o) -> handler o
     Right _ ->
       return $ responseLBS status400 [jsonH] jErr
       where
         jErr = encode . object $
-          [("error", String "Expecting a JSON object")]
+          [("message", String "Expecting a JSON object")]
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

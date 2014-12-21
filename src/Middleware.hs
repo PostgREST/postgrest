@@ -3,7 +3,6 @@
 
 module Middleware where
 
---import Data.Aeson ((.=), toJSON, ToJSON, object, encode)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (mconcat)
 import Data.Text
@@ -12,9 +11,8 @@ import Data.Text
 import qualified Hasql as H
 import qualified Hasql.Postgres as H
 import Data.String.Conversions(cs)
-import Control.Exception (catchJust)
 
-import Network.HTTP.Types.Header (hLocation, hContentType, hAuthorization)
+import Network.HTTP.Types.Header (hLocation, hAuthorization)
 import Network.HTTP.Types (RequestHeaders)
 import Network.HTTP.Types.Status (status400, status401, status301)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
@@ -23,8 +21,6 @@ import Network.URI (URI(..), parseURI)
 
 import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
-
-import Debug.Trace
 
 -- data Environment = Test | Production deriving (Eq)
 
@@ -68,29 +64,6 @@ authenticated anon app req = do
      res <- app req
      resetRole
      return res
-
--- instance ToJSON SqlError where
---   toJSON t = object [
---       "error" .= object [
---           "message" .= (cs $ sqlErrorMsg t :: String)
---         , "detail"  .= (cs $ sqlErrorDetail t :: String)
---         , "state"   .= (cs $ sqlState t :: String)
---         , "hint"    .= (cs $ sqlErrorHint t :: String)
---       ]
---     ]
-
-clientErrors :: Application -> Application
-clientErrors app req respond =
-  catchJust isPgException (app req respond) $ \err ->
-    respond $
-      responseLBS status400 [(hContentType, "application/json")] (cs $ show err)
-      -- if sqlState err == "42P01"
-      --  then responseLBS status404 [] ""
-      --  else responseLBS status400 [(hContentType, "application/json")] (encode err)
-
-  where
-    isPgException :: H.Error -> Maybe H.Error
-    isPgException x = Just (traceShow x x)
 
 
 redirectInsecure :: Application -> Application
