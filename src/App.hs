@@ -173,7 +173,8 @@ isSqlError = Just
 sqlError :: H.Error -> Response
 sqlError err =
   let inside = case err of
-        H.CantConnect t -> t
+        H.CantConnect _ ->
+          "Message: \"Cannot connect to postgres server\""
         H.ConnectionLost t -> t
         H.ErroneousResult t -> t
         H.UnexpectedResult t -> t
