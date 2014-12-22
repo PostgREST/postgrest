@@ -180,19 +180,20 @@ sqlError err =
         H.UnparsableTemplate t -> t
         H.UnparsableRow t -> t
         H.NotInTransaction -> "An operation which requires a"
-          <> "database transaction was executed without one"
-      p = parse message
-        "{\"message\": \"failed to parse exception\" }" inside in
+          <> "database transaction was executed without one" in
   either
-    (\nope ->
+    (\hint ->
       responseLBS status500
       [(hContentType, "application/json")]
-      (cs . show $ nope))
+      (cs . encode . object $ [
+          ("message", String $
+            "Failed to parse exception:" <> inside)
+        , ("hint", String . cs . show $ hint)]))
     (\msg ->
       responseLBS (httpStatus msg)
       [(hContentType, "application/json")]
       (encode msg))
-    p
+    (parse message "" inside)
 
 
 rangeStatus :: Int -> Int -> Int -> Status
