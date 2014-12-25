@@ -2,55 +2,140 @@
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
 
-### Installation
+PostgREST serves a fully RESTful API from any existing PostgreSQL
+database. It provides a cleaner, more standards-compliant, faster
+API than you are likely to write from scratch.
 
-```sh
-brew install postgres
-cabal install -j --enable-tests
+### Demo
+
+Try making requests to the live [demo server] with an HTTP client
+such as [postman](http://www.getpostman.com/).
+
+[video placeholder]
+
+### Usage
+
+Download [binaries for your platform] and invoke the program like so:
+
+```bash
+postgrest  --db-host localhost  --db-port 5432     \
+           --db-name my_db      --db-user postgres \
+           --db-pass foobar     --db-pool 200      \
+           --anonymous postgres --secure           \
+           --port 3000
 ```
 
-Example usage:
+### Security
 
-```sh
-cabal run -d [database] -U [auth-role] -a [anonymous-role]
-```
+PostgREST handles authentication (HTTP Basic over SSL) and delegates
+authorization to the role information defined in the database. This
+ensures there is a single declarative source of truth for security.
+When dealing with the database the server assumes the identity of
+the currently authenticated user, and for the duration of the
+connection cannot do anything the user themselves couldn't.
 
-This will connect to a postgres DB at the url
-`postgres://[auth-role]:@localhost:5432/[database]`.
+Postgres 9.5 will soon support true [row-level
+security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
+In the meantime what isn't yet implemented can be simulated with
+triggers and security-barrier views. Because the possible queries
+to the database are limited to certain templates using
+[leakproof](http://blog.2ndquadrant.com/how-do-postgresql-security_barrier-views-work/)
+functions, the trigger workaround does not compromise row-level
+security.
 
-You will need to provide two database roles (which are allowed to
-be the same). One is called the authenticator role (`auth-role`
-above) which should have enough privileges to read the `auth` table
-in the `postgrest` schema if you intend to support multi-user
-applications.
+For example security patterns see the [security
+guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 
-The other role is for anonymous access (`anonymous-role` above).
-Immediately upon acceping any unauthenticated HTTP connection postgrest
-assumes this role in its queries to postgres. Give this role as
-much or little permissions as you would like.
+### Performance
 
-### Running tests
+If you're used to servers written in interpreted languages (or named
+after precious gems), prepare to be pleasantly surprised by PostgREST
+performance.
 
-```sh
-createuser --superuser --no-password postgrest_test
-createdb -O postgrest_test -U postgres postgrest_test
+Three factors contribute to the speed. First the server is written
+in [Haskell](https://new-www.haskell.org/) using the
+[Warp](http://www.yesodweb.com/blog/2011/03/preliminary-warp-cross-language-benchmarks)
+HTTP server (aka a compiled language with lightweight threads).
+Next it delegates as much calculation as possible to the database
+including
 
-cabal test --show-details=always --test-options="--color"
-```
+* Serializing JSON responses directly in SQL
+* Data validation
+* Authorization
+* Combined row counting and retrieval
+* Data post in single command (`returning *`)
 
-### Distributing Heroku build
+Finally it uses the database efficiently with the
+[Hasql](https://nikita-volkov.github.io/hasql-benchmarks/) library
+by
 
-```sh
-heroku create --stack=cedar --buildpack https://github.com/begriffs/heroku-buildpack-ghc.git
-git push heroku master
+* Reusing prepared statements
+* Keeping a pool of db connections
+* Using the Postgres binary protocol
+* Being stateless to allow horizontal scaling
 
-heroku config:set S3_ACCESS_KEY=abc
-heroku config:set S3_SECRET_KEY=123
-heroku config:set S3_BUCKET=s3://foo/bar
+Ultimately the server (when load balanced) is constrained by database
+performance. This may make it inappropriate for very large traffic
+load. To learn more about scaling with Heroku and Amazon RDS see
+the [performance guide](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling).
 
-heroku run scripts/release_s3.sh
-```
+Other optimizations are possible, and some are outlined in the
+[Future Features](#future-features).
 
-### Acknowledgements
+### Versioning
 
-Thanks to [Adam Baker](https://github.com/adambaker) for code contributions and many fundamental design discussions. Also thanks to [Loop/Recur](https://looprecur.com) for open-source Fridays to advance the code, and for their courage to use this thing in real projects.
+A robust long-lived API needs the freedom to exist in multiple
+versions. PostgREST supports versioning through HTTP content
+negotiation. Requests for a certain version translate into switching
+which database schema to search for tables. PostgreSQL schema search
+paths allow tables from earlier versions to be reused verbatim in
+later versions.
+
+To learn more, see the [guide to versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning).
+
+### Self-documention
+
+Rather than writing and maintaining separate docs yourself let the
+API explain its own affordances using HTTP. All PostgREST endpoints
+respond to the OPTIONS verb and explain what they support as well
+as the data format of their JSON payload.
+
+The number of rows returned by an endpoint is reported by - and
+limited with - range headers. More about
+[that](http://begriffs.com/posts/2014-03-06-beyond-http-header-links.html).
+
+There are more opportunities for self-documentation listed in [Future
+Features](#future-features).
+
+### Data Integrity
+
+Rather than relying on an Object Relational Mapper and custom
+imperative coding, this system requires you put declarative constraints
+directly into your database. Hence no application can corrupt your
+data (including your API server).
+
+The PostgREST exposes HTTP interface with safeguards to prevent
+surprises, such as enforcing idempotent PUT requests, and
+
+See examples of [Postgres
+constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
+and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
+
+### Future Features
+
+* Watching endpoint changes with sockets and Postgres pubsub
+* Specifying per-view HTTP caching
+* Inferring good default caching policies from the Postgres stats
+* Generating mock data to test clients
+* Maintaining separate connection pools per role to avoid "set/reset
+  role" performance penalty
+* Describe more relationships with Link headers
+* Depending on accept headers, render OPTIONS as [RAML] or a
+  relational diagram
+* Add two-legged auth with OAuth 1.0a(?)
+* ... the other [issues](https://github.com/begriffs/postgrest/issues)
+
+### Thanks
+
+Thanks to [Adam Baker](https://github.com/adambaker) for code
+contributions and many fundamental design discussions.
