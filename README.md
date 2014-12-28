@@ -125,12 +125,12 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 
 * Watching endpoint changes with sockets and Postgres pubsub
 * Specifying per-view HTTP caching
-* Inferring good default caching policies from the Postgres stats
-* Generating mock data to test clients
+* Inferring good default caching policies from the Postgres stats collector
+* Generating mock data for test clients
 * Maintaining separate connection pools per role to avoid "set/reset
   role" performance penalty
 * Describe more relationships with Link headers
-* Depending on accept headers, render OPTIONS as [RAML] or a
+* Depending on accept headers, render OPTIONS as [RAML](http://raml.org/) or a
   relational diagram
 * Add two-legged auth with OAuth 1.0a(?)
 * ... the other [issues](https://github.com/begriffs/postgrest/issues)
