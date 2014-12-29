@@ -50,7 +50,7 @@ guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 
 If you're used to servers written in interpreted languages (or named
 after precious gems), prepare to be pleasantly surprised by PostgREST
-performance.
+performance. ([see the load test](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling))
 
 Three factors contribute to the speed. First the server is written
 in [Haskell](https://new-www.haskell.org/) using the
