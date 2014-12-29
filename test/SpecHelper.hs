@@ -44,14 +44,15 @@ pgSettings = H.ParamSettings "localhost" 5432 "postgrest_test" "" "postgrest_tes
 
 withApp :: ActionWith Application -> IO ()
 withApp perform =
-  let anonRole = cs $ configAnonRole cfg in
+  let anonRole = cs $ configAnonRole cfg
+      currRole = cs $ configDbUser cfg in
   perform $ middle $ \req resp ->
     H.session pgSettings testSettings $ H.sessionUnlifter >>= \unlift ->
       liftIO $ do
         body <- strictRequestBody req
         resp =<< catchJust isSqlError
           (unlift $ H.tx Nothing
-                  $ authenticated anonRole (app body) req)
+                  $ authenticated currRole anonRole (app body) req)
           (return . sqlError)
 
   where middle = cors corsPolicy

@@ -22,30 +22,18 @@ import Network.URI (URI(..), parseURI)
 import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
--- data Environment = Test | Production deriving (Eq)
-
--- safeAction :: Request -> Bool
--- safeAction = (`notElem` ["PATCH", "PUT"]) . requestMethod
-
--- withSavepoint :: Environment -> (Connection -> Application) ->
---                  Connection -> Application
--- withSavepoint env app conn req respond =
---   if env == Production && safeAction req
---     then go
---     else Database.PostgreSQL.Simple.withSavepoint conn go
---   where go = app conn req respond
-
-authenticated :: forall s. Text -> (Request -> H.Tx H.Postgres s Response) ->
-       Request -> H.Tx H.Postgres s Response
-authenticated anon app req = do
+authenticated :: forall s. Text -> Text ->
+                 (Request -> H.Tx H.Postgres s Response) ->
+                 Request -> H.Tx H.Postgres s Response
+authenticated currentRole anon app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
     MalformedAuth ->
       return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
       return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role -> runInRole role
-    NoCredentials -> runInRole anon
+    LoginSuccess role -> if role /= currentRole then runInRole role else app req
+    NoCredentials ->     if anon /= currentRole then runInRole anon else app req
 
  where
    httpRequesterRole :: RequestHeaders -> H.Tx H.Postgres s LoginAttempt

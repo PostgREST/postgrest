@@ -49,13 +49,14 @@ main = do
         . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
       anonRole = cs $ configAnonRole conf
+      currRole = cs $ configDbUser conf
 
   H.session pgSettings sessSettings $ H.sessionUnlifter >>= \unlift ->
     liftIO $ runSettings appSettings $ middle $ \req respond -> do
       body <- strictRequestBody req
       respond =<< catchJust isSqlError
         (unlift $ H.tx Nothing
-                $ authenticated anonRole (app body) req)
+                $ authenticated currRole anonRole (app body) req)
         (return . sqlError)
 
   where
