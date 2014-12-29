@@ -15,7 +15,7 @@ such as [postman](http://www.getpostman.com/).
 
 ### Usage
 
-Download [binaries for your platform] and invoke the program like so:
+Download the binary ([OS X](http://bin.begriffs.com/dbapi/osx/postgrest-0.2.4.9.tar.xz) /  [Ubuntu](http://bin.begriffs.com/dbapi/heroku/postgrest-0.2.4.9.tar.xz)) and invoke like so:
 
 ```bash
 postgrest  --db-host localhost  --db-port 5432     \
