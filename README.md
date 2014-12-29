@@ -25,32 +25,13 @@ postgrest  --db-host localhost  --db-port 5432     \
            --port 3000
 ```
 
-### Security
-
-PostgREST handles authentication (HTTP Basic over SSL) and delegates
-authorization to the role information defined in the database. This
-ensures there is a single declarative source of truth for security.
-When dealing with the database the server assumes the identity of
-the currently authenticated user, and for the duration of the
-connection cannot do anything the user themselves couldn't.
-
-Postgres 9.5 will soon support true [row-level
-security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
-In the meantime what isn't yet implemented can be simulated with
-triggers and security-barrier views. Because the possible queries
-to the database are limited to certain templates using
-[leakproof](http://blog.2ndquadrant.com/how-do-postgresql-security_barrier-views-work/)
-functions, the trigger workaround does not compromise row-level
-security.
-
-For example security patterns see the [security
-guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
-
 ### Performance
+
+TLDR; subsecond response times for up to 2000 requests/sec on Heroku free tier. ([see the load test](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling))
 
 If you're used to servers written in interpreted languages (or named
 after precious gems), prepare to be pleasantly surprised by PostgREST
-performance. ([see the load test](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling))
+performance.
 
 Three factors contribute to the speed. First the server is written
 in [Haskell](https://new-www.haskell.org/) using the
@@ -81,6 +62,27 @@ the [performance guide](https://github.com/begriffs/postgrest/wiki/Performance-a
 
 Other optimizations are possible, and some are outlined in the
 [Future Features](#future-features).
+
+### Security
+
+PostgREST handles authentication (HTTP Basic over SSL) and delegates
+authorization to the role information defined in the database. This
+ensures there is a single declarative source of truth for security.
+When dealing with the database the server assumes the identity of
+the currently authenticated user, and for the duration of the
+connection cannot do anything the user themselves couldn't.
+
+Postgres 9.5 will soon support true [row-level
+security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
+In the meantime what isn't yet implemented can be simulated with
+triggers and security-barrier views. Because the possible queries
+to the database are limited to certain templates using
+[leakproof](http://blog.2ndquadrant.com/how-do-postgresql-security_barrier-views-work/)
+functions, the trigger workaround does not compromise row-level
+security.
+
+For example security patterns see the [security
+guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 
 ### Versioning
 
