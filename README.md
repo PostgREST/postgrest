@@ -137,6 +137,13 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 * Add two-legged auth with OAuth 1.0a(?)
 * ... the other [issues](https://github.com/begriffs/postgrest/issues)
 
+### Guides
+
+* [Routing](https://github.com/begriffs/postgrest/wiki/Routing)
+* [Versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning)
+* [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
+* [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
+
 ### Thanks
 
 Thanks to [Adam Baker](https://github.com/adambaker) for code
