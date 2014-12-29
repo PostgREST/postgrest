@@ -1,4 +1,4 @@
-## Serve a RESTful API from any Postgres database
+![Logo](static/logo.png "Logo")
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
 
