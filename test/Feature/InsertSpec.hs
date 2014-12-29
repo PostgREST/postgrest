@@ -13,15 +13,29 @@ import Data.Maybe (fromJust)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 import Control.Monad (replicateM_)
+import Data.Monoid
+import qualified Hasql as H
+import qualified Data.ByteString.Char8 as BS
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
 --import Debug.Trace
 
+
+clearTable :: BS.ByteString -> IO ()
+clearTable table = H.session pgSettings testSettings $ H.tx Nothing $
+  H.unit ("delete from \"1\"."<>table, [], True)
+
+createItems :: Int -> IO ()
+createItems n = H.session pgSettings testSettings $ H.tx Nothing txn >> return ()
+  where
+    txn = sequence $ map H.unit stmts
+    stmts = map [H.q|insert into "1".items (id) values (?)|] [1..n]
+
 spec :: Spec
-spec = before resetDb $ around withApp $ do
+spec = beforeAll resetDb $ around withApp $ do
   describe "Posting new record" $ do
-    it "accepts disparate json types" $ do
+    after_ (clearTable "menagerie") . it "accepts disparate json types" $ do
       p <- post "/menagerie"
         [json| {
           "integer": 13, "double": 3.14159, "varchar": "testing!"
@@ -33,7 +47,7 @@ spec = before resetDb $ around withApp $ do
         simpleStatus p `shouldBe` created201
 
     context "with no pk supplied" $ do
-      context "into a table with auto-incrementing pk" $
+      context "into a table with auto-incrementing pk" . after_ (clearTable "auto_incrementing_pk") $
         it "succeeds with 201 and link" $ do
           p <- post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
           liftIO $ do
@@ -52,7 +66,7 @@ spec = before resetDb $ around withApp $ do
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
 
-      context "into a table with no pk" $
+      context "into a table with no pk" . after_ (clearTable "no_pk") $
         it "succeeds with 201 and a link including all fields" $ do
           p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
@@ -60,7 +74,7 @@ spec = before resetDb $ around withApp $ do
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.foo&b=eq.bar"
             simpleStatus p `shouldBe` created201
 
-    context "with compound pk supplied" $
+    context "with compound pk supplied" . after_ (clearTable "compound_pk") $
       it "builds response location header appropriately" $
         post "/compound_pk" [json| { "k1":12, "k2":42 } |]
           `shouldRespondWith` ResponseMatcher {
@@ -101,7 +115,7 @@ spec = before resetDb $ around withApp $ do
               [json| { "k1":12, "k2":42 } |]
                 `shouldRespondWith` 400
 
-        context "specifying every column in the table" $ do
+        context "specifying every column in the table" . after_ (clearTable "compound_pk") $ do
           it "can create a new record" $ do
             p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
                  [json| { "k1":12, "k2":42, "extra":3 } |]
@@ -131,7 +145,7 @@ spec = before resetDb $ around withApp $ do
               let record = head rows
               compoundExtra record `shouldBe` Just 5
 
-      context "with an auto-incrementing primary key" $
+      context "with an auto-incrementing primary key" . after_ (clearTable "auto_incrementing_pk") $
 
         it "succeeds with 204" $
           request methodPut "/auto_incrementing_pk?id=eq.1" []
@@ -161,7 +175,8 @@ spec = before resetDb $ around withApp $ do
           [json| { "extra":20 } |]
             `shouldRespondWith` 204
 
-    context "in a nonempty table" $ do
+    context "in a nonempty table" . before_ (clearTable "items" >> createItems 15) .
+      after_ (clearTable "items") $ do
       it "can update a single item" $ do
         g <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g
