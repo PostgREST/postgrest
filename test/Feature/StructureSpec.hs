@@ -10,7 +10,7 @@ import SpecHelper
 import Network.HTTP.Types
 
 spec :: Spec
-spec = beforeAll resetDb $ around withApp $ do
+spec = around withApp $ do
   describe "GET /" $ do
     it "lists views in schema" $
       request methodGet "/" [] ""

@@ -19,7 +19,7 @@ import TestTypes(IncPK(..), CompoundPK(..))
 --import Debug.Trace
 
 spec :: Spec
-spec = beforeAll resetDb $ around withApp $ do
+spec = around withApp $ do
   describe "Posting new record" $ do
     after_ (clearTable "menagerie") . it "accepts disparate json types" $ do
       p <- post "/menagerie"

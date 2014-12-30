@@ -452,13 +452,14 @@ SELECT pg_catalog.setval('has_fk_id_seq', 1, false);
 -- Data for Name: items; Type: TABLE DATA; Schema: 1; Owner: postgrest_test
 --
 
+INSERT INTO items (id) VALUES (1);
 --
 -- TOC entry 2339 (class 0 OID 0)
 -- Dependencies: 198
 -- Name: items_id_seq; Type: SEQUENCE SET; Schema: 1; Owner: postgrest_test
 --
 
-SELECT pg_catalog.setval('items_id_seq', 1, true);
+SELECT pg_catalog.setval('items_id_seq', 19, true);
 
 
 --

@@ -56,7 +56,7 @@ Test-Suite spec
   other-extensions:    QuasiQuotes
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W -Werror
-  Main-Is:             Spec.hs
+  Main-Is:             Main.hs
   Other-Modules:       App, Auth, Config, Spec, SpecHelper
   Build-Depends:       base, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json

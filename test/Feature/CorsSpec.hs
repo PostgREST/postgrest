@@ -12,8 +12,7 @@ import Network.HTTP.Types
 -- }}}
 
 spec :: Spec
-spec = beforeAll resetDb $ around withApp $
-  describe "CORS" $ do
+spec = around withApp $ describe "CORS" $ do
     let preflightHeaders = [
           ("Accept", "*/*"),
           ("Origin", "http://example.com"),

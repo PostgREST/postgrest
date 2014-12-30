@@ -11,8 +11,7 @@ import SpecHelper
 -- }}}
 
 spec :: Spec
-spec = beforeAll resetDb $ around withApp $
-  describe "authorization" $ do
+spec = around withApp $ describe "authorization" $ do
     it "hides tables that anonymous does not own" $
       get "/authors_only" `shouldRespondWith` 404
     it "indicates login failure" $ do

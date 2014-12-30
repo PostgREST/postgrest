@@ -6,10 +6,8 @@ import Test.Hspec.Wai
 import SpecHelper
 
 spec :: Spec
-spec = beforeAll (do
-     resetDb
-     createItems 15
-  ) . afterAll_ (clearTable "items") . around withApp $ do
+spec = beforeAll (clearTable "items" >> createItems 15)
+  . afterAll_ (clearTable "items") . around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
