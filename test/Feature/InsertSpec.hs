@@ -13,24 +13,10 @@ import Data.Maybe (fromJust)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 import Control.Monad (replicateM_)
-import Data.Monoid
-import qualified Hasql as H
-import qualified Data.ByteString.Char8 as BS
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
 --import Debug.Trace
-
-
-clearTable :: BS.ByteString -> IO ()
-clearTable table = H.session pgSettings testSettings $ H.tx Nothing $
-  H.unit ("delete from \"1\"."<>table, [], True)
-
-createItems :: Int -> IO ()
-createItems n = H.session pgSettings testSettings $ H.tx Nothing txn >> return ()
-  where
-    txn = sequence $ map H.unit stmts
-    stmts = map [H.q|insert into "1".items (id) values (?)|] [1..n]
 
 spec :: Spec
 spec = beforeAll resetDb $ around withApp $ do

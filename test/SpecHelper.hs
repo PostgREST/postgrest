@@ -10,6 +10,7 @@ import Hasql as H
 import Hasql.Postgres as H
 
 import Data.String.Conversions (cs)
+import Data.Monoid
 -- import Control.Exception.Base (bracket, finally)
 import Control.Monad (void)
 import Control.Exception
@@ -88,6 +89,16 @@ matchHeader name valRegex headers =
 authHeader :: String -> String -> Header
 authHeader u p =
   (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
+
+clearTable :: BS.ByteString -> IO ()
+clearTable table = H.session pgSettings testSettings $ H.tx Nothing $
+  H.unit ("delete from \"1\"."<>table, [], True)
+
+createItems :: Int -> IO ()
+createItems n = H.session pgSettings testSettings $ H.tx Nothing txn
+  where
+    txn = sequence_ $ map H.unit stmts
+    stmts = map [H.q|insert into "1".items (id) values (?)|] [1..n]
 
 -- for hspec-wai
 pending_ :: WaiSession ()
