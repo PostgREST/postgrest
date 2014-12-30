@@ -6,7 +6,7 @@ PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
 API than you are likely to write from scratch.
 
-### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com)
+### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com) | Watch [Video](https://begriffs.com/posts/2014-12-30-intro-to-postgrest.html)
 
 Try making requests to the live demo server with an HTTP client
 such as [postman](http://www.getpostman.com/). The structure of the
@@ -14,8 +14,6 @@ demo database is defined by
 [begriffs/postgrest-example](https://github.com/begriffs/postgrest-example).
 You can use it as inspiration for test-driven server migrations in
 your own projects.
-
-[video placeholder]
 
 ### Usage
 
