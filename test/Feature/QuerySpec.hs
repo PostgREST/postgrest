@@ -39,6 +39,9 @@ spec = beforeAll (clearTable "items" >> createItems 15)
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
 
+    it "without other constraints" $
+      get "/items?order=asc.id" `shouldRespondWith` 200
+
   describe "Canonical location" $ do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"

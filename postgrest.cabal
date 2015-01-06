@@ -1,5 +1,5 @@
 name:                  postgrest
-version:               0.2.4.9
+version:               0.2.4.10
 synopsis:              The database is your api
 license:               MIT
 license-file:          LICENSE

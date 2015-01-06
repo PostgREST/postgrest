@@ -43,7 +43,7 @@ limitT r q =
 
 whereT :: Net.Query -> StatementT
 whereT params q =
- if L.null params
+ if L.null cols
    then q
    else q <> (" where ",[],mempty) <> conjunction
  where
