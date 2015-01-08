@@ -1,6 +1,9 @@
 ![Logo](static/logo.png "Logo")
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
+<a href="https://heroku.com/deploy?template=https://github.com/begriffs/postgrest">
+  <img src="static/heroku.png" alt="Deploy">
+</a>
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
@@ -148,5 +151,11 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 
 ### Thanks
 
-Thanks to [Adam Baker](https://github.com/adambaker) for code
-contributions and many fundamental design discussions.
+* [Adam Baker](https://github.com/adambaker) for code
+  contributions and many fundamental design discussions
+* [Miëtek Bak](https://github.com/mietek) for creating the Heroku
+  deployment packaging and [Halcyon](https://halcyon.sh/) infrastructure
+* [Nikita Volkov](https://github.com/nikita-volkov) for writing the
+  wonderful [Hasql](https://github.com/nikita-volkov/hasql) library
+  and helping me use it
+* [Mikey Casalaina](https://github.com/casalaina) for the cool logo
