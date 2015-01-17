@@ -74,6 +74,12 @@ iffNotT (aq, ap, apre) (bq, bp, bpre) =
   , All $ getAll apre && getAll bpre
   )
 
+countT :: StatementT
+countT (sql, params, pre) =
+  ("WITH qqq AS (" <> sql <> ") SELECT count(1) FROM qqq"
+  , params
+  , pre)
+
 countRows :: QualifiedTable -> DynamicSQL
 countRows t =
   ("select count(1) from " <> fromQt t, [], mempty)
@@ -92,6 +98,14 @@ asJsonRow (sql, params, pre) = (
 selectStar :: QualifiedTable -> DynamicSQL
 selectStar t =
   ("select * from " <> fromQt t, [], mempty)
+
+returningStarT :: StatementT
+returningStarT (sql, params, pre) =
+  (sql <> " RETURNING *", params, pre)
+
+deleteFrom :: QualifiedTable -> DynamicSQL
+deleteFrom t =
+  ("delete from " <> fromQt t, [], mempty)
 
 insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
 insertInto t [] _ =

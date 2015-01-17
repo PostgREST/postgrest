@@ -153,6 +153,18 @@ app reqBody req =
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
 
+    ([table], "DELETE") -> do
+      let qt = QualifiedTable schema (cs table)
+      let del = coerce $ countT
+            . returningStarT
+            . whereT qq
+            $ deleteFrom qt
+      row <- H.single del
+      let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
+      return $ if deletedCount == 0
+         then responseLBS status404 [] ""
+         else responseLBS status204 [("Content-Range", "*/"<> cs (show deletedCount))] ""
+
     (_, _) ->
       return $ responseLBS status404 [] ""
 
