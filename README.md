@@ -1,6 +1,9 @@
 ![Logo](static/logo.png "Logo")
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
+<a href="https://heroku.com/deploy?template=https://github.com/begriffs/postgrest">
+  <img src="static/heroku.png" alt="Deploy">
+</a>
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster

@@ -6,40 +6,41 @@
   "env": {
     "BUILDPACK_URL": {
       "description": "Heroku buildpack for deploying Haskell applications",
-      "value": "https://github.com/mietek/haskell-on-heroku"
+      "value": "https://github.com/begriffs/postgrest-heroku"
+    },
+    "POSTGREST_VER": {
+      "description": "Version of PostgREST to deploy",
+      "value": "0.2.5.0"
     },
     "DB_NAME": {
-      "description": "Database name"
+      "description": "Database name",
+      "required": true
     },
-    "DB_AUTH_ROLE": {
-      "description": "Database role to use checking client authentication"
+    "AUTH_ROLE": {
+      "description": "Database role to use checking client authentication",
+      "required": true
     },
-    "DB_AUTH_PASS": {
+    "AUTH_PASS": {
       "description": "Authentication password",
       "required": false
     },
-    "DB_ANON_ROLE": {
-      "description": "Database role for non-authenticated requests"
+    "ANONYMOUS_ROLE": {
+      "description": "Database role for non-authenticated requests",
+      "required": true
     },
     "DB_HOST": {
       "description": "Database server hostname",
-      "required": false,
-      "value": "localhost"
+      "required": true
     },
     "DB_PORT": {
       "description": "Database server port",
       "required": false,
       "value": "5432"
     },
-    "DB_POOL_SIZE": {
+    "DB_POOL": {
       "description": "Maximum number of connections in database pool",
       "required": false,
       "value": "10"
-    },
-    "DB_SECURE": {
-      "description": "Redirect all requests to HTTPS",
-      "required": false,
-      "value": "1"
     }
   }
 }
