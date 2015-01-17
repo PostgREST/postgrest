@@ -1,9 +1,13 @@
 name:                  postgrest
+description:           Reads the schema of a PostgreSQL database and creates RESTful routes
+                       for the tables and views, supporting all HTTP verbs that security
+                       permits.
 version:               0.2.5.0
-synopsis:              The database is your api
+synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
 author:                Joe Nelson, Adam Baker
+homepage:              https://github.com/begriffs/postgrest
 maintainer:            cred+github@begriffs.com
 category:              Web
 build-type:            Simple
@@ -11,7 +15,7 @@ cabal-version:         >=1.10
 
 executable postgrest
   main-is:             Main.hs
-  ghc-options:         -Wall -W -Werror -O2
+  ghc-options:         -Wall -W -O2
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
   other-extensions:    QuasiQuotes
