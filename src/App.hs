@@ -25,14 +25,15 @@ import Network.Wai
 
 import Data.Aeson
 import Data.Monoid
+import qualified Data.Vector as V
 import qualified Hasql as H
+import qualified Hasql.Backend as H hiding (Tx)
 import qualified Hasql.Postgres as H
 
 import Auth
 import PgQuery
 import RangeQuery
 import PgStructure
-import PgError
 import Text.Parsec hiding (Column)
 
 app :: BL.ByteString -> Request -> H.Tx H.Postgres s Response
@@ -54,8 +55,7 @@ app reqBody req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = QualifiedTable schema (cs table)
-        let select = coerce $
-              ("select ",[],mempty) <>
+        let select = (H.Stmt "select " V.empty True) <>
                   parentheticT (
                     whereT qq $ countRows qt
                   ) <> commaq <> (
@@ -65,7 +65,7 @@ app reqBody req =
                   . whereT qq
                   $ selectStar qt
                 )
-        row <- H.single select
+        row <- H.maybeEx select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
             from = fromMaybe 0 $ rangeOffset <$> range
@@ -102,9 +102,8 @@ app reqBody req =
     ([table], "POST") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-            query = coerce $
-              insertInto qt (map cs $ keys obj) (elems obj)
-        row <- H.single query
+            query = insertInto qt (map cs $ keys obj) (elems obj)
+        row <- H.maybeEx query
         let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
             Just inserted = decode (cs insertedJson) :: Maybe Object
 
@@ -134,7 +133,7 @@ app reqBody req =
             if S.fromList tableCols == S.fromList cols
               then do
                 let vals = elems obj
-                H.unit . coerce $ iffNotT
+                H.unitEx $ iffNotT
                         (whereT qq $ update qt cols vals)
                         (insertSelect qt cols vals)
                 return $ responseLBS status204 [ jsonH ] ""
@@ -147,19 +146,18 @@ app reqBody req =
     ([table], "PATCH") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-        H.unit
-          $ coerce
+        H.unitEx
           $ whereT qq
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
 
     ([table], "DELETE") -> do
       let qt = QualifiedTable schema (cs table)
-      let del = coerce $ countT
+      let del = countT
             . returningStarT
             . whereT qq
             $ deleteFrom qt
-      row <- H.single del
+      row <- H.maybeEx del
       let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
       return $ if deletedCount == 0
          then responseLBS status404 [] ""
@@ -176,38 +174,9 @@ app reqBody req =
     schema = requestedSchema hdrs
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-    coerce (q, args, All b) = (q, args, b)
 
-
-isSqlError :: H.Error -> Maybe H.Error
-isSqlError = Just
-
-sqlError :: H.Error -> Response
-sqlError err =
-  let inside = case err of
-        H.CantConnect _ ->
-          "Message: \"Cannot connect to postgres server\""
-        H.ConnectionLost t -> t
-        H.ErroneousResult t -> t
-        H.UnexpectedResult t -> t
-        H.UnparsableTemplate t -> t
-        H.UnparsableRow t -> t
-        H.NotInTransaction -> "An operation which requires a"
-          <> "database transaction was executed without one" in
-  either
-    (\hint ->
-      responseLBS status500
-      [(hContentType, "application/json")]
-      (cs . encode . object $ [
-          ("message", String $
-            "Failed to parse exception:" <> inside)
-        , ("hint", String . cs . show $ hint)]))
-    (\msg ->
-      responseLBS (httpStatus msg)
-      [(hContentType, "application/json")]
-      (encode msg))
-    (parse message "" inside)
-
+sqlError = undefined
+isSqlError = undefined
 
 rangeStatus :: Int -> Int -> Int -> Status
 rangeStatus from to total
@@ -254,6 +223,42 @@ handleJsonObj reqBody handler = do
       where
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
+
+
+-- httpStatus :: H.TxError H.Postgres -> Status
+-- httpStatus (H.ErroneousResult codeBS _ _ _) =
+--   let code = cs codeBS in
+--   case code of
+--     '0' : '8' : _ -> status503 -- pg connection err
+--     '0' : '9' : _ -> status500 -- triggered action exception
+--     '0' : 'L' : _ -> status403 -- invalid grantor
+--     '0' : 'P' : _ -> status403 -- invalid role specification
+--     '2' : '5' : _ -> status500 -- invalid tx state
+--     '2' : '8' : _ -> status403 -- invalid auth specification
+--     '2' : 'D' : _ -> status500 -- invalid tx termination
+--     '3' : '8' : _ -> status500 -- external routine exception
+--     '3' : '9' : _ -> status500 -- external routine invocation
+--     '3' : 'B' : _ -> status500 -- savepoint exception
+--     '4' : '0' : _ -> status500 -- tx rollback
+--     '5' : '3' : _ -> status503 -- insufficient resources
+--     '5' : '4' : _ -> status413 -- too complex
+--     '5' : '5' : _ -> status500 -- obj not on prereq state
+--     '5' : '7' : _ -> status500 -- operator intervention
+--     '5' : '8' : _ -> status500 -- system error
+--     'F' : '0' : _ -> status500 -- conf file error
+--     'H' : 'V' : _ -> status500 -- foreign data wrapper error
+--     'P' : '0' : _ -> status500 -- PL/pgSQL Error
+--     'X' : 'X' : _ -> status500 -- internal Error
+--     "42P01" -> status404 -- undefined table
+--     "42501" -> status404 -- insufficient privilege
+--     _ -> status400
+-- httpStatus (H.NoResult _) = status503 -- Received no response from the database.
+--                                       -- (Maybe ByteString argument)
+-- httpStatus (H.UnexpectedResult _) = status500 -- The database returned an unexpected result.
+--                                               -- Indicates an improper statement or a schema mismatch.
+--                                               -- (Text argument)
+-- httpStatus H.NotInTransaction = status500
+
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

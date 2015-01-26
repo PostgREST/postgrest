@@ -1,4 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module PgQuery where
 
 import RangeQuery
@@ -6,12 +8,13 @@ import RangeQuery
 import qualified Hasql.Postgres as H
 import qualified Hasql.Backend as H
 
-import Data.Text hiding (map)
+import Data.Text hiding (map, empty)
 import Text.Regex.TDFA ( (=~) )
 import Text.Regex.TDFA.Text ()
 import qualified Network.HTTP.Types.URI as Net
 import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
+import Data.Vector (empty)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Functor ( (<$>) )
 import Control.Monad (join)
@@ -20,9 +23,12 @@ import qualified Data.Aeson as JSON
 import qualified Data.List as L
 import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 
-type DynamicSQL = (BS.ByteString, [H.StatementArgument H.Postgres], All)
-
-type StatementT = DynamicSQL -> DynamicSQL
+type PStmt = H.Stmt H.Postgres
+instance Monoid PStmt where
+  mappend (H.Stmt query params prep) (H.Stmt query' params' prep') =
+    H.Stmt (query <> query') (params <> params') (prep && prep')
+  mempty = H.Stmt "" empty True
+type StatementT = PStmt -> PStmt
 
 data QualifiedTable = QualifiedTable {
   qtSchema :: Text
@@ -36,7 +42,7 @@ data OrderTerm = OrderTerm {
 
 limitT :: Maybe NonnegRange -> StatementT
 limitT r q =
-  q <> (" LIMIT " <> limit <> " OFFSET " <> offset <> " ", [], mempty)
+  q <> H.Stmt (" LIMIT " <> limit <> " OFFSET " <> offset <> " ") empty True
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
     offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
@@ -45,7 +51,7 @@ whereT :: Net.Query -> StatementT
 whereT params q =
  if L.null cols
    then q
-   else q <> (" where ",[],mempty) <> conjunction
+   else q <> H.Stmt " where " empty True <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
@@ -54,108 +60,85 @@ orderT :: [OrderTerm] -> StatementT
 orderT ts q =
   if L.null ts
     then q
-    else q <> (" order by ",[],mempty) <> clause
+    else q <> H.Stmt " order by " empty True <> clause
   where
    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
-   queryTerm :: OrderTerm -> DynamicSQL
-   queryTerm t = (" " <> cs (pgFmtIdent $ otTerm t) <> " "
-                      <> otDirection t              <> " "
-                  , [], mempty)
+   queryTerm :: OrderTerm -> PStmt
+   queryTerm t = H.Stmt
+                   (" " <> cs (pgFmtIdent $ otTerm t) <> " "
+                        <> cs (otDirection t)         <> " ")
+                   empty True
 
 parentheticT :: StatementT
-parentheticT (sql, params, pre) =
-  (" (" <> sql <> ") ", params, pre)
+parentheticT s =
+  s { H.stmtTemplate = " (" <> H.stmtTemplate s <> ") " }
 
-iffNotT :: DynamicSQL -> StatementT
-iffNotT (aq, ap, apre) (bq, bp, bpre) =
-  ("WITH aaa AS (" <> aq <> " returning *) " <>
-    bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)"
-  , ap ++ bp
-  , All $ getAll apre && getAll bpre
-  )
+iffNotT :: PStmt -> StatementT
+iffNotT (H.Stmt aq ap apre) (H.Stmt bq bp bpre) =
+  H.Stmt
+    ("WITH aaa AS (" <> aq <> " returning *) " <>
+      bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)")
+    (ap <> bp)
+    (apre && bpre)
 
 countT :: StatementT
-countT (sql, params, pre) =
-  ("WITH qqq AS (" <> sql <> ") SELECT count(1) FROM qqq"
-  , params
-  , pre)
+countT s =
+  s { H.stmtTemplate = "WITH qqq AS (" <> H.stmtTemplate s <> ") SELECT count(1) FROM qqq" }
 
-countRows :: QualifiedTable -> DynamicSQL
-countRows t =
-  ("select count(1) from " <> fromQt t, [], mempty)
+countRows :: QualifiedTable -> PStmt
+countRows t = H.Stmt ("select count(1) from " <> fromQt t) empty True
 
 asJsonWithCount :: StatementT
-asJsonWithCount (sql, params, pre) = (
-    "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from (" <> sql <> ") t"
-  , params, pre
-  )
+asJsonWithCount s = s { H.stmtTemplate =
+     "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from ("
+  <> H.stmtTemplate s <> ") t" }
 
 asJsonRow :: StatementT
-asJsonRow (sql, params, pre) = (
-    "row_to_json(t) from (" <> sql <> ") t", params, pre
-  )
+asJsonRow s = s { H.stmtTemplate = "row_to_json(t) from (" <> H.stmtTemplate s <> ") t" }
 
-selectStar :: QualifiedTable -> DynamicSQL
-selectStar t =
-  ("select * from " <> fromQt t, [], mempty)
+selectStar :: QualifiedTable -> PStmt
+selectStar t = H.Stmt ("select * from " <> fromQt t) empty True
 
 returningStarT :: StatementT
-returningStarT (sql, params, pre) =
-  (sql <> " RETURNING *", params, pre)
+returningStarT s = s { H.stmtTemplate = H.stmtTemplate s <> " RETURNING *" }
 
-deleteFrom :: QualifiedTable -> DynamicSQL
-deleteFrom t =
-  ("delete from " <> fromQt t, [], mempty)
+deleteFrom :: QualifiedTable -> PStmt
+deleteFrom t = H.Stmt ("delete from " <> fromQt t) empty True
 
-insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
-insertInto t [] _ =
-  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
-insertInto t cols vals =
+insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+insertInto t [] _ = H.Stmt
+  ("insert into " <> fromQt t <> " default values returning *") empty True
+insertInto t cols vals = H.Stmt
   ("insert into " <> fromQt t <> " (" <>
-    cs (intercalate ", " (map pgFmtIdent cols)) <>
-    ") values (" <>
-    cs (
-      intercalate ", " (map
-        ((<> "::unknown") . pgFmtLit . unquoted)
-        vals)
-    ) <> ") returning row_to_json(" <> fromQt t <> ".*)"
-  , []
-  , mempty
-  )
+    intercalate ", " (map pgFmtIdent cols) <>
+    ") values ("
+    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> ") returning row_to_json(" <> fromQt t <> ".*)")
+  empty True
 
-insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
-insertSelect t [] _ =
-  ("insert into " <> fromQt t <> " default values returning *", [], mempty)
-insertSelect t cols vals =
-  ("insert into " <> fromQt t <> " (" <>
-    cs (intercalate ", " (map pgFmtIdent cols)) <>
-    ") select " <>
-    cs (
-      intercalate ", " (map
-        ((<> "::unknown") . pgFmtLit . unquoted)
-        vals)
-    )
-  , []
-  , mempty
-  )
+insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+insertSelect t [] _ = H.Stmt
+  ("insert into " <> fromQt t <> " default values returning *") empty True
+insertSelect t cols vals = H.Stmt
+  ("insert into " <> fromQt t <> " ("
+    <> intercalate ", " (map pgFmtIdent cols)
+    <> ") select "
+    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals))
+  empty True
 
-update :: QualifiedTable -> [Text] -> [JSON.Value] -> DynamicSQL
-update t cols vals =
-  ("update " <> fromQt t <> " set (" <>
-    cs (intercalate ", " (map pgFmtIdent cols)) <>
-    ") = (" <>
-    cs (
-      intercalate ", " (map
-        ((<> "::unknown") . pgFmtLit . unquoted)
-        vals)
-    ) <> ")"
-  , []
-  , mempty
-  )
+update :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+update t cols vals = H.Stmt
+  ("update " <> fromQt t <> " set ("
+    <> intercalate ", " (map pgFmtIdent cols)
+    <> ") = ("
+    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> ")")
+  empty True
 
-wherePred :: Net.QueryItem -> DynamicSQL
-wherePred (col, predicate) =
-  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> "::unknown ", [], mempty)
+wherePred :: Net.QueryItem -> PStmt
+wherePred (col, predicate) = H.Stmt
+  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> "::unknown ")
+  empty True
 
   where
     opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
@@ -185,11 +168,11 @@ orderParseTerm s =
             else Nothing
        _ -> Nothing
 
-commaq :: DynamicSQL
-commaq  = (", ", [], mempty)
+commaq :: PStmt
+commaq  = H.Stmt ", " empty True
 
-andq :: DynamicSQL
-andq = (" and ", [], mempty)
+andq :: PStmt
+andq = H.Stmt " and " empty True
 
 pgFmtIdent :: Text -> Text
 pgFmtIdent x =
@@ -212,8 +195,8 @@ pgFmtLit x =
 trimNullChars :: Text -> Text
 trimNullChars = Data.Text.takeWhile (/= '\x0')
 
-fromQt :: QualifiedTable -> BS.ByteString
-fromQt t = cs $ pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
+fromQt :: QualifiedTable -> Text
+fromQt t = pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
 
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
@@ -221,14 +204,3 @@ unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted _ = ""
-
-pgParam :: JSON.Value -> H.StatementArgument H.Postgres
-pgParam (JSON.Number n) = H.renderValue
-  (cs $ formatScientific Fixed
-       (if isInteger n then Just 0 else Nothing) n :: Text)
-pgParam (JSON.String s) = H.renderValue s
-pgParam (JSON.Bool      b) = H.renderValue $
-  if b then "t" else "f" :: Text
-pgParam JSON.Null       = H.renderValue (Nothing :: Maybe Text)
-pgParam (JSON.Object o) = H.renderValue $ JSON.encode o
-pgParam (JSON.Array  a) = H.renderValue $ JSON.encode a

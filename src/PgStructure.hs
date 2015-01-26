@@ -16,12 +16,12 @@ import qualified Data.List as L
 import qualified Data.Map as Map
 
 import qualified Hasql as H
-import qualified Hasql.Backend as H
+import qualified Hasql.Backend as H hiding (Tx)
 import qualified Hasql.Postgres as H
 
 foreignKeys :: QualifiedTable -> H.Tx H.Postgres s (Map.Map Text ForeignKey)
 foreignKeys table = do
-  r :: [(Text, Text, Text)] <- H.list $ [H.q|
+  r :: [(Text, Text, Text)] <- H.listEx $ [H.stmt|
       select kcu.column_name, ccu.table_name AS foreign_table_name,
         ccu.column_name AS foreign_column_name
       from information_schema.table_constraints AS tc
@@ -41,18 +41,18 @@ foreignKeys table = do
 
 tables :: Text -> H.Tx H.Postgres s [Table]
 tables schema =
-  H.list $ [H.q|
+  map table <$> (H.listEx $ [H.stmt|
       select table_schema, table_name,
              is_insertable_into
         from information_schema.tables
        where table_schema = ?
        order by table_name
-    |] schema
+    |] schema)
 
 
 columns :: QualifiedTable -> H.Tx H.Postgres s [Column]
 columns table = do
-  cols <- H.list $ [H.q|
+  cols <- H.listEx $ [H.stmt|
     select info.table_schema as schema, info.table_name as table_name,
            info.column_name as name, info.ordinal_position as position,
            info.is_nullable as nullable, info.data_type as col_type,
@@ -82,12 +82,15 @@ columns table = do
     order by position |] (qtSchema table) (qtName table)
 
   fks <- foreignKeys table
-  return $ map (\col -> col { colFK = Map.lookup (cs . colName $ col) fks }) cols
+  return $ map ((addFK fks) . column) cols
+
+  where
+    addFK fks = (\col -> col { colFK = Map.lookup (cs . colName $ col) fks })
 
 
 primaryKeyColumns :: QualifiedTable -> H.Tx H.Postgres s [Text]
 primaryKeyColumns table = do
-  r :: [Identity Text] <- H.list $ [H.q|
+  r :: [Identity Text] <- H.listEx $ [H.stmt|
     select kc.column_name
       from
         information_schema.table_constraints tc,
@@ -132,37 +135,15 @@ data Column = Column {
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
-instance H.RowParser H.Postgres Column where
-  parseRow r =
-    let schema     = H.parseResult $ r V.! 0
-        table      = H.parseResult $ r V.! 1
-        name       = H.parseResult $ r V.! 2
-        position   = H.parseResult $ r V.! 3
-        nullable   = toBool <$> (H.parseResult $ r V.! 4 :: Either Text Text)
-        typ        = H.parseResult $ r V.! 5
-        updatable  = toBool <$> (H.parseResult $ r V.! 6 :: Either Text Text)
-        maxLen     = H.parseResult $ r V.! 7
-        precision  = H.parseResult $ r V.! 8
-        defValue   = H.parseResult $ r V.! 9
-        enum       = either (const $ Right []) (Right . split (==','))
-                       (H.parseResult $ r V.! 10 :: Either Text Text)
-      in
-    if V.length r /= 11
-       then Left "Wrong number of fields in Column"
-       else Column <$> schema <*> table <*> name <*> position <*> nullable
-                   <*> typ <*> updatable <*> maxLen <*> precision
-                   <*> defValue <*> enum
-                   <*> return Nothing
+table :: (Text, Text, Bool) -> Table
+table (s, n, i) = Table s n i
 
+column :: (Text, Text, Text, Int, Text, Text, Text,
+           Maybe Int, Maybe Int, Maybe Text, Text)
+       -> Column
+column (a, b, c, d, e, f, g, h, i, j, k) =
+  Column a b c d (toBool e) f (toBool g) h i j (split (==',') k) Nothing
 
-instance H.RowParser H.Postgres Table where
-  parseRow r =
-    let schema     = H.parseResult $ r V.! 0
-        name       = H.parseResult $ r V.! 1
-        insertable = toBool <$> (H.parseResult $ r V.! 2 :: Either Text Text) in
-    if V.length r /= 3
-       then Left "Wrong number of fields in Table"
-       else Table <$> schema <*> name <*> insertable
 
 instance ToJSON Column where
   toJSON c = object [

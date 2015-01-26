@@ -37,11 +37,7 @@ main = do
                      (cs $ configDbUser conf)
                      (cs $ configDbPass conf)
                      (cs $ configDbName conf)
-
-  sessSettings <- maybe (fail "Improper session settings") return $
-                    H.sessionSettings (fromIntegral $ configPool conf) 30
-
-  let appSettings = setPort port
+      appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
       middle =
@@ -51,13 +47,17 @@ main = do
       anonRole = cs $ configAnonRole conf
       currRole = cs $ configDbUser conf
 
-  H.session pgSettings sessSettings $ H.sessionUnlifter >>= \unlift ->
-    liftIO $ runSettings appSettings $ middle $ \req respond -> do
-      body <- strictRequestBody req
-      respond =<< catchJust isSqlError
-        (unlift $ H.tx Nothing
-                $ authenticated currRole anonRole (app body) req)
-        (return . sqlError)
+  poolSettings <- maybe (fail "Improper session settings") return $
+                H.poolSettings (fromIntegral $ configPool conf) 30
+  pool :: H.Pool H.Postgres
+          <- H.acquirePool pgSettings poolSettings
+
+  runSettings appSettings $ middle $ \req respond -> do
+    body <- strictRequestBody req
+    thing <- liftIO $ H.session pool $ H.tx Nothing $ authenticated currRole anonRole (app body) req
+    case thing of
+      Right r -> respond r
+      Left _ -> undefined
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
