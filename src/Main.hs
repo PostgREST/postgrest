@@ -4,6 +4,7 @@ import Paths_postgrest (version)
 
 import App
 import Middleware
+import Error(errResponse)
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
@@ -56,7 +57,7 @@ main = do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx Nothing $
       authenticated currRole anonRole (app body) req
-    either (undefined) respond resOrError
+    either (respond . errResponse) respond resOrError
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
