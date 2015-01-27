@@ -31,6 +31,7 @@ import System.Process (readProcess)
 import App (app, sqlError, isSqlError)
 import Config (AppConfig(..), corsPolicy)
 import Middleware
+import Error(errResponse)
 -- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
@@ -54,13 +55,9 @@ withApp perform = do
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
-    result <- liftIO
-      $ H.session pool
-      $ H.tx Nothing
+    result <- liftIO $ H.session pool $ H.tx Nothing
       $ authenticated currRole anonRole (app body) req
-    resp $ case result of
-      Right r -> r
-      Left _ -> error "hahahaha"
+    either (resp . errResponse) resp result
 
   where middle = cors corsPolicy
 

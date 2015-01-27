@@ -36,7 +36,7 @@ executable postgrest
                      , regex-base, regex-tdfa
                      , regex-tdfa-text
                      , Ranged-sets
-                     , transformers
+                     , transformers, MissingH
                      , bcrypt, base64-string
                      , network-uri >= 2.6
                      , resource-pool
@@ -80,10 +80,8 @@ Test-Suite spec
                      , http-media, regex-tdfa
                      , regex-tdfa-text
                      , Ranged-sets
-                     , transformers
-                     , bcrypt
-                     , base64-string
-                     , split
+                     , transformers, MissingH, split
+                     , bcrypt, base64-string
                      , network-uri >= 2.6
                      , resource-pool
                      , blaze-builder

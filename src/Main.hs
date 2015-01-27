@@ -54,10 +54,9 @@ main = do
 
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
-    thing <- liftIO $ H.session pool $ H.tx Nothing $ authenticated currRole anonRole (app body) req
-    case thing of
-      Right r -> respond r
-      Left _ -> undefined
+    resOrError <- liftIO $ H.session pool $ H.tx Nothing $
+      authenticated currRole anonRole (app body) req
+    either (undefined) respond resOrError
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"
