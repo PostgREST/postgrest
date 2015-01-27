@@ -85,7 +85,7 @@ columns table = do
   return $ map ((addFK fks) . column) cols
 
   where
-    addFK fks = (\col -> col { colFK = Map.lookup (cs . colName $ col) fks })
+    addFK fks col = col { colFK = Map.lookup (cs . colName $ col) fks }
 
 
 primaryKeyColumns :: QualifiedTable -> H.Tx H.Postgres s [Text]
@@ -135,14 +135,14 @@ data Column = Column {
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
-table :: (Text, Text, Bool) -> Table
-table (s, n, i) = Table s n i
+table :: (Text, Text, Text) -> Table
+table (s, n, i) = Table s n (toBool i)
 
 column :: (Text, Text, Text, Int, Text, Text, Text,
            Maybe Int, Maybe Int, Maybe Text, Text)
        -> Column
-column (a, b, c, d, e, f, g, h, i, j, k) =
-  Column a b c d (toBool e) f (toBool g) h i j (split (==',') k) Nothing
+column (s, t, n, pos, nul, typ, u, l, p, d, e) =
+  Column s t n pos (toBool nul) typ (toBool u) l p d (split (==',') e) Nothing
 
 
 instance ToJSON Column where
