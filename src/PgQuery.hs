@@ -5,8 +5,9 @@ module PgQuery where
 
 import RangeQuery
 
-import qualified Hasql.Postgres as H
-import qualified Hasql.Backend as H
+import qualified Hasql as H
+import qualified Hasql.Postgres as P
+import qualified Hasql.Backend as B
 
 import Data.Text hiding (map, empty)
 import Text.Regex.TDFA ( (=~) )
@@ -23,11 +24,11 @@ import qualified Data.Aeson as JSON
 import qualified Data.List as L
 import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 
-type PStmt = H.Stmt H.Postgres
+type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
-  mappend (H.Stmt query params prep) (H.Stmt query' params' prep') =
-    H.Stmt (query <> query') (params <> params') (prep && prep')
-  mempty = H.Stmt "" empty True
+  mappend (B.Stmt query params prep) (B.Stmt query' params' prep') =
+    B.Stmt (query <> query') (params <> params') (prep && prep')
+  mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
 
 data QualifiedTable = QualifiedTable {
@@ -42,7 +43,7 @@ data OrderTerm = OrderTerm {
 
 limitT :: Maybe NonnegRange -> StatementT
 limitT r q =
-  q <> H.Stmt (" LIMIT " <> limit <> " OFFSET " <> offset <> " ") empty True
+  q <> B.Stmt (" LIMIT " <> limit <> " OFFSET " <> offset <> " ") empty True
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
     offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
@@ -51,7 +52,7 @@ whereT :: Net.Query -> StatementT
 whereT params q =
  if L.null cols
    then q
-   else q <> H.Stmt " where " empty True <> conjunction
+   else q <> B.Stmt " where " empty True <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
@@ -60,22 +61,22 @@ orderT :: [OrderTerm] -> StatementT
 orderT ts q =
   if L.null ts
     then q
-    else q <> H.Stmt " order by " empty True <> clause
+    else q <> B.Stmt " order by " empty True <> clause
   where
    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
    queryTerm :: OrderTerm -> PStmt
-   queryTerm t = H.Stmt
+   queryTerm t = B.Stmt
                    (" " <> cs (pgFmtIdent $ otTerm t) <> " "
                         <> cs (otDirection t)         <> " ")
                    empty True
 
 parentheticT :: StatementT
 parentheticT s =
-  s { H.stmtTemplate = " (" <> H.stmtTemplate s <> ") " }
+  s { B.stmtTemplate = " (" <> B.stmtTemplate s <> ") " }
 
 iffNotT :: PStmt -> StatementT
-iffNotT (H.Stmt aq ap apre) (H.Stmt bq bp bpre) =
-  H.Stmt
+iffNotT (B.Stmt aq ap apre) (B.Stmt bq bp bpre) =
+  B.Stmt
     ("WITH aaa AS (" <> aq <> " returning *) " <>
       bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)")
     (ap <> bp)
@@ -83,32 +84,32 @@ iffNotT (H.Stmt aq ap apre) (H.Stmt bq bp bpre) =
 
 countT :: StatementT
 countT s =
-  s { H.stmtTemplate = "WITH qqq AS (" <> H.stmtTemplate s <> ") SELECT count(1) FROM qqq" }
+  s { B.stmtTemplate = "WITH qqq AS (" <> B.stmtTemplate s <> ") SELECT count(1) FROM qqq" }
 
 countRows :: QualifiedTable -> PStmt
-countRows t = H.Stmt ("select count(1) from " <> fromQt t) empty True
+countRows t = B.Stmt ("select count(1) from " <> fromQt t) empty True
 
 asJsonWithCount :: StatementT
-asJsonWithCount s = s { H.stmtTemplate =
+asJsonWithCount s = s { B.stmtTemplate =
      "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from ("
-  <> H.stmtTemplate s <> ") t" }
+  <> B.stmtTemplate s <> ") t" }
 
 asJsonRow :: StatementT
-asJsonRow s = s { H.stmtTemplate = "row_to_json(t) from (" <> H.stmtTemplate s <> ") t" }
+asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <> ") t" }
 
 selectStar :: QualifiedTable -> PStmt
-selectStar t = H.Stmt ("select * from " <> fromQt t) empty True
+selectStar t = B.Stmt ("select * from " <> fromQt t) empty True
 
 returningStarT :: StatementT
-returningStarT s = s { H.stmtTemplate = H.stmtTemplate s <> " RETURNING *" }
+returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 
 deleteFrom :: QualifiedTable -> PStmt
-deleteFrom t = H.Stmt ("delete from " <> fromQt t) empty True
+deleteFrom t = B.Stmt ("delete from " <> fromQt t) empty True
 
 insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
-insertInto t [] _ = H.Stmt
+insertInto t [] _ = B.Stmt
   ("insert into " <> fromQt t <> " default values returning *") empty True
-insertInto t cols vals = H.Stmt
+insertInto t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " (" <>
     intercalate ", " (map pgFmtIdent cols) <>
     ") values ("
@@ -117,9 +118,9 @@ insertInto t cols vals = H.Stmt
   empty True
 
 insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
-insertSelect t [] _ = H.Stmt
+insertSelect t [] _ = B.Stmt
   ("insert into " <> fromQt t <> " default values returning *") empty True
-insertSelect t cols vals = H.Stmt
+insertSelect t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " ("
     <> intercalate ", " (map pgFmtIdent cols)
     <> ") select "
@@ -127,7 +128,7 @@ insertSelect t cols vals = H.Stmt
   empty True
 
 update :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
-update t cols vals = H.Stmt
+update t cols vals = B.Stmt
   ("update " <> fromQt t <> " set ("
     <> intercalate ", " (map pgFmtIdent cols)
     <> ") = ("
@@ -136,7 +137,7 @@ update t cols vals = H.Stmt
   empty True
 
 wherePred :: Net.QueryItem -> PStmt
-wherePred (col, predicate) = H.Stmt
+wherePred (col, predicate) = B.Stmt
   (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> "::unknown ")
   empty True
 
@@ -169,10 +170,10 @@ orderParseTerm s =
        _ -> Nothing
 
 commaq :: PStmt
-commaq  = H.Stmt ", " empty True
+commaq  = B.Stmt ", " empty True
 
 andq :: PStmt
-andq = H.Stmt " and " empty True
+andq = B.Stmt " and " empty True
 
 pgFmtIdent :: Text -> Text
 pgFmtIdent x =

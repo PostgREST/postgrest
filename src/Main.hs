@@ -8,7 +8,6 @@ import Error(errResponse)
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Exception
 import Data.String.Conversions (cs)
 import Network.Wai (strictRequestBody)
 import Network.Wai.Middleware.Cors (cors)
@@ -18,7 +17,7 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
-import qualified Hasql.Postgres as H
+import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
 import Config (AppConfig(..), argParser, corsPolicy)
@@ -33,7 +32,7 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = H.ParamSettings (cs $ configDbHost conf)
+  let pgSettings = P.ParamSettings (cs $ configDbHost conf)
                      (fromIntegral $ configDbPort conf)
                      (cs $ configDbUser conf)
                      (cs $ configDbPass conf)
@@ -50,7 +49,7 @@ main = do
 
   poolSettings <- maybe (fail "Improper session settings") return $
                 H.poolSettings (fromIntegral $ configPool conf) 30
-  pool :: H.Pool H.Postgres
+  pool :: H.Pool P.Postgres
           <- H.acquirePool pgSettings poolSettings
 
   runSettings appSettings $ middle $ \req respond -> do

@@ -27,16 +27,15 @@ import Data.Aeson
 import Data.Monoid
 import qualified Data.Vector as V
 import qualified Hasql as H
-import qualified Hasql.Backend as H hiding (Tx)
-import qualified Hasql.Postgres as H
+import qualified Hasql.Backend as B
+import qualified Hasql.Postgres as P
 
 import Auth
 import PgQuery
 import RangeQuery
 import PgStructure
-import Text.Parsec hiding (Column)
 
-app :: BL.ByteString -> Request -> H.Tx H.Postgres s Response
+app :: BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app reqBody req =
   case (path, verb) of
     ([], _) -> do
@@ -55,7 +54,7 @@ app reqBody req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = QualifiedTable schema (cs table)
-        let select = (H.Stmt "select " V.empty True) <>
+        let select = B.Stmt "select " V.empty True <>
                   parentheticT (
                     whereT qq $ countRows qt
                   ) <> commaq <> (
@@ -175,7 +174,10 @@ app reqBody req =
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
+sqlError :: t
 sqlError = undefined
+
+isSqlError :: t
 isSqlError = undefined
 
 rangeStatus :: Int -> Int -> Int -> Status
@@ -207,8 +209,8 @@ requestedSchema hdrs =
 jsonH :: Header
 jsonH = (hContentType, "application/json")
 
-handleJsonObj :: BL.ByteString -> (Object -> H.Tx H.Postgres s Response)
-              -> H.Tx H.Postgres s Response
+handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
+              -> H.Tx P.Postgres s Response
 handleJsonObj reqBody handler = do
   let p = eitherDecode reqBody
   case p of

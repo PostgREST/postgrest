@@ -9,7 +9,7 @@ import Data.Text
 -- import Data.Pool(withResource, Pool)
 
 import qualified Hasql as H
-import qualified Hasql.Postgres as H
+import qualified Hasql.Postgres as P
 import Data.String.Conversions(cs)
 
 import Network.HTTP.Types.Header (hLocation, hAuthorization)
@@ -23,8 +23,8 @@ import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
 authenticated :: forall s. Text -> Text ->
-                 (Request -> H.Tx H.Postgres s Response) ->
-                 Request -> H.Tx H.Postgres s Response
+                 (Request -> H.Tx P.Postgres s Response) ->
+                 Request -> H.Tx P.Postgres s Response
 authenticated currentRole anon app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
@@ -36,7 +36,7 @@ authenticated currentRole anon app req = do
     NoCredentials ->     if anon /= currentRole then runInRole anon else app req
 
  where
-   httpRequesterRole :: RequestHeaders -> H.Tx H.Postgres s LoginAttempt
+   httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
     case split (==' ') (cs auth) of
@@ -46,7 +46,7 @@ authenticated currentRole anon app req = do
           _ -> return MalformedAuth
       _ -> return NoCredentials
 
-   runInRole :: Text -> H.Tx H.Postgres s Response
+   runInRole :: Text -> H.Tx P.Postgres s Response
    runInRole r = do
      setRole r
      res <- app req

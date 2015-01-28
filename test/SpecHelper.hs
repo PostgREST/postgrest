@@ -14,9 +14,7 @@ import Data.String.Conversions (cs)
 import Data.Monoid
 import Data.Text hiding (map)
 import qualified Data.Vector as V
--- import Control.Exception.Base (bracket, finally)
 import Control.Monad (void)
-import Control.Exception
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization)
@@ -28,7 +26,7 @@ import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
-import App (app, sqlError, isSqlError)
+import App (app)
 import Config (AppConfig(..), corsPolicy)
 import Middleware
 import Error(errResponse)
@@ -44,6 +42,7 @@ cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "post
 testSettings :: PoolSettings
 testSettings = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
+pgSettings :: H.Settings
 pgSettings = H.ParamSettings "localhost" 5432 "postgrest_test" "" "postgrest_test"
 
 withApp :: ActionWith Application -> IO ()

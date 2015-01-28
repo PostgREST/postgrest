@@ -9,8 +9,8 @@ import Data.Text
 import Data.Monoid
 import qualified Data.Vector as V
 import qualified Hasql as H
-import qualified Hasql.Backend as H hiding (Tx)
-import qualified Hasql.Postgres as H
+import qualified Hasql.Backend as B
+import qualified Hasql.Postgres as P
 import Data.String.Conversions (cs)
 import PgQuery (pgFmtLit)
 
@@ -47,20 +47,20 @@ data LoginAttempt =
 checkPass :: Text -> Text -> Bool
 checkPass = (. cs) . validatePassword . cs
 
-setRole :: Text -> H.Tx H.Postgres s ()
-setRole role = H.unitEx $ H.Stmt ("set role " <> cs (pgFmtLit role)) V.empty True
+setRole :: Text -> H.Tx P.Postgres s ()
+setRole role = H.unitEx $ B.Stmt ("set role " <> cs (pgFmtLit role)) V.empty True
 
-resetRole :: H.Tx H.Postgres s ()
+resetRole :: H.Tx P.Postgres s ()
 resetRole = H.unitEx [H.stmt|reset role|]
 
-addUser :: Text -> Text -> Text -> H.Tx H.Postgres s ()
+addUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
 addUser identity pass role = do
   let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
   H.unitEx $
     [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
       identity (cs hashed :: Text) role
 
-signInRole :: Text -> Text -> H.Tx H.Postgres s LoginAttempt
+signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
 signInRole user pass = do
   u <- H.maybeEx $ [H.stmt|select pass, rolname from postgrest.auth where id = ?|] user
   return $ maybe LoginFailed (\r ->

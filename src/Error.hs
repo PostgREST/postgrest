@@ -1,8 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+
 module Error (PgError, errResponse) where
 
 import qualified Hasql as H
-import qualified Hasql.Postgres as H
+import qualified Hasql.Postgres as P
 import qualified Network.HTTP.Types.Status as HT
 import qualified Data.Aeson as JSON
 import qualified Data.Text as T
@@ -11,33 +13,33 @@ import Data.String.Conversions (cs)
 import Data.String.Utils(replace)
 import Network.Wai(Response, responseLBS)
 
-type PgError = H.SessionError H.Postgres
+type PgError = H.SessionError P.Postgres
 
 errResponse :: PgError -> Response
 errResponse e = responseLBS (httpStatus e) [] (JSON.encode e)
 
 instance JSON.ToJSON PgError where
-  toJSON (H.TxError (H.ErroneousResult c m d h)) = JSON.object [
+  toJSON (H.TxError (P.ErroneousResult c m d h)) = JSON.object [
     "code" .= (cs c::T.Text),
     "message" .= (cs m::T.Text),
     "details" .= (fmap cs d::Maybe T.Text),
     "hint" .= (fmap cs h::Maybe T.Text)]
-  toJSON (H.TxError (H.NoResult d)) = JSON.object [
+  toJSON (H.TxError (P.NoResult d)) = JSON.object [
     "message" .= ("No response from server"::T.Text),
     "details" .= (fmap cs d::Maybe T.Text)]
-  toJSON (H.TxError (H.UnexpectedResult m)) = JSON.object ["message" .= m]
-  toJSON (H.TxError H.NotInTransaction) = JSON.object [
+  toJSON (H.TxError (P.UnexpectedResult m)) = JSON.object ["message" .= m]
+  toJSON (H.TxError P.NotInTransaction) = JSON.object [
     "message" .= ("Not in transaction"::T.Text)]
-  toJSON (H.CxError (H.CantConnect d)) = JSON.object [
+  toJSON (H.CxError (P.CantConnect d)) = JSON.object [
     "message" .= ("Can't connect to the database"::T.Text),
     "details" .= (fmap cs d::Maybe T.Text)]
-  toJSON (H.CxError (H.UnsupportedVersion v)) = JSON.object [
+  toJSON (H.CxError (P.UnsupportedVersion v)) = JSON.object [
     "message" .= ("Postgres version "++version++" is not supported") ]
       where version = replace "0" "." (show v)
   toJSON (H.ResultError m) = JSON.object ["message" .= m]
 
 httpStatus :: PgError -> HT.Status
-httpStatus (H.TxError (H.ErroneousResult codeBS _ _ _)) =
+httpStatus (H.TxError (P.ErroneousResult codeBS _ _ _)) =
   let code = cs codeBS in
   case code of
     '0':'8':_ -> HT.status503 -- pg connection err
@@ -63,5 +65,5 @@ httpStatus (H.TxError (H.ErroneousResult codeBS _ _ _)) =
     "42P01" -> HT.status404 -- undefined table
     "42501" -> HT.status404 -- insufficient privilege
     _ -> HT.status400
-httpStatus (H.TxError (H.NoResult _)) = HT.status503
+httpStatus (H.TxError (P.NoResult _)) = HT.status503
 httpStatus _ = HT.status500

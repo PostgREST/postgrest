@@ -30,7 +30,7 @@ executable postgrest
                      , scientific, time
                      , aeson, network >= 2.6
                      , bytestring, text, split, string-conversions
-                     , stringsearch, parsec
+                     , stringsearch
                      , containers, unordered-containers
                      , optparse-applicative >= 0.9.1 && < 0.10
                      , regex-base, regex-tdfa
@@ -58,7 +58,7 @@ Test-Suite spec
   default-extensions:  OverloadedStrings, ScopedTypeVariables
   other-extensions:    QuasiQuotes
   Hs-Source-Dirs:      test, src
-  ghc-options:         -Wall -W
+  ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
   Other-Modules:       App, Auth, Config, Spec, SpecHelper
   Build-Depends:       base, hspec >= 2.1.2, QuickCheck
@@ -73,7 +73,7 @@ Test-Suite spec
                      , http-types, scientific, time
                      , bytestring, aeson, network >= 2.6
                      , text, optparse-applicative
-                     , stringsearch, parsec
+                     , stringsearch
                      , unordered-containers
                      , regex-base
                      , string-conversions
