@@ -7,8 +7,9 @@ import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
 import Data.Functor.Identity
 import Data.String.Conversions (cs)
+import Data.Maybe (fromMaybe)
+import Control.Applicative ( (<$>) )
 
-import qualified Data.List as L
 import qualified Data.Map as Map
 
 import qualified Hasql as H
@@ -103,9 +104,6 @@ primaryKeyColumns table = do
   return $ map runIdentity r
 
 
-vanishNull :: [a] -> Maybe [a]
-vanishNull xs = if L.null xs then Nothing else Just xs
-
 toBool :: Text -> Bool
 toBool = (== "YES")
 
@@ -137,11 +135,17 @@ data Column = Column {
 tableFromRow :: (Text, Text, Text) -> Table
 tableFromRow (s, n, i) = Table s n (toBool i)
 
-columnFromRow :: (Text, Text, Text, Int, Text, Text, Text,
-           Maybe Int, Maybe Int, Maybe Text, Text)
-       -> Column
+columnFromRow :: (Text,       Text,      Text,
+                  Int,        Text,      Text,
+                  Text,       Maybe Int, Maybe Int,
+                  Maybe Text, Maybe Text)
+              -> Column
 columnFromRow (s, t, n, pos, nul, typ, u, l, p, d, e) =
-  Column s t n pos (toBool nul) typ (toBool u) l p d (split (==',') e) Nothing
+  Column s t n pos (toBool nul) typ (toBool u) l p d (parseEnum e) Nothing
+
+  where
+    parseEnum :: Maybe Text -> [Text]
+    parseEnum str = fromMaybe [] $ split (==',') <$> str
 
 
 instance ToJSON Column where
