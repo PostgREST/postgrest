@@ -4,10 +4,10 @@ import Paths_postgrest (version)
 
 import App
 import Middleware
+import Error(errResponse)
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Exception
 import Data.String.Conversions (cs)
 import Network.Wai (strictRequestBody)
 import Network.Wai.Middleware.Cors (cors)
@@ -17,7 +17,7 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
-import qualified Hasql.Postgres as H
+import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
 import Config (AppConfig(..), argParser, corsPolicy)
@@ -32,16 +32,12 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = H.ParamSettings (cs $ configDbHost conf)
+  let pgSettings = P.ParamSettings (cs $ configDbHost conf)
                      (fromIntegral $ configDbPort conf)
                      (cs $ configDbUser conf)
                      (cs $ configDbPass conf)
                      (cs $ configDbName conf)
-
-  sessSettings <- maybe (fail "Improper session settings") return $
-                    H.sessionSettings (fromIntegral $ configPool conf) 30
-
-  let appSettings = setPort port
+      appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
       middle =
@@ -51,13 +47,16 @@ main = do
       anonRole = cs $ configAnonRole conf
       currRole = cs $ configDbUser conf
 
-  H.session pgSettings sessSettings $ H.sessionUnlifter >>= \unlift ->
-    liftIO $ runSettings appSettings $ middle $ \req respond -> do
-      body <- strictRequestBody req
-      respond =<< catchJust isSqlError
-        (unlift $ H.tx Nothing
-                $ authenticated currRole anonRole (app body) req)
-        (return . sqlError)
+  poolSettings <- maybe (fail "Improper session settings") return $
+                H.poolSettings (fromIntegral $ configPool conf) 30
+  pool :: H.Pool P.Postgres
+          <- H.acquirePool pgSettings poolSettings
+
+  runSettings appSettings $ middle $ \req respond -> do
+    body <- strictRequestBody req
+    resOrError <- liftIO $ H.session pool $ H.tx Nothing $
+      authenticated currRole anonRole (app body) req
+    either (respond . errResponse) respond resOrError
 
   where
     describe = progDesc "create a REST API to an existing Postgres database"

@@ -11,15 +11,21 @@ import SpecHelper
 -- }}}
 
 spec :: Spec
-spec = around withApp $ describe "authorization" $ do
-    it "hides tables that anonymous does not own" $
-      get "/authors_only" `shouldRespondWith` 404
-    it "indicates login failure" $ do
-      let auth = authHeader "postgrest_test_author" "fakefake"
-      request methodGet "/authors_only" [auth] ""
-        `shouldRespondWith` 401
-    it "allows users with permissions to see their tables" $ do
-      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      let auth = authHeader "jdoe" "1234"
-      request methodGet "/authors_only" [auth] ""
-        `shouldRespondWith` 200
+spec = beforeAll
+  (clearTable "postgrest.auth") . afterAll_ (clearTable "postgrest.auth")
+  $ around withApp
+  $ describe "authorization" $ do
+
+  it "hides tables that anonymous does not own" $
+    get "/authors_only" `shouldRespondWith` 404
+
+  it "indicates login failure" $ do
+    let auth = authHeader "postgrest_test_author" "fakefake"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 401
+
+  it "allows users with permissions to see their tables" $ do
+    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    let auth = authHeader "jdoe" "1234"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 200

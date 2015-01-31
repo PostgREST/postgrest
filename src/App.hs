@@ -25,17 +25,17 @@ import Network.Wai
 
 import Data.Aeson
 import Data.Monoid
+import qualified Data.Vector as V
 import qualified Hasql as H
-import qualified Hasql.Postgres as H
+import qualified Hasql.Backend as B
+import qualified Hasql.Postgres as P
 
 import Auth
 import PgQuery
 import RangeQuery
 import PgStructure
-import PgError
-import Text.Parsec hiding (Column)
 
-app :: BL.ByteString -> Request -> H.Tx H.Postgres s Response
+app :: BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app reqBody req =
   case (path, verb) of
     ([], _) -> do
@@ -54,8 +54,7 @@ app reqBody req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = QualifiedTable schema (cs table)
-        let select = coerce $
-              ("select ",[],mempty) <>
+        let select = B.Stmt "select " V.empty True <>
                   parentheticT (
                     whereT qq $ countRows qt
                   ) <> commaq <> (
@@ -65,7 +64,7 @@ app reqBody req =
                   . whereT qq
                   $ selectStar qt
                 )
-        row <- H.single select
+        row <- H.maybeEx select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
             from = fromMaybe 0 $ rangeOffset <$> range
@@ -102,9 +101,8 @@ app reqBody req =
     ([table], "POST") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-            query = coerce $
-              insertInto qt (map cs $ keys obj) (elems obj)
-        row <- H.single query
+            query = insertInto qt (map cs $ keys obj) (elems obj)
+        row <- H.maybeEx query
         let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
             Just inserted = decode (cs insertedJson) :: Maybe Object
 
@@ -134,7 +132,7 @@ app reqBody req =
             if S.fromList tableCols == S.fromList cols
               then do
                 let vals = elems obj
-                H.unit . coerce $ iffNotT
+                H.unitEx $ iffNotT
                         (whereT qq $ update qt cols vals)
                         (insertSelect qt cols vals)
                 return $ responseLBS status204 [ jsonH ] ""
@@ -147,19 +145,18 @@ app reqBody req =
     ([table], "PATCH") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-        H.unit
-          $ coerce
+        H.unitEx
           $ whereT qq
           $ update qt (map cs $ keys obj) (elems obj)
         return $ responseLBS status204 [ jsonH ] ""
 
     ([table], "DELETE") -> do
       let qt = QualifiedTable schema (cs table)
-      let del = coerce $ countT
+      let del = countT
             . returningStarT
             . whereT qq
             $ deleteFrom qt
-      row <- H.single del
+      row <- H.maybeEx del
       let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
       return $ if deletedCount == 0
          then responseLBS status404 [] ""
@@ -176,38 +173,12 @@ app reqBody req =
     schema = requestedSchema hdrs
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-    coerce (q, args, All b) = (q, args, b)
 
+sqlError :: t
+sqlError = undefined
 
-isSqlError :: H.Error -> Maybe H.Error
-isSqlError = Just
-
-sqlError :: H.Error -> Response
-sqlError err =
-  let inside = case err of
-        H.CantConnect _ ->
-          "Message: \"Cannot connect to postgres server\""
-        H.ConnectionLost t -> t
-        H.ErroneousResult t -> t
-        H.UnexpectedResult t -> t
-        H.UnparsableTemplate t -> t
-        H.UnparsableRow t -> t
-        H.NotInTransaction -> "An operation which requires a"
-          <> "database transaction was executed without one" in
-  either
-    (\hint ->
-      responseLBS status500
-      [(hContentType, "application/json")]
-      (cs . encode . object $ [
-          ("message", String $
-            "Failed to parse exception:" <> inside)
-        , ("hint", String . cs . show $ hint)]))
-    (\msg ->
-      responseLBS (httpStatus msg)
-      [(hContentType, "application/json")]
-      (encode msg))
-    (parse message "" inside)
-
+isSqlError :: t
+isSqlError = undefined
 
 rangeStatus :: Int -> Int -> Int -> Status
 rangeStatus from to total
@@ -238,8 +209,8 @@ requestedSchema hdrs =
 jsonH :: Header
 jsonH = (hContentType, "application/json")
 
-handleJsonObj :: BL.ByteString -> (Object -> H.Tx H.Postgres s Response)
-              -> H.Tx H.Postgres s Response
+handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
+              -> H.Tx P.Postgres s Response
 handleJsonObj reqBody handler = do
   let p = eitherDecode reqBody
   case p of
@@ -254,6 +225,7 @@ handleJsonObj reqBody handler = do
       where
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
+
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

@@ -16,10 +16,8 @@ import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
---import Debug.Trace
-
 spec :: Spec
-spec = around withApp $ do
+spec = afterAll_ resetDb $ around withApp $ do
   describe "Posting new record" $ do
     after_ (clearTable "menagerie") . it "accepts disparate json types" $ do
       p <- post "/menagerie"
