@@ -16,8 +16,6 @@ import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
---import Debug.Trace
-
 spec :: Spec
 spec = afterAll_ resetDb $ around withApp $ do
   describe "Posting new record" $ do

@@ -12,11 +12,13 @@ import Data.Aeson ((.=))
 import Data.String.Conversions (cs)
 import Data.String.Utils(replace)
 import Network.Wai(Response, responseLBS)
+import Network.HTTP.Types.Header
 
 type PgError = H.SessionError P.Postgres
 
 errResponse :: PgError -> Response
-errResponse e = responseLBS (httpStatus e) [] (JSON.encode e)
+errResponse e = responseLBS (httpStatus e)
+  [(hContentType, "application/json")] (JSON.encode e)
 
 instance JSON.ToJSON PgError where
   toJSON (H.TxError (P.ErroneousResult c m d h)) = JSON.object [
