@@ -39,18 +39,22 @@ isLeft _ = False
 cfg :: AppConfig
 cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10
 
-testSettings :: PoolSettings
-testSettings = fromMaybe (error "bad settings") $ H.poolSettings 1 30
+testPoolOpts :: PoolSettings
+testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: H.Settings
-pgSettings = H.ParamSettings "localhost" 5432 "postgrest_test" "" "postgrest_test"
+pgSettings = H.ParamSettings (cs $ configDbHost cfg)
+                             (fromIntegral $ configDbPort cfg)
+                             (cs $ configDbUser cfg)
+                             (cs $ configDbPass cfg)
+                             (cs $ configDbName cfg)
 
 withApp :: ActionWith Application -> IO ()
 withApp perform = do
   let anonRole = cs $ configAnonRole cfg
       currRole = cs $ configDbUser cfg
   pool :: H.Pool H.Postgres
-          <- H.acquirePool pgSettings testSettings
+    <- H.acquirePool pgSettings testPoolOpts
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
@@ -64,7 +68,7 @@ withApp perform = do
 resetDb :: IO ()
 resetDb = do
   pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testSettings
+    <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $
     H.tx Nothing $ do
       H.unitEx [H.stmt| drop schema if exists "1" cascade |]
@@ -97,14 +101,14 @@ authHeader u p =
 clearTable :: Text -> IO ()
 clearTable table = do
   pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testSettings
+    <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $ H.tx Nothing $
     H.unitEx $ H.Stmt ("delete from \"1\"."<>table) V.empty True
 
 createItems :: Int -> IO ()
 createItems n = do
   pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testSettings
+    <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = sequence_ $ map H.unitEx stmts
