@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.2.5.1
+version:               0.2.5.2
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
@@ -46,10 +46,12 @@ executable postgrest
   Other-Modules:       App
                      , Auth
                      , Config
-                     , PgStructure
-                     , PgQuery
-                     , RangeQuery
+                     , Error
                      , Middleware
+                     , PgQuery
+                     , PgStructure
+                     , RangeQuery
+                     , Types
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -60,7 +62,17 @@ Test-Suite spec
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
-  Other-Modules:       App, Auth, Config, Spec, SpecHelper
+  Other-Modules:       App
+                     , Auth
+                     , Config
+                     , Error
+                     , Middleware
+                     , PgQuery
+                     , PgStructure
+                     , RangeQuery
+                     , Types
+                     , Spec
+                     , SpecHelper
   Build-Depends:       base, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , hasql == 0.7.*, hasql-backend
