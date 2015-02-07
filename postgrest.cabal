@@ -78,6 +78,7 @@ Test-Suite spec
                      , hasql == 0.7.*, hasql-backend
                      , hasql-postgres == 0.10.*
                      , warp >= 3.0.2, wai >= 3.0.1
+                     , packdeps, hlint
                      , HTTP, convertible
                      , case-insensitive
                      , wai-extra, wai-cors, containers
