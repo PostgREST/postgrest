@@ -24,7 +24,14 @@ import Config (AppConfig(..), argParser, corsPolicy)
 
 main :: IO ()
 main = do
-  conf <- execParser (info (helper <*> argParser) describe)
+  let opts = info (helper <*> argParser) $
+                fullDesc
+                <> progDesc (
+                    "PostgREST "
+                    <> prettyVersion
+                    <> " / create a REST API to an existing Postgres database"
+                )
+  conf <- execParser opts
   let port = configPort conf
 
   unless (configSecure conf) $
@@ -59,5 +66,4 @@ main = do
     either (respond . errResponse) respond resOrError
 
   where
-    describe = progDesc "create a REST API to an existing Postgres database"
     prettyVersion = intercalate "." $ map show $ versionBranch version
