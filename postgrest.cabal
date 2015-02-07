@@ -32,12 +32,12 @@ executable postgrest
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
-                     , optparse-applicative >= 0.9.1 && < 0.10
+                     , optparse-applicative == 0.11.*
                      , regex-base, regex-tdfa
                      , regex-tdfa-text
                      , Ranged-sets
                      , transformers, MissingH
-                     , bcrypt, base64-string
+                     , bcrypt >= 0.0.6, base64-string
                      , network-uri >= 2.6
                      , resource-pool
                      , blaze-builder
@@ -75,15 +75,16 @@ Test-Suite spec
                      , SpecHelper
   Build-Depends:       base, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
-                     , hasql == 0.7.*, hasql-backend
-                     , hasql-postgres == 0.10.*
-                     , warp >= 3.0.2, wai >= 3.0.1
+                     , hasql, hasql-backend
+                     , hasql-postgres
+                     , warp, wai
+                     , packdeps, hlint
                      , HTTP, convertible
                      , case-insensitive
                      , wai-extra, wai-cors, containers
-                     , wai-middleware-static >= 0.6.0
+                     , wai-middleware-static
                      , http-types, scientific, time
-                     , bytestring, aeson, network >= 2.6
+                     , bytestring, aeson, network
                      , text, optparse-applicative
                      , stringsearch
                      , unordered-containers
@@ -94,7 +95,7 @@ Test-Suite spec
                      , Ranged-sets
                      , transformers, MissingH, split
                      , bcrypt, base64-string
-                     , network-uri >= 2.6
+                     , network-uri
                      , resource-pool
                      , blaze-builder
                      , vector
