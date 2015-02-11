@@ -162,7 +162,7 @@ orderParse q =
 orderParseTerm :: Text -> Maybe OrderTerm
 orderParseTerm s =
   case split (=='.') s of
-       [d,c] ->
+       [c,d] ->
          if d `elem` ["asc", "desc"]
             then Just $ OrderTerm c $
               if d == "asc" then "asc" else "desc"
