@@ -139,7 +139,7 @@ update t cols vals = B.Stmt
 wherePred :: Net.QueryItem -> PStmt
 wherePred (col, predicate)
   = B.Stmt (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <>
-      if opCode `elem` ["is","isnot"] then "null"
+      if opCode `elem` ["is","isnot"] then value
                                       else cs (pgFmtLit value) <> "::unknown ")
       empty True
 
