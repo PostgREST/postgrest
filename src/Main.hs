@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes, RankNTypes #-}
 module Main where
 
 import Paths_postgrest (version)
@@ -21,10 +22,12 @@ import qualified Hasql.Postgres as P
 import Data.Monoid
 import System.Exit(exitFailure, exitSuccess)
 
-import Config (AppConfig(..), usage, corsPolicy, argParser)
+import Config (AppConfig, usage, corsPolicy, argParser)
 import System.Environment(getArgs)
 import System.Console.GetOpt(OptDescr(..), ArgDescr(..), ArgOrder(Permute),
   getOpt)
+import Record(l)
+import Record.Lens(view)
 
 main :: IO ()
 main = do
@@ -44,30 +47,30 @@ help errs = do
 
 runApp::AppConfig->IO()
 runApp conf = do
-  let port = configPort conf
+  let port = view [l|port|] conf
+  let secure = view [l|secure|] conf
 
-  unless (configSecure conf) $
+  unless secure $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
-  Prelude.putStrLn $ "Listening on port " ++
-    (show $ configPort conf :: String)
+  Prelude.putStrLn $ "Listening on port " ++ show port
 
-  let pgSettings = P.ParamSettings (cs $ configDbHost conf)
-                     (fromIntegral $ configDbPort conf)
-                     (cs $ configDbUser conf)
-                     (cs $ configDbPass conf)
-                     (cs $ configDbName conf)
+  let pgSettings = P.ParamSettings (cs $ view [l|dbHost|] conf)
+                     (fromIntegral $ view [l|dbPort|] conf)
+                     (cs $ view [l|dbUser|] conf)
+                     (cs $ view [l|dbPass|] conf)
+                     (cs $ view [l|dbName|] conf)
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
       middle =
-        (if configSecure conf then redirectInsecure else id)
+        (if secure then redirectInsecure else id)
         . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-      anonRole = cs $ configAnonRole conf
-      currRole = cs $ configDbUser conf
+      anonRole = cs $ view [l|anonRole|] conf
+      currRole = cs $ view [l|dbUser|] conf
 
   poolSettings <- maybe (fail "Improper session settings") return $
-                H.poolSettings (fromIntegral $ configPool conf) 30
+                H.poolSettings (fromIntegral $ view [l|pool|] conf) 30
   pool :: H.Pool P.Postgres
           <- H.acquirePool pgSettings poolSettings
 

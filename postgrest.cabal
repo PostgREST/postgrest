@@ -40,7 +40,7 @@ executable postgrest
                      , network-uri >= 2.6
                      , resource-pool
                      , blaze-builder
-                     , vector
+                     , vector, record
                      , mtl
   Other-Modules:       App
                      , Auth
@@ -97,6 +97,6 @@ Test-Suite spec
                      , network-uri
                      , resource-pool
                      , blaze-builder
-                     , vector
+                     , vector, record
                      , mtl
                      , process

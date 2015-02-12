@@ -1,4 +1,5 @@
-module Config (AppConfig(..), usage, argParser, corsPolicy) where
+{-# LANGUAGE QuasiQuotes, RankNTypes #-}
+module Config (AppConfig, usage, argParser, corsPolicy) where
 
 import Network.Wai
 import Data.Text (strip)
@@ -9,61 +10,80 @@ import Data.String.Conversions (cs)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 import System.Console.GetOpt(OptDescr(..), ArgDescr(..), ArgOrder(RequireOrder),
   getOpt, usageInfo)
+import Record(r, l)
+import Record.Lens(set, view, Lens)
 
-data AppConfig = AppConfig {
-    configDbName :: String
-  , configDbPort :: Int
-  , configDbUser :: String
-  , configDbPass :: String
-  , configDbHost :: String
+type AppConfig = [r| {
+    dbName :: String
+  , dbPort :: Int
+  , dbUser :: String
+  , dbPass :: String
+  , dbHost :: String
 
-  , configPort  :: Int
-  , configAnonRole :: String
-  , configSecure :: Bool
-  , configPool :: Int
-  } deriving (Eq, Show)
+  , port  :: Int
+  , anonRole :: String
+  , secure :: Bool
+  , pool :: Int
+  }|] -- deriving (Eq, Show)
 
 defaultConf :: AppConfig
-defaultConf = AppConfig "" 5432 "" "" "localhost" 3000 "" False 10
+defaultConf = [r| {dbName= "", dbPort=5432, dbUser="", dbPass="",
+  dbHost="localhost", port=3000, anonRole="", secure=False, pool=10}|]
 
-options :: [OptDescr (AppConfig -> AppConfig)]
+options :: [OptDescr (([String], AppConfig) -> ([String], AppConfig))]
 options = [
-    Option ['a'] ["anonymous"] (ReqArg (\a c -> c {configAnonRole = a}) "ROLE")
+    Option ['a'] ["anonymous"]
+      (ReqArg (setval [l|anonRole|]) "ROLE")
       "REQUIRED postgres role for unauthenticated HTTP requests",
-    Option ['d'] ["db-name"] (ReqArg (\d c -> c {configDbName = d}) "NAME")
+    Option ['d'] ["db-name"]
+      (ReqArg (setval [l|dbName|]) "NAME")
       "REQUIRED name of database",
-    Option ['U'] ["db-user"] (ReqArg (\u c -> c {configDbUser = u}) "ROLE")
+    Option ['U'] ["db-user"]
+      (ReqArg (setval [l|dbUser|]) "ROLE")
       "REQUIRED postgres role for authenticating requests)",
-    Option ['w'] ["db-pass"] (ReqArg (\p c -> c {configDbPass = p}) "PASS")
+    Option ['w'] ["db-pass"]
+      (ReqArg (setval [l|dbPass|]) "PASS")
       "password for db-user role (default empty password)",
-    Option [] ["db-host"] (ReqArg (\h c -> c {configDbHost = h}) "HOST")
+    Option [] ["db-host"]
+      (ReqArg (setval [l|dbHost|]) "HOST")
       "postgres server hostname (default localhost)",
-    Option ['P'] ["db-port"] (ReqArg (\p c -> c {configDbPort = read p}) "PORT")
-      ("postgres server port (default"++(show (configDbPort defaultConf))++")"),
-    Option ['P'] ["port"] (ReqArg (\p c -> c {configPort = read p}) "PORT")
-      ("postgREST HTTP server port (default"++(show (configPort defaultConf))++")"),
-    Option ['s'] ["secure"] (NoArg (\c -> c {configSecure = True}))
+    Option ['P'] ["db-port"]
+      (ReqArg (setReadVal [l|dbPort|]) "PORT")
+      ("postgres server port (default "++(showDefault [l|dbPort|])++")"),
+    Option ['P'] ["port"]
+      (ReqArg (setReadVal [l|port|]) "PORT")
+      ("postgREST HTTP server port (default "++(showDefault [l|port|])++")"),
+    Option ['s'] ["secure"]
+      (NoArg (setval [l|secure|] True))
       "Redirect all HTTP requests to HTTPS",
-    Option [] ["db-pool"] (ReqArg (\p c -> c {configPool = read p}) "COUNT")
-      "Max connections in database pool",
+    Option [] ["db-pool"]
+      (ReqArg (setReadVal [l|pool|]) "COUNT")
+      ("Max connections in database pool (default "++(showDefault [l|pool|])++")"),
     Option ['h'] ["help"] (NoArg id) "show this help"
   ]
+    where
+      setval :: (Lens AppConfig AppConfig  a a) -> a -> ([String], AppConfig) -> ([String], AppConfig)
+      setval lens val (e, rec) = (e, set lens val rec)
+      setReadVal :: (Read a) => (Lens AppConfig AppConfig a a) -> String -> ([String], AppConfig) -> ([String], AppConfig)
+      setReadVal lens val (e, rec) = (e, set lens (read val) rec)
+      showDefault :: (Show a) => (Lens AppConfig AppConfig a a) -> String
+      showDefault lens = show $ view lens defaultConf
 
 argParser :: [String] -> Either [String] AppConfig
 argParser args =
   case getOpt RequireOrder options args of
   (act, _, []) -> let
-      c = (foldr (.) id act) defaultConf
-      errs = missing c
-    in if null errs then Right c else Left errs
+    (e, c) = (foldr (.) id act) ([], defaultConf)
+    errs = e ++ missing c in
+    if null errs then Right c else Left errs
   (_, _, errs) -> Left errs
 
 missing :: AppConfig -> [String]
 missing conf = foldr (\(get, msg) errs -> if null (get conf) then msg:errs else errs)
   [] [
-    (configAnonRole, "[-a|--anonymous]"),
-    (configDbName, "[-d|--db-name]"),
-    (configDbUser, "[-U|--db-user]")]
+    (view [l|anonRole|], "[-a|--anonymous]"),
+    (view [l|dbName|], "[-d|--db-name]"),
+    (view [l|dbUser|], "[-U|--db-user]")]
 
 usage :: String
 usage = usageInfo (example ++ "\nArguments:") options
