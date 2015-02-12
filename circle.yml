@@ -8,6 +8,3 @@ dependencies:
   override:
     - cabal update
     - cabal install --only-d --enable-tests
-test:
-  post:
-    - cabal exec packdeps postgrest.cabal

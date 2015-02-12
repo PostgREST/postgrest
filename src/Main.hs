@@ -71,8 +71,7 @@ runApp conf = do
 
   poolSettings <- maybe (fail "Improper session settings") return $
                 H.poolSettings (fromIntegral $ view [l|pool|] conf) 30
-  pool :: H.Pool P.Postgres
-          <- H.acquirePool pgSettings poolSettings
+  pool :: H.Pool P.Postgres <- H.acquirePool pgSettings poolSettings
 
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req

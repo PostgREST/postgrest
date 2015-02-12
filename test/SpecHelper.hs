@@ -85,8 +85,8 @@ resetDb = do
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
-  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
-
+  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test",
+    "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs ra = [rangeUnit, (hRange, renderByteRange ra)]
