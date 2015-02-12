@@ -32,7 +32,6 @@ executable postgrest
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
-                     , optparse-applicative == 0.11.*
                      , regex-base, regex-tdfa
                      , regex-tdfa-text
                      , Ranged-sets
@@ -85,7 +84,7 @@ Test-Suite spec
                      , wai-middleware-static
                      , http-types, scientific, time
                      , bytestring, aeson, network
-                     , text, optparse-applicative
+                     , text
                      , stringsearch
                      , unordered-containers
                      , regex-base

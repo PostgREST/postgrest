@@ -18,20 +18,32 @@ import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
 import qualified Hasql.Postgres as P
-import Options.Applicative hiding (columns)
+import Data.Monoid
+import System.Exit(exitFailure, exitSuccess)
 
-import Config (AppConfig(..), argParser, corsPolicy)
+import Config (AppConfig(..), usage, corsPolicy, argParser)
+import System.Environment(getArgs)
+import System.Console.GetOpt(OptDescr(..), ArgDescr(..), ArgOrder(Permute),
+  getOpt)
 
 main :: IO ()
 main = do
-  let opts = info (helper <*> argParser) $
-                fullDesc
-                <> progDesc (
-                    "PostgREST "
-                    <> prettyVersion
-                    <> " / create a REST API to an existing Postgres database"
-                )
-  conf <- execParser opts
+  args <- getArgs
+  case getOpt Permute [Option "?h" ["help"] (NoArg ()) "show this help"] args of
+    ([()], _, _) -> help []
+    _ -> case argParser args of
+           Left errs -> help errs
+           Right conf -> runApp conf
+
+help :: [String] -> IO ()
+help [] = putStr usage >> exitSuccess
+help errs = do
+  putStr $ "missing required argument(s): " ++ (intercalate ", " errs) ++
+    '\n':usage
+  exitFailure
+
+runApp::AppConfig->IO()
+runApp conf = do
   let port = configPort conf
 
   unless (configSecure conf) $
