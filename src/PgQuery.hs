@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiWayIf #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PgQuery where
@@ -39,6 +39,7 @@ data QualifiedTable = QualifiedTable {
 data OrderTerm = OrderTerm {
   otTerm :: Text
 , otDirection :: BS.ByteString
+, otNullOrder :: Maybe BS.ByteString
 }
 
 limitT :: Maybe NonnegRange -> StatementT
@@ -67,7 +68,8 @@ orderT ts q =
    queryTerm :: OrderTerm -> PStmt
    queryTerm t = B.Stmt
                    (" " <> cs (pgFmtIdent $ otTerm t) <> " "
-                        <> cs (otDirection t)         <> " ")
+                        <> cs (otDirection t)         <> " "
+                        <> maybe "" cs (otNullOrder t) <> " ")
                    empty True
 
 parentheticT :: StatementT
@@ -162,10 +164,16 @@ orderParse q =
 orderParseTerm :: Text -> Maybe OrderTerm
 orderParseTerm s =
   case split (=='.') s of
-       [c,d] ->
+       (c:d:nls) ->
          if d `elem` ["asc", "desc"]
-            then Just $ OrderTerm c $
-              if d == "asc" then "asc" else "desc"
+            then Just $ OrderTerm c
+              ( if d == "asc" then "asc" else "desc" )
+              ( case nls of
+                  [n] -> if | n == "nullsfirst" -> Just "nulls first"
+                            | n == "nullslast"  -> Just "nulls last"
+                            | otherwise -> Nothing
+                  _   -> Nothing
+              )
             else Nothing
        _ -> Nothing
 
