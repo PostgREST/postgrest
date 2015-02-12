@@ -1,13 +1,14 @@
-module Config where
+module Config (AppConfig(..), options, argParser, corsPolicy) where
 
 import Network.Wai
-import Control.Applicative
 import Data.Text (strip)
 import qualified Data.CaseInsensitive as CI
 import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
-import Options.Applicative hiding (columns)
+-- import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
+import System.Console.GetOpt(OptDescr(..), ArgDescr(..), ArgOrder(RequireOrder),
+  getOpt)
 
 data AppConfig = AppConfig {
     configDbName :: String
@@ -20,20 +21,48 @@ data AppConfig = AppConfig {
   , configAnonRole :: String
   , configSecure :: Bool
   , configPool :: Int
-  }
+  } deriving (Eq, Show)
 
-argParser :: Parser AppConfig
-argParser = AppConfig
-  <$> strOption (long "db-name" <> short 'd' <> metavar "NAME" <> help "name of database")
-  <*> option auto (long "db-port" <> short 'P' <> metavar "PORT" <> value 5432 <> help "postgres server port" <> showDefault)
-  <*> strOption (long "db-user" <> short 'U' <> metavar "ROLE" <> help "postgres authenticator role")
-  <*> strOption (long "db-pass" <> metavar "PASS" <> value "" <> help "password for authenticator role")
-  <*> strOption (long "db-host" <> metavar "HOST" <> value "localhost" <> help "postgres server hostname" <> showDefault)
+defaultConf :: AppConfig
+defaultConf = AppConfig "" 5432 "" "" "localhost" 3000 "" False 10
 
-  <*> option auto (long "port" <> short 'p' <> metavar "PORT" <> value 3000 <> help "port number on which to run HTTP server" <> showDefault)
-  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE" <> help "postgres role to use for non-authenticated requests")
-  <*> switch (long "secure" <> short 's' <> help "Redirect all requests to HTTPS")
-  <*> option auto (long "db-pool" <> metavar "COUNT" <> value 10 <> help "Max connections in database pool" <> showDefault)
+options :: [OptDescr (AppConfig -> AppConfig)]
+options = [
+    Option ['a'] ["anonymous"] (ReqArg (\a c -> c {configAnonRole = a}) "ROLE")
+      "REQUIRED postgres role to use for unauthenticated HTTP requests",
+    Option ['d'] ["db-name"] (ReqArg (\d c -> c {configDbName = d}) "NAME")
+      "REQUIRED name of database",
+    Option ['U'] ["db-user"] (ReqArg (\u c -> c {configDbUser = u}) "ROLE")
+      "REQUIRED postgres role (used by postgREST to authenticate requests)",
+    Option ['w'] ["db-pass"] (ReqArg (\p c -> c {configDbPass = p}) "PASS")
+      "password for db-user role (default empty password)",
+    Option [] ["db-host"] (ReqArg (\h c -> c {configDbHost = h}) "HOST")
+      "postgres server hostname (default localhost)",
+    Option ['P'] ["db-port"] (ReqArg (\p c -> c {configDbPort = read p}) "PORT")
+      ("postgres server port (default"++(show (configDbPort defaultConf))++")"),
+    Option ['P'] ["port"] (ReqArg (\p c -> c {configPort = read p}) "PORT")
+      ("postgREST HTTP server port (default"++(show (configPort defaultConf))++")"),
+    Option ['s'] ["secure"] (NoArg (\c -> c {configSecure = True}))
+      "Redirect all HTTP requests to HTTPS",
+    Option [] ["db-pool"] (ReqArg (\p c -> c {configPool = read p}) "COUNT")
+      "Max connections in database pool"
+  ]
+
+argParser :: [String] -> Either [String] AppConfig
+argParser args =
+  case getOpt RequireOrder options args of
+  (act, _, []) -> let
+      c = (foldr (.) id act) defaultConf
+      errs = missing c
+    in if null errs then Right c else Left errs
+  (_, _, errs) -> Left errs
+
+missing :: AppConfig -> [String]
+missing conf = foldr (\(get, msg) errs -> if null (get conf) then msg:errs else errs)
+  [] [
+    (configAnonRole, "Must have role for anonymous requests (-a|--anonymous)"),
+    (configDbName, "Must have database name (-d|--db-name)"),
+    (configDbUser, "Must have request authenticator role (-U|--db-user)")]
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
