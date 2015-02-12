@@ -25,14 +25,14 @@ spec = beforeAll (clearTable "items" >> createItems 15)
 
   describe "ordering response" $ do
     it "by a column asc" $
-      get "/items?id=lte.2&order=asc.id"
+      get "/items?id=lte.2&order=id.asc"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "[{\"id\":1},{\"id\":2}]"
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
     it "by a column desc" $
-      get "/items?id=lte.2&order=desc.id"
+      get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "[{\"id\":2},{\"id\":1}]"
         , matchStatus  = 200
