@@ -19,7 +19,7 @@ executable postgrest
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables
   other-extensions:    QuasiQuotes
-  build-depends:       base >=4.6 && <5
+  build-depends:       base >=4.6 && <5, safe
                      , hasql == 0.7.*, hasql-backend
                      , hasql-postgres == 0.10.*
                      , warp >= 3.0.2, wai >= 3.0.1
@@ -72,7 +72,7 @@ Test-Suite spec
                      , Types
                      , Spec
                      , SpecHelper
-  Build-Depends:       base, hspec >= 2.1.2, QuickCheck
+  Build-Depends:       base, safe, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , hasql, hasql-backend
                      , hasql-postgres

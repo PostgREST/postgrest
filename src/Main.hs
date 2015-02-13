@@ -41,8 +41,7 @@ main = do
 help :: [String] -> IO ()
 help [] = putStr usage >> exitSuccess
 help errs = do
-  putStr $ "missing required argument(s): " ++ (intercalate ", " errs) ++
-    '\n':usage
+  putStr $ intercalate "\n" errs ++ '\n':'\n':usage
   exitFailure
 
 runApp::AppConfig->IO()

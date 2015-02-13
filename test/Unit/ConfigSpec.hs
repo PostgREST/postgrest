@@ -5,6 +5,7 @@ module Unit.ConfigSpec where {
   import Test.Hspec;
   import Config(argParser);
   import Record(r);
+  import Data.List(isInfixOf);
 
 spec :: Spec;
 spec = describe "argParser" $ do
@@ -43,9 +44,20 @@ spec = describe "argParser" $ do
     let Left errs = argParser ["-d", "postgresty", "-U", "anon"]
     length errs `shouldBe` 1
 
-  it "finds multiple errors at once" $ do
+  it "finds multiple missing args at once" $ do
     let Left errs = argParser ["-d", "postgresty"]
-    length errs `shouldBe` 2
+    length errs `shouldBe` 1
+    errs `shouldSatisfy` \(e:[]) -> isInfixOf "anonymous" e && isInfixOf "user" e
     let Left errs = argParser []
+    length errs `shouldBe` 1
+    errs `shouldSatisfy` \(e:[]) ->
+      isInfixOf "anonymous" e && isInfixOf "user" e && isInfixOf "name" e
+
+  it "emits errors for misparsed args" $ do
+    let Left errs = argParser ["-d", "pg", "-a", "anon", "-u", "pg", "-p", "nan"]
+    length errs `shouldBe` 1
+
+  it "finds all these errors" $ do
+    let Left errs = argParser ["-d", "pg", "-p", "eighty", "--db-pool", "ten"]
     length errs `shouldBe` 3
 }

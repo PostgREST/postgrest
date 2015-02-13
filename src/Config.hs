@@ -1,17 +1,18 @@
 {-# LANGUAGE QuasiQuotes, RankNTypes #-}
-module Config (AppConfig, usage, argParser, corsPolicy) where
+module Config (AppConfig, usage, argParser, corsPolicy, ConfigLens) where
 
 import Network.Wai
 import Data.Text (strip)
 import qualified Data.CaseInsensitive as CI
 import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
--- import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 import System.Console.GetOpt(OptDescr(..), ArgDescr(..), ArgOrder(RequireOrder),
   getOpt, usageInfo)
 import Record(r, l)
 import Record.Lens(set, view, Lens)
+import Safe(readMay)
+import Data.List (intercalate)
 
 type AppConfig = [r| {
     dbName :: String
@@ -24,11 +25,13 @@ type AppConfig = [r| {
   , anonRole :: String
   , secure :: Bool
   , pool :: Int
-  }|] -- deriving (Eq, Show)
+  }|]
 
 defaultConf :: AppConfig
 defaultConf = [r| {dbName= "", dbPort=5432, dbUser="", dbPass="",
   dbHost="localhost", port=3000, anonRole="", secure=False, pool=10}|]
+
+type ConfigLens a = Lens AppConfig AppConfig a a
 
 options :: [OptDescr (([String], AppConfig) -> ([String], AppConfig))]
 options = [
@@ -48,25 +51,28 @@ options = [
       (ReqArg (setval [l|dbHost|]) "HOST")
       "postgres server hostname (default localhost)",
     Option ['P'] ["db-port"]
-      (ReqArg (setReadVal [l|dbPort|]) "PORT")
+      (ReqArg (setReadVal [l|dbPort|] "db-port must be an integer") "PORT")
       ("postgres server port (default "++(showDefault [l|dbPort|])++")"),
-    Option ['P'] ["port"]
-      (ReqArg (setReadVal [l|port|]) "PORT")
+    Option ['p'] ["port"]
+      (ReqArg (setReadVal [l|port|] "port must be an integer") "PORT")
       ("postgREST HTTP server port (default "++(showDefault [l|port|])++")"),
     Option ['s'] ["secure"]
       (NoArg (setval [l|secure|] True))
       "Redirect all HTTP requests to HTTPS",
     Option [] ["db-pool"]
-      (ReqArg (setReadVal [l|pool|]) "COUNT")
+      (ReqArg (setReadVal [l|pool|] "pool size must be an integer") "COUNT")
       ("Max connections in database pool (default "++(showDefault [l|pool|])++")"),
     Option ['h'] ["help"] (NoArg id) "show this help"
   ]
     where
-      setval :: (Lens AppConfig AppConfig  a a) -> a -> ([String], AppConfig) -> ([String], AppConfig)
+      setval :: ConfigLens a -> a -> ([String], AppConfig) -> ([String], AppConfig)
       setval lens val (e, rec) = (e, set lens val rec)
-      setReadVal :: (Read a) => (Lens AppConfig AppConfig a a) -> String -> ([String], AppConfig) -> ([String], AppConfig)
-      setReadVal lens val (e, rec) = (e, set lens (read val) rec)
-      showDefault :: (Show a) => (Lens AppConfig AppConfig a a) -> String
+      setReadVal :: (Read a) => ConfigLens a -> String -> String ->
+                    ([String], AppConfig) -> ([String], AppConfig)
+      setReadVal lens err val (e, rec) = case readMay val of
+        Just v -> (e, set lens v rec)
+        Nothing -> (err:e, rec)
+      showDefault :: (Show a) => ConfigLens a -> String
       showDefault lens = show $ view lens defaultConf
 
 argParser :: [String] -> Either [String] AppConfig
@@ -74,8 +80,10 @@ argParser args =
   case getOpt RequireOrder options args of
   (act, _, []) -> let
     (e, c) = (foldr (.) id act) ([], defaultConf)
-    errs = e ++ missing c in
-    if null errs then Right c else Left errs
+    mist = missing c
+    errs = if null mist then e else (
+      "missing required arguments(s): "++(intercalate ", " mist)):e
+    in if null errs then Right c else Left errs
   (_, _, errs) -> Left errs
 
 missing :: AppConfig -> [String]
