@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module SpecHelper where
 
@@ -33,10 +33,6 @@ import Error(errResponse)
 import Record(r,l)
 import Record.Lens(view)
 -- import Auth (addUser)
-
-isLeft :: Either a b -> Bool
-isLeft (Left _ ) = True
-isLeft _ = False
 
 conf :: AppConfig
 conf = [r|{dbName="postgrest_test", dbPort=5432, dbUser="postgrest_test",
