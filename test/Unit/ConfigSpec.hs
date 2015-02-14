@@ -1,13 +1,18 @@
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# LANGUAGE QuasiQuotes #-}
-module Unit.ConfigSpec where {
-  --indent for eazy folding.
-  import Test.Hspec;
-  import Config(argParser);
-  import Record(r);
-  import Data.List(isInfixOf);
+module Unit.ConfigSpec where
+import Test.Hspec
+import Config(argParser)
+import Control.Monad(join)
+import Record(r)
+import Data.List(isInfixOf)
+import Data.Either(lefts)
 
-spec :: Spec;
+errorList :: (Either [a] b) -> [a]
+errorList e = join $ lefts [e]
+
+errorCount :: (Either [a] b) -> Int
+errorCount = length . errorList
+
+spec :: Spec
 spec = describe "argParser" $ do
   it "parses all valid options" $
     argParser [
@@ -37,27 +42,21 @@ spec = describe "argParser" $ do
       secure=False, pool=10}|]
 
   it "requires database, anonymous, and user" $ do
-    let Left errs = argParser ["-d", "postgresty", "-a", "anon"]
-    length errs `shouldBe` 1
-    let Left errs = argParser ["-U", "postgresty", "-a", "anon"]
-    length errs `shouldBe` 1
-    let Left errs = argParser ["-d", "postgresty", "-U", "anon"]
-    length errs `shouldBe` 1
+    errorCount (argParser ["-d", "postgresty", "-a", "anon"]) `shouldBe` 1
+    errorCount (argParser ["-U", "postgresty", "-a", "anon"]) `shouldBe` 1
+    errorCount (argParser ["-d", "postgresty", "-U", "anon"]) `shouldBe` 1
 
   it "finds multiple missing args at once" $ do
-    let Left errs = argParser ["-d", "postgresty"]
-    length errs `shouldBe` 1
-    errs `shouldSatisfy` \(e:[]) -> isInfixOf "anonymous" e && isInfixOf "user" e
-    let Left errs = argParser []
-    length errs `shouldBe` 1
-    errs `shouldSatisfy` \(e:[]) ->
-      isInfixOf "anonymous" e && isInfixOf "user" e && isInfixOf "name" e
+    errorList (argParser ["-d", "postgresty"])
+      `shouldSatisfy` \[e] -> isInfixOf "anonymous" e && isInfixOf "user" e
 
-  it "emits errors for misparsed args" $ do
-    let Left errs = argParser ["-d", "pg", "-a", "anon", "-u", "pg", "-p", "nan"]
-    length errs `shouldBe` 1
+    errorList (argParser []) `shouldSatisfy`
+      \[e] -> isInfixOf "anonymous" e && isInfixOf "user" e && isInfixOf "name" e
 
-  it "finds all these errors" $ do
-    let Left errs = argParser ["-d", "pg", "-p", "eighty", "--db-pool", "ten"]
-    length errs `shouldBe` 3
-}
+  it "emits errors for misparsed args" $
+    errorCount (argParser ["-d", "pg", "-a", "anon", "-u", "pg", "-p", "nan"])
+      `shouldBe` 1
+
+  it "finds all these errors" $
+    errorCount (argParser ["-d", "pg", "-p", "eighty", "--db-pool", "ten"])
+      `shouldBe` 3
