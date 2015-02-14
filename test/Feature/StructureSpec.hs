@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 module Feature.StructureSpec where
 
 import Test.Hspec hiding (pendingWith)

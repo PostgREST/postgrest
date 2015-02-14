@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
-
 module SpecHelper where
 
 import Network.Wai

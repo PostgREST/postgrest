@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes, RankNTypes #-}
 module Main where
 
 import Paths_postgrest (version)

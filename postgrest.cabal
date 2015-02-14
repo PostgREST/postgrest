@@ -18,7 +18,7 @@ executable postgrest
   ghc-options:         -Wall -W -O2
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables
-  other-extensions:    QuasiQuotes
+                     , QuasiQuotes, RankNTypes
   build-depends:       base >=4.6 && <5, safe
                      , hasql == 0.7.*, hasql-backend
                      , hasql-postgres == 0.10.*
@@ -57,7 +57,7 @@ Test-Suite spec
   Type:                exitcode-stdio-1.0
   Default-Language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables
-  other-extensions:    QuasiQuotes
+                     , QuasiQuotes, RankNTypes
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W
   Main-Is:             Main.hs

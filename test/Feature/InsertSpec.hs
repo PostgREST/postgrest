@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Feature.InsertSpec where
 
 import Test.Hspec

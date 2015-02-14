@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes, RankNTypes #-}
 module Config (AppConfig, usage, argParser, corsPolicy, ConfigLens) where
 
 import Network.Wai
