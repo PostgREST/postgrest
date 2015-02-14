@@ -59,7 +59,7 @@ Test-Suite spec
   default-extensions:  OverloadedStrings, ScopedTypeVariables
                      , QuasiQuotes, RankNTypes
   Hs-Source-Dirs:      test, src
-  ghc-options:         -Wall -W
+  ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
   Other-Modules:       App
                      , Auth

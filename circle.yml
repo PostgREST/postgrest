@@ -7,4 +7,4 @@ machine:
 dependencies:
   override:
     - cabal update
-    - cabal install --only-d --enable-tests
+    - cabal install -j --only-d --enable-tests --upgrade-dependencies --force-reinstalls --reorder-goals
