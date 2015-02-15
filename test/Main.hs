@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Main where
 
 import Test.Hspec

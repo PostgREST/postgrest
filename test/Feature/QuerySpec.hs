@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes, NoMonomorphismRestriction #-}
 module Feature.QuerySpec where
 
 import Test.Hspec
@@ -12,19 +11,22 @@ import Data.Text(Text)
 import SpecHelper
 
 testSet :: IO ()
-testSet = do {
-  clearTable "items" >> clearTable "no_pk";
-  createItems 15;
-  pool :: H.Pool H.Postgres <- H.acquirePool pgSettings testPoolOpts;
+testSet = do
+  clearTable "items" >> clearTable "no_pk"
+  createItems 15
+  pool <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $ H.tx Nothing $ do
-    H.unitEx $
-      ([H.stmt|insert into "1".no_pk (a, b) values (?,?), (?,?), (?,?), (?,?)|]
-        :: Text->Text->Text->Text->Text->Text->Text->Text-> H.Stmt H.Postgres)
-      "lick" "Fun"
-      "trick" "funky"
-      "barb" "foo"
-      "BARD" "FOOD"
-}
+    mapM_ H.unitEx $ map (uncurry insertNoPk) [
+        ("lick", "Fun")
+      , ("trick", "funky")
+      , ("barb", "foo")
+      , ("BARD", "FOOD")
+      ]
+
+  where
+    insertNoPk :: Text -> Text -> H.Stmt H.Postgres
+    insertNoPk = [H.stmt|insert into "1".no_pk (a, b) values (?,?)|]
+
 spec :: Spec
 spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
   describe "Querying a nonexistent table" $

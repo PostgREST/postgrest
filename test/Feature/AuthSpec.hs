@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Feature.AuthSpec where
 
 -- {{{ Imports
