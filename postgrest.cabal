@@ -18,8 +18,8 @@ executable postgrest
   ghc-options:         -Wall -W -O2
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables
-  other-extensions:    QuasiQuotes
-  build-depends:       base >=4.6 && <5
+                     , QuasiQuotes, RankNTypes
+  build-depends:       base >=4.6 && <5, safe
                      , hasql == 0.7.*, hasql-backend
                      , hasql-postgres == 0.10.*
                      , warp >= 3.0.2, wai >= 3.0.1
@@ -32,7 +32,6 @@ executable postgrest
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
-                     , optparse-applicative == 0.11.*
                      , regex-base, regex-tdfa
                      , regex-tdfa-text
                      , Ranged-sets
@@ -41,7 +40,7 @@ executable postgrest
                      , network-uri >= 2.6
                      , resource-pool
                      , blaze-builder
-                     , vector
+                     , vector, record
                      , mtl
   Other-Modules:       App
                      , Auth
@@ -58,7 +57,7 @@ Test-Suite spec
   Type:                exitcode-stdio-1.0
   Default-Language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables
-  other-extensions:    QuasiQuotes
+                     , QuasiQuotes, RankNTypes
   Hs-Source-Dirs:      test, src
   ghc-options:         -Wall -W -Werror
   Main-Is:             Main.hs
@@ -73,7 +72,7 @@ Test-Suite spec
                      , Types
                      , Spec
                      , SpecHelper
-  Build-Depends:       base, hspec >= 2.1.2, QuickCheck
+  Build-Depends:       base, safe, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
                      , hasql, hasql-backend
                      , hasql-postgres
@@ -85,7 +84,7 @@ Test-Suite spec
                      , wai-middleware-static
                      , http-types, scientific, time
                      , bytestring, aeson, network
-                     , text, optparse-applicative
+                     , text
                      , stringsearch
                      , unordered-containers
                      , regex-base
@@ -98,6 +97,6 @@ Test-Suite spec
                      , network-uri
                      , resource-pool
                      , blaze-builder
-                     , vector
+                     , vector, record
                      , mtl
                      , process

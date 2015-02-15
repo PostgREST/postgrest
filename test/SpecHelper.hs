@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
-
 module SpecHelper where
 
 import Network.Wai
@@ -27,32 +25,36 @@ import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
 import App (app)
-import Config (AppConfig(..), corsPolicy)
+import Config (AppConfig, corsPolicy)
 import Middleware
 import Error(errResponse)
+import Record(r,l)
+import Record.Lens(view)
 -- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
-cfg :: AppConfig
-cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10
+conf :: AppConfig
+conf = [r|{dbName="postgrest_test", dbPort=5432, dbUser="postgrest_test",
+  dbPass="", dbHost="localhost", port=3000, anonRole="postgrest_anonymous",
+  secure=False, pool=10}|]
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: H.Settings
-pgSettings = H.ParamSettings (cs $ configDbHost cfg)
-                             (fromIntegral $ configDbPort cfg)
-                             (cs $ configDbUser cfg)
-                             (cs $ configDbPass cfg)
-                             (cs $ configDbName cfg)
+pgSettings = H.ParamSettings (cs $ view [l|dbHost|] conf)
+                     (fromIntegral $ view [l|dbPort|] conf)
+                     (cs $ view [l|dbUser|] conf)
+                     (cs $ view [l|dbPass|] conf)
+                     (cs $ view [l|dbName|] conf)
 
 withApp :: ActionWith Application -> IO ()
 withApp perform = do
-  let anonRole = cs $ configAnonRole cfg
-      currRole = cs $ configDbUser cfg
+  let anonRole = cs $ view [l|anonRole|] conf
+      currRole = cs $ view [l|dbUser|] conf
   pool :: H.Pool H.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
@@ -81,11 +83,11 @@ resetDb = do
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
-  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
-
+  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test",
+    "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 rangeHdrs :: ByteRange -> [Header]
-rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
+rangeHdrs ra = [rangeUnit, (hRange, renderByteRange ra)]
 
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")

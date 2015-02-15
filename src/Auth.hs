@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings #-}
 module Auth where
 
 import Data.Aeson
