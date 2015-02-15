@@ -137,21 +137,25 @@ update t cols vals = B.Stmt
   empty True
 
 wherePred :: Net.QueryItem -> PStmt
-wherePred (col, predicate) = B.Stmt
-  (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <> cs (pgFmtLit value) <> "::unknown ")
-  empty True
+wherePred (col, predicate)
+  = B.Stmt (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <>
+      if opCode `elem` ["is","isnot"] then value
+                                      else cs (pgFmtLit value) <> "::unknown ")
+      empty True
 
   where
     opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
     value = intercalate "." rest
     op = case opCode of
-         "eq"  -> "="
-         "gt"  -> ">"
-         "lt"  -> "<"
-         "gte" -> ">="
-         "lte" -> "<="
-         "neq" -> "<>"
-         _     -> "="
+         "eq"    -> "="
+         "gt"    -> ">"
+         "lt"    -> "<"
+         "gte"   -> ">="
+         "lte"   -> "<="
+         "neq"   -> "<>"
+         "is"    -> "is"
+         "isnot" -> "is not"
+         _       -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
