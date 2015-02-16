@@ -9,7 +9,7 @@ import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import qualified Hasql.Backend as B
 
-import Data.Text hiding (map, empty)
+import qualified Data.Text as T
 import Text.Regex.TDFA ( (=~) )
 import Text.Regex.TDFA.Text ()
 import qualified Network.HTTP.Types.URI as Net
@@ -32,12 +32,12 @@ instance Monoid PStmt where
 type StatementT = PStmt -> PStmt
 
 data QualifiedTable = QualifiedTable {
-  qtSchema :: Text
-, qtName   :: Text
+  qtSchema :: T.Text
+, qtName   :: T.Text
 } deriving (Show)
 
 data OrderTerm = OrderTerm {
-  otTerm :: Text
+  otTerm :: T.Text
 , otDirection :: BS.ByteString
 }
 
@@ -106,33 +106,33 @@ returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 deleteFrom :: QualifiedTable -> PStmt
 deleteFrom t = B.Stmt ("delete from " <> fromQt t) empty True
 
-insertInto :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+insertInto :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
 insertInto t [] _ = B.Stmt
   ("insert into " <> fromQt t <> " default values returning *") empty True
 insertInto t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " (" <>
-    intercalate ", " (map pgFmtIdent cols) <>
+    T.intercalate ", " (map pgFmtIdent cols) <>
     ") values ("
-    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
     <> ") returning row_to_json(" <> fromQt t <> ".*)")
   empty True
 
-insertSelect :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+insertSelect :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
 insertSelect t [] _ = B.Stmt
   ("insert into " <> fromQt t <> " default values returning *") empty True
 insertSelect t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " ("
-    <> intercalate ", " (map pgFmtIdent cols)
+    <> T.intercalate ", " (map pgFmtIdent cols)
     <> ") select "
-    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals))
+    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals))
   empty True
 
-update :: QualifiedTable -> [Text] -> [JSON.Value] -> PStmt
+update :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
 update t cols vals = B.Stmt
   ("update " <> fromQt t <> " set ("
-    <> intercalate ", " (map pgFmtIdent cols)
+    <> T.intercalate ", " (map pgFmtIdent cols)
     <> ") = ("
-    <> intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
     <> ")")
   empty True
 
@@ -142,8 +142,11 @@ wherePred (col, predicate) = B.Stmt
   empty True
 
   where
-    opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
-    value = intercalate "." rest
+    opCode:rest = T.split (=='.') $ cs $ fromMaybe "." predicate
+    unStarredVal = T.intercalate "." rest
+    star c = if c == '*' then '%' else c
+    value = if opCode == "like" || opCode == "ilike"
+              then T.map star unStarredVal else unStarredVal
     op = case opCode of
          "eq"  -> "="
          "gt"  -> ">"
@@ -151,17 +154,19 @@ wherePred (col, predicate) = B.Stmt
          "gte" -> ">="
          "lte" -> "<="
          "neq" -> "<>"
+         "like"-> "like"
+         "ilike"-> "ilike"
          _     -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
-  mapMaybe orderParseTerm . split (==',') $ cs order
+  mapMaybe orderParseTerm . T.split (==',') $ cs order
   where
     order = fromMaybe "" $ join (lookup "order" q)
 
-orderParseTerm :: Text -> Maybe OrderTerm
+orderParseTerm :: T.Text -> Maybe OrderTerm
 orderParseTerm s =
-  case split (=='.') s of
+  case T.split (=='.') s of
        [c,d] ->
          if d `elem` ["asc", "desc"]
             then Just $ OrderTerm c $
@@ -175,31 +180,31 @@ commaq  = B.Stmt ", " empty True
 andq :: PStmt
 andq = B.Stmt " and " empty True
 
-pgFmtIdent :: Text -> Text
+pgFmtIdent :: T.Text -> T.Text
 pgFmtIdent x =
-  let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
+  let escaped = T.replace "\"" "\"\"" (trimNullChars $ cs x) in
   if escaped =~ danger
     then "\"" <> escaped <> "\""
     else escaped
 
-  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: Text
+  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: T.Text
 
-pgFmtLit :: Text -> Text
+pgFmtLit :: T.Text -> T.Text
 pgFmtLit x =
   let trimmed = trimNullChars x
-      escaped = "'" <> replace "'" "''" trimmed <> "'"
-      slashed = replace "\\" "\\\\" escaped in
-  cs $ if escaped =~ ("\\\\" :: Text)
+      escaped = "'" <> T.replace "'" "''" trimmed <> "'"
+      slashed = T.replace "\\" "\\\\" escaped in
+  cs $ if escaped =~ ("\\\\" :: T.Text)
     then "E" <> slashed
     else slashed
 
-trimNullChars :: Text -> Text
-trimNullChars = Data.Text.takeWhile (/= '\x0')
+trimNullChars :: T.Text -> T.Text
+trimNullChars = T.takeWhile (/= '\x0')
 
-fromQt :: QualifiedTable -> Text
+fromQt :: QualifiedTable -> T.Text
 fromQt t = pgFmtIdent (qtSchema t) <> "." <> pgFmtIdent (qtName t)
 
-unquoted :: JSON.Value -> Text
+unquoted :: JSON.Value -> T.Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n

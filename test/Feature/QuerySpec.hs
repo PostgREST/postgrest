@@ -2,39 +2,68 @@ module Feature.QuerySpec where
 
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+import Hasql as H
+import Hasql.Postgres as H
+import Control.Monad (void)
+import Data.Text(Text)
 
 import SpecHelper
 
+testSet :: IO ()
+testSet = do
+  clearTable "items" >> clearTable "no_pk"
+  createItems 15
+  pool <- H.acquirePool pgSettings testPoolOpts
+  void . liftIO $ H.session pool $ H.tx Nothing $ do
+    H.unitEx $ insertNoPk "xyyx" "u"
+    H.unitEx $ insertNoPk "xYYx" "v"
+
+  where
+    insertNoPk :: Text -> Text -> H.Stmt H.Postgres
+    insertNoPk = [H.stmt|insert into "1".no_pk (a, b) values (?,?)|]
+
 spec :: Spec
-spec = beforeAll (clearTable "items" >> createItems 15)
-  . afterAll_ (clearTable "items") . around withApp $ do
+spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
 
-  describe "Filtering response" $
-    context "column equality" $
+  describe "Filtering response" $ do
+    it "matches with equality" $
+      get "/items?id=eq.5"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":5}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-0/1"]
+        }
 
-      it "matches the predicate" $
-        get "/items?id=eq.5"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "[{\"id\":5}]"
-          , matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-0/1"]
-          }
+    it "matches with like" $ do
+      get "/no_pk?a=like.*yx" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"}]|]
+      get "/no_pk?a=like.xy*" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"}]|]
+      get "/no_pk?a=like.*YY*" `shouldRespondWith` [json|
+        [{"a":"xYYx","b":"v"}]|]
+
+    it "matches with ilike" $ do
+      get "/no_pk?a=ilike.xy*&order=b.asc" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
+      get "/no_pk?a=ilike.*YY*&order=b.asc" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
 
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[{\"id\":1},{\"id\":2}]"
+          matchBody    = Just [json| [{"id":1},{"id":2}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[{\"id\":2},{\"id\":1}]"
+          matchBody    = Just [json| [{"id":2},{"id":1}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
@@ -52,9 +81,9 @@ spec = beforeAll (clearTable "items" >> createItems 15)
         }
 
     it "Omits question mark when there are no params" $
-      get "/no_pk"
+      get "/simple_pk"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "[]"
         , matchStatus  = 200
-        , matchHeaders = ["Content-Location" <:> "/no_pk"]
+        , matchHeaders = ["Content-Location" <:> "/simple_pk"]
         }
