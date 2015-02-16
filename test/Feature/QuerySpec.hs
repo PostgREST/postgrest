@@ -43,18 +43,18 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
         }
 
     it "matches with like" $ do
-      get "/no_pk?a=like.*ick&order=asc.a" `shouldRespondWith` [json|[
+      get "/no_pk?a=like.*ick&order=a.asc" `shouldRespondWith` [json|[
         {"a":"lick","b":"Fun"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?b=like.f*&order=asc.a" `shouldRespondWith` [json|[
+      get "/no_pk?b=like.f*&order=a.asc" `shouldRespondWith` [json|[
         {"a":"barb","b":"foo"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?a=like.*AR*&order=asc.a" `shouldRespondWith` [json|[
+      get "/no_pk?a=like.*AR*&order=a.asc" `shouldRespondWith` [json|[
         {"a":"BARD","b":"FOOD"}]|]
 
     it "matches with ilike" $ do
-      get "/no_pk?b=ilike.fun*&order=asc.a" `shouldRespondWith` [json|[
+      get "/no_pk?b=ilike.fun*&order=a.asc" `shouldRespondWith` [json|[
         {"a":"lick","b":"Fun"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?a=ilike.*AR*&order=asc.a" `shouldRespondWith` [json|[
-        {"a":"barb","b":"foo"},{"a":"BARD","b":"FOOD"}]|]
+      get "/no_pk?a=ilike.*AR*&order=a.asc" `shouldRespondWith` [json|[
+        {"a":"BARD","b":"FOOD"},{"a":"barb","b":"foo"}]|]
 
   describe "ordering response" $ do
     it "by a column asc" $
