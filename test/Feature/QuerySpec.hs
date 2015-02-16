@@ -15,11 +15,9 @@ testSet = do
   clearTable "items" >> clearTable "no_pk"
   createItems 15
   pool <- H.acquirePool pgSettings testPoolOpts
-  void . liftIO $ H.session pool $ H.tx Nothing $
-    mapM_ (H.unitEx . uncurry insertNoPk) [
-        ("lick", "Fun"), ("trick", "funky")
-      , ("barb", "foo"), ("BARD", "FOOD")
-      ]
+  void . liftIO $ H.session pool $ H.tx Nothing $ do
+    H.unitEx $ insertNoPk "xyyx" "u"
+    H.unitEx $ insertNoPk "xYYx" "v"
 
   where
     insertNoPk :: Text -> Text -> H.Stmt H.Postgres
@@ -41,18 +39,18 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
         }
 
     it "matches with like" $ do
-      get "/no_pk?a=like.*ick&order=a.asc" `shouldRespondWith` [json|
-        [{"a":"lick","b":"Fun"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?b=like.f*&order=a.asc" `shouldRespondWith` [json|
-        [{"a":"barb","b":"foo"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?a=like.*AR*&order=a.asc" `shouldRespondWith` [json|
-        [{"a":"BARD","b":"FOOD"}]|]
+      get "/no_pk?a=like.*yx" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"}]|]
+      get "/no_pk?a=like.xy*" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"}]|]
+      get "/no_pk?a=like.*YY*" `shouldRespondWith` [json|
+        [{"a":"xYYx","b":"v"}]|]
 
     it "matches with ilike" $ do
-      get "/no_pk?b=ilike.fun*&order=a.asc" `shouldRespondWith` [json|
-        [{"a":"lick","b":"Fun"},{"a":"trick","b":"funky"}]|]
-      get "/no_pk?a=ilike.*AR*&order=a.asc" `shouldRespondWith` [json|
-        [{"a":"BARD","b":"FOOD"},{"a":"barb","b":"foo"}]|]
+      get "/no_pk?a=ilike.xy*&order=b.asc" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
+      get "/no_pk?a=ilike.*YY*&order=b.asc" `shouldRespondWith` [json|
+        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
 
   describe "ordering response" $ do
     it "by a column asc" $
