@@ -15,12 +15,10 @@ testSet = do
   clearTable "items" >> clearTable "no_pk"
   createItems 15
   pool <- H.acquirePool pgSettings testPoolOpts
-  void . liftIO $ H.session pool $ H.tx Nothing $ do
-    mapM_ H.unitEx $ map (uncurry insertNoPk) [
-        ("lick", "Fun")
-      , ("trick", "funky")
-      , ("barb", "foo")
-      , ("BARD", "FOOD")
+  void . liftIO $ H.session pool $ H.tx Nothing $
+    mapM_ (H.unitEx . uncurry insertNoPk) [
+        ("lick", "Fun"), ("trick", "funky")
+      , ("barb", "foo"), ("BARD", "FOOD")
       ]
 
   where
