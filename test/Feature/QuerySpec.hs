@@ -37,7 +37,7 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
     it "matches with equality" $
       get "/items?id=eq.5"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[{\"id\":5}]"
+          matchBody    = Just [json| [{"id":5}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-0/1"]
         }
@@ -60,14 +60,14 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[{\"id\":1},{\"id\":2}]"
+          matchBody    = Just [json| [{"id":1},{"id":2}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[{\"id\":2},{\"id\":1}]"
+          matchBody    = Just [json| [{"id":2},{"id":1}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
