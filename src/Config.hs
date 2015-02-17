@@ -45,6 +45,10 @@ corsPolicy req = case lookup "origin" headers of
   Just origin -> Just defaultCorsPolicy {
       corsOrigins = Just ([origin], True)
     , corsRequestHeaders = "Authentication":accHeaders
+    , corsExposedHeaders = Just [
+          "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
+        , "Date", "Server", "Transfer-Encoding", "Range-Unit"
+        ]
     }
   Nothing -> Nothing
   where

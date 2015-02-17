@@ -53,6 +53,14 @@ spec = around withApp $ describe "CORS" $ do
         r <- request methodOptions "/" preflightHeaders ""
         liftIO $ simpleBody r `shouldBe` ""
 
+    describe "regular request" $
+      it "exposes necesssary response headers" $ do
+        r <- request methodGet "/items" [("Origin", "http://example.com")] ""
+        liftIO $ simpleHeaders r `shouldSatisfy` matchHeader
+          "Access-Control-Expose-Headers"
+          "Content-Encoding, Content-Location, Content-Range, Content-Type, \
+            \Date, Server, Transfer-Encoding, Range-Unit"
+
     describe "postflight request" $
       it "allows INFO body through even with CORS request headers present" $ do
         r <- request methodOptions "/items" normalCors ""
