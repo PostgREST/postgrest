@@ -20,7 +20,7 @@ your own projects.
 
 ### Usage
 
-Download the binary ([OS X](http://bin.begriffs.com/dbapi/osx/postgrest-0.2.5.3.tar.xz) / [Linux](http://bin.begriffs.com/dbapi/heroku/postgrest-0.2.5.3.tar.xz)) and invoke like so:
+Download the binary ([OS X](http://bin.begriffs.com/dbapi/osx/postgrest-0.2.6.0.tar.xz) / [Linux](http://bin.begriffs.com/dbapi/heroku/postgrest-0.2.6.0.tar.xz)) and invoke like so:
 
 ```bash
 postgrest  --db-host localhost  --db-port 5432     \
