@@ -47,7 +47,7 @@ corsPolicy req = case lookup "origin" headers of
     , corsRequestHeaders = "Authentication":accHeaders
     , corsExposedHeaders = Just [
           "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
-        , "Date", "Server", "Transfer-Encoding", "Range-Unit"
+        , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
         ]
     }
   Nothing -> Nothing
