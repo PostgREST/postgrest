@@ -59,7 +59,7 @@ spec = around withApp $ describe "CORS" $ do
         liftIO $ simpleHeaders r `shouldSatisfy` matchHeader
           "Access-Control-Expose-Headers"
           "Content-Encoding, Content-Location, Content-Range, Content-Type, \
-            \Date, Server, Transfer-Encoding, Range-Unit"
+            \Date, Location, Server, Transfer-Encoding, Range-Unit"
 
     describe "postflight request" $
       it "allows INFO body through even with CORS request headers present" $ do
