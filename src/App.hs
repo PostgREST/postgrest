@@ -101,7 +101,7 @@ app v1schema reqBody req =
     ([table], "POST") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-            query = insertInto qt (map cs $ keys obj) (elems obj)
+            query = insertInto qt (map cs $ keys obj) [(elems obj)]
             echoRequested = lookup "Prefer" hdrs == Just "return=representation"
         row <- H.maybeEx query
         let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row

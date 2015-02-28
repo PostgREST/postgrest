@@ -108,15 +108,20 @@ returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 deleteFrom :: QualifiedTable -> PStmt
 deleteFrom t = B.Stmt ("delete from " <> fromQt t) empty True
 
-insertInto :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
+insertInto :: QualifiedTable -> [T.Text] -> [[JSON.Value]] -> PStmt
 insertInto t [] _ = B.Stmt
   ("insert into " <> fromQt t <> " default values returning *") empty True
 insertInto t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " (" <>
     T.intercalate ", " (map pgFmtIdent cols) <>
-    ") values ("
-    <> T.intercalate ", " (map insertableValue vals)
-    <> ") returning row_to_json(" <> fromQt t <> ".*)")
+    ") values "
+    <> T.intercalate ", "
+      (map (\v -> "("
+          <> T.intercalate ", " (map insertableValue v)
+          <> ")"
+        ) vals
+      )
+    <> " returning row_to_json(" <> fromQt t <> ".*)")
   empty True
 
 insertSelect :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
