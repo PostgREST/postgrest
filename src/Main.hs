@@ -14,6 +14,7 @@ import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Static (staticPolicy, only)
+import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
@@ -47,8 +48,8 @@ main = do
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
-      middle =
-        (if configSecure conf then redirectInsecure else id)
+      middle = logStdout
+        . (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
       anonRole = cs $ configAnonRole conf
