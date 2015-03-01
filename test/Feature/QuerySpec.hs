@@ -38,6 +38,14 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
         , matchHeaders = ["Content-Range" <:> "0-0/1"]
         }
 
+    it "matches items IN" $
+      get "/items?id=in.1,3,5"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        }
+
     it "matches with like" $ do
       get "/no_pk?a=like.*yx" `shouldRespondWith` [json|
         [{"a":"xyyx","b":"u"}]|]
