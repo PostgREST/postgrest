@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - Server response logging
+- Filter IN values, e.g. `?col=in.1,2,3`
 
 ## [0.2.6.0] - 2015-02-18
 ### Added
