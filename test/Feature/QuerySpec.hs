@@ -9,6 +9,7 @@ import Control.Monad (void)
 import Data.Text(Text)
 
 import SpecHelper
+import Data.Monoid
 
 testSet :: IO ()
 testSet = do
@@ -24,7 +25,11 @@ testSet = do
     insertNoPk = [H.stmt|insert into "1".no_pk (a, b) values (?,?)|]
 
 spec :: Spec
-spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
+spec = do
+  beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll (clearTable "no_pk" >> createNulls 2)
+   . afterAll_ (clearTable "items" >> clearTable "no_pk")
+   . around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
@@ -74,6 +79,38 @@ spec = beforeAll testSet . afterAll_ (clearTable "items") . around withApp $ do
           matchBody    = Just [json| [{"id":2},{"id":1}] |]
         , matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        }
+
+    it "by a column asc with nulls last" $
+      get "/no_pk?order=a.asc.nullslast"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just $ "[{\"a\":\"1\",\"b\":\"0\"}"
+                          <> ",{\"a\":\"2\",\"b\":\"0\"}"
+                          <> ",{\"a\":null,\"b\":null}]"
+
+        , matchStatus = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        }
+
+    it "by a column desc with nulls first" $
+      get "/no_pk?order=a.desc.nullsfirst"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just $ "[{\"a\":null,\"b\":null}"
+                          <> ",{\"a\":\"2\",\"b\":\"0\"}"
+                          <> ",{\"a\":\"1\",\"b\":\"0\"}]"
+        , matchStatus = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        }
+
+    it "by a column desc with nulls last" $
+      get "/no_pk?order=a.desc.nullslast"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just $ "[{\"a\":\"2\",\"b\":\"0\"}"
+                          <> ",{\"a\":\"1\",\"b\":\"0\"}"
+                          <> ",{\"a\":null,\"b\":null}]"
+
+        , matchStatus = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
     it "without other constraints" $

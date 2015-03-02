@@ -109,8 +109,20 @@ createItems n = do
     <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
-    txn = sequence_ $ map H.unitEx stmts
+    txn = mapM_ H.unitEx stmts
     stmts = map [H.stmt|insert into "1".items (id) values (?)|] [1..n]
+
+createNulls :: Int -> IO ()
+createNulls n = do
+  pool :: H.Pool H.Postgres
+    <- H.acquirePool pgSettings testPoolOpts
+  void . liftIO $ H.session pool $ H.tx Nothing txn
+  where
+    txn = mapM_ H.unitEx (stmt':stmts)
+    stmt' = [H.stmt|insert into "1".no_pk (a,b) values (null,null)|]
+    stmts = map [H.stmt|insert into "1".no_pk (a,b) values (?,0)|] [1..n]
+
+
 
 -- for hspec-wai
 pending_ :: WaiSession ()
