@@ -139,13 +139,16 @@ update t cols vals = B.Stmt
 wherePred :: Net.QueryItem -> PStmt
 wherePred (col, predicate)
   = B.Stmt (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <>
-      if opCode `elem` ["is","isnot"] then value
+      if opCode `elem` ["is","isnot"] then whiteList value
                                       else cs (pgFmtLit value) <> "::unknown ")
       empty True
 
   where
     opCode:rest = split (=='.') $ cs $ fromMaybe "." predicate
     value = intercalate "." rest
+    whiteList val = fromMaybe (cs (pgFmtLit val) <> "::unknown ")
+                              (L.find ((==) . toLower $ val)
+                                       ["null","true","false"])
     op = case opCode of
          "eq"    -> "="
          "gt"    -> ">"
