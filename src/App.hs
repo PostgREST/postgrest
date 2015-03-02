@@ -102,6 +102,7 @@ app reqBody req =
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
             query = insertInto qt (map cs $ keys obj) (elems obj)
+            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
         row <- H.maybeEx query
         let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
             Just inserted = decode (cs insertedJson) :: Maybe Object
@@ -116,7 +117,7 @@ app reqBody req =
         return $ responseLBS status201
           [ jsonH
           , (hLocation, "/" <> cs table <> "?" <> cs params)
-          ] ""
+          ] $ if echoRequested then cs insertedJson else ""
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do

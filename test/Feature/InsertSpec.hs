@@ -49,12 +49,21 @@ spec = afterAll_ resetDb $ around withApp $ do
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
 
-      context "into a table with no pk" . after_ (clearTable "no_pk") $
+      context "into a table with no pk" . after_ (clearTable "no_pk") $ do
         it "succeeds with 201 and a link including all fields" $ do
           p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.foo&b=eq.bar"
+            simpleStatus p `shouldBe` created201
+
+        it "returns full details of inserted record if asked" $ do
+          p <- request methodPost "/no_pk"
+                       [("Prefer", "return=representation")]
+                       [json| { "a":"bar", "b":"baz" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` [json| { "a":"bar", "b":"baz" } |]
+            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
             simpleStatus p `shouldBe` created201
 
     context "with compound pk supplied" . after_ (clearTable "compound_pk") $
