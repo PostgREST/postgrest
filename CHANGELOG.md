@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Server response logging
 - Filter IN values, e.g. `?col=in.1,2,3`
 - Return POSTed resource if header "Prefer: return=representation"
+- Allow override of default (v1) schema
 
 ## [0.2.6.0] - 2015-02-18
 ### Added
