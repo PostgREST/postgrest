@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.2.7.0] - 2015-03-03
 ### Added
 - Server response logging
 - Filter IN values, e.g. `?col=in.1,2,3`
