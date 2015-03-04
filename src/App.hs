@@ -35,8 +35,8 @@ import PgQuery
 import RangeQuery
 import PgStructure
 
-app :: BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app reqBody req =
+app :: Text -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app v1schema reqBody req =
   case (path, verb) of
     ([], _) -> do
       body <- encode <$> tables (cs schema)
@@ -171,7 +171,7 @@ app reqBody req =
     verb   = requestMethod req
     qq     = queryString req
     hdrs   = requestHeaders req
-    schema = requestedSchema hdrs
+    schema = requestedSchema v1schema hdrs
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
@@ -197,11 +197,11 @@ contentRangeH from to total =
        <> cs (show total)
   )
 
-requestedSchema :: RequestHeaders -> Text
-requestedSchema hdrs =
+requestedSchema :: Text -> RequestHeaders -> Text
+requestedSchema v1schema hdrs =
   case verStr of
-       Just [[_, ver]] -> ver
-       _ -> "1"
+       Just [[_, ver]] -> if ver == "1" then v1schema else ver
+       _ -> v1schema
 
   where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
         accept = cs <$> lookup hAccept hdrs :: Maybe Text

@@ -35,7 +35,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10
+cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10 "1"
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
@@ -57,7 +57,7 @@ withApp perform = do
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx Nothing
-      $ authenticated currRole anonRole (app body) req
+      $ authenticated currRole anonRole (app (cs $ configV1Schema cfg) body) req
     either (resp . errResponse) resp result
 
   where middle = cors corsPolicy

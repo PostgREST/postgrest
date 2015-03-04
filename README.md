@@ -26,7 +26,8 @@ Download the binary ([OS X](http://bin.begriffs.com/dbapi/osx/postgrest-0.2.6.0.
 postgrest  --db-host localhost  --db-port 5432     \
            --db-name my_db      --db-user postgres \
            --db-pass foobar     --db-pool 200      \
-           --anonymous postgres --port 3000
+           --anonymous postgres --port 3000        \
+           --v1schema public
 ```
 
 In production include the `--secure` option which redirects all
