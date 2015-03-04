@@ -63,7 +63,7 @@ main = do
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx Nothing $
-      authenticated currRole anonRole (app body) req
+      authenticated currRole anonRole (app (cs $ configV1Schema conf) body) req
     either (respond . errResponse) respond resOrError
 
   where
