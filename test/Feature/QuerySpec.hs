@@ -34,6 +34,10 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
+    it "matches nulls" $
+      get "/no_pk?a=is.null" `shouldRespondWith`
+        [json| [{"a": null, "b": null}] |]
+
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`
         "[{\"k\":\"xyyx\",\"extra\":\"u\"}]"

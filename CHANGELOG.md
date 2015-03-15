@@ -5,7 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
-- Option to specify nulls first or last, eg /people?order=age.desc.nullsfirst
+- Option to specify nulls first or last, eg `/people?order=age.desc.nullsfirst`
+- Filter nulls, `?col=is.null` and `?col=isnot.null`
 
 ## [0.2.7.0] - 2015-03-03
 ### Added
