@@ -122,6 +122,15 @@ createNulls n = do
     stmt' = [H.stmt|insert into "1".no_pk (a,b) values (null,null)|]
     stmts = map [H.stmt|insert into "1".no_pk (a,b) values (?,0)|] [1..n]
 
+createLikableStrings :: IO ()
+createLikableStrings = do
+  pool <- H.acquirePool pgSettings testPoolOpts
+  void . liftIO $ H.session pool $ H.tx Nothing $ do
+    H.unitEx $ insertSimplePk "xyyx" "u"
+    H.unitEx $ insertSimplePk "xYYx" "v"
+  where
+    insertSimplePk :: Text -> Text -> H.Stmt H.Postgres
+    insertSimplePk = [H.stmt|insert into "1".simple_pk (k, extra) values (?,?)|]
 
 
 -- for hspec-wai

@@ -3,32 +3,15 @@ module Feature.QuerySpec where
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Hasql as H
-import Hasql.Postgres as H
-import Control.Monad (void)
-import Data.Text(Text)
+import Network.Wai.Test (SResponse(simpleHeaders))
 
 import SpecHelper
-import Data.Monoid
-
-testSet :: IO ()
-testSet = do
-  clearTable "items" >> clearTable "no_pk"
-  createItems 15
-  pool <- H.acquirePool pgSettings testPoolOpts
-  void . liftIO $ H.session pool $ H.tx Nothing $ do
-    H.unitEx $ insertNoPk "xyyx" "u"
-    H.unitEx $ insertNoPk "xYYx" "v"
-
-  where
-    insertNoPk :: Text -> Text -> H.Stmt H.Postgres
-    insertNoPk = [H.stmt|insert into "1".no_pk (a, b) values (?,?)|]
 
 spec :: Spec
-spec = do
+spec =
   beforeAll (clearTable "items" >> createItems 15)
-   . beforeAll (clearTable "no_pk" >> createNulls 2)
-   . afterAll_ (clearTable "items" >> clearTable "no_pk")
+   . beforeAll (clearTable "no_pk" >> createNulls 2 >> createLikableStrings)
+   . afterAll_ (clearTable "items" >> clearTable "no_pk" >> clearTable "simple_pk")
    . around withApp $ do
   describe "Querying a nonexistent table" $
     it "causes a 404" $
@@ -52,18 +35,18 @@ spec = do
         }
 
     it "matches with like" $ do
-      get "/no_pk?a=like.*yx" `shouldRespondWith` [json|
-        [{"a":"xyyx","b":"u"}]|]
-      get "/no_pk?a=like.xy*" `shouldRespondWith` [json|
-        [{"a":"xyyx","b":"u"}]|]
-      get "/no_pk?a=like.*YY*" `shouldRespondWith` [json|
-        [{"a":"xYYx","b":"v"}]|]
+      get "/simple_pk?k=like.*yx" `shouldRespondWith`
+        "[{\"k\":\"xyyx\",\"extra\":\"u\"}]"
+      get "/simple_pk?k=like.xy*" `shouldRespondWith`
+        "[{\"k\":\"xyyx\",\"extra\":\"u\"}]"
+      get "/simple_pk?k=like.*YY*" `shouldRespondWith`
+        "[{\"k\":\"xYYx\",\"extra\":\"v\"}]"
 
     it "matches with ilike" $ do
-      get "/no_pk?a=ilike.xy*&order=b.asc" `shouldRespondWith` [json|
-        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
-      get "/no_pk?a=ilike.*YY*&order=b.asc" `shouldRespondWith` [json|
-        [{"a":"xyyx","b":"u"},{"a":"xYYx","b":"v"}]|]
+      get "/simple_pk?k=ilike.xy*&order=extra.asc" `shouldRespondWith`
+        "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+      get "/simple_pk?k=ilike.*YY*&order=extra.asc" `shouldRespondWith`
+        "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
 
   describe "ordering response" $ do
     it "by a column asc" $
@@ -84,10 +67,9 @@ spec = do
     it "by a column asc with nulls last" $
       get "/no_pk?order=a.asc.nullslast"
         `shouldRespondWith` ResponseMatcher {
-          matchBody = Just $ "[{\"a\":\"1\",\"b\":\"0\"}"
-                          <> ",{\"a\":\"2\",\"b\":\"0\"}"
-                          <> ",{\"a\":null,\"b\":null}]"
-
+          matchBody = Just [json| [{"a":"1","b":"0"},
+                              {"a":"2","b":"0"},
+                              {"a":null,"b":null}] |]
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
@@ -95,9 +77,9 @@ spec = do
     it "by a column desc with nulls first" $
       get "/no_pk?order=a.desc.nullsfirst"
         `shouldRespondWith` ResponseMatcher {
-          matchBody = Just $ "[{\"a\":null,\"b\":null}"
-                          <> ",{\"a\":\"2\",\"b\":\"0\"}"
-                          <> ",{\"a\":\"1\",\"b\":\"0\"}]"
+          matchBody = Just [json| [{"a":null,"b":null},
+                              {"a":"2","b":"0"},
+                              {"a":"1","b":"0"}] |]
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
@@ -105,10 +87,9 @@ spec = do
     it "by a column desc with nulls last" $
       get "/no_pk?order=a.desc.nullslast"
         `shouldRespondWith` ResponseMatcher {
-          matchBody = Just $ "[{\"a\":\"2\",\"b\":\"0\"}"
-                          <> ",{\"a\":\"1\",\"b\":\"0\"}"
-                          <> ",{\"a\":null,\"b\":null}]"
-
+          matchBody = Just [json| [{"a":"2","b":"0"},
+                              {"a":"1","b":"0"},
+                              {"a":null,"b":null}] |]
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
@@ -125,10 +106,9 @@ spec = do
         , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
         }
 
-    it "Omits question mark when there are no params" $
-      get "/simple_pk"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[]"
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Location" <:> "/simple_pk"]
-        }
+    it "Omits question mark when there are no params" $ do
+      r <- get "/simple_pk"
+      liftIO $ do
+        let respHeaders = simpleHeaders r
+        respHeaders `shouldSatisfy` matchHeader
+          "Content-Location" "/simple_pk"
