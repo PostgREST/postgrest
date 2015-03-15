@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Added
+- Option to specify nulls first or last, eg /people?order=age.desc.nullsfirst
+
 ## [0.2.7.0] - 2015-03-03
 ### Added
 - Server response logging
