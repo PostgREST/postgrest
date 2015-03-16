@@ -32,7 +32,8 @@ main = do
                     <> prettyVersion
                     <> " / create a REST API to an existing Postgres database"
                 )
-  conf <- execParser opts
+      parserPrefs = prefs showHelpOnError
+  conf <- customExecParser parserPrefs opts
   let port = configPort conf
 
   unless (configSecure conf) $
