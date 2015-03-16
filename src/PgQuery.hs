@@ -237,3 +237,7 @@ unquoted _ = ""
 insertableValue :: JSON.Value -> T.Text
 insertableValue JSON.Null = "null"
 insertableValue v = ((<> "::unknown") . pgFmtLit . unquoted) v
+
+paramFilter :: JSON.Value -> T.Text
+paramFilter JSON.Null = "is.null"
+paramFilter v = "eq." <> unquoted v

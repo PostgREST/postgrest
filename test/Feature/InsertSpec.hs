@@ -69,9 +69,11 @@ spec = afterAll_ resetDb $ around withApp $ do
         it "can post nulls" $ do
           p <- request methodPost "/no_pk"
                        [("Prefer", "return=representation")]
-                       [json| { "a":null, "b":null } |]
-          liftIO $
-            simpleBody p `shouldBe` [json| { "a":null, "b":null } |]
+                       [json| { "a":null, "b":"foo" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` [json| { "a":null, "b":"foo" } |]
+            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
+            simpleStatus p `shouldBe` created201
 
     context "with compound pk supplied" . after_ (clearTable "compound_pk") $
       it "builds response location header appropriately" $

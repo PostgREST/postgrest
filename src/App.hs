@@ -112,7 +112,7 @@ app v1schema reqBody req =
             then inserted
             else filterWithKey (const . (`elem` primaryKeys)) inserted
         let params = urlEncodeVars
-              $ map (\t -> (cs $ fst t, "eq." <> cs (unquoted $ snd t)))
+              $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
               $ sortBy (comparing fst) $ toList primaries
         return $ responseLBS status201
           [ jsonH
