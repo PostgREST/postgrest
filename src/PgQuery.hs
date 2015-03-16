@@ -115,7 +115,7 @@ insertInto t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " (" <>
     T.intercalate ", " (map pgFmtIdent cols) <>
     ") values ("
-    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> T.intercalate ", " (map insertableValue vals)
     <> ") returning row_to_json(" <> fromQt t <> ".*)")
   empty True
 
@@ -126,7 +126,7 @@ insertSelect t cols vals = B.Stmt
   ("insert into " <> fromQt t <> " ("
     <> T.intercalate ", " (map pgFmtIdent cols)
     <> ") select "
-    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals))
+    <> T.intercalate ", " (map insertableValue vals))
   empty True
 
 update :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
@@ -134,7 +134,7 @@ update t cols vals = B.Stmt
   ("update " <> fromQt t <> " set ("
     <> T.intercalate ", " (map pgFmtIdent cols)
     <> ") = ("
-    <> T.intercalate ", " (map ((<> "::unknown") . pgFmtLit . unquoted) vals)
+    <> T.intercalate ", " (map insertableValue vals)
     <> ")")
   empty True
 
@@ -233,3 +233,11 @@ unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted _ = ""
+
+insertableValue :: JSON.Value -> T.Text
+insertableValue JSON.Null = "null"
+insertableValue v = ((<> "::unknown") . pgFmtLit . unquoted) v
+
+paramFilter :: JSON.Value -> T.Text
+paramFilter JSON.Null = "is.null"
+paramFilter v = "eq." <> unquoted v
