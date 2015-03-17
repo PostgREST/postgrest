@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Filter nulls, `?col=is.null` and `?col=isnot.null`
 ### Fixed
 - Allow NULL values in posts
+- Show full command line usage on param errors
 
 ## [0.2.7.0] - 2015-03-03
 ### Added
