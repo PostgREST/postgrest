@@ -153,6 +153,7 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 * [Versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning)
 * [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
 * [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
+* [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)
 
 ### Thanks
 
@@ -162,3 +163,4 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
   wonderful [Hasql](https://github.com/nikita-volkov/hasql) library
   and helping me use it
 * [Mikey Casalaina](https://github.com/casalaina) for the cool logo
+* [Jonathan Harrington](https://github.com/prio) for writing a nice tutorial
