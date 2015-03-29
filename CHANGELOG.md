@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Option to specify nulls first or last, eg `/people?order=age.desc.nullsfirst`
 - Filter nulls, `?col=is.null` and `?col=isnot.null`
+
 ### Fixed
 - Allow NULL values in posts
 - Show full command line usage on param errors
