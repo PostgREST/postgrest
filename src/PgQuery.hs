@@ -140,7 +140,7 @@ update t cols vals = B.Stmt
 
 wherePred :: Net.QueryItem -> PStmt
 wherePred (col, predicate) =
-  B.Stmt (" " <> cs (pgFmtIdent $ cs col) <> " " <> op <> " " <>
+  B.Stmt (" " <> pgFmtJsonbPath (cs col) <> " " <> op <> " " <>
       if opCode `elem` ["is","isnot"] then whiteList value
                                  else cs sqlValue)
       empty True
@@ -151,7 +151,6 @@ wherePred (col, predicate) =
     whiteList val = fromMaybe (cs (pgFmtLit val) <> "::unknown ")
                               (L.find ((==) . T.toLower $ val)
                                       ["null","true","false"])
-
     star c = if c == '*' then '%' else c
     unknownLiteral = (<> "::unknown ") . pgFmtLit
 
@@ -202,6 +201,34 @@ commaq  = B.Stmt ", " empty True
 
 andq :: PStmt
 andq = B.Stmt " and " empty True
+
+data JsonbPath =
+    ColIdentifier T.Text
+  | KeyIdentifier T.Text
+  | SingleArrow JsonbPath JsonbPath
+  | DoubleArrow JsonbPath JsonbPath
+  deriving (Show)
+
+parseJsonbPath :: T.Text -> Maybe JsonbPath
+parseJsonbPath p =
+  case T.splitOn "->>" p of
+    [a,b] ->
+      let i:is = T.splitOn "->" a in
+      Just $ DoubleArrow
+        (foldl SingleArrow (ColIdentifier i) (map KeyIdentifier is))
+        (KeyIdentifier b)
+    _ -> Nothing
+
+pgFmtJsonbPath :: T.Text -> T.Text
+pgFmtJsonbPath p =
+  pgFmtJsonbPath' $ fromMaybe (ColIdentifier p) (parseJsonbPath p)
+  where
+    pgFmtJsonbPath' (ColIdentifier i) = pgFmtIdent i
+    pgFmtJsonbPath' (KeyIdentifier i) = pgFmtLit i
+    pgFmtJsonbPath' (SingleArrow a b) =
+      pgFmtJsonbPath' a <> "->" <> pgFmtJsonbPath' b
+    pgFmtJsonbPath' (DoubleArrow a b) =
+      pgFmtJsonbPath' a <> "->>" <> pgFmtJsonbPath' b
 
 pgFmtIdent :: T.Text -> T.Text
 pgFmtIdent x =

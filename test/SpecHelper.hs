@@ -5,8 +5,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 
 import Hasql as H
-import Hasql.Backend as H
-import Hasql.Postgres as H
+import Hasql.Backend as B
+import Hasql.Postgres as P
 
 import Data.String.Conversions (cs)
 import Data.Monoid
@@ -24,11 +24,12 @@ import qualified Data.ByteString.Char8 as BS
 import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
+import qualified Data.Aeson.Types as J
+
 import App (app)
 import Config (AppConfig(..), corsPolicy)
 import Middleware
 import Error(errResponse)
--- import Auth (addUser)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
@@ -40,8 +41,8 @@ cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "post
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
-pgSettings :: H.Settings
-pgSettings = H.ParamSettings (cs $ configDbHost cfg)
+pgSettings :: P.Settings
+pgSettings = P.ParamSettings (cs $ configDbHost cfg)
                              (fromIntegral $ configDbPort cfg)
                              (cs $ configDbUser cfg)
                              (cs $ configDbPass cfg)
@@ -51,7 +52,7 @@ withApp :: ActionWith Application -> IO ()
 withApp perform = do
   let anonRole = cs $ configAnonRole cfg
       currRole = cs $ configDbUser cfg
-  pool :: H.Pool H.Postgres
+  pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
   perform $ middle $ \req resp -> do
@@ -65,7 +66,7 @@ withApp perform = do
 
 resetDb :: IO ()
 resetDb = do
-  pool :: H.Pool H.Postgres
+  pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $
     H.tx Nothing $ do
@@ -96,17 +97,18 @@ authHeader :: String -> String -> Header
 authHeader u p =
   (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
 
+testPool :: IO(H.Pool P.Postgres)
+testPool = H.acquirePool pgSettings testPoolOpts
+
 clearTable :: Text -> IO ()
 clearTable table = do
-  pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testPoolOpts
+  pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ H.Stmt ("delete from \"1\"."<>table) V.empty True
+    H.unitEx $ B.Stmt ("delete from \"1\"."<>table) V.empty True
 
 createItems :: Int -> IO ()
 createItems n = do
-  pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testPoolOpts
+  pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx stmts
@@ -114,8 +116,7 @@ createItems n = do
 
 createNulls :: Int -> IO ()
 createNulls n = do
-  pool :: H.Pool H.Postgres
-    <- H.acquirePool pgSettings testPoolOpts
+  pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx (stmt':stmts)
@@ -124,19 +125,20 @@ createNulls n = do
 
 createLikableStrings :: IO ()
 createLikableStrings = do
-  pool <- H.acquirePool pgSettings testPoolOpts
+  pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $ do
     H.unitEx $ insertSimplePk "xyyx" "u"
     H.unitEx $ insertSimplePk "xYYx" "v"
   where
-    insertSimplePk :: Text -> Text -> H.Stmt H.Postgres
+    insertSimplePk :: Text -> Text -> H.Stmt P.Postgres
     insertSimplePk = [H.stmt|insert into "1".simple_pk (k, extra) values (?,?)|]
 
-
--- for hspec-wai
-pending_ :: WaiSession ()
-pending_ = liftIO Test.Hspec.pending
-
--- for hspec-wai
-pendingWith_ :: String -> WaiSession ()
-pendingWith_ = liftIO . Test.Hspec.pendingWith
+createJsonData :: IO ()
+createJsonData = do
+  pool <- testPool
+  void . liftIO $ H.session pool $ H.tx Nothing $
+    H.unitEx $
+      [H.stmt|
+        insert into "1".json (data) values (?)
+      |]
+      (J.object [("foo", J.object [("bar", J.String "baz")])])

@@ -18,6 +18,7 @@ spec = around withApp $ do
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_fk","insertable":true}
         , {"schema":"1","name":"items","insertable":true}
+        , {"schema":"1","name":"json","insertable":true}
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}

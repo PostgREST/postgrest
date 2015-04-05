@@ -10,7 +10,11 @@ import SpecHelper
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
-   . beforeAll (clearTable "no_pk" >> createNulls 2 >> createLikableStrings)
+   . beforeAll (
+       clearTable "no_pk" >>
+       createNulls 2 >>
+       createLikableStrings >>
+       createJsonData)
    . afterAll_ (clearTable "items" >> clearTable "no_pk" >> clearTable "simple_pk")
    . around withApp $ do
   describe "Querying a nonexistent table" $
@@ -116,3 +120,10 @@ spec =
         let respHeaders = simpleHeaders r
         respHeaders `shouldSatisfy` matchHeader
           "Content-Location" "/simple_pk"
+
+  describe "jsonb" $
+    it "can filter by properties inside json column" $ do
+      get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
+        [json| [{"data": {"foo": {"bar": "baz"}}}] |]
+      get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
+        [json| [] |]
