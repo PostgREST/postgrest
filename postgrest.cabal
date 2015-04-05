@@ -20,7 +20,7 @@ executable postgrest
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   build-depends:       base >=4.6 && <5
                      , hasql == 0.7.*, hasql-backend
-                     , hasql-postgres == 0.10.*
+                     , hasql-postgres >= 0.10.3 && <0.11
                      , warp >= 3.0.2, wai >= 3.0.1
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
@@ -73,8 +73,8 @@ Test-Suite spec
                      , SpecHelper
   Build-Depends:       base, hspec >= 2.1.2, QuickCheck
                      , hspec-wai >= 0.5.0, hspec-wai-json
-                     , hasql, hasql-backend
-                     , hasql-postgres
+                     , hasql == 0.7.*, hasql-backend
+                     , hasql-postgres >= 0.10.3 && <0.11
                      , warp, wai
                      , packdeps, hlint
                      , HTTP, convertible

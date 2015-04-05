@@ -202,10 +202,12 @@ commaq  = B.Stmt ", " empty True
 andq :: PStmt
 andq = B.Stmt " and " empty True
 
-data JsonbPath = Identifier T.Text
-    | SingleArrow JsonbPath JsonbPath
-    | DoubleArrow JsonbPath JsonbPath
-    deriving (Show)
+data JsonbPath =
+    ColIdentifier T.Text
+  | KeyIdentifier T.Text
+  | SingleArrow JsonbPath JsonbPath
+  | DoubleArrow JsonbPath JsonbPath
+  deriving (Show)
 
 parseJsonbPath :: T.Text -> Maybe JsonbPath
 parseJsonbPath p =
@@ -213,15 +215,16 @@ parseJsonbPath p =
     [a,b] ->
       let i:is = T.splitOn "->" a in
       Just $ DoubleArrow
-        (foldl SingleArrow (Identifier i) (map Identifier is))
-        (Identifier b)
+        (foldl SingleArrow (ColIdentifier i) (map KeyIdentifier is))
+        (KeyIdentifier b)
     _ -> Nothing
 
 pgFmtJsonbPath :: T.Text -> T.Text
 pgFmtJsonbPath p =
-  pgFmtJsonbPath' $ fromMaybe (Identifier p) (parseJsonbPath p)
+  pgFmtJsonbPath' $ fromMaybe (ColIdentifier p) (parseJsonbPath p)
   where
-    pgFmtJsonbPath' (Identifier i) = pgFmtIdent i
+    pgFmtJsonbPath' (ColIdentifier i) = pgFmtIdent i
+    pgFmtJsonbPath' (KeyIdentifier i) = pgFmtLit i
     pgFmtJsonbPath' (SingleArrow a b) =
       pgFmtJsonbPath' a <> "->" <> pgFmtJsonbPath' b
     pgFmtJsonbPath' (DoubleArrow a b) =
