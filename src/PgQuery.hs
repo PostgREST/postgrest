@@ -22,6 +22,7 @@ import Control.Monad (join)
 import Data.String.Conversions (cs)
 import qualified Data.Aeson as JSON
 import qualified Data.List as L
+import qualified Data.Vector as V
 import Data.Scientific (isInteger, formatScientific, FPFormat(..))
 
 type PStmt = H.Stmt P.Postgres
@@ -108,21 +109,24 @@ returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 deleteFrom :: QualifiedTable -> PStmt
 deleteFrom t = B.Stmt ("delete from " <> fromQt t) empty True
 
-insertInto :: QualifiedTable -> [T.Text] -> [[JSON.Value]] -> PStmt
-insertInto t [] _ = B.Stmt
-  ("insert into " <> fromQt t <> " default values returning *") empty True
-insertInto t cols vals = B.Stmt
-  ("insert into " <> fromQt t <> " (" <>
-    T.intercalate ", " (map pgFmtIdent cols) <>
-    ") values "
-    <> T.intercalate ", "
-      (map (\v -> "("
-          <> T.intercalate ", " (map insertableValue v)
-          <> ")"
-        ) vals
-      )
-    <> " returning row_to_json(" <> fromQt t <> ".*)")
-  empty True
+insertInto :: QualifiedTable
+              -> V.Vector T.Text
+              -> V.Vector (V.Vector T.Text)
+              -> PStmt
+insertInto t cols vals
+  | V.null cols = B.Stmt ("insert into " <> fromQt t <> " default values returning *") empty True
+  | otherwise   = B.Stmt
+    ("insert into " <> fromQt t <> " (" <>
+      T.intercalate ", " (V.toList $ V.map pgFmtIdent cols) <>
+      ") values "
+      <> T.intercalate ", "
+        (V.toList $ V.map (\v -> "("
+            <> T.intercalate ", " (V.toList $ V.map insertableText v)
+            <> ")"
+          ) vals
+        )
+      <> " returning row_to_json(" <> fromQt t <> ".*)")
+    empty True
 
 insertSelect :: QualifiedTable -> [T.Text] -> [JSON.Value] -> PStmt
 insertSelect t [] _ = B.Stmt
@@ -264,11 +268,14 @@ unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
+unquoted JSON.Null = "null"
 unquoted _ = ""
 
+insertableText :: T.Text -> T.Text
+insertableText = (<> "::unknown") . pgFmtLit
+
 insertableValue :: JSON.Value -> T.Text
-insertableValue JSON.Null = "null"
-insertableValue v = ((<> "::unknown") . pgFmtLit . unquoted) v
+insertableValue = insertableText . unquoted
 
 paramFilter :: JSON.Value -> T.Text
 paramFilter JSON.Null = "is.null"

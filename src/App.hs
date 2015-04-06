@@ -10,12 +10,14 @@ import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
-import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
+import Data.HashMap.Strict (HashMap, keys, elems, filterWithKey, toList, fromList)
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString as BS
+import qualified Data.Csv as CSV
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
@@ -98,26 +100,38 @@ app v1schema reqBody req =
             , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
-    ([table], "POST") ->
-      handleJsonObj reqBody $ \obj -> do
-        let qt = QualifiedTable schema (cs table)
-            query = insertInto qt (map cs $ keys obj) [(elems obj)]
-            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
-        row <- H.maybeEx query
-        let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
-            Just inserted = decode (cs insertedJson) :: Maybe Object
+    ([table], "POST") -> do
+      let qt = QualifiedTable schema (cs table)
+          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          records :: Either String (CSV.Header, V.Vector (HashMap BS.ByteString BS.ByteString))
+          records = if lookup "Content-Type" hdrs == Just "text/csv"
+                    then CSV.decodeByName reqBody
+                    else eitherDecode reqBody >>= \val ->
+                      case val of
+                        Object obj -> Right (
+                            V.fromList $ map cs $ keys obj
+                          , V.singleton . fromList . map (\(k,v) -> (cs k, cs $ unquoted v)) $ toList obj
+                          )
+                        _ -> Left "Expecting single JSON object or CSV rows"
+          rows = insertInto qt records
+      undefined
+      -- else  do
+      --       query = insertInto qt (map cs $ keys obj) [(elems obj)]
+      --   row <- H.maybeEx query
+      --   let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
+      --       Just inserted = decode (cs insertedJson) :: Maybe Object
 
-        primaryKeys <- map cs <$> primaryKeyColumns qt
-        let primaries = if Prelude.null primaryKeys
-            then inserted
-            else filterWithKey (const . (`elem` primaryKeys)) inserted
-        let params = urlEncodeVars
-              $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
-              $ sortBy (comparing fst) $ toList primaries
-        return $ responseLBS status201
-          [ jsonH
-          , (hLocation, "/" <> cs table <> "?" <> cs params)
-          ] $ if echoRequested then cs insertedJson else ""
+      --   primaryKeys <- map cs <$> primaryKeyColumns qt
+      --   let primaries = if Prelude.null primaryKeys
+      --       then inserted
+      --       else filterWithKey (const . (`elem` primaryKeys)) inserted
+      --   let params = urlEncodeVars
+      --         $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
+      --         $ sortBy (comparing fst) $ toList primaries
+      --   return $ responseLBS status201
+      --     [ jsonH
+      --     , (hLocation, "/" <> cs table <> "?" <> cs params)
+      --     ] $ if echoRequested then cs insertedJson else ""
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
