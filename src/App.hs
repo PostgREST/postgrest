@@ -2,7 +2,7 @@
 module App (app, sqlError, isSqlError) where
 
 import Control.Monad (join)
-import Control.Arrow ((***))
+import Control.Arrow ((***), second)
 import Control.Applicative
 
 import Data.Text hiding (map)
@@ -10,13 +10,12 @@ import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
-import Data.HashMap.Strict (HashMap, keys, elems, filterWithKey, toList, fromList)
+import qualified Data.HashMap.Strict as M
 import Data.String.Conversions (cs)
 import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString as BS
 import qualified Data.Csv as CSV
 
 import Network.HTTP.Types.Status
@@ -102,36 +101,23 @@ app v1schema reqBody req =
 
     ([table], "POST") -> do
       let qt = QualifiedTable schema (cs table)
-          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
-          records :: Either String (CSV.Header, V.Vector (HashMap BS.ByteString BS.ByteString))
-          records = if lookup "Content-Type" hdrs == Just "text/csv"
-                    then CSV.decodeByName reqBody
+          --echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          parsed :: Either String (V.Vector Text, V.Vector (V.Vector Text))
+          parsed = if lookup "Content-Type" hdrs == Just "text/csv"
+                    then do
+                      rows <- CSV.decode CSV.NoHeader reqBody
+                      if V.null rows then Left "CSV requires header"
+                        else Right (V.head rows, V.tail rows)
                     else eitherDecode reqBody >>= \val ->
                       case val of
-                        Object obj -> Right (
-                            V.fromList $ map cs $ keys obj
-                          , V.singleton . fromList . map (\(k,v) -> (cs k, cs $ unquoted v)) $ toList obj
-                          )
+                        Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
+                          M.toList (M.map unquoted obj)
                         _ -> Left "Expecting single JSON object or CSV rows"
-          rows = insertInto qt records
-      undefined
-      -- else  do
-      --       query = insertInto qt (map cs $ keys obj) [(elems obj)]
-      --   row <- H.maybeEx query
-      --   let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
-      --       Just inserted = decode (cs insertedJson) :: Maybe Object
-
-      --   primaryKeys <- map cs <$> primaryKeyColumns qt
-      --   let primaries = if Prelude.null primaryKeys
-      --       then inserted
-      --       else filterWithKey (const . (`elem` primaryKeys)) inserted
-      --   let params = urlEncodeVars
-      --         $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
-      --         $ sortBy (comparing fst) $ toList primaries
-      --   return $ responseLBS status201
-      --     [ jsonH
-      --     , (hLocation, "/" <> cs table <> "?" <> cs params)
-      --     ] $ if echoRequested then cs insertedJson else ""
+      case parsed of
+        Left err -> return $ responseLBS status400 [] (cs err)
+        Right records -> do
+          H.unitEx $ uncurry (insertInto qt) records
+          return $ responseLBS status201 [] ""
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -143,10 +129,10 @@ app v1schema reqBody req =
                "You must speficy all and only primary keys as params"
           else do
             tableCols <- map (cs . colName) <$> columns qt
-            let cols = map cs $ keys obj
+            let cols = map cs $ M.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
-                let vals = elems obj
+                let vals = M.elems obj
                 H.unitEx $ iffNotT
                         (whereT qq $ update qt cols vals)
                         (insertSelect qt cols vals)
@@ -162,7 +148,7 @@ app v1schema reqBody req =
         let qt = QualifiedTable schema (cs table)
         H.unitEx
           $ whereT qq
-          $ update qt (map cs $ keys obj) (elems obj)
+          $ update qt (map cs $ M.keys obj) (M.elems obj)
         return $ responseLBS status204 [ jsonH ] ""
 
     ([table], "DELETE") -> do
