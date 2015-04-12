@@ -6,7 +6,7 @@ import Control.Arrow ((***), second)
 import Control.Applicative
 
 import Data.Text hiding (map)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
@@ -16,6 +16,7 @@ import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Builder as BB
 import qualified Data.Csv as CSV
 
 import Network.HTTP.Types.Status
@@ -101,7 +102,7 @@ app v1schema reqBody req =
 
     ([table], "POST") -> do
       let qt = QualifiedTable schema (cs table)
-          --echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Text))
           parsed = if lookup "Content-Type" hdrs == Just "text/csv"
                     then do
@@ -115,9 +116,23 @@ app v1schema reqBody req =
                         _ -> Left "Expecting single JSON object or CSV rows"
       case parsed of
         Left err -> return $ responseLBS status400 [] (cs err)
-        Right records -> do
-          H.unitEx $ uncurry (insertInto qt) records
-          return $ responseLBS status201 [] ""
+        Right toBeInserted -> do
+          rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
+          let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
+          primaryKeys <- primaryKeyColumns qt
+          let responses = flip map inserted $ \obj -> do
+                let primaries =
+                      if Prelude.null primaryKeys
+                        then obj
+                        else M.filterWithKey (const . (`elem` primaryKeys)) obj
+                let params = urlEncodeVars
+                      $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
+                      $ sortBy (comparing fst) $ M.toList primaries
+                responseLBS status201
+                  [ jsonH
+                  , (hLocation, "/" <> cs table <> "?" <> cs params)
+                  ] $ if echoRequested then encode obj else ""
+          return $ multipart responses
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -227,6 +242,17 @@ handleJsonObj reqBody handler = do
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
 
+multipart :: [Response] -> Response
+multipart rs =
+  undefined
+
+  where
+    renderHeader :: Header -> BL.ByteString
+    renderHeader (k, v) = k <> ": " <> v
+
+    renderResponse (ResponseBuilder _ headers b) =
+      BL.intercalate "\n" $ map renderHeader headers
+        <> BB.toLazyByteString b
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
