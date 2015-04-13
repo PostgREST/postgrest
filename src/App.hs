@@ -16,7 +16,7 @@ import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Builder as BB
+import qualified Blaze.ByteString.Builder as BB
 import qualified Data.Csv as CSV
 
 import Network.HTTP.Types.Status
@@ -24,6 +24,7 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.URI (parseSimpleQuery)
 import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
+import Network.Wai.Internal (Response(..))
 
 import Data.Aeson
 import Data.Monoid
@@ -115,7 +116,8 @@ app v1schema reqBody req =
                           M.toList (M.map unquoted obj)
                         _ -> Left "Expecting single JSON object or CSV rows"
       case parsed of
-        Left err -> return $ responseLBS status400 [] (cs err)
+        Left err -> return $ responseLBS status400 [] $
+          encode . object $ [("message", String $ "Failed to parse JSON payload. " <> cs err)]
         Right toBeInserted -> do
           rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
           let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
@@ -132,7 +134,7 @@ app v1schema reqBody req =
                   [ jsonH
                   , (hLocation, "/" <> cs table <> "?" <> cs params)
                   ] $ if echoRequested then encode obj else ""
-          return $ multipart responses
+          return $ multipart status201 responses
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -242,17 +244,23 @@ handleJsonObj reqBody handler = do
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
 
-multipart :: [Response] -> Response
-multipart rs =
-  undefined
+multipart :: Status -> [Response] -> Response
+multipart _ [] = responseLBS status204 [] ""
+multipart _ [r] = r
+multipart s rs =
+  responseLBS s [(hContentType, "Multipart/mixed; boundary=postgrest_boundary")] $
+    BL.intercalate "\n\n--postgrest_boundary\n" (map renderResponseBody rs)
 
   where
     renderHeader :: Header -> BL.ByteString
-    renderHeader (k, v) = k <> ": " <> v
+    renderHeader (k, v) = cs (show k) <> ": " <> cs v
 
-    renderResponse (ResponseBuilder _ headers b) =
-      BL.intercalate "\n" $ map renderHeader headers
-        <> BB.toLazyByteString b
+    renderResponseBody :: Response -> BL.ByteString
+    renderResponseBody (ResponseBuilder _ headers b) =
+      BL.intercalate "\n" (map renderHeader headers)
+        <> "\n\n" <> BB.toLazyByteString b
+    renderResponseBody _ = error
+      "Unable to create multipart response from non-ResponseBuilder"
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
