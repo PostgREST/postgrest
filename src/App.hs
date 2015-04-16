@@ -104,16 +104,16 @@ app v1schema reqBody req =
     ([table], "POST") -> do
       let qt = QualifiedTable schema (cs table)
           echoRequested = lookup "Prefer" hdrs == Just "return=representation"
-          parsed :: Either String (V.Vector Text, V.Vector (V.Vector Text))
+          parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookup "Content-Type" hdrs == Just "text/csv"
                     then do
                       rows <- CSV.decode CSV.NoHeader reqBody
                       if V.null rows then Left "CSV requires header"
-                        else Right (V.head rows, V.tail rows)
+                        else Right (V.head rows, (V.map $ V.map $ parseCsvCell . cs) (V.tail rows))
                     else eitherDecode reqBody >>= \val ->
                       case val of
                         Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
-                          M.toList (M.map unquoted obj)
+                          M.toList obj
                         _ -> Left "Expecting single JSON object or CSV rows"
       case parsed of
         Left err -> return $ responseLBS status400 [] $
@@ -243,6 +243,10 @@ handleJsonObj reqBody handler = do
       where
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
+
+parseCsvCell :: BL.ByteString -> Value
+parseCsvCell s =
+  either (const $ String "") id (eitherDecode s)
 
 multipart :: Status -> [Response] -> Response
 multipart _ [] = responseLBS status204 [] ""

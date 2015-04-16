@@ -111,7 +111,7 @@ deleteFrom t = B.Stmt ("delete from " <> fromQt t) empty True
 
 insertInto :: QualifiedTable
               -> V.Vector T.Text
-              -> V.Vector (V.Vector T.Text)
+              -> V.Vector (V.Vector JSON.Value)
               -> PStmt
 insertInto t cols vals
   | V.null cols = B.Stmt ("insert into " <> fromQt t <> " default values returning *") empty True
@@ -121,7 +121,7 @@ insertInto t cols vals
       ") values "
       <> T.intercalate ", "
         (V.toList $ V.map (\v -> "("
-            <> T.intercalate ", " (V.toList $ V.map insertableText v)
+            <> T.intercalate ", " (V.toList $ V.map insertableValue v)
             <> ")"
           ) vals
         )
@@ -268,14 +268,14 @@ unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
-unquoted JSON.Null = "null"
 unquoted _ = ""
 
 insertableText :: T.Text -> T.Text
 insertableText = (<> "::unknown") . pgFmtLit
 
 insertableValue :: JSON.Value -> T.Text
-insertableValue = insertableText . unquoted
+insertableValue JSON.Null = "null"
+insertableValue v = insertableText $ unquoted v
 
 paramFilter :: JSON.Value -> T.Text
 paramFilter JSON.Null = "is.null"
