@@ -12,6 +12,7 @@ import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
 import qualified Data.HashMap.Strict as M
 import Data.String.Conversions (cs)
+import Data.CaseInsensitive (original)
 import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
@@ -245,19 +246,18 @@ handleJsonObj reqBody handler = do
           [("message", String "Expecting a JSON object")]
 
 parseCsvCell :: BL.ByteString -> Value
-parseCsvCell s =
-  either (const $ String "") id (eitherDecode s)
+parseCsvCell s = if s == "NULL" then Null else String $ cs s
 
 multipart :: Status -> [Response] -> Response
 multipart _ [] = responseLBS status204 [] ""
 multipart _ [r] = r
 multipart s rs =
-  responseLBS s [(hContentType, "Multipart/mixed; boundary=postgrest_boundary")] $
-    BL.intercalate "\n\n--postgrest_boundary\n" (map renderResponseBody rs)
+  responseLBS s [(hContentType, "multipart/mixed; boundary=\"postgrest_boundary\"")] $
+    BL.intercalate "\n--postgrest_boundary\n" (map renderResponseBody rs)
 
   where
     renderHeader :: Header -> BL.ByteString
-    renderHeader (k, v) = cs (show k) <> ": " <> cs v
+    renderHeader (k, v) = cs (original k) <> ": " <> cs v
 
     renderResponseBody :: Response -> BL.ByteString
     renderResponseBody (ResponseBuilder _ headers b) =
