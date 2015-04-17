@@ -2,26 +2,30 @@
 module App (app, sqlError, isSqlError) where
 
 import Control.Monad (join)
-import Control.Arrow ((***))
+import Control.Arrow ((***), second)
 import Control.Applicative
 
 import Data.Text hiding (map)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
-import Data.HashMap.Strict (keys, elems, filterWithKey, toList)
+import qualified Data.HashMap.Strict as M
 import Data.String.Conversions (cs)
+import Data.CaseInsensitive (original)
 import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Blaze.ByteString.Builder as BB
+import qualified Data.Csv as CSV
 
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.URI (parseSimpleQuery)
 import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
+import Network.Wai.Internal (Response(..))
 
 import Data.Aeson
 import Data.Monoid
@@ -98,26 +102,40 @@ app v1schema reqBody req =
             , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
-    ([table], "POST") ->
-      handleJsonObj reqBody $ \obj -> do
-        let qt = QualifiedTable schema (cs table)
-            query = insertInto qt (map cs $ keys obj) (elems obj)
-            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
-        row <- H.maybeEx query
-        let (Identity insertedJson) = fromMaybe (Identity "{}" :: Identity Text) row
-            Just inserted = decode (cs insertedJson) :: Maybe Object
-
-        primaryKeys <- map cs <$> primaryKeyColumns qt
-        let primaries = if Prelude.null primaryKeys
-            then inserted
-            else filterWithKey (const . (`elem` primaryKeys)) inserted
-        let params = urlEncodeVars
-              $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
-              $ sortBy (comparing fst) $ toList primaries
-        return $ responseLBS status201
-          [ jsonH
-          , (hLocation, "/" <> cs table <> "?" <> cs params)
-          ] $ if echoRequested then cs insertedJson else ""
+    ([table], "POST") -> do
+      let qt = QualifiedTable schema (cs table)
+          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
+          parsed = if lookup "Content-Type" hdrs == Just "text/csv"
+                    then do
+                      rows <- CSV.decode CSV.NoHeader reqBody
+                      if V.null rows then Left "CSV requires header"
+                        else Right (V.head rows, (V.map $ V.map $ parseCsvCell . cs) (V.tail rows))
+                    else eitherDecode reqBody >>= \val ->
+                      case val of
+                        Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
+                          M.toList obj
+                        _ -> Left "Expecting single JSON object or CSV rows"
+      case parsed of
+        Left err -> return $ responseLBS status400 [] $
+          encode . object $ [("message", String $ "Failed to parse JSON payload. " <> cs err)]
+        Right toBeInserted -> do
+          rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
+          let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
+          primaryKeys <- primaryKeyColumns qt
+          let responses = flip map inserted $ \obj -> do
+                let primaries =
+                      if Prelude.null primaryKeys
+                        then obj
+                        else M.filterWithKey (const . (`elem` primaryKeys)) obj
+                let params = urlEncodeVars
+                      $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
+                      $ sortBy (comparing fst) $ M.toList primaries
+                responseLBS status201
+                  [ jsonH
+                  , (hLocation, "/" <> cs table <> "?" <> cs params)
+                  ] $ if echoRequested then encode obj else ""
+          return $ multipart status201 responses
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -129,10 +147,10 @@ app v1schema reqBody req =
                "You must speficy all and only primary keys as params"
           else do
             tableCols <- map (cs . colName) <$> columns qt
-            let cols = map cs $ keys obj
+            let cols = map cs $ M.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
-                let vals = elems obj
+                let vals = M.elems obj
                 H.unitEx $ iffNotT
                         (whereT qq $ update qt cols vals)
                         (insertSelect qt cols vals)
@@ -148,7 +166,7 @@ app v1schema reqBody req =
         let qt = QualifiedTable schema (cs table)
         H.unitEx
           $ whereT qq
-          $ update qt (map cs $ keys obj) (elems obj)
+          $ update qt (map cs $ M.keys obj) (M.elems obj)
         return $ responseLBS status204 [ jsonH ] ""
 
     ([table], "DELETE") -> do
@@ -227,6 +245,26 @@ handleJsonObj reqBody handler = do
         jErr = encode . object $
           [("message", String "Expecting a JSON object")]
 
+parseCsvCell :: BL.ByteString -> Value
+parseCsvCell s = if s == "NULL" then Null else String $ cs s
+
+multipart :: Status -> [Response] -> Response
+multipart _ [] = responseLBS status204 [] ""
+multipart _ [r] = r
+multipart s rs =
+  responseLBS s [(hContentType, "multipart/mixed; boundary=\"postgrest_boundary\"")] $
+    BL.intercalate "\n--postgrest_boundary\n" (map renderResponseBody rs)
+
+  where
+    renderHeader :: Header -> BL.ByteString
+    renderHeader (k, v) = cs (original k) <> ": " <> cs v
+
+    renderResponseBody :: Response -> BL.ByteString
+    renderResponseBody (ResponseBuilder _ headers b) =
+      BL.intercalate "\n" (map renderHeader headers)
+        <> "\n\n" <> BB.toLazyByteString b
+    renderResponseBody _ = error
+      "Unable to create multipart response from non-ResponseBuilder"
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

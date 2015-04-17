@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Option to specify nulls first or last, eg `/people?order=age.desc.nullsfirst`
 - Filter nulls, `?col=is.null` and `?col=isnot.null`
 - Filter within jsonb, `?col->a->>b=eq.c`
+- Accept CSV in post body for bulk inserts
 
 ### Fixed
 - Allow NULL values in posts

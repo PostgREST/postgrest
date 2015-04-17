@@ -42,6 +42,7 @@ executable postgrest
                      , blaze-builder
                      , vector
                      , mtl
+                     , cassava
   Other-Modules:       App
                      , Auth
                      , Config
@@ -98,4 +99,6 @@ Test-Suite spec
                      , blaze-builder
                      , vector
                      , mtl
+                     , cassava
                      , process
+                     , heredoc
