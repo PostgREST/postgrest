@@ -101,3 +101,4 @@ Test-Suite spec
                      , mtl
                      , cassava
                      , process
+                     , heredoc

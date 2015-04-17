@@ -9,6 +9,7 @@ import SpecHelper
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
+import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 import Control.Monad (replicateM_)
@@ -92,6 +93,50 @@ spec = afterAll_ resetDb $ around withApp $ do
           , matchStatus  = 400
           , matchHeaders = []
           }
+
+  describe "CSV insert" $ do
+
+    after_ (clearTable "menagerie") . context "disparate csv types" $
+      it "succeeds with multipart response" $ do
+        p <- request methodPost "/menagerie" [("Content-Type", "text/csv")]
+               [str|integer,double,varchar,boolean,date,money,enum
+                   |13,3.14159,testing!,false,1900-01-01,$3.99,foo
+                   |12,0.1,a string,true,1929-10-01,12,bar
+                   |]
+        liftIO $ do
+          simpleBody p `shouldBe` "Content-Type: application/json\nLocation: /menagerie?integer=eq.13\n\n\n--postgrest_boundary\nContent-Type: application/json\nLocation: /menagerie?integer=eq.12\n\n"
+          simpleStatus p `shouldBe` created201
+
+    after_ (clearTable "no_pk") . context "requesting full representation" $ do
+      it "returns full details of inserted record" $
+        request methodPost "/no_pk"
+                     [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
+                     "a,b\nbar,baz"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| { "a":"bar", "b":"baz" } |]
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "application/json",
+                            "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
+          }
+
+      it "can post nulls" $
+        request methodPost "/no_pk"
+                     [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
+                     "a,b\nNULL,foo"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| { "a":null, "b":"foo" } |]
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "application/json",
+                            "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
+          }
+
+    after_ (clearTable "no_pk") . context "with wrong number of columns" $ do
+      it "fails for too few" $ do
+        p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
+        liftIO $ simpleStatus p `shouldBe` badRequest400
+      it "fails for too many" $ do
+        p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz,bat,bad"
+        liftIO $ simpleStatus p `shouldBe` badRequest400
 
   describe "Putting record" $ do
 
