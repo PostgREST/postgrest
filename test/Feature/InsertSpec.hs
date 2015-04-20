@@ -94,6 +94,22 @@ spec = afterAll_ resetDb $ around withApp $ do
           , matchHeaders = []
           }
 
+    context "jsonb" . after_ (clearTable "json") $ do
+      it "serializes nested object" $ do
+        let inserted = [json| { "data": { "foo":"bar" } } |]
+        p <- request methodPost "json" [("Prefer", "return=representation")] inserted
+        liftIO $ do
+          simpleBody p `shouldBe` inserted
+          simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%7B%22foo%22%3A%22bar%22%7D"
+          simpleStatus p `shouldBe` created201
+      it "serializes nested array" $ do
+        let inserted = [json| { "data": [1,2,3] } |]
+        p <- request methodPost "json" [("Prefer", "return=representation")] inserted
+        liftIO $ do
+          simpleBody p `shouldBe` inserted
+          simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%5B1%2C2%2C3%5D"
+          simpleStatus p `shouldBe` created201
+
   describe "CSV insert" $ do
 
     after_ (clearTable "menagerie") . context "disparate csv types" $

@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## unreleased
+
+- Allow nested objects and arrays  in JSON post for jsonb columns
+
 ## [0.2.8.0] - 2015-04-17
 ### Added
 - Option to specify nulls first or last, eg `/people?order=age.desc.nullsfirst`

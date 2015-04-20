@@ -268,7 +268,7 @@ unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
-unquoted _ = ""
+unquoted v = cs $ JSON.encode v
 
 insertableText :: T.Text -> T.Text
 insertableText = (<> "::unknown") . pgFmtLit
