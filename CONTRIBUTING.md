@@ -1,0 +1,50 @@
+# Contributing to PostgREST
+
+**First:** if you're unsure or afraid of _anything_, just ask or
+submit the issue or pull request anyways. You won't be yelled at
+for giving your best effort. The worst that can happen is that
+you'll be politely asked to change something. We appreciate any
+sort of contributions, and don't want a wall of rules to get in the
+way of that.
+
+However, for those individuals who want a bit more guidance on the
+best way to contribute to the project, read on. This document will
+cover what we're looking for. By addressing all the points we're
+looking for, it raises the chances we can quickly merge or address
+your contributions.
+
+## Issues
+
+### Reporting an Issue
+
+* Make sure you test against the latest released version. It is possible
+  we already fixed the bug you're experiencing.
+
+* Also check the `CHANGELOG.md` to see if any unreleased changes affect
+  the issue. The very newest changes can take a little while to be released
+  as a new official version.
+
+* Provide steps to reproduce the issue, including your OS version and
+  the specific database schema that you are using.
+
+## Code
+
+### Haskell Conventions
+
+* All contributions must pass the tests before being merged. When
+  you create a pull request your code will automatically be tested.
+
+* All code must also pass [hlint](http://community.haskell.org/~ndm/hlint/)
+  with no warnings. This helps enforce a uniform style for all
+  committers. Continuous integration will check this as well on every
+  pull request.
+
+## Maintenance
+
+### Schedule
+
+Currently I (@begriffs) am the sole maintainer, and while I am
+overjoyed to help resolve issues I also have to balance this with
+my other obligations.  I check and respond to github issues **once
+per week** (on Mondays). So if you don't get a response right away
+don't worry, I will definitely get to it.
