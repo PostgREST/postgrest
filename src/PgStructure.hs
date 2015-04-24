@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes, OverloadedStrings, TypeSynonymInstances,
-             MultiParamTypeClasses, ScopedTypeVariables #-}
+             MultiParamTypeClasses, ScopedTypeVariables,
+             FlexibleContexts #-}
 module PgStructure where
 
 import PgQuery (QualifiedTable(..))
