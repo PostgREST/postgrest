@@ -232,10 +232,10 @@ spec = afterAll_ resetDb $ around withApp $ do
             `shouldRespondWith` 404
 
     context "on an empty table" $
-      it "succeeds with no effect" $
+      it "indicates no records found to update" $
         request methodPatch "/simple_pk" []
           [json| { "extra":20 } |]
-            `shouldRespondWith` 204
+            `shouldRespondWith` 404
 
     context "in a nonempty table" . before_ (clearTable "items" >> createItems 15) .
       after_ (clearTable "items") $ do
@@ -245,7 +245,11 @@ spec = afterAll_ resetDb $ around withApp $ do
           `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
         request methodPatch "/items?id=eq.1" []
           [json| { "id":42 } |]
-            `shouldRespondWith` 204
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing,
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "0-0/1"]
+            }
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
@@ -261,3 +265,12 @@ spec = afterAll_ resetDb $ around withApp $ do
         g <- get "/auto_incrementing_pk?non_nullable_string=eq.c"
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "0-9/10"
+
+      it "can provide a representation" $ do
+        _ <- post "/items"
+          [json| { id: 1 } |]
+        request methodPatch
+          "/items?id=eq.1"
+          [("Prefer", "return=representation")]
+          [json| { id: 99 } |]
+          `shouldRespondWith` [json| [{id:99}] |]

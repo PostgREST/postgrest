@@ -39,6 +39,8 @@ import PgQuery
 import RangeQuery
 import PgStructure
 
+import Debug.Trace
+
 app :: Text -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app v1schema reqBody req =
   case (path, verb) of
@@ -164,10 +166,22 @@ app v1schema reqBody req =
     ([table], "PATCH") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = QualifiedTable schema (cs table)
-        H.unitEx
-          $ whereT qq
-          $ update qt (map cs $ M.keys obj) (M.elems obj)
-        return $ responseLBS status204 [ jsonH ] ""
+            up = returningStarT
+               . whereT qq
+               $ update qt (map cs $ M.keys obj) (M.elems obj)
+            patch = withT up "t" $ B.Stmt
+              "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying"
+              V.empty True
+
+        row <- H.maybeEx $ traceShow (B.stmtTemplate patch) patch
+        let (queryTotal, body) =
+              fromMaybe (0 :: Int, Just "" :: Maybe Text) row
+            r = contentRangeH 0 (queryTotal-1) queryTotal
+            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+            s = case () of _ | queryTotal == 0 -> status404
+                             | echoRequested -> status200
+                             | otherwise -> status204
+        return $ responseLBS s [ jsonH, r ] $ if echoRequested then cs $ fromMaybe "[]" body else ""
 
     ([table], "DELETE") -> do
       let qt = QualifiedTable schema (cs table)

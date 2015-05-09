@@ -59,6 +59,12 @@ whereT params q =
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
    conjunction = mconcat $ L.intersperse andq (map wherePred cols)
 
+withT :: PStmt -> T.Text -> StatementT
+withT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
+  B.Stmt ("WITH " <> v <> " AS (" <> eq <> ") " <> wq <> " from " <> v)
+    (ep <> wp)
+    (epre && wpre)
+
 orderT :: [OrderTerm] -> StatementT
 orderT ts q =
   if L.null ts
