@@ -26,14 +26,7 @@ authenticated :: forall s. Text -> Text ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
 authenticated currentRole anon app req = do
-  attempt <- httpRequesterRole (requestHeaders req)
-  case attempt of
-    MalformedAuth ->
-      return $ responseLBS status400 [] "Malformed basic auth header"
-    LoginFailed ->
-      return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role -> if role /= currentRole then runInRole role else app req
-    NoCredentials ->     if anon /= currentRole then runInRole anon else app req
+    if anon /= currentRole then runInRole anon else app req
 
  where
    httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
