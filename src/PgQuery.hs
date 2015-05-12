@@ -17,13 +17,15 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
 import Data.Vector (empty)
 import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Functor ( (<$>) )
+import Data.Functor
 import Control.Monad (join)
 import Data.String.Conversions (cs)
 import qualified Data.Aeson as JSON
 import qualified Data.List as L
 import qualified Data.Vector as V
 import Data.Scientific (isInteger, formatScientific, FPFormat(..))
+
+import Prelude
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where

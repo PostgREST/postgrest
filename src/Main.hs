@@ -38,6 +38,8 @@ main = do
 
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
+  unless ("secret" /= configJwtSecret conf) $
+    putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
@@ -53,8 +55,6 @@ main = do
         . (if configSecure conf then redirectInsecure else id)
         . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-      anonRole = cs $ configAnonRole conf
-      currRole = cs $ configDbUser conf
 
   poolSettings <- maybe (fail "Improper session settings") return $
                 H.poolSettings (fromIntegral $ configPool conf) 30
@@ -64,7 +64,7 @@ main = do
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx Nothing $
-      authenticated currRole anonRole (app (cs $ configV1Schema conf) body) req
+      authenticated conf (app conf body) req
     either (respond . errResponse) respond resOrError
 
   where

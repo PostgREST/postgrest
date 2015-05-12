@@ -20,6 +20,8 @@ import Text.Read (readMaybe)
 
 import Data.Maybe (fromMaybe, listToMaybe)
 
+import Prelude
+
 type NonnegRange = Range Int
 
 rangeParse :: BS.ByteString -> Maybe NonnegRange

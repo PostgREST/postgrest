@@ -4,7 +4,7 @@
 module Middleware where
 
 import Data.Maybe (fromMaybe)
-import Data.Monoid (mconcat)
+import Data.Monoid
 import Data.Text
 -- import Data.Pool(withResource, Pool)
 
@@ -19,13 +19,16 @@ import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
                    rawQueryString, isSecure, Request(..), Response)
 import Network.URI (URI(..), parseURI)
 
-import Auth (LoginAttempt(..), signInRole, setRole, resetRole)
+import Config (AppConfig(..))
+import Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
-authenticated :: forall s. Text -> Text ->
+import Prelude
+
+authenticated :: forall s. AppConfig ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-authenticated currentRole anon app req = do
+authenticated conf app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
     MalformedAuth ->
@@ -36,6 +39,9 @@ authenticated currentRole anon app req = do
     NoCredentials ->     if anon /= currentRole then runInRole anon else app req
 
  where
+   jwtSecret = cs $ configJwtSecret conf
+   currentRole = cs $ configDbUser conf
+   anon = cs $ configAnonRole conf
    httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
@@ -44,6 +50,8 @@ authenticated currentRole anon app req = do
         case split (==':') (cs . decode . cs $ b64) of
           (u:p:_) -> signInRole u p
           _ -> return MalformedAuth
+      ("Bearer" : jwt : _) ->
+        return $ signInWithJWT jwtSecret jwt
       _ -> return NoCredentials
 
    runInRole :: Text -> H.Tx P.Postgres s Response

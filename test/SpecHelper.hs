@@ -36,7 +36,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10 "1"
+cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10 "1" "safe"
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
@@ -50,15 +50,13 @@ pgSettings = P.ParamSettings (cs $ configDbHost cfg)
 
 withApp :: ActionWith Application -> IO ()
 withApp perform = do
-  let anonRole = cs $ configAnonRole cfg
-      currRole = cs $ configDbUser cfg
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx Nothing
-      $ authenticated currRole anonRole (app (cs $ configV1Schema cfg) body) req
+      $ authenticated cfg (app cfg body) req
     either (resp . errResponse) resp result
 
   where middle = cors corsPolicy
@@ -93,9 +91,13 @@ matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
 matchHeader name valRegex headers =
   maybe False (=~ valRegex) $ lookup name headers
 
-authHeader :: String -> String -> Header
-authHeader u p =
+authHeaderBasic :: String -> String -> Header
+authHeaderBasic u p =
   (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
+  
+authHeaderJWT :: String -> Header
+authHeaderJWT token =
+  (hAuthorization, cs $ "Bearer " ++ token)
 
 testPool :: IO(H.Pool P.Postgres)
 testPool = H.acquirePool pgSettings testPoolOpts
