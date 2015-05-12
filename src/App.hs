@@ -39,8 +39,6 @@ import PgQuery
 import RangeQuery
 import PgStructure
 
-import Debug.Trace
-
 app :: Text -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app v1schema reqBody req =
   case (path, verb) of
@@ -173,7 +171,7 @@ app v1schema reqBody req =
               "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying"
               V.empty True
 
-        row <- H.maybeEx $ traceShow (B.stmtTemplate patch) patch
+        row <- H.maybeEx patch
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
             r = contentRangeH 0 (queryTotal-1) queryTotal
