@@ -9,12 +9,14 @@ import Error(errResponse)
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.String.Conversions (cs)
+import Data.ByteString.Char8 (unpack)
 import Network.Wai (strictRequestBody)
 import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.Wai.Middleware.RequestLogger (logStdout)
+import Network.Wai.Middleware.HttpAuth (basicAuth)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
 import qualified Hasql as H
@@ -36,6 +38,9 @@ main = do
   conf <- customExecParser parserPrefs opts
   let port = configPort conf
 
+  let basicAuthUser = configBasicAuthUser conf
+  let basicAuthPass = configBasicAuthPassword conf
+
   unless (configSecure conf) $
     putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
   Prelude.putStrLn $ "Listening on port " ++
@@ -51,6 +56,7 @@ main = do
                   $ defaultSettings
       middle = logStdout
         . (if configSecure conf then redirectInsecure else id)
+        . basicAuth (\u p -> return $ u == (cs basicAuthUser) && p == (cs basicAuthPass)) "Postgrest realm"
         . gzip def . cors corsPolicy
         . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
       anonRole = cs $ configAnonRole conf
