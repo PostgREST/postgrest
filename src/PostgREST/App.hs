@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module App (app, sqlError, isSqlError) where
+module PostgREST.App (app, sqlError, isSqlError) where
 
 import Control.Monad (join)
 import Control.Arrow ((***), second)
@@ -34,11 +34,11 @@ import qualified Hasql as H
 import qualified Hasql.Backend as B
 import qualified Hasql.Postgres as P
 
-import Config (AppConfig(..))
-import Auth
-import PgQuery
-import RangeQuery
-import PgStructure
+import PostgREST.Config (AppConfig(..))
+import PostgREST.Auth
+import PostgREST.PgQuery
+import PostgREST.RangeQuery
+import PostgREST.PgStructure
 
 import Prelude
 
@@ -105,13 +105,13 @@ app conf reqBody req =
             , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
-    (["postgrest", "tokens"], "POST") -> 
+    (["postgrest", "tokens"], "POST") ->
       case jwtSecret of
         "secret" -> return $ responseLBS status500 [jsonH] $
           encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
         _ -> do
           let user = decode reqBody :: Maybe AuthUser
-          
+
           case user of
             Nothing -> return $ responseLBS status400 [jsonH] $
               encode . object $ [("message", String "Failed to parse user.")]
@@ -120,7 +120,7 @@ app conf reqBody req =
               login <- signInRole (cs $ userId u)
                               (cs $ userPass u)
               case login of
-                LoginSuccess role -> 
+                LoginSuccess role ->
                   return $ responseLBS status201 [ jsonH ] $
                     encode . object $ [("token", String $ tokenJWT jwtSecret (cs $ userId u) role)]
                 _  -> return $ responseLBS status401 [jsonH] $

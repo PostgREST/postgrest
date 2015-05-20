@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Return PATCHed resources if header "Prefer: return=representation"
 - Allow nested objects and arrays in JSON post for jsonb columns
 - JSON Web Tokens - [Federico Rampazzo](https://github.com/framp)
+- Expose PostgREST as a Haskell package
 
 ### Fixed
 

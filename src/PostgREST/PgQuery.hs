@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiWayIf #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PgQuery where
+module PostgREST.PgQuery where
 
-import RangeQuery
+import PostgREST.RangeQuery
 
 import qualified Hasql as H
 import qualified Hasql.Postgres as P

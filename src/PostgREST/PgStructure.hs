@@ -1,9 +1,9 @@
 {-# LANGUAGE QuasiQuotes, OverloadedStrings, TypeSynonymInstances,
              MultiParamTypeClasses, ScopedTypeVariables,
              FlexibleContexts #-}
-module PgStructure where
+module PostgREST.PgStructure where
 
-import PgQuery (QualifiedTable(..))
+import PostgREST.PgQuery (QualifiedTable(..))
 import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
 import Data.Functor.Identity

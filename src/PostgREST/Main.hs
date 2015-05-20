@@ -2,9 +2,9 @@ module Main where
 
 import Paths_postgrest (version)
 
-import App
-import Middleware
-import Error(errResponse)
+import PostgREST.App
+import PostgREST.Middleware
+import PostgREST.Error(errResponse)
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
@@ -21,7 +21,7 @@ import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
-import Config (AppConfig(..), argParser, corsPolicy)
+import PostgREST.Config (AppConfig(..), argParser, corsPolicy)
 
 main :: IO ()
 main = do

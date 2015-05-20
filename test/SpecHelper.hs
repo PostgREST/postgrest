@@ -26,10 +26,10 @@ import System.Process (readProcess)
 
 import qualified Data.Aeson.Types as J
 
-import App (app)
-import Config (AppConfig(..), corsPolicy)
-import Middleware
-import Error(errResponse)
+import PostgREST.App (app)
+import PostgREST.Config (AppConfig(..), corsPolicy)
+import PostgREST.Middleware
+import PostgREST.Error(errResponse)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
