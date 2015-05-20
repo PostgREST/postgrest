@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Middleware where
+module PostgREST.Middleware where
 
 import Data.Maybe (fromMaybe)
 import Data.Monoid
@@ -19,8 +19,8 @@ import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
                    rawQueryString, isSecure, Request(..), Response)
 import Network.URI (URI(..), parseURI)
 
-import Config (AppConfig(..))
-import Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole)
+import PostgREST.Config (AppConfig(..))
+import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole)
 import Codec.Binary.Base64.String (decode)
 
 import Prelude

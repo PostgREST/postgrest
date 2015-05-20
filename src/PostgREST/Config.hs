@@ -1,4 +1,4 @@
-module Config where
+module PostgREST.Config where
 
 import Network.Wai
 import Control.Applicative

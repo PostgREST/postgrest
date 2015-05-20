@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings #-}
-module Auth where
+module PostgREST.Auth where
 
 import Data.Aeson
 import Control.Monad (mzero)
@@ -14,7 +14,7 @@ import qualified Hasql.Backend as B
 import qualified Hasql.Postgres as P
 import qualified Web.JWT as JWT
 import Data.String.Conversions (cs)
-import PgQuery (pgFmtLit)
+import PostgREST.PgQuery (pgFmtLit)
 
 import Prelude
 

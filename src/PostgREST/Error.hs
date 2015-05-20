@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 
-module Error (PgError, errResponse) where
+module PostgREST.Error (PgError, errResponse) where
 
 import qualified Hasql as H
 import qualified Hasql.Postgres as P

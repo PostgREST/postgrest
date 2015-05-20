@@ -1,4 +1,4 @@
-module RangeQuery (
+module PostgREST.RangeQuery (
   rangeParse
 , rangeRequested
 , rangeLimit
