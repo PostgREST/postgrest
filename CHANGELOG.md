@@ -6,10 +6,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## unreleased
 
 ### Added
-- Return 404 if no records updated by PATCH
+
 - Return range headers in PATCH
 - Return PATCHed resources if header "Prefer: return=representation"
 - Allow nested objects and arrays in JSON post for jsonb columns
+- JSON Web Tokens - [Federico Rampazzo](https://github.com/framp)
+
+### Fixed
+
+- Return 404 if no records updated by PATCH
 
 ## [0.2.8.0] - 2015-04-17
 ### Added
