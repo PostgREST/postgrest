@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## unreleased
 
+### Added
 - Return 404 if no records updated by PATCH
 - Return range headers in PATCH
 - Return PATCHed resources if header "Prefer: return=representation"
