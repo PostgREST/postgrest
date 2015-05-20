@@ -9,12 +9,14 @@ import Data.Aeson
 import Data.Functor.Identity
 import Data.String.Conversions (cs)
 import Data.Maybe (fromMaybe)
-import Control.Applicative ( (<$>) )
+import Control.Applicative
 
 import qualified Data.Map as Map
 
 import qualified Hasql as H
 import qualified Hasql.Postgres as P
+
+import Prelude
 
 foreignKeys :: QualifiedTable -> H.Tx P.Postgres s (Map.Map Text ForeignKey)
 foreignKeys table = do

@@ -8,6 +8,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.String.Conversions (cs)
 import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
+import Prelude
 
 data AppConfig = AppConfig {
     configDbName :: String
@@ -21,6 +22,8 @@ data AppConfig = AppConfig {
   , configSecure :: Bool
   , configPool :: Int
   , configV1Schema :: String
+  
+  , configJwtSecret :: String
   }
 
 argParser :: Parser AppConfig
@@ -36,6 +39,7 @@ argParser = AppConfig
   <*> switch (long "secure" <> short 's' <> help "Redirect all requests to HTTPS")
   <*> option auto (long "db-pool" <> metavar "COUNT" <> value 10 <> help "Max connections in database pool" <> showDefault)
   <*> strOption (long "v1schema" <> metavar "NAME" <> value "1" <> help "Schema to use for nonspecified version (or explicit v1)" <> showDefault)
+  <*> strOption (long "jwt-secret" <> metavar "SECRET" <> value "secret" <> help "Secret used to encrypt and decrypt JWT tokens)" <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing

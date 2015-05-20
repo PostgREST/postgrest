@@ -27,7 +27,7 @@ spec = around withApp $ do
 
     it "lists only views user has permission to see" $ do
       _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      let auth = authHeader "jdoe" "1234"
+      let auth = authHeaderBasic "jdoe" "1234"
 
       request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [

@@ -3,16 +3,20 @@ module Auth where
 
 import Data.Aeson
 import Control.Monad (mzero)
-import Control.Applicative ( (<*>), (<$>) )
+import Control.Applicative
 import Crypto.BCrypt
 import Data.Text
 import Data.Monoid
+import Data.Map
 import qualified Data.Vector as V
 import qualified Hasql as H
 import qualified Hasql.Backend as B
 import qualified Hasql.Postgres as P
+import qualified Web.JWT as JWT
 import Data.String.Conversions (cs)
 import PgQuery (pgFmtLit)
+
+import Prelude
 
 import System.IO.Unsafe
 
@@ -26,7 +30,7 @@ instance FromJSON AuthUser where
   parseJSON (Object v) = AuthUser <$>
                          v .: "id" <*>
                          v .: "pass" <*>
-                         v .: "role"
+                         v .:? "role" .!= ""
   parseJSON _ = mzero
 
 instance ToJSON AuthUser where
@@ -69,3 +73,19 @@ signInRole user pass = do
          then LoginSuccess role
          else LoginFailed
     ) u
+
+signInWithJWT :: Text -> Text -> LoginAttempt
+signInWithJWT secret input = case maybeRole of
+    Just (Just (String role)) -> LoginSuccess $ cs role
+    _   -> LoginFailed
+  where 
+    maybeRole = (Data.Map.lookup "role" <$> claims) ::Maybe (Maybe Value)
+    claims = JWT.unregisteredClaims <$> JWT.claims <$> decoded
+    decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
+    
+tokenJWT :: Text -> Text -> Text -> Text
+tokenJWT secret uid role = JWT.encodeSigned JWT.HS256 (JWT.secret secret) claimsSet
+  where
+    claimsSet = JWT.def {
+      JWT.unregisteredClaims = Data.Map.fromList [("id", String uid), ("role", String role)]
+    }
