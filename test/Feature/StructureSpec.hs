@@ -22,6 +22,7 @@ spec = around withApp $ do
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}
+        , {"schema":"1","name":"tsearch","insertable":true}
         ] |]
         {matchStatus = 200}
 
