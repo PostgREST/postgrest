@@ -212,6 +212,12 @@ CREATE TABLE json
 ALTER TABLE "1".json OWNER TO postgrest_test;
 
 
+CREATE TABLE tsearch (
+    text_search_vector tsvector
+);
+
+ALTER TABLE "1".tsearch OWNER TO postgrest_test;
+
 SET search_path = postgrest, pg_catalog;
 
 
@@ -299,14 +305,8 @@ INSERT INTO items (id) VALUES (1);
 SELECT pg_catalog.setval('items_id_seq', 1, true);
 
 
-
-
-
-
-
-
-
-
+INSERT INTO tsearch (text_search_vector) VALUES ('''bar'':2 ''foo'':1');
+INSERT INTO tsearch (text_search_vector) VALUES ('''baz'':1 ''qux'':2');
 
 SET search_path = postgrest, pg_catalog;
 
@@ -489,6 +489,13 @@ REVOKE ALL ON TABLE json FROM PUBLIC;
 REVOKE ALL ON TABLE json FROM postgrest_test;
 GRANT ALL ON TABLE json TO postgrest_test;
 GRANT ALL ON TABLE json TO postgrest_anonymous;
+
+
+
+REVOKE ALL ON TABLE tsearch FROM PUBLIC;
+REVOKE ALL ON TABLE tsearch FROM postgrest_test;
+GRANT ALL ON TABLE tsearch TO postgrest_test;
+GRANT ALL ON TABLE tsearch TO postgrest_anonymous;
 
 
 SET search_path = postgrest, pg_catalog;

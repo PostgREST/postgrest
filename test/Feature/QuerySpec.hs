@@ -56,6 +56,10 @@ spec =
       get "/simple_pk?k=ilike.*YY*&order=extra.asc" `shouldRespondWith`
         "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
 
+    it "matches with tsearch @@" $
+      get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
+        "[{\"text_search_vector\":\"'bar':2 'foo':1\"}]"
+
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
