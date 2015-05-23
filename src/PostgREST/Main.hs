@@ -49,7 +49,7 @@ main = do
                      (cs $ configDbPass conf)
                      (cs $ configDbName conf)
       appSettings = setPort port
-                  . setServerName (cs $ "postgrest/" <> prettyVersion)
+                  . setServerName (cs $ (cs $ configServerName conf) <> "/" <> prettyVersion)
                   $ defaultSettings
       middle = logStdout
         . (if configSecure conf then redirectInsecure else id)

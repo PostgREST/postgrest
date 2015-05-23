@@ -91,7 +91,8 @@ app conf reqBody req =
             )
           ] (cs $ fromMaybe "[]" body)
 
-    (["postgrest", "users"], "POST") -> do
+    ([auth, "users"], "POST") -> do
+      -- check auth == authPath
       let user = decode reqBody :: Maybe AuthUser
 
       case user of
@@ -102,10 +103,11 @@ app conf reqBody req =
             (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
+            , (hLocation, "/" <> (cs authPath) <> "/users?id=eq." <> cs (userId u))
             ] ""
 
-    (["postgrest", "tokens"], "POST") ->
+    ([auth, "tokens"], "POST") -> do
+      -- check auth == authPath
       case jwtSecret of
         "secret" -> return $ responseLBS status500 [jsonH] $
           encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
@@ -159,7 +161,7 @@ app conf reqBody req =
                   [ jsonH
                   , (hLocation, "/" <> cs table <> "?" <> cs params)
                   ] $ if echoRequested then encode obj else ""
-          return $ multipart status201 responses
+          return $ multipart (cs serverName) status201 responses
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -228,6 +230,9 @@ app conf reqBody req =
     schema = requestedSchema (cs $ configV1Schema conf) hdrs
     authenticator = cs $ configDbUser conf
     jwtSecret = cs $ configJwtSecret conf
+    serverName = cs $ configServerName conf ::Text
+    authPath = cs $ configAuthPath conf ::Text
+    
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
@@ -286,12 +291,12 @@ handleJsonObj reqBody handler = do
 parseCsvCell :: BL.ByteString -> Value
 parseCsvCell s = if s == "NULL" then Null else String $ cs s
 
-multipart :: Status -> [Response] -> Response
-multipart _ [] = responseLBS status204 [] ""
-multipart _ [r] = r
-multipart s rs =
-  responseLBS s [(hContentType, "multipart/mixed; boundary=\"postgrest_boundary\"")] $
-    BL.intercalate "\n--postgrest_boundary\n" (map renderResponseBody rs)
+multipart :: BL.ByteString -> Status -> [Response] -> Response
+multipart _ _ [] = responseLBS status204 [] ""
+multipart _ _ [r] = r
+multipart boundary s rs =
+  responseLBS s [(hContentType, "multipart/mixed; boundary=\"" <> cs boundary <> "_boundary\"")] $
+    BL.intercalate ("\n--" <> boundary <> "_boundary\n") (map renderResponseBody rs)
 
   where
     renderHeader :: Header -> BL.ByteString
