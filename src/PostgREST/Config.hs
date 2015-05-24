@@ -1,11 +1,15 @@
 module PostgREST.Config where
 
+import Paths_postgrest (version)
+
 import Network.Wai
 import Control.Applicative
 import Data.Text (strip)
 import qualified Data.CaseInsensitive as CI
 import qualified Data.ByteString.Char8 as BS
+import Data.List (intercalate)
 import Data.String.Conversions (cs)
+import Data.Version (versionBranch)
 import Options.Applicative hiding (columns)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
 import Prelude
@@ -22,6 +26,7 @@ data AppConfig = AppConfig {
   , configSecure :: Bool
   , configPool :: Int
   , configV1Schema :: String
+  , configServerString :: String
   
   , configJwtSecret :: String
   }
@@ -39,6 +44,7 @@ argParser = AppConfig
   <*> switch (long "secure" <> short 's' <> help "Redirect all requests to HTTPS")
   <*> option auto (long "db-pool" <> metavar "COUNT" <> value 10 <> help "Max connections in database pool" <> showDefault)
   <*> strOption (long "v1schema" <> metavar "NAME" <> value "1" <> help "Schema to use for nonspecified version (or explicit v1)" <> showDefault)
+  <*> strOption (long "serverstring" <> metavar "STRING" <> value defaultServerString <> help "Descriptive string for the PostgREST server" <> showDefault)
   <*> strOption (long "jwt-secret" <> metavar "SECRET" <> value "secret" <> help "Secret used to encrypt and decrypt JWT tokens)" <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -62,3 +68,9 @@ corsPolicy req = case lookup "origin" headers of
     accHeaders = case lookup "access-control-request-headers" headers of
       Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
       Nothing -> []
+
+prettyVersion :: String
+prettyVersion = intercalate "." $ map show $ versionBranch version
+
+defaultServerString :: String
+defaultServerString = "postgrest/" <> prettyVersion
