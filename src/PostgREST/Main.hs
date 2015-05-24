@@ -1,7 +1,5 @@
 module Main where
 
-import Paths_postgrest (version)
-
 import PostgREST.App
 import PostgREST.Middleware
 import PostgREST.Error(errResponse)
@@ -15,13 +13,11 @@ import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Data.List (intercalate)
-import Data.Version (versionBranch)
 import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
-import PostgREST.Config (AppConfig(..), argParser, corsPolicy)
+import PostgREST.Config (AppConfig(..), argParser, corsPolicy, prettyVersion)
 
 main :: IO ()
 main = do
@@ -49,7 +45,7 @@ main = do
                      (cs $ configDbPass conf)
                      (cs $ configDbName conf)
       appSettings = setPort port
-                  . setServerName (cs $ "postgrest/" <> prettyVersion)
+                  . setServerName (cs $ configServerString conf)
                   $ defaultSettings
       middle = logStdout
         . (if configSecure conf then redirectInsecure else id)
@@ -66,6 +62,3 @@ main = do
     resOrError <- liftIO $ H.session pool $ H.tx Nothing $
       authenticated conf (app conf body) req
     either (respond . errResponse) respond resOrError
-
-  where
-    prettyVersion = intercalate "." $ map show $ versionBranch version
