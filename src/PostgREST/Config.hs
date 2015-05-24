@@ -24,6 +24,7 @@ data AppConfig = AppConfig {
   , configV1Schema :: String
   
   , configJwtSecret :: String
+  , configServerString :: String
   , configServerName :: String
   , configAuthPath :: String
   }
@@ -42,8 +43,9 @@ argParser = AppConfig
   <*> option auto (long "db-pool" <> metavar "COUNT" <> value 10 <> help "Max connections in database pool" <> showDefault)
   <*> strOption (long "v1schema" <> metavar "NAME" <> value "1" <> help "Schema to use for nonspecified version (or explicit v1)" <> showDefault)
   <*> strOption (long "jwt-secret" <> metavar "SECRET" <> value "secret" <> help "Secret used to encrypt and decrypt JWT tokens)" <> showDefault)
-  <*> strOption (long "server-name" <> metavar "SERVERNAME" <> value "postgrest" <> help "Server name exposed through headers" <> showDefault)
-  <*> strOption (long "auth-path" <> metavar "AUTHPATH" <> value "postgrest" <> help "Path used to expose authentication function and reserver table name" <> showDefault)
+  <*> strOption (long "server-string" <> metavar "SERVERSTRING" <> value "" <> help "Server string exposed through headers (default: \"SERVERNAME/VERSION\")")
+  <*> strOption (long "server-name" <> metavar "SERVERNAME" <> value "postgrest" <> help "Server name used in the application" <> showDefault)
+  <*> strOption (long "auth-path" <> metavar "AUTHPATH" <> value "postgrest" <> help "Path used to expose authentication function and reserved table name" <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing

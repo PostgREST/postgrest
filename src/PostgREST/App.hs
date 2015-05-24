@@ -91,42 +91,46 @@ app conf reqBody req =
             )
           ] (cs $ fromMaybe "[]" body)
 
-    ([auth, "users"], "POST") -> do
-      -- check auth == authPath
-      let user = decode reqBody :: Maybe AuthUser
+    ([auth, "users"], "POST") ->
+      if auth /= authPath then
+        return $ responseLBS status404 [] ""
+      else do
+        let user = decode reqBody :: Maybe AuthUser
 
-      case user of
-        Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("message", String "Failed to parse user.")]
-        Just u -> do
-          _ <- addUser (cs $ userId u)
-            (cs $ userPass u) (cs $ userRole u)
-          return $ responseLBS status201
-            [ jsonH
-            , (hLocation, "/" <> (cs authPath) <> "/users?id=eq." <> cs (userId u))
-            ] ""
+        case user of
+          Nothing -> return $ responseLBS status400 [jsonH] $
+            encode . object $ [("message", String "Failed to parse user.")]
+          Just u -> do
+            _ <- addUser (cs $ userId u)
+              (cs $ userPass u) (cs $ userRole u)
+            return $ responseLBS status201
+              [ jsonH
+              , (hLocation, "/" <> cs authPath <> "/users?id=eq." <> cs (userId u))
+              ] ""
 
-    ([auth, "tokens"], "POST") -> do
-      -- check auth == authPath
-      case jwtSecret of
-        "secret" -> return $ responseLBS status500 [jsonH] $
-          encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
-        _ -> do
-          let user = decode reqBody :: Maybe AuthUser
+    ([auth, "tokens"], "POST") ->
+      if auth /= authPath then
+        return $ responseLBS status404 [] ""
+      else
+        case jwtSecret of
+          "secret" -> return $ responseLBS status500 [jsonH] $
+            encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
+          _ -> do
+            let user = decode reqBody :: Maybe AuthUser
 
-          case user of
-            Nothing -> return $ responseLBS status400 [jsonH] $
-              encode . object $ [("message", String "Failed to parse user.")]
-            Just u -> do
-              setRole authenticator
-              login <- signInRole (cs $ userId u)
-                              (cs $ userPass u)
-              case login of
-                LoginSuccess role ->
-                  return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret (cs $ userId u) role)]
-                _  -> return $ responseLBS status401 [jsonH] $
-                  encode . object $ [("message", String "Failed authentication.")]
+            case user of
+              Nothing -> return $ responseLBS status400 [jsonH] $
+                encode . object $ [("message", String "Failed to parse user.")]
+              Just u -> do
+                setRole authenticator
+                login <- signInRole (cs $ userId u)
+                                (cs $ userPass u)
+                case login of
+                  LoginSuccess role ->
+                    return $ responseLBS status201 [ jsonH ] $
+                      encode . object $ [("token", String $ tokenJWT jwtSecret (cs $ userId u) role)]
+                  _  -> return $ responseLBS status401 [jsonH] $
+                    encode . object $ [("message", String "Failed authentication.")]
 
     ([table], "POST") -> do
       let qt = QualifiedTable schema (cs table)

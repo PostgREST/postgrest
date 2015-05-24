@@ -42,6 +42,14 @@ main = do
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
+    
+  let userServerString = cs $ configServerString conf
+      userServerName = cs $ configServerName conf
+      serverString = 
+        if userServerString /= "" then 
+          userServerString
+        else 
+          cs $ userServerName <> "/" <> prettyVersion
 
   let pgSettings = P.ParamSettings (cs $ configDbHost conf)
                      (fromIntegral $ configDbPort conf)
@@ -49,7 +57,7 @@ main = do
                      (cs $ configDbPass conf)
                      (cs $ configDbName conf)
       appSettings = setPort port
-                  . setServerName (cs $ (cs $ configServerName conf) <> "/" <> prettyVersion)
+                  . setServerName serverString
                   $ defaultSettings
       middle = logStdout
         . (if configSecure conf then redirectInsecure else id)
