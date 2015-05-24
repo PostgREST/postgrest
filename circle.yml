@@ -4,6 +4,12 @@ machine:
     - createdb -O postgrest_test -U ubuntu postgrest_test
   ghc:
     version: 7.8.3
+dependencies:
+  override:
+    - cabal update
+    - cabal sandbox init
+    - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
+    - cabal configure --enable-tests -f ci
 test:
   post:
     - cabal exec hlint -- -X QuasiQuotes src/**/*.hs test/**/*.hs

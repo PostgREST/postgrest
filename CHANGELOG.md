@@ -4,9 +4,15 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## unreleased
-
 ### Added
+- Full text search, eg `/foo?text_vector=@@.bar`
 
+## [0.2.9.1] - 2015-05-20
+### Fixed
+- Put -Werror behind a cabal flag (for CI) so Hackage accepts package
+
+## [0.2.9.0] - 2015-05-20
+### Added
 - Return range headers in PATCH
 - Return PATCHed resources if header "Prefer: return=representation"
 - Allow nested objects and arrays in JSON post for jsonb columns
@@ -14,7 +20,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Expose PostgREST as a Haskell package
 
 ### Fixed
-
 - Return 404 if no records updated by PATCH
 
 ## [0.2.8.0] - 2015-04-17

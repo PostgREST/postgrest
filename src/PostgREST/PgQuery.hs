@@ -175,6 +175,7 @@ wherePred (col, predicate) =
             "like" -> unknownLiteral $ T.map star value
             "ilike" -> unknownLiteral $ T.map star value
             "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+            "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
             _    -> unknownLiteral value
 
     op = case opCode of
@@ -189,6 +190,7 @@ wherePred (col, predicate) =
          "in"  -> "in"
          "is"    -> "is"
          "isnot" -> "is not"
+         "@@" -> "@@"
          _     -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
