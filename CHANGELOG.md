@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## unreleased
 ### Added
 - Full text search, eg `/foo?text_vector=@@.bar`
+- Include auth id as well as db role to views (for row-level security)
 
 ## [0.2.9.1] - 2015-05-20
 ### Fixed
