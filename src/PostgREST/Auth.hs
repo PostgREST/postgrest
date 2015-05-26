@@ -40,12 +40,13 @@ instance ToJSON AuthUser where
     , "role" .= userRole u ]
 
 type DbRole = Text
+type UserId = Text
 
 data LoginAttempt =
     NoCredentials
   | MalformedAuth
   | LoginFailed
-  | LoginSuccess DbRole
+  | LoginSuccess DbRole UserId
   deriving (Eq, Show)
 
 checkPass :: Text -> Text -> Bool
@@ -57,6 +58,15 @@ setRole role = H.unitEx $ B.Stmt ("set role " <> cs (pgFmtLit role)) V.empty Tru
 resetRole :: H.Tx P.Postgres s ()
 resetRole = H.unitEx [H.stmt|reset role|]
 
+setUserId :: Text -> H.Tx P.Postgres s ()
+setUserId uid = if uid /= "" then
+  H.unitEx $ B.Stmt ("set user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
+else
+  resetUserId
+
+resetUserId :: H.Tx P.Postgres s ()
+resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
+
 addUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
 addUser identity pass role = do
   let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
@@ -66,20 +76,23 @@ addUser identity pass role = do
 
 signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
 signInRole user pass = do
-  u <- H.maybeEx $ [H.stmt|select pass, rolname from postgrest.auth where id = ?|] user
+  u <- H.maybeEx $ [H.stmt|select id, pass, rolname from postgrest.auth where id = ?|] user
   return $ maybe LoginFailed (\r ->
-      let (hashed, role) = r in
+      let (uid, hashed, role) = r in
       if checkPass hashed pass
-         then LoginSuccess role
+         then LoginSuccess role uid
          else LoginFailed
     ) u
 
 signInWithJWT :: Text -> Text -> LoginAttempt
 signInWithJWT secret input = case maybeRole of
-    Just (Just (String role)) -> LoginSuccess $ cs role
+    Just (Just (String role)) -> case maybeUserId of
+      Just (Just (String uid)) -> LoginSuccess (cs role) (cs uid)
+      _   -> LoginFailed
     _   -> LoginFailed
   where 
     maybeRole = (Data.Map.lookup "role" <$> claims) ::Maybe (Maybe Value)
+    maybeUserId = (Data.Map.lookup "id" <$> claims) ::Maybe (Maybe Value)
     claims = JWT.unregisteredClaims <$> JWT.claims <$> decoded
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
     

@@ -72,6 +72,18 @@ $$;
 
 ALTER FUNCTION postgrest.update_owner() OWNER TO postgrest_test;
 
+
+CREATE FUNCTION set_authors_only_owner() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin 
+  NEW.owner = current_setting('user_vars.user_id'); 
+  RETURN NEW;
+end
+$$;
+
+ALTER FUNCTION postgrest.set_authors_only_owner() OWNER TO postgrest_test;
+
 SET search_path = "1", pg_catalog;
 
 SET default_tablespace = '';
@@ -80,6 +92,7 @@ SET default_with_oids = false;
 
 
 CREATE TABLE authors_only (
+    owner character varying NOT NULL,
     secret character varying NOT NULL
 );
 
@@ -327,7 +340,8 @@ SET search_path = "1", pg_catalog;
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
-
+    
+CREATE TRIGGER secrets_owner_track BEFORE INSERT OR UPDATE ON authors_only FOR EACH ROW EXECUTE PROCEDURE postgrest.set_authors_only_owner();
 
 
 ALTER TABLE ONLY auto_incrementing_pk

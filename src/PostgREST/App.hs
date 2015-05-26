@@ -120,9 +120,9 @@ app conf reqBody req =
               login <- signInRole (cs $ userId u)
                               (cs $ userPass u)
               case login of
-                LoginSuccess role ->
+                LoginSuccess role uid ->
                   return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret (cs $ userId u) role)]
+                    encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
                 _  -> return $ responseLBS status401 [jsonH] $
                   encode . object $ [("message", String "Failed authentication.")]
 

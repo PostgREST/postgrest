@@ -79,7 +79,7 @@ spec = around dbWithSchema $ do
     addUser user pass role conn
     return conn) $ do
     it "accepts correct credentials and return the role" $ \conn ->
-      signInRole user pass conn `shouldReturn` LoginSuccess role
+      signInRole user pass conn `shouldReturn` LoginSuccess role user
 
     it "returns nothing with bad creds" $ \conn -> do
       signInRole "not-a-user" pass conn `shouldReturn` LoginFailed

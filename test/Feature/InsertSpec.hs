@@ -274,3 +274,23 @@ spec = afterAll_ resetDb $ around withApp $ do
           [("Prefer", "return=representation")]
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
+
+  describe "Row level permission" $
+    it "set user_id when inserting rows" $ do
+      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+      _ <- post "/postgrest/users" [json| { "id":"jroe", "pass": "1234", "role": "postgrest_test_author" } |]
+
+      p1 <- request methodPost "/authors_only"
+        [ authHeaderBasic "jdoe" "1234", ("Prefer", "return=representation") ]
+        [json| { "secret": "nyancat" } |]
+      liftIO $ do
+          simpleBody p1 `shouldBe` [json| { "owner":"jdoe", "secret":"nyancat" } |]
+          simpleStatus p1 `shouldBe` created201
+
+      p2 <- request methodPost "/authors_only"
+        -- jwt token for jroe
+        [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.YuF_VfmyIxWyuceT7crnNKEprIYXsJAyXid3rjPjIow", ("Prefer", "return=representation") ]
+        [json| { "secret": "lolcat", "owner": "hacker" } |]
+      liftIO $ do
+          simpleBody p2 `shouldBe` [json| { "owner":"jroe", "secret":"lolcat" } |]
+          simpleStatus p2 `shouldBe` created201
