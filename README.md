@@ -75,12 +75,14 @@ Other optimizations are possible, and some are outlined in the
 
 ### Security
 
-PostgREST handles authentication (HTTP Basic over SSL) and delegates
-authorization to the role information defined in the database. This
-ensures there is a single declarative source of truth for security.
-When dealing with the database the server assumes the identity of
-the currently authenticated user, and for the duration of the
-connection cannot do anything the user themselves couldn't.
+PostgREST handles authentication (HTTP Basic over SSL or [JSON Web
+Tokens](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions#json-web-tokens))
+and delegates authorization to the role information defined in the
+database. This ensures there is a single declarative source of truth
+for security.  When dealing with the database the server assumes
+the identity of the currently authenticated user, and for the
+duration of the connection cannot do anything the user themselves
+couldn't.
 
 Postgres 9.5 will soon support true [row-level
 security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
