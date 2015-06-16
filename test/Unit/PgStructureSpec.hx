@@ -14,7 +14,7 @@ spec = around dbWithSchema $ beforeWith setRole $ do
     it "shows all the tables" $ \conn -> do
       ts <- tables "1" conn
       map tableName ts `shouldBe` ["authors_only","auto_incrementing_pk",
-        "compound_pk","has_fk","items","menagerie","no_pk", "simple_pk"]
+        "compound_pk","has_fk","insertable_view_with_join","items","menagerie","no_pk", "simple_pk"]
 
   describe "columns" $ do
     it "responds with each column for the table" $ \conn -> do
