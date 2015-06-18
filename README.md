@@ -166,3 +166,4 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
   and helping me use it
 * [Mikey Casalaina](https://github.com/casalaina) for the cool logo
 * [Jonathan Harrington](https://github.com/prio) for writing a nice tutorial
+* [Federico Rampazzo](https://github.com/framp) for suggesting and implementing [JWT](http://jwt.io/) support
