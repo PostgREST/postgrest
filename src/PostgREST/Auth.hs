@@ -74,6 +74,14 @@ addUser identity pass role = do
     [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
       identity (cs hashed :: Text) role
 
+updateUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
+updateUser identity pass role = do
+  let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
+  H.unitEx $
+    [H.stmt|update postgrest.auth set pass = ?, rolname = ? where id = ?|]
+      (cs hashed :: Text) role identity
+
+
 signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
 signInRole user pass = do
   u <- H.maybeEx $ [H.stmt|select id, pass, rolname from postgrest.auth where id = ?|] user
@@ -90,12 +98,12 @@ signInWithJWT secret input = case maybeRole of
       Just (Just (String uid)) -> LoginSuccess (cs role) (cs uid)
       _   -> LoginFailed
     _   -> LoginFailed
-  where 
+  where
     maybeRole = (Data.Map.lookup "role" <$> claims) ::Maybe (Maybe Value)
     maybeUserId = (Data.Map.lookup "id" <$> claims) ::Maybe (Maybe Value)
     claims = JWT.unregisteredClaims <$> JWT.claims <$> decoded
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
-    
+
 tokenJWT :: Text -> Text -> Text -> Text
 tokenJWT secret uid role = JWT.encodeSigned JWT.HS256 (JWT.secret secret) claimsSet
   where

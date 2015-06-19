@@ -105,6 +105,19 @@ app conf reqBody req =
             , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
+    (["postgrest", "users"], "PUT") -> do
+      let user = decode reqBody :: Maybe AuthUser
+
+      case user of
+        Nothing -> return $ responseLBS status400 [jsonH] $
+          encode . object $ [("message", String "Failed to parse user.")]
+        Just u -> do
+           _ <- updateUser (cs $ userId u) (cs $ userPass u) (cs $ userRole u)
+           return $ responseLBS status200
+            [ jsonH
+            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
+            ] ""
+
     (["postgrest", "tokens"], "POST") ->
       case jwtSecret of
         "secret" -> return $ responseLBS status500 [jsonH] $
