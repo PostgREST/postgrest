@@ -156,6 +156,7 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 * [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
 * [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
 * [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)
+* [Heroku](https://github.com/begriffs/postgrest/wiki/Heroku)
 
 ### Thanks
 
