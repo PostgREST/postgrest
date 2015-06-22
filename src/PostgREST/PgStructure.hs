@@ -44,8 +44,9 @@ tables schema = do
   rows <- H.listEx $
     [H.stmt|
       select table_schema, table_name,
-             is_insertable_into
-        from information_schema.tables
+             t.is_insertable_into::boolean OR coalesce(is_trigger_insertable_into::boolean, false)
+        from information_schema.tables t
+             left join information_schema.views using(table_catalog, table_schema, table_name)
        where table_schema = ?
        order by table_name
     |] schema
@@ -135,8 +136,8 @@ data Column = Column {
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
-tableFromRow :: (Text, Text, Text) -> Table
-tableFromRow (s, n, i) = Table s n (toBool i)
+tableFromRow :: (Text, Text, Bool) -> Table
+tableFromRow (s, n, i) = Table s n i
 
 columnFromRow :: (Text,       Text,      Text,
                   Int,        Text,      Text,

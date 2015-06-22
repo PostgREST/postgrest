@@ -17,6 +17,7 @@ spec = around withApp $ do
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_fk","insertable":true}
+        , {"schema":"1","name":"insertable_view_with_join","insertable":true}
         , {"schema":"1","name":"items","insertable":true}
         , {"schema":"1","name":"json","insertable":true}
         , {"schema":"1","name":"menagerie","insertable":true}
