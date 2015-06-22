@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+- Indicate insertable=true for views that are insertable through triggers
+
 ## [0.2.10.0] - 2015-06-03
 ### Added
 - Full text search, eg `/foo?text_vector=@@.bar`
