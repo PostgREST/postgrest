@@ -37,7 +37,7 @@ POSTGREST_OPTS="$POSTGREST_OPTS --v1schema public"
 start()
 {
 	log_daemon_msg "Starting PostgreSQL REST API daemon" "postgrest" || true
-	if start-stop-daemon --start --quiet --oknodo --chuid postgrest --startas /usr/local/bin/postgrest-wrapper --exec $POSTGREST -- $POSTGREST_OPTS; then
+	if start-stop-daemon --start --quiet --oknodo --chuid ${POSTGREST_USER} --startas /usr/local/bin/postgrest-wrapper --exec $POSTGREST -- $POSTGREST_OPTS; then
 		log_end_msg 0 || true
 	else
 		log_end_msg 1 || true
