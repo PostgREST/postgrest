@@ -1,0 +1,23 @@
+# run service as
+#POSTGREST_USER=postgrest
+
+# log file
+#POSTGREST_LOG=/var/log/postgrest/postgrest.log
+
+# database host
+#POSTGREST_DBHOST=localhost
+
+# database to use
+#POSTGREST_DBNAME=
+
+# database user
+#POSTGREST_DBUSER=postgres
+
+# database password
+#POSTGREST_DBPASS=
+
+# database pool
+#POSTGREST_DBPOOL=10
+
+# additional options
+#POSTGREST_OPTS=
