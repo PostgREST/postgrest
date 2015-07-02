@@ -17,6 +17,7 @@ import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Char8 as BS
 import qualified Blaze.ByteString.Builder as BB
 import qualified Data.Csv as CSV
 
@@ -256,12 +257,12 @@ contentRangeH from to total =
 requestedSchema :: Text -> RequestHeaders -> Text
 requestedSchema v1schema hdrs =
   case verStr of
-       Just [[_, ver]] -> if ver == "1" then v1schema else ver
+       Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
        _ -> v1schema
 
-  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
-        accept = cs <$> lookup hAccept hdrs :: Maybe Text
-        verStr = (=~ verRegex) <$> accept :: Maybe [[Text]]
+  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
+        accept = cs <$> lookup hAccept hdrs :: Maybe BS.ByteString
+        verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
 
 jsonH :: Header
 jsonH = (hContentType, "application/json")

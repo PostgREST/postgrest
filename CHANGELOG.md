@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Fixed
 - Indicate insertable=true for views that are insertable through triggers
+- Builds under GHC 7.10
 
 ## [0.2.10.0] - 2015-06-03
 ### Added
