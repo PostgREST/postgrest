@@ -230,6 +230,14 @@ CREATE TABLE no_pk (
 ALTER TABLE "1".no_pk OWNER TO postgrest_test;
 
 
+CREATE TABLE nullable_integer (
+    a integer
+);
+
+
+ALTER TABLE "1".nullable_integer OWNER TO postgrest_test;
+
+
 CREATE TABLE simple_pk (
     k character varying NOT NULL,
     extra character varying NOT NULL
@@ -515,6 +523,13 @@ REVOKE ALL ON TABLE no_pk FROM PUBLIC;
 REVOKE ALL ON TABLE no_pk FROM postgrest_test;
 GRANT ALL ON TABLE no_pk TO postgrest_test;
 GRANT ALL ON TABLE no_pk TO postgrest_anonymous;
+
+
+
+REVOKE ALL ON TABLE nullable_integer FROM PUBLIC;
+REVOKE ALL ON TABLE nullable_integer FROM postgrest_test;
+GRANT ALL ON TABLE nullable_integer TO postgrest_test;
+GRANT ALL ON TABLE nullable_integer TO postgrest_anonymous;
 
 
 

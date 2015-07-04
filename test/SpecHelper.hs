@@ -94,7 +94,7 @@ matchHeader name valRegex headers =
 authHeaderBasic :: String -> String -> Header
 authHeaderBasic u p =
   (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
-  
+
 authHeaderJWT :: String -> Header
 authHeaderJWT token =
   (hAuthorization, cs $ "Bearer " ++ token)
@@ -124,6 +124,12 @@ createNulls n = do
     txn = mapM_ H.unitEx (stmt':stmts)
     stmt' = [H.stmt|insert into "1".no_pk (a,b) values (null,null)|]
     stmts = map [H.stmt|insert into "1".no_pk (a,b) values (?,0)|] [1..n]
+
+createNullInteger :: IO ()
+createNullInteger = do
+  pool <- testPool
+  void . liftIO $ H.session pool $ H.tx Nothing $
+    H.unitEx $ [H.stmt| insert into "1".nullable_integer (a) values (null) |]
 
 createLikableStrings :: IO ()
 createLikableStrings = do
