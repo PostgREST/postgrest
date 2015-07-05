@@ -51,9 +51,9 @@ app conf reqBody req =
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
-      let t = QualifiedTable schema (cs table)
-      cols <- columns t
-      pkey <- map cs <$> primaryKeyColumns t
+      let qt = qualify table
+      cols <- columns qt
+      pkey <- map cs <$> primaryKeyColumns qt
       return $ responseLBS status200 [jsonH, allOrigins]
         $ encode (TableOptions cols pkey)
 
@@ -61,15 +61,15 @@ app conf reqBody req =
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
-        let qt = QualifiedTable schema (cs table)
-        let select = B.Stmt "select " V.empty True <>
+        let qt = qualify table
+            select = B.Stmt "select " V.empty True <>
                   parentheticT (
-                    whereT qq $ countRows qt
+                    whereT qt qq $ countRows qt
                   ) <> commaq <> (
                   asJsonWithCount
                   . limitT range
                   . orderT (orderParse qq)
-                  . whereT qq
+                  . whereT qt qq
                   $ selectStar qt
                 )
         row <- H.maybeEx select
@@ -128,7 +128,7 @@ app conf reqBody req =
                   encode . object $ [("message", String "Failed authentication.")]
 
     ([table], "POST") -> do
-      let qt = QualifiedTable schema (cs table)
+      let qt = qualify table
           echoRequested = lookup "Prefer" hdrs == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookup "Content-Type" hdrs == Just "text/csv"
@@ -164,7 +164,7 @@ app conf reqBody req =
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
-        let qt = QualifiedTable schema (cs table)
+        let qt = qualify table
         primaryKeys <- primaryKeyColumns qt
         let specifiedKeys = map (cs . fst) qq
         if S.fromList primaryKeys /= S.fromList specifiedKeys
@@ -177,7 +177,7 @@ app conf reqBody req =
               then do
                 let vals = M.elems obj
                 H.unitEx $ iffNotT
-                        (whereT qq $ update qt cols vals)
+                        (whereT qt qq $ update qt cols vals)
                         (insertSelect qt cols vals)
                 return $ responseLBS status204 [ jsonH ] ""
 
@@ -188,9 +188,9 @@ app conf reqBody req =
 
     ([table], "PATCH") ->
       handleJsonObj reqBody $ \obj -> do
-        let qt = QualifiedTable schema (cs table)
+        let qt = qualify table
             up = returningStarT
-               . whereT qq
+               . whereT qt qq
                $ update qt (map cs $ M.keys obj) (M.elems obj)
             patch = withT up "t" $ B.Stmt
               "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying"
@@ -207,10 +207,10 @@ app conf reqBody req =
         return $ responseLBS s [ jsonH, r ] $ if echoRequested then cs $ fromMaybe "[]" body else ""
 
     ([table], "DELETE") -> do
-      let qt = QualifiedTable schema (cs table)
+      let qt = qualify table
       let del = countT
             . returningStarT
-            . whereT qq
+            . whereT qt qq
             $ deleteFrom qt
       row <- H.maybeEx del
       let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
@@ -222,15 +222,16 @@ app conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    path   = pathInfo req
-    verb   = requestMethod req
-    qq     = queryString req
-    hdrs   = requestHeaders req
-    schema = requestedSchema (cs $ configV1Schema conf) hdrs
+    path          = pathInfo req
+    verb          = requestMethod req
+    qq            = queryString req
+    qualify       = QualifiedTable schema
+    hdrs          = requestHeaders req
+    schema        = requestedSchema (cs $ configV1Schema conf) hdrs
     authenticator = cs $ configDbUser conf
-    jwtSecret = cs $ configJwtSecret conf
-    range  = rangeRequested hdrs
-    allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+    jwtSecret     = cs $ configJwtSecret conf
+    range         = rangeRequested hdrs
+    allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
 
 sqlError :: t
 sqlError = undefined

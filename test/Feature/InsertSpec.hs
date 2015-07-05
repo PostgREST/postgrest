@@ -266,6 +266,12 @@ spec = afterAll_ resetDb $ around withApp $ do
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "0-9/10"
 
+      it "can update based on a computed column" $
+        request methodPatch
+          "/items?always_true=eq.false"
+          [("Prefer", "return=representation")]
+          [json| { id: 100 } |]
+          `shouldRespondWith` 404
       it "can provide a representation" $ do
         _ <- post "/items"
           [json| { id: 1 } |]
