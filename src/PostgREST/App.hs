@@ -102,7 +102,7 @@ app conf reqBody req =
             (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
+            , ({-hLocation,-} "","/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
     (["postgrest", "users"], "PUT") -> do
@@ -115,7 +115,7 @@ app conf reqBody req =
            _ <- updateUser (cs $ userId u) (cs $ userPass u) (cs $ userRole u)
            return $ responseLBS status200
             [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
+            , ({-hLocation,-}"", "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
     (["postgrest", "tokens"], "POST") ->
@@ -170,7 +170,7 @@ app conf reqBody req =
                       $ sortBy (comparing fst) $ M.toList primaries
                 responseLBS status201
                   [ jsonH
-                  , (hLocation, "/" <> cs table <> "?" <> cs params)
+                  , ({-hLocation,-} "","/" <> cs table <> "?" <> cs params)
                   ] $ if echoRequested then encode obj else ""
           return $ multipart status201 responses
 
