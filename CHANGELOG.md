@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+### Added
+- Debian init scripts
+
 ### Fixed
 - Indicate insertable=true for views that are insertable through triggers
 - Builds under GHC 7.10
