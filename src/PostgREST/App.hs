@@ -102,7 +102,7 @@ app conf reqBody req =
           Nothing -> return $ responseLBS status400 [jsonH] $
             encode . object $ [("message", String "Failed to parse user.")]
           Just u -> do
-            _ <- addUser (cs $ userId u)
+            _ <- addUser serverName (cs $ userId u)
               (cs $ userPass u) (cs $ userRole u)
             return $ responseLBS status201
               [ jsonH
@@ -124,7 +124,8 @@ app conf reqBody req =
                 encode . object $ [("message", String "Failed to parse user.")]
               Just u -> do
                 setRole authenticator
-                login <- signInRole (cs $ userId u)
+                login <- signInRole serverName 
+                                (cs $ userId u)
                                 (cs $ userPass u)
                 case login of
                   LoginSuccess role uid ->
@@ -236,7 +237,7 @@ app conf reqBody req =
     authenticator = cs $ configDbUser conf
     jwtSecret = cs $ configJwtSecret conf
     serverName = cs $ configServerName conf ::Text
-    authPath = cs $ configAuthPath conf ::Text
+    authPath = cs $ configServerName conf ::Text
     
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header

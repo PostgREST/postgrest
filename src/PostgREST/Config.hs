@@ -26,7 +26,6 @@ data AppConfig = AppConfig {
   , configJwtSecret :: String
   , configServerString :: String
   , configServerName :: String
-  , configAuthPath :: String
   }
 
 argParser :: Parser AppConfig
@@ -45,7 +44,6 @@ argParser = AppConfig
   <*> strOption (long "jwt-secret" <> metavar "SECRET" <> value "secret" <> help "Secret used to encrypt and decrypt JWT tokens)" <> showDefault)
   <*> strOption (long "server-string" <> metavar "SERVERSTRING" <> value "" <> help "Server string exposed through headers (default: \"SERVERNAME/VERSION\")")
   <*> strOption (long "server-name" <> metavar "SERVERNAME" <> value "postgrest" <> help "Server name used in the application" <> showDefault)
-  <*> strOption (long "auth-path" <> metavar "AUTHPATH" <> value "postgrest" <> help "Path used to expose authentication function and reserved table name" <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
