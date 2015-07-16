@@ -10,6 +10,7 @@ import SpecHelper
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll (clearTable "nullable_integer" >> createNullInteger)
    . beforeAll (
        clearTable "no_pk" >>
        createNulls 2 >>
@@ -38,9 +39,11 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
-    it "matches nulls" $
+    it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
+
+      get "/nullable_integer?a=is.null" `shouldRespondWith` "[{\"a\":null}]"
 
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`

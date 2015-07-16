@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.2.9.1
+version:               0.2.10.1
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
@@ -27,8 +27,8 @@ executable postgrest
   default-language:    Haskell2010
   build-depends:       base >=4.6 && <5
                      , postgrest
-                     , hasql == 0.7.3.1, hasql-backend == 0.4.1
-                     , hasql-postgres == 0.10.3.1
+                     , hasql == 0.7.3.*, hasql-backend == 0.4.1.*
+                     , hasql-postgres == 0.10.3.*
                      , warp >= 3.0.2, wai >= 3.0.1
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
@@ -41,7 +41,6 @@ executable postgrest
                      , containers, unordered-containers
                      , optparse-applicative == 0.11.*
                      , regex-base, regex-tdfa
-                     , regex-tdfa-text
                      , Ranged-sets
                      , transformers, MissingH
                      , bcrypt >= 0.0.6, base64-string
@@ -63,25 +62,24 @@ library
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   build-depends:       base >=4.6 && <5
-                     , hasql == 0.7.3.1, hasql-backend == 0.4.1
-                     , hasql-postgres == 0.10.3.1
-                     , warp >= 3.0.2, wai >= 3.0.1
+                     , hasql, hasql-backend
+                     , hasql-postgres
+                     , warp, wai
                      , wai-extra, wai-cors
-                     , wai-middleware-static >= 0.6.0
+                     , wai-middleware-static
                      , HTTP, convertible, http-types
                      , case-insensitive
                      , scientific, time
-                     , aeson, network >= 2.6
+                     , aeson, network
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
-                     , optparse-applicative == 0.11.*
+                     , optparse-applicative
                      , regex-base, regex-tdfa
-                     , regex-tdfa-text
                      , Ranged-sets
                      , transformers, MissingH
-                     , bcrypt >= 0.0.6, base64-string
-                     , network-uri >= 2.6
+                     , bcrypt, base64-string
+                     , network-uri
                      , resource-pool
                      , blaze-builder
                      , vector
@@ -118,10 +116,10 @@ Test-Suite spec
                      , PostgREST.RangeQuery
                      , Spec
                      , SpecHelper
-  Build-Depends:       base, hspec >= 2.1.2, QuickCheck
-                     , hspec-wai >= 0.5.0, hspec-wai-json
-                     , hasql == 0.7.3.1, hasql-backend == 0.4.1
-                     , hasql-postgres == 0.10.3.1
+  Build-Depends:       base, hspec == 2.1.*, QuickCheck
+                     , hspec-wai == 0.5.*, hspec-wai-json
+                     , hasql, hasql-backend
+                     , hasql-postgres
                      , warp, wai
                      , packdeps, hlint
                      , HTTP, convertible
@@ -136,7 +134,6 @@ Test-Suite spec
                      , regex-base
                      , string-conversions
                      , http-media, regex-tdfa
-                     , regex-tdfa-text
                      , Ranged-sets
                      , transformers, MissingH, split
                      , bcrypt, base64-string

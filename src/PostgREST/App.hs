@@ -17,6 +17,7 @@ import Data.List (sortBy)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Char8 as BS
 import qualified Blaze.ByteString.Builder as BB
 import qualified Data.Csv as CSV
 
@@ -126,9 +127,9 @@ app conf reqBody req =
                 login <- signInRole (cs $ userId u)
                                 (cs $ userPass u)
                 case login of
-                  LoginSuccess role ->
+                  LoginSuccess role uid ->
                     return $ responseLBS status201 [ jsonH ] $
-                      encode . object $ [("token", String $ tokenJWT jwtSecret (cs $ userId u) role)]
+                      encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
                   _  -> return $ responseLBS status401 [jsonH] $
                     encode . object $ [("message", String "Failed authentication.")]
 
@@ -265,12 +266,12 @@ contentRangeH from to total =
 requestedSchema :: Text -> RequestHeaders -> Text
 requestedSchema v1schema hdrs =
   case verStr of
-       Just [[_, ver]] -> if ver == "1" then v1schema else ver
+       Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
        _ -> v1schema
 
-  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: String
-        accept = cs <$> lookup hAccept hdrs :: Maybe Text
-        verStr = (=~ verRegex) <$> accept :: Maybe [[Text]]
+  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
+        accept = cs <$> lookup hAccept hdrs :: Maybe BS.ByteString
+        verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
 
 jsonH :: Header
 jsonH = (hContentType, "application/json")

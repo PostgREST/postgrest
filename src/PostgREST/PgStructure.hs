@@ -44,8 +44,9 @@ tables schema = do
   rows <- H.listEx $
     [H.stmt|
       select table_schema, table_name,
-             is_insertable_into
-        from information_schema.tables
+             t.is_insertable_into::boolean OR coalesce(is_trigger_insertable_into::boolean, false)
+        from information_schema.tables t
+             left join information_schema.views using(table_catalog, table_schema, table_name)
        where table_schema = ?
        order by table_name
     |] schema
@@ -57,8 +58,8 @@ columns table = do
   cols <- H.listEx $ [H.stmt|
       select info.table_schema as schema, info.table_name as table_name,
              info.column_name as name, info.ordinal_position as position,
-             info.is_nullable as nullable, info.data_type as col_type,
-             info.is_updatable as updatable,
+             info.is_nullable::boolean as nullable, info.data_type as col_type,
+             info.is_updatable::boolean as updatable,
              info.character_maximum_length as max_len,
              info.numeric_precision as precision,
              info.column_default as default_value,
@@ -107,9 +108,6 @@ primaryKeyColumns table = do
   return $ map runIdentity r
 
 
-toBool :: Text -> Bool
-toBool = (== "YES")
-
 data Table = Table {
   tableSchema :: Text
 , tableName :: Text
@@ -135,16 +133,16 @@ data Column = Column {
 , colFK :: Maybe ForeignKey
 } deriving (Show)
 
-tableFromRow :: (Text, Text, Text) -> Table
-tableFromRow (s, n, i) = Table s n (toBool i)
+tableFromRow :: (Text, Text, Bool) -> Table
+tableFromRow (s, n, i) = Table s n i
 
 columnFromRow :: (Text,       Text,      Text,
-                  Int,        Text,      Text,
-                  Text,       Maybe Int, Maybe Int,
+                  Int,        Bool,      Text,
+                  Bool,       Maybe Int, Maybe Int,
                   Maybe Text, Maybe Text)
               -> Column
 columnFromRow (s, t, n, pos, nul, typ, u, l, p, d, e) =
-  Column s t n pos (toBool nul) typ (toBool u) l p d (parseEnum e) Nothing
+  Column s t n pos nul typ u l p d (parseEnum e) Nothing
 
   where
     parseEnum :: Maybe Text -> [Text]

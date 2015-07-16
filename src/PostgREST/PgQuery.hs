@@ -11,7 +11,6 @@ import qualified Hasql.Backend as B
 
 import qualified Data.Text as T
 import Text.Regex.TDFA ( (=~) )
-import Text.Regex.TDFA.Text ()
 import qualified Network.HTTP.Types.URI as Net
 import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
@@ -252,18 +251,18 @@ pgFmtJsonbPath p =
 pgFmtIdent :: T.Text -> T.Text
 pgFmtIdent x =
   let escaped = T.replace "\"" "\"\"" (trimNullChars $ cs x) in
-  if escaped =~ danger
+  if (cs escaped :: BS.ByteString) =~ danger
     then "\"" <> escaped <> "\""
     else escaped
 
-  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: T.Text
+  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
 
 pgFmtLit :: T.Text -> T.Text
 pgFmtLit x =
   let trimmed = trimNullChars x
       escaped = "'" <> T.replace "'" "''" trimmed <> "'"
       slashed = T.replace "\\" "\\\\" escaped in
-  cs $ if escaped =~ ("\\\\" :: T.Text)
+  if T.isInfixOf "\\\\" escaped
     then "E" <> slashed
     else slashed
 

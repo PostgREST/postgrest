@@ -20,7 +20,7 @@ import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
 import Network.URI (URI(..), parseURI)
 
 import PostgREST.Config (AppConfig(..))
-import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole)
+import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole, setUserId, resetUserId)
 import Codec.Binary.Base64.String (decode)
 
 import Prelude
@@ -35,8 +35,8 @@ authenticated conf app req = do
       return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
       return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role -> if role /= currentRole then runInRole role else app req
-    NoCredentials ->     if anon /= currentRole then runInRole anon else app req
+    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app req
+    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app req
 
  where
    jwtSecret = cs $ configJwtSecret conf
@@ -54,11 +54,13 @@ authenticated conf app req = do
         return $ signInWithJWT jwtSecret jwt
       _ -> return NoCredentials
 
-   runInRole :: Text -> H.Tx P.Postgres s Response
-   runInRole r = do
+   runInRole :: Text -> Text -> H.Tx P.Postgres s Response
+   runInRole r uid = do
+     setUserId uid
      setRole r
      res <- app req
      resetRole
+     resetUserId
      return res
 
 

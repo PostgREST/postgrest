@@ -20,7 +20,7 @@ your own projects.
 
 ### Usage
 
-Download the binary ([OS X](http://bin.begriffs.com/dbapi/osx/postgrest-0.2.9.0.tar.xz) / [Linux](http://bin.begriffs.com/dbapi/heroku/postgrest-0.2.9.0.tar.xz)) and invoke like so:
+Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest)) and invoke like so:
 
 ```bash
 postgrest  --db-host localhost  --db-port 5432     \
@@ -75,12 +75,14 @@ Other optimizations are possible, and some are outlined in the
 
 ### Security
 
-PostgREST handles authentication (HTTP Basic over SSL) and delegates
-authorization to the role information defined in the database. This
-ensures there is a single declarative source of truth for security.
-When dealing with the database the server assumes the identity of
-the currently authenticated user, and for the duration of the
-connection cannot do anything the user themselves couldn't.
+PostgREST handles authentication (HTTP Basic over SSL or [JSON Web
+Tokens](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions#json-web-tokens))
+and delegates authorization to the role information defined in the
+database. This ensures there is a single declarative source of truth
+for security.  When dealing with the database the server assumes
+the identity of the currently authenticated user, and for the
+duration of the connection cannot do anything the user themselves
+couldn't.
 
 Postgres 9.5 will soon support true [row-level
 security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
@@ -154,6 +156,7 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 * [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
 * [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
 * [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)
+* [Heroku](https://github.com/begriffs/postgrest/wiki/Heroku)
 
 ### Thanks
 
@@ -164,3 +167,4 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
   and helping me use it
 * [Mikey Casalaina](https://github.com/casalaina) for the cool logo
 * [Jonathan Harrington](https://github.com/prio) for writing a nice tutorial
+* [Federico Rampazzo](https://github.com/framp) for suggesting and implementing [JWT](http://jwt.io/) support

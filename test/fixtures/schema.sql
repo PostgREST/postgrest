@@ -72,6 +72,29 @@ $$;
 
 ALTER FUNCTION postgrest.update_owner() OWNER TO postgrest_test;
 
+
+CREATE FUNCTION set_authors_only_owner() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin 
+  NEW.owner = current_setting('user_vars.user_id'); 
+  RETURN NEW;
+end
+$$;
+
+ALTER FUNCTION postgrest.set_authors_only_owner() OWNER TO postgrest_test;
+
+CREATE FUNCTION "1".insert_insertable_view_with_join() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  INSERT INTO "1".auto_incrementing_pk (nullable_string, non_nullable_string) VALUES (NEW.nullable_string, NEW.non_nullable_string);
+  RETURN NEW;
+end;
+$$;
+
+ALTER FUNCTION "1".insert_insertable_view_with_join() OWNER TO postgrest_test;
+
 SET search_path = "1", pg_catalog;
 
 SET default_tablespace = '';
@@ -80,6 +103,7 @@ SET default_with_oids = false;
 
 
 CREATE TABLE authors_only (
+    owner character varying NOT NULL,
     secret character varying NOT NULL
 );
 
@@ -146,6 +170,18 @@ ALTER TABLE "1".has_fk_id_seq OWNER TO postgrest_test;
 
 ALTER SEQUENCE has_fk_id_seq OWNED BY has_fk.id;
 
+CREATE VIEW "1".insertable_view_with_join AS
+ SELECT has_fk.id,
+    has_fk.auto_inc_fk,
+    has_fk.simple_fk,
+    auto_incrementing_pk.nullable_string,
+    auto_incrementing_pk.non_nullable_string,
+    auto_incrementing_pk.inserted_at
+   FROM (has_fk
+     JOIN auto_incrementing_pk USING (id));
+
+
+ALTER TABLE "1".insertable_view_with_join OWNER TO postgrest_test;
 
 
 CREATE TABLE items (
@@ -192,6 +228,14 @@ CREATE TABLE no_pk (
 
 
 ALTER TABLE "1".no_pk OWNER TO postgrest_test;
+
+
+CREATE TABLE nullable_integer (
+    a integer
+);
+
+
+ALTER TABLE "1".nullable_integer OWNER TO postgrest_test;
 
 
 CREATE TABLE simple_pk (
@@ -327,7 +371,11 @@ SET search_path = "1", pg_catalog;
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
+    
+CREATE TRIGGER insert_insertable_view_with_join INSTEAD OF INSERT ON "1".insertable_view_with_join FOR EACH ROW EXECUTE PROCEDURE "1".insert_insertable_view_with_join();
 
+
+CREATE TRIGGER secrets_owner_track BEFORE INSERT OR UPDATE ON authors_only FOR EACH ROW EXECUTE PROCEDURE postgrest.set_authors_only_owner();
 
 
 ALTER TABLE ONLY auto_incrementing_pk
@@ -478,6 +526,13 @@ GRANT ALL ON TABLE no_pk TO postgrest_anonymous;
 
 
 
+REVOKE ALL ON TABLE nullable_integer FROM PUBLIC;
+REVOKE ALL ON TABLE nullable_integer FROM postgrest_test;
+GRANT ALL ON TABLE nullable_integer TO postgrest_test;
+GRANT ALL ON TABLE nullable_integer TO postgrest_anonymous;
+
+
+
 REVOKE ALL ON TABLE simple_pk FROM PUBLIC;
 REVOKE ALL ON TABLE simple_pk FROM postgrest_test;
 GRANT ALL ON TABLE simple_pk TO postgrest_test;
@@ -496,6 +551,11 @@ REVOKE ALL ON TABLE tsearch FROM PUBLIC;
 REVOKE ALL ON TABLE tsearch FROM postgrest_test;
 GRANT ALL ON TABLE tsearch TO postgrest_test;
 GRANT ALL ON TABLE tsearch TO postgrest_anonymous;
+
+REVOKE ALL ON TABLE insertable_view_with_join FROM PUBLIC;
+REVOKE ALL ON TABLE insertable_view_with_join FROM postgrest_test;
+GRANT ALL ON TABLE insertable_view_with_join TO postgrest_test;
+GRANT ALL ON TABLE insertable_view_with_join TO postgrest_anonymous;
 
 
 SET search_path = postgrest, pg_catalog;

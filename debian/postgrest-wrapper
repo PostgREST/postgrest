@@ -1,0 +1,8 @@
+#!/bin/sh
+d=$(dirname $0)
+if [ -f /etc/default/postgrest ]; then
+	. /etc/default/postgrest
+fi
+POSTGREST_LOG=${POSTGREST_LOG:-/var/log/postgrest/postgrest.log}
+
+exec $d/postgrest "$@" >>$POSTGREST_LOG 2>&1 &

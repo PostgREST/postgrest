@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
 module Main where
 
 import Paths_postgrest (version)
@@ -17,11 +18,17 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
+import Data.Functor.Identity
+import Data.Text(Text)
 import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
 import PostgREST.Config (AppConfig(..), argParser, corsPolicy)
+
+isServerVersionSupported = do
+  Identity (row :: Text) <- H.tx Nothing $ H.singleEx $ [H.stmt|SHOW server_version_num|]
+  return $ read (cs row) >= 90200
 
 main :: IO ()
 main = do
@@ -68,6 +75,9 @@ main = do
                 H.poolSettings (fromIntegral $ configPool conf) 30
   pool :: H.Pool P.Postgres
           <- H.acquirePool pgSettings poolSettings
+
+  resOrError <- H.session pool isServerVersionSupported
+  either (fail . show) (\supported -> unless supported $ fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0") resOrError
 
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
