@@ -163,6 +163,21 @@ app conf reqBody req =
                   ] $ if echoRequested then encode obj else ""
           return $ multipart status201 responses
 
+    (["rpc", proc], "POST") -> do
+      let qi = QualifiedIdentifier schema (cs proc)
+      exists <- doesProcExist schema proc
+      if exists
+        then do
+          row :: Maybe (Identity Text) <- H.maybeEx $ callProc qi $
+                      fromMaybe M.empty (decode reqBody)
+          return $ responseLBS status200 [textH]
+            (cs $ fromMaybe "" $ runIdentity <$> row)
+        else return $ responseLBS status404 [] ""
+
+      -- check that proc exists
+      -- check that arg names are all specified
+      -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
+
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
@@ -279,6 +294,9 @@ csvMT = "text/csv"
 jsonH :: Header
 jsonH = (hContentType, jsonMT)
 
+textH :: Header
+textH = (hContentType, "text/plain")
+
 contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
 contentTypeForAccept accept
   | isNothing accept || hasJson = Just jsonMT
@@ -294,7 +312,6 @@ bodyForAccept :: BS.ByteString -> QualifiedIdentifier  -> StatementT
 bodyForAccept contentType table
   | contentType == csvMT = asCsvWithCount table
   | otherwise = asJsonWithCount -- defaults to JSON
-
 
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response

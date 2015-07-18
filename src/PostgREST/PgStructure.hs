@@ -8,7 +8,7 @@ import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
 import Data.Functor.Identity
 import Data.String.Conversions (cs)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Control.Applicative
 
 import qualified Data.Map as Map
@@ -121,6 +121,17 @@ primaryKeyColumns table = do
       and kc.table_name  = ? |] (qiSchema table) (qiName table)
   return $ map runIdentity r
 
+doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
+doesProcExist schema proc = do
+  row :: Maybe (Identity Int) <- H.maybeEx $ [H.stmt|
+      SELECT 1
+      FROM   pg_catalog.pg_namespace n
+      JOIN   pg_catalog.pg_proc p
+      ON     pronamespace = n.oid
+      WHERE  nspname = ?
+      AND    proname = ?
+    |] schema proc
+  return $ isJust row
 
 data Table = Table {
   tableSchema :: Text

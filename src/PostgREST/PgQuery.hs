@@ -10,6 +10,7 @@ import qualified Hasql.Postgres as P
 import qualified Hasql.Backend as B
 
 import qualified Data.Text as T
+import qualified Data.HashMap.Strict as H
 import Text.Regex.TDFA ( (=~) )
 import qualified Network.HTTP.Types.URI as Net
 import qualified Data.ByteString.Char8 as BS
@@ -171,6 +172,13 @@ update t cols vals = B.Stmt
     <> T.intercalate ", " (map insertableValue vals)
     <> ")")
   empty True
+
+callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
+callProc qi params = do
+  let args = T.intercalate "," $ map assignment (H.toList params)
+  B.Stmt ("select " <> fromQi qi <> "(" <> args <> ")") empty True
+  where
+    assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
 wherePred :: QualifiedIdentifier -> Net.QueryItem -> PStmt
 wherePred table (col, predicate) =
