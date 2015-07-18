@@ -209,7 +209,7 @@ app conf reqBody req =
 
     ([table], "DELETE") -> do
       let qt = qualify table
-      let del = countT
+          del = countT
             . returningStarT
             . whereT qt qq
             $ deleteFrom qt
@@ -226,7 +226,7 @@ app conf reqBody req =
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req
-    qualify       = QualifiedTable schema
+    qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
     accept        = lookupHeader hAccept
@@ -280,7 +280,7 @@ jsonH :: Header
 jsonH = (hContentType, jsonMT)
 
 contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
-contentTypeForAccept accept 
+contentTypeForAccept accept
   | isNothing accept || hasJson = Just jsonMT
   | hasCsv = Just csvMT
   | otherwise = Nothing
@@ -290,7 +290,7 @@ contentTypeForAccept accept
     hasJson  = isJust $ findInAccept $ BS.isPrefixOf jsonMT
     hasCsv   = isJust $ findInAccept $ BS.isPrefixOf csvMT
 
-bodyForAccept :: BS.ByteString -> QualifiedTable -> StatementT
+bodyForAccept :: BS.ByteString -> QualifiedIdentifier  -> StatementT
 bodyForAccept contentType table
   | contentType == csvMT = asCsvWithCount table
   | otherwise = asJsonWithCount -- defaults to JSON
