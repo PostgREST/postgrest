@@ -67,16 +67,20 @@ else
 resetUserId :: H.Tx P.Postgres s ()
 resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
 
-addUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
-addUser identity pass role = do
+addUser :: Text -> Text -> Text -> Text -> H.Tx P.Postgres s ()
+addUser schema identity pass role = do
   let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
-  H.unitEx $
-    [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
-      identity (cs hashed :: Text) role
+  H.unitEx $ B.Stmt ("insert into " <> schema <> ".auth (id, pass, rolname) " <>
+                        "values (" <> 
+                            cs (pgFmtLit identity) <> "," <> 
+                            cs (pgFmtLit (cs hashed :: Text)) <> "," <> 
+                            cs (pgFmtLit role)  <> 
+                        ")") V.empty True
 
-signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
-signInRole user pass = do
-  u <- H.maybeEx $ [H.stmt|select id, pass, rolname from postgrest.auth where id = ?|] user
+signInRole :: Text -> Text -> Text -> H.Tx P.Postgres s LoginAttempt
+signInRole schema user pass = do
+  u <- H.maybeEx $ B.Stmt ("select id, pass, rolname from " <> schema <> ".auth " <>
+                            "where id = " <> cs (pgFmtLit user)) V.empty True
   return $ maybe LoginFailed (\r ->
       let (uid, hashed, role) = r in
       if checkPass hashed pass

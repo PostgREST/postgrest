@@ -92,40 +92,47 @@ app conf reqBody req =
             )
           ] (cs $ fromMaybe "[]" body)
 
-    (["postgrest", "users"], "POST") -> do
-      let user = decode reqBody :: Maybe AuthUser
+    ([auth, "users"], "POST") ->
+      if auth /= authPath then
+        return $ responseLBS status404 [] ""
+      else do
+        let user = decode reqBody :: Maybe AuthUser
 
-      case user of
-        Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("message", String "Failed to parse user.")]
-        Just u -> do
-          _ <- addUser (cs $ userId u)
-            (cs $ userPass u) (cs $ userRole u)
-          return $ responseLBS status201
-            [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
-            ] ""
+        case user of
+          Nothing -> return $ responseLBS status400 [jsonH] $
+            encode . object $ [("message", String "Failed to parse user.")]
+          Just u -> do
+            _ <- addUser serverName (cs $ userId u)
+              (cs $ userPass u) (cs $ userRole u)
+            return $ responseLBS status201
+              [ jsonH
+              , (hLocation, "/" <> cs authPath <> "/users?id=eq." <> cs (userId u))
+              ] ""
 
-    (["postgrest", "tokens"], "POST") ->
-      case jwtSecret of
-        "secret" -> return $ responseLBS status500 [jsonH] $
-          encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
-        _ -> do
-          let user = decode reqBody :: Maybe AuthUser
+    ([auth, "tokens"], "POST") ->
+      if auth /= authPath then
+        return $ responseLBS status404 [] ""
+      else
+        case jwtSecret of
+          "secret" -> return $ responseLBS status500 [jsonH] $
+            encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
+          _ -> do
+            let user = decode reqBody :: Maybe AuthUser
 
-          case user of
-            Nothing -> return $ responseLBS status400 [jsonH] $
-              encode . object $ [("message", String "Failed to parse user.")]
-            Just u -> do
-              setRole authenticator
-              login <- signInRole (cs $ userId u)
-                              (cs $ userPass u)
-              case login of
-                LoginSuccess role uid ->
-                  return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
-                _  -> return $ responseLBS status401 [jsonH] $
-                  encode . object $ [("message", String "Failed authentication.")]
+            case user of
+              Nothing -> return $ responseLBS status400 [jsonH] $
+                encode . object $ [("message", String "Failed to parse user.")]
+              Just u -> do
+                setRole authenticator
+                login <- signInRole serverName 
+                                (cs $ userId u)
+                                (cs $ userPass u)
+                case login of
+                  LoginSuccess role uid ->
+                    return $ responseLBS status201 [ jsonH ] $
+                      encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
+                  _  -> return $ responseLBS status401 [jsonH] $
+                    encode . object $ [("message", String "Failed authentication.")]
 
     ([table], "POST") -> do
       let qt = QualifiedTable schema (cs table)
@@ -160,7 +167,7 @@ app conf reqBody req =
                   [ jsonH
                   , (hLocation, "/" <> cs table <> "?" <> cs params)
                   ] $ if echoRequested then encode obj else ""
-          return $ multipart status201 responses
+          return $ multipart (cs serverName) status201 responses
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -229,6 +236,9 @@ app conf reqBody req =
     schema = requestedSchema (cs $ configV1Schema conf) hdrs
     authenticator = cs $ configDbUser conf
     jwtSecret = cs $ configJwtSecret conf
+    serverName = cs $ configServerName conf ::Text
+    authPath = cs $ configServerName conf ::Text
+    
     range  = rangeRequested hdrs
     allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
 
@@ -287,12 +297,12 @@ handleJsonObj reqBody handler = do
 parseCsvCell :: BL.ByteString -> Value
 parseCsvCell s = if s == "NULL" then Null else String $ cs s
 
-multipart :: Status -> [Response] -> Response
-multipart _ [] = responseLBS status204 [] ""
-multipart _ [r] = r
-multipart s rs =
-  responseLBS s [(hContentType, "multipart/mixed; boundary=\"postgrest_boundary\"")] $
-    BL.intercalate "\n--postgrest_boundary\n" (map renderResponseBody rs)
+multipart :: BL.ByteString -> Status -> [Response] -> Response
+multipart _ _ [] = responseLBS status204 [] ""
+multipart _ _ [r] = r
+multipart boundary s rs =
+  responseLBS s [(hContentType, "multipart/mixed; boundary=\"" <> cs boundary <> "_boundary\"")] $
+    BL.intercalate ("\n--" <> boundary <> "_boundary\n") (map renderResponseBody rs)
 
   where
     renderHeader :: Header -> BL.ByteString

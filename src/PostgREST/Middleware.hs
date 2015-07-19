@@ -42,13 +42,14 @@ authenticated conf app req = do
    jwtSecret = cs $ configJwtSecret conf
    currentRole = cs $ configDbUser conf
    anon = cs $ configAnonRole conf
+   serverName = cs $ configServerName conf ::Text
    httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
    httpRequesterRole hdrs = do
     let auth = fromMaybe "" $ lookup hAuthorization hdrs
     case split (==' ') (cs auth) of
       ("Basic" : b64 : _) ->
         case split (==':') (cs . decode . cs $ b64) of
-          (u:p:_) -> signInRole u p
+          (u:p:_) -> signInRole serverName u p
           _ -> return MalformedAuth
       ("Bearer" : jwt : _) ->
         return $ signInWithJWT jwtSecret jwt
