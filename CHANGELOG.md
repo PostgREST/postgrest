@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - Debian init scripts
+- Allow filters by computed columns
 
 ### Fixed
 - Indicate insertable=true for views that are insertable through triggers
