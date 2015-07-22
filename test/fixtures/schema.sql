@@ -72,7 +72,6 @@ $$;
 
 ALTER FUNCTION postgrest.update_owner() OWNER TO postgrest_test;
 
-
 CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -368,6 +367,13 @@ SELECT pg_catalog.setval('articles_id_seq', 1, false);
 
 SET search_path = "1", pg_catalog;
 
+CREATE FUNCTION public.always_true("1".items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT true $$;
+
+ALTER FUNCTION public.always_true("1".items) OWNER TO postgrest_test;
+
+
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
@@ -556,6 +562,11 @@ REVOKE ALL ON TABLE insertable_view_with_join FROM PUBLIC;
 REVOKE ALL ON TABLE insertable_view_with_join FROM postgrest_test;
 GRANT ALL ON TABLE insertable_view_with_join TO postgrest_test;
 GRANT ALL ON TABLE insertable_view_with_join TO postgrest_anonymous;
+
+REVOKE ALL ON FUNCTION public.always_true("1".items) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.always_true("1".items) FROM postgrest_test;
+GRANT ALL ON FUNCTION public.always_true("1".items) TO postgrest_test;
+GRANT ALL ON FUNCTION public.always_true("1".items) TO postgrest_anonymous;
 
 
 SET search_path = postgrest, pg_catalog;

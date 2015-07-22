@@ -63,6 +63,10 @@ spec =
       get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
         "[{\"text_search_vector\":\"'bar':2 'foo':1\"}]"
 
+    it "matches with computed column" $
+      get "/items?always_true=eq.true" `shouldRespondWith`
+        "[{\"id\":1},{\"id\":2},{\"id\":3},{\"id\":4},{\"id\":5},{\"id\":6},{\"id\":7},{\"id\":8},{\"id\":9},{\"id\":10},{\"id\":11},{\"id\":12},{\"id\":13},{\"id\":14},{\"id\":15}]"
+
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"

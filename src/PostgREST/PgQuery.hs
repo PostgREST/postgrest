@@ -51,14 +51,15 @@ limitT r q =
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
     offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
 
-whereT :: Net.Query -> StatementT
-whereT params q =
+whereT :: QualifiedTable -> Net.Query -> StatementT
+whereT table params q =
  if L.null cols
    then q
    else q <> B.Stmt " where " empty True <> conjunction
  where
    cols = [ col | col <- params, fst col `notElem` ["order"] ]
-   conjunction = mconcat $ L.intersperse andq (map wherePred cols)
+   wherePredTable = wherePred table
+   conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
 
 withT :: PStmt -> T.Text -> StatementT
 withT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
@@ -154,9 +155,9 @@ update t cols vals = B.Stmt
     <> ")")
   empty True
 
-wherePred :: Net.QueryItem -> PStmt
-wherePred (col, predicate) =
-  B.Stmt (" " <> pgFmtJsonbPath (cs col) <> " " <> op <> " " <>
+wherePred :: QualifiedTable -> Net.QueryItem -> PStmt
+wherePred table (col, predicate) =
+  B.Stmt (" " <> pgFmtJsonbPath table (cs col) <> " " <> op <> " " <>
       if opCode `elem` ["is","isnot"] then whiteList value
                                  else cs sqlValue)
       empty True
@@ -237,11 +238,11 @@ parseJsonbPath p =
         (KeyIdentifier b)
     _ -> Nothing
 
-pgFmtJsonbPath :: T.Text -> T.Text
-pgFmtJsonbPath p =
+pgFmtJsonbPath :: QualifiedTable -> T.Text -> T.Text
+pgFmtJsonbPath table p =
   pgFmtJsonbPath' $ fromMaybe (ColIdentifier p) (parseJsonbPath p)
   where
-    pgFmtJsonbPath' (ColIdentifier i) = pgFmtIdent i
+    pgFmtJsonbPath' (ColIdentifier i) = fromQt table <> "." <> pgFmtIdent i
     pgFmtJsonbPath' (KeyIdentifier i) = pgFmtLit i
     pgFmtJsonbPath' (SingleArrow a b) =
       pgFmtJsonbPath' a <> "->" <> pgFmtJsonbPath' b
