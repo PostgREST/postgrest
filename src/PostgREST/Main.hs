@@ -24,6 +24,8 @@ import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import Options.Applicative hiding (columns)
 
+import System.IO (stderr, stdin, stdout, hSetBuffering, BufferMode(..))
+
 import PostgREST.Config (AppConfig(..), argParser, corsPolicy)
 
 isServerVersionSupported = do
@@ -32,6 +34,10 @@ isServerVersionSupported = do
 
 main :: IO ()
 main = do
+  hSetBuffering stdout LineBuffering
+  hSetBuffering stdin  LineBuffering
+  hSetBuffering stderr NoBuffering
+
   let opts = info (helper <*> argParser) $
                 fullDesc
                 <> progDesc (
