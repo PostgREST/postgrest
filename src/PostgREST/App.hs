@@ -129,9 +129,9 @@ app conf reqBody req =
 
     ([table], "POST") -> do
       let qt = qualify table
-          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          echoRequested = lookupHeader "Prefer" == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
-          parsed = if lookup "Content-Type" hdrs == Just "text/csv"
+          parsed = if lookupHeader "Content-Type" == Just "text/csv"
                     then do
                       rows <- CSV.decode CSV.NoHeader reqBody
                       if V.null rows then Left "CSV requires header"
@@ -200,7 +200,7 @@ app conf reqBody req =
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
             r = contentRangeH 0 (queryTotal-1) queryTotal
-            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+            echoRequested = lookupHeader "Prefer" == Just "return=representation"
             s = case () of _ | queryTotal == 0 -> status404
                              | echoRequested -> status200
                              | otherwise -> status204
@@ -232,6 +232,7 @@ app conf reqBody req =
     jwtSecret     = cs $ configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
+    lookupHeader  = flip lookup hdrs
 
 sqlError :: t
 sqlError = undefined
