@@ -18,6 +18,11 @@ spec =
        createJsonData)
    . afterAll_ (clearTable "items" >> clearTable "no_pk" >> clearTable "simple_pk")
    . around withApp $ do
+
+  describe "Querying a table with a column called count" $
+    it "should not confuse count column with pg_catalog.count aggregate" $
+      get "/has_count_column" `shouldRespondWith` 200
+
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
