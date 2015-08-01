@@ -15,7 +15,7 @@ import qualified Data.Vector as V
 import Control.Monad (void)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
-                                  hRange, hAuthorization)
+                                  hRange, hAuthorization, hAccept)
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
@@ -83,6 +83,9 @@ loadFixture name =
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
+
+acceptHdrs :: BS.ByteString -> [Header]
+acceptHdrs mime = [(hAccept, mime)]
 
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")

@@ -100,10 +100,27 @@ countT s =
 countRows :: QualifiedTable -> PStmt
 countRows t = B.Stmt ("select pg_catalog.count(1) from " <> fromQt t) empty True
 
+asCsvWithCount :: QualifiedTable -> StatementT
+asCsvWithCount table = withCount . asCsv table
+
+asCsv :: QualifiedTable -> StatementT
+asCsv table s = s { B.stmtTemplate =
+    "(select string_agg(quote_ident(column_name::text), ',') from "
+    <> "(select column_name from information_schema.columns where quote_ident(table_schema) || '.' || table_name = '" 
+    <> fromQt table <> "' order by ordinal_position) h) || '\r' || "
+    <> "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\r'), '') from ("
+    <> B.stmtTemplate s <> ") t" }
+
 asJsonWithCount :: StatementT
-asJsonWithCount s = s { B.stmtTemplate =
-     "pg_catalog.count(t), array_to_json(array_agg(row_to_json(t)))::character varying from ("
-  <> B.stmtTemplate s <> ") t" }
+asJsonWithCount = withCount . asJson
+
+asJson :: StatementT
+asJson s = s { B.stmtTemplate =
+    "array_to_json(array_agg(row_to_json(t)))::character varying from ("
+    <> B.stmtTemplate s <> ") t" }
+
+withCount :: StatementT
+withCount s = s { B.stmtTemplate = "pg_catalog.count(t), " <> B.stmtTemplate s }
 
 asJsonRow :: StatementT
 asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <> ") t" }

@@ -62,11 +62,12 @@ app conf reqBody req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = qualify table
+            from = fromMaybe 0 $ rangeOffset <$> range
             select = B.Stmt "select " V.empty True <>
                   parentheticT (
                     whereT qt qq $ countRows qt
                   ) <> commaq <> (
-                  asJsonWithCount
+                  bodyForAccept accept qt
                   . limitT range
                   . orderT (orderParse qq)
                   . whereT qt qq
@@ -75,7 +76,6 @@ app conf reqBody req =
         row <- H.maybeEx select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
-            from = fromMaybe 0 $ rangeOffset <$> range
             to = from+queryTotal-1
             contentRange = contentRangeH from to tableTotal
             status = rangeStatus from to tableTotal
@@ -233,6 +233,7 @@ app conf reqBody req =
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     lookupHeader  = flip lookup hdrs
+    accept        = lookupHeader hAccept
 
 sqlError :: t
 sqlError = undefined
@@ -245,6 +246,12 @@ rangeStatus from to total
   | from > total            = status416
   | (1 + to - from) < total = status206
   | otherwise               = status200
+
+bodyForAccept :: Maybe BS.ByteString -> QualifiedTable -> StatementT
+bodyForAccept accept table = 
+    case accept of
+      Just "text/csv" -> asCsvWithCount table
+      _ -> asJsonWithCount -- defaults to JSON
 
 contentRangeH :: Int -> Int -> Int -> Header
 contentRangeH from to total =
