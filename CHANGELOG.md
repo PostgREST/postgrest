@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Indicate insertable=true for views that are insertable through triggers
 - Builds under GHC 7.10
+- Allow the use of columns named "count" in relations queried
 
 ## [0.2.10.0] - 2015-06-03
 ### Added

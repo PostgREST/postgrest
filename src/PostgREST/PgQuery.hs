@@ -95,14 +95,14 @@ iffNotT (B.Stmt aq ap apre) (B.Stmt bq bp bpre) =
 
 countT :: StatementT
 countT s =
-  s { B.stmtTemplate = "WITH qqq AS (" <> B.stmtTemplate s <> ") SELECT count(1) FROM qqq" }
+  s { B.stmtTemplate = "WITH qqq AS (" <> B.stmtTemplate s <> ") SELECT pg_catalog.count(1) FROM qqq" }
 
 countRows :: QualifiedTable -> PStmt
-countRows t = B.Stmt ("select count(1) from " <> fromQt t) empty True
+countRows t = B.Stmt ("select pg_catalog.count(1) from " <> fromQt t) empty True
 
 asJsonWithCount :: StatementT
 asJsonWithCount s = s { B.stmtTemplate =
-     "count(t), array_to_json(array_agg(row_to_json(t)))::character varying from ("
+     "pg_catalog.count(t), array_to_json(array_agg(row_to_json(t)))::character varying from ("
   <> B.stmtTemplate s <> ") t" }
 
 asJsonRow :: StatementT

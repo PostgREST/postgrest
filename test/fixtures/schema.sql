@@ -182,6 +182,11 @@ CREATE VIEW "1".insertable_view_with_join AS
 
 ALTER TABLE "1".insertable_view_with_join OWNER TO postgrest_test;
 
+CREATE VIEW "1".has_count_column AS
+ SELECT 1 AS count;
+
+ALTER TABLE "1".insertable_view_with_join OWNER TO postgrest_test;
+
 
 CREATE TABLE items (
     id bigint NOT NULL
@@ -562,6 +567,11 @@ REVOKE ALL ON TABLE insertable_view_with_join FROM PUBLIC;
 REVOKE ALL ON TABLE insertable_view_with_join FROM postgrest_test;
 GRANT ALL ON TABLE insertable_view_with_join TO postgrest_test;
 GRANT ALL ON TABLE insertable_view_with_join TO postgrest_anonymous;
+
+REVOKE ALL ON TABLE has_count_column FROM PUBLIC;
+REVOKE ALL ON TABLE has_count_column FROM postgrest_test;
+GRANT ALL ON TABLE has_count_column TO postgrest_test;
+GRANT ALL ON TABLE has_count_column TO postgrest_anonymous;
 
 REVOKE ALL ON FUNCTION public.always_true("1".items) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.always_true("1".items) FROM postgrest_test;
