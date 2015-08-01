@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Allow filters by computed columns
 
 ### Fixed
+- Add materialized views to results in GET /
 - Indicate insertable=true for views that are insertable through triggers
 - Builds under GHC 7.10
 - Allow the use of columns named "count" in relations queried

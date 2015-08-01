@@ -21,6 +21,7 @@ spec = around withApp $ do
         , {"schema":"1","name":"insertable_view_with_join","insertable":true}
         , {"schema":"1","name":"items","insertable":true}
         , {"schema":"1","name":"json","insertable":true}
+        , {"schema":"1","name":"materialized_view","insertable":false}
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"nullable_integer","insertable":true}
