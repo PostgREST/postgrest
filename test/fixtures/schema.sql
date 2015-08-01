@@ -169,6 +169,12 @@ ALTER TABLE "1".has_fk_id_seq OWNER TO postgrest_test;
 
 ALTER SEQUENCE has_fk_id_seq OWNED BY has_fk.id;
 
+CREATE MATERIALIZED VIEW "1".materialized_view AS
+ SELECT 
+    version();
+
+ALTER TABLE "1".materialized_view OWNER TO postgrest_test;
+
 CREATE VIEW "1".insertable_view_with_join AS
  SELECT has_fk.id,
     has_fk.auto_inc_fk,
@@ -557,6 +563,11 @@ REVOKE ALL ON TABLE tsearch FROM PUBLIC;
 REVOKE ALL ON TABLE tsearch FROM postgrest_test;
 GRANT ALL ON TABLE tsearch TO postgrest_test;
 GRANT ALL ON TABLE tsearch TO postgrest_anonymous;
+
+REVOKE ALL ON TABLE materialized_view FROM PUBLIC;
+REVOKE ALL ON TABLE materialized_view FROM postgrest_test;
+GRANT ALL ON TABLE materialized_view TO postgrest_test;
+GRANT ALL ON TABLE materialized_view TO postgrest_anonymous;
 
 REVOKE ALL ON TABLE insertable_view_with_join FROM PUBLIC;
 REVOKE ALL ON TABLE insertable_view_with_join FROM postgrest_test;

@@ -43,12 +43,26 @@ tables :: Text -> H.Tx P.Postgres s [Table]
 tables schema = do
   rows <- H.listEx $
     [H.stmt|
-      select table_schema, table_name,
-             t.is_insertable_into::boolean OR coalesce(is_trigger_insertable_into::boolean, false)
-        from information_schema.tables t
-             left join information_schema.views using(table_catalog, table_schema, table_name)
-       where table_schema = ?
-       order by table_name
+      select 
+        n.nspname as table_schema, 
+        relname as table_name,
+        c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+        or (exists (
+           select 1
+           from pg_trigger
+           where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+        ) as insertable
+      from 
+        pg_class c 
+        join pg_namespace n on n.oid = c.relnamespace 
+      where 
+            c.relkind in ('v', 'r', 'm')
+            and n.nspname = ?
+            and (
+                pg_has_role(c.relowner, 'USAGE'::text)
+                or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+                )
+      order by relname
     |] schema
   return $ map tableFromRow rows
 
