@@ -192,6 +192,7 @@ wherePred table (col, predicate) =
             "like" -> unknownLiteral $ T.map star value
             "ilike" -> unknownLiteral $ T.map star value
             "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+            "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
             "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
             _    -> unknownLiteral value
 
@@ -205,6 +206,7 @@ wherePred table (col, predicate) =
          "like"-> "like"
          "ilike"-> "ilike"
          "in"  -> "in"
+         "notin" -> "not in"
          "is"    -> "is"
          "isnot" -> "is not"
          "@@" -> "@@"
