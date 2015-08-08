@@ -28,7 +28,7 @@ executable postgrest
   build-depends:       base >=4.6 && <5
                      , postgrest
                      , hasql == 0.7.3.*, hasql-backend == 0.4.1.*
-                     , hasql-postgres == 0.10.3.*
+                     , hasql-postgres == 0.10.4.*
                      , warp >= 3.0.2, wai >= 3.0.1
                      , wai-extra, wai-cors
                      , wai-middleware-static >= 0.6.0
