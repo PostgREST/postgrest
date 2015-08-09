@@ -45,6 +45,5 @@ your contributions.
 
 Currently I (@begriffs) am the sole maintainer, and while I am
 overjoyed to help resolve issues I also have to balance this with
-my other obligations.  I check and respond to github issues **once
-per week** (on Mondays). So if you don't get a response right away
+my other obligations.  If you don't get a response right away
 don't worry, I will definitely get to it.
