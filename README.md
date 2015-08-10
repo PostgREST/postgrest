@@ -11,6 +11,8 @@ API than you are likely to write from scratch.
 
 ### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com) | Watch [Video](http://begriffs.com/posts/2014-12-30-intro-to-postgrest.html) | [GUI Demo](http://marmelab.com/ng-admin-postgrest)
 
+[![Join the chat at https://gitter.im/begriffs/postgrest](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/begriffs/postgrest?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Try making requests to the live demo server with an HTTP client
 such as [postman](http://www.getpostman.com/). The structure of the
 demo database is defined by
