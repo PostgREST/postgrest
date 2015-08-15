@@ -163,9 +163,13 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 
 * [Adam Baker](https://github.com/adambaker) for code
   contributions and many fundamental design discussions
+* [Diogo Biazus](https://github.com/diogob) for many improvements
+  and deep postgresql knowledge
 * [Nikita Volkov](https://github.com/nikita-volkov) for writing the
   wonderful [Hasql](https://github.com/nikita-volkov/hasql) library
   and helping me use it
 * [Mikey Casalaina](https://github.com/casalaina) for the cool logo
-* [Jonathan Harrington](https://github.com/prio) for writing a [nice tutorial](http://blog.jonharrington.org/postgrest-introduction/)
-* [Federico Rampazzo](https://github.com/framp) for suggesting and implementing [JWT](http://jwt.io/) support
+* [Jonathan Harrington](https://github.com/prio) for writing a [nice
+  tutorial](http://blog.jonharrington.org/postgrest-introduction/)
+* [Federico Rampazzo](https://github.com/framp) for suggesting and
+  implementing [JWT](http://jwt.io/) support

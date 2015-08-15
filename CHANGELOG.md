@@ -5,14 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
-- Debian init scripts
-- Allow filters by computed columns
+- CSV responses to GET requests with `Accept: text/csv` - @diogob
+- Debian init scripts - @mkhon
+- Allow filters by computed columns - @diogob
 
 ### Fixed
-- Add materialized views to results in GET /
-- Indicate insertable=true for views that are insertable through triggers
+- Add materialized views to results in GET / - @diogob
+- Indicate insertable=true for views that are insertable through triggers - @diogob
 - Builds under GHC 7.10
-- Allow the use of columns named "count" in relations queried
+- Allow the use of columns named "count" in relations queried - @diogob
 
 ## [0.2.10.0] - 2015-06-03
 ### Added
