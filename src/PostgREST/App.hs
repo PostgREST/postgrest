@@ -1,19 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
-module PostgREST.App (app, sqlError, isSqlError) where
+module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept) where
 
 import Control.Monad (join)
 import Control.Arrow ((***), second)
 import Control.Applicative
 
-import Data.Text hiding (map)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Text hiding (map, find)
+import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
 import Data.Ranged.Ranges (emptyRange)
 import qualified Data.HashMap.Strict as M
 import Data.String.Conversions (cs)
 import Data.CaseInsensitive (original)
-import Data.List (sortBy)
+import Data.List (sortBy, find)
 import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
@@ -26,6 +26,7 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.URI (parseSimpleQuery)
 import Network.HTTP.Base (urlEncodeVars)
 import Network.Wai
+import Network.Wai.Parse (parseHttpAccept)
 import Network.Wai.Internal (Response(..))
 
 import Data.Aeson
@@ -67,7 +68,7 @@ app conf reqBody req =
                   parentheticT (
                     whereT qt qq $ countRows qt
                   ) <> commaq <> (
-                  bodyForAccept accept qt
+                  bodyForAccept contentType qt
                   . limitT range
                   . orderT (orderParse qq)
                   . whereT qt qq
@@ -85,7 +86,7 @@ app conf reqBody req =
                           . parseSimpleQuery
                           $ rawQueryString req
         return $ responseLBS status
-          [if accept == Just "text/csv" then csvH else jsonH, contentRange,
+          [contentTypeH, contentRange,
             ("Content-Location",
              "/" <> cs table <>
                 if Prelude.null canonical then "" else "?" <> cs canonical
@@ -131,7 +132,7 @@ app conf reqBody req =
       let qt = qualify table
           echoRequested = lookupHeader "Prefer" == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
-          parsed = if lookupHeader "Content-Type" == Just "text/csv"
+          parsed = if lookupHeader "Content-Type" == Just csvMT
                     then do
                       rows <- CSV.decode CSV.NoHeader reqBody
                       if V.null rows then Left "CSV requires header"
@@ -227,13 +228,15 @@ app conf reqBody req =
     qq            = queryString req
     qualify       = QualifiedTable schema
     hdrs          = requestHeaders req
-    schema        = requestedSchema (cs $ configV1Schema conf) hdrs
+    lookupHeader  = flip lookup hdrs
+    accept        = lookupHeader hAccept
+    schema        = requestedSchema (cs $ configV1Schema conf) accept
     authenticator = cs $ configDbUser conf
     jwtSecret     = cs $ configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
-    lookupHeader  = flip lookup hdrs
-    accept        = lookupHeader hAccept
+    contentType   = fromMaybe "application/json" $ contentTypeForAccept accept
+    contentTypeH  = (hContentType, contentType)
 
 sqlError :: t
 sqlError = undefined
@@ -247,12 +250,6 @@ rangeStatus from to total
   | (1 + to - from) < total = status206
   | otherwise               = status200
 
-bodyForAccept :: Maybe BS.ByteString -> QualifiedTable -> StatementT
-bodyForAccept accept table =
-    case accept of
-      Just "text/csv" -> asCsvWithCount table
-      _ -> asJsonWithCount -- defaults to JSON
-
 contentRangeH :: Int -> Int -> Int -> Header
 contentRangeH from to total =
   ("Content-Range",
@@ -263,21 +260,41 @@ contentRangeH from to total =
        <> cs (show total)
   )
 
-requestedSchema :: Text -> RequestHeaders -> Text
-requestedSchema v1schema hdrs =
+requestedSchema :: Text -> Maybe BS.ByteString -> Text
+requestedSchema v1schema accept =
   case verStr of
        Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
        _ -> v1schema
 
   where verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
-        accept = cs <$> lookup hAccept hdrs :: Maybe BS.ByteString
         verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
 
-jsonH :: Header
-jsonH = (hContentType, "application/json")
 
-csvH :: Header
-csvH = (hContentType, "text/csv")
+jsonMT :: BS.ByteString
+jsonMT = "application/json"
+
+csvMT :: BS.ByteString
+csvMT = "text/csv"
+
+jsonH :: Header
+jsonH = (hContentType, jsonMT)
+
+contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
+contentTypeForAccept accept 
+  | isNothing accept || hasJson = Just jsonMT
+  | hasCsv = Just csvMT
+  | otherwise = Nothing
+  where
+    Just acceptH = accept
+    findInAccept = flip find $ parseHttpAccept acceptH
+    hasJson  = isJust $ findInAccept $ BS.isPrefixOf jsonMT
+    hasCsv   = isJust $ findInAccept $ BS.isPrefixOf csvMT
+
+bodyForAccept :: BS.ByteString -> QualifiedTable -> StatementT
+bodyForAccept contentType table
+  | contentType == csvMT = asCsvWithCount table
+  | otherwise = asJsonWithCount -- defaults to JSON
+
 
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response

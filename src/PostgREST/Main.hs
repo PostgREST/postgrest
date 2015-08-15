@@ -11,10 +11,7 @@ import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.String.Conversions (cs)
 import Network.Wai (strictRequestBody)
-import Network.Wai.Middleware.Cors (cors)
 import Network.Wai.Handler.Warp hiding (Connection)
-import Network.Wai.Middleware.Gzip (gzip, def)
-import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.List (intercalate)
 import Data.Version (versionBranch)
@@ -26,7 +23,7 @@ import Options.Applicative hiding (columns)
 
 import System.IO (stderr, stdin, stdout, hSetBuffering, BufferMode(..))
 
-import PostgREST.Config (AppConfig(..), argParser, corsPolicy)
+import PostgREST.Config (AppConfig(..), argParser)
 
 isServerVersionSupported = do
   Identity (row :: Text) <- H.tx Nothing $ H.singleEx $ [H.stmt|SHOW server_version_num|]
@@ -64,10 +61,7 @@ main = do
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
-      middle = logStdout
-        . (if configSecure conf then redirectInsecure else id)
-        . gzip def . cors corsPolicy
-        . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+      middle = logStdout . defaultMiddle (configSecure conf)
 
   poolSettings <- maybe (fail "Improper session settings") return $
                 H.poolSettings (fromIntegral $ configPool conf) 30

@@ -22,7 +22,7 @@ spec = around withApp $ describe "CORS" $ do
           ("Host", "localhost:3000"),
           ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:32.0) Gecko/20100101 Firefox/32.0"),
           ("Origin", "http://localhost:8000"),
-          ("Accept", "text/plain, */*; q=0.01"),
+          ("Accept", "text/csv, */*; q=0.01"),
           ("Accept-Language", "en-US,en;q=0.5"),
           ("Accept-Encoding", "gzip, deflate"),
           ("Referer", "http://localhost:8000/"),
