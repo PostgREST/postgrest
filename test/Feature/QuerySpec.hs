@@ -3,6 +3,7 @@ module Feature.QuerySpec where
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders))
 
 import SpecHelper
@@ -120,6 +121,16 @@ spec =
 
     it "without other constraints" $
       get "/items?order=asc.id" `shouldRespondWith` 200
+
+  describe "Accept headers" $
+    it "should respond with CSV to 'text/csv' request" $
+      request methodGet "/simple_pk"
+              (acceptHdrs "text/csv") ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just "k,extra\rxyyx,u\rxYYx,v"
+        , matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "text/csv"]
+        }
 
   describe "Canonical location" $ do
     it "Sets Content-Location with alphabetized params" $

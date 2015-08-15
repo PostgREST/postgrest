@@ -62,11 +62,12 @@ app conf reqBody req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
         let qt = qualify table
+            from = fromMaybe 0 $ rangeOffset <$> range
             select = B.Stmt "select " V.empty True <>
                   parentheticT (
                     whereT qt qq $ countRows qt
                   ) <> commaq <> (
-                  asJsonWithCount
+                  bodyForAccept accept qt
                   . limitT range
                   . orderT (orderParse qq)
                   . whereT qt qq
@@ -75,7 +76,6 @@ app conf reqBody req =
         row <- H.maybeEx select
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
-            from = fromMaybe 0 $ rangeOffset <$> range
             to = from+queryTotal-1
             contentRange = contentRangeH from to tableTotal
             status = rangeStatus from to tableTotal
@@ -85,7 +85,7 @@ app conf reqBody req =
                           . parseSimpleQuery
                           $ rawQueryString req
         return $ responseLBS status
-          [jsonH, contentRange,
+          [if accept == Just "text/csv" then csvH else jsonH, contentRange,
             ("Content-Location",
              "/" <> cs table <>
                 if Prelude.null canonical then "" else "?" <> cs canonical
@@ -129,9 +129,9 @@ app conf reqBody req =
 
     ([table], "POST") -> do
       let qt = qualify table
-          echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+          echoRequested = lookupHeader "Prefer" == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
-          parsed = if lookup "Content-Type" hdrs == Just "text/csv"
+          parsed = if lookupHeader "Content-Type" == Just "text/csv"
                     then do
                       rows <- CSV.decode CSV.NoHeader reqBody
                       if V.null rows then Left "CSV requires header"
@@ -200,7 +200,7 @@ app conf reqBody req =
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
             r = contentRangeH 0 (queryTotal-1) queryTotal
-            echoRequested = lookup "Prefer" hdrs == Just "return=representation"
+            echoRequested = lookupHeader "Prefer" == Just "return=representation"
             s = case () of _ | queryTotal == 0 -> status404
                              | echoRequested -> status200
                              | otherwise -> status204
@@ -232,6 +232,8 @@ app conf reqBody req =
     jwtSecret     = cs $ configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
+    lookupHeader  = flip lookup hdrs
+    accept        = lookupHeader hAccept
 
 sqlError :: t
 sqlError = undefined
@@ -244,6 +246,12 @@ rangeStatus from to total
   | from > total            = status416
   | (1 + to - from) < total = status206
   | otherwise               = status200
+
+bodyForAccept :: Maybe BS.ByteString -> QualifiedTable -> StatementT
+bodyForAccept accept table =
+    case accept of
+      Just "text/csv" -> asCsvWithCount table
+      _ -> asJsonWithCount -- defaults to JSON
 
 contentRangeH :: Int -> Int -> Int -> Header
 contentRangeH from to total =
@@ -267,6 +275,9 @@ requestedSchema v1schema hdrs =
 
 jsonH :: Header
 jsonH = (hContentType, "application/json")
+
+csvH :: Header
+csvH = (hContentType, "text/csv")
 
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response
