@@ -126,7 +126,11 @@ spec =
     it "should respond with CSV to 'text/csv' request" $
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv") ""
-        `shouldRespondWith` "k,extra\rxyyx,u\rxYYx,v"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just "k,extra\rxyyx,u\rxYYx,v"
+        , matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "text/csv"]
+        }
 
   describe "Canonical location" $ do
     it "Sets Content-Location with alphabetized params" $

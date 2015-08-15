@@ -85,7 +85,7 @@ app conf reqBody req =
                           . parseSimpleQuery
                           $ rawQueryString req
         return $ responseLBS status
-          [jsonH, contentRange,
+          [if accept == Just "text/csv" then csvH else jsonH, contentRange,
             ("Content-Location",
              "/" <> cs table <>
                 if Prelude.null canonical then "" else "?" <> cs canonical
@@ -248,7 +248,7 @@ rangeStatus from to total
   | otherwise               = status200
 
 bodyForAccept :: Maybe BS.ByteString -> QualifiedTable -> StatementT
-bodyForAccept accept table = 
+bodyForAccept accept table =
     case accept of
       Just "text/csv" -> asCsvWithCount table
       _ -> asJsonWithCount -- defaults to JSON
@@ -275,6 +275,9 @@ requestedSchema v1schema hdrs =
 
 jsonH :: Header
 jsonH = (hContentType, "application/json")
+
+csvH :: Header
+csvH = (hContentType, "text/csv")
 
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response
