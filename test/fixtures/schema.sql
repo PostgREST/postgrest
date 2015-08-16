@@ -217,6 +217,17 @@ ALTER SEQUENCE items_id_seq OWNED BY items.id;
 
 
 
+CREATE FUNCTION "1".getitemrange(min bigint, max bigint) RETURNS SETOF "1".items AS $$
+    SELECT * FROM "1".items WHERE id > $1 AND id <= $2;
+$$ LANGUAGE SQL;
+
+
+
+CREATE FUNCTION "1".sayhello(name text) RETURNS text AS $$
+    SELECT 'Hello, ' || $1;
+$$ LANGUAGE SQL;
+
+
 CREATE TABLE menagerie (
     "integer" integer NOT NULL,
     double double precision NOT NULL,
@@ -520,6 +531,17 @@ REVOKE ALL ON TABLE items FROM postgrest_test;
 GRANT ALL ON TABLE items TO postgrest_test;
 GRANT ALL ON TABLE items TO postgrest_anonymous;
 
+
+REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM PUBLIC;
+REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM postgrest_test;
+GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_test;
+GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_anonymous;
+
+
+REVOKE ALL ON FUNCTION sayhello(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION sayhello(text) FROM postgrest_test;
+GRANT EXECUTE ON FUNCTION sayhello(text) TO postgrest_test;
+GRANT EXECUTE ON FUNCTION sayhello(text) TO postgrest_anonymous;
 
 
 REVOKE ALL ON SEQUENCE items_id_seq FROM PUBLIC;

@@ -168,10 +168,11 @@ app conf reqBody req =
       exists <- doesProcExist schema proc
       if exists
         then do
-          row :: Maybe (Identity Text) <- H.maybeEx $ callProc qi $
-                      fromMaybe M.empty (decode reqBody)
-          return $ responseLBS status200 [textH]
-            (cs $ fromMaybe "" $ runIdentity <$> row)
+          let call = B.Stmt "select " V.empty True <>
+                asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
+          body :: Maybe (Identity Text) <- H.maybeEx call
+          return $ responseLBS status200 [jsonH]
+            (cs $ fromMaybe "[]" $ runIdentity <$> body)
         else return $ responseLBS status404 [] ""
 
       -- check that proc exists
