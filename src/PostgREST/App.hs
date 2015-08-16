@@ -295,9 +295,6 @@ csvMT = "text/csv"
 jsonH :: Header
 jsonH = (hContentType, jsonMT)
 
-textH :: Header
-textH = (hContentType, "text/plain")
-
 contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
 contentTypeForAccept accept
   | isNothing accept || hasJson = Just jsonMT

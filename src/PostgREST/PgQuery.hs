@@ -176,7 +176,7 @@ update t cols vals = B.Stmt
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
   let args = T.intercalate "," $ map assignment (H.toList params)
-  B.Stmt ("select " <> fromQi qi <> "(" <> args <> ")") empty True
+  B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
