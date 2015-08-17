@@ -5,3 +5,5 @@ cabal.sandbox.config
 hscope.out
 codex.tags
 .anvil
+
+tags

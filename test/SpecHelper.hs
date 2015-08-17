@@ -21,13 +21,12 @@ import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
-import Network.Wai.Middleware.Cors (cors)
 import System.Process (readProcess)
 
 import qualified Data.Aeson.Types as J
 
 import PostgREST.App (app)
-import PostgREST.Config (AppConfig(..), corsPolicy)
+import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(errResponse)
 
@@ -59,7 +58,7 @@ withApp perform = do
       $ authenticated cfg (app cfg body) req
     either (resp . errResponse) resp result
 
-  where middle = cors corsPolicy
+  where middle = defaultMiddle False
 
 
 resetDb :: IO ()

@@ -3,7 +3,7 @@
 
 module PostgREST.Middleware where
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Monoid
 import Data.Text
 -- import Data.Pool(withResource, Pool)
@@ -12,15 +12,19 @@ import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import Data.String.Conversions(cs)
 
-import Network.HTTP.Types.Header (hLocation, hAuthorization)
+import Network.HTTP.Types.Header (hLocation, hAuthorization, hAccept)
 import Network.HTTP.Types (RequestHeaders)
-import Network.HTTP.Types.Status (status400, status401, status301)
+import Network.HTTP.Types.Status (status400, status401, status301, status415)
 import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
                    rawQueryString, isSecure, Request(..), Response)
+import Network.Wai.Middleware.Gzip (gzip, def)
+import Network.Wai.Middleware.Cors (cors)
+import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.URI (URI(..), parseURI)
 
-import PostgREST.Config (AppConfig(..))
+import PostgREST.Config (AppConfig(..), corsPolicy)
 import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole, setUserId, resetUserId)
+import PostgREST.App (contentTypeForAccept)
 import Codec.Binary.Base64.String (decode)
 
 import Prelude
@@ -84,3 +88,17 @@ redirectInsecure app req respond = do
               Nothing ->
                 respond $ responseLBS status400 [] "SSL is required"
     else app req respond
+
+unsupportedAccept :: Application -> Application
+unsupportedAccept app req respond = do
+  let
+    accept = lookup hAccept $ requestHeaders req
+  if isNothing $ contentTypeForAccept accept 
+  then respond $ responseLBS status415 [] "Unsupported Accept header, try: application/json"
+  else app req respond
+
+defaultMiddle :: Bool -> Application -> Application
+defaultMiddle secure = (if secure then redirectInsecure else id)
+        . gzip def . cors corsPolicy
+        . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+        . unsupportedAccept

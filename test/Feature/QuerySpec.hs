@@ -130,13 +130,23 @@ spec =
     it "without other constraints" $
       get "/items?order=asc.id" `shouldRespondWith` 200
 
-  describe "Accept headers" $
+  describe "Accept headers" $ do
+    it "should respond an unknown accept type with 415" $
+      request methodGet "/simple_pk"
+              (acceptHdrs "text/unknowntype") ""
+        `shouldRespondWith` 415
+
+    it "should respond correctly to multiple types in accept header" $
+      request methodGet "/simple_pk"
+              (acceptHdrs "text/unknowntype, text/csv") ""
+        `shouldRespondWith` 200
+
     it "should respond with CSV to 'text/csv' request" $
       request methodGet "/simple_pk"
-              (acceptHdrs "text/csv") ""
+              (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` ResponseMatcher {
-          matchBody = Just "k,extra\rxyyx,u\rxYYx,v"
-        , matchStatus = 200
+          matchBody    = Just "k,extra\rxyyx,u\rxYYx,v"
+        , matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv"]
         }
 
