@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
+- Filter NOT IN values, e.g. `?col=notin.1,2,3` - @rall
 - CSV responses to GET requests with `Accept: text/csv` - @diogob
 - Debian init scripts - @mkhon
 - Allow filters by computed columns - @diogob
