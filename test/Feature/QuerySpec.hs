@@ -45,6 +45,14 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
+    it "matches items NOT IN" $
+      get "/items?id=notin.2,4,6,7,8,9,10,11,12,13,14,15"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        }
+
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
