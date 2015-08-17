@@ -172,3 +172,15 @@ spec =
         [json| [{"data": {"foo": {"bar": "baz"}}}] |]
       get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
         [json| [] |]
+
+  describe "remote procedure call" $ do
+    context "a proc that returns a set" . before_ (clearTable "items" >> createItems 10) .
+      after_ (clearTable "items") $
+      it "returns proper json" $
+        post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
+          [json| [ {"id": 3}, {"id":4} ] |]
+
+    context "a proc that returns plain text" $
+      it "returns proper json" $
+        post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
+          [json| [{"sayhello":"Hello, world"}] |]
