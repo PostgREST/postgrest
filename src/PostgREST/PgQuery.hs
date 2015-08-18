@@ -182,14 +182,17 @@ callProc qi params = do
 
 wherePred :: QualifiedIdentifier -> Net.QueryItem -> PStmt
 wherePred table (col, predicate) =
-  B.Stmt (" " <> pgFmtJsonbPath table (cs col) <> " " <> op <> " " <>
+  B.Stmt (notOp <> " " <> pgFmtJsonbPath table (cs col) <> " " <> op <> " " <>
       if opCode `elem` ["is","isnot"] then whiteList value
                                  else cs sqlValue)
       empty True
 
   where
-    opCode:rest = T.split (=='.') $ cs $ fromMaybe "." predicate
-    value = T.intercalate "." rest
+    headPredicate:rest = T.split (=='.') $ cs $ fromMaybe "." predicate
+    hasNot caseTrue caseFalse =  if headPredicate == "not" then caseTrue else caseFalse
+    opCode = hasNot (head rest) headPredicate
+    notOp  = hasNot headPredicate ""
+    value  = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
     whiteList val = fromMaybe (cs (pgFmtLit val) <> "::unknown ")
                               (L.find ((==) . T.toLower $ val)
                                       ["null","true","false"])

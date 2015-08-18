@@ -53,6 +53,14 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
+    it "matches items NOT IN using not operator" $
+      get "/items?id=not.in.2,4,6,7,8,9,10,11,12,13,14,15"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        }
+
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
@@ -166,11 +174,14 @@ spec =
         respHeaders `shouldSatisfy` matchHeader
           "Content-Location" "/simple_pk"
 
-  describe "jsonb" $
+  describe "jsonb" $ do
     it "can filter by properties inside json column" $ do
       get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
         [json| [{"data": {"foo": {"bar": "baz"}}}] |]
       get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
+        [json| [] |]
+    it "can filter by properties inside json column using not" $
+      get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
 
   describe "remote procedure call" $ do
