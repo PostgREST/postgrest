@@ -36,7 +36,7 @@ executable postgrest
                      , HTTP, convertible, http-types
                      , case-insensitive
                      , scientific, time
-                     , aeson, network >= 2.6
+                     , aeson == 0.8.0.*, network >= 2.6
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
@@ -118,7 +118,7 @@ Test-Suite spec
                      , Spec
                      , SpecHelper
   Build-Depends:       base, hspec == 2.1.*, QuickCheck
-                     , hspec-wai == 0.5.*, hspec-wai-json
+                     , hspec-wai, hspec-wai-json
                      , hasql, hasql-backend
                      , hasql-postgres
                      , warp, wai
