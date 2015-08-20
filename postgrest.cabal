@@ -36,7 +36,7 @@ executable postgrest
                      , HTTP, convertible, http-types
                      , case-insensitive
                      , scientific, time
-                     , aeson == 0.8.0.*, network >= 2.6
+                     , aeson >= 0.8, network >= 2.6
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers
