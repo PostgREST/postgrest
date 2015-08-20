@@ -87,12 +87,7 @@ spec = afterAll_ resetDb $ around withApp $ do
 
     context "with invalid json payload" $
       it "fails with 400 and error" $
-        post "/simple_pk" "}{ x = 2"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| {"message":"Failed to parse JSON payload. Failed reading: not a valid json value"} |]
-          , matchStatus  = 400
-          , matchHeaders = []
-          }
+        post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
 
     context "jsonb" . after_ (clearTable "json") $ do
       it "serializes nested object" $ do
