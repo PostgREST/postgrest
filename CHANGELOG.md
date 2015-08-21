@@ -5,12 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
+- Call stored procedures
 - Filter NOT IN values, e.g. `?col=notin.1,2,3` - @rall
 - CSV responses to GET requests with `Accept: text/csv` - @diogob
 - Debian init scripts - @mkhon
 - Allow filters by computed columns - @diogob
 
 ### Fixed
+- Compatible with Stack
 - Add materialized views to results in GET / - @diogob
 - Indicate insertable=true for views that are insertable through triggers - @diogob
 - Builds under GHC 7.10
