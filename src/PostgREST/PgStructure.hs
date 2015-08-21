@@ -3,12 +3,12 @@
              FlexibleContexts #-}
 module PostgREST.PgStructure where
 
-import PostgREST.PgQuery (QualifiedTable(..))
+import PostgREST.PgQuery (QualifiedIdentifier(..))
 import Data.Text hiding (foldl, map, zipWith, concat)
 import Data.Aeson
 import Data.Functor.Identity
 import Data.String.Conversions (cs)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Control.Applicative
 
 import qualified Data.Map as Map
@@ -18,7 +18,7 @@ import qualified Hasql.Postgres as P
 
 import Prelude
 
-foreignKeys :: QualifiedTable -> H.Tx P.Postgres s (Map.Map Text ForeignKey)
+foreignKeys :: QualifiedIdentifier -> H.Tx P.Postgres s (Map.Map Text ForeignKey)
 foreignKeys table = do
   r <- H.listEx $ [H.stmt|
       select kcu.column_name, ccu.table_name AS foreign_table_name,
@@ -31,7 +31,7 @@ foreignKeys table = do
       where constraint_type = 'FOREIGN KEY'
         and tc.table_name=? and tc.table_schema = ?
         order by kcu.column_name
-    |] (qtName table) (qtSchema table)
+    |] (qiName table) (qiSchema table)
 
   return $ foldl addKey Map.empty r
   where
@@ -67,7 +67,7 @@ tables schema = do
   return $ map tableFromRow rows
 
 
-columns :: QualifiedTable -> H.Tx P.Postgres s [Column]
+columns :: QualifiedIdentifier -> H.Tx P.Postgres s [Column]
 columns table = do
   cols <- H.listEx $ [H.stmt|
       select info.table_schema as schema, info.table_name as table_name,
@@ -97,7 +97,7 @@ columns table = do
          ) as enum_info
          on (info.udt_name = enum_info.n)
       order by position |]
-    (qtSchema table) (qtName table)
+    (qiSchema table) (qiName table)
 
   fks <- foreignKeys table
   return $ map (addFK fks . columnFromRow) cols
@@ -106,7 +106,7 @@ columns table = do
     addFK fks col = col { colFK = Map.lookup (cs . colName $ col) fks }
 
 
-primaryKeyColumns :: QualifiedTable -> H.Tx P.Postgres s [Text]
+primaryKeyColumns :: QualifiedIdentifier -> H.Tx P.Postgres s [Text]
 primaryKeyColumns table = do
   r <- H.listEx $ [H.stmt|
     select kc.column_name
@@ -118,9 +118,20 @@ primaryKeyColumns table = do
       and kc.table_name = tc.table_name and kc.table_schema = tc.table_schema
       and kc.constraint_name = tc.constraint_name
       and kc.table_schema = ?
-      and kc.table_name  = ? |] (qtSchema table) (qtName table)
+      and kc.table_name  = ? |] (qiSchema table) (qiName table)
   return $ map runIdentity r
 
+doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
+doesProcExist schema proc = do
+  row :: Maybe (Identity Int) <- H.maybeEx $ [H.stmt|
+      SELECT 1
+      FROM   pg_catalog.pg_namespace n
+      JOIN   pg_catalog.pg_proc p
+      ON     pronamespace = n.oid
+      WHERE  nspname = ?
+      AND    proname = ?
+    |] schema proc
+  return $ isJust row
 
 data Table = Table {
   tableSchema :: Text

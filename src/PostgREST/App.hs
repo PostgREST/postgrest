@@ -163,6 +163,22 @@ app conf reqBody req =
                   ] $ if echoRequested then encode obj else ""
           return $ multipart status201 responses
 
+    (["rpc", proc], "POST") -> do
+      let qi = QualifiedIdentifier schema (cs proc)
+      exists <- doesProcExist schema proc
+      if exists
+        then do
+          let call = B.Stmt "select " V.empty True <>
+                asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
+          body :: Maybe (Identity Text) <- H.maybeEx call
+          return $ responseLBS status200 [jsonH]
+            (cs $ fromMaybe "[]" $ runIdentity <$> body)
+        else return $ responseLBS status404 [] ""
+
+      -- check that proc exists
+      -- check that arg names are all specified
+      -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
+
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
@@ -209,7 +225,7 @@ app conf reqBody req =
 
     ([table], "DELETE") -> do
       let qt = qualify table
-      let del = countT
+          del = countT
             . returningStarT
             . whereT qt qq
             $ deleteFrom qt
@@ -226,7 +242,7 @@ app conf reqBody req =
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req
-    qualify       = QualifiedTable schema
+    qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
     accept        = lookupHeader hAccept
@@ -280,7 +296,7 @@ jsonH :: Header
 jsonH = (hContentType, jsonMT)
 
 contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
-contentTypeForAccept accept 
+contentTypeForAccept accept
   | isNothing accept || hasJson = Just jsonMT
   | hasCsv = Just csvMT
   | otherwise = Nothing
@@ -290,11 +306,10 @@ contentTypeForAccept accept
     hasJson  = isJust $ findInAccept $ BS.isPrefixOf jsonMT
     hasCsv   = isJust $ findInAccept $ BS.isPrefixOf csvMT
 
-bodyForAccept :: BS.ByteString -> QualifiedTable -> StatementT
+bodyForAccept :: BS.ByteString -> QualifiedIdentifier  -> StatementT
 bodyForAccept contentType table
   | contentType == csvMT = asCsvWithCount table
   | otherwise = asJsonWithCount -- defaults to JSON
-
 
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response
