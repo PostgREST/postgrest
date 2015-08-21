@@ -37,6 +37,31 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-0/1"]
         }
 
+    it "matches with equality using not operator" $
+      get "/items?id=not.eq.5"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-13/14"]
+        }
+
+    it "matches with more than one condition using not operator" $
+      get "/simple_pk?k=like.*yx&extra=not.eq.u" `shouldRespondWith` "[]"
+
+    it "matches with inequality using not operator" $ do
+      get "/items?id=not.lt.14&order=id.asc"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":14},{"id":15}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        }
+      get "/items?id=not.gt.2&order=id.asc"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| [{"id":1},{"id":2}] |]
+        , matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        }
+
     it "matches items IN" $
       get "/items?id=in.1,3,5"
         `shouldRespondWith` ResponseMatcher {
@@ -61,6 +86,10 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
 
+    it "matches nulls using not operator" $
+      get "/no_pk?a=not.is.null" `shouldRespondWith`
+        [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
+
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
@@ -75,19 +104,30 @@ spec =
       get "/simple_pk?k=like.*YY*" `shouldRespondWith`
         "[{\"k\":\"xYYx\",\"extra\":\"v\"}]"
 
+    it "matches with like using not operator" $
+      get "/simple_pk?k=not.like.*yx" `shouldRespondWith`
+        "[{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+
     it "matches with ilike" $ do
       get "/simple_pk?k=ilike.xy*&order=extra.asc" `shouldRespondWith`
         "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
       get "/simple_pk?k=ilike.*YY*&order=extra.asc" `shouldRespondWith`
         "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
 
+    it "matches with ilike using not operator" $
+      get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
+
     it "matches with tsearch @@" $
       get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
-        "[{\"text_search_vector\":\"'bar':2 'foo':1\"}]"
+        [json| [{"text_search_vector":"'bar':2 'foo':1"}] |]
+
+    it "matches with tsearch @@ using not operator" $
+      get "/tsearch?text_search_vector=not.@@.foo" `shouldRespondWith`
+        [json| [{"text_search_vector":"'baz':1 'qux':2"}] |]
 
     it "matches with computed column" $
       get "/items?always_true=eq.true" `shouldRespondWith`
-        "[{\"id\":1},{\"id\":2},{\"id\":3},{\"id\":4},{\"id\":5},{\"id\":6},{\"id\":7},{\"id\":8},{\"id\":9},{\"id\":10},{\"id\":11},{\"id\":12},{\"id\":13},{\"id\":14},{\"id\":15}]"
+        [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
   describe "ordering response" $ do
     it "by a column asc" $
