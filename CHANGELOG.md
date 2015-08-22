@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
+- Negate any filter in a uniform way, e.g. `?col=not.eq=foo` - @diogob
 - Call stored procedures
 - Filter NOT IN values, e.g. `?col=notin.1,2,3` - @rall
 - CSV responses to GET requests with `Accept: text/csv` - @diogob
