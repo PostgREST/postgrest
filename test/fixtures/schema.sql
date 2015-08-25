@@ -228,6 +228,14 @@ CREATE FUNCTION "1".sayhello(name text) RETURNS text AS $$
 $$ LANGUAGE SQL;
 
 
+CREATE FUNCTION "1".problem() RETURNS void LANGUAGE plpgsql AS
+$$
+BEGIN
+      RAISE 'bad thing';
+END;
+$$;
+
+
 CREATE TABLE menagerie (
     "integer" integer NOT NULL,
     double double precision NOT NULL,
@@ -542,6 +550,11 @@ REVOKE ALL ON FUNCTION sayhello(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sayhello(text) FROM postgrest_test;
 GRANT EXECUTE ON FUNCTION sayhello(text) TO postgrest_test;
 GRANT EXECUTE ON FUNCTION sayhello(text) TO postgrest_anonymous;
+
+
+REVOKE ALL ON FUNCTION problem() FROM PUBLIC;
+REVOKE ALL ON FUNCTION problem() FROM postgrest_test_author;
+GRANT EXECUTE ON FUNCTION problem() TO postgrest_test_author;
 
 
 REVOKE ALL ON SEQUENCE items_id_seq FROM PUBLIC;
