@@ -53,14 +53,14 @@ checkPass :: Text -> Text -> Bool
 checkPass = (. cs) . validatePassword . cs
 
 setRole :: Text -> H.Tx P.Postgres s ()
-setRole role = H.unitEx $ B.Stmt ("set role " <> cs (pgFmtLit role)) V.empty True
+setRole role = H.unitEx $ B.Stmt ("set local role " <> cs (pgFmtLit role)) V.empty True
 
 resetRole :: H.Tx P.Postgres s ()
 resetRole = H.unitEx [H.stmt|reset role|]
 
 setUserId :: Text -> H.Tx P.Postgres s ()
 setUserId uid = if uid /= "" then
-  H.unitEx $ B.Stmt ("set user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
+  H.unitEx $ B.Stmt ("set local user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
 else
   resetUserId
 
