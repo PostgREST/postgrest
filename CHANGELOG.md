@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Allow filters by computed columns - @diogob
 
 ### Fixed
+- Reset user role on error
 - Compatible with Stack
 - Add materialized views to results in GET / - @diogob
 - Indicate insertable=true for views that are insertable through triggers - @diogob

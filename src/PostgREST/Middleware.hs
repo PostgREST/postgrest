@@ -23,7 +23,7 @@ import Network.Wai.Middleware.Static (staticPolicy, only)
 import Network.URI (URI(..), parseURI)
 
 import PostgREST.Config (AppConfig(..), corsPolicy)
-import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, resetRole, setUserId, resetUserId)
+import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, setUserId)
 import PostgREST.App (contentTypeForAccept)
 import Codec.Binary.Base64.String (decode)
 
@@ -62,10 +62,7 @@ authenticated conf app req = do
    runInRole r uid = do
      setUserId uid
      setRole r
-     res <- app req
-     resetRole
-     resetUserId
-     return res
+     app req
 
 
 redirectInsecure :: Application -> Application
@@ -93,7 +90,7 @@ unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond = do
   let
     accept = lookup hAccept $ requestHeaders req
-  if isNothing $ contentTypeForAccept accept 
+  if isNothing $ contentTypeForAccept accept
   then respond $ responseLBS status415 [] "Unsupported Accept header, try: application/json"
   else app req respond
 

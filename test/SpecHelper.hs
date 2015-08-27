@@ -54,7 +54,7 @@ withApp perform = do
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
-    result <- liftIO $ H.session pool $ H.tx Nothing
+    result <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True))
       $ authenticated cfg (app cfg body) req
     either (resp . errResponse) resp result
 

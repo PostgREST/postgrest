@@ -53,14 +53,11 @@ checkPass :: Text -> Text -> Bool
 checkPass = (. cs) . validatePassword . cs
 
 setRole :: Text -> H.Tx P.Postgres s ()
-setRole role = H.unitEx $ B.Stmt ("set role " <> cs (pgFmtLit role)) V.empty True
-
-resetRole :: H.Tx P.Postgres s ()
-resetRole = H.unitEx [H.stmt|reset role|]
+setRole role = H.unitEx $ B.Stmt ("set local role " <> cs (pgFmtLit role)) V.empty True
 
 setUserId :: Text -> H.Tx P.Postgres s ()
 setUserId uid = if uid /= "" then
-  H.unitEx $ B.Stmt ("set user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
+  H.unitEx $ B.Stmt ("set local user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
 else
   resetUserId
 
@@ -90,12 +87,12 @@ signInWithJWT secret input = case maybeRole of
       Just (Just (String uid)) -> LoginSuccess (cs role) (cs uid)
       _   -> LoginFailed
     _   -> LoginFailed
-  where 
+  where
     maybeRole = (Data.Map.lookup "role" <$> claims) ::Maybe (Maybe Value)
     maybeUserId = (Data.Map.lookup "id" <$> claims) ::Maybe (Maybe Value)
     claims = JWT.unregisteredClaims <$> JWT.claims <$> decoded
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
-    
+
 tokenJWT :: Text -> Text -> Text -> Text
 tokenJWT secret uid role = JWT.encodeSigned JWT.HS256 (JWT.secret secret) claimsSet
   where
