@@ -73,7 +73,7 @@ main = do
 
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
-    resOrError <- liftIO $ H.session pool $ H.tx (Just (H.ReadUncommitted, Just True)) $
+    resOrError <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True)) $
       authenticated conf (app conf body) req
     either (respond . errResponse) respond resOrError
 
