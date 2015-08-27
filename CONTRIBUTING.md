@@ -39,6 +39,10 @@ your contributions.
   committers. Continuous integration will check this as well on every
   pull request.
 
+* For help building the Haskell code on your computer check out the [building from
+source](https://github.com/begriffs/postgrest/wiki/Building-from-source)
+wiki page.
+
 ## Maintenance
 
 ### Schedule
@@ -46,4 +50,6 @@ your contributions.
 Currently I (@begriffs) am the sole maintainer, and while I am
 overjoyed to help resolve issues I also have to balance this with
 my other obligations.  If you don't get a response right away
-don't worry, I will definitely get to it.
+don't worry, I will definitely get to it. Also you can join the
+Gitter [chat room](https://gitter.im/begriffs/postgrest) to
+discuss issues you are having.
