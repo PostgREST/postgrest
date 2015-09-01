@@ -292,19 +292,21 @@ jsonMT = "application/json"
 csvMT :: BS.ByteString
 csvMT = "text/csv"
 
+allMT :: BS.ByteString
+allMT = "*/*"
+
 jsonH :: Header
 jsonH = (hContentType, jsonMT)
 
 contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
 contentTypeForAccept accept
-  | isNothing accept || hasJson = Just jsonMT
-  | hasCsv = Just csvMT
+  | isNothing accept || has allMT || has jsonMT = Just jsonMT
+  | has csvMT = Just csvMT
   | otherwise = Nothing
   where
     Just acceptH = accept
     findInAccept = flip find $ parseHttpAccept acceptH
-    hasJson  = isJust $ findInAccept $ BS.isPrefixOf jsonMT
-    hasCsv   = isJust $ findInAccept $ BS.isPrefixOf csvMT
+    has          = isJust . findInAccept . BS.isPrefixOf
 
 bodyForAccept :: BS.ByteString -> QualifiedIdentifier  -> StatementT
 bodyForAccept contentType table
