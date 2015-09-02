@@ -58,7 +58,7 @@ whereT table params q =
    then q
    else q <> B.Stmt " where " empty True <> conjunction
  where
-   cols = [ col | col <- params, fst col `notElem` ["order"] ]
+   cols = [ col | col <- params, fst col `notElem` ["order","select"] ]
    wherePredTable = wherePred table
    conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
 
@@ -128,6 +128,20 @@ asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <
 
 selectStar :: QualifiedIdentifier -> PStmt
 selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
+
+selectT :: QualifiedIdentifier -> Net.Query -> PStmt
+selectT table params =
+ if L.null cols
+   then selectStar table
+   else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
+ where
+   selectTermTable = selectTerm table
+   conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
+   columnsParam = fromMaybe "" $ join (lookup "select" params)
+   cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
+
+selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
+selectTerm table col = B.Stmt (pgFmtJsonbPath table (cs col)) empty True
 
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }

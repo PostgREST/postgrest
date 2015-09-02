@@ -72,7 +72,7 @@ app conf reqBody req =
                   . limitT range
                   . orderT (orderParse qq)
                   . whereT qt qq
-                  $ selectStar qt
+                  $ selectT qt qq
                 )
         row <- H.maybeEx select
         let (tableTotal, queryTotal, body) =
