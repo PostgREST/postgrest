@@ -141,7 +141,11 @@ selectT table params =
    cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
 
 selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
-selectTerm table col = B.Stmt (pgFmtJsonbPath table (cs col)) empty True
+selectTerm table col = B.Stmt (pgFmtJsonbPath table (cs col) <> asT jsonbPath) empty True
+    where
+        jsonbPath = parseJsonbPath $ cs col
+        asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
+        asT _ = ""
 
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
