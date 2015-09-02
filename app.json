@@ -10,7 +10,7 @@
     },
     "POSTGREST_VER": {
       "description": "Version of PostgREST to deploy",
-      "value": "0.2.11.0"
+      "value": "0.2.11.1"
     },
     "DB_NAME": {
       "description": "Database name",
@@ -41,6 +41,16 @@
       "description": "Maximum number of connections in database pool",
       "required": false,
       "value": "10"
+    },
+    "JWT_SECRET": {
+      "description": "Secret used to encrypt JSON Web Tokens",
+      "required": false,
+      "value": "secret"
+    },
+    "V1SCHEMA": {
+      "description": "DB schema selected whe no version (or version 1) requested",
+      "required": false,
+      "value": "1"
     }
   }
 }
