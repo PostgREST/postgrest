@@ -129,8 +129,8 @@ asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <
 selectStar :: QualifiedIdentifier -> PStmt
 selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
 
-selectT :: QualifiedIdentifier -> Net.Query -> PStmt
-selectT table params =
+select :: QualifiedIdentifier -> Net.Query -> PStmt
+select table params =
  if L.null cols
    then selectStar table
    else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
