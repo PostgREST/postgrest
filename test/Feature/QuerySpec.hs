@@ -152,9 +152,27 @@ spec =
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
         [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
 
+    it "fails on bad casting (data of the wrong format)" $
+      get "/complex_items?select=settings->foo->>bar::integer"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
+        , matchStatus  = 400
+        , matchHeaders = []
+        }
+
+    it "fails on bad casting (wrong cast type)" $
+      get "/complex_items?select=id::fakecolumntype"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
+        , matchStatus  = 400
+        , matchHeaders = []
+        }
+
+
     it "json subfield two levels (string)" $
       get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
         [json| [{"bar":"baz"}] |]
+
 
     it "json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
