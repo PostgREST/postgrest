@@ -143,7 +143,8 @@ select table params =
 selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
 selectTerm table col =
     case T.splitOn "::" col of
-        [colName,castTo] -> B.Stmt ("CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS " <> castTo <> " )" <> asT (jsonbPath colName)) empty True
+        [colName,castTo] -> B.Stmt ("CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS " <> castToSafe <> " )" <> asT (jsonbPath colName)) empty True
+            where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
         _-> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
     where
         jsonbPath :: T.Text -> Maybe JsonbPath
