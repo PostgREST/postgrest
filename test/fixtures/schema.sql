@@ -47,7 +47,7 @@ SET search_path = postgrest, pg_catalog;
 CREATE FUNCTION check_role_exists() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-begin 
+begin
 if not exists (select 1 from pg_roles as r where r.rolname = new.rolname) then
    raise foreign_key_violation using message = 'Cannot create user with unknown role: ' || new.rolname;
    return null;
@@ -64,7 +64,7 @@ CREATE FUNCTION update_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-   NEW.owner = current_user; 
+   NEW.owner = current_user;
    RETURN NEW;
 END;
 $$;
@@ -75,8 +75,8 @@ ALTER FUNCTION postgrest.update_owner() OWNER TO postgrest_test;
 CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-begin 
-  NEW.owner = current_setting('user_vars.user_id'); 
+begin
+  NEW.owner = current_setting('user_vars.user_id');
   RETURN NEW;
 end
 $$;
@@ -170,7 +170,7 @@ ALTER TABLE "1".has_fk_id_seq OWNER TO postgrest_test;
 ALTER SEQUENCE has_fk_id_seq OWNED BY has_fk.id;
 
 CREATE MATERIALIZED VIEW "1".materialized_view AS
- SELECT 
+ SELECT
     version();
 
 ALTER TABLE "1".materialized_view OWNER TO postgrest_test;
@@ -200,6 +200,15 @@ CREATE TABLE items (
 
 
 ALTER TABLE "1".items OWNER TO postgrest_test;
+
+CREATE TABLE complex_items (
+    id bigint NOT NULL,
+    name text,
+    settings json
+);
+
+
+ALTER TABLE "1".complex_items OWNER TO postgrest_test;
 
 
 CREATE SEQUENCE items_id_seq
@@ -407,7 +416,7 @@ ALTER FUNCTION public.always_true("1".items) OWNER TO postgrest_test;
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
-    
+
 CREATE TRIGGER insert_insertable_view_with_join INSTEAD OF INSERT ON "1".insertable_view_with_join FOR EACH ROW EXECUTE PROCEDURE "1".insert_insertable_view_with_join();
 
 
@@ -437,6 +446,8 @@ ALTER TABLE ONLY has_fk
 ALTER TABLE ONLY items
     ADD CONSTRAINT items_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY complex_items
+    ADD CONSTRAINT complex_items_pkey PRIMARY KEY (id);
 
 
 ALTER TABLE ONLY menagerie
@@ -538,6 +549,11 @@ REVOKE ALL ON TABLE items FROM PUBLIC;
 REVOKE ALL ON TABLE items FROM postgrest_test;
 GRANT ALL ON TABLE items TO postgrest_test;
 GRANT ALL ON TABLE items TO postgrest_anonymous;
+
+REVOKE ALL ON TABLE complex_items FROM PUBLIC;
+REVOKE ALL ON TABLE complex_items FROM postgrest_test;
+GRANT ALL ON TABLE complex_items TO postgrest_test;
+GRANT ALL ON TABLE complex_items TO postgrest_anonymous;
 
 
 REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM PUBLIC;

@@ -13,6 +13,7 @@ import Data.Monoid
 import Data.Text hiding (map)
 import qualified Data.Vector as V
 import Control.Monad (void)
+import Control.Applicative
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization, hAccept)
@@ -117,6 +118,18 @@ createItems n = do
   where
     txn = mapM_ H.unitEx stmts
     stmts = map [H.stmt|insert into "1".items (id) values (?)|] [1..n]
+
+createComplexItems :: IO ()
+createComplexItems = do
+  pool <- testPool
+  void . liftIO $ H.session pool $ H.tx Nothing txn
+  where
+    txn = mapM_ H.unitEx stmts
+    stmts = getZipList $ [H.stmt|insert into "1".complex_items (id, name, settings) values (?,?,?)|]
+        <$> ZipList ([1..3]::[Int])
+        <*> ZipList (["One", "Two", "Three"]::[Text])
+        <*> ZipList ([jobj,jobj,jobj])
+    jobj = (J.object [("foo", J.object [("int", J.Number 1),("bar", J.String "baz")])])
 
 createNulls :: Int -> IO ()
 createNulls n = do

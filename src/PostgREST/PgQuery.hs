@@ -141,9 +141,13 @@ select table params =
    cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
 
 selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
-selectTerm table col = B.Stmt (pgFmtJsonbPath table (cs col) <> asT jsonbPath) empty True
+selectTerm table col =
+    case T.splitOn "::" col of
+        [colName,castTo] -> B.Stmt ("CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS " <> castTo <> " )" <> asT (jsonbPath colName)) empty True
+        _-> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
     where
-        jsonbPath = parseJsonbPath $ cs col
+        jsonbPath :: T.Text -> Maybe JsonbPath
+        jsonbPath c = parseJsonbPath $ cs c
         asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
         asT _ = ""
 

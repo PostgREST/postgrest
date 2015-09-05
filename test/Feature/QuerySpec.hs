@@ -11,13 +11,14 @@ import SpecHelper
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll (clearTable "complex_items" >> createComplexItems)
    . beforeAll (clearTable "nullable_integer" >> createNullInteger)
    . beforeAll (
        clearTable "no_pk" >>
        createNulls 2 >>
        createLikableStrings >>
        createJsonData)
-   . afterAll_ (clearTable "items" >> clearTable "no_pk" >> clearTable "simple_pk")
+   . afterAll_ (clearTable "items" >> clearTable "complex_items" >> clearTable "no_pk" >> clearTable "simple_pk")
    . around withApp $ do
 
   describe "Querying a table with a column called count" $
@@ -128,6 +129,37 @@ spec =
     it "matches with computed column" $
       get "/items?always_true=eq.true" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+
+  describe "Shaping response with select parameter" $ do
+
+    it "selectStar works in absense of parameter" $
+      get "/complex_items?id=eq.3" `shouldRespondWith`
+        "[{\"id\":3,\"name\":\"Three\",\"settings\":{\"foo\":{\"int\":1,\"bar\":\"baz\"}}}]"
+
+    it "one simple column" $
+      get "/complex_items?select=id" `shouldRespondWith`
+        [json| [{"id":1},{"id":2},{"id":3}] |]
+
+    it "one simple column with casting (text)" $
+      get "/complex_items?select=id::text" `shouldRespondWith`
+        [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
+
+    it "json column" $
+      get "/complex_items?id=eq.1&select=settings" `shouldRespondWith`
+        [json| [{"settings":{"foo":{"int":1,"bar":"baz"}}}] |]
+
+    it "json subfield one level with casting (json)" $
+      get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
+        [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
+
+    it "json subfield two levels (string)" $
+      get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
+        [json| [{"bar":"baz"}] |]
+
+    it "json subfield two levels with casting (int)" $
+      get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
+        [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
+
 
   describe "ordering response" $ do
     it "by a column asc" $
