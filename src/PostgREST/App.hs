@@ -65,15 +65,15 @@ app conf reqBody req =
         let qt = qualify table
             from = fromMaybe 0 $ rangeOffset <$> range
             query = B.Stmt "select " V.empty True <>
-                  parentheticT (
-                    whereT qt qq $ countRows qt
-                  ) <> commaq <> (
-                  bodyForAccept contentType qt
-                  . limitT range
-                  . orderT (orderParse qq)
-                  . whereT qt qq
-                  $ select qt qq
-                )
+                parentheticT (
+                  whereT qt qq $ countRows qt
+                ) <> commaq <> (
+                bodyForAccept contentType qt
+                . limitT range
+                . orderT (orderParse qq)
+                . whereT qt qq
+                $ select qt qq
+              )
         row <- H.maybeEx query
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
@@ -81,14 +81,14 @@ app conf reqBody req =
             contentRange = contentRangeH from to tableTotal
             status = rangeStatus from to tableTotal
             canonical = urlEncodeVars
-                          . sortBy (comparing fst)
-                          . map (join (***) cs)
-                          . parseSimpleQuery
-                          $ rawQueryString req
+              . sortBy (comparing fst)
+              . map (join (***) cs)
+              . parseSimpleQuery
+              $ rawQueryString req
         return $ responseLBS status
           [contentTypeH, contentRange,
             ("Content-Location",
-             "/" <> cs table <>
+              "/" <> cs table <>
                 if Prelude.null canonical then "" else "?" <> cs canonical
             )
           ] (cs $ fromMaybe "[]" body)
@@ -119,8 +119,7 @@ app conf reqBody req =
               encode . object $ [("message", String "Failed to parse user.")]
             Just u -> do
               setRole authenticator
-              login <- signInRole (cs $ userId u)
-                              (cs $ userPass u)
+              login <- signInRole (cs $ userId u) (cs $ userPass u)
               case login of
                 LoginSuccess role uid ->
                   return $ responseLBS status201 [ jsonH ] $
@@ -133,15 +132,15 @@ app conf reqBody req =
           echoRequested = lookupHeader "Prefer" == Just "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookupHeader "Content-Type" == Just csvMT
-                    then do
-                      rows <- CSV.decode CSV.NoHeader reqBody
-                      if V.null rows then Left "CSV requires header"
-                        else Right (V.head rows, (V.map $ V.map $ parseCsvCell . cs) (V.tail rows))
-                    else eitherDecode reqBody >>= \val ->
-                      case val of
-                        Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
-                          M.toList obj
-                        _ -> Left "Expecting single JSON object or CSV rows"
+            then do
+              rows <- CSV.decode CSV.NoHeader reqBody
+              if V.null rows then Left "CSV requires header"
+                else Right (V.head rows, (V.map $ V.map $ parseCsvCell . cs) (V.tail rows))
+            else eitherDecode reqBody >>= \val ->
+              case val of
+                Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
+                  M.toList obj
+                _ -> Left "Expecting single JSON object or CSV rows"
       case parsed of
         Left err -> return $ responseLBS status400 [] $
           encode . object $ [("message", String $ "Failed to parse JSON payload. " <> cs err)]
@@ -186,7 +185,7 @@ app conf reqBody req =
         let specifiedKeys = map (cs . fst) qq
         if S.fromList primaryKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []
-               "You must speficy all and only primary keys as params"
+            "You must speficy all and only primary keys as params"
           else do
             tableCols <- map (cs . colName) <$> columns qt
             let cols = map cs $ M.keys obj
@@ -194,21 +193,21 @@ app conf reqBody req =
               then do
                 let vals = M.elems obj
                 H.unitEx $ iffNotT
-                        (whereT qt qq $ update qt cols vals)
-                        (insertSelect qt cols vals)
+                  (whereT qt qq $ update qt cols vals)
+                  (insertSelect qt cols vals)
                 return $ responseLBS status204 [ jsonH ] ""
 
               else return $ if Prelude.null tableCols
                 then responseLBS status404 [] ""
                 else responseLBS status400 []
-                   "You must specify all columns in PUT request"
+                  "You must specify all columns in PUT request"
 
     ([table], "PATCH") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
             up = returningStarT
-               . whereT qt qq
-               $ update qt (map cs $ M.keys obj) (M.elems obj)
+              . whereT qt qq
+              $ update qt (map cs $ M.keys obj) (M.elems obj)
             patch = withT up "t" $ B.Stmt
               "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying"
               V.empty True
@@ -232,8 +231,8 @@ app conf reqBody req =
       row <- H.maybeEx del
       let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
       return $ if deletedCount == 0
-         then responseLBS status404 [] ""
-         else responseLBS status204 [("Content-Range", "*/"<> cs (show deletedCount))] ""
+        then responseLBS status404 [] ""
+        else responseLBS status204 [("Content-Range", "*/"<> cs (show deletedCount))] ""
 
     (_, _) ->
       return $ responseLBS status404 [] ""
@@ -271,19 +270,20 @@ contentRangeH from to total =
   ("Content-Range",
     if total == 0 || from > total
     then "*/" <> cs (show total)
-    else cs (show from)  <> "-"
-       <> cs (show to)    <> "/"
-       <> cs (show total)
+    else cs (show from)
+      <> "-" <> cs (show to)
+      <> "/" <> cs (show total)
   )
 
 requestedSchema :: Text -> Maybe BS.ByteString -> Text
 requestedSchema v1schema accept =
   case verStr of
-       Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
-       _ -> v1schema
+    Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
+    _ -> v1schema
 
-  where verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
-        verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
+  where
+    verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
+    verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
 
 
 jsonMT :: BS.ByteString

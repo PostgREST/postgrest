@@ -43,8 +43,8 @@ tables :: Text -> H.Tx P.Postgres s [Table]
 tables schema = do
   rows <- H.listEx $
     [H.stmt|
-      select 
-        n.nspname as table_schema, 
+      select
+        n.nspname as table_schema,
         relname as table_name,
         c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
         or (exists (
@@ -52,16 +52,17 @@ tables schema = do
            from pg_trigger
            where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
         ) as insertable
-      from 
-        pg_class c 
-        join pg_namespace n on n.oid = c.relnamespace 
-      where 
-            c.relkind in ('v', 'r', 'm')
-            and n.nspname = ?
-            and (
-                pg_has_role(c.relowner, 'USAGE'::text)
-                or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
-                )
+      from
+        pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+      where
+        c.relkind in ('v', 'r', 'm')
+        and n.nspname = ?
+        and (
+          pg_has_role(c.relowner, 'USAGE'::text)
+          or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
+          or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+        )
       order by relname
     |] schema
   return $ map tableFromRow rows
@@ -71,31 +72,31 @@ columns :: QualifiedIdentifier -> H.Tx P.Postgres s [Column]
 columns table = do
   cols <- H.listEx $ [H.stmt|
       select info.table_schema as schema, info.table_name as table_name,
-             info.column_name as name, info.ordinal_position as position,
-             info.is_nullable::boolean as nullable, info.data_type as col_type,
-             info.is_updatable::boolean as updatable,
-             info.character_maximum_length as max_len,
-             info.numeric_precision as precision,
-             info.column_default as default_value,
-             array_to_string(enum_info.vals, ',') as enum
-         from (
-           select table_schema, table_name, column_name, ordinal_position,
-                  is_nullable, data_type, is_updatable,
-                  character_maximum_length, numeric_precision,
-                  column_default, udt_name
-             from information_schema.columns
-            where table_schema = ? and table_name = ?
-         ) as info
-         left outer join (
-           select n.nspname as s,
-                  t.typname as n,
-                  array_agg(e.enumlabel ORDER BY e.enumsortorder) as vals
-           from pg_type t
-              join pg_enum e on t.oid = e.enumtypid
-              join pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-           group by s, n
-         ) as enum_info
-         on (info.udt_name = enum_info.n)
+            info.column_name as name, info.ordinal_position as position,
+            info.is_nullable::boolean as nullable, info.data_type as col_type,
+            info.is_updatable::boolean as updatable,
+            info.character_maximum_length as max_len,
+            info.numeric_precision as precision,
+            info.column_default as default_value,
+            array_to_string(enum_info.vals, ',') as enum
+        from (
+          select table_schema, table_name, column_name, ordinal_position,
+                 is_nullable, data_type, is_updatable,
+                 character_maximum_length, numeric_precision,
+                 column_default, udt_name
+            from information_schema.columns
+           where table_schema = ? and table_name = ?
+        ) as info
+        left outer join (
+          select n.nspname as s,
+                 t.typname as n,
+                 array_agg(e.enumlabel ORDER BY e.enumsortorder) as vals
+          from pg_type t
+            join pg_enum e on t.oid = e.enumtypid
+            join pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+          group by s, n
+        ) as enum_info
+        on (info.udt_name = enum_info.n)
       order by position |]
     (qiSchema table) (qiName table)
 

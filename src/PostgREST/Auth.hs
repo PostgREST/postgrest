@@ -56,10 +56,10 @@ setRole :: Text -> H.Tx P.Postgres s ()
 setRole role = H.unitEx $ B.Stmt ("set local role " <> cs (pgFmtLit role)) V.empty True
 
 setUserId :: Text -> H.Tx P.Postgres s ()
-setUserId uid = if uid /= "" then
-  H.unitEx $ B.Stmt ("set local user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
-else
-  resetUserId
+setUserId uid =
+  if uid /= ""
+    then H.unitEx $ B.Stmt ("set local user_vars.user_id = " <> cs (pgFmtLit uid)) V.empty True
+    else resetUserId
 
 resetUserId :: H.Tx P.Postgres s ()
 resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
