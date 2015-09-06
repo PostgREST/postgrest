@@ -58,7 +58,7 @@ whereT table params q =
    then q
    else q <> B.Stmt " where " empty True <> conjunction
  where
-   cols = [ col | col <- params, fst col `notElem` ["order"] ]
+   cols = [ col | col <- params, fst col `notElem` ["order","select"] ]
    wherePredTable = wherePred table
    conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
 
@@ -128,6 +128,29 @@ asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <
 
 selectStar :: QualifiedIdentifier -> PStmt
 selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
+
+select :: QualifiedIdentifier -> Net.Query -> PStmt
+select table params =
+ if L.null cols
+   then selectStar table
+   else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
+ where
+   selectTermTable = selectTerm table
+   conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
+   columnsParam = fromMaybe "" $ join (lookup "select" params)
+   cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
+
+selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
+selectTerm table col =
+    case T.splitOn "::" col of
+        [colName,castTo] -> B.Stmt ("CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS " <> castToSafe <> " )" <> asT (jsonbPath colName)) empty True
+            where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
+        _-> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
+    where
+        jsonbPath :: T.Text -> Maybe JsonbPath
+        jsonbPath c = parseJsonbPath $ cs c
+        asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
+        asT _ = ""
 
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }

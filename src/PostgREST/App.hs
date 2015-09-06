@@ -64,7 +64,7 @@ app conf reqBody req =
       else do
         let qt = qualify table
             from = fromMaybe 0 $ rangeOffset <$> range
-            select = B.Stmt "select " V.empty True <>
+            query = B.Stmt "select " V.empty True <>
                   parentheticT (
                     whereT qt qq $ countRows qt
                   ) <> commaq <> (
@@ -72,9 +72,9 @@ app conf reqBody req =
                   . limitT range
                   . orderT (orderParse qq)
                   . whereT qt qq
-                  $ selectStar qt
+                  $ select qt qq
                 )
-        row <- H.maybeEx select
+        row <- H.maybeEx query
         let (tableTotal, queryTotal, body) =
               fromMaybe (0, 0, Just "" :: Maybe Text) row
             to = from+queryTotal-1
