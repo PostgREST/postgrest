@@ -261,6 +261,12 @@ spec = afterAll_ resetDb $ around withApp $ do
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "0-9/10"
 
+      it "can set a column to NULL" $ do
+        _ <- post "/no_pk" [json| { a: "keepme", b: "nullme" } |]
+        _ <- request methodPatch "/no_pk?b=eq.nullme" [] [json| { b: null } |]
+        get "/no_pk?a=eq.keepme" `shouldRespondWith`
+          [json| [{ a: "keepme", b: null }] |]
+
       it "can update based on a computed column" $
         request methodPatch
           "/items?always_true=eq.false"

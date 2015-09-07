@@ -1,6 +1,6 @@
 export POSTGREST_VER=`grep ^version /app/postgrest.cabal | sed -En 's/.*\s+([0-9\.]+)/\1/p'`
 
-curl -L http://softlayer-ams.dl.sourceforge.net/project/s3tools/s3cmd/1.5.0-alpha1/s3cmd-1.5.0-alpha1.tar.gz | tar zx
+curl -L http://sourceforge.net/projects/s3tools/files/s3cmd/1.5.0-alpha1/s3cmd-1.5.0-alpha1.tar.gz | tar zx
 
 cp /app/dist/build/postgrest/postgrest postgrest-${POSTGREST_VER}
 tar cJf postgrest-${POSTGREST_VER}.tar.xz postgrest-${POSTGREST_VER}

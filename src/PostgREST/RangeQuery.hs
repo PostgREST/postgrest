@@ -41,15 +41,15 @@ rangeRequested = (rangeParse =<<) . lookup hRange
 
 rangeLimit :: NonnegRange -> Maybe Int
 rangeLimit range =
-  case [rangeLower range, rangeUpper range]
-    of [BoundaryBelow from, BoundaryAbove to] -> Just (1 + to - from)
-       _ -> Nothing
+  case [rangeLower range, rangeUpper range] of
+    [BoundaryBelow from, BoundaryAbove to] -> Just (1 + to - from)
+    _ -> Nothing
 
 rangeOffset :: NonnegRange -> Int
 rangeOffset range =
-  case rangeLower range
-    of BoundaryBelow from -> from
-       _ -> error "range without lower bound" -- should never happen
+  case rangeLower range of
+    BoundaryBelow from -> from
+    _ -> error "range without lower bound" -- should never happen
 
 rangeGeq :: Int -> NonnegRange
 rangeGeq n =

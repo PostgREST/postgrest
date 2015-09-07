@@ -22,7 +22,7 @@ data AppConfig = AppConfig {
   , configSecure :: Bool
   , configPool :: Int
   , configV1Schema :: String
-  
+
   , configJwtSecret :: String
   }
 
@@ -52,9 +52,9 @@ corsPolicy req = case lookup "origin" headers of
       corsOrigins = Just ([origin], True)
     , corsRequestHeaders = "Authentication":accHeaders
     , corsExposedHeaders = Just [
-          "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
-        , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
-        ]
+        "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
+      , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
+      ]
     }
   Nothing -> Nothing
   where

@@ -78,12 +78,12 @@ redirectInsecure app req respond = do
 
   if not (isSecure req || isHerokuSecure)
     then case uriM of
-              Just uri ->
-                respond $ responseLBS status301 [
-                    (hLocation, cs . show $ uri { uriScheme = "https:" })
-                  ] ""
-              Nothing ->
-                respond $ responseLBS status400 [] "SSL is required"
+      Just uri ->
+        respond $ responseLBS status301 [
+            (hLocation, cs . show $ uri { uriScheme = "https:" })
+          ] ""
+      Nothing ->
+        respond $ responseLBS status400 [] "SSL is required"
     else app req respond
 
 unsupportedAccept :: Application -> Application
@@ -96,6 +96,6 @@ unsupportedAccept app req respond = do
 
 defaultMiddle :: Bool -> Application -> Application
 defaultMiddle secure = (if secure then redirectInsecure else id)
-        . gzip def . cors corsPolicy
-        . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
-        . unsupportedAccept
+  . gzip def . cors corsPolicy
+  . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+  . unsupportedAccept

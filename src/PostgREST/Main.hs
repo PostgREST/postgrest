@@ -36,12 +36,12 @@ main = do
   hSetBuffering stderr NoBuffering
 
   let opts = info (helper <*> argParser) $
-                fullDesc
-                <> progDesc (
-                    "PostgREST "
-                    <> prettyVersion
-                    <> " / create a REST API to an existing Postgres database"
-                )
+               fullDesc
+               <> progDesc (
+                 "PostgREST "
+                 <> prettyVersion
+                 <> " / create a REST API to an existing Postgres database"
+               )
       parserPrefs = prefs showHelpOnError
   conf <- customExecParser parserPrefs opts
   let port = configPort conf
@@ -64,12 +64,15 @@ main = do
       middle = logStdout . defaultMiddle (configSecure conf)
 
   poolSettings <- maybe (fail "Improper session settings") return $
-                H.poolSettings (fromIntegral $ configPool conf) 30
-  pool :: H.Pool P.Postgres
-          <- H.acquirePool pgSettings poolSettings
+    H.poolSettings (fromIntegral $ configPool conf) 30
+  pool :: H.Pool P.Postgres <- H.acquirePool pgSettings poolSettings
 
   resOrError <- H.session pool isServerVersionSupported
-  either (fail . show) (\supported -> unless supported $ fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0") resOrError
+  either (fail . show)
+    (\supported ->
+      unless supported $
+        fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
+    ) resOrError
 
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req

@@ -54,13 +54,13 @@ limitT r q =
 
 whereT :: QualifiedIdentifier -> Net.Query -> StatementT
 whereT table params q =
- if L.null cols
-   then q
-   else q <> B.Stmt " where " empty True <> conjunction
- where
-   cols = [ col | col <- params, fst col `notElem` ["order","select"] ]
-   wherePredTable = wherePred table
-   conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
+  if L.null cols
+    then q
+    else q <> B.Stmt " where " empty True <> conjunction
+  where
+    cols = [ col | col <- params, fst col `notElem` ["order","select"] ]
+    wherePredTable = wherePred table
+    conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
 
 withT :: PStmt -> T.Text -> StatementT
 withT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
@@ -74,13 +74,13 @@ orderT ts q =
     then q
     else q <> B.Stmt " order by " empty True <> clause
   where
-   clause = mconcat $ L.intersperse commaq (map queryTerm ts)
-   queryTerm :: OrderTerm -> PStmt
-   queryTerm t = B.Stmt
-                   (" " <> cs (pgFmtIdent $ otTerm t) <> " "
-                        <> cs (otDirection t)         <> " "
-                        <> maybe "" cs (otNullOrder t) <> " ")
-                   empty True
+    clause = mconcat $ L.intersperse commaq (map queryTerm ts)
+    queryTerm :: OrderTerm -> PStmt
+    queryTerm t = B.Stmt
+      (" " <> cs (pgFmtIdent $ otTerm t) <> " "
+           <> cs (otDirection t)         <> " "
+           <> maybe "" cs (otNullOrder t) <> " ")
+      empty True
 
 parentheticT :: StatementT
 parentheticT s =
@@ -105,7 +105,8 @@ asCsvWithCount :: QualifiedIdentifier -> StatementT
 asCsvWithCount table = withCount . asCsv table
 
 asCsv :: QualifiedIdentifier -> StatementT
-asCsv table s = s { B.stmtTemplate =
+asCsv table s = s {
+  B.stmtTemplate =
     "(select string_agg(quote_ident(column_name::text), ',') from "
     <> "(select column_name from information_schema.columns where quote_ident(table_schema) || '.' || table_name = '"
     <> fromQi table <> "' order by ordinal_position) h) || '\r' || "
@@ -116,7 +117,8 @@ asJsonWithCount :: StatementT
 asJsonWithCount = withCount . asJson
 
 asJson :: StatementT
-asJson s = s { B.stmtTemplate =
+asJson s = s {
+  B.stmtTemplate =
     "array_to_json(array_agg(row_to_json(t)))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
 
@@ -131,26 +133,30 @@ selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
 
 select :: QualifiedIdentifier -> Net.Query -> PStmt
 select table params =
- if L.null cols
-   then selectStar table
-   else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
- where
-   selectTermTable = selectTerm table
-   conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
-   columnsParam = fromMaybe "" $ join (lookup "select" params)
-   cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
+  if L.null cols
+    then selectStar table
+    else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
+  where
+    selectTermTable = selectTerm table
+    conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
+    columnsParam = fromMaybe "" $ join (lookup "select" params)
+    cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
 
 selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
 selectTerm table col =
-    case T.splitOn "::" col of
-        [colName,castTo] -> B.Stmt ("CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS " <> castToSafe <> " )" <> asT (jsonbPath colName)) empty True
-            where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
-        _-> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
-    where
-        jsonbPath :: T.Text -> Maybe JsonbPath
-        jsonbPath c = parseJsonbPath $ cs c
-        asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
-        asT _ = ""
+  case T.splitOn "::" col of
+    [colName,castTo] ->
+      B.Stmt (
+          "CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS "
+          <> castToSafe <> " )" <> asT (jsonbPath colName)
+        ) empty True
+      where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
+    _ -> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
+  where
+    jsonbPath :: T.Text -> Maybe JsonbPath
+    jsonbPath c = parseJsonbPath $ cs c
+    asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
+    asT _ = ""
 
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
@@ -212,39 +218,39 @@ wherePred table (col, predicate) =
 
   where
     headPredicate:rest = T.split (=='.') $ cs $ fromMaybe "." predicate
-    hasNot caseTrue caseFalse =  if headPredicate == "not" then caseTrue else caseFalse
-    opCode = hasNot (head rest) headPredicate
-    notOp  = hasNot headPredicate ""
-    value  = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
-    whiteList val = fromMaybe (cs (pgFmtLit val) <> "::unknown ")
-                              (L.find ((==) . T.toLower $ val)
-                                      ["null","true","false"])
+    hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
+    opCode        = hasNot (head rest) headPredicate
+    notOp         = hasNot headPredicate ""
+    value         = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
+    whiteList val = fromMaybe
+      (cs (pgFmtLit val) <> "::unknown ")
+      (L.find ((==) . T.toLower $ val) ["null","true","false"])
     star c = if c == '*' then '%' else c
     unknownLiteral = (<> "::unknown ") . pgFmtLit
 
     sqlValue = case opCode of
-            "like" -> unknownLiteral $ T.map star value
-            "ilike" -> unknownLiteral $ T.map star value
-            "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-            "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-            "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
-            _    -> unknownLiteral value
+      "like" -> unknownLiteral $ T.map star value
+      "ilike" -> unknownLiteral $ T.map star value
+      "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+      "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+      "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
+      _    -> unknownLiteral value
 
     op = case opCode of
-         "eq"  -> "="
-         "gt"  -> ">"
-         "lt"  -> "<"
-         "gte" -> ">="
-         "lte" -> "<="
-         "neq" -> "<>"
-         "like"-> "like"
-         "ilike"-> "ilike"
-         "in"  -> "in"
-         "notin" -> "not in"
-         "is"    -> "is"
-         "isnot" -> "is not"
-         "@@" -> "@@"
-         _     -> "="
+      "eq"  -> "="
+      "gt"  -> ">"
+      "lt"  -> "<"
+      "gte" -> ">="
+      "lte" -> "<="
+      "neq" -> "<>"
+      "like"-> "like"
+      "ilike"-> "ilike"
+      "in"  -> "in"
+      "notin" -> "not in"
+      "is"    -> "is"
+      "isnot" -> "is not"
+      "@@" -> "@@"
+      _     -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
@@ -255,18 +261,18 @@ orderParse q =
 orderParseTerm :: T.Text -> Maybe OrderTerm
 orderParseTerm s =
   case T.split (=='.') s of
-       (c:d:nls) ->
-         if d `elem` ["asc", "desc"]
-            then Just $ OrderTerm c
-              ( if d == "asc" then "asc" else "desc" )
-              ( case nls of
-                  [n] -> if | n == "nullsfirst" -> Just "nulls first"
-                            | n == "nullslast"  -> Just "nulls last"
-                            | otherwise -> Nothing
-                  _   -> Nothing
-              )
-            else Nothing
-       _ -> Nothing
+    (c:d:nls) ->
+      if d `elem` ["asc", "desc"]
+        then Just $ OrderTerm c
+          ( if d == "asc" then "asc" else "desc" )
+          ( case nls of
+              [n] -> if | n == "nullsfirst" -> Just "nulls first"
+                        | n == "nullslast"  -> Just "nulls last"
+                        | otherwise -> Nothing
+              _   -> Nothing
+          )
+        else Nothing
+    _ -> Nothing
 
 commaq :: PStmt
 commaq  = B.Stmt ", " empty True

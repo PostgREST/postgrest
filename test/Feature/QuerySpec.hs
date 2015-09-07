@@ -234,6 +234,11 @@ spec =
               (acceptHdrs "text/unknowntype") ""
         `shouldRespondWith` 415
 
+    it "should respond correctly to */* in accept header" $
+      request methodGet "/simple_pk"
+              (acceptHdrs "*/*") ""
+        `shouldRespondWith` 200
+
     it "should respond correctly to multiple types in accept header" $
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype, text/csv") ""

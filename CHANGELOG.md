@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Added
+- Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
+
+## [0.2.11.1] - 2015-09-01
+
+### Fixed
+- Accepts `*/*` in Accept header - @diogob
+
 ## [0.2.11.0] - 2015-08-28
 ### Added
 - Negate any filter in a uniform way, e.g. `?col=not.eq=foo` - @diogob
