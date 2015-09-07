@@ -104,6 +104,19 @@ app conf reqBody req =
             (cs $ userPass u) (cs $ userRole u)
           return $ responseLBS status201
             [ jsonH
+            , (hLocation,"/postgrest/users?id=eq." <> cs (userId u))
+            ] ""
+
+    (["postgrest", "users"], "PUT") -> do
+      let user = decode reqBody :: Maybe AuthUser
+
+      case user of
+        Nothing -> return $ responseLBS status400 [jsonH] $
+          encode . object $ [("message", String "Failed to parse user.")]
+        Just u -> do
+           _ <- updateUser (cs $ userId u) (cs $ userPass u) (cs $ userRole u)
+           return $ responseLBS status200
+            [ jsonH
             , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
             ] ""
 
@@ -158,7 +171,7 @@ app conf reqBody req =
                       $ sortBy (comparing fst) $ M.toList primaries
                 responseLBS status201
                   [ jsonH
-                  , (hLocation, "/" <> cs table <> "?" <> cs params)
+                  , (hLocation,"/" <> cs table {- <> "?" <> cs params-})
                   ] $ if echoRequested then encode obj else ""
           return $ multipart status201 responses
 
