@@ -178,6 +178,29 @@ app conf reqBody req =
       -- check that arg names are all specified
       -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
 
+    (["postgrest", "users"], "PUT") ->
+          handleJsonObj reqBody $ \obj -> do
+            let qt =  QualifiedIdentifier "postgrest" "auth"
+            primaryKeys <- primaryKeyColumns qt
+            let specifiedKeys = map (cs . fst) qq
+            if S.fromList primaryKeys /= S.fromList specifiedKeys
+              then return $ responseLBS status405 []
+                "You must speficy all and only primary keys as params"
+              else do
+                tableCols <- map (cs . colName) <$> columns qt
+                let cols = map cs $ M.keys obj
+                if S.fromList tableCols == S.fromList cols
+                  then do
+                    let vals = M.elems obj
+                    H.unitEx $ iffNotT
+                      (whereT qt qq $ update qt cols vals)
+                      (insertSelect qt cols vals)
+                    return $ responseLBS status204 [ jsonH ] ""
+
+                  else return $ if Prelude.null tableCols
+                    then responseLBS status404 [] ""
+                    else responseLBS status400 []
+                      "You must specify all columns in PUT request"
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
