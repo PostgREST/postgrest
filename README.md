@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/begriffs/postgrest.png?label=ready&title=Ready)](https://waffle.io/begriffs/postgrest)
 ![Logo](static/logo.png "Logo")
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?style=shield&circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
