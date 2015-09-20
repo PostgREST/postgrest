@@ -23,14 +23,14 @@ import System.IO.Unsafe
 data AuthUser = AuthUser {
     userId :: String
   , userPass :: String
-  , userRole :: String
+  , userRole :: Maybe String
   } deriving (Show)
 
 instance FromJSON AuthUser where
   parseJSON (Object v) = AuthUser <$>
                          v .: "id" <*>
                          v .: "pass" <*>
-                         v .:? "role" .!= ""
+                         v .:? "role"
   parseJSON _ = mzero
 
 instance ToJSON AuthUser where
@@ -64,7 +64,7 @@ setUserId uid =
 resetUserId :: H.Tx P.Postgres s ()
 resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
 
-addUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
+addUser :: Text -> Text -> Maybe Text -> H.Tx P.Postgres s ()
 addUser identity pass role = do
   let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
   H.unitEx $
