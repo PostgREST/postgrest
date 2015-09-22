@@ -31,6 +31,7 @@ import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(errResponse)
 import PostgREST.PgStructure
+import PostgREST.Types
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
@@ -68,11 +69,22 @@ withApp perform = do
   pkRes <-  H.session pool $ H.tx txParam $ allprimaryKeys
   let allPrimaryKeys = either (fail . show) id pkRes
 
+  tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
+  let allTablesAcl = either (fail . show) id tableAclRes
+
+
+  let dbstructure = DbStructure {
+    tables=allTables,
+    columns=allColumns,
+    relations=allRelations,
+    primaryKeys=allPrimaryKeys,
+    tablesAcl=allTablesAcl}
+
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True))
-      $ authenticated cfg (app allTables allRelations allColumns allPrimaryKeys cfg body) req
+      $ authenticated cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False

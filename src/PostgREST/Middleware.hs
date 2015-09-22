@@ -26,11 +26,12 @@ import PostgREST.Config (AppConfig(..), corsPolicy)
 import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, setUserId)
 import PostgREST.App (contentTypeForAccept)
 import Codec.Binary.Base64.String (decode)
+import PostgREST.Auth (DbRole)
 
 import Prelude
 
 authenticated :: forall s. AppConfig ->
-                 (Request -> H.Tx P.Postgres s Response) ->
+                 (DbRole -> Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
 authenticated conf app req = do
   attempt <- httpRequesterRole (requestHeaders req)
@@ -39,8 +40,8 @@ authenticated conf app req = do
       return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
       return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app req
-    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app req
+    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app currentRole req
+    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app currentRole req
 
  where
    jwtSecret = cs $ configJwtSecret conf
@@ -62,7 +63,7 @@ authenticated conf app req = do
    runInRole r uid = do
      setUserId uid
      setRole r
-     app req
+     app r req
 
 
 redirectInsecure :: Application -> Application

@@ -50,8 +50,8 @@ import PostgREST.PgStructure
 
 import Prelude
 
-app :: [Table] -> [Relation] -> [Column] -> [PrimaryKey] -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app allTables allRelations allColumns allPrimaryKeys conf reqBody req =
+app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf reqBody role req =
   case (path, verb) of
     -- ([], _) -> do
     --   body <- encode <$> tables (cs schema)
@@ -65,7 +65,7 @@ app allTables allRelations allColumns allPrimaryKeys conf reqBody req =
     --     $ encode (TableOptions cols pkey)
 
     ([], _) -> do
-      let body = encode $ filter (((cs schema)==).tableSchema) allTables
+      let body = encode $ filter (filterTableAcl allTablesAcl role) $ filter (((cs schema)==).tableSchema) allTables
       return $ responseLBS status200 [jsonH, ("Custom", "header")] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -257,8 +257,16 @@ app allTables allRelations allColumns allPrimaryKeys conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
+    allTables = tables dbstructure
+    allRelations = relations dbstructure
+    allColumns = columns dbstructure
+    allPrimaryKeys = primaryKeys dbstructure
+    allTablesAcl = tablesAcl dbstructure
     filterCol schema table (Column{colSchema=s, colTable=t}) =  s==schema && table==t
     filterPk schema table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==schema && table==t
+
+    filterTableAcl :: [(Text, Text, Text)] -> Text -> Table -> Bool
+    filterTableAcl acl r (Table{tableSchema=s, tableName=n}) = isJust $ find (\(as,an,ar)->as==s && an==n && ar==r) acl
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req

@@ -1,6 +1,14 @@
 module PostgREST.Types where
 import Data.Text
 
+data DbStructure = DbStructure {
+  tables :: [Table]
+, columns :: [Column]
+, relations :: [Relation]
+, primaryKeys :: [PrimaryKey]
+, tablesAcl :: [(Text, Text, Text)]
+}
+
 data Table = Table {
   tableSchema :: Text
 , tableName :: Text

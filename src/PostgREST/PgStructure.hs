@@ -311,3 +311,17 @@ allprimaryKeys = do
     AND kc.table_schema NOT IN ('pg_catalog', 'information_schema')
   |]
   return $ map pkFromRow pks
+
+alltablesAcl :: H.Tx P.Postgres s [(Text, Text, Text)]
+alltablesAcl = do
+  acl <- H.listEx $ [H.stmt|
+    SELECT
+      table_schema,
+      table_name,
+      grantee as role
+    FROM information_schema.role_table_grants
+    WHERE
+      table_schema NOT IN ('pg_catalog', 'information_schema') AND
+      privilege_type = 'SELECT'
+  |]
+  return acl

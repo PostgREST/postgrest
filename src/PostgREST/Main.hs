@@ -99,10 +99,21 @@ main = do
   pkRes <-  H.session pool $ H.tx txParam $ allprimaryKeys
   let allPrimaryKeys = either (fail . show) id pkRes
 
-  runSettings appSettings $ middle $ \req respond -> do
+  tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
+  let allTablesAcl = either (fail . show) id tableAclRes
+
+
+  let dbstructure = DbStructure {
+    tables=allTables,
+    columns=allColumns,
+    relations=allRelations,
+    primaryKeys=allPrimaryKeys,
+    tablesAcl=allTablesAcl}
+
+  runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True)) $
-      authenticated conf (app allTables allRelations allColumns allPrimaryKeys conf body) req
+      authenticated conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
 
   where
