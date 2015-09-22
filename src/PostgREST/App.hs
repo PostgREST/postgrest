@@ -1,11 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
-module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept) where
+module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept
+-- added
+, jsonH
+, requestedSchema
+, TableOptions(..)
+) where
 
 import Control.Monad (join)
 import Control.Arrow ((***), second)
 import Control.Applicative
 
-import Data.Text hiding (map, find)
+import Data.Text hiding (map, find, filter)
 import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
@@ -36,6 +41,7 @@ import qualified Hasql as H
 import qualified Hasql.Backend as B
 import qualified Hasql.Postgres as P
 
+import PostgREST.Types
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Auth
 import PostgREST.PgQuery
@@ -44,19 +50,31 @@ import PostgREST.PgStructure
 
 import Prelude
 
-app :: AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app conf reqBody req =
+app :: [Table] -> [Relation] -> [Column] -> [PrimaryKey] -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app allTables allRelations allColumns allPrimaryKeys conf reqBody req =
   case (path, verb) of
+    -- ([], _) -> do
+    --   body <- encode <$> tables (cs schema)
+    --   return $ responseLBS status200 [jsonH] $ cs body
+
+    -- ([table], "OPTIONS") -> do
+    --   let qt = qualify table
+    --   cols <- columns qt
+    --   pkey <- map cs <$> primaryKeyColumns qt
+    --   return $ responseLBS status200 [jsonH, allOrigins]
+    --     $ encode (TableOptions cols pkey)
+
     ([], _) -> do
-      body <- encode <$> tables (cs schema)
-      return $ responseLBS status200 [jsonH] $ cs body
+      let body = encode $ filter (((cs schema)==).tableSchema) allTables
+      return $ responseLBS status200 [jsonH, ("Custom", "header")] $ cs body
 
     ([table], "OPTIONS") -> do
-      let qt = qualify table
-      cols <- columns qt
-      pkey <- map cs <$> primaryKeyColumns qt
-      return $ responseLBS status200 [jsonH, allOrigins]
-        $ encode (TableOptions cols pkey)
+      let qt = Table schema table
+      let cols = filter (filterCol schema table) allColumns
+      let pkey = map pkName $ filter (filterPk schema table) allPrimaryKeys
+      let body = encode (TableOptions cols pkey)
+      return $ responseLBS status200 [jsonH, allOrigins, ("Custom", "header2")] $ cs body
+
 
     ([table], "GET") ->
       if range == Just emptyRange
@@ -187,7 +205,8 @@ app conf reqBody req =
           then return $ responseLBS status405 []
             "You must speficy all and only primary keys as params"
           else do
-            tableCols <- map (cs . colName) <$> columns qt
+            --tableCols <- map (cs . colName) <$> columns qt
+            let tableCols = map (cs . colName) $ filter (filterCol schema table) allColumns
             let cols = map cs $ M.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
@@ -238,6 +257,8 @@ app conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
+    filterCol schema table (Column{colSchema=s, colTable=t}) =  s==schema && table==t
+    filterPk schema table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==schema && table==t
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req

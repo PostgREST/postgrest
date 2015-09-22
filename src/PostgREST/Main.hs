@@ -2,6 +2,16 @@
 module Main where
 
 import Paths_postgrest (version)
+-- added
+import PostgREST.PgStructure
+import Data.Aeson
+import Data.List (find)
+import Data.Maybe (isJust)
+import PostgREST.Types
+import Network.HTTP.Types.Status
+import Network.HTTP.Types.Header
+import Network.Wai -- (strictRequestBody, pathInfo, requestMethod, requestHeaders)
+
 
 import PostgREST.App
 import PostgREST.Middleware
@@ -10,7 +20,6 @@ import PostgREST.Error(errResponse)
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.String.Conversions (cs)
-import Network.Wai (strictRequestBody)
 import Network.Wai.Handler.Warp hiding (Connection)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.List (intercalate)
@@ -74,10 +83,26 @@ main = do
         fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
     ) resOrError
 
+    -- read the structure of the database
+    -- read the structure of the database
+  let txParam = (Just (H.ReadCommitted, Just True))
+
+  tblsRes <-  H.session pool $ H.tx txParam alltables
+  let allTables = either (fail . show) id tblsRes
+
+  relsRes <-  H.session pool $ H.tx txParam allrelations
+  let allRelations = either (fail . show) id relsRes
+
+  colsRes <-  H.session pool $ H.tx txParam $ allcolumns allRelations
+  let allColumns = either (fail . show) id colsRes
+
+  pkRes <-  H.session pool $ H.tx txParam $ allprimaryKeys
+  let allPrimaryKeys = either (fail . show) id pkRes
+
   runSettings appSettings $ middle $ \req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True)) $
-      authenticated conf (app conf body) req
+      authenticated conf (app allTables allRelations allColumns allPrimaryKeys conf body) req
     either (respond . errResponse) respond resOrError
 
   where

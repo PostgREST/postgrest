@@ -58,7 +58,8 @@ library
   if flag(ci)
     ghc-options:       -Wall -W -Werror
   else
-    ghc-options:       -Wall -W -O2
+    -- ghc-options:       -Wall -W -O2
+    ghc-options:       -Wall -W
 
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
@@ -88,6 +89,7 @@ library
                      , cassava
                      , jwt
   Exposed-Modules:     PostgREST.App
+                     , PostgREST.Types
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -108,6 +110,7 @@ Test-Suite spec
     ghc-options:       -Wall -W -O2
   Main-Is:             Main.hs
   Other-Modules:       PostgREST.App
+                     , PostgREST.Types
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
