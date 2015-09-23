@@ -305,7 +305,7 @@ SET search_path = postgrest, pg_catalog;
 
 CREATE TABLE auth (
     id character varying NOT NULL,
-    rolname name NOT NULL,
+    rolname name NOT NULL DEFAULT 'postgrest_test_author',
     pass character(60) NOT NULL
 );
 

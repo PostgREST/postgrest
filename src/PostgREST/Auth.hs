@@ -8,6 +8,7 @@ import Crypto.BCrypt
 import Data.Text
 import Data.Monoid
 import Data.Map
+import Data.Maybe (isNothing)
 import qualified Data.Vector as V
 import qualified Hasql as H
 import qualified Hasql.Backend as B
@@ -65,11 +66,15 @@ resetUserId :: H.Tx P.Postgres s ()
 resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
 
 addUser :: Text -> Text -> Maybe Text -> H.Tx P.Postgres s ()
-addUser identity pass role = do
-  let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
+addUser identity pass role =
   H.unitEx $
-    [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
-      identity (cs hashed :: Text) role
+    if isNothing role
+      then [H.stmt|insert into postgrest.auth (id, pass) values (?, ?)|]
+        identity hashedText
+      else [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
+        identity hashedText role
+  where Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
+        hashedText = cs hashed :: Text
 
 signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
 signInRole user pass = do

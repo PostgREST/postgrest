@@ -29,6 +29,12 @@ spec = beforeAll
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
+  it "does not require users to provide a role" $ do
+    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234" } |]
+    let auth = authHeaderBasic "jdoe" "1234"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 200
+
   it "recovers after 400 error with logged in user" $ do
     _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
     let auth = authHeaderBasic "jdoe" "1234"
