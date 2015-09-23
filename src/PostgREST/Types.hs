@@ -1,5 +1,6 @@
 module PostgREST.Types where
 import Data.Text
+import Data.Tree
 
 data DbStructure = DbStructure {
   tables :: [Table]
@@ -34,7 +35,7 @@ data Column = Column {
 , colDefault :: Maybe Text
 , colEnum :: [Text]
 , colFK :: Maybe ForeignKey
-} deriving (Show)
+} | Star {colSchema :: Text, colTable :: Text } deriving (Show)
 
 data PrimaryKey = PrimaryKey {
   pkSchema::Text, pkTable::Text, pkName::Text
@@ -48,3 +49,26 @@ data Relation = Relation {
 , relFColumn :: Text
 , relType    :: Text
 } deriving (Show, Eq)
+
+
+--------
+-- Request Types
+type Operator = String
+type FValue = String
+type ApiRequest = Tree RequestNode
+type FieldName = String
+type JsonPath = [String]
+type Field = (FieldName, Maybe JsonPath)
+type Cast = String
+type SelectItem = (Field, Maybe Cast)
+type Path = [String]
+data RequestNode = RequestNode {nodeName::String, fields::[SelectItem], filters::[Filter]} deriving (Show, Eq)
+data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
+
+-- Db Request Types
+type DbField = (Column, Maybe JsonPath)
+type DbSelectItem = (DbField, Maybe Cast)
+data DbValue = VText Text | VForeignKey Relation deriving (Show)
+data Condition = Condition {conColumn::DbField, conOperator::Operator, conValue::DbValue} deriving (Show)
+data Query = Select {qMainTable::Table, qSelect::[DbSelectItem], qJoinTables::[Table], qWhere::[Condition], qRelation::Maybe Relation} deriving (Show)
+type DbRequest = Tree Query

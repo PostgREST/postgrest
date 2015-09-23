@@ -9,7 +9,7 @@ module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept
 import Control.Monad (join)
 import Control.Arrow ((***), second)
 import Control.Applicative
-
+import           Data.Bifunctor             (first)
 import Data.Text hiding (map, find, filter)
 import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
 import Text.Regex.TDFA ((=~))
@@ -47,6 +47,8 @@ import PostgREST.Auth
 import PostgREST.PgQuery
 import PostgREST.RangeQuery
 import PostgREST.PgStructure
+import PostgREST.Parsers
+import PostgREST.Functions
 
 import Prelude
 
@@ -66,20 +68,31 @@ app dbstructure conf reqBody role req =
 
     ([], _) -> do
       let body = encode $ filter (filterTableAcl role) $ filter (((cs schema)==).tableSchema) allTables
-      return $ responseLBS status200 [jsonH, ("Custom", "header")] $ cs body
+      return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
       let qt = Table schema table
       let cols = filter (filterCol schema table) allColumns
       let pkey = map pkName $ filter (filterPk schema table) allPrimaryKeys
       let body = encode (TableOptions cols pkey)
-      return $ responseLBS status200 [jsonH, allOrigins, ("Custom", "header2")] $ cs body
+      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
 
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else do
+        let apiRequest = parseGetRequest req
+            dbRequest = first formatParserError apiRequest
+                >>= traverse (requestNodeToQuery schema allTables allColumns)
+                >>= addRelations allRelations Nothing
+                >>= addJoinConditions allColumns
+                where formatParserError = pack.show
+            query = dbRequestToQuery <$> dbRequest
+            body = show query
+        return $ responseLBS status200 [] $ cs body
+
+      {--
         let qt = qualify table
             from = fromMaybe 0 $ rangeOffset <$> range
             query = B.Stmt "select " V.empty True <>
@@ -110,6 +123,7 @@ app dbstructure conf reqBody role req =
                 if Prelude.null canonical then "" else "?" <> cs canonical
             )
           ] (cs $ fromMaybe "[]" body)
+      --}
 
     (["postgrest", "users"], "POST") -> do
       let user = decode reqBody :: Maybe AuthUser

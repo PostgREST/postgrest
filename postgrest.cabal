@@ -52,6 +52,8 @@ executable postgrest
                      , mtl
                      , cassava
                      , jwt
+                     , parsec
+                     , errors
   hs-source-dirs:      src
 
 library
@@ -88,8 +90,12 @@ library
                      , mtl
                      , cassava
                      , jwt
+                     , parsec
+                     , errors
   Exposed-Modules:     PostgREST.App
                      , PostgREST.Types
+                     , PostgREST.Parsers
+                     , PostgREST.Functions
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -111,6 +117,8 @@ Test-Suite spec
   Main-Is:             Main.hs
   Other-Modules:       PostgREST.App
                      , PostgREST.Types
+                     , PostgREST.Parsers
+                     , PostgREST.Functions
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -150,3 +158,5 @@ Test-Suite spec
                      , process
                      , heredoc
                      , jwt
+                     , parsec
+                     , errors

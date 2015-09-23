@@ -222,35 +222,46 @@ wherePred table (col, predicate) =
     opCode        = hasNot (head rest) headPredicate
     notOp         = hasNot headPredicate ""
     value         = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
-    whiteList val = fromMaybe
-      (cs (pgFmtLit val) <> "::unknown ")
-      (L.find ((==) . T.toLower $ val) ["null","true","false"])
+    sqlValue = pgFmtValue opCode value
+    op = pgFmtOperator opCode
+
+
+whiteList :: T.Text -> T.Text
+whiteList val = fromMaybe
+  (cs (pgFmtLit val) <> "::unknown ")
+  (L.find ((==) . T.toLower $ val) ["null","true","false"])
+
+pgFmtValue :: T.Text -> T.Text -> T.Text
+pgFmtValue opCode value =
+  case opCode of
+    "like" -> unknownLiteral $ T.map star value
+    "ilike" -> unknownLiteral $ T.map star value
+    "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+    "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+    "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
+    _    -> unknownLiteral value
+  where
     star c = if c == '*' then '%' else c
     unknownLiteral = (<> "::unknown ") . pgFmtLit
 
-    sqlValue = case opCode of
-      "like" -> unknownLiteral $ T.map star value
-      "ilike" -> unknownLiteral $ T.map star value
-      "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-      "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-      "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
-      _    -> unknownLiteral value
+pgFmtOperator :: T.Text -> T.Text
+pgFmtOperator opCode =
+  case opCode of
+    "eq"  -> "="
+    "gt"  -> ">"
+    "lt"  -> "<"
+    "gte" -> ">="
+    "lte" -> "<="
+    "neq" -> "<>"
+    "like"-> "like"
+    "ilike"-> "ilike"
+    "in"  -> "in"
+    "notin" -> "not in"
+    "is"    -> "is"
+    "isnot" -> "is not"
+    "@@" -> "@@"
+    _     -> "="
 
-    op = case opCode of
-      "eq"  -> "="
-      "gt"  -> ">"
-      "lt"  -> "<"
-      "gte" -> ">="
-      "lte" -> "<="
-      "neq" -> "<>"
-      "like"-> "like"
-      "ilike"-> "ilike"
-      "in"  -> "in"
-      "notin" -> "not in"
-      "is"    -> "is"
-      "isnot" -> "is not"
-      "@@" -> "@@"
-      _     -> "="
 
 orderParse :: Net.Query -> [OrderTerm]
 orderParse q =
