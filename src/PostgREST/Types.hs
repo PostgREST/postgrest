@@ -6,13 +6,14 @@ data DbStructure = DbStructure {
 , columns :: [Column]
 , relations :: [Relation]
 , primaryKeys :: [PrimaryKey]
-, tablesAcl :: [(Text, Text, Text)]
+--, tablesAcl :: [(Text, Text, Text)]
 }
 
 data Table = Table {
   tableSchema :: Text
 , tableName :: Text
 , tableInsertable :: Bool
+, tableAcl :: [Text]
 } deriving (Show)
 
 data ForeignKey = ForeignKey {

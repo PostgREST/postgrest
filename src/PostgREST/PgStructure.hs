@@ -138,8 +138,11 @@ doesProcExist schema proc = do
   return $ isJust row
 
 
-tableFromRow :: (Text, Text, Bool) -> Table
-tableFromRow (s, n, i) = Table s n i
+tableFromRow :: (Text, Text, Bool, Maybe Text) -> Table
+tableFromRow (s, n, i, a) = Table s n i (parseAcl a)
+  where
+    parseAcl :: Maybe Text -> [Text]
+    parseAcl str = fromMaybe [] $ split (==',') <$> str
 
 columnFromRow :: (Text,       Text,      Text,
                   Int,        Bool,      Text,
@@ -192,25 +195,30 @@ addFlippedRelation rel@(Relation s t c ft fc _) rels = Relation s ft fc t c "par
 alltables :: H.Tx P.Postgres s [Table]
 alltables = do
     rows <- H.listEx $ [H.stmt|
-            SELECT  n.nspname AS table_schema,
-                    relname   AS TABLE_NAME,
-                    c.relkind = 'r' OR (c.relkind IN ('v','f'))
-                    AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-                    OR (EXISTS ( SELECT 1
-                                 FROM pg_trigger
-                                 WHERE pg_trigger.tgrelid = c.oid
-                                 AND (pg_trigger.tgtype::integer & 69) = 69)
-                    ) AS insertable
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE   c.relkind IN ('v','r','m')
-                AND n.nspname NOT IN ('information_schema','pg_catalog')
-                AND (  pg_has_role(c.relowner, 'USAGE'::text)
-                    OR has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
-                    OR has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
-                    )
-            ORDER BY relname
-        |]
+      SELECT
+        n.nspname AS table_schema,
+        c.relname AS table_name,
+        c.relkind = 'r' OR (c.relkind IN ('v','f'))
+        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+        OR (EXISTS
+          ( SELECT 1
+            FROM pg_trigger
+            WHERE pg_trigger.tgrelid = c.oid
+            AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable,
+        array_to_string(array_agg(r.rolname), ',') AS acl
+      FROM pg_class c
+      CROSS JOIN pg_roles r
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('v','r','m')
+        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        AND (
+          pg_has_role(r.rolname, c.relowner, 'USAGE'::text) OR
+          has_table_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR
+          has_any_column_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text) )
+
+      GROUP BY table_schema, table_name, insertable
+      ORDER BY table_schema, table_name
+    |]
     return $ map tableFromRow rows
 
 allrelations :: H.Tx P.Postgres s [Relation]
@@ -312,16 +320,16 @@ allprimaryKeys = do
   |]
   return $ map pkFromRow pks
 
-alltablesAcl :: H.Tx P.Postgres s [(Text, Text, Text)]
-alltablesAcl = do
-  acl <- H.listEx $ [H.stmt|
-    SELECT
-      table_schema,
-      table_name,
-      grantee as role
-    FROM information_schema.role_table_grants
-    WHERE
-      table_schema NOT IN ('pg_catalog', 'information_schema') AND
-      privilege_type = 'SELECT'
-  |]
-  return acl
+-- alltablesAcl :: H.Tx P.Postgres s [(Text, Text, Text)]
+-- alltablesAcl = do
+--   acl <- H.listEx $ [H.stmt|
+--     SELECT
+--       table_schema,
+--       table_name,
+--       grantee as role
+--     FROM information_schema.role_table_grants
+--     WHERE
+--       table_schema NOT IN ('pg_catalog', 'information_schema') AND
+--       privilege_type = 'SELECT'
+--   |]
+--   return acl

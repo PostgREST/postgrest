@@ -69,16 +69,17 @@ withApp perform = do
   pkRes <-  H.session pool $ H.tx txParam $ allprimaryKeys
   let allPrimaryKeys = either (fail . show) id pkRes
 
-  tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
-  let allTablesAcl = either (fail . show) id tableAclRes
+  -- tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
+  -- let allTablesAcl = either (fail . show) id tableAclRes
 
 
   let dbstructure = DbStructure {
-    tables=allTables,
-    columns=allColumns,
-    relations=allRelations,
-    primaryKeys=allPrimaryKeys,
-    tablesAcl=allTablesAcl}
+      tables=allTables
+    , columns=allColumns
+    , relations=allRelations
+    , primaryKeys=allPrimaryKeys
+    --, tablesAcl=allTablesAcl
+    }
 
 
   perform $ middle $ \req resp -> do

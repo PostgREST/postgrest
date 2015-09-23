@@ -65,7 +65,7 @@ app dbstructure conf reqBody role req =
     --     $ encode (TableOptions cols pkey)
 
     ([], _) -> do
-      let body = encode $ filter (filterTableAcl allTablesAcl role) $ filter (((cs schema)==).tableSchema) allTables
+      let body = encode $ filter (filterTableAcl role) $ filter (((cs schema)==).tableSchema) allTables
       return $ responseLBS status200 [jsonH, ("Custom", "header")] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -261,12 +261,12 @@ app dbstructure conf reqBody role req =
     allRelations = relations dbstructure
     allColumns = columns dbstructure
     allPrimaryKeys = primaryKeys dbstructure
-    allTablesAcl = tablesAcl dbstructure
+    --allTablesAcl = tablesAcl dbstructure
     filterCol schema table (Column{colSchema=s, colTable=t}) =  s==schema && table==t
     filterPk schema table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==schema && table==t
 
-    filterTableAcl :: [(Text, Text, Text)] -> Text -> Table -> Bool
-    filterTableAcl acl r (Table{tableSchema=s, tableName=n}) = isJust $ find (\(as,an,ar)->as==s && an==n && ar==r) acl
+    filterTableAcl :: Text -> Table -> Bool
+    filterTableAcl r (Table{tableAcl=a}) = r `elem` a
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req
