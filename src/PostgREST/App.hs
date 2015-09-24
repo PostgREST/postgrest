@@ -81,49 +81,74 @@ app dbstructure conf reqBody role req =
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
-      else do
-        let apiRequest = parseGetRequest req
+      else
+        case query of
+          Left e -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ cs e
+          Right qs -> do
+            let q = B.Stmt qs V.empty True
+            row <- H.maybeEx q
+            let (tableTotal, queryTotal, body) = fromMaybe (0::Int, 0::Int, Just "" :: Maybe Text) row
+                to = from+queryTotal-1
+                contentRange = contentRangeH from to tableTotal
+                status = rangeStatus from to tableTotal
+                canonical = urlEncodeVars
+                  . sortBy (comparing fst)
+                  . map (join (***) cs)
+                  . parseSimpleQuery
+                  $ rawQueryString req
+
+
+            return $ responseLBS status
+              [contentTypeH, contentRange,
+                ("Content-Location",
+                  "/" <> cs table <>
+                    if Prelude.null canonical then "" else "?" <> cs canonical
+                )
+              ] (cs $ fromMaybe "[]" body)
+
+        where
+            from = fromMaybe 0 $ rangeOffset <$> range
+            apiRequest = parseGetRequest req
             dbRequest = first formatParserError apiRequest
                 >>= traverse (requestNodeToQuery schema allTables allColumns)
                 >>= addRelations allRelations Nothing
                 >>= addJoinConditions allColumns
                 where formatParserError = pack.show
             query = dbRequestToQuery <$> dbRequest
-            body = show query
-        return $ responseLBS status200 [] $ cs body
 
-      {--
-        let qt = qualify table
-            from = fromMaybe 0 $ rangeOffset <$> range
-            query = B.Stmt "select " V.empty True <>
-                parentheticT (
-                  whereT qt qq $ countRows qt
-                ) <> commaq <> (
-                bodyForAccept contentType qt
-                . limitT range
-                . orderT (orderParse qq)
-                . whereT qt qq
-                $ select qt qq
-              )
-        row <- H.maybeEx query
-        let (tableTotal, queryTotal, body) =
-              fromMaybe (0, 0, Just "" :: Maybe Text) row
-            to = from+queryTotal-1
-            contentRange = contentRangeH from to tableTotal
-            status = rangeStatus from to tableTotal
-            canonical = urlEncodeVars
-              . sortBy (comparing fst)
-              . map (join (***) cs)
-              . parseSimpleQuery
-              $ rawQueryString req
-        return $ responseLBS status
-          [contentTypeH, contentRange,
-            ("Content-Location",
-              "/" <> cs table <>
-                if Prelude.null canonical then "" else "?" <> cs canonical
-            )
-          ] (cs $ fromMaybe "[]" body)
-      --}
+
+        --
+        -- let qt = qualify table
+        --     from = fromMaybe 0 $ rangeOffset <$> range
+        --     query = B.Stmt "select " V.empty True <>
+        --         parentheticT (
+        --           whereT qt qq $ countRows qt
+        --         ) <> commaq <> (
+        --         bodyForAccept contentType qt
+        --         . limitT range
+        --         . orderT (orderParse qq)
+        --         . whereT qt qq
+        --         $ select qt qq
+        --       )
+        -- row <- H.maybeEx query
+        -- let (tableTotal, queryTotal, body) =
+        --       fromMaybe (0, 0, Just "" :: Maybe Text) row
+        --     to = from+queryTotal-1
+        --     contentRange = contentRangeH from to tableTotal
+        --     status = rangeStatus from to tableTotal
+        --     canonical = urlEncodeVars
+        --       . sortBy (comparing fst)
+        --       . map (join (***) cs)
+        --       . parseSimpleQuery
+        --       $ rawQueryString req
+        -- return $ responseLBS status
+        --   [contentTypeH, contentRange,
+        --     ("Content-Location",
+        --       "/" <> cs table <>
+        --         if Prelude.null canonical then "" else "?" <> cs canonical
+        --     )
+        --   ] (cs $ fromMaybe "[]" body)
+
 
     (["postgrest", "users"], "POST") -> do
       let user = decode reqBody :: Maybe AuthUser

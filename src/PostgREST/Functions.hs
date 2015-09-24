@@ -6,9 +6,9 @@ import PostgREST.Types
 import           Control.Error
 import Data.List (find)
 import Data.Tree
-import Data.Text hiding (find, foldr, map, null, last)
+import Data.Text hiding (find, foldr, map, null, last, head)
 import Data.Monoid
-import PostgREST.PgQuery (pgFmtOperator, pgFmtValue, pgFmtIdent, pgFmtLit, fromQi, QualifiedIdentifier(..))
+import PostgREST.PgQuery (pgFmtOperator, pgFmtValue, pgFmtIdent, pgFmtLit, fromQi, whiteList, QualifiedIdentifier(..))
 
 
 findColumn :: [Column] -> Text -> Text -> Text -> Either Text Column
@@ -95,10 +95,22 @@ addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
         addCond q con = q{qWhere=con:qWhere q}
 
 
+dbRequestToCountQuery :: DbRequest -> Text
+dbRequestToCountQuery (Node (Select mainTable columns tables conditions relation) forest) =
+    Data.Text.unwords [
+        "SELECT pg_catalog.count(1)",
+        "FROM ", pgFmtTable mainTable,
+        ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
+      ]
+    where emptyOnNull val x = if null x then "" else val
+
 dbRequestToQuery :: DbRequest -> Text
-dbRequestToQuery (Node (Select mainTable columns tables conditions relation) forest) =
+dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation) forest) =
     case relation of
         Nothing -> "SELECT "
+                  <> "("
+                  <> dbRequestToCountQuery r
+                  <> "),"
                   <> "pg_catalog.count(t),"
                   <> "array_to_json(array_agg(row_to_json(t)))::CHARACTER VARYING AS json "
                   <> "FROM ("
@@ -139,12 +151,20 @@ dbRequestToQuery (Node (Select mainTable columns tables conditions relation) for
         getQueryParts (Node (Select{qRelation=(Just (Relation {relType=_}))}) _) _ = undefined
 
 pgFmtCondition :: Condition -> Text
-pgFmtCondition (Condition (col,jp) ops val) = pgFmtColumn col <> pgFmtJsonPath jp  <> opToStr op <> valToStr val
+pgFmtCondition (Condition (col,jp) ops val) =
+    notOp <> " " <> pgFmtColumn col <> pgFmtJsonPath jp  <> " " <> pgFmtOperator opCode <> " " <>
+      if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
     where
-        op = pack ops
-        opToStr o = pgFmtOperator o
+        headPredicate:rest = split (=='.') $ pack ops
+        hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
+        opCode        = hasNot (head rest) headPredicate
+        notOp         = hasNot headPredicate ""
+        sqlValue = valToStr val
+        getInner v = case v of
+            VText s -> s
+            _       -> ""
         valToStr v = case v of
-            VText s -> pgFmtValue op s
+            VText s -> pgFmtValue opCode s
             VForeignKey (Relation{relFTable=table, relFColumn=column}) -> table <> "." <> column
 
 pgFmtColumn :: Column -> Text

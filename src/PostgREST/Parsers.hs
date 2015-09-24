@@ -35,7 +35,7 @@ parseGetRequest httpRequest =
         rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
         qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
         selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
-        whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select"], isJust v ]
+        whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
 pRequestSelect :: String -> Parser ApiRequest
 pRequestSelect rootNodeName = do
@@ -136,6 +136,19 @@ pOperator :: Parser Operator
 pOperator =  try (string "eq")
          <|> try (string "gt")
          <|> try (string "lt")
+         <|> try (string "eq")
+         <|> try (string "gt")
+         <|> try (string "lt")
+         <|> try (string "gte")
+         <|> try (string "lte")
+         <|> try (string "neq")
+         <|> try (string "like")
+         <|> try (string "ilike")
+         <|> try (string "in")
+         <|> try (string "notin")
+         <|> try (string "is" )
+         <|> try (string "isnot")
+         <|> try (string "@@")
          <?> "operator (eq, gt, ...)"
 
 pInt :: Parser Int
@@ -151,4 +164,8 @@ pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
 pOpValueExp :: Parser (Operator, FValue)
-pOpValueExp = liftA2 (,) pOperator (pDelimiter *> pValue)
+pOpValueExp = do
+  o <- ( try ( liftA2 (++) (string "not.")  pOperator) <|> pOperator )
+  pDelimiter
+  v <- pValue
+  return (o, v)
