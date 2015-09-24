@@ -90,7 +90,7 @@ app dbstructure conf reqBody role req =
                     parentheticT (
                       cqs
                     ) <> commaq <> (
-                    bodyForAccept contentType qt
+                    bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
                     . limitT range
                     -- . orderT (orderParse qq)
                     -- . whereT qt qq
