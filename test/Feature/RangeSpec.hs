@@ -12,10 +12,20 @@ spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable 
   . around withApp $
   describe "GET /items" $ do
 
-    context "without range headers" $
+    context "without range headers" $ do
       context "with response under server size limit" $
         it "returns whole range with status 200" $
           get "/items" `shouldRespondWith` 200
+
+      context "when I don't want the count" $
+        it "returns range Content-Range with /*" $
+          request methodGet "/menagerie"
+                  [("Prefer", "count=none")] ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just "[]"
+            , matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
     context "with range headers" $ do
 
