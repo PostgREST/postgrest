@@ -2,6 +2,7 @@ module Feature.RangeSpec where
 
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
 
@@ -17,7 +18,7 @@ spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable 
         it "returns whole range with status 200" $
           get "/items" `shouldRespondWith` 200
 
-      context "when I don't want the count" $
+      context "when I don't want the count" $ do
         it "returns range Content-Range with /*" $
           request methodGet "/menagerie"
                   [("Prefer", "count=none")] ""
@@ -25,6 +26,15 @@ spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable 
               matchBody    = Just "[]"
             , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "returns range Content-Range with range/*" $
+          request methodGet "/items?order=id"
+                  [("Prefer", "count=none")] ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+            , matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "0-14/*"]
             }
 
     context "with range headers" $ do

@@ -5,7 +5,7 @@ import Control.Monad (join)
 import Control.Arrow ((***), second)
 import Control.Applicative
 
-import Data.Text hiding (map, find)
+import Data.Text (Text)
 import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
@@ -64,9 +64,12 @@ app conf reqBody req =
       else do
         let qt = qualify table
             from = fromMaybe 0 $ rangeOffset <$> range
+            count = if hasPrefer "count=none" 
+                      then countNone
+                      else countRows qt
             query = B.Stmt "select " V.empty True <>
                 parentheticT (
-                  whereT qt qq $ countRows qt
+                  whereT qt qq count
                 ) <> commaq <> (
                 bodyForAccept contentType qt
                 . limitT range
@@ -76,7 +79,7 @@ app conf reqBody req =
               )
         row <- H.maybeEx query
         let (tableTotal, queryTotal, body) =
-              fromMaybe (0, 0, Just "" :: Maybe Text) row
+              fromMaybe (Just 0, 0, Just "" :: Maybe Text) row
             to = from+queryTotal-1
             contentRange = contentRangeH from to tableTotal
             status = rangeStatus from to tableTotal
@@ -129,7 +132,7 @@ app conf reqBody req =
 
     ([table], "POST") -> do
       let qt = qualify table
-          echoRequested = lookupHeader "Prefer" == Just "return=representation"
+          echoRequested = hasPrefer "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookupHeader "Content-Type" == Just csvMT
             then do
@@ -215,8 +218,8 @@ app conf reqBody req =
         row <- H.maybeEx patch
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
-            r = contentRangeH 0 (queryTotal-1) queryTotal
-            echoRequested = lookupHeader "Prefer" == Just "return=representation"
+            r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+            echoRequested = hasPrefer "return=representation"
             s = case () of _ | queryTotal == 0 -> status404
                              | echoRequested -> status200
                              | otherwise -> status204
@@ -244,6 +247,7 @@ app conf reqBody req =
     qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
+    hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = requestedSchema (cs $ configV1Schema conf) accept
     authenticator = cs $ configDbUser conf
@@ -259,21 +263,24 @@ sqlError = undefined
 isSqlError :: t
 isSqlError = undefined
 
-rangeStatus :: Int -> Int -> Int -> Status
-rangeStatus from to total
+rangeStatus :: Int -> Int -> Maybe Int -> Status
+rangeStatus _ _ Nothing = status200
+rangeStatus from to (Just total)
   | from > total            = status416
   | (1 + to - from) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Int -> Int -> Int -> Header
+contentRangeH :: Int -> Int -> Maybe Int -> Header
 contentRangeH from to total =
-  ("Content-Range",
-    if total == 0 || from > total
-    then "*/" <> cs (show total)
-    else cs (show from)
-      <> "-" <> cs (show to)
-      <> "/" <> cs (show total)
-  )
+    ("Content-Range", cs headerValue)
+    where
+      headerValue   = rangeString <> "/" <> totalString
+      rangeString
+        | totalNotZero && fromInRange = show from <> "-" <> cs (show to)
+        | otherwise = "*"
+      totalString   = fromMaybe "*" (show <$> total)
+      totalNotZero  = fromMaybe True ((/=) 0 <$> total)
+      fromInRange   = from <= to
 
 requestedSchema :: Text -> Maybe BS.ByteString -> Text
 requestedSchema v1schema accept =
