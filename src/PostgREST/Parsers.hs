@@ -23,30 +23,35 @@ import           PostgREST.Types
 import           Data.List                     (delete, find)
 import           Data.Maybe
 import           Data.String.Conversions       (cs)
+import  Control.Monad (join)
+
 --import qualified Data.ByteString.Char8 as C
 
 --buildRequest :: String -> String -> [(String, String)] -> Either P.ParseError Request
 parseGetRequest :: Request -> Either ParseError ApiRequest
 parseGetRequest httpRequest =
-    foldr addFilter <$> apiRequest <*> flts
+    foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
     where
         apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select ("++selectStr++")") $ cs selectStr
+        addOrder (Node r f) o = Node r{order=o} f
         flts = mapM pRequestFilter whereFilters
         rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
         qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
+        orderStr = join $ lookup "order" qString
+        ord = traverse (parse pOrder ("failed to parse order ()")) orderStr
         selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
         whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
 pRequestSelect :: String -> Parser ApiRequest
 pRequestSelect rootNodeName = do
     fieldTree <- pFieldForest
-    return $ foldr treeEntry (Node (RequestNode rootNodeName [] []) []) fieldTree
+    return $ foldr treeEntry (Node (RequestNode rootNodeName [] [] Nothing) []) fieldTree
     where
         treeEntry :: Tree SelectItem -> Tree RequestNode -> Tree RequestNode
         treeEntry (Node fld@((fn, _),_) fldForest) (Node rNode rForest) =
             case fldForest of
                 [] -> Node (rNode {fields=fld:fields rNode}) rForest
-                _  -> Node rNode (foldr treeEntry (Node (RequestNode fn [] []) []) fldForest:rForest)
+                _  -> Node rNode (foldr treeEntry (Node (RequestNode fn [] [] Nothing) []) fldForest:rForest)
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -133,14 +138,12 @@ pSelect = lexeme $
         return ((s, Nothing), Nothing)
 
 pOperator :: Parser Operator
-pOperator =  try (string "eq")
-         <|> try (string "gt")
+pOperator =  try (string "lte") -- has to be before lt
          <|> try (string "lt")
          <|> try (string "eq")
+         <|> try (string "gte") -- has to be before gh
          <|> try (string "gt")
          <|> try (string "lt")
-         <|> try (string "gte")
-         <|> try (string "lte")
          <|> try (string "neq")
          <|> try (string "like")
          <|> try (string "ilike")
@@ -169,3 +172,14 @@ pOpValueExp = do
   pDelimiter
   v <- pValue
   return (o, v)
+
+pOrder :: Parser ([OrderTerm])
+pOrder = lexeme pOrderTerm `sepBy` char ','
+
+pOrderTerm :: Parser OrderTerm
+pOrderTerm =  do
+  c <- pFieldName
+  pDelimiter
+  d <- string "asc" <|> string "desc"
+  nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
+  return $ OrderTerm (cs c) (cs d) (cs <$> nls)

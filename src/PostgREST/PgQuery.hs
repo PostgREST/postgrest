@@ -4,7 +4,7 @@
 module PostgREST.PgQuery where
 
 import PostgREST.RangeQuery
-
+import PostgREST.Types (OrderTerm(..))
 import qualified Hasql as H
 import qualified Hasql.Postgres as P
 import qualified Hasql.Backend as B
@@ -39,11 +39,6 @@ data QualifiedIdentifier = QualifiedIdentifier {
 , qiName   :: T.Text
 } deriving (Show)
 
-data OrderTerm = OrderTerm {
-  otTerm :: T.Text
-, otDirection :: BS.ByteString
-, otNullOrder :: Maybe BS.ByteString
-}
 
 limitT :: Maybe NonnegRange -> StatementT
 limitT r q =

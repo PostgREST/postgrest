@@ -82,10 +82,22 @@ app dbstructure conf reqBody role req =
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else
-        case query of
+        case queries of
           Left e -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ cs e
-          Right qs -> do
-            let q = B.Stmt qs V.empty True
+          Right (qs, cqs) -> do
+            let qt = qualify table
+                q = B.Stmt "select " V.empty True <>
+                    parentheticT (
+                      cqs
+                    ) <> commaq <> (
+                    bodyForAccept contentType qt
+                    . limitT range
+                    -- . orderT (orderParse qq)
+                    -- . whereT qt qq
+                    -- $ select qt qq
+                    $ qs
+                  )
+            -- return $ responseLBS status200 [contentTypeH] (cs $ show $ B.stmtTemplate q)
             row <- H.maybeEx q
             let (tableTotal, queryTotal, body) = fromMaybe (0::Int, 0::Int, Just "" :: Maybe Text) row
                 to = from+queryTotal-1
@@ -115,6 +127,8 @@ app dbstructure conf reqBody role req =
                 >>= addJoinConditions allColumns
                 where formatParserError = pack.show
             query = dbRequestToQuery <$> dbRequest
+            countQuery = dbRequestToCountQuery <$> dbRequest
+            queries = (,) <$> query <*> countQuery
 
 
         --

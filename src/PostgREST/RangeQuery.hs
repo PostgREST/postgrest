@@ -6,6 +6,7 @@ module PostgREST.RangeQuery (
 , NonnegRange
 ) where
 
+import PostgREST.Types (OrderTerm(..))
 import Control.Applicative
 import Network.HTTP.Types.Header
 

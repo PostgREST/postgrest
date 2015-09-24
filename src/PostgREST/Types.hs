@@ -1,6 +1,7 @@
 module PostgREST.Types where
 import Data.Text
 import Data.Tree
+import qualified Data.ByteString.Char8 as BS
 
 data DbStructure = DbStructure {
   tables :: [Table]
@@ -41,6 +42,13 @@ data PrimaryKey = PrimaryKey {
   pkSchema::Text, pkTable::Text, pkName::Text
 }
 
+data OrderTerm = OrderTerm {
+  otTerm :: Text
+, otDirection :: BS.ByteString
+, otNullOrder :: Maybe BS.ByteString
+} deriving (Show, Eq)
+
+
 data Relation = Relation {
   relSchema  :: Text
 , relTable   :: Text
@@ -62,7 +70,12 @@ type Field = (FieldName, Maybe JsonPath)
 type Cast = String
 type SelectItem = (Field, Maybe Cast)
 type Path = [String]
-data RequestNode = RequestNode {nodeName::String, fields::[SelectItem], filters::[Filter]} deriving (Show, Eq)
+data RequestNode = RequestNode {
+  nodeName::String
+, fields::[SelectItem]
+, filters::[Filter]
+, order::Maybe [OrderTerm]
+} deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 
 -- Db Request Types
@@ -70,5 +83,12 @@ type DbField = (Column, Maybe JsonPath)
 type DbSelectItem = (DbField, Maybe Cast)
 data DbValue = VText Text | VForeignKey Relation deriving (Show)
 data Condition = Condition {conColumn::DbField, conOperator::Operator, conValue::DbValue} deriving (Show)
-data Query = Select {qMainTable::Table, qSelect::[DbSelectItem], qJoinTables::[Table], qWhere::[Condition], qRelation::Maybe Relation} deriving (Show)
+data Query = Select {
+  qMainTable::Table
+, qSelect::[DbSelectItem]
+, qJoinTables::[Table]
+, qWhere::[Condition]
+, qRelation::Maybe Relation
+, qOrder::Maybe [OrderTerm]
+} deriving (Show)
 type DbRequest = Tree Query

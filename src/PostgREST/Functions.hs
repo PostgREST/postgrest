@@ -8,7 +8,12 @@ import Data.List (find)
 import Data.Tree
 import Data.Text hiding (find, foldr, map, null, last, head)
 import Data.Monoid
-import PostgREST.PgQuery (pgFmtOperator, pgFmtValue, pgFmtIdent, pgFmtLit, fromQi, whiteList, QualifiedIdentifier(..))
+import PostgREST.PgQuery (orderT, pgFmtOperator, pgFmtValue, pgFmtIdent, pgFmtLit, fromQi, whiteList, QualifiedIdentifier(..), StatementT, PStmt)
+import qualified Hasql as H
+import qualified Hasql.Postgres as P
+import qualified Hasql.Backend as B
+import qualified Data.Vector as V (empty)
+
 
 
 findColumn :: [Column] -> Text -> Text -> Text -> Either Text Column
@@ -33,8 +38,8 @@ filterToCondition schema allColumns table (Filter fld op val) =
 
 
 requestNodeToQuery ::Text -> [Table] -> [Column] -> RequestNode -> Either Text Query
-requestNodeToQuery schema allTables allColumns (RequestNode tblNameS flds fltrs) =
-    Select <$> mainTable <*> select <*> joinTables <*> qwhere <*> rel
+requestNodeToQuery schema allTables allColumns (RequestNode tblNameS flds fltrs ord) =
+    Select <$> mainTable <*> select <*> joinTables <*> qwhere <*> rel <*> pure ord
     where
         tblName = pack tblNameS
         mainTable = findTable allTables schema tblName
@@ -95,31 +100,37 @@ addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
         addCond q con = q{qWhere=con:qWhere q}
 
 
-dbRequestToCountQuery :: DbRequest -> Text
-dbRequestToCountQuery (Node (Select mainTable columns tables conditions relation) forest) =
-    Data.Text.unwords [
-        "SELECT pg_catalog.count(1)",
-        "FROM ", pgFmtTable mainTable,
-        ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
-      ]
-    where emptyOnNull val x = if null x then "" else val
-
-dbRequestToQuery :: DbRequest -> Text
-dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation) forest) =
-    case relation of
-        Nothing -> "SELECT "
-                  <> "("
-                  <> dbRequestToCountQuery r
-                  <> "),"
-                  <> "pg_catalog.count(t),"
-                  <> "array_to_json(array_agg(row_to_json(t)))::CHARACTER VARYING AS json "
-                  <> "FROM ("
-                  <> query
-                  <> ") t;"
-
-        _         -> query
+dbRequestToCountQuery :: DbRequest -> PStmt
+dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) forest) =
+    B.Stmt query V.empty True
     where
-        query = Data.Text.unwords [
+      query = Data.Text.unwords [
+          "SELECT pg_catalog.count(1)",
+          "FROM ", pgFmtTable mainTable,
+          ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
+        ]
+      emptyOnNull val x = if null x then "" else val
+
+dbRequestToQuery :: DbRequest -> PStmt
+dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation ord) forest) =
+    orderT (fromMaybe [] ord) $ query
+    -- case relation of
+    --     Nothing ->B.Stmt ("SELECT "
+    --               <> "("
+    --               <> dbRequestToCountQuery r
+    --               <> "),"
+    --               <> "pg_catalog.count(t),"
+    --               <> "array_to_json(array_agg(row_to_json(t)))::CHARACTER VARYING AS json "
+    --               <> "FROM ("
+    --               <> query
+    --               <> ") t;"
+    --               ) V.empty True
+    --
+    --     _         -> B.Stmt query V.empty True
+    where
+
+        query = B.Stmt q V.empty True
+        q = Data.Text.unwords [
             ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
             "SELECT ", intercalate ", " (map selectItemToStr columns ++ selects),
             "FROM ", intercalate ", " (map pgFmtTable (mainTable:tables)),
@@ -134,12 +145,15 @@ dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation) f
             where name = tableName table
                   sel = "("
                      <> "SELECT array_to_json(array_agg(row_to_json("<>name<>"))) "
-                     <> "FROM (" <> dbRequestToQuery (Node q forst) <> ") " <> name
+                     <> "FROM (" <> subquery <> ") " <> name
                      <> ") AS " <> name
+                     where (B.Stmt subquery _ _) = dbRequestToQuery (Node q forst)
+
         getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Relation{relType="parent"}))}) forst) (w,s) = (wit:w,sel:s)
             where name = tableName table
                   sel = "row_to_json(" <> name <> ".*) AS "<>name --TODO must be singular
-                  wit = name <> " AS ( " <> dbRequestToQuery (Node q forst) <> " )"
+                  wit = name <> " AS ( " <> subquery <> " )"
+                    where (B.Stmt subquery _ _) = dbRequestToQuery (Node q forst)
         -- getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Many _ _))}) forst) (w,s) = (w,sel:s)
         --     where name = tableName table
         --           sel = "("
