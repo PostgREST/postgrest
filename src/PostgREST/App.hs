@@ -59,16 +59,6 @@ import Prelude
 app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody dbrole req =
   case (path, verb) of
-    -- ([], _) -> do
-    --   body <- encode <$> tables (cs schema)
-    --   return $ responseLBS status200 [jsonH] $ cs body
-
-    -- ([table], "OPTIONS") -> do
-    --   let qt = qualify table
-    --   cols <- columns qt
-    --   pkey <- map cs <$> primaryKeyColumns qt
-    --   return $ responseLBS status200 [jsonH, allOrigins]
-    --     $ encode (TableOptions cols pkey)
 
     ([], _) -> do
       let body = encode $ filter (filterTableAcl dbrole) $ filter (((cs schema)==).tableSchema) allTables
@@ -96,9 +86,6 @@ app dbstructure conf reqBody dbrole req =
                     ) <> commaq <> (
                     bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
                     . limitT range
-                    -- . orderT (orderParse qq)
-                    -- . whereT qt qq
-                    -- $ select qt qq
                     $ qs
                   )
             -- return $ responseLBS status200 [contentTypeH] (cs $ show $ B.stmtTemplate q)
@@ -133,39 +120,6 @@ app dbstructure conf reqBody dbrole req =
             query = dbRequestToQuery <$> dbRequest
             countQuery = dbRequestToCountQuery <$> dbRequest
             queries = (,) <$> query <*> countQuery
-
-
-        --
-        -- let qt = qualify table
-        --     from = fromMaybe 0 $ rangeOffset <$> range
-        --     query = B.Stmt "select " V.empty True <>
-        --         parentheticT (
-        --           whereT qt qq $ countRows qt
-        --         ) <> commaq <> (
-        --         bodyForAccept contentType qt
-        --         . limitT range
-        --         . orderT (orderParse qq)
-        --         . whereT qt qq
-        --         $ select qt qq
-        --       )
-        -- row <- H.maybeEx query
-        -- let (tableTotal, queryTotal, body) =
-        --       fromMaybe (0, 0, Just "" :: Maybe Text) row
-        --     to = from+queryTotal-1
-        --     contentRange = contentRangeH from to tableTotal
-        --     status = rangeStatus from to tableTotal
-        --     canonical = urlEncodeVars
-        --       . sortBy (comparing fst)
-        --       . map (join (***) cs)
-        --       . parseSimpleQuery
-        --       $ rawQueryString req
-        -- return $ responseLBS status
-        --   [contentTypeH, contentRange,
-        --     ("Content-Location",
-        --       "/" <> cs table <>
-        --         if Prelude.null canonical then "" else "?" <> cs canonical
-        --     )
-        --   ] (cs $ fromMaybe "[]" body)
 
 
     (["postgrest", "users"], "POST") -> do

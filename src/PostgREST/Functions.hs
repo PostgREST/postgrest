@@ -117,19 +117,6 @@ dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) _) =
 dbRequestToQuery :: DbRequest -> PStmt
 dbRequestToQuery (Node (Select mainTable colSelects tbls conditions _ ord) forest) =
   orderT (fromMaybe [] ord)  query
-  -- case relation of
-  --    Nothing ->B.Stmt ("SELECT "
-  --            <> "("
-  --            <> dbRequestToCountQuery r
-  --            <> "),"
-  --            <> "pg_catalog.count(t),"
-  --            <> "array_to_json(array_agg(row_to_json(t)))::CHARACTER VARYING AS json "
-  --            <> "FROM ("
-  --            <> query
-  --            <> ") t;"
-  --            ) V.empty True
-  --
-  --    _       -> B.Stmt query V.empty True
   where
 
     query = B.Stmt qStr V.empty True
