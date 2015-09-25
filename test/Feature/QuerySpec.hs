@@ -226,7 +226,7 @@ spec =
         }
 
     it "without other constraints" $
-      get "/items?order=asc.id" `shouldRespondWith` 200
+      get "/items?order=id.asc" `shouldRespondWith` 200
 
   describe "Accept headers" $ do
     it "should respond an unknown accept type with 415" $

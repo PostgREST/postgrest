@@ -1,7 +1,7 @@
 --{-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings, FlexibleContexts #-}
 module PostgREST.Parsers
-( parseGetRequest
-)
+-- ( parseGetRequest
+-- )
 where
 
 import           Control.Applicative
@@ -145,9 +145,12 @@ pOrder :: Parser [OrderTerm]
 pOrder = lexeme pOrderTerm `sepBy` char ','
 
 pOrderTerm :: Parser OrderTerm
-pOrderTerm =  do
-  c <- pFieldName
-  _ <- pDelimiter
-  d <- string "asc" <|> string "desc"
-  nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
-  return $ OrderTerm (cs c) (cs d) (cs <$> nls)
+pOrderTerm =
+  try ( do
+    c <- pFieldName
+    _ <- pDelimiter
+    d <- string "asc" <|> string "desc"
+    nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
+    return $ OrderTerm (cs c) (cs d) (cs <$> nls)
+  )
+  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure "asc" <*> pure Nothing

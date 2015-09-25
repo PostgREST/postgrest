@@ -100,6 +100,9 @@ countT s =
 countRows :: QualifiedIdentifier  -> PStmt
 countRows t = B.Stmt ("select pg_catalog.count(1) from " <> fromQi t) empty True
 
+countNone :: PStmt
+countNone = B.Stmt "select null" empty True
+
 asCsvWithCount :: QualifiedIdentifier -> StatementT
 asCsvWithCount table = withCount . asCsv table
 

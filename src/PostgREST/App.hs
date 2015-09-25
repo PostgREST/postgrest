@@ -14,7 +14,7 @@ import Control.Monad (join)
 import Control.Arrow ((***), second)
 import Control.Applicative
 import           Data.Bifunctor             (first)
-import Data.Text hiding (map, find, filter)
+import Data.Text (Text, pack)
 import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
 import Text.Regex.TDFA ((=~))
 import Data.Ord (comparing)
@@ -61,7 +61,7 @@ app dbstructure conf reqBody dbrole req =
   case (path, verb) of
 
     ([], _) -> do
-      let body = encode $ filter (filterTableAcl dbrole) $ filter (((cs schema)==).tableSchema) allTables
+      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -80,17 +80,20 @@ app dbstructure conf reqBody dbrole req =
           Left e -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ cs e
           Right (qs, cqs) -> do
             let qt = qualify table
+                count = if hasPrefer "count=none"
+                      then countNone
+                      else cqs
+
                 q = B.Stmt "select " V.empty True <>
-                    parentheticT (
-                      cqs
-                    ) <> commaq <> (
+                    parentheticT count
+                    <> commaq <> (
                     bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
                     . limitT range
                     $ qs
                   )
             -- return $ responseLBS status200 [contentTypeH] (cs $ show $ B.stmtTemplate q)
             row <- H.maybeEx q
-            let (tableTotal, queryTotal, body) = fromMaybe (0::Int, 0::Int, Just "" :: Maybe Text) row
+            let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe Text) row
                 to = from+queryTotal-1
                 contentRange = contentRangeH from to tableTotal
                 status = rangeStatus from to tableTotal
@@ -158,7 +161,7 @@ app dbstructure conf reqBody dbrole req =
 
     ([table], "POST") -> do
       let qt = qualify table
-          echoRequested = lookupHeader "Prefer" == Just "return=representation"
+          echoRequested = hasPrefer "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookupHeader "Content-Type" == Just csvMT
             then do
@@ -247,8 +250,8 @@ app dbstructure conf reqBody dbrole req =
         row <- H.maybeEx patch
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
-            r = contentRangeH 0 (queryTotal-1) queryTotal
-            echoRequested = lookupHeader "Prefer" == Just "return=representation"
+            r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+            echoRequested = hasPrefer "return=representation"
             s = case () of _ | queryTotal == 0 -> status404
                              | echoRequested -> status200
                              | otherwise -> status204
@@ -287,6 +290,7 @@ app dbstructure conf reqBody dbrole req =
     qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
+    hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = requestedSchema (cs $ configV1Schema conf) accept
     authenticator = cs $ configDbUser conf
@@ -302,21 +306,24 @@ sqlError = undefined
 isSqlError :: t
 isSqlError = undefined
 
-rangeStatus :: Int -> Int -> Int -> Status
-rangeStatus from to total
+rangeStatus :: Int -> Int -> Maybe Int -> Status
+rangeStatus _ _ Nothing = status200
+rangeStatus from to (Just total)
   | from > total            = status416
   | (1 + to - from) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Int -> Int -> Int -> Header
+contentRangeH :: Int -> Int -> Maybe Int -> Header
 contentRangeH from to total =
-  ("Content-Range",
-    if total == 0 || from > total
-    then "*/" <> cs (show total)
-    else cs (show from)
-      <> "-" <> cs (show to)
-      <> "/" <> cs (show total)
-  )
+    ("Content-Range", cs headerValue)
+    where
+      headerValue   = rangeString <> "/" <> totalString
+      rangeString
+        | totalNotZero && fromInRange = show from <> "-" <> cs (show to)
+        | otherwise = "*"
+      totalString   = fromMaybe "*" (show <$> total)
+      totalNotZero  = fromMaybe True ((/=) 0 <$> total)
+      fromInRange   = from <= to
 
 requestedSchema :: Text -> Maybe BS.ByteString -> Text
 requestedSchema v1schema accept =
