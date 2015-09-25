@@ -113,16 +113,31 @@ import Prelude
 primaryKeyColumns :: QualifiedIdentifier -> H.Tx P.Postgres s [Text]
 primaryKeyColumns table = do
   r <- H.listEx $ [H.stmt|
-    select kc.column_name
-      from
-        information_schema.table_constraints tc,
-        information_schema.key_column_usage kc
-    where
-      tc.constraint_type = 'PRIMARY KEY'
-      and kc.table_name = tc.table_name and kc.table_schema = tc.table_schema
-      and kc.constraint_name = tc.constraint_name
-      and kc.table_schema = ?
-      and kc.table_name  = ? |] (qiSchema table) (qiName table)
+      WITH table_pk AS
+      ( SELECT kc.table_schema,
+               kc.table_name,
+               kc.column_name
+       FROM information_schema.table_constraints tc,
+            information_schema.key_column_usage kc
+       WHERE tc.constraint_type = 'PRIMARY KEY'
+         AND kc.table_name = tc.table_name
+         AND kc.table_schema = tc.table_schema
+         AND kc.constraint_name = tc.constraint_name
+         AND kc.table_schema = ?)
+      SELECT column_name
+      FROM table_pk
+      WHERE table_pk.table_name = ?
+      UNION
+      (
+       SELECT vcu.column_name
+       FROM information_schema.view_column_usage AS vcu
+       JOIN table_pk ON table_pk.table_schema = vcu.view_schema
+        AND table_pk.TABLE_NAME = vcu.TABLE_NAME
+        AND table_pk.column_name = vcu.column_name
+       WHERE vcu.view_schema = ?
+         AND vcu.view_name = ?
+      )
+    |] (qiSchema table) (qiName table) (qiSchema table) (qiName table)
   return $ map runIdentity r
 
 doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool

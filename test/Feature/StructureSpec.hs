@@ -145,6 +145,94 @@ spec = around withApp $ do
       }
       |]
 
+    it "it includes primary key for views" $
+      request methodOptions "/insertable_view_with_join" [] "" `shouldRespondWith`
+      [json|
+      {
+         "pkey":["id"],
+         "columns":[
+            {
+               "references":null,
+               "default":null,
+               "precision":64,
+               "updatable":false,
+               "schema":"1",
+               "name":"id",
+               "type":"bigint",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":1
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":32,
+               "updatable":false,
+               "schema":"1",
+               "name":"auto_inc_fk",
+               "type":"integer",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":2
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"simple_fk",
+               "type":"character varying",
+               "maxLen":255,
+               "enum":[],
+               "nullable":true,
+               "position":3
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"nullable_string",
+               "type":"character varying",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":4
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"non_nullable_string",
+               "type":"character varying",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":5
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"inserted_at",
+               "type":"timestamp with time zone",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":6
+            }
+         ]
+      }
+      |]
+
     it "includes foreign key data" $ do
       pendingWith "have to resolve issue #107"
 
