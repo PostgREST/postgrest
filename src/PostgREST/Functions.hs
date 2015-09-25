@@ -6,7 +6,8 @@ where
 import           Control.Error
 import           Data.List         (find)
 import           Data.Monoid
-import           Data.Text         hiding (find, foldr, head, last, map, null)
+import           Data.Text         hiding (filter, find, foldr, head, last, map,
+                                    null)
 import           Data.Tree
 import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
@@ -110,9 +111,13 @@ dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) _) =
     query = Data.Text.unwords [
       "SELECT pg_catalog.count(1)",
       "FROM ", pgFmtTable mainTable,
-      ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
+      ("WHERE " <> intercalate " AND " ( map pgFmtCondition localConditions )) `emptyOnNull` localConditions
       ]
     emptyOnNull val x = if null x then "" else val
+    localConditions = filter fn conditions
+      where
+        fn  (Condition{conValue=VText _}) = True
+        fn  (Condition{conValue=VForeignKey _}) = False
 
 dbRequestToQuery :: DbRequest -> PStmt
 dbRequestToQuery (Node (Select mainTable colSelects tbls conditions _ ord) forest) =
