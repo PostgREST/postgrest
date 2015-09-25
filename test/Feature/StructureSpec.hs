@@ -145,11 +145,13 @@ spec = around withApp $ do
       }
       |]
 
-    it "it includes primary key for views" $
+    it "it includes primary and foreign keys for views" $
       request methodOptions "/insertable_view_with_join" [] "" `shouldRespondWith`
       [json|
       {
-         "pkey":["id"],
+         "pkey":[
+            "id"
+         ],
          "columns":[
             {
                "references":null,
@@ -165,7 +167,10 @@ spec = around withApp $ do
                "position":1
             },
             {
-               "references":null,
+               "references":{
+                  "column":"id",
+                  "table":"auto_incrementing_pk"
+               },
                "default":null,
                "precision":32,
                "updatable":false,
@@ -178,7 +183,10 @@ spec = around withApp $ do
                "position":2
             },
             {
-               "references":null,
+               "references":{
+                  "column":"k",
+                  "table":"simple_pk"
+               },
                "default":null,
                "precision":null,
                "updatable":false,

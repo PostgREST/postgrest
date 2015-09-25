@@ -73,8 +73,8 @@ app dbstructure conf reqBody role req =
     ([table], "OPTIONS") -> do
       let qt = Table schema table
       let cols = filter (filterCol schema table) allColumns
-      let pkey = map pkName $ filter (filterPk schema table) allPrimaryKeys
-      let body = encode (TableOptions cols pkey)
+      let pkeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
+      let body = encode (TableOptions cols pkeys)
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
 
@@ -218,7 +218,8 @@ app dbstructure conf reqBody role req =
         Right toBeInserted -> do
           rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
           let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
-          primaryKeys <- primaryKeyColumns qt
+              primaryKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
+          --primaryKeys <- primaryKeyColumns qt
           let responses = flip map inserted $ \obj -> do
                 let primaries =
                       if Prelude.null primaryKeys
@@ -252,7 +253,8 @@ app dbstructure conf reqBody role req =
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
-        primaryKeys <- primaryKeyColumns qt
+            primaryKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
+        --primaryKeys <- primaryKeyColumns qt
         let specifiedKeys = map (cs . fst) qq
         if S.fromList primaryKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []

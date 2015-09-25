@@ -324,7 +324,9 @@ allcolumns relations = do
 allprimaryKeys :: H.Tx P.Postgres s [PrimaryKey]
 allprimaryKeys = do
   pks <- H.listEx $ [H.stmt|
-    SELECT kc.table_schema, kc.table_name, kc.column_name
+  WITH table_pk AS
+  (
+  SELECT kc.table_schema, kc.table_name, kc.column_name
     FROM information_schema.table_constraints tc,
      information_schema.key_column_usage kc
     WHERE tc.constraint_type = 'PRIMARY KEY'
@@ -332,6 +334,18 @@ allprimaryKeys = do
     AND kc.table_schema = tc.table_schema
     AND kc.constraint_name = tc.constraint_name
     AND kc.table_schema NOT IN ('pg_catalog', 'information_schema')
+  )
+  SELECT table_schema, table_name, column_name
+  FROM table_pk
+  UNION
+  (
+  SELECT vcu.view_schema, vcu.view_name, vcu.column_name
+  FROM information_schema.view_column_usage AS vcu
+  JOIN table_pk ON table_pk.table_schema = vcu.view_schema
+  AND table_pk.table_name = vcu.table_name
+  AND table_pk.column_name = vcu.column_name
+  WHERE vcu.view_schema NOT IN ('pg_catalog', 'information_schema')
+  )
   |]
   return $ map pkFromRow pks
 
