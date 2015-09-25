@@ -1,18 +1,20 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module PostgREST.Error (PgError, errResponse) where
 
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
+
+import           Data.Aeson                ((.=))
+import qualified Data.Aeson                as JSON
+import           Data.String.Conversions   (cs)
+import           Data.String.Utils         (replace)
+import qualified Data.Text                 as T
+import qualified Hasql                     as H
+import qualified Hasql.Postgres            as P
+import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
-import qualified Data.Aeson as JSON
-import qualified Data.Text as T
-import Data.Aeson ((.=))
-import Data.String.Conversions (cs)
-import Data.String.Utils(replace)
-import Network.Wai(Response, responseLBS)
-import Network.HTTP.Types.Header
+import           Network.Wai               (Response, responseLBS)
 
 type PgError = H.SessionError P.Postgres
 

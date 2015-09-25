@@ -6,22 +6,22 @@ module PostgREST.RangeQuery (
 , NonnegRange
 ) where
 
-import PostgREST.Types (OrderTerm(..))
-import Control.Applicative
-import Network.HTTP.Types.Header
 
-import qualified Data.ByteString.Char8 as BS
+import           Control.Applicative
+import           Network.HTTP.Types.Header
+import           PostgREST.Types           ()
 
-import Data.Ranged.Boundaries
-import Data.Ranged.Ranges
+import qualified Data.ByteString.Char8     as BS
+import           Data.Ranged.Boundaries
+import           Data.Ranged.Ranges
 
-import Data.String.Conversions (cs)
-import Text.Regex.TDFA ((=~))
-import Text.Read (readMaybe)
+import           Data.String.Conversions   (cs)
+import           Text.Read                 (readMaybe)
+import           Text.Regex.TDFA           ((=~))
 
-import Data.Maybe (fromMaybe, listToMaybe)
+import           Data.Maybe                (fromMaybe, listToMaybe)
 
-import Prelude
+import           Prelude
 
 type NonnegRange = Range Int
 

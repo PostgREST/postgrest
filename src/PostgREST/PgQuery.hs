@@ -1,31 +1,35 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiWayIf #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE MultiWayIf           #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PostgREST.PgQuery where
 
-import PostgREST.RangeQuery
-import PostgREST.Types (OrderTerm(..))
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
-import qualified Hasql.Backend as B
 
-import qualified Data.Text as T
-import qualified Data.HashMap.Strict as H
-import Text.Regex.TDFA ( (=~) )
-import qualified Network.HTTP.Types.URI as Net
-import qualified Data.ByteString.Char8 as BS
-import Data.Monoid
-import Data.Vector (empty)
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Functor
-import Control.Monad (join)
-import Data.String.Conversions (cs)
-import qualified Data.Aeson as JSON
-import qualified Data.List as L
-import qualified Data.Vector as V
-import Data.Scientific (isInteger, formatScientific, FPFormat(..))
+import qualified Hasql                   as H
+import qualified Hasql.Backend           as B
+import qualified Hasql.Postgres          as P
+import           PostgREST.RangeQuery
+import           PostgREST.Types         (OrderTerm (..))
 
-import Prelude
+import           Control.Monad           (join)
+import qualified Data.Aeson              as JSON
+import qualified Data.ByteString.Char8   as BS
+import           Data.Functor
+import qualified Data.HashMap.Strict     as H
+import qualified Data.List               as L
+import           Data.Maybe              (fromMaybe, mapMaybe)
+import           Data.Monoid
+import           Data.Scientific         (FPFormat (..), formatScientific,
+                                          isInteger)
+import           Data.String.Conversions (cs)
+import qualified Data.Text               as T
+import           Data.Vector             (empty)
+import qualified Data.Vector             as V
+import qualified Network.HTTP.Types.URI  as Net
+import           Text.Regex.TDFA         ((=~))
+
+import           Prelude
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where

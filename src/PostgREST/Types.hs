@@ -2,6 +2,7 @@ module PostgREST.Types where
 import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Char8 as BS
+import Data.Aeson
 
 data DbStructure = DbStructure {
   tables :: [Table]
@@ -10,6 +11,7 @@ data DbStructure = DbStructure {
 , primaryKeys :: [PrimaryKey]
 --, tablesAcl :: [(Text, Text, Text)]
 }
+
 
 data Table = Table {
   tableSchema :: Text
@@ -92,3 +94,26 @@ data Query = Select {
 , qOrder::Maybe [OrderTerm]
 } deriving (Show)
 type DbRequest = Tree Query
+
+instance ToJSON Column where
+  toJSON c = object [
+      "schema"    .= colSchema c
+    , "name"      .= colName c
+    , "position"  .= colPosition c
+    , "nullable"  .= colNullable c
+    , "type"      .= colType c
+    , "updatable" .= colUpdatable c
+    , "maxLen"    .= colMaxLen c
+    , "precision" .= colPrecision c
+    , "references".= colFK c
+    , "default"   .= colDefault c
+    , "enum"      .= colEnum c ]
+
+instance ToJSON ForeignKey where
+  toJSON fk = object ["table".=fkTable fk, "column".=fkCol fk]
+
+instance ToJSON Table where
+  toJSON v = object [
+      "schema"     .= tableSchema v
+    , "name"       .= tableName v
+    , "insertable" .= tableInsertable v ]

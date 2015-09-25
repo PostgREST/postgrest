@@ -1,27 +1,28 @@
-{-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module PostgREST.Auth where
 
-import Data.Aeson
-import Control.Monad (mzero)
-import Control.Applicative
-import Crypto.BCrypt
-import Data.Text
-import Data.Monoid
-import Data.Map
-import qualified Data.Vector as V
-import qualified Hasql as H
-import qualified Hasql.Backend as B
-import qualified Hasql.Postgres as P
-import qualified Web.JWT as JWT
-import Data.String.Conversions (cs)
-import PostgREST.PgQuery (pgFmtLit)
+import           Control.Applicative
+import           Control.Monad           (mzero)
+import           Crypto.BCrypt
+import           Data.Aeson
+import           Data.Map
+import           Data.Monoid
+import           Data.String.Conversions (cs)
+import           Data.Text
+import qualified Data.Vector             as V
+import qualified Hasql                   as H
+import qualified Hasql.Backend           as B
+import qualified Hasql.Postgres          as P
+import           PostgREST.PgQuery       (pgFmtLit)
+import           Prelude
+import qualified Web.JWT                 as JWT
 
-import Prelude
-
-import System.IO.Unsafe
+import           System.IO.Unsafe
 
 data AuthUser = AuthUser {
-    userId :: String
+    userId   :: String
   , userPass :: String
   , userRole :: String
   } deriving (Show)

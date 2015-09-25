@@ -3,32 +3,37 @@
 
 module PostgREST.Middleware where
 
-import Data.Maybe (fromMaybe, isNothing)
-import Data.Monoid
-import Data.Text
+import           Data.Maybe                    (fromMaybe, isNothing)
+import           Data.Monoid
+import           Data.Text
 -- import Data.Pool(withResource, Pool)
 
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
-import Data.String.Conversions(cs)
+import           Data.String.Conversions       (cs)
+import qualified Hasql                         as H
+import qualified Hasql.Postgres                as P
 
-import Network.HTTP.Types.Header (hLocation, hAuthorization, hAccept)
-import Network.HTTP.Types (RequestHeaders)
-import Network.HTTP.Types.Status (status400, status401, status301, status415)
-import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
-                   rawQueryString, isSecure, Request(..), Response)
-import Network.Wai.Middleware.Gzip (gzip, def)
-import Network.Wai.Middleware.Cors (cors)
-import Network.Wai.Middleware.Static (staticPolicy, only)
-import Network.URI (URI(..), parseURI)
+import           Network.HTTP.Types            (RequestHeaders)
+import           Network.HTTP.Types.Header     (hAccept, hAuthorization,
+                                                hLocation)
+import           Network.HTTP.Types.Status     (status301, status400, status401,
+                                                status415)
+import           Network.URI                   (URI (..), parseURI)
+import           Network.Wai                   (Application, Request (..),
+                                                Response, isSecure, rawPathInfo,
+                                                rawQueryString, requestHeaders,
+                                                responseLBS)
+import           Network.Wai.Middleware.Cors   (cors)
+import           Network.Wai.Middleware.Gzip   (def, gzip)
+import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import PostgREST.Config (AppConfig(..), corsPolicy)
-import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, setUserId)
-import PostgREST.App (contentTypeForAccept)
-import Codec.Binary.Base64.String (decode)
-import PostgREST.Auth (DbRole)
+import           Codec.Binary.Base64.String    (decode)
+import           PostgREST.App                 (contentTypeForAccept)
+import           PostgREST.Auth                (DbRole, LoginAttempt (..),
+                                                setRole, setUserId, signInRole,
+                                                signInWithJWT)
+import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
-import Prelude
+import           Prelude
 
 authenticated :: forall s. AppConfig ->
                  (DbRole -> Request -> H.Tx P.Postgres s Response) ->

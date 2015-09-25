@@ -2,17 +2,20 @@
 module PostgREST.Functions
 where
 
-import PostgREST.Types
+
 import           Control.Error
-import Data.List (find)
-import Data.Tree
-import Data.Text hiding (find, foldr, map, null, last, head)
-import Data.Monoid
-import PostgREST.PgQuery (orderT, pgFmtOperator, pgFmtValue, pgFmtIdent, pgFmtLit, fromQi, whiteList, QualifiedIdentifier(..), StatementT, PStmt)
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
-import qualified Hasql.Backend as B
-import qualified Data.Vector as V (empty)
+import           Data.List         (find)
+import           Data.Monoid
+import           Data.Text         hiding (find, foldr, head, last, map, null)
+import           Data.Tree
+import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
+                                    orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
+                                    pgFmtValue, whiteList)
+import           PostgREST.Types
+--import qualified Hasql as H
+--import qualified Hasql.Postgres as P
+import qualified Data.Vector       as V (empty)
+import qualified Hasql.Backend     as B
 
 
 
@@ -47,7 +50,7 @@ requestNodeToQuery schema allTables allColumns (RequestNode tblNameS flds fltrs 
             where
                 -- it's ok not to check that the table exists here, mainTable will do the checking
                 toDbSelectItem :: SelectItem -> Either Text DbSelectItem
-                toDbSelectItem (("*", Nothing), Nothing) = Right $ ((Star{colSchema = schema, colTable = tblName}, Nothing), Nothing)
+                toDbSelectItem (("*", Nothing), Nothing) = Right ((Star{colSchema = schema, colTable = tblName}, Nothing), Nothing)
                 toDbSelectItem ((c,jp), cast) = (,) <$> dbFld <*> pure cast
                     where
                         col = findColumn allColumns schema tblName $ pack c
@@ -63,7 +66,7 @@ addRelations allRelations parentNode node@(Node query@(Select {qMainTable=table}
         Nothing -> Node query{qRelation=Nothing} <$> updatedForest
         (Just (Node (Select{qMainTable=parentTable}) _)) -> Node <$> (addRel query <$> rel) <*> updatedForest
             where
-                rel = note ("no relation between " <> (tableName table) <> " and " <> (tableName parentTable)) $
+                rel = note ("no relation between " <> tableName table <> " and " <> tableName parentTable) $
                     findRelation allRelations (tableSchema table) (tableName table) (tableName parentTable)
                 addRel :: Query -> Relation -> Query
                 addRel q r = q{qRelation = Just r}
@@ -85,7 +88,7 @@ addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
         _ -> Left "unknow relation"
     where
         -- add parentTable and parentJoinConditions to the query
-        updatedQuery = foldr (flip addCond) (query{qJoinTables = parentTables ++ (qJoinTables query)}) <$> parentJoinConditions
+        updatedQuery = foldr (flip addCond) (query{qJoinTables = parentTables ++ qJoinTables query}) <$> parentJoinConditions
             where
                 parentJoinConditions = mapM (getJoinCondition.snd) parents
                 parentTables = map fst parents
@@ -101,7 +104,7 @@ addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
 
 
 dbRequestToCountQuery :: DbRequest -> PStmt
-dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) forest) =
+dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) _) =
     B.Stmt query V.empty True
     where
       query = Data.Text.unwords [
@@ -112,8 +115,8 @@ dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) forest) =
       emptyOnNull val x = if null x then "" else val
 
 dbRequestToQuery :: DbRequest -> PStmt
-dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation ord) forest) =
-    orderT (fromMaybe [] ord) $ query
+dbRequestToQuery (Node (Select mainTable colSelects tbls conditions _ ord) forest) =
+    orderT (fromMaybe [] ord)  query
     -- case relation of
     --     Nothing ->B.Stmt ("SELECT "
     --               <> "("
@@ -129,11 +132,11 @@ dbRequestToQuery r@(Node (Select mainTable columns tables conditions relation or
     --     _         -> B.Stmt query V.empty True
     where
 
-        query = B.Stmt q V.empty True
-        q = Data.Text.unwords [
+        query = B.Stmt qStr V.empty True
+        qStr = Data.Text.unwords [
             ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
-            "SELECT ", intercalate ", " (map selectItemToStr columns ++ selects),
-            "FROM ", intercalate ", " (map pgFmtTable (mainTable:tables)),
+            "SELECT ", intercalate ", " (map selectItemToStr colSelects ++ selects),
+            "FROM ", intercalate ", " (map pgFmtTable (mainTable:tbls)),
             ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
             ]
         emptyOnNull val x = if null x then "" else val
@@ -186,7 +189,7 @@ pgFmtColumn Column {colSchema=s, colTable=t, colName=c} = pgFmtIdent s <> "." <>
 pgFmtColumn Star {colSchema=s, colTable=t} = pgFmtIdent s <> "." <> pgFmtIdent t <> ".*"
 
 pgFmtJsonPath :: Maybe JsonPath -> Text
-pgFmtJsonPath (Just [x]) = "->>" <> (pgFmtLit $ pack x)
+pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit (pack x)
 pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit (pack x) <> pgFmtJsonPath ( Just xs )
 pgFmtJsonPath _ = ""
 
@@ -199,4 +202,4 @@ selectItemToStr ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn c <> pgFmtJsonPa
 
 asJsonPath :: Maybe JsonPath -> Text
 asJsonPath Nothing = ""
-asJsonPath (Just xx) = " AS " <> (pack $ last xx)
+asJsonPath (Just xx) = " AS " <> pack (last xx)

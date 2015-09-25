@@ -1,24 +1,27 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings, TypeSynonymInstances,
-             MultiParamTypeClasses, ScopedTypeVariables,
-             FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.PgStructure where
 
-import PostgREST.PgQuery (QualifiedIdentifier(..))
-import PostgREST.Types
-import Data.Text (Text, unpack, split)
-import Data.List (find)
-import Data.Aeson
-import Data.Functor.Identity
-import Data.String.Conversions (cs)
-import Data.Maybe (fromMaybe, isJust)
-import Control.Applicative
+import           Data.List             (find)
+import           Data.Text             (Text, split)
+import           PostgREST.PgQuery     ()
+import           PostgREST.Types
+--import Data.Aeson
+import           Data.Functor.Identity
+--import Data.String.Conversions (cs)
+import           Control.Applicative
+import           Data.Maybe            (fromMaybe, isJust)
 
-import qualified Data.Map as Map
+--import qualified Data.Map as Map
 
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
+import qualified Hasql                 as H
+import qualified Hasql.Postgres        as P
 
-import Prelude
+import           Prelude
 
 
 doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
@@ -53,28 +56,6 @@ columnFromRow (s, t, n, pos, nul, typ, u, l, p, d, e) =
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
 
-instance ToJSON Column where
-  toJSON c = object [
-      "schema"    .= colSchema c
-    , "name"      .= colName c
-    , "position"  .= colPosition c
-    , "nullable"  .= colNullable c
-    , "type"      .= colType c
-    , "updatable" .= colUpdatable c
-    , "maxLen"    .= colMaxLen c
-    , "precision" .= colPrecision c
-    , "references".= colFK c
-    , "default"   .= colDefault c
-    , "enum"      .= colEnum c ]
-
-instance ToJSON ForeignKey where
-  toJSON fk = object ["table".=fkTable fk, "column".=fkCol fk]
-
-instance ToJSON Table where
-  toJSON v = object [
-      "schema"     .= tableSchema v
-    , "name"       .= tableName v
-    , "insertable" .= tableInsertable v ]
 ------------
 
 
@@ -152,7 +133,7 @@ allrelations = do
   return $ foldr (addFlippedRelation.relationFromRow) [] rels
 
 allcolumns :: [Relation] -> H.Tx P.Postgres s [Column]
-allcolumns relations = do
+allcolumns rels = do
   cols <- H.listEx $ [H.stmt|
       SELECT
           info.table_schema AS schema,
@@ -197,9 +178,11 @@ allcolumns relations = do
   return $ map (addFK . columnFromRow) cols
 
   where
-    addFK col = col { colFK = relToFk <$> find (lookupFn col) relations }
+    addFK col = col { colFK = relToFk <$> find (lookupFn col) rels }
+    lookupFn :: Column -> Relation -> Bool
     lookupFn (Column{colSchema=cs, colTable=ct, colName=cn})  (Relation{relSchema=rs, relTable=rt, relColumn=rc, relType=rty}) =
       cs==rs && ct==rt && cn==rc && rty=="child"
+    lookupFn _ _ = False
     relToFk (Relation{relFTable=t, relFColumn=c}) = ForeignKey t c
 
 allprimaryKeys :: H.Tx P.Postgres s [PrimaryKey]

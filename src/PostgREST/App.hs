@@ -1,10 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
-module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept
--- added
+module PostgREST.App (
+  app
+, sqlError
+, isSqlError
+, contentTypeForAccept
 , jsonH
 , requestedSchema
 , TableOptions(..)
 ) where
+
 
 import Control.Monad (join)
 import Control.Arrow ((***), second)
@@ -53,7 +57,7 @@ import PostgREST.Functions
 import Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody role req =
+app dbstructure conf reqBody dbrole req =
   case (path, verb) of
     -- ([], _) -> do
     --   body <- encode <$> tables (cs schema)
@@ -67,11 +71,11 @@ app dbstructure conf reqBody role req =
     --     $ encode (TableOptions cols pkey)
 
     ([], _) -> do
-      let body = encode $ filter (filterTableAcl role) $ filter (((cs schema)==).tableSchema) allTables
+      let body = encode $ filter (filterTableAcl dbrole) $ filter (((cs schema)==).tableSchema) allTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
-      let qt = Table schema table
+      --let qt = Table schema table
       let cols = filter (filterCol schema table) allColumns
       let pkeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
       let body = encode (TableOptions cols pkeys)
@@ -218,13 +222,13 @@ app dbstructure conf reqBody role req =
         Right toBeInserted -> do
           rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
           let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
-              primaryKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
-          --primaryKeys <- primaryKeyColumns qt
+              pKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
+          --pKeys <- primaryKeyColumns qt
           let responses = flip map inserted $ \obj -> do
                 let primaries =
-                      if Prelude.null primaryKeys
+                      if Prelude.null pKeys
                         then obj
-                        else M.filterWithKey (const . (`elem` primaryKeys)) obj
+                        else M.filterWithKey (const . (`elem` pKeys)) obj
                 let params = urlEncodeVars
                       $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
                       $ sortBy (comparing fst) $ M.toList primaries
@@ -253,10 +257,10 @@ app dbstructure conf reqBody role req =
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
-            primaryKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
-        --primaryKeys <- primaryKeyColumns qt
+            pKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
+        --pKeys <- primaryKeyColumns qt
         let specifiedKeys = map (cs . fst) qq
-        if S.fromList primaryKeys /= S.fromList specifiedKeys
+        if S.fromList pKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []
             "You must speficy all and only primary keys as params"
           else do
@@ -317,8 +321,9 @@ app dbstructure conf reqBody role req =
     allColumns = columns dbstructure
     allPrimaryKeys = primaryKeys dbstructure
     --allTablesAcl = tablesAcl dbstructure
-    filterCol schema table (Column{colSchema=s, colTable=t}) =  s==schema && table==t
-    filterPk schema table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==schema && table==t
+    filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
+    filterCol _ _ _ =  False
+    filterPk sc table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==sc && table==t
 
     filterTableAcl :: Text -> Table -> Bool
     filterTableAcl r (Table{tableAcl=a}) = r `elem` a

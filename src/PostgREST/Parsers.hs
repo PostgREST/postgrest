@@ -1,33 +1,18 @@
 --{-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings, FlexibleContexts #-}
 module PostgREST.Parsers
--- ( parseGetRequest
--- , pSelect
--- , pField
--- , pRequestSelect
--- )
-
+( parseGetRequest
+)
 where
-import           Text.ParserCombinators.Parsec hiding (many, (<|>))
---import Text.Parsec.Text
---import Text.Parsec hiding (many, (<|>))
---import Text.Parsec.Prim hiding (many, (<|>))
+
 import           Control.Applicative
---import Control.Monad
---import qualified Data.Text                     as T
-import           Data.Tree
-import           Network.Wai                   (Request, pathInfo, queryString)
-import           PostgREST.Types
---import qualified Data.ByteString.Char8 as C
---import           Control.Monad
---import           Data.Foldable                 (foldrM)
+import           Control.Monad                 (join)
 import           Data.List                     (delete, find)
 import           Data.Maybe
 import           Data.String.Conversions       (cs)
-import  Control.Monad (join)
-
---import qualified Data.ByteString.Char8 as C
-
---buildRequest :: String -> String -> [(String, String)] -> Either P.ParseError Request
+import           Data.Tree
+import           Network.Wai                   (Request, pathInfo, queryString)
+import           PostgREST.Types
+import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 parseGetRequest :: Request -> Either ParseError ApiRequest
 parseGetRequest httpRequest =
     foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
@@ -38,7 +23,7 @@ parseGetRequest httpRequest =
         rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
         qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
         orderStr = join $ lookup "order" qString
-        ord = traverse (parse pOrder ("failed to parse order ()")) orderStr
+        ord = traverse (parse pOrder ("failed to parse order ("++fromMaybe "" orderStr++")")) orderStr
         selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
         whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
@@ -81,15 +66,12 @@ addFilter (path, flt) (Node rn forest) =
 ws :: Parser String
 ws = many (oneOf " \t")
 
---lexeme :: Parser String -> Parser String
---lexeme :: Text.Parsec.Prim.ParsecT String () Data.Functor.Identity.Identity a -> Text.Parsec.Prim.ParsecT String () Data.Functor.Identity.Identity a
---lexeme :: Text.Parsec.Prim.ParsecT String () Data.Functor.Identity.Identity Char -> Text.Parsec.Prim.ParsecT String () Data.Functor.Identity.Identity Char
+lexeme :: Parser a -> Parser a
 lexeme p = ws *> p <* ws
 
 pTreePath :: Parser (Path,Field)
 pTreePath = do
-    p <- (pFieldName `sepBy1` pDelimiter)
-    --f <- pField
+    p <- pFieldName `sepBy1` pDelimiter
     jp <- optionMaybe ( string "->" >>  pJsonPath)
     return (init p, (last p, jp))
 
@@ -98,17 +80,8 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree =
-    try ( do
-        fld <- pSelect
-        char '('
-        subforest <- pFieldForest
-        char ')'
-        return (Node fld subforest)
-        )
-    <|> do
-        fld <- pSelect
-        return (Node fld [])
+pFieldTree = try (Node <$> pSelect <*> ( char '(' *> pFieldForest <* char ')'))
+          <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser String
 pStar = string "*" *> pure "*"
@@ -117,22 +90,18 @@ pFieldName :: Parser String
 pFieldName =  many1 (letter <|> digit <|> oneOf "_")
           <?> "field name (* or [a..z0..9_])"
 
+pJsonPathDelimiter :: Parser String
+pJsonPathDelimiter = try (string "->>") <|> string "->"
+
 pJsonPath :: Parser [String]
-pJsonPath = pFieldName `sepBy1` (try (string "->>") <|> string "->")
+pJsonPath = pFieldName `sepBy1` pJsonPathDelimiter
 
 pField :: Parser Field
-pField = lexeme $ do
-    f <- pFieldName
-    jp <- optionMaybe ( (try (string "->>") <|> string "->") >>  pJsonPath)
-    return (f, jp)
+pField = lexeme $ (,) <$> pFieldName <*> optionMaybe ( pJsonPathDelimiter *>  pJsonPath)
 
 pSelect :: Parser SelectItem
 pSelect = lexeme $
-    try (do
-        n <- pField
-        v <- optionMaybe (string "::" >> many letter)
-        return (n, v)
-        )
+    try ((,) <$> pField <*> optionMaybe (string "::" *> many letter))
     <|> do
         s <- pStar
         return ((s, Nothing), Nothing)
@@ -154,8 +123,8 @@ pOperator =  try (string "lte") -- has to be before lt
          <|> try (string "@@")
          <?> "operator (eq, gt, ...)"
 
-pInt :: Parser Int
-pInt = try (liftA read (many1 digit)) <?> "integer"
+-- pInt :: Parser Int
+-- pInt = try (liftA read (many1 digit)) <?> "integer"
 
 --pValue :: Parser Value
 --pValue = (VInt <$> try (pInt <* eof))
@@ -166,20 +135,19 @@ pValue = many anyChar
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
-pOpValueExp :: Parser (Operator, FValue)
-pOpValueExp = do
-  o <- ( try ( liftA2 (++) (string "not.")  pOperator) <|> pOperator )
-  pDelimiter
-  v <- pValue
-  return (o, v)
+pOperatiorWithNegation :: Parser Operator
+pOperatiorWithNegation = try ( (++) <$> string "not." <*>  pOperator) <|> pOperator
 
-pOrder :: Parser ([OrderTerm])
+pOpValueExp :: Parser (Operator, FValue)
+pOpValueExp = (,) <$> pOperatiorWithNegation <*> (pDelimiter *> pValue)
+
+pOrder :: Parser [OrderTerm]
 pOrder = lexeme pOrderTerm `sepBy` char ','
 
 pOrderTerm :: Parser OrderTerm
 pOrderTerm =  do
   c <- pFieldName
-  pDelimiter
+  _ <- pDelimiter
   d <- string "asc" <|> string "desc"
   nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
   return $ OrderTerm (cs c) (cs d) (cs <$> nls)
