@@ -14,7 +14,8 @@ import           PostgREST.Types
 import           Data.Functor.Identity
 --import Data.String.Conversions (cs)
 import           Control.Applicative
-import           Data.Maybe            (fromMaybe, isJust)
+import           Data.Maybe            (fromMaybe, isJust, mapMaybe)
+import Data.Monoid
 
 --import qualified Data.Map as Map
 
@@ -22,6 +23,7 @@ import qualified Hasql                 as H
 import qualified Hasql.Postgres        as P
 
 import           Prelude
+import GHC.Exts (groupWith)
 
 
 doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
@@ -60,14 +62,14 @@ columnFromRow (s, t, n, pos, nul, typ, u, l, p, d, e) =
 
 
 relationFromRow :: (Text, Text, Text, Text, Text) -> Relation
-relationFromRow (s, t, c, ft, fc) = Relation s t c ft fc "child"
+relationFromRow (s, t, c, ft, fc) = Relation s t c ft fc "child" Nothing Nothing Nothing
 
 pkFromRow :: (Text, Text, Text) -> PrimaryKey
 pkFromRow (s, t, n) = PrimaryKey s t n
 
 
-addFlippedRelation :: Relation -> [Relation] -> [Relation]
-addFlippedRelation rel@(Relation s t c ft fc _) rels = Relation s ft fc t c "parent":rel:rels
+addParentRelation :: Relation -> [Relation] -> [Relation]
+addParentRelation rel@(Relation s t c ft fc _ _ _ _) rels = Relation s ft fc t c "parent" Nothing Nothing Nothing:rel:rels
 
 alltables :: H.Tx P.Postgres s [Table]
 alltables = do
@@ -130,7 +132,17 @@ allrelations = do
       )
 
   |]
-  return $ foldr (addFlippedRelation.relationFromRow) [] rels
+  let simpleRelations = foldr (addParentRelation.relationFromRow) [] rels
+  let links = filter ((==2).length) $ groupWith groupFn $ filter ( (=="child"). relType) simpleRelations
+  return $ simpleRelations ++ mapMaybe link2Relation links
+  where
+    groupFn :: Relation -> Text
+    groupFn (Relation{relSchema=s, relTable=t}) = s<>"_"<>t
+    link2Relation [
+      Relation{relSchema=sc, relTable=lt, relColumn=lc1, relFTable=t, relFColumn=c},
+      Relation{                           relColumn=lc2, relFTable=ft, relFColumn=fc}
+      ] = Just $ Relation sc t c ft fc "many" (Just lt) (Just lc1) (Just lc2)
+    link2Relation _ = Nothing
 
 allcolumns :: [Relation] -> H.Tx P.Postgres s [Column]
 allcolumns rels = do

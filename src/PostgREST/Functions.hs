@@ -16,10 +16,9 @@ import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
 import           PostgREST.Types
 --import qualified Hasql as H
 --import qualified Hasql.Postgres as P
+import Control.Applicative ((<|>))
 import qualified Data.Vector       as V (empty)
 import qualified Hasql.Backend     as B
-
-
 
 findColumn :: [Column] -> Text -> Text -> Text -> Either Text Column
 findColumn allColumns s t c = note ("no such column: "<>t<>"."<>c) $
@@ -40,8 +39,9 @@ addRelations schema allRelations parentNode node@(Node query@(Select {mainTable=
     Nothing -> Node query{relation=Nothing} <$> updatedForest
     (Just (Node (Select{mainTable=parentTable}) _)) -> Node <$> (addRel query <$> rel) <*> updatedForest
       where
-        rel = note ("no relation between " <> table <> " and " <> parentTable) $
-          findRelation allRelations schema table parentTable
+        rel = note ("no relation between " <> table <> " and " <> parentTable)
+            $  findRelation allRelations schema table parentTable
+           <|> findRelation allRelations schema parentTable table
         addRel :: Query -> Relation -> Query
         addRel q r = q{relation = Just r}
   where
@@ -52,26 +52,34 @@ addJoinConditions :: Text -> [Column] -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema allColumns (Node query@(Select{relation=r}) forest) =
   case r of
     Nothing -> Node updatedQuery  <$> updatedForest -- this is the root node
-    Just rel@(Relation{relType="child"}) -> Node (addCond updatedQuery (getJoinCondition rel)) <$> updatedForest
+    Just rel@(Relation{relType="child"}) -> Node (addCond updatedQuery (getJoinConditions rel)) <$> updatedForest
     Just (Relation{relType="parent"}) -> Node updatedQuery <$> updatedForest
-    -- Just (Many relationColumn1 relationColumn2) -> Node <$> pure updatedQuery{qJoinTables=linkTable:qJoinTables updatedQuery, qWhere=cond1:cond2:qWhere updatedQuery} <*> updatedForest
-      -- where
-      --    cond1 = getJoinCondition relationColumn1
-      --    cond2 = getJoinCondition relationColumn2
-      --    linkTable = Table "public" (colTable relationColumn1) True
+    Just rel@(Relation{relType="many", relLTable=(Just linkTable)}) ->
+      Node <$> pure qq <*> updatedForest
+      where
+         q = addCond updatedQuery (getJoinConditions rel)
+         qq = q{joinTables=linkTable:joinTables q}
     _ -> Left "unknow relation"
   where
     -- add parentTable and parentJoinConditions to the query
     updatedQuery = foldr (flip addCond) (query{joinTables = parentTables ++ joinTables query}) parentJoinConditions
       where
-        parentJoinConditions = map (getJoinCondition.snd) parents
+        parentJoinConditions = map (getJoinConditions.snd) parents
         parentTables = map fst parents
         parents = mapMaybe (getParents.rootLabel) forest
         getParents qq@(Select{relation=(Just rel@(Relation{relType="parent"}))}) = Just (mainTable qq, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema allColumns) forest
-    getJoinCondition rel@(Relation _ _ c _ _ _) = Filter (c, Nothing) "=" (VForeignKey rel)
-    addCond q con = q{filters=con:filters q}
+    getJoinConditions :: Relation -> [Filter]
+    getJoinConditions rel@(Relation _ _ c _ _ "child" _ _ _) = [Filter (c, Nothing) "=" (VForeignKey rel)]
+    getJoinConditions rel@(Relation _ _ c _ _ "parent" _ _ _) = [Filter (c, Nothing) "=" (VForeignKey rel)]
+    getJoinConditions     (Relation s t c ft fc "many" (Just lt) (Just lc1) (Just lc2)) =
+      [
+        Filter (c, Nothing) "=" (VForeignKey (Relation s t c lt lc1 "child" Nothing Nothing Nothing)),
+        Filter (fc, Nothing) "=" (VForeignKey (Relation s ft fc lt lc2 "child" Nothing Nothing Nothing))
+      ]
+    getJoinConditions _ = []
+    addCond q con = q{filters=con ++ filters q}
 
 
 requestToCountQuery :: Text -> ApiRequest -> PStmt
@@ -120,25 +128,31 @@ requestToQuery schema (Node (Select mainTbl colSelects tbls conditions ord _) fo
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
           where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
-    -- getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Many _ _))}) forst) (w,s) = (w,sel:s)
-    --    where name = tableName table
-    --         sel = "("
-    --           <> "SELECT array_to_json(array_agg(row_to_json("<>name<>"))) "
-    --           <> "FROM (" <> requestToQuery (Node q forst) <> ") " <> name
-    --           <> ") AS " <> name
+
+    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation {relType="many"}))}) forst) (w,s) = (w,sel:s)
+      where
+        sel = "("
+           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
+           <> "FROM (" <> subquery <> ") " <> table
+           <> ") AS " <> table
+           where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
+
     -- the following is just to remove the warning, maybe relType should not be String?
     getQueryParts (Node (Select{relation=Nothing}) _) _ = undefined
     getQueryParts (Node (Select{relation=(Just (Relation {relType=_}))}) _) _ = undefined
 
 pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
 pgFmtCondition table (Filter (col,jp) ops val) =
-  notOp <> " " <> pgFmtColumn table col <> pgFmtJsonPath jp  <> " " <> pgFmtOperator opCode <> " " <>
+  notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
     if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
   where
     headPredicate:rest = split (=='.') ops
     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
     opCode      = hasNot (head rest) headPredicate
     notOp       = hasNot headPredicate ""
+    sqlCol = case val of
+      VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
+      VForeignKey (Relation s t c _ _ _ _ _ _) -> pgFmtColumn (QualifiedIdentifier s t) c
     sqlValue = valToStr val
     getInner v = case v of
       VText s -> s

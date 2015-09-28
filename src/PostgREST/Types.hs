@@ -58,6 +58,9 @@ data Relation = Relation {
 , relFTable  :: Text
 , relFColumn :: Text
 , relType    :: Text
+, relLTable  :: Maybe Text
+, relLCol1   :: Maybe Text
+, relLCol2   :: Maybe Text
 } deriving (Show, Eq)
 
 
