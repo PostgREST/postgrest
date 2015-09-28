@@ -22,7 +22,7 @@ data Table = Table {
 
 data ForeignKey = ForeignKey {
   fkTable::Text, fkCol::Text
-} deriving (Eq, Show)
+} deriving (Show)
 
 
 data Column = Column {
@@ -64,36 +64,24 @@ data Relation = Relation {
 --------
 -- Request Types
 type Operator = Text
-type FValue = Text
-type ApiRequest = Tree RequestNode
+data FValue = VText Text | VForeignKey Relation deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
 type Cast = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
-data RequestNode = RequestNode {
-  nodeName::Text
+data Query = Select {
+  mainTable::Text
 , fields::[SelectItem]
+, joinTables::[Text]
 , filters::[Filter]
 , order::Maybe [OrderTerm]
+, relation::Maybe Relation
 } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
+type ApiRequest = Tree Query
 
--- Db Request Types
-type DbField = (Column, Maybe JsonPath)
-type DbSelectItem = (DbField, Maybe Cast)
-data DbValue = VText Text | VForeignKey Relation deriving (Show)
-data Condition = Condition {conColumn::DbField, conOperator::Operator, conValue::DbValue} deriving (Show)
-data Query = Select {
-  qMainTable::Table
-, qSelect::[DbSelectItem]
-, qJoinTables::[Table]
-, qWhere::[Condition]
-, qRelation::Maybe Relation
-, qOrder::Maybe [OrderTerm]
-} deriving (Show)
-type DbRequest = Tree Query
 
 instance ToJSON Column where
   toJSON c = object [

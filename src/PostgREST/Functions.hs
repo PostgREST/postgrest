@@ -34,53 +34,26 @@ findRelation allRelations s t1 t2 =
   find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
 
 
-filterToCondition :: Text -> [Column] -> Text -> Filter -> Either Text Condition
-filterToCondition schema allColumns table (Filter fld op val) =
-  Condition <$> c <*> pure op <*> pure (VText val)
-  where
-    c = (,) <$> column <*> pure (snd fld)
-    column = findColumn allColumns schema table $ fst fld
-
-
-requestNodeToQuery ::Text -> [Table] -> [Column] -> RequestNode -> Either Text Query
-requestNodeToQuery schema allTables allColumns (RequestNode tblName flds fltrs ord) =
-  Select <$> mainTable <*> select <*> joinTables <*> qwhere <*> rel <*> pure ord
-  where
-    mainTable = findTable allTables schema tblName
-    select = mapM toDbSelectItem flds --besides specific columns, we allow * here also
-      where
-        -- it's ok not to check that the table exists here, mainTable will do the checking
-        toDbSelectItem :: SelectItem -> Either Text DbSelectItem
-        toDbSelectItem (("*", Nothing), Nothing) = Right ((Star{colSchema = schema, colTable = tblName}, Nothing), Nothing)
-        toDbSelectItem ((c,jp), cast) = (,) <$> dbFld <*> pure cast
-          where
-            col = findColumn allColumns schema tblName c
-            dbFld = (,) <$> col <*> pure jp
-
-    qwhere = mapM (filterToCondition schema allColumns tblName) fltrs
-    joinTables = pure []
-    rel = pure Nothing
-
-addRelations :: [Relation] -> Maybe DbRequest -> DbRequest -> Either Text DbRequest
-addRelations allRelations parentNode node@(Node query@(Select {qMainTable=table}) forest) =
+addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
+addRelations schema allRelations parentNode node@(Node query@(Select {mainTable=table}) forest) =
   case parentNode of
-    Nothing -> Node query{qRelation=Nothing} <$> updatedForest
-    (Just (Node (Select{qMainTable=parentTable}) _)) -> Node <$> (addRel query <$> rel) <*> updatedForest
+    Nothing -> Node query{relation=Nothing} <$> updatedForest
+    (Just (Node (Select{mainTable=parentTable}) _)) -> Node <$> (addRel query <$> rel) <*> updatedForest
       where
-        rel = note ("no relation between " <> tableName table <> " and " <> tableName parentTable) $
-          findRelation allRelations (tableSchema table) (tableName table) (tableName parentTable)
+        rel = note ("no relation between " <> table <> " and " <> parentTable) $
+          findRelation allRelations schema table parentTable
         addRel :: Query -> Relation -> Query
-        addRel q r = q{qRelation = Just r}
+        addRel q r = q{relation = Just r}
   where
-    updatedForest = mapM (addRelations allRelations (Just node)) forest
+    updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
 
-addJoinConditions :: [Column] -> Tree Query -> Either Text DbRequest
-addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
-  case relation of
-    Nothing -> Node <$> updatedQuery <*> updatedForest -- this is the root node
-    Just rel@(Relation{relType="child"}) -> Node <$> (addCond <$> updatedQuery <*> getJoinCondition rel) <*> updatedForest
-    Just (Relation{relType="parent"}) -> Node <$> updatedQuery <*> updatedForest
+addJoinConditions :: Text -> [Column] -> ApiRequest -> Either Text ApiRequest
+addJoinConditions schema allColumns (Node query@(Select{relation=r}) forest) =
+  case r of
+    Nothing -> Node updatedQuery  <$> updatedForest -- this is the root node
+    Just rel@(Relation{relType="child"}) -> Node (addCond updatedQuery (getJoinCondition rel)) <$> updatedForest
+    Just (Relation{relType="parent"}) -> Node updatedQuery <$> updatedForest
     -- Just (Many relationColumn1 relationColumn2) -> Node <$> pure updatedQuery{qJoinTables=linkTable:qJoinTables updatedQuery, qWhere=cond1:cond2:qWhere updatedQuery} <*> updatedForest
       -- where
       --    cond1 = getJoinCondition relationColumn1
@@ -89,81 +62,77 @@ addJoinConditions allColumns (Node query@(Select{qRelation=relation}) forest) =
     _ -> Left "unknow relation"
   where
     -- add parentTable and parentJoinConditions to the query
-    updatedQuery = foldr (flip addCond) (query{qJoinTables = parentTables ++ qJoinTables query}) <$> parentJoinConditions
+    updatedQuery = foldr (flip addCond) (query{joinTables = parentTables ++ joinTables query}) parentJoinConditions
       where
-        parentJoinConditions = mapM (getJoinCondition.snd) parents
+        parentJoinConditions = map (getJoinCondition.snd) parents
         parentTables = map fst parents
         parents = mapMaybe (getParents.rootLabel) forest
-        getParents qq@(Select{qRelation=(Just rel@(Relation{relType="parent"}))}) = Just (qMainTable qq, rel)
+        getParents qq@(Select{relation=(Just rel@(Relation{relType="parent"}))}) = Just (mainTable qq, rel)
         getParents _ = Nothing
-    updatedForest = mapM (addJoinConditions allColumns) forest
-    getJoinCondition rel@(Relation s t c _ _ _) = Condition <$> cc <*> pure "=" <*> pure (VForeignKey rel)
-      where
-        col = findColumn allColumns s t c
-        cc = (,) <$> col <*> pure Nothing
-    addCond q con = q{qWhere=con:qWhere q}
+    updatedForest = mapM (addJoinConditions schema allColumns) forest
+    getJoinCondition rel@(Relation _ _ c _ _ _) = Filter (c, Nothing) "=" (VForeignKey rel)
+    addCond q con = q{filters=con:filters q}
 
 
-dbRequestToCountQuery :: DbRequest -> PStmt
-dbRequestToCountQuery (Node (Select mainTable _ _ conditions _ _) _) =
+requestToCountQuery :: Text -> ApiRequest -> PStmt
+requestToCountQuery schema (Node (Select mainTbl _ _ conditions _ _) _) =
   B.Stmt query V.empty True
   where
     query = Data.Text.unwords [
       "SELECT pg_catalog.count(1)",
-      "FROM ", pgFmtTable mainTable,
-      ("WHERE " <> intercalate " AND " ( map pgFmtCondition localConditions )) `emptyOnNull` localConditions
+      "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
       ]
     emptyOnNull val x = if null x then "" else val
     localConditions = filter fn conditions
       where
-        fn  (Condition{conValue=VText _}) = True
-        fn  (Condition{conValue=VForeignKey _}) = False
+        fn  (Filter{value=VText _}) = True
+        fn  (Filter{value=VForeignKey _}) = False
 
-dbRequestToQuery :: DbRequest -> PStmt
-dbRequestToQuery (Node (Select mainTable colSelects tbls conditions _ ord) forest) =
+
+-- main field join filters order rela
+requestToQuery :: Text -> ApiRequest -> PStmt
+requestToQuery schema (Node (Select mainTbl colSelects tbls conditions ord _) forest) =
   orderT (fromMaybe [] ord)  query
   where
-
     query = B.Stmt qStr V.empty True
     qStr = Data.Text.unwords [
       ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
-      "SELECT ", intercalate ", " (map selectItemToStr colSelects ++ selects),
-      "FROM ", intercalate ", " (map pgFmtTable (mainTable:tbls)),
-      ("WHERE " <> intercalate " AND " ( map pgFmtCondition conditions )) `emptyOnNull` conditions
+      "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
+      "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) (mainTbl:tbls)),
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions
       ]
     emptyOnNull val x = if null x then "" else val
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    --getQueryParts is not total but dbRequestToQuery is called only after addJoinConditions which ensures the only
+    --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts :: Tree Query -> ([Text], [Text]) -> ([Text], [Text])
-    getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Relation {relType="child"}))}) forst) (w,s) = (w,sel:s)
+    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation {relType="child"}))}) forst) (w,s) = (w,sel:s)
       where
-        name = tableName table
         sel = "("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>name<>"))) "
-           <> "FROM (" <> subquery <> ") " <> name
-           <> ") AS " <> name
-           where (B.Stmt subquery _ _) = dbRequestToQuery (Node q forst)
+           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
+           <> "FROM (" <> subquery <> ") " <> table
+           <> ") AS " <> table
+           where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
 
-    getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Relation{relType="parent"}))}) forst) (w,s) = (wit:w,sel:s)
+    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation{relType="parent"}))}) forst) (w,s) = (wit:w,sel:s)
       where
-        name = tableName table
-        sel = "row_to_json(" <> name <> ".*) AS "<>name --TODO must be singular
-        wit = name <> " AS ( " <> subquery <> " )"
-          where (B.Stmt subquery _ _) = dbRequestToQuery (Node q forst)
+        sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
+        wit = table <> " AS ( " <> subquery <> " )"
+          where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
     -- getQueryParts (Node q@(Select{qMainTable=table, qRelation=(Just (Many _ _))}) forst) (w,s) = (w,sel:s)
     --    where name = tableName table
     --         sel = "("
     --           <> "SELECT array_to_json(array_agg(row_to_json("<>name<>"))) "
-    --           <> "FROM (" <> dbRequestToQuery (Node q forst) <> ") " <> name
+    --           <> "FROM (" <> requestToQuery (Node q forst) <> ") " <> name
     --           <> ") AS " <> name
     -- the following is just to remove the warning, maybe relType should not be String?
-    getQueryParts (Node (Select{qRelation=Nothing}) _) _ = undefined
-    getQueryParts (Node (Select{qRelation=(Just (Relation {relType=_}))}) _) _ = undefined
+    getQueryParts (Node (Select{relation=Nothing}) _) _ = undefined
+    getQueryParts (Node (Select{relation=(Just (Relation {relType=_}))}) _) _ = undefined
 
-pgFmtCondition :: Condition -> Text
-pgFmtCondition (Condition (col,jp) ops val) =
-  notOp <> " " <> pgFmtColumn col <> pgFmtJsonPath jp  <> " " <> pgFmtOperator opCode <> " " <>
+pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
+pgFmtCondition table (Filter (col,jp) ops val) =
+  notOp <> " " <> pgFmtColumn table col <> pgFmtJsonPath jp  <> " " <> pgFmtOperator opCode <> " " <>
     if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
   where
     headPredicate:rest = split (=='.') ops
@@ -176,11 +145,12 @@ pgFmtCondition (Condition (col,jp) ops val) =
       _      -> ""
     valToStr v = case v of
       VText s -> pgFmtValue opCode s
-      VForeignKey (Relation{relFTable=table, relFColumn=column}) -> table <> "." <> column
+      VForeignKey (Relation{relSchema=s, relFTable=ft, relFColumn=fc}) -> pgFmtColumn (QualifiedIdentifier s ft) fc
 
-pgFmtColumn :: Column -> Text
-pgFmtColumn Column {colSchema=s, colTable=t, colName=c} = pgFmtIdent s <> "." <> pgFmtIdent t <> "." <> pgFmtIdent c
-pgFmtColumn Star {colSchema=s, colTable=t} = pgFmtIdent s <> "." <> pgFmtIdent t <> ".*"
+pgFmtColumn :: QualifiedIdentifier -> Text -> Text
+pgFmtColumn table "*" = fromQi table <> ".*"
+pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
+--pgFmtColumn Star {colSchema=s, colTable=t} = pgFmtIdent s <> "." <> pgFmtIdent t <> ".*"
 
 pgFmtJsonPath :: Maybe JsonPath -> Text
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
@@ -190,9 +160,9 @@ pgFmtJsonPath _ = ""
 pgFmtTable :: Table -> Text
 pgFmtTable Table{tableSchema=s, tableName=n} = fromQi $ QualifiedIdentifier s n
 
-selectItemToStr :: DbSelectItem -> Text
-selectItemToStr ((c, jp), Nothing) = pgFmtColumn c <> pgFmtJsonPath jp <> asJsonPath jp
-selectItemToStr ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn c <> pgFmtJsonPath jp <> " AS " <> cast <> " )" <> asJsonPath jp
+pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
+pgFmtSelectItem table ((c, jp), Nothing) = pgFmtColumn table c <> pgFmtJsonPath jp <> asJsonPath jp
+pgFmtSelectItem table ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn table c <> pgFmtJsonPath jp <> " AS " <> cast <> " )" <> asJsonPath jp
 
 asJsonPath :: Maybe JsonPath -> Text
 asJsonPath Nothing = ""

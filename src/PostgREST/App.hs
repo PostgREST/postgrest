@@ -76,6 +76,7 @@ app dbstructure conf reqBody dbrole req =
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else
+        -- return $ responseLBS status416 [] $ cs $ show queries
         case queries of
           Left e -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ cs e
           Right (qs, cqs) -> do
@@ -114,14 +115,12 @@ app dbstructure conf reqBody dbrole req =
 
         where
             from = fromMaybe 0 $ rangeOffset <$> range
-            apiRequest = parseGetRequest req
-            dbRequest = first formatParserError apiRequest
-                >>= traverse (requestNodeToQuery schema allTables allColumns)
-                >>= addRelations allRelations Nothing
-                >>= addJoinConditions allColumns
-                where formatParserError = pack.show
-            query = dbRequestToQuery <$> dbRequest
-            countQuery = dbRequestToCountQuery <$> dbRequest
+            apiRequest = first formatParserError (parseGetRequest req)
+                     >>= addRelations schema allRelations Nothing
+                     >>= addJoinConditions schema allColumns
+                     where formatParserError = pack.show
+            query = requestToQuery schema <$> apiRequest
+            countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery
 
 
