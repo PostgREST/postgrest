@@ -91,7 +91,7 @@ main = do
 
     -- read the structure of the database
     -- read the structure of the database
-  let txParam = (Just (H.ReadCommitted, Just True))
+  let txParam = Just (H.ReadCommitted, Just True)
 
   tblsRes <-  H.session pool $ H.tx txParam alltables
   let allTables = either (fail . show) id tblsRes
