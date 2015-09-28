@@ -54,6 +54,7 @@ executable postgrest
                      , jwt
                      , parsec
                      , errors
+                     , bifunctors
   hs-source-dirs:      src
 
 library
@@ -92,6 +93,8 @@ library
                      , jwt
                      , parsec
                      , errors
+                     , bifunctors
+
   Exposed-Modules:     PostgREST.App
                      , PostgREST.Types
                      , PostgREST.Parsers
@@ -160,3 +163,4 @@ Test-Suite spec
                      , jwt
                      , parsec
                      , errors
+                     , bifunctors
