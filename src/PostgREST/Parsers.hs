@@ -6,6 +6,8 @@ where
 
 import           Control.Applicative hiding ((<$>))
 import           Data.Functor ((<$>))
+import           Data.Traversable (traverse)
+
 import           Control.Monad                 (join)
 import           Data.List                     (delete, find)
 import           Data.Maybe

@@ -8,7 +8,7 @@ import           Data.List         (find)
 import           Data.Monoid
 import           Data.Text         hiding (filter, find, foldr, head, last, map,
                                     null)
-
+import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
@@ -16,7 +16,7 @@ import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
 import           PostgREST.Types
 --import qualified Hasql as H
 --import qualified Hasql.Postgres as P
-import Control.Applicative ((<|>))
+--import Control.Applicative ((<|>))
 import qualified Data.Vector       as V (empty)
 import qualified Hasql.Backend     as B
 
