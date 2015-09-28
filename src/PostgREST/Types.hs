@@ -63,17 +63,17 @@ data Relation = Relation {
 
 --------
 -- Request Types
-type Operator = String
-type FValue = String
+type Operator = Text
+type FValue = Text
 type ApiRequest = Tree RequestNode
-type FieldName = String
-type JsonPath = [String]
+type FieldName = Text
+type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
-type Cast = String
+type Cast = Text
 type SelectItem = (Field, Maybe Cast)
-type Path = [String]
+type Path = [Text]
 data RequestNode = RequestNode {
-  nodeName::String
+  nodeName::Text
 , fields::[SelectItem]
 , filters::[Filter]
 , order::Maybe [OrderTerm]

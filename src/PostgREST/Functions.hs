@@ -8,6 +8,7 @@ import           Data.List         (find)
 import           Data.Monoid
 import           Data.Text         hiding (filter, find, foldr, head, last, map,
                                     null)
+
 import           Data.Tree
 import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
@@ -35,17 +36,16 @@ findRelation allRelations s t1 t2 =
 
 filterToCondition :: Text -> [Column] -> Text -> Filter -> Either Text Condition
 filterToCondition schema allColumns table (Filter fld op val) =
-  Condition <$> c <*> pure op <*> pure (VText (pack val))
+  Condition <$> c <*> pure op <*> pure (VText val)
   where
     c = (,) <$> column <*> pure (snd fld)
-    column = findColumn allColumns schema table $ pack $ fst fld
+    column = findColumn allColumns schema table $ fst fld
 
 
 requestNodeToQuery ::Text -> [Table] -> [Column] -> RequestNode -> Either Text Query
-requestNodeToQuery schema allTables allColumns (RequestNode tblNameS flds fltrs ord) =
+requestNodeToQuery schema allTables allColumns (RequestNode tblName flds fltrs ord) =
   Select <$> mainTable <*> select <*> joinTables <*> qwhere <*> rel <*> pure ord
   where
-    tblName = pack tblNameS
     mainTable = findTable allTables schema tblName
     select = mapM toDbSelectItem flds --besides specific columns, we allow * here also
       where
@@ -54,7 +54,7 @@ requestNodeToQuery schema allTables allColumns (RequestNode tblNameS flds fltrs 
         toDbSelectItem (("*", Nothing), Nothing) = Right ((Star{colSchema = schema, colTable = tblName}, Nothing), Nothing)
         toDbSelectItem ((c,jp), cast) = (,) <$> dbFld <*> pure cast
           where
-            col = findColumn allColumns schema tblName $ pack c
+            col = findColumn allColumns schema tblName c
             dbFld = (,) <$> col <*> pure jp
 
     qwhere = mapM (filterToCondition schema allColumns tblName) fltrs
@@ -166,7 +166,7 @@ pgFmtCondition (Condition (col,jp) ops val) =
   notOp <> " " <> pgFmtColumn col <> pgFmtJsonPath jp  <> " " <> pgFmtOperator opCode <> " " <>
     if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
   where
-    headPredicate:rest = split (=='.') $ pack ops
+    headPredicate:rest = split (=='.') ops
     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
     opCode      = hasNot (head rest) headPredicate
     notOp       = hasNot headPredicate ""
@@ -183,8 +183,8 @@ pgFmtColumn Column {colSchema=s, colTable=t, colName=c} = pgFmtIdent s <> "." <>
 pgFmtColumn Star {colSchema=s, colTable=t} = pgFmtIdent s <> "." <> pgFmtIdent t <> ".*"
 
 pgFmtJsonPath :: Maybe JsonPath -> Text
-pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit (pack x)
-pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit (pack x) <> pgFmtJsonPath ( Just xs )
+pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
+pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
 pgFmtJsonPath _ = ""
 
 pgFmtTable :: Table -> Text
@@ -192,8 +192,8 @@ pgFmtTable Table{tableSchema=s, tableName=n} = fromQi $ QualifiedIdentifier s n
 
 selectItemToStr :: DbSelectItem -> Text
 selectItemToStr ((c, jp), Nothing) = pgFmtColumn c <> pgFmtJsonPath jp <> asJsonPath jp
-selectItemToStr ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn c <> pgFmtJsonPath jp <> " AS " <> pack cast <> " )" <> asJsonPath jp
+selectItemToStr ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn c <> pgFmtJsonPath jp <> " AS " <> cast <> " )" <> asJsonPath jp
 
 asJsonPath :: Maybe JsonPath -> Text
 asJsonPath Nothing = ""
-asJsonPath (Just xx) = " AS " <> pack (last xx)
+asJsonPath (Just xx) = " AS " <> last xx

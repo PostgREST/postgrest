@@ -8,7 +8,9 @@ import           Control.Applicative
 import           Control.Monad                 (join)
 import           Data.List                     (delete, find)
 import           Data.Maybe
+import           Data.Monoid
 import           Data.String.Conversions       (cs)
+import           Data.Text                     (Text)
 import           Data.Tree
 import           Network.Wai                   (Request, pathInfo, queryString)
 import           PostgREST.Types
@@ -27,7 +29,7 @@ parseGetRequest httpRequest =
     selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
     whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
-pRequestSelect :: String -> Parser ApiRequest
+pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (RequestNode rootNodeName [] [] Nothing) []) fieldTree
@@ -41,8 +43,8 @@ pRequestSelect rootNodeName = do
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
   where
-    treePath = parse pTreePath ("failed to parser tree path ("++k++")") k
-    opVal = parse pOpValueExp ("failed to parse filter ("++v++")") v
+    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
+    opVal = parse pOpValueExp ("failed to parse filter (" ++ v ++ ")") v
     path = fst <$> treePath
     fld = snd <$> treePath
     op = fst <$> opVal
@@ -63,8 +65,8 @@ addFilter (path, flt) (Node rn forest) =
         Just node -> (Just node, delete node forest)
       where maybeNode = find ((name==).nodeName.rootLabel) forst
 
-ws :: Parser String
-ws = many (oneOf " \t")
+ws :: Parser Text
+ws = cs <$> many (oneOf " \t")
 
 lexeme :: Parser a -> Parser a
 lexeme p = ws *> p <* ws
@@ -73,7 +75,10 @@ pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe ( string "->" >>  pJsonPath)
-  return (init p, (last p, jp))
+  let pp = map cs p
+      jpp = map cs <$> jp
+  return (init pp, (last pp, jpp))
+  where
 
 
 pFieldForest :: Parser [Tree SelectItem]
@@ -83,17 +88,17 @@ pFieldTree :: Parser (Tree SelectItem)
 pFieldTree = try (Node <$> pSelect <*> ( char '(' *> pFieldForest <* char ')'))
       <|>    Node <$> pSelect <*> pure []
 
-pStar :: Parser String
-pStar = string "*" *> pure "*"
+pStar :: Parser Text
+pStar = cs <$> (string "*" *> pure ("*"::String))
 
-pFieldName :: Parser String
-pFieldName =  many1 (letter <|> digit <|> oneOf "_")
-      <?> "field name (* or [a..z0..9_])"
+pFieldName :: Parser Text
+pFieldName =  cs <$> (many1 (letter <|> digit <|> oneOf "_")
+      <?> "field name (* or [a..z0..9_])")
 
-pJsonPathDelimiter :: Parser String
-pJsonPathDelimiter = try (string "->>") <|> string "->"
+pJsonPathDelimiter :: Parser Text
+pJsonPathDelimiter = cs <$> (try (string "->>") <|> string "->")
 
-pJsonPath :: Parser [String]
+pJsonPath :: Parser [Text]
 pJsonPath = pFieldName `sepBy1` pJsonPathDelimiter
 
 pField :: Parser Field
@@ -101,13 +106,13 @@ pField = lexeme $ (,) <$> pFieldName <*> optionMaybe ( pJsonPathDelimiter *>  pJ
 
 pSelect :: Parser SelectItem
 pSelect = lexeme $
-  try ((,) <$> pField <*> optionMaybe (string "::" *> many letter))
+  try ((,) <$> pField <*>((cs <$>) <$> optionMaybe (string "::" *> many letter)) )
   <|> do
     s <- pStar
     return ((s, Nothing), Nothing)
 
 pOperator :: Parser Operator
-pOperator =  try (string "lte") -- has to be before lt
+pOperator = cs <$> ( try (string "lte") -- has to be before lt
      <|> try (string "lt")
      <|> try (string "eq")
      <|> try (string "gte") -- has to be before gh
@@ -122,6 +127,7 @@ pOperator =  try (string "lte") -- has to be before lt
      <|> try (string "isnot")
      <|> try (string "@@")
      <?> "operator (eq, gt, ...)"
+     )
 
 -- pInt :: Parser Int
 -- pInt = try (liftA read (many1 digit)) <?> "integer"
@@ -130,13 +136,13 @@ pOperator =  try (string "lte") -- has to be before lt
 --pValue = (VInt <$> try (pInt <* eof))
 --     <|>(VString <$> many anyChar)
 pValue :: Parser FValue
-pValue = many anyChar
+pValue = cs <$> many anyChar
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
 pOperatiorWithNegation :: Parser Operator
-pOperatiorWithNegation = try ( (++) <$> string "not." <*>  pOperator) <|> pOperator
+pOperatiorWithNegation = try ( (<>) <$> ( cs <$> string "not." ) <*>  pOperator) <|> pOperator
 
 pOpValueExp :: Parser (Operator, FValue)
 pOpValueExp = (,) <$> pOperatiorWithNegation <*> (pDelimiter *> pValue)
