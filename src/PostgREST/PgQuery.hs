@@ -18,7 +18,7 @@ import qualified Data.ByteString.Char8   as BS
 import           Data.Functor
 import qualified Data.HashMap.Strict     as H
 import qualified Data.List               as L
-import           Data.Maybe              (fromMaybe, mapMaybe)
+import           Data.Maybe              (fromMaybe)
 import           Data.Monoid
 import           Data.Scientific         (FPFormat (..), formatScientific,
                                           isInteger)
@@ -130,36 +130,6 @@ withCount s = s { B.stmtTemplate = "pg_catalog.count(t), " <> B.stmtTemplate s }
 asJsonRow :: StatementT
 asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <> ") t" }
 
-selectStar :: QualifiedIdentifier -> PStmt
-selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
-
-select :: QualifiedIdentifier -> Net.Query -> PStmt
-select table params =
-  if L.null cols
-    then selectStar table
-    else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
-  where
-    selectTermTable = selectTerm table
-    conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
-    columnsParam = fromMaybe "" $ join (lookup "select" params)
-    cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
-
-selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
-selectTerm table col =
-  case T.splitOn "::" col of
-    [colName,castTo] ->
-      B.Stmt (
-          "CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS "
-          <> castToSafe <> " )" <> asT (jsonbPath colName)
-        ) empty True
-      where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
-    _ -> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
-  where
-    jsonbPath :: T.Text -> Maybe JsonbPath
-    jsonbPath c = parseJsonbPath $ cs c
-    asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
-    asT _ = ""
-
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 
@@ -263,29 +233,6 @@ pgFmtOperator opCode =
     "isnot" -> "is not"
     "@@" -> "@@"
     _     -> "="
-
-
-orderParse :: Net.Query -> [OrderTerm]
-orderParse q =
-  mapMaybe orderParseTerm . T.split (==',') $ cs order
-  where
-    order = fromMaybe "" $ join (lookup "order" q)
-
-orderParseTerm :: T.Text -> Maybe OrderTerm
-orderParseTerm s =
-  case T.split (=='.') s of
-    (c:d:nls) ->
-      if d `elem` ["asc", "desc"]
-        then Just $ OrderTerm c
-          ( if d == "asc" then "asc" else "desc" )
-          ( case nls of
-              [n] -> if | n == "nullsfirst" -> Just "nulls first"
-                        | n == "nullslast"  -> Just "nulls last"
-                        | otherwise -> Nothing
-              _   -> Nothing
-          )
-        else Nothing
-    _ -> Nothing
 
 commaq :: PStmt
 commaq  = B.Stmt ", " empty True
