@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-module PostgREST.Functions
+module PostgREST.QueryBuilder
 where
 
 

@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.PgStructure where
 
@@ -10,9 +8,7 @@ import           Data.List             (find)
 import           Data.Text             (Text, split)
 import           PostgREST.PgQuery     ()
 import           PostgREST.Types
---import Data.Aeson
 import           Data.Functor.Identity
---import Data.String.Conversions (cs)
 import           Control.Applicative
 import           Data.Maybe            (fromMaybe, isJust, mapMaybe)
 import Data.Monoid

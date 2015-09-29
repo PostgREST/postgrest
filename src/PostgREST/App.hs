@@ -52,7 +52,7 @@ import PostgREST.PgQuery
 import PostgREST.RangeQuery
 import PostgREST.PgStructure
 import PostgREST.Parsers
-import PostgREST.Functions
+import PostgREST.QueryBuilder
 
 import Prelude
 
@@ -78,7 +78,7 @@ app dbstructure conf reqBody dbrole req =
       else
         -- return $ responseLBS status416 [] $ cs $ show queries
         case queries of
-          Left e -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ cs e
+          Left e -> return $ responseLBS status400 [("Content-Type", "text/plain")] $ cs e
           Right (qs, cqs) -> do
             let qt = qualify table
                 count = if hasPrefer "count=none"

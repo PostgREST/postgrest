@@ -98,7 +98,7 @@ library
   Exposed-Modules:     PostgREST.App
                      , PostgREST.Types
                      , PostgREST.Parsers
-                     , PostgREST.Functions
+                     , PostgREST.QueryBuilder
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -121,7 +121,7 @@ Test-Suite spec
   Other-Modules:       PostgREST.App
                      , PostgREST.Types
                      , PostgREST.Parsers
-                     , PostgREST.Functions
+                     , PostgREST.QueryBuilder
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error

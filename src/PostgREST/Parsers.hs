@@ -1,7 +1,6 @@
---{-# LANGUAGE QuasiQuotes, ScopedTypeVariables, OverloadedStrings, FlexibleContexts #-}
 module PostgREST.Parsers
--- ( parseGetRequest
--- )
+( parseGetRequest
+)
 where
 
 import           Control.Applicative hiding ((<$>))
