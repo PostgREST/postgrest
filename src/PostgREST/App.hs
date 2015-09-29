@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module PostgREST.App (
   app
 , sqlError
@@ -10,51 +11,52 @@ module PostgREST.App (
 ) where
 
 
-import Control.Monad (join)
-import Control.Arrow ((***), second)
-import Control.Applicative
-import           Data.Bifunctor             (first)
-import Data.Text (Text, pack)
-import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
-import Text.Regex.TDFA ((=~))
-import Data.Ord (comparing)
-import Data.Ranged.Ranges (emptyRange)
-import qualified Data.HashMap.Strict as M
-import Data.String.Conversions (cs)
-import Data.CaseInsensitive (original)
-import Data.List (sortBy, find)
-import Data.Functor.Identity
-import qualified Data.Set as S
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Char8 as BS
-import qualified Blaze.ByteString.Builder as BB
-import qualified Data.Csv as CSV
+import qualified Blaze.ByteString.Builder  as BB
+import           Control.Applicative
+import           Control.Arrow             (second, (***))
+import           Control.Monad             (join)
+import           Data.Bifunctor            (first)
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.ByteString.Lazy      as BL
+import           Data.CaseInsensitive      (original)
+import qualified Data.Csv                  as CSV
+import           Data.Functor.Identity
+import qualified Data.HashMap.Strict       as M
+import           Data.List                 (find, sortBy)
+import           Data.Maybe                (fromMaybe, isJust, isNothing,
+                                            mapMaybe)
+import           Data.Ord                  (comparing)
+import           Data.Ranged.Ranges        (emptyRange)
+import qualified Data.Set                  as S
+import           Data.String.Conversions   (cs)
+import           Data.Text                 (Text, pack)
+import           Text.Regex.TDFA           ((=~))
 
-import Network.HTTP.Types.Status
-import Network.HTTP.Types.Header
-import Network.HTTP.Types.URI (parseSimpleQuery)
-import Network.HTTP.Base (urlEncodeVars)
-import Network.Wai
-import Network.Wai.Parse (parseHttpAccept)
-import Network.Wai.Internal (Response(..))
+import           Network.HTTP.Base         (urlEncodeVars)
+import           Network.HTTP.Types.Header
+import           Network.HTTP.Types.Status
+import           Network.HTTP.Types.URI    (parseSimpleQuery)
+import           Network.Wai
+import           Network.Wai.Internal      (Response (..))
+import           Network.Wai.Parse         (parseHttpAccept)
 
-import Data.Aeson
-import Data.Monoid
-import qualified Data.Vector as V
-import qualified Hasql as H
-import qualified Hasql.Backend as B
-import qualified Hasql.Postgres as P
+import           Data.Aeson
+import           Data.Monoid
+import qualified Data.Vector               as V
+import qualified Hasql                     as H
+import qualified Hasql.Backend             as B
+import qualified Hasql.Postgres            as P
 
-import PostgREST.Types
-import PostgREST.Config (AppConfig(..))
-import PostgREST.Auth
-import PostgREST.PgQuery
-import PostgREST.RangeQuery
-import PostgREST.PgStructure
-import PostgREST.Parsers
-import PostgREST.QueryBuilder
+import           PostgREST.Auth
+import           PostgREST.Config          (AppConfig (..))
+import           PostgREST.Parsers
+import           PostgREST.PgQuery
+import           PostgREST.PgStructure
+import           PostgREST.QueryBuilder
+import           PostgREST.RangeQuery
+import           PostgREST.Types
 
-import Prelude
+import           Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody dbrole req =
@@ -402,7 +404,7 @@ multipart s rs =
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
-, tblOptpkey :: [Text]
+, tblOptpkey    :: [Text]
 }
 
 instance ToJSON TableOptions where

@@ -61,8 +61,7 @@ library
   if flag(ci)
     ghc-options:       -Wall -W -Werror
   else
-    -- ghc-options:       -Wall -W -O2
-    ghc-options:       -Wall -W
+    ghc-options:       -Wall -W -O2
 
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
