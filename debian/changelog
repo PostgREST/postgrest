@@ -1,0 +1,5 @@
+haskell-postgrest (0.2.11.1-1) UNRELEASED; urgency=low
+
+  * Initial release
+
+ -- Debian Haskell Group <pkg-haskell-maintainers@lists.alioth.debian.org>  Wed, 30 Sep 2015 18:52:46 +0000

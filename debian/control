@@ -1,0 +1,196 @@
+Source: haskell-postgrest
+Maintainer: Debian Haskell Group <pkg-haskell-maintainers@lists.alioth.debian.org>
+Priority: extra
+Section: haskell
+Build-Depends: debhelper (>= 9),
+ haskell-devscripts (>= 0.8),
+ cdbs,
+ ghc,
+ ghc-prof,
+ libghc-http-dev,
+ libghc-http-prof,
+ libghc-missingh-dev,
+ libghc-missingh-prof,
+ libghc-ranged-sets-dev,
+ libghc-ranged-sets-prof,
+ libghc-aeson-dev,
+ libghc-aeson-prof,
+ libghc-base64-string-dev,
+ libghc-base64-string-prof,
+ libghc-bcrypt-dev,
+ libghc-bcrypt-prof,
+ libghc-blaze-builder-dev,
+ libghc-blaze-builder-prof,
+ libghc-case-insensitive-dev,
+ libghc-case-insensitive-prof,
+ libghc-cassava-dev,
+ libghc-cassava-prof,
+ libghc-convertible-dev,
+ libghc-convertible-prof,
+ libghc-hasql-dev,
+ libghc-hasql-prof,
+ libghc-hasql-backend-dev,
+ libghc-hasql-backend-prof,
+ libghc-hasql-postgres-dev,
+ libghc-hasql-postgres-prof,
+ libghc-http-types-dev,
+ libghc-http-types-prof,
+ libghc-jwt-dev,
+ libghc-jwt-prof,
+ libghc-mtl-dev,
+ libghc-mtl-prof,
+ libghc-network-dev,
+ libghc-network-prof,
+ libghc-network-uri-dev,
+ libghc-network-uri-prof,
+ libghc-optparse-applicative-dev,
+ libghc-optparse-applicative-prof,
+ libghc-regex-base-dev,
+ libghc-regex-base-prof,
+ libghc-regex-tdfa-dev,
+ libghc-regex-tdfa-prof,
+ libghc-resource-pool-dev,
+ libghc-resource-pool-prof,
+ libghc-scientific-dev,
+ libghc-scientific-prof,
+ libghc-split-dev,
+ libghc-split-prof,
+ libghc-string-conversions-dev,
+ libghc-string-conversions-prof,
+ libghc-stringsearch-dev,
+ libghc-stringsearch-prof,
+ libghc-text-dev,
+ libghc-text-prof,
+ libghc-unordered-containers-dev,
+ libghc-unordered-containers-prof,
+ libghc-vector-dev,
+ libghc-vector-prof,
+ libghc-wai-dev,
+ libghc-wai-prof,
+ libghc-wai-cors-dev,
+ libghc-wai-cors-prof,
+ libghc-wai-extra-dev,
+ libghc-wai-extra-prof,
+ libghc-wai-middleware-static-dev,
+ libghc-wai-middleware-static-prof,
+ libghc-warp-dev,
+ libghc-warp-prof,
+ libghc-aeson-dev (>= 0.8),
+ libghc-bcrypt-dev (>= 0.0.6),
+ libghc-hasql-dev (>= 0.7.3),
+ libghc-hasql-dev (<< 0.8),
+ libghc-hasql-backend-dev (>= 0.4.1),
+ libghc-hasql-backend-dev (<< 0.5),
+ libghc-hasql-postgres-dev (>= 0.10.4),
+ libghc-hasql-postgres-dev (<< 0.11),
+ libghc-network-dev (>= 2.6),
+ libghc-network-uri-dev (>= 2.6),
+ libghc-optparse-applicative-dev (>= 0.11),
+ libghc-optparse-applicative-dev (<< 0.12),
+ libghc-wai-dev (>= 3.0.1),
+ libghc-wai-middleware-static-dev (>= 0.6.0),
+ libghc-warp-dev (>= 3.0.2),
+ libghc-quickcheck2-dev,
+ libghc-heredoc-dev,
+ libghc-hlint-dev,
+ libghc-hspec-dev (>= 2.1),
+ libghc-hspec-dev (<< 2.2),
+ libghc-hspec-wai-dev,
+ libghc-hspec-wai-json-dev,
+ libghc-http-media-dev,
+ libghc-packdeps-dev,
+Build-Depends-Indep: ghc-doc,
+ libghc-http-doc,
+ libghc-missingh-doc,
+ libghc-ranged-sets-doc,
+ libghc-aeson-doc,
+ libghc-base64-string-doc,
+ libghc-bcrypt-doc,
+ libghc-blaze-builder-doc,
+ libghc-case-insensitive-doc,
+ libghc-cassava-doc,
+ libghc-convertible-doc,
+ libghc-hasql-doc,
+ libghc-hasql-backend-doc,
+ libghc-hasql-postgres-doc,
+ libghc-http-types-doc,
+ libghc-jwt-doc,
+ libghc-mtl-doc,
+ libghc-network-doc,
+ libghc-network-uri-doc,
+ libghc-optparse-applicative-doc,
+ libghc-regex-base-doc,
+ libghc-regex-tdfa-doc,
+ libghc-resource-pool-doc,
+ libghc-scientific-doc,
+ libghc-split-doc,
+ libghc-string-conversions-doc,
+ libghc-stringsearch-doc,
+ libghc-text-doc,
+ libghc-unordered-containers-doc,
+ libghc-vector-doc,
+ libghc-wai-doc,
+ libghc-wai-cors-doc,
+ libghc-wai-extra-doc,
+ libghc-wai-middleware-static-doc,
+ libghc-warp-doc,
+Standards-Version: 3.9.6
+Homepage: https://github.com/begriffs/postgrest
+Description: REST API for any Postgres database
+ Reads the schema of a PostgreSQL database and creates RESTful routes
+ for the tables and views, supporting all HTTP verbs that security
+ permits.
+
+Package: libghc-postgrest-dev
+Architecture: any
+Depends: ${haskell:Depends},
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends: ${haskell:Recommends},
+Suggests: ${haskell:Suggests},
+Conflicts: ${haskell:Conflicts},
+Provides: ${haskell:Provides},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
+
+Package: libghc-postgrest-prof
+Architecture: any
+Depends: ${haskell:Depends},
+ ${misc:Depends},
+Recommends: ${haskell:Recommends},
+Suggests: ${haskell:Suggests},
+Conflicts: ${haskell:Conflicts},
+Provides: ${haskell:Provides},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
+
+Package: libghc-postgrest-doc
+Architecture: all
+Section: doc
+Depends: ${haskell:Depends},
+ ${misc:Depends},
+Recommends: ${haskell:Recommends},
+Suggests: ${haskell:Suggests},
+Conflicts: ${haskell:Conflicts},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
+
+Package: haskell-postgrest-utils
+Architecture: any
+Section: misc
+Depends: ${haskell:Depends},
+ ${misc:Depends},
+Recommends: ${haskell:Recommends},
+Suggests: ${haskell:Suggests},
+Conflicts: ${haskell:Conflicts},
+Provides: ${haskell:Provides},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
