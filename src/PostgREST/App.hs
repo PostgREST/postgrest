@@ -66,11 +66,9 @@ app conf reqBody req =
             from = fromMaybe 0 $ rangeOffset <$> range
             count = if hasPrefer "count=none" 
                       then countNone
-                      else countRows qt
+                      else whereT qt qq $ countRows qt
             query = B.Stmt "select " V.empty True <>
-                parentheticT (
-                  whereT qt qq count
-                ) <> commaq <> (
+                parentheticT count <> commaq <> (
                 bodyForAccept contentType qt
                 . limitT range
                 . orderT (orderParse qq)

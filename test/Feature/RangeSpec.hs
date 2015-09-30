@@ -37,6 +37,15 @@ spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable 
             , matchHeaders = ["Content-Range" <:> "0-14/*"]
             }
 
+        it "returns range Content-Range with range/* even using other filters" $
+          request methodGet "/items?id=eq.1&order=id"
+                  [("Prefer", "count=none")] ""
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just [json| [{"id":1}] |]
+            , matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            }
+
     context "with range headers" $ do
 
       context "of acceptable range" $ do
