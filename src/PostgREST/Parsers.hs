@@ -4,6 +4,7 @@ module PostgREST.Parsers
 where
 
 import           Control.Applicative hiding ((<$>))
+--lines needed for ghc 7.8
 import           Data.Functor ((<$>))
 import           Data.Traversable (traverse)
 
@@ -31,17 +32,6 @@ parseGetRequest httpRequest =
     selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
     whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
-{--
-data Query = Select {
-  mainTable::Text
-, fields::[SelectItem]
-, joinTables::[Text]
-, filters::[Filter]
-, order::Maybe [OrderTerm]
-, relation::Maybe Relation
-} deriving (Show)
-
---}
 pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
@@ -142,12 +132,6 @@ pOperator = cs <$> ( try (string "lte") -- has to be before lt
      <?> "operator (eq, gt, ...)"
      )
 
--- pInt :: Parser Int
--- pInt = try (liftA read (many1 digit)) <?> "integer"
-
---pValue :: Parser Value
---pValue = (VInt <$> try (pInt <* eof))
---     <|>(VString <$> many anyChar)
 pValue :: Parser FValue
 pValue = VText <$> (cs <$> many anyChar)
 

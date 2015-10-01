@@ -29,10 +29,10 @@ data AppConfig = AppConfig {
 
 argParser :: Parser AppConfig
 argParser = AppConfig
-  <$> strOption (long "db-name" <> short 'd' <> metavar "NAME" <> value "skin_test" <> help "name of database")
+  <$> strOption (long "db-name" <> short 'd' <> metavar "NAME" <> help "name of database")
   <*> option auto (long "db-port" <> short 'P' <> metavar "PORT" <> value 5432 <> help "postgres server port" <> showDefault)
-  <*> strOption (long "db-user" <> short 'U' <> metavar "ROLE" <> value "skin_test" <> help "postgres authenticator role")
-  <*> strOption (long "db-pass" <> metavar "PASS" <> value "skin_pass" <> help "password for authenticator role")
+  <*> strOption (long "db-user" <> short 'U' <> metavar "ROLE" <> help "postgres authenticator role")
+  <*> strOption (long "db-pass" <> metavar "PASS" <> help "password for authenticator role")
   <*> strOption (long "db-host" <> metavar "HOST" <> value "localhost" <> help "postgres server hostname" <> showDefault)
 
   <*> option auto (long "port" <> short 'p' <> metavar "PORT" <> value 3000 <> help "port number on which to run HTTP server" <> showDefault)

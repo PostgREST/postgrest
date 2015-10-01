@@ -55,36 +55,27 @@ withApp perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
-  let txParam = (Just (H.ReadCommitted, Just True))
+  let txSettings = Just (H.ReadCommitted, Just True)
+  metadata <- H.session pool $ H.tx txSettings $ do
+    tabs <- allTables
+    rels <- allRelations
+    cols <- allColumns rels
+    keys <- allPrimaryKeys
+    return (tabs, rels, cols, keys)
 
-  tblsRes <-  H.session pool $ H.tx txParam alltables
-  let allTables = either (fail . show) id tblsRes
-
-  relsRes <-  H.session pool $ H.tx txParam allrelations
-  let allRelations = either (fail . show) id relsRes
-
-  colsRes <-  H.session pool $ H.tx txParam $ allcolumns allRelations
-  let allColumns = either (fail . show) id colsRes
-
-  pkRes <-  H.session pool $ H.tx txParam $ allprimaryKeys
-  let allPrimaryKeys = either (fail . show) id pkRes
-
-  -- tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
-  -- let allTablesAcl = either (fail . show) id tableAclRes
-
-
-  let dbstructure = DbStructure {
-      tables=allTables
-    , columns=allColumns
-    , relations=allRelations
-    , primaryKeys=allPrimaryKeys
-    --, tablesAcl=allTablesAcl
-    }
-
+  dbstructure <- case metadata of
+    Left e -> fail $ show e
+    Right (tabs, rels, cols, keys) ->
+      return $ DbStructure {
+          tables=tabs
+        , columns=cols
+        , relations=rels
+        , primaryKeys=keys
+        }
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
-    result <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True))
+    result <- liftIO $ H.session pool $ H.tx txSettings
       $ authenticated cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 

@@ -1,25 +1,23 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.PgStructure where
 
-import           Data.List             (find)
-import           Data.Text             (Text, split)
-import           PostgREST.PgQuery     ()
-import           PostgREST.Types
-import           Data.Functor.Identity
 import           Control.Applicative
+import           Data.Functor.Identity
+import           Data.List             (find)
 import           Data.Maybe            (fromMaybe, isJust, mapMaybe)
-import Data.Monoid
-
---import qualified Data.Map as Map
-
+import           Data.Monoid
+import           Data.Text             (Text, split)
 import qualified Hasql                 as H
 import qualified Hasql.Postgres        as P
+import           PostgREST.PgQuery     ()
+import           PostgREST.Types
 
+import           GHC.Exts              (groupWith)
 import           Prelude
-import GHC.Exts (groupWith)
 
 
 doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
@@ -54,21 +52,18 @@ columnFromRow (s, t, n, pos, nul, typ, u, l, p, d, e) =
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
 
-------------
-
-
 relationFromRow :: (Text, Text, Text, Text, Text) -> Relation
-relationFromRow (s, t, c, ft, fc) = Relation s t c ft fc "child" Nothing Nothing Nothing
+relationFromRow (s, t, c, ft, fc) = Relation s t c ft fc Child Nothing Nothing Nothing
 
 pkFromRow :: (Text, Text, Text) -> PrimaryKey
 pkFromRow (s, t, n) = PrimaryKey s t n
 
 
 addParentRelation :: Relation -> [Relation] -> [Relation]
-addParentRelation rel@(Relation s t c ft fc _ _ _ _) rels = Relation s ft fc t c "parent" Nothing Nothing Nothing:rel:rels
+addParentRelation rel@(Relation s t c ft fc _ _ _ _) rels = Relation s ft fc t c Parent Nothing Nothing Nothing:rel:rels
 
-alltables :: H.Tx P.Postgres s [Table]
-alltables = do
+allTables :: H.Tx P.Postgres s [Table]
+allTables = do
     rows <- H.listEx $ [H.stmt|
       SELECT
         n.nspname AS table_schema,
@@ -96,8 +91,8 @@ alltables = do
     |]
     return $ map tableFromRow rows
 
-allrelations :: H.Tx P.Postgres s [Relation]
-allrelations = do
+allRelations :: H.Tx P.Postgres s [Relation]
+allRelations = do
   rels <- H.listEx $ [H.stmt|
       WITH table_fk AS (
           SELECT DISTINCT
@@ -129,7 +124,7 @@ allrelations = do
 
   |]
   let simpleRelations = foldr (addParentRelation.relationFromRow) [] rels
-  let links = filter ((==2).length) $ groupWith groupFn $ filter ( (=="child"). relType) simpleRelations
+  let links = filter ((==2).length) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
   return $ simpleRelations ++ mapMaybe link2Relation links
   where
     groupFn :: Relation -> Text
@@ -137,11 +132,11 @@ allrelations = do
     link2Relation [
       Relation{relSchema=sc, relTable=lt, relColumn=lc1, relFTable=t, relFColumn=c},
       Relation{                           relColumn=lc2, relFTable=ft, relFColumn=fc}
-      ] = Just $ Relation sc t c ft fc "many" (Just lt) (Just lc1) (Just lc2)
+      ] = Just $ Relation sc t c ft fc Many (Just lt) (Just lc1) (Just lc2)
     link2Relation _ = Nothing
 
-allcolumns :: [Relation] -> H.Tx P.Postgres s [Column]
-allcolumns rels = do
+allColumns :: [Relation] -> H.Tx P.Postgres s [Column]
+allColumns rels = do
   cols <- H.listEx $ [H.stmt|
       SELECT
           info.table_schema AS schema,
@@ -189,34 +184,43 @@ allcolumns rels = do
     addFK col = col { colFK = relToFk <$> find (lookupFn col) rels }
     lookupFn :: Column -> Relation -> Bool
     lookupFn (Column{colSchema=cs, colTable=ct, colName=cn})  (Relation{relSchema=rs, relTable=rt, relColumn=rc, relType=rty}) =
-      cs==rs && ct==rt && cn==rc && rty=="child"
+      cs==rs && ct==rt && cn==rc && rty==Child
     lookupFn _ _ = False
     relToFk (Relation{relFTable=t, relFColumn=c}) = ForeignKey t c
 
-allprimaryKeys :: H.Tx P.Postgres s [PrimaryKey]
-allprimaryKeys = do
+allPrimaryKeys :: H.Tx P.Postgres s [PrimaryKey]
+allPrimaryKeys = do
   pks <- H.listEx $ [H.stmt|
-  WITH table_pk AS
-  (
-  SELECT kc.table_schema, kc.table_name, kc.column_name
-    FROM information_schema.table_constraints tc,
-     information_schema.key_column_usage kc
-    WHERE tc.constraint_type = 'PRIMARY KEY'
-    AND kc.table_name = tc.table_name
-    AND kc.table_schema = tc.table_schema
-    AND kc.constraint_name = tc.constraint_name
-    AND kc.table_schema NOT IN ('pg_catalog', 'information_schema')
-  )
-  SELECT table_schema, table_name, column_name
-  FROM table_pk
-  UNION
-  (
-  SELECT vcu.view_schema, vcu.view_name, vcu.column_name
-  FROM information_schema.view_column_usage AS vcu
-  JOIN table_pk ON table_pk.table_schema = vcu.view_schema
-  AND table_pk.table_name = vcu.table_name
-  AND table_pk.column_name = vcu.column_name
-  WHERE vcu.view_schema NOT IN ('pg_catalog', 'information_schema')
-  )
-  |]
+    WITH table_pk AS (
+        SELECT
+            kc.table_schema,
+            kc.table_name,
+            kc.column_name
+        FROM
+            information_schema.table_constraints tc,
+            information_schema.key_column_usage kc
+        WHERE
+            tc.constraint_type = 'PRIMARY KEY' AND
+            kc.table_name = tc.table_name AND
+            kc.table_schema = tc.table_schema AND
+            kc.constraint_name = tc.constraint_name AND
+            kc.table_schema NOT IN ('pg_catalog', 'information_schema')
+    )
+    SELECT table_schema,
+           table_name,
+           column_name
+    FROM table_pk
+    UNION (
+        SELECT
+            vcu.view_schema,
+            vcu.view_name,
+            vcu.column_name
+         FROM information_schema.view_column_usage AS vcu
+         JOIN
+            table_pk ON table_pk.table_schema = vcu.view_schema AND
+            table_pk.table_name = vcu.table_name AND
+            table_pk.column_name = vcu.column_name
+         WHERE vcu.view_schema NOT IN ('pg_catalog','information_schema')
+    )
+    |]
   return $ map pkFromRow pks

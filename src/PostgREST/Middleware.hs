@@ -6,8 +6,6 @@ module PostgREST.Middleware where
 import           Data.Maybe                    (fromMaybe, isNothing)
 import           Data.Monoid
 import           Data.Text
--- import Data.Pool(withResource, Pool)
-
 import           Data.String.Conversions       (cs)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P

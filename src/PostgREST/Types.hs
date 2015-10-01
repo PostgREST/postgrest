@@ -9,7 +9,6 @@ data DbStructure = DbStructure {
 , columns :: [Column]
 , relations :: [Relation]
 , primaryKeys :: [PrimaryKey]
---, tablesAcl :: [(Text, Text, Text)]
 }
 
 
@@ -50,22 +49,20 @@ data OrderTerm = OrderTerm {
 , otNullOrder :: Maybe BS.ByteString
 } deriving (Show, Eq)
 
-
+data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
   relSchema  :: Text
 , relTable   :: Text
 , relColumn  :: Text
 , relFTable  :: Text
 , relFColumn :: Text
-, relType    :: Text
+, relType    :: RelationType
 , relLTable  :: Maybe Text
 , relLCol1   :: Maybe Text
 , relLCol2   :: Maybe Text
 } deriving (Show, Eq)
 
 
---------
--- Request Types
 type Operator = Text
 data FValue = VText Text | VForeignKey Relation deriving (Show, Eq)
 type FieldName = Text

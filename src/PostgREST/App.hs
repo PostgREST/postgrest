@@ -29,7 +29,7 @@ import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text, pack)
+import           Data.Text                 (Text)
 import           Text.Regex.TDFA           ((=~))
 
 import           Network.HTTP.Base         (urlEncodeVars)
@@ -63,22 +63,19 @@ app dbstructure conf reqBody dbrole req =
   case (path, verb) of
 
     ([], _) -> do
-      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTables
+      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
-      --let qt = Table schema table
-      let cols = filter (filterCol schema table) allColumns
-      let pkeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
-      let body = encode (TableOptions cols pkeys)
+      let cols = filter (filterCol schema table) allCols
+          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
+          body = encode (TableOptions cols pkeys)
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
-
 
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else
-        -- return $ responseLBS status416 [] $ cs $ show queries
         case queries of
           Left e -> return $ responseLBS status400 [("Content-Type", "text/plain")] $ cs e
           Right (qs, cqs) -> do
@@ -94,7 +91,6 @@ app dbstructure conf reqBody dbrole req =
                     . limitT range
                     $ qs
                   )
-            -- return $ responseLBS status200 [contentTypeH] (cs $ show $ B.stmtTemplate q)
             row <- H.maybeEx q
             let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe Text) row
                 to = from+queryTotal-1
@@ -105,8 +101,6 @@ app dbstructure conf reqBody dbrole req =
                   . map (join (***) cs)
                   . parseSimpleQuery
                   $ rawQueryString req
-
-
             return $ responseLBS status
               [contentTypeH, contentRange,
                 ("Content-Location",
@@ -118,9 +112,9 @@ app dbstructure conf reqBody dbrole req =
         where
             from = fromMaybe 0 $ rangeOffset <$> range
             apiRequest = first formatParserError (parseGetRequest req)
-                     >>= addRelations schema allRelations Nothing
-                     >>= addJoinConditions schema allColumns
-                     where formatParserError = pack.show
+                     >>= addRelations schema allRels Nothing
+                     >>= addJoinConditions schema allCols
+                     where formatParserError = cs.show
             query = requestToQuery schema <$> apiRequest
             countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery
@@ -180,9 +174,8 @@ app dbstructure conf reqBody dbrole req =
         Right toBeInserted -> do
           rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
           let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
-              pKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
-          --pKeys <- primaryKeyColumns qt
-          let responses = flip map inserted $ \obj -> do
+              pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+              responses = flip map inserted $ \obj -> do
                 let primaries =
                       if Prelude.null pKeys
                         then obj
@@ -215,16 +208,14 @@ app dbstructure conf reqBody dbrole req =
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
-            pKeys = map pkName $ filter (filterPk schema table) allPrimaryKeys
-        --pKeys <- primaryKeyColumns qt
-        let specifiedKeys = map (cs . fst) qq
+            pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+            specifiedKeys = map (cs . fst) qq
         if S.fromList pKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []
             "You must speficy all and only primary keys as params"
           else do
-            --tableCols <- map (cs . colName) <$> columns qt
-            let tableCols = map (cs . colName) $ filter (filterCol schema table) allColumns
-            let cols = map cs $ M.keys obj
+            let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
+                cols = map cs $ M.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
                 let vals = M.elems obj
@@ -274,14 +265,13 @@ app dbstructure conf reqBody dbrole req =
       return $ responseLBS status404 [] ""
 
   where
-    allTables = tables dbstructure
-    allRelations = relations dbstructure
-    allColumns = columns dbstructure
-    allPrimaryKeys = primaryKeys dbstructure
-    --allTablesAcl = tablesAcl dbstructure
+    allTabs = tables dbstructure
+    allRels = relations dbstructure
+    allCols = columns dbstructure
+    allPrKeys = primaryKeys dbstructure
     filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
     filterCol _ _ _ =  False
-    filterPk sc table (PrimaryKey{pkSchema=s, pkTable=t}) =  s==sc && table==t
+    filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
 
     filterTableAcl :: Text -> Table -> Bool
     filterTableAcl r (Table{tableAcl=a}) = r `elem` a

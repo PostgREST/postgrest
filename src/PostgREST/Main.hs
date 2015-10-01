@@ -2,16 +2,9 @@ module Main where
 
 
 import           Paths_postgrest                      (version)
--- added
 import           PostgREST.PgStructure
---import Data.Aeson
---import Data.List (find)
---import Data.Maybe (isJust)
 import           PostgREST.Types
---import Network.HTTP.Types.Status
---import Network.HTTP.Types.Header
 import           Network.Wai
-
 
 import           PostgREST.App
 import           PostgREST.Error                      (errResponse)
@@ -87,37 +80,28 @@ main = do
         fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
     ) supportedOrError
 
-    -- read the structure of the database
-    -- read the structure of the database
-  let txParam = Just (H.ReadCommitted, Just True)
+  let txSettings = Just (H.ReadCommitted, Just True)
+  metadata <- H.session pool $ H.tx txSettings $ do
+    tabs <- allTables
+    rels <- allRelations
+    cols <- allColumns rels
+    keys <- allPrimaryKeys
+    return (tabs, rels, cols, keys)
 
-  tblsRes <-  H.session pool $ H.tx txParam alltables
-  let allTables = either (fail . show) id tblsRes
+  dbstructure <- case metadata of
+    Left e -> fail $ show e
+    Right (tabs, rels, cols, keys) ->
+      return $ DbStructure {
+          tables=tabs
+        , columns=cols
+        , relations=rels
+        , primaryKeys=keys
+        }
 
-  relsRes <-  H.session pool $ H.tx txParam allrelations
-  let allRelations = either (fail . show) id relsRes
-
-  colsRes <-  H.session pool $ H.tx txParam $ allcolumns allRelations
-  let allColumns = either (fail . show) id colsRes
-
-  pkRes <-  H.session pool $ H.tx txParam allprimaryKeys
-  let allPrimaryKeys = either (fail . show) id pkRes
-
-  -- tableAclRes <-  H.session pool $ H.tx txParam $ alltablesAcl
-  -- let allTablesAcl = either (fail . show) id tableAclRes
-
-
-  let dbstructure = DbStructure {
-      tables=allTables
-    , columns=allColumns
-    , relations=allRelations
-    , primaryKeys=allPrimaryKeys
-    --, tablesAcl=allTablesAcl
-    }
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
-    resOrError <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True)) $
+    resOrError <- liftIO $ H.session pool $ H.tx txSettings $
       authenticated conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
 
