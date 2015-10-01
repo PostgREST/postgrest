@@ -15,6 +15,7 @@ spec = around withApp $ do
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
+        , {"schema":"1","name":"clients","insertable":true}
         , {"schema":"1","name":"complex_items","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_count_column","insertable":false}
@@ -26,8 +27,14 @@ spec = around withApp $ do
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"nullable_integer","insertable":true}
+        , {"schema":"1","name":"projects","insertable":true}
+        , {"schema":"1","name":"projects_view","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}
+        , {"schema":"1","name":"tasks","insertable":true}
         , {"schema":"1","name":"tsearch","insertable":true}
+        , {"schema":"1","name":"users","insertable":true}
+        , {"schema":"1","name":"users_projects","insertable":true}
+        , {"schema":"1","name":"users_tasks","insertable":true}
         ] |]
         {matchStatus = 200}
 
