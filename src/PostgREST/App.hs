@@ -83,7 +83,6 @@ app dbstructure conf reqBody dbrole req =
                 count = if hasPrefer "count=none"
                       then countNone
                       else cqs
-
                 q = B.Stmt "select " V.empty True <>
                     parentheticT count
                     <> commaq <> (
