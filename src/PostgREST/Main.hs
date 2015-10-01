@@ -91,7 +91,7 @@ main = do
   dbstructure <- case metadata of
     Left e -> fail $ show e
     Right (tabs, rels, cols, keys) ->
-      return $ DbStructure {
+      return DbStructure {
           tables=tabs
         , columns=cols
         , relations=rels
