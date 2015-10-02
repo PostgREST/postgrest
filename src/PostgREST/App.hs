@@ -10,7 +10,6 @@ module PostgREST.App (
 , TableOptions(..)
 ) where
 
-
 import qualified Blaze.ByteString.Builder  as BB
 import           Control.Applicative
 import           Control.Arrow             (second, (***))
@@ -29,8 +28,10 @@ import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text)
+import           Data.Text                 (Text, replace, strip)
 import           Text.Regex.TDFA           ((=~))
+
+import           Text.Parsec.Error
 
 import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header
@@ -77,7 +78,7 @@ app dbstructure conf reqBody dbrole req =
       then return $ responseLBS status416 [] "HTTP Range error"
       else
         case queries of
-          Left e -> return $ responseLBS status400 [("Content-Type", "text/plain")] $ cs e
+          Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
           Right (qs, cqs) -> do
             let qt = qualify table
                 count = if hasPrefer "count=none"
@@ -111,9 +112,22 @@ app dbstructure conf reqBody dbrole req =
         where
             from = fromMaybe 0 $ rangeOffset <$> range
             apiRequest = first formatParserError (parseGetRequest req)
-                     >>= addRelations schema allRels Nothing
+                     >>= first formatRelationError . addRelations schema allRels Nothing
                      >>= addJoinConditions schema allCols
-                     where formatParserError = cs.show
+                     where
+                       formatRelationError :: Text -> Text
+                       formatRelationError e = cs $ encode $ object [
+                         "mesage" .= ("could not find foreign keys between these entities"::String),
+                         "details" .= e]
+                       formatParserError :: ParseError -> Text
+                       formatParserError e = cs $ encode $ object [
+                         "message" .= message,
+                         "details" .= details]
+                         where
+                           message = show (errorPos e)
+                           details = strip $ replace "\n" " " $ cs
+                             $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
             query = requestToQuery schema <$> apiRequest
             countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery

@@ -22,13 +22,13 @@ parseGetRequest :: Request -> Either ParseError ApiRequest
 parseGetRequest httpRequest =
   foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select ("++selectStr++")") $ cs selectStr
+    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++selectStr++">>") $ cs selectStr
     addOrder (Node r f) o = Node r{order=o} f
     flts = mapM pRequestFilter whereFilters
     rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
     orderStr = join $ lookup "order" qString
-    ord = traverse (parse pOrder ("failed to parse order ("++fromMaybe "" orderStr++")")) orderStr
+    ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderStr++">>")) orderStr
     selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
     whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
