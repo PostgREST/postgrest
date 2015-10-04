@@ -244,6 +244,16 @@ CREATE TABLE users_tasks(
 );
 ALTER TABLE "1".users_tasks OWNER TO postgrest_test;
 
+CREATE TABLE comments(
+id INT PRIMARY KEY   NOT NULL,
+commenter_id INT     NOT NULL REFERENCES users(id),
+user_id      INT     NOT NULL,
+task_id      INT     NOT NULL,
+content      TEXT    NOT NULL,
+FOREIGN KEY (task_id,user_id) REFERENCES users_tasks (task_id,user_id)
+);
+ALTER TABLE "1".comments OWNER TO postgrest_test;
+
 CREATE TABLE users_projects(
     user_id         INT     REFERENCES users(id),
     project_id      INT     REFERENCES projects(id),
@@ -265,6 +275,7 @@ INSERT INTO tasks VALUES (1,'Design w7',1),(2,'Code w7',1),(3,'Design w10',2),(4
 INSERT INTO users VALUES (1, 'Angela Martin'),(2, 'Michael Scott'),(3, 'Dwight Schrute');
 INSERT INTO users_projects VALUES(1,1),(1,2),(2,3),(2,4),(3,1),(3,3);
 INSERT INTO users_tasks VALUES(1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(3,1),(3,5);
+INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
 ----------------
 
 CREATE SEQUENCE items_id_seq
@@ -632,6 +643,10 @@ REVOKE ALL ON TABLE users_tasks FROM PUBLIC;
 REVOKE ALL ON TABLE users_tasks FROM postgrest_test;
 GRANT ALL ON TABLE users_tasks TO postgrest_test;
 GRANT ALL ON TABLE users_tasks TO postgrest_anonymous;
+REVOKE ALL ON TABLE comments FROM PUBLIC;
+REVOKE ALL ON TABLE comments FROM postgrest_test;
+GRANT ALL ON TABLE  comments TO postgrest_test;
+GRANT ALL ON TABLE  comments TO postgrest_anonymous;
 REVOKE ALL ON TABLE users_projects FROM PUBLIC;
 REVOKE ALL ON TABLE users_projects FROM postgrest_test;
 GRANT ALL ON TABLE users_projects TO postgrest_test;

@@ -198,6 +198,10 @@ spec =
       get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
 
+    it "requesting children with composite key" $
+      get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
+        [json| [{"user_id":2,"task_id":6,"comments":[{"content": "Needs to be delivered ASAP"}]}] |]
+
 
   describe "ordering response" $ do
     it "by a column asc" $

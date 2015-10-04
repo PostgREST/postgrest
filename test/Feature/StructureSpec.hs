@@ -16,6 +16,7 @@ spec = around withApp $ do
         `shouldRespondWith` [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"1","name":"clients","insertable":true}
+        , {"schema":"1","name":"comments","insertable":true}
         , {"schema":"1","name":"complex_items","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_count_column","insertable":false}
