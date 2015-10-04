@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Embed associations, e.g. `/film?select=*,director(*)` - @ruslantalpa
 - Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
 - Does not execute the count total if header "Prefer: count=none" - @diogob
 
