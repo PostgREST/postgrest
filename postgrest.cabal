@@ -52,6 +52,9 @@ executable postgrest
                      , mtl
                      , cassava
                      , jwt
+                     , parsec
+                     , errors
+                     , bifunctors
   hs-source-dirs:      src
 
 library
@@ -87,7 +90,14 @@ library
                      , mtl
                      , cassava
                      , jwt
+                     , parsec
+                     , errors
+                     , bifunctors
+
   Exposed-Modules:     PostgREST.App
+                     , PostgREST.Types
+                     , PostgREST.Parsers
+                     , PostgREST.QueryBuilder
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -108,6 +118,9 @@ Test-Suite spec
     ghc-options:       -Wall -W -O2
   Main-Is:             Main.hs
   Other-Modules:       PostgREST.App
+                     , PostgREST.Types
+                     , PostgREST.Parsers
+                     , PostgREST.QueryBuilder
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
@@ -147,3 +160,6 @@ Test-Suite spec
                      , process
                      , heredoc
                      , jwt
+                     , parsec
+                     , errors
+                     , bifunctors

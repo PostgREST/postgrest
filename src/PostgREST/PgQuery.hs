@@ -1,31 +1,35 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiWayIf #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE MultiWayIf           #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PostgREST.PgQuery where
 
-import PostgREST.RangeQuery
 
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
-import qualified Hasql.Backend as B
+import qualified Hasql                   as H
+import qualified Hasql.Backend           as B
+import qualified Hasql.Postgres          as P
+import           PostgREST.RangeQuery
+import           PostgREST.Types         (OrderTerm (..))
 
-import qualified Data.Text as T
-import qualified Data.HashMap.Strict as H
-import Text.Regex.TDFA ( (=~) )
-import qualified Network.HTTP.Types.URI as Net
-import qualified Data.ByteString.Char8 as BS
-import Data.Monoid
-import Data.Vector (empty)
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Functor
-import Control.Monad (join)
-import Data.String.Conversions (cs)
-import qualified Data.Aeson as JSON
-import qualified Data.List as L
-import qualified Data.Vector as V
-import Data.Scientific (isInteger, formatScientific, FPFormat(..))
+import           Control.Monad           (join)
+import qualified Data.Aeson              as JSON
+import qualified Data.ByteString.Char8   as BS
+import           Data.Functor
+import qualified Data.HashMap.Strict     as H
+import qualified Data.List               as L
+import           Data.Maybe              (fromMaybe)
+import           Data.Monoid
+import           Data.Scientific         (FPFormat (..), formatScientific,
+                                          isInteger)
+import           Data.String.Conversions (cs)
+import qualified Data.Text               as T
+import           Data.Vector             (empty)
+import qualified Data.Vector             as V
+import qualified Network.HTTP.Types.URI  as Net
+import           Text.Regex.TDFA         ((=~))
 
-import Prelude
+import           Prelude
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
@@ -39,11 +43,6 @@ data QualifiedIdentifier = QualifiedIdentifier {
 , qiName   :: T.Text
 } deriving (Show)
 
-data OrderTerm = OrderTerm {
-  otTerm :: T.Text
-, otDirection :: BS.ByteString
-, otNullOrder :: Maybe BS.ByteString
-}
 
 limitT :: Maybe NonnegRange -> StatementT
 limitT r q =
@@ -131,36 +130,6 @@ withCount s = s { B.stmtTemplate = "pg_catalog.count(t), " <> B.stmtTemplate s }
 asJsonRow :: StatementT
 asJsonRow s = s { B.stmtTemplate = "row_to_json(t) from (" <> B.stmtTemplate s <> ") t" }
 
-selectStar :: QualifiedIdentifier -> PStmt
-selectStar t = B.Stmt ("select * from " <> fromQi t) empty True
-
-select :: QualifiedIdentifier -> Net.Query -> PStmt
-select table params =
-  if L.null cols
-    then selectStar table
-    else B.Stmt "select " empty True <> conjunction <> B.Stmt (" from " <> fromQi table ) empty True
-  where
-    selectTermTable = selectTerm table
-    conjunction = mconcat $ L.intersperse commaq (map selectTermTable cols)
-    columnsParam = fromMaybe "" $ join (lookup "select" params)
-    cols = filter ((>0) . T.length) $ map T.strip $ T.split (==',') $ cs columnsParam
-
-selectTerm :: QualifiedIdentifier -> T.Text -> PStmt
-selectTerm table col =
-  case T.splitOn "::" col of
-    [colName,castTo] ->
-      B.Stmt (
-          "CAST (" <> pgFmtJsonbPath table (cs colName) <> " AS "
-          <> castToSafe <> " )" <> asT (jsonbPath colName)
-        ) empty True
-      where castToSafe = T.filter ( `elem` ['a'..'z'] ) castTo
-    _ -> B.Stmt (pgFmtJsonbPath table (cs col) <> asT (jsonbPath col)) empty True
-  where
-    jsonbPath :: T.Text -> Maybe JsonbPath
-    jsonbPath c = parseJsonbPath $ cs c
-    asT (Just (DoubleArrow _ (KeyIdentifier key))) = " AS " <> pgFmtIdent key
-    asT _ = ""
-
 returningStarT :: StatementT
 returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
 
@@ -225,57 +194,45 @@ wherePred table (col, predicate) =
     opCode        = hasNot (head rest) headPredicate
     notOp         = hasNot headPredicate ""
     value         = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
-    whiteList val = fromMaybe
-      (cs (pgFmtLit val) <> "::unknown ")
-      (L.find ((==) . T.toLower $ val) ["null","true","false"])
+    sqlValue = pgFmtValue opCode value
+    op = pgFmtOperator opCode
+
+
+whiteList :: T.Text -> T.Text
+whiteList val = fromMaybe
+  (cs (pgFmtLit val) <> "::unknown ")
+  (L.find ((==) . T.toLower $ val) ["null","true","false"])
+
+pgFmtValue :: T.Text -> T.Text -> T.Text
+pgFmtValue opCode value =
+  case opCode of
+    "like" -> unknownLiteral $ T.map star value
+    "ilike" -> unknownLiteral $ T.map star value
+    "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+    "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
+    "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
+    _    -> unknownLiteral value
+  where
     star c = if c == '*' then '%' else c
     unknownLiteral = (<> "::unknown ") . pgFmtLit
 
-    sqlValue = case opCode of
-      "like" -> unknownLiteral $ T.map star value
-      "ilike" -> unknownLiteral $ T.map star value
-      "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-      "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') value) <> ") "
-      "@@" -> "to_tsquery(" <> unknownLiteral value <> ") "
-      _    -> unknownLiteral value
-
-    op = case opCode of
-      "eq"  -> "="
-      "gt"  -> ">"
-      "lt"  -> "<"
-      "gte" -> ">="
-      "lte" -> "<="
-      "neq" -> "<>"
-      "like"-> "like"
-      "ilike"-> "ilike"
-      "in"  -> "in"
-      "notin" -> "not in"
-      "is"    -> "is"
-      "isnot" -> "is not"
-      "@@" -> "@@"
-      _     -> "="
-
-orderParse :: Net.Query -> [OrderTerm]
-orderParse q =
-  mapMaybe orderParseTerm . T.split (==',') $ cs order
-  where
-    order = fromMaybe "" $ join (lookup "order" q)
-
-orderParseTerm :: T.Text -> Maybe OrderTerm
-orderParseTerm s =
-  case T.split (=='.') s of
-    (c:d:nls) ->
-      if d `elem` ["asc", "desc"]
-        then Just $ OrderTerm c
-          ( if d == "asc" then "asc" else "desc" )
-          ( case nls of
-              [n] -> if | n == "nullsfirst" -> Just "nulls first"
-                        | n == "nullslast"  -> Just "nulls last"
-                        | otherwise -> Nothing
-              _   -> Nothing
-          )
-        else Nothing
-    _ -> Nothing
+pgFmtOperator :: T.Text -> T.Text
+pgFmtOperator opCode =
+  case opCode of
+    "eq"  -> "="
+    "gt"  -> ">"
+    "lt"  -> "<"
+    "gte" -> ">="
+    "lte" -> "<="
+    "neq" -> "<>"
+    "like"-> "like"
+    "ilike"-> "ilike"
+    "in"  -> "in"
+    "notin" -> "not in"
+    "is"    -> "is"
+    "isnot" -> "is not"
+    "@@" -> "@@"
+    _     -> "="
 
 commaq :: PStmt
 commaq  = B.Stmt ", " empty True
