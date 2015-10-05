@@ -1,14 +1,22 @@
-module PostgREST.Config where
+module PostgREST.Config ( prettyVersion
+                        , readOptions
+                        , corsPolicy
+                        , AppConfig (..)
+                        )
+       where
 
 
 import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
+import           Data.List                   (intercalate)
 import           Data.String.Conversions     (cs)
 import           Data.Text                   (strip)
+import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative         hiding (columns)
+import           Paths_postgrest             (version)
 import           Prelude
 
 data AppConfig = AppConfig {
@@ -63,3 +71,18 @@ corsPolicy req = case lookup "origin" headers of
     accHeaders = case lookup "access-control-request-headers" headers of
       Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
       Nothing -> []
+
+prettyVersion :: String
+prettyVersion = intercalate "." $ map show $ versionBranch version
+
+readOptions :: IO AppConfig
+readOptions = customExecParser parserPrefs opts
+  where
+    opts = info (helper <*> argParser) $
+                    fullDesc
+                    <> progDesc (
+                    "PostgREST "
+                    <> prettyVersion
+                    <> " / create a REST API to an existing Postgres database"
+                    )
+    parserPrefs = prefs showHelpOnError

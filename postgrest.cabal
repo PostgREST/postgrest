@@ -94,6 +94,7 @@ library
                      , errors
                      , bifunctors
 
+  Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
                      , PostgREST.Types
                      , PostgREST.Parsers
@@ -130,6 +131,7 @@ Test-Suite spec
                      , PostgREST.RangeQuery
                      , Spec
                      , SpecHelper
+                     , Paths_postgrest
   Build-Depends:       base, hspec == 2.1.*, QuickCheck
                      , hspec-wai, hspec-wai-json
                      , hasql, hasql-backend
