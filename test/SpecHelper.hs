@@ -30,6 +30,8 @@ import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(errResponse)
+import PostgREST.PgStructure
+import PostgREST.Types
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
@@ -53,10 +55,28 @@ withApp perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
+  let txSettings = Just (H.ReadCommitted, Just True)
+  metadata <- H.session pool $ H.tx txSettings $ do
+    tabs <- allTables
+    rels <- allRelations
+    cols <- allColumns rels
+    keys <- allPrimaryKeys
+    return (tabs, rels, cols, keys)
+
+  dbstructure <- case metadata of
+    Left e -> fail $ show e
+    Right (tabs, rels, cols, keys) ->
+      return $ DbStructure {
+          tables=tabs
+        , columns=cols
+        , relations=rels
+        , primaryKeys=keys
+        }
+
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
-    result <- liftIO $ H.session pool $ H.tx (Just (H.ReadCommitted, Just True))
-      $ authenticated cfg (app cfg body) req
+    result <- liftIO $ H.session pool $ H.tx txSettings
+      $ authenticated cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False

@@ -4,4 +4,4 @@ packages:
 extra-deps: 
   - Ranged-sets-0.3.0
   - packdeps-0.4.1
-resolver: lts-3.1
+resolver: lts-3.7

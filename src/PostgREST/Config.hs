@@ -1,27 +1,28 @@
 module PostgREST.Config where
 
-import Network.Wai
-import Control.Applicative
-import Data.Text (strip)
-import qualified Data.CaseInsensitive as CI
-import qualified Data.ByteString.Char8 as BS
-import Data.String.Conversions (cs)
-import Options.Applicative hiding (columns)
-import Network.Wai.Middleware.Cors (CorsResourcePolicy(..))
-import Prelude
+
+import           Control.Applicative
+import qualified Data.ByteString.Char8       as BS
+import qualified Data.CaseInsensitive        as CI
+import           Data.String.Conversions     (cs)
+import           Data.Text                   (strip)
+import           Network.Wai
+import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
+import           Options.Applicative         hiding (columns)
+import           Prelude
 
 data AppConfig = AppConfig {
-    configDbName :: String
-  , configDbPort :: Int
-  , configDbUser :: String
-  , configDbPass :: String
-  , configDbHost :: String
+    configDbName    :: String
+  , configDbPort    :: Int
+  , configDbUser    :: String
+  , configDbPass    :: String
+  , configDbHost    :: String
 
-  , configPort  :: Int
-  , configAnonRole :: String
-  , configSecure :: Bool
-  , configPool :: Int
-  , configV1Schema :: String
+  , configPort      :: Int
+  , configAnonRole  :: String
+  , configSecure    :: Bool
+  , configPool      :: Int
+  , configV1Schema  :: String
 
   , configJwtSecret :: String
   }
@@ -31,7 +32,7 @@ argParser = AppConfig
   <$> strOption (long "db-name" <> short 'd' <> metavar "NAME" <> help "name of database")
   <*> option auto (long "db-port" <> short 'P' <> metavar "PORT" <> value 5432 <> help "postgres server port" <> showDefault)
   <*> strOption (long "db-user" <> short 'U' <> metavar "ROLE" <> help "postgres authenticator role")
-  <*> strOption (long "db-pass" <> metavar "PASS" <> value "" <> help "password for authenticator role")
+  <*> strOption (long "db-pass" <> metavar "PASS" <> help "password for authenticator role")
   <*> strOption (long "db-host" <> metavar "HOST" <> value "localhost" <> help "postgres server hostname" <> showDefault)
 
   <*> option auto (long "port" <> short 'p' <> metavar "PORT" <> value 3000 <> help "port number on which to run HTTP server" <> showDefault)

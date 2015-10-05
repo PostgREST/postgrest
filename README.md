@@ -161,6 +161,8 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 
 ### Thanks
 
+* [Ruslan Talpa](https://github.com/ruslantalpa) for rewriting the
+  route parsing and query generation code to support resource embedding
 * [Adam Baker](https://github.com/adambaker) for code
   contributions and many fundamental design discussions
 * [Diogo Biazus](https://github.com/diogob) for many improvements

@@ -1,97 +1,137 @@
-{-# LANGUAGE FlexibleContexts #-}
-module PostgREST.App (app, sqlError, isSqlError, contentTypeForAccept) where
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+module PostgREST.App (
+  app
+, sqlError
+, isSqlError
+, contentTypeForAccept
+, jsonH
+, requestedSchema
+, TableOptions(..)
+) where
 
-import Control.Monad (join)
-import Control.Arrow ((***), second)
-import Control.Applicative
+import qualified Blaze.ByteString.Builder  as BB
+import           Control.Applicative
+import           Control.Arrow             (second, (***))
+import           Control.Monad             (join)
+import           Data.Bifunctor            (first)
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.ByteString.Lazy      as BL
+import           Data.CaseInsensitive      (original)
+import qualified Data.Csv                  as CSV
+import           Data.Functor.Identity
+import qualified Data.HashMap.Strict       as M
+import           Data.List                 (find, sortBy)
+import           Data.Maybe                (fromMaybe, isJust, isNothing,
+                                            mapMaybe)
+import           Data.Ord                  (comparing)
+import           Data.Ranged.Ranges        (emptyRange)
+import qualified Data.Set                  as S
+import           Data.String.Conversions   (cs)
+import           Data.Text                 (Text, replace, strip)
+import           Text.Regex.TDFA           ((=~))
 
-import Data.Text hiding (map, find)
-import Data.Maybe (fromMaybe, mapMaybe, isJust, isNothing)
-import Text.Regex.TDFA ((=~))
-import Data.Ord (comparing)
-import Data.Ranged.Ranges (emptyRange)
-import qualified Data.HashMap.Strict as M
-import Data.String.Conversions (cs)
-import Data.CaseInsensitive (original)
-import Data.List (sortBy, find)
-import Data.Functor.Identity
-import qualified Data.Set as S
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Char8 as BS
-import qualified Blaze.ByteString.Builder as BB
-import qualified Data.Csv as CSV
+import           Text.Parsec.Error
 
-import Network.HTTP.Types.Status
-import Network.HTTP.Types.Header
-import Network.HTTP.Types.URI (parseSimpleQuery)
-import Network.HTTP.Base (urlEncodeVars)
-import Network.Wai
-import Network.Wai.Parse (parseHttpAccept)
-import Network.Wai.Internal (Response(..))
+import           Network.HTTP.Base         (urlEncodeVars)
+import           Network.HTTP.Types.Header
+import           Network.HTTP.Types.Status
+import           Network.HTTP.Types.URI    (parseSimpleQuery)
+import           Network.Wai
+import           Network.Wai.Internal      (Response (..))
+import           Network.Wai.Parse         (parseHttpAccept)
 
-import Data.Aeson
-import Data.Monoid
-import qualified Data.Vector as V
-import qualified Hasql as H
-import qualified Hasql.Backend as B
-import qualified Hasql.Postgres as P
+import           Data.Aeson
+import           Data.Monoid
+import qualified Data.Vector               as V
+import qualified Hasql                     as H
+import qualified Hasql.Backend             as B
+import qualified Hasql.Postgres            as P
 
-import PostgREST.Config (AppConfig(..))
-import PostgREST.Auth
-import PostgREST.PgQuery
-import PostgREST.RangeQuery
-import PostgREST.PgStructure
+import           PostgREST.Auth
+import           PostgREST.Config          (AppConfig (..))
+import           PostgREST.Parsers
+import           PostgREST.PgQuery
+import           PostgREST.PgStructure
+import           PostgREST.QueryBuilder
+import           PostgREST.RangeQuery
+import           PostgREST.Types
 
-import Prelude
+import           Prelude
 
-app :: AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app conf reqBody req =
+app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf reqBody dbrole req =
   case (path, verb) of
+
     ([], _) -> do
-      body <- encode <$> tables (cs schema)
+      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
-      let qt = qualify table
-      cols <- columns qt
-      pkey <- map cs <$> primaryKeyColumns qt
-      return $ responseLBS status200 [jsonH, allOrigins]
-        $ encode (TableOptions cols pkey)
+      let cols = filter (filterCol schema table) allCols
+          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
+          body = encode (TableOptions cols pkeys)
+      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
-      else do
-        let qt = qualify table
+      else
+        case queries of
+          Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
+          Right (qs, cqs) -> do
+            let qt = qualify table
+                count = if hasPrefer "count=none"
+                      then countNone
+                      else cqs
+                q = B.Stmt "select " V.empty True <>
+                    parentheticT count
+                    <> commaq <> (
+                    bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
+                    . limitT range
+                    $ qs
+                  )
+            row <- H.maybeEx q
+            let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe Text) row
+                to = from+queryTotal-1
+                contentRange = contentRangeH from to tableTotal
+                status = rangeStatus from to tableTotal
+                canonical = urlEncodeVars
+                  . sortBy (comparing fst)
+                  . map (join (***) cs)
+                  . parseSimpleQuery
+                  $ rawQueryString req
+            return $ responseLBS status
+              [contentTypeH, contentRange,
+                ("Content-Location",
+                  "/" <> cs table <>
+                    if Prelude.null canonical then "" else "?" <> cs canonical
+                )
+              ] (cs $ fromMaybe "[]" body)
+
+        where
             from = fromMaybe 0 $ rangeOffset <$> range
-            query = B.Stmt "select " V.empty True <>
-                parentheticT (
-                  whereT qt qq $ countRows qt
-                ) <> commaq <> (
-                bodyForAccept contentType qt
-                . limitT range
-                . orderT (orderParse qq)
-                . whereT qt qq
-                $ select qt qq
-              )
-        row <- H.maybeEx query
-        let (tableTotal, queryTotal, body) =
-              fromMaybe (0, 0, Just "" :: Maybe Text) row
-            to = from+queryTotal-1
-            contentRange = contentRangeH from to tableTotal
-            status = rangeStatus from to tableTotal
-            canonical = urlEncodeVars
-              . sortBy (comparing fst)
-              . map (join (***) cs)
-              . parseSimpleQuery
-              $ rawQueryString req
-        return $ responseLBS status
-          [contentTypeH, contentRange,
-            ("Content-Location",
-              "/" <> cs table <>
-                if Prelude.null canonical then "" else "?" <> cs canonical
-            )
-          ] (cs $ fromMaybe "[]" body)
+            apiRequest = first formatParserError (parseGetRequest req)
+                     >>= first formatRelationError . addRelations schema allRels Nothing
+                     >>= addJoinConditions schema allCols
+                     where
+                       formatRelationError :: Text -> Text
+                       formatRelationError e = cs $ encode $ object [
+                         "mesage" .= ("could not find foreign keys between these entities"::String),
+                         "details" .= e]
+                       formatParserError :: ParseError -> Text
+                       formatParserError e = cs $ encode $ object [
+                         "message" .= message,
+                         "details" .= details]
+                         where
+                           message = show (errorPos e)
+                           details = strip $ replace "\n" " " $ cs
+                             $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
+            query = requestToQuery schema <$> apiRequest
+            countQuery = requestToCountQuery schema <$> apiRequest
+            queries = (,) <$> query <*> countQuery
+
 
     (["postgrest", "users"], "POST") -> do
       let user = decode reqBody :: Maybe AuthUser
@@ -129,7 +169,7 @@ app conf reqBody req =
 
     ([table], "POST") -> do
       let qt = qualify table
-          echoRequested = lookupHeader "Prefer" == Just "return=representation"
+          echoRequested = hasPrefer "return=representation"
           parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
           parsed = if lookupHeader "Content-Type" == Just csvMT
             then do
@@ -147,12 +187,12 @@ app conf reqBody req =
         Right toBeInserted -> do
           rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
           let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
-          primaryKeys <- primaryKeyColumns qt
-          let responses = flip map inserted $ \obj -> do
+              pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+              responses = flip map inserted $ \obj -> do
                 let primaries =
-                      if Prelude.null primaryKeys
+                      if Prelude.null pKeys
                         then obj
-                        else M.filterWithKey (const . (`elem` primaryKeys)) obj
+                        else M.filterWithKey (const . (`elem` pKeys)) obj
                 let params = urlEncodeVars
                       $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
                       $ sortBy (comparing fst) $ M.toList primaries
@@ -181,14 +221,14 @@ app conf reqBody req =
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
-        primaryKeys <- primaryKeyColumns qt
-        let specifiedKeys = map (cs . fst) qq
-        if S.fromList primaryKeys /= S.fromList specifiedKeys
+            pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+            specifiedKeys = map (cs . fst) qq
+        if S.fromList pKeys /= S.fromList specifiedKeys
           then return $ responseLBS status405 []
             "You must speficy all and only primary keys as params"
           else do
-            tableCols <- map (cs . colName) <$> columns qt
-            let cols = map cs $ M.keys obj
+            let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
+                cols = map cs $ M.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
                 let vals = M.elems obj
@@ -215,8 +255,8 @@ app conf reqBody req =
         row <- H.maybeEx patch
         let (queryTotal, body) =
               fromMaybe (0 :: Int, Just "" :: Maybe Text) row
-            r = contentRangeH 0 (queryTotal-1) queryTotal
-            echoRequested = lookupHeader "Prefer" == Just "return=representation"
+            r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+            echoRequested = hasPrefer "return=representation"
             s = case () of _ | queryTotal == 0 -> status404
                              | echoRequested -> status200
                              | otherwise -> status204
@@ -238,12 +278,23 @@ app conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
+    allTabs = tables dbstructure
+    allRels = relations dbstructure
+    allCols = columns dbstructure
+    allPrKeys = primaryKeys dbstructure
+    filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
+    filterCol _ _ _ =  False
+    filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
+
+    filterTableAcl :: Text -> Table -> Bool
+    filterTableAcl r (Table{tableAcl=a}) = r `elem` a
     path          = pathInfo req
     verb          = requestMethod req
     qq            = queryString req
     qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
+    hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = requestedSchema (cs $ configV1Schema conf) accept
     authenticator = cs $ configDbUser conf
@@ -259,21 +310,24 @@ sqlError = undefined
 isSqlError :: t
 isSqlError = undefined
 
-rangeStatus :: Int -> Int -> Int -> Status
-rangeStatus from to total
+rangeStatus :: Int -> Int -> Maybe Int -> Status
+rangeStatus _ _ Nothing = status200
+rangeStatus from to (Just total)
   | from > total            = status416
   | (1 + to - from) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Int -> Int -> Int -> Header
+contentRangeH :: Int -> Int -> Maybe Int -> Header
 contentRangeH from to total =
-  ("Content-Range",
-    if total == 0 || from > total
-    then "*/" <> cs (show total)
-    else cs (show from)
-      <> "-" <> cs (show to)
-      <> "/" <> cs (show total)
-  )
+    ("Content-Range", cs headerValue)
+    where
+      headerValue   = rangeString <> "/" <> totalString
+      rangeString
+        | totalNotZero && fromInRange = show from <> "-" <> cs (show to)
+        | otherwise = "*"
+      totalString   = fromMaybe "*" (show <$> total)
+      totalNotZero  = fromMaybe True ((/=) 0 <$> total)
+      fromInRange   = from <= to
 
 requestedSchema :: Text -> Maybe BS.ByteString -> Text
 requestedSchema v1schema accept =
@@ -353,7 +407,7 @@ multipart s rs =
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]
-, tblOptpkey :: [Text]
+, tblOptpkey    :: [Text]
 }
 
 instance ToJSON TableOptions where

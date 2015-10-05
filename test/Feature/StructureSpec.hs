@@ -15,6 +15,8 @@ spec = around withApp $ do
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
           {"schema":"1","name":"auto_incrementing_pk","insertable":true}
+        , {"schema":"1","name":"clients","insertable":true}
+        , {"schema":"1","name":"comments","insertable":true}
         , {"schema":"1","name":"complex_items","insertable":true}
         , {"schema":"1","name":"compound_pk","insertable":true}
         , {"schema":"1","name":"has_count_column","insertable":false}
@@ -26,8 +28,14 @@ spec = around withApp $ do
         , {"schema":"1","name":"menagerie","insertable":true}
         , {"schema":"1","name":"no_pk","insertable":true}
         , {"schema":"1","name":"nullable_integer","insertable":true}
+        , {"schema":"1","name":"projects","insertable":true}
+        , {"schema":"1","name":"projects_view","insertable":true}
         , {"schema":"1","name":"simple_pk","insertable":true}
+        , {"schema":"1","name":"tasks","insertable":true}
         , {"schema":"1","name":"tsearch","insertable":true}
+        , {"schema":"1","name":"users","insertable":true}
+        , {"schema":"1","name":"users_projects","insertable":true}
+        , {"schema":"1","name":"users_tasks","insertable":true}
         ] |]
         {matchStatus = 200}
 
@@ -142,6 +150,102 @@ spec = around withApp $ do
             "default": null
           }
         ]
+      }
+      |]
+
+    it "it includes primary and foreign keys for views" $
+      request methodOptions "/insertable_view_with_join" [] "" `shouldRespondWith`
+      [json|
+      {
+         "pkey":[
+            "id"
+         ],
+         "columns":[
+            {
+               "references":null,
+               "default":null,
+               "precision":64,
+               "updatable":false,
+               "schema":"1",
+               "name":"id",
+               "type":"bigint",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":1
+            },
+            {
+               "references":{
+                  "column":"id",
+                  "table":"auto_incrementing_pk"
+               },
+               "default":null,
+               "precision":32,
+               "updatable":false,
+               "schema":"1",
+               "name":"auto_inc_fk",
+               "type":"integer",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":2
+            },
+            {
+               "references":{
+                  "column":"k",
+                  "table":"simple_pk"
+               },
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"simple_fk",
+               "type":"character varying",
+               "maxLen":255,
+               "enum":[],
+               "nullable":true,
+               "position":3
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"nullable_string",
+               "type":"character varying",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":4
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"non_nullable_string",
+               "type":"character varying",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":5
+            },
+            {
+               "references":null,
+               "default":null,
+               "precision":null,
+               "updatable":false,
+               "schema":"1",
+               "name":"inserted_at",
+               "type":"timestamp with time zone",
+               "maxLen":null,
+               "enum":[],
+               "nullable":true,
+               "position":6
+            }
+         ]
       }
       |]
 

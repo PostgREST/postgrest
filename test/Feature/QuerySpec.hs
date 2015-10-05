@@ -1,6 +1,6 @@
 module Feature.QuerySpec where
 
-import Test.Hspec
+import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
@@ -130,6 +130,10 @@ spec =
       get "/items?always_true=eq.true" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
+    it "matches filtering nested items" $
+      get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
+        "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1,\"name\":\"Design w7\"}]},{\"id\":2,\"tasks\":[{\"id\":3,\"name\":\"Design w10\"}]}]},{\"id\":2,\"projects\":[{\"id\":3,\"tasks\":[{\"id\":5,\"name\":\"Design IOS\"}]},{\"id\":4,\"tasks\":[{\"id\":7,\"name\":\"Design OSX\"}]}]}]"
+
   describe "Shaping response with select parameter" $ do
 
     it "selectStar works in absense of parameter" $
@@ -177,6 +181,27 @@ spec =
     it "json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
+
+    it "requesting parents and children" $
+      get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
+
+    it "requesting children 2 levels" $
+      get "/clients?id=eq.1&select=id,projects(id,tasks(id))" `shouldRespondWith`
+        "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1},{\"id\":2}]},{\"id\":2,\"tasks\":[{\"id\":3},{\"id\":4}]}]}]"
+
+    it "requesting many<->many relation" $
+      get "/tasks?select=id,users(id)" `shouldRespondWith`
+        "[{\"id\":1,\"users\":[{\"id\":1},{\"id\":3}]},{\"id\":2,\"users\":[{\"id\":1}]},{\"id\":3,\"users\":[{\"id\":1}]},{\"id\":4,\"users\":[{\"id\":1}]},{\"id\":5,\"users\":[{\"id\":2},{\"id\":3}]},{\"id\":6,\"users\":[{\"id\":2}]},{\"id\":7,\"users\":[{\"id\":2}]},{\"id\":8,\"users\":null}]"
+
+    it "requesting parents and children on views" $
+      get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
+
+    it "requesting children with composite key" $ do
+      pendingWith "have to resolve issue #302"
+      get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
+        [json| [{"user_id":2,"task_id":6,"comments":[{"content": "Needs to be delivered ASAP"}]}] |]
 
 
   describe "ordering response" $ do
@@ -226,7 +251,7 @@ spec =
         }
 
     it "without other constraints" $
-      get "/items?order=asc.id" `shouldRespondWith` 200
+      get "/items?order=id.asc" `shouldRespondWith` 200
 
   describe "Accept headers" $ do
     it "should respond an unknown accept type with 415" $

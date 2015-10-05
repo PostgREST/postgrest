@@ -3,34 +3,38 @@
 
 module PostgREST.Middleware where
 
-import Data.Maybe (fromMaybe, isNothing)
-import Data.Monoid
-import Data.Text
--- import Data.Pool(withResource, Pool)
+import           Data.Maybe                    (fromMaybe, isNothing)
+import           Data.Monoid
+import           Data.Text
+import           Data.String.Conversions       (cs)
+import qualified Hasql                         as H
+import qualified Hasql.Postgres                as P
 
-import qualified Hasql as H
-import qualified Hasql.Postgres as P
-import Data.String.Conversions(cs)
+import           Network.HTTP.Types            (RequestHeaders)
+import           Network.HTTP.Types.Header     (hAccept, hAuthorization,
+                                                hLocation)
+import           Network.HTTP.Types.Status     (status301, status400, status401,
+                                                status415)
+import           Network.URI                   (URI (..), parseURI)
+import           Network.Wai                   (Application, Request (..),
+                                                Response, isSecure, rawPathInfo,
+                                                rawQueryString, requestHeaders,
+                                                responseLBS)
+import           Network.Wai.Middleware.Cors   (cors)
+import           Network.Wai.Middleware.Gzip   (def, gzip)
+import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import Network.HTTP.Types.Header (hLocation, hAuthorization, hAccept)
-import Network.HTTP.Types (RequestHeaders)
-import Network.HTTP.Types.Status (status400, status401, status301, status415)
-import Network.Wai (Application, requestHeaders, responseLBS, rawPathInfo,
-                   rawQueryString, isSecure, Request(..), Response)
-import Network.Wai.Middleware.Gzip (gzip, def)
-import Network.Wai.Middleware.Cors (cors)
-import Network.Wai.Middleware.Static (staticPolicy, only)
-import Network.URI (URI(..), parseURI)
+import           Codec.Binary.Base64.String    (decode)
+import           PostgREST.App                 (contentTypeForAccept)
+import           PostgREST.Auth                (DbRole, LoginAttempt (..),
+                                                setRole, setUserId, signInRole,
+                                                signInWithJWT)
+import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
-import PostgREST.Config (AppConfig(..), corsPolicy)
-import PostgREST.Auth (LoginAttempt(..), signInRole, signInWithJWT, setRole, setUserId)
-import PostgREST.App (contentTypeForAccept)
-import Codec.Binary.Base64.String (decode)
-
-import Prelude
+import           Prelude
 
 authenticated :: forall s. AppConfig ->
-                 (Request -> H.Tx P.Postgres s Response) ->
+                 (DbRole -> Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
 authenticated conf app req = do
   attempt <- httpRequesterRole (requestHeaders req)
@@ -39,8 +43,8 @@ authenticated conf app req = do
       return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
       return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app req
-    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app req
+    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app currentRole req
+    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app currentRole req
 
  where
    jwtSecret = cs $ configJwtSecret conf
@@ -62,7 +66,7 @@ authenticated conf app req = do
    runInRole r uid = do
      setUserId uid
      setRole r
-     app req
+     app r req
 
 
 redirectInsecure :: Application -> Application
