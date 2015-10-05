@@ -12,8 +12,8 @@ import           PostgREST.Middleware
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Functor.Identity
-import           Data.String.Conversions              (cs,
-                                                       (<>))
+import           Data.Monoid                          ((<>))
+import           Data.String.Conversions              (cs)
 import           Data.Text                            (Text)
 import qualified Hasql                                as H
 import qualified Hasql.Postgres                       as P
