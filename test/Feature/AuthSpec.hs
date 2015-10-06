@@ -29,7 +29,7 @@ spec = beforeAll
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
-  it "respects database constraints for role" $ do
+  it "respects database constraints for role" $
     post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "SUPER_ADMIN_TRUNCATE_POWERS" } |]
       `shouldRespondWith` 400
 
