@@ -1,7 +1,6 @@
 module Main where
 
 
-import           Paths_postgrest                      (version)
 import           PostgREST.PgStructure
 import           PostgREST.Types
 import           Network.Wai
@@ -13,22 +12,21 @@ import           PostgREST.Middleware
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Functor.Identity
-import           Data.List                            (intercalate)
+import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import           Data.Text                            (Text)
-import           Data.Version                         (versionBranch)
 import qualified Hasql                                as H
 import qualified Hasql.Postgres                       as P
 import           Network.Wai.Handler.Warp             hiding (Connection)
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-import           Options.Applicative                  hiding (columns)
 
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 
 import           PostgREST.Config                     (AppConfig (..),
-                                                       argParser)
+                                                       prettyVersion,
+                                                       readOptions)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -41,15 +39,7 @@ main = do
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
 
-  let opts = info (helper <*> argParser) $
-               fullDesc
-               <> progDesc (
-                 "PostgREST "
-                 <> prettyVersion
-                 <> " / create a REST API to an existing Postgres database"
-               )
-      parserPrefs = prefs showHelpOnError
-  conf <- customExecParser parserPrefs opts
+  conf <- readOptions
   let port = configPort conf
 
   unless (configSecure conf) $
@@ -104,6 +94,3 @@ main = do
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
       authenticated conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
-
-  where
-    prettyVersion = intercalate "." $ map show $ versionBranch version
