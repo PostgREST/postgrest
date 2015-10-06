@@ -1,3 +1,14 @@
+{-|
+Module      : PostgREST.Config
+Description : Manages PostgREST configuration options.
+
+This module provides a helper function to read the command line arguments using the optparse-applicative
+and the AppConfig type to store them.
+It also can be used to define other middleware configuration that may be delegated to some sort of
+external configuration.
+
+It currently includes a hardcoded CORS policy but this could easly be turned in configurable behaviour if needed.
+-}
 module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
@@ -19,6 +30,7 @@ import           Options.Applicative         hiding (columns)
 import           Paths_postgrest             (version)
 import           Prelude
 
+-- | Data type to store all command line options
 data AppConfig = AppConfig {
     configDbName    :: String
   , configDbPort    :: Int
@@ -31,7 +43,6 @@ data AppConfig = AppConfig {
   , configSecure    :: Bool
   , configPool      :: Int
   , configV1Schema  :: String
-
   , configJwtSecret :: String
   }
 
@@ -55,6 +66,7 @@ defaultCorsPolicy =  CorsResourcePolicy Nothing
   ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
   (Just $ 60*60*24) False False True
 
+-- | CORS policy to be used in by Wai Cors middleware
 corsPolicy :: Request -> Maybe CorsResourcePolicy
 corsPolicy req = case lookup "origin" headers of
   Just origin -> Just defaultCorsPolicy {
@@ -72,9 +84,11 @@ corsPolicy req = case lookup "origin" headers of
       Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
       Nothing -> []
 
+-- | User friendly version number
 prettyVersion :: String
 prettyVersion = intercalate "." $ map show $ versionBranch version
 
+-- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = customExecParser parserPrefs opts
   where
