@@ -30,11 +30,12 @@ spec = beforeAll
       `shouldRespondWith` 200
 
   it "respects database constraints for role" $
-    post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "SUPER_ADMIN_TRUNCATE_POWERS" } |]
+    post "/postgrest/users" [json| { "id": "ssmith", "pass": "1234", "role": "SUPER_ADMIN_TRUNCATE_POWERS" } |]
       `shouldRespondWith` 400
 
   it "does not send a value when no role is provided" $ do
-    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234" } |]
+    post "/postgrest/users" [json| { "id": "bdeey", "pass": "1234" } |]
+      `shouldRespondWith` 201
     let auth = authHeaderBasic "jdoe" "1234"
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
