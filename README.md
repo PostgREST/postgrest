@@ -28,7 +28,7 @@ postgrest  --db-host localhost  --db-port 5432     \
            --db-name my_db      --db-user postgres \
            --db-pass foobar     --db-pool 200      \
            --anonymous postgres --port 3000        \
-           --v1schema public
+           --schema public
 ```
 
 In production include the `--secure` option which redirects all
@@ -97,17 +97,6 @@ security.
 For example security patterns see the [security
 guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 
-### Versioning
-
-A robust long-lived API needs the freedom to exist in multiple
-versions. PostgREST supports versioning through HTTP content
-negotiation. Requests for a certain version translate into switching
-which database schema to search for tables. PostgreSQL schema search
-paths allow tables from earlier versions to be reused verbatim in
-later versions.
-
-To learn more, see the [guide to versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning).
-
 ### Self-documention
 
 Rather than writing and maintaining separate docs yourself let the
@@ -153,7 +142,6 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 ### Guides
 
 * [Routing](https://github.com/begriffs/postgrest/wiki/Routing)
-* [Versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning)
 * [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
 * [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
 * [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)
