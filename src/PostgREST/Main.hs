@@ -26,12 +26,13 @@ import           System.IO                            (BufferMode (..),
 
 import           PostgREST.Config                     (AppConfig (..),
                                                        prettyVersion,
-                                                       readOptions)
+                                                       readOptions,
+                                                       minimumPgVersion)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
   Identity (row :: Text) <- H.tx Nothing $ H.singleEx $ [H.stmt|SHOW server_version_num|]
-  return $ read (cs row) >= (90200::Integer)
+  return $ read (cs row) >= minimumPgVersion
 
 main :: IO ()
 main = do

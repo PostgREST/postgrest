@@ -8,14 +8,16 @@ It also can be used to define other middleware configuration that may be delegat
 external configuration.
 
 It currently includes a hardcoded CORS policy but this could easly be turned in configurable behaviour if needed.
+
+Other hardcoded options such as the minimum version number also belong here.
 -}
 module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
+                        , minimumPgVersion
                         , AppConfig (..)
                         )
        where
-
 
 import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
@@ -100,3 +102,7 @@ readOptions = customExecParser parserPrefs opts
                     <> " / create a REST API to an existing Postgres database"
                     )
     parserPrefs = prefs showHelpOnError
+
+-- | Tells the minimum PostgreSQL version required by this version of PostgREST
+minimumPgVersion :: Integer
+minimumPgVersion = 90200
