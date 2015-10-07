@@ -10,6 +10,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
 - Does not execute the count total if header "Prefer: count=none" - @diogob
 
+### Fixed
+- Tolerate a missing role in user creation - @calebmer
+
 ## [0.2.11.1] - 2015-09-01
 
 ### Fixed
