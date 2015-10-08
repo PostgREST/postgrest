@@ -28,7 +28,6 @@ import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
-import           Text.Regex.TDFA           ((=~))
 
 import           Text.Parsec.Error
 
