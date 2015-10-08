@@ -6,10 +6,10 @@ import           Control.Error
 import           Data.List         (find)
 import           Data.Monoid
 import           Data.Text         hiding (filter, find, foldr, head, last, map,
-                                    null)
+                                    null, zipWith)
 import           Control.Applicative
 import           Data.Tree
-import           PostgREST.PgQuery (PStmt, QualifiedIdentifier (..), fromQi,
+import           PostgREST.PgQuery (PStmt, fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
                                     pgFmtValue, whiteList)
 import           PostgREST.Types
@@ -34,6 +34,16 @@ addRelations schema allRelations parentNode node@(Node query@(Select {mainTable=
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
+getJoinConditions :: Relation -> [Filter]
+getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
+  case typ of
+    Child  -> zipWith (toFilter t ft) cs fcs
+    Parent -> zipWith (toFilter t ft) cs fcs
+    Many   -> zipWith (toFilter t (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
+  where
+    toFilter :: Text -> Text -> FieldName -> FieldName -> Filter
+    toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
+
 addJoinConditions :: Text -> [Column] -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema allColumns (Node query@(Select{relation=r}) forest) =
   case r of
@@ -56,15 +66,6 @@ addJoinConditions schema allColumns (Node query@(Select{relation=r}) forest) =
         getParents qq@(Select{relation=(Just rel@(Relation{relType=Parent}))}) = Just (mainTable qq, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema allColumns) forest
-    getJoinConditions :: Relation -> [Filter]
-    getJoinConditions rel@(Relation _ _ c _ _ Child _ _ _) = [Filter (c, Nothing) "=" (VForeignKey rel)]
-    getJoinConditions rel@(Relation _ _ c _ _ Parent _ _ _) = [Filter (c, Nothing) "=" (VForeignKey rel)]
-    getJoinConditions     (Relation s t c ft fc Many (Just lt) (Just lc1) (Just lc2)) =
-      [
-        Filter (c, Nothing) "=" (VForeignKey (Relation s t c lt lc1 Child Nothing Nothing Nothing)),
-        Filter (fc, Nothing) "=" (VForeignKey (Relation s ft fc lt lc2 Child Nothing Nothing Nothing))
-      ]
-    getJoinConditions _ = []
     addCond q con = q{filters=con ++ filters q}
 
 requestToCountQuery :: Text -> ApiRequest -> PStmt
@@ -80,7 +81,7 @@ requestToCountQuery schema (Node (Select mainTbl _ _ conditions _ _) _) =
     localConditions = filter fn conditions
       where
         fn  (Filter{value=VText _}) = True
-        fn  (Filter{value=VForeignKey _}) = False
+        fn  (Filter{value=VForeignKey _ _}) = False
 
 requestToQuery :: Text -> ApiRequest -> PStmt
 requestToQuery schema (Node (Select mainTbl colSelects tbls conditions ord _) forest) =
@@ -134,14 +135,14 @@ pgFmtCondition table (Filter (col,jp) ops val) =
     notOp       = hasNot headPredicate ""
     sqlCol = case val of
       VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
-      VForeignKey (Relation s t c _ _ _ _ _ _) -> pgFmtColumn (QualifiedIdentifier s t) c
+      VForeignKey qi _ -> pgFmtColumn qi col
     sqlValue = valToStr val
     getInner v = case v of
       VText s -> s
       _      -> ""
     valToStr v = case v of
       VText s -> pgFmtValue opCode s
-      VForeignKey (Relation{relSchema=s, relFTable=ft, relFColumn=fc}) -> pgFmtColumn (QualifiedIdentifier s ft) fc
+      VForeignKey (QualifiedIdentifier s _) (ForeignKey ft fc) -> pgFmtColumn (QualifiedIdentifier s ft) fc
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> Text
 pgFmtColumn table "*" = fromQi table <> ".*"

@@ -10,7 +10,7 @@ import qualified Hasql                   as H
 import qualified Hasql.Backend           as B
 import qualified Hasql.Postgres          as P
 import           PostgREST.RangeQuery
-import           PostgREST.Types         (OrderTerm (..))
+import           PostgREST.Types         (OrderTerm (..), QualifiedIdentifier(..))
 
 import           Control.Monad           (join)
 import qualified Data.Aeson              as JSON
@@ -37,11 +37,6 @@ instance Monoid PStmt where
     B.Stmt (query <> query') (params <> params') (prep && prep')
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
-
-data QualifiedIdentifier = QualifiedIdentifier {
-  qiSchema :: T.Text
-, qiName   :: T.Text
-} deriving (Show)
 
 
 limitT :: Maybe NonnegRange -> StatementT
