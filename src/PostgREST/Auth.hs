@@ -8,6 +8,7 @@ import           Data.Map
 import           Data.Monoid
 import           Data.String.Conversions (cs)
 import           Data.Text
+import           Data.Maybe (isNothing)
 import qualified Data.Vector             as V
 import qualified Hasql                   as H
 import qualified Hasql.Backend           as B
@@ -21,14 +22,14 @@ import           System.IO.Unsafe
 data AuthUser = AuthUser {
     userId   :: String
   , userPass :: String
-  , userRole :: String
+  , userRole :: Maybe String
   } deriving (Show)
 
 instance FromJSON AuthUser where
   parseJSON (Object v) = AuthUser <$>
                          v .: "id" <*>
                          v .: "pass" <*>
-                         v .:? "role" .!= ""
+                         v .:? "role"
   parseJSON _ = mzero
 
 instance ToJSON AuthUser where
@@ -62,12 +63,16 @@ setUserId uid =
 resetUserId :: H.Tx P.Postgres s ()
 resetUserId = H.unitEx [H.stmt|reset user_vars.user_id|]
 
-addUser :: Text -> Text -> Text -> H.Tx P.Postgres s ()
-addUser identity pass role = do
-  let Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
+addUser :: Text -> Text -> Maybe Text -> H.Tx P.Postgres s ()
+addUser identity pass role =
   H.unitEx $
-    [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
-      identity (cs hashed :: Text) role
+    if isNothing role
+      then [H.stmt|insert into postgrest.auth (id, pass) values (?, ?)|]
+        identity hashedText
+      else [H.stmt|insert into postgrest.auth (id, pass, rolname) values (?, ?, ?)|]
+        identity hashedText role
+  where Just hashed = unsafePerformIO $ hashPasswordUsingPolicy fastBcryptHashingPolicy (cs pass)
+        hashedText = cs hashed :: Text
 
 signInRole :: Text -> Text -> H.Tx P.Postgres s LoginAttempt
 signInRole user pass = do
