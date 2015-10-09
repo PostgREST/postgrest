@@ -97,6 +97,16 @@ security.
 For example security patterns see the [security
 guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 
+### Versioning
+
+It is a best practice that you version your database schema exposed
+to PostgREST (e.g. `public1` or `api2`). This way you future proof
+your API by allowing it to be backwards compatible when you want to
+change routes (e.g. a later version could be `public2` or `api3`).
+
+For routing to different versions of a PostgREST API use a request
+proxy (such as [nginx](http://nginx.org)).
+
 ### Self-documention
 
 Rather than writing and maintaining separate docs yourself let the
