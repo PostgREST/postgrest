@@ -105,4 +105,4 @@ readOptions = customExecParser parserPrefs opts
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: Integer
-minimumPgVersion = 90200
+minimumPgVersion = 90300

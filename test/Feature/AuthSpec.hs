@@ -24,21 +24,32 @@ spec = beforeAll
       `shouldRespondWith` 401
 
   it "allows users with permissions to see their tables (BasicAuth)" $ do
-    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    let auth = authHeaderBasic "jdoe" "1234"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 200
+
+  it "respects database constraints for role" $
+    post "/postgrest/users" [json| { "id": "ssmith", "pass": "1234", "role": "SUPER_ADMIN_TRUNCATE_POWERS" } |]
+      `shouldRespondWith` 400
+
+  it "does not send a value when no role is provided" $ do
+    post "/postgrest/users" [json| { "id": "bdeey", "pass": "1234" } |]
+      `shouldRespondWith` 201
     let auth = authHeaderBasic "jdoe" "1234"
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
   it "recovers after 400 error with logged in user" $ do
-    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
     let auth = authHeaderBasic "jdoe" "1234"
     _ <- request methodPost "/rpc/problem" [auth] ""
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
   it "allows users to login (JWT)" $ do
-    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-    post "/postgrest/tokens" [json| { "id":"jdoe", "pass": "1234" } |]
+    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    post "/postgrest/tokens" [json| { "id": "jdoe", "pass": "1234" } |]
       `shouldRespondWith` ResponseMatcher {
           matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"} |]
         , matchStatus = 201
@@ -46,8 +57,8 @@ spec = beforeAll
         }
 
   it "indicates login failure (JWT)" $ do
-    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-    post "/postgrest/tokens" [json| { "id":"jdoe", "pass": "NOPE" } |]
+    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    post "/postgrest/tokens" [json| { "id": "jdoe", "pass": "NOPE" } |]
       `shouldRespondWith` ResponseMatcher {
           matchBody = Just [json| {"message":"Failed authentication."} |]
         , matchStatus = 401
@@ -55,7 +66,7 @@ spec = beforeAll
         }
 
   it "allows users with permissions to see their tables (JWT)" $ do
-    _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200

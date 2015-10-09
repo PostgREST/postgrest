@@ -21,7 +21,7 @@ data Table = Table {
 
 data ForeignKey = ForeignKey {
   fkTable::Text, fkCol::Text
-} deriving (Show)
+} deriving (Show, Eq)
 
 
 data Column = Column {
@@ -49,22 +49,28 @@ data OrderTerm = OrderTerm {
 , otNullOrder :: Maybe BS.ByteString
 } deriving (Show, Eq)
 
+data QualifiedIdentifier = QualifiedIdentifier {
+  qiSchema :: Text
+, qiName   :: Text
+} deriving (Show, Eq)
+
+
 data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
   relSchema  :: Text
 , relTable   :: Text
-, relColumn  :: Text
+, relColumns  :: [Text]
 , relFTable  :: Text
-, relFColumn :: Text
+, relFColumns :: [Text]
 , relType    :: RelationType
 , relLTable  :: Maybe Text
-, relLCol1   :: Maybe Text
-, relLCol2   :: Maybe Text
+, relLCols1   :: Maybe [Text]
+, relLCols2   :: Maybe [Text]
 } deriving (Show, Eq)
 
 
 type Operator = Text
-data FValue = VText Text | VForeignKey Relation deriving (Show, Eq)
+data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
