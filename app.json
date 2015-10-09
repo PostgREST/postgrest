@@ -47,8 +47,8 @@
       "required": false,
       "value": "secret"
     },
-    "V1SCHEMA": {
-      "description": "DB schema selected whe no version (or version 1) requested",
+    "SCHEMA": {
+      "description": "DB schema selected for routes",
       "required": false,
       "value": "1"
     }

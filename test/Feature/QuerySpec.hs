@@ -89,7 +89,7 @@ spec =
 
     it "matches nulls using not operator" $
       get "/no_pk?a=not.is.null" `shouldRespondWith`
-        [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
+        [json| [{"a":"test","b":"0"},{"a":"2","b":"0"}] |]
 
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
@@ -146,7 +146,7 @@ spec =
 
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
-        [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
+        [json| [{"id":"test"},{"id":"2"},{"id":"3"}] |]
 
     it "json column" $
       get "/complex_items?id=eq.1&select=settings" `shouldRespondWith`
@@ -222,7 +222,7 @@ spec =
     it "by a column asc with nulls last" $
       get "/no_pk?order=a.asc.nullslast"
         `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| [{"a":"1","b":"0"},
+          matchBody = Just [json| [{"a":"test","b":"0"},
                               {"a":"2","b":"0"},
                               {"a":null,"b":null}] |]
         , matchStatus = 200
@@ -234,7 +234,7 @@ spec =
         `shouldRespondWith` ResponseMatcher {
           matchBody = Just [json| [{"a":null,"b":null},
                               {"a":"2","b":"0"},
-                              {"a":"1","b":"0"}] |]
+                              {"a":"test","b":"0"}] |]
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
         }
@@ -243,7 +243,7 @@ spec =
       get "/no_pk?order=a.desc.nullslast"
         `shouldRespondWith` ResponseMatcher {
           matchBody = Just [json| [{"a":"2","b":"0"},
-                              {"a":"1","b":"0"},
+                              {"a":"test","b":"0"},
                               {"a":null,"b":null}] |]
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/3"]
