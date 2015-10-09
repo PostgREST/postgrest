@@ -80,7 +80,7 @@ withApp perform = do
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ authenticated cfg authenticator (app dbstructure cfg authenticator body) req
+      $ runWithClaims cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False

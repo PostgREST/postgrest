@@ -57,12 +57,12 @@ import           PostgREST.Types
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> DbRole -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf authenticator reqBody dbrole req =
+app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf reqBody req =
   case (path, verb) of
 
     ([], _) -> do
-      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
+      let body = encode $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -129,41 +129,6 @@ app dbstructure conf authenticator reqBody dbrole req =
             query = requestToQuery schema <$> apiRequest
             countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery
-
-
-    (["postgrest", "users"], "POST") -> do
-      let user = decode reqBody :: Maybe AuthUser
-
-      case user of
-        Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("message", String "Failed to parse user.")]
-        Just u -> do
-          _ <- addUser (cs $ userId u)
-            (cs $ userPass u) (cs <$> userRole u)
-          return $ responseLBS status201
-            [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
-            ] ""
-
-    (["postgrest", "tokens"], "POST") ->
-      case jwtSecret of
-        "secret" -> return $ responseLBS status500 [jsonH] $
-          encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
-        _ -> do
-          let user = decode reqBody :: Maybe AuthUser
-
-          case user of
-            Nothing -> return $ responseLBS status400 [jsonH] $
-              encode . object $ [("message", String "Failed to parse user.")]
-            Just u -> do
-              setRole authenticator
-              login <- signInRole (cs $ userId u) (cs $ userPass u)
-              case login of
-                LoginSuccess role uid ->
-                  return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
-                _  -> return $ responseLBS status401 [jsonH] $
-                  encode . object $ [("message", String "Failed authentication.")]
 
     ([table], "POST") -> do
       let qt = qualify table
@@ -295,7 +260,7 @@ app dbstructure conf authenticator reqBody dbrole req =
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = cs $ configSchema conf
-    jwtSecret     = cs $ configJwtSecret conf
+    jwtSecret     = (cs $ configJwtSecret conf) :: Text
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept
