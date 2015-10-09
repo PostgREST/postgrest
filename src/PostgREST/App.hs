@@ -214,7 +214,7 @@ app dbstructure conf reqBody dbrole req =
 
       -- check that proc exists
       -- check that arg names are all specified
-      -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
+      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
