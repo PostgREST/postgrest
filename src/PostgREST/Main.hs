@@ -31,7 +31,7 @@ import           PostgREST.Config                     (AppConfig (..),
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
-  Identity (row :: Text) <- H.tx Nothing $ H.singleEx $ [H.stmt|SHOW server_version_num|]
+  Identity (row :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SHOW server_version_num|]
   return $ read (cs row) >= minimumPgVersion
 
 main :: IO ()
@@ -50,11 +50,7 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = P.ParamSettings (cs $ configDbHost conf)
-                     (fromIntegral $ configDbPort conf)
-                     (cs $ configDbUser conf)
-                     (cs $ configDbPass conf)
-                     (cs $ configDbName conf)
+  let pgSettings = P.StringSettings $ cs (configDatabase conf)
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
@@ -70,6 +66,10 @@ main = do
       unless supported $
         fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
     ) supportedOrError
+
+  Right authenticator <- H.session pool $ do
+    Identity (role :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SELECT SESSION_USER|]
+    return role
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
@@ -89,9 +89,8 @@ main = do
         , primaryKeys=keys
         }
 
-
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      authenticated conf (app dbstructure conf body) req
+      authenticated conf authenticator (app dbstructure conf authenticator body) req
     either (respond . errResponse) respond resOrError

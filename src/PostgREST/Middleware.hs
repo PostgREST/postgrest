@@ -33,22 +33,21 @@ import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
 import           Prelude
 
-authenticated :: forall s. AppConfig ->
+authenticated :: forall s. AppConfig -> Text ->
                  (DbRole -> Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-authenticated conf app req = do
+authenticated conf authenticator app req = do
   attempt <- httpRequesterRole (requestHeaders req)
   case attempt of
     MalformedAuth ->
       return $ responseLBS status400 [] "Malformed basic auth header"
     LoginFailed ->
       return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app currentRole req
-    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app currentRole req
+    LoginSuccess role uid -> if role /= authenticator then runInRole role uid else app authenticator req
+    NoCredentials         -> if anon /= authenticator then runInRole anon "" else app authenticator req
 
  where
    jwtSecret = cs $ configJwtSecret conf
-   currentRole = cs $ configDbUser conf
    anon = cs $ configAnonRole conf
    httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
    httpRequesterRole hdrs = do

@@ -20,6 +20,7 @@ import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
+import Data.Functor.Identity
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
@@ -33,27 +34,30 @@ import PostgREST.Error(errResponse)
 import PostgREST.PgStructure
 import PostgREST.Types
 
+dbString :: String
+dbString = "postgres://postgrest_test@localhost:5432/postgrest_test"
+
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10 "test" "safe"
+cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" False "safe" 10
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: P.Settings
-pgSettings = P.ParamSettings (cs $ configDbHost cfg)
-                             (fromIntegral $ configDbPort cfg)
-                             (cs $ configDbUser cfg)
-                             (cs $ configDbPass cfg)
-                             (cs $ configDbName cfg)
+pgSettings = P.StringSettings $ cs dbString
 
 withApp :: ActionWith Application -> IO ()
 withApp perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
+
+  Right authenticator <- H.session pool $ do
+    Identity (role :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SELECT SESSION_USER|]
+    return role
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
@@ -76,7 +80,7 @@ withApp perform = do
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ authenticated cfg (app dbstructure cfg body) req
+      $ authenticated cfg authenticator (app dbstructure cfg authenticator body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False

@@ -57,8 +57,8 @@ import           PostgREST.Types
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody dbrole req =
+app :: DbStructure -> AppConfig -> Text -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf authenticator reqBody dbrole req =
   case (path, verb) of
 
     ([], _) -> do
@@ -295,7 +295,6 @@ app dbstructure conf reqBody dbrole req =
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = cs $ configSchema conf
-    authenticator = cs $ configDbUser conf
     jwtSecret     = cs $ configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
