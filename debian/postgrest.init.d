@@ -2,12 +2,12 @@
 ### BEGIN INIT INFO
 # Provides:          postgrest
 # Required-Start:    $local_fs $network postgresql
-# Required-Stop:     $local_fs $network 
+# Required-Stop:     $local_fs $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Description:       PostgreSQL REST API daemon
 ### END INIT INFO
- 
+
 . /lib/lsb/init-functions
 if test -f /etc/default/postgrest; then
     . /etc/default/postgrest
@@ -32,8 +32,8 @@ fi
 if [ -n "$POSTGREST_DBPOOL" ]; then
 	POSTGREST_OPTS="$POSTGREST_OPTS --db-pool $POSTGREST_DBPOOL"
 fi
-POSTGREST_OPTS="$POSTGREST_OPTS --v1schema public"
- 
+POSTGREST_OPTS="$POSTGREST_OPTS --schema public"
+
 start()
 {
 	log_daemon_msg "Starting PostgreSQL REST API daemon" "postgrest" || true
@@ -43,7 +43,7 @@ start()
 		log_end_msg 1 || true
 	fi
 }
- 
+
 stop()
 {
 	log_daemon_msg "Stopping PostgreSQL REST API daemon" "postgrest" || true
@@ -53,7 +53,7 @@ stop()
 		log_end_msg 1 || true
 	fi
 }
- 
+
 status()
 {
 	status_of_proc $POSTGREST postgrest && exit 0 || exit $?
