@@ -32,7 +32,7 @@ spec = around dbWithSchema $ do
   describe "insert" $
     describe "with an auto-increment key" $ do
       it "inserts and responds with a full object description" $ \conn -> do
-        r <- insert "1" "auto_incrementing_pk" (SqlRow [
+        r <- insert "test" "auto_incrementing_pk" (SqlRow [
             ("non_nullable_string", toSql ("a string"::String))]) conn
         let returnRow = incFromList . toList $ r
         incStr returnRow `shouldBe` "a string"
@@ -43,19 +43,19 @@ spec = around dbWithSchema $ do
         [returnRow] `shouldBe` map incFromList tRows
 
       it "throws an exception if the PK is not unique" $ \conn -> do
-        r <- insert "1" "auto_incrementing_pk" (SqlRow [
+        r <- insert "test" "auto_incrementing_pk" (SqlRow [
             ("non_nullable_string", toSql ("a string"::String))]) conn
         let row = SqlRow .  map (Control.Arrow.first cs) . toList $ r
-        insert "1" "auto_incrementing_pk" row conn `shouldThrow` \e ->
+        insert "test" "auto_incrementing_pk" row conn `shouldThrow` \e ->
           seState e == "23505" -- uniqueness violation code
 
       it "throws an exception if a required value is missing" $ \conn ->
-        insert "1" "auto_incrementing_pk" (SqlRow [
+        insert "test" "auto_incrementing_pk" (SqlRow [
           ("nullable_string", toSql ("a string"::String))]) conn
           `shouldThrow` \e -> seState e == "23502"
 
       it "generates a default values query if no data is provided" $ \c -> do
-        r <- insert "1" "items" (SqlRow []) c
+        r <- insert "test" "items" (SqlRow []) c
         let [row] = toList r
         quickALQuery c "select * from \"1\".items where id = ?" [snd row]
           `shouldReturn` [[row]]

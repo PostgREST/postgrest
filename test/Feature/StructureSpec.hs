@@ -14,28 +14,28 @@ spec = around withApp $ do
     it "lists views in schema" $
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
-          {"schema":"1","name":"auto_incrementing_pk","insertable":true}
-        , {"schema":"1","name":"clients","insertable":true}
-        , {"schema":"1","name":"comments","insertable":true}
-        , {"schema":"1","name":"complex_items","insertable":true}
-        , {"schema":"1","name":"compound_pk","insertable":true}
-        , {"schema":"1","name":"has_count_column","insertable":false}
-        , {"schema":"1","name":"has_fk","insertable":true}
-        , {"schema":"1","name":"insertable_view_with_join","insertable":true}
-        , {"schema":"1","name":"items","insertable":true}
-        , {"schema":"1","name":"json","insertable":true}
-        , {"schema":"1","name":"materialized_view","insertable":false}
-        , {"schema":"1","name":"menagerie","insertable":true}
-        , {"schema":"1","name":"no_pk","insertable":true}
-        , {"schema":"1","name":"nullable_integer","insertable":true}
-        , {"schema":"1","name":"projects","insertable":true}
-        , {"schema":"1","name":"projects_view","insertable":true}
-        , {"schema":"1","name":"simple_pk","insertable":true}
-        , {"schema":"1","name":"tasks","insertable":true}
-        , {"schema":"1","name":"tsearch","insertable":true}
-        , {"schema":"1","name":"users","insertable":true}
-        , {"schema":"1","name":"users_projects","insertable":true}
-        , {"schema":"1","name":"users_tasks","insertable":true}
+          {"schema":"test","name":"auto_incrementing_pk","insertable":true}
+        , {"schema":"test","name":"clients","insertable":true}
+        , {"schema":"test","name":"comments","insertable":true}
+        , {"schema":"test","name":"complex_items","insertable":true}
+        , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"has_count_column","insertable":false}
+        , {"schema":"test","name":"has_fk","insertable":true}
+        , {"schema":"test","name":"insertable_view_with_join","insertable":true}
+        , {"schema":"test","name":"items","insertable":true}
+        , {"schema":"test","name":"json","insertable":true}
+        , {"schema":"test","name":"materialized_view","insertable":false}
+        , {"schema":"test","name":"menagerie","insertable":true}
+        , {"schema":"test","name":"no_pk","insertable":true}
+        , {"schema":"test","name":"nullable_integer","insertable":true}
+        , {"schema":"test","name":"projects","insertable":true}
+        , {"schema":"test","name":"projects_view","insertable":true}
+        , {"schema":"test","name":"simple_pk","insertable":true}
+        , {"schema":"test","name":"tasks","insertable":true}
+        , {"schema":"test","name":"tsearch","insertable":true}
+        , {"schema":"test","name":"users","insertable":true}
+        , {"schema":"test","name":"users_projects","insertable":true}
+        , {"schema":"test","name":"users_tasks","insertable":true}
         ] |]
         {matchStatus = 200}
 
@@ -45,7 +45,7 @@ spec = around withApp $ do
 
       request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [
-            {"schema":"1","name":"authors_only","insertable":true}
+            {"schema":"test","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
 
@@ -61,7 +61,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 32,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "integer",
             "type": "integer",
             "maxLen": null,
@@ -74,7 +74,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 53,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "double",
             "type": "double precision",
             "maxLen": null,
@@ -86,7 +86,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "varchar",
             "type": "character varying",
             "maxLen": null,
@@ -99,7 +99,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "boolean",
             "type": "boolean",
             "maxLen": null,
@@ -111,7 +111,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "date",
             "type": "date",
             "maxLen": null,
@@ -123,7 +123,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "money",
             "type": "money",
             "maxLen": null,
@@ -136,7 +136,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "enum",
             "type": "USER-DEFINED",
             "maxLen": null,
@@ -166,7 +166,7 @@ spec = around withApp $ do
                "default":null,
                "precision":64,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"id",
                "type":"bigint",
                "maxLen":null,
@@ -182,7 +182,7 @@ spec = around withApp $ do
                "default":null,
                "precision":32,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"auto_inc_fk",
                "type":"integer",
                "maxLen":null,
@@ -198,7 +198,7 @@ spec = around withApp $ do
                "default":null,
                "precision":null,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"simple_fk",
                "type":"character varying",
                "maxLen":255,
@@ -211,7 +211,7 @@ spec = around withApp $ do
                "default":null,
                "precision":null,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"nullable_string",
                "type":"character varying",
                "maxLen":null,
@@ -224,7 +224,7 @@ spec = around withApp $ do
                "default":null,
                "precision":null,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"non_nullable_string",
                "type":"character varying",
                "maxLen":null,
@@ -237,7 +237,7 @@ spec = around withApp $ do
                "default":null,
                "precision":null,
                "updatable":false,
-               "schema":"1",
+               "schema":"test",
                "name":"inserted_at",
                "type":"timestamp with time zone",
                "maxLen":null,
@@ -261,7 +261,7 @@ spec = around withApp $ do
             "default": "nextval('\"1\".has_fk_id_seq'::regclass)",
             "precision": 64,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "id",
             "type": "bigint",
             "maxLen": null,
@@ -273,7 +273,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 32,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "auto_inc_fk",
             "type": "integer",
             "maxLen": null,
@@ -285,7 +285,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "simple_fk",
             "type": "character varying",
             "maxLen": 255,
