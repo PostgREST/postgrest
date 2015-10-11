@@ -45,7 +45,7 @@ data AppConfig = AppConfig {
 
 argParser :: Parser AppConfig
 argParser = AppConfig
-  <$> argument str (help "database connection string" <> metavar "URL")
+  <$> argument str (help "database connection string" <> metavar "STRING")
 
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
   <*> strOption    (long "anonymous"  <> short 'a' <> help "postgres role to use for non-authenticated requests" <> metavar "ROLE")
