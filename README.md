@@ -24,9 +24,9 @@ your own projects.
 Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest)) and invoke like so:
 
 ```bash
-postgrest postgres://postgres:foobar@localhost:5432/my_db
-          --port 3000          \
-          --schema public      \
+postgrest postgres://postgres:foobar@localhost:5432/my_db \
+          --port 3000 \
+          --schema public \
           --anonymous postgres \
           --pool 200
 ```
