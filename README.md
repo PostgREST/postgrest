@@ -24,12 +24,15 @@ your own projects.
 Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest)) and invoke like so:
 
 ```bash
-postgrest  --db-host localhost  --db-port 5432     \
-           --db-name my_db      --db-user postgres \
-           --db-pass foobar     --db-pool 200      \
-           --anonymous postgres --port 3000        \
-           --schema public
+postgrest postgres://postgres:foobar@localhost:5432/my_db \
+          --port 3000 \
+          --schema public \
+          --anonymous postgres \
+          --pool 200
 ```
+
+For more information on valid connection strings see the
+[Postgres docs](http://www.postgresql.org/docs/9.4/static/libpq-connect.html#LIBPQ-CONNSTRING).
 
 In production include the `--secure` option which redirects all
 requests to HTTPS. Note that PostgREST does not handle the SSL
