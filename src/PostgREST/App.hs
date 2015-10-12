@@ -62,7 +62,8 @@ app dbstructure conf reqBody req =
   case (path, verb) of
 
     ([], _) -> do
-      let body = encode $ filter ((cs schema==).tableSchema) allTabs
+      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
+      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
