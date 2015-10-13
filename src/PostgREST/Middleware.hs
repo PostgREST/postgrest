@@ -33,7 +33,7 @@ import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
 import           Prelude
 
-authenticated :: forall s. AppConfig -> Text ->
+authenticated :: forall s. AppConfig -> DbRole ->
                  (DbRole -> Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
 authenticated conf authenticator app req = do
