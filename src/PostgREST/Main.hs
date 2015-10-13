@@ -66,7 +66,9 @@ main = do
   either hasqlError
     (\supported ->
       unless supported $
-        error "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
+        error (
+          "Cannot run in this PostgreSQL version, PostgREST needs at least "
+          <> show minimumPgVersion)
     ) supportedOrError
 
   roleOrError <- H.session pool $ do
