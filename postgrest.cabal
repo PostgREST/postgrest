@@ -37,6 +37,7 @@ executable postgrest
                      , case-insensitive
                      , scientific, time
                      , aeson >= 0.8, network >= 2.6
+                     , aeson-pretty >= 0.7 && < 0.8
                      , bytestring, text, split, string-conversions
                      , stringsearch
                      , containers, unordered-containers

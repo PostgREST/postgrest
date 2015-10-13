@@ -57,7 +57,7 @@ import           PostgREST.Types
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> Text -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
+app :: DbStructure -> AppConfig -> DbRole -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf authenticator reqBody dbrole req =
   case (path, verb) of
 
