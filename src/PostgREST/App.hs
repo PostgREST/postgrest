@@ -92,7 +92,7 @@ app dbstructure conf reqBody dbrole req =
                     $ qs
                   )
             row <- H.maybeEx q
-            let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe Text) row
+            let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString) row
                 to = from+queryTotal-1
                 contentRange = contentRangeH from to tableTotal
                 status = rangeStatus from to tableTotal
@@ -107,7 +107,7 @@ app dbstructure conf reqBody dbrole req =
                   "/" <> cs table <>
                     if Prelude.null canonical then "" else "?" <> cs canonical
                 )
-              ] (cs $ fromMaybe "[]" body)
+              ] (fromMaybe "[]" body)
 
         where
             from = fromMaybe 0 $ rangeOffset <$> range
