@@ -10,11 +10,9 @@ import           Data.String.Conversions       (cs)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
-import           Network.HTTP.Types            (RequestHeaders)
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization,
                                                 hLocation)
-import           Network.HTTP.Types.Status     (status301, status400, status401,
-                                                status415)
+import           Network.HTTP.Types.Status     (status301, status400, status415)
 import           Network.URI                   (URI (..), parseURI)
 import           Network.Wai                   (Application, Request (..),
                                                 Response, isSecure, rawPathInfo,
@@ -24,14 +22,11 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           Codec.Binary.Base64.String    (decode)
 import           PostgREST.App                 (contentTypeForAccept)
-import           PostgREST.Auth                (DbRole, LoginAttempt (..),
-                                                setRole, setJWTEnv)
+import           PostgREST.Auth                (setRole, setJWTEnv)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
 import           Prelude hiding(concat)
-import qualified Web.JWT                 as JWT
 
 import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B

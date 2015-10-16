@@ -1,19 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
-module PostgREST.Auth where
+module PostgREST.Auth (
+    DbRole
+  , LoginAttempt (..)
+  , setRole
+  , setJWTEnv
+  ) where
 
 import           Control.Applicative
 import           Control.Monad           (mzero)
 
 import           Data.Aeson
-import           Data.Map (lookup, fromList, toList)
+import           Data.Map (fromList, toList)
 import           Data.Monoid
 import           Data.String.Conversions (cs)
-import           Data.Maybe (isNothing)
 import           Data.Text (Text)
-import qualified Data.Vector             as V
-import qualified Hasql                   as H
-import qualified Hasql.Backend           as B
-import qualified Hasql.Postgres          as P
 import           PostgREST.PgQuery       (pgFmtLit)
 import           Prelude 
 import qualified Web.JWT                 as JWT
@@ -57,8 +57,9 @@ setDBEnv maybeClaims =
   (map setVar . toList) <$> maybeClaims
   where
     setVar ("role", String val) = setRole val
-    setVar (key, String val) = "set local postgrest." <> key <> " = " <> cs (pgFmtLit val) <> ";"
+    setVar (key, String val) = "set local postgrest.claims" <> key <> " = " <> cs (pgFmtLit val) <> ";"
 
+setRole :: Text -> Text
 setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
 
 jwtClaims :: Text -> Text -> Maybe JWT.ClaimsMap

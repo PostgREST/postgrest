@@ -46,7 +46,6 @@ import qualified Hasql                     as H
 import qualified Hasql.Backend             as B
 import qualified Hasql.Postgres            as P
 
-import           PostgREST.Auth
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.PgQuery
