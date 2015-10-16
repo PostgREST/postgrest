@@ -6,7 +6,6 @@ module PostgREST.App (
 , isSqlError
 , contentTypeForAccept
 , jsonH
-, requestedSchema
 , TableOptions(..)
 ) where
 
@@ -29,7 +28,6 @@ import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
-import           Text.Regex.TDFA           ((=~))
 
 import           Text.Parsec.Error
 
@@ -59,11 +57,12 @@ import           PostgREST.Types
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody dbrole req =
+app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf reqBody req =
   case (path, verb) of
 
     ([], _) -> do
+      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
       let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
@@ -132,41 +131,6 @@ app dbstructure conf reqBody dbrole req =
             countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery
 
-
-    (["postgrest", "users"], "POST") -> do
-      let user = decode reqBody :: Maybe AuthUser
-
-      case user of
-        Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("message", String "Failed to parse user.")]
-        Just u -> do
-          _ <- addUser (cs $ userId u)
-            (cs $ userPass u) (cs <$> userRole u)
-          return $ responseLBS status201
-            [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
-            ] ""
-
-    (["postgrest", "tokens"], "POST") ->
-      case jwtSecret of
-        "secret" -> return $ responseLBS status500 [jsonH] $
-          encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
-        _ -> do
-          let user = decode reqBody :: Maybe AuthUser
-
-          case user of
-            Nothing -> return $ responseLBS status400 [jsonH] $
-              encode . object $ [("message", String "Failed to parse user.")]
-            Just u -> do
-              setRole authenticator
-              login <- signInRole (cs $ userId u) (cs $ userPass u)
-              case login of
-                LoginSuccess role uid ->
-                  return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
-                _  -> return $ responseLBS status401 [jsonH] $
-                  encode . object $ [("message", String "Failed authentication.")]
-
     ([table], "POST") -> do
       let qt = qualify table
           echoRequested = hasPrefer "return=representation"
@@ -216,7 +180,7 @@ app dbstructure conf reqBody dbrole req =
 
       -- check that proc exists
       -- check that arg names are all specified
-      -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
+      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -296,9 +260,8 @@ app dbstructure conf reqBody dbrole req =
     lookupHeader  = flip lookup hdrs
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
-    schema        = requestedSchema (cs $ configV1Schema conf) accept
-    authenticator = cs $ configDbUser conf
-    jwtSecret     = cs $ configJwtSecret conf
+    schema        = cs $ configSchema conf
+    jwtSecret     = (cs $ configJwtSecret conf) :: Text
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept
@@ -328,17 +291,6 @@ contentRangeH from to total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = from <= to
-
-requestedSchema :: Text -> Maybe BS.ByteString -> Text
-requestedSchema v1schema accept =
-  case verStr of
-    Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
-    _ -> v1schema
-
-  where
-    verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
-    verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
-
 
 jsonMT :: BS.ByteString
 jsonMT = "application/json"

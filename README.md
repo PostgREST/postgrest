@@ -24,12 +24,15 @@ your own projects.
 Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest)) and invoke like so:
 
 ```bash
-postgrest  --db-host localhost  --db-port 5432     \
-           --db-name my_db      --db-user postgres \
-           --db-pass foobar     --db-pool 200      \
-           --anonymous postgres --port 3000        \
-           --v1schema public
+postgrest postgres://postgres:foobar@localhost:5432/my_db \
+          --port 3000 \
+          --schema public \
+          --anonymous postgres \
+          --pool 200
 ```
+
+For more information on valid connection strings see the
+[Postgres docs](http://www.postgresql.org/docs/9.4/static/libpq-connect.html#LIBPQ-CONNSTRING).
 
 In production include the `--secure` option which redirects all
 requests to HTTPS. Note that PostgREST does not handle the SSL
@@ -100,13 +103,14 @@ guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
 ### Versioning
 
 A robust long-lived API needs the freedom to exist in multiple
-versions. PostgREST supports versioning through HTTP content
-negotiation. Requests for a certain version translate into switching
-which database schema to search for tables. PostgreSQL schema search
-paths allow tables from earlier versions to be reused verbatim in
-later versions.
+versions. Therefore it is a best practice that you version the database
+schema exposed to PostgREST (e.g. `public1` or `api2`). This way you
+future proof your API by allowing it to be backwards compatible when
+you want to publish breaking API changes (e.g. a later version could
+be `public2` or `api3`).
 
-To learn more, see the [guide to versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning).
+For routing to different versions of a PostgREST API use a request
+proxy (such as [nginx](http://nginx.org)).
 
 ### Self-documention
 
@@ -153,7 +157,6 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 ### Guides
 
 * [Routing](https://github.com/begriffs/postgrest/wiki/Routing)
-* [Versioning](https://github.com/begriffs/postgrest/wiki/API-Versioning)
 * [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
 * [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
 * [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)

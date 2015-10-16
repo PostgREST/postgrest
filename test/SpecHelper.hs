@@ -20,6 +20,7 @@ import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
+import Data.Functor.Identity
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
@@ -33,27 +34,30 @@ import PostgREST.Error(errResponse)
 import PostgREST.PgStructure
 import PostgREST.Types
 
+dbString :: String
+dbString = "postgres://postgrest_test@localhost:5432/postgrest_test"
+
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig "postgrest_test" 5432 "postgrest_test" "" "localhost" 3000 "postgrest_anonymous" False 10 "1" "safe"
+cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" False "safe" 10
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: P.Settings
-pgSettings = P.ParamSettings (cs $ configDbHost cfg)
-                             (fromIntegral $ configDbPort cfg)
-                             (cs $ configDbUser cfg)
-                             (cs $ configDbPass cfg)
-                             (cs $ configDbName cfg)
+pgSettings = P.StringSettings $ cs dbString
 
 withApp :: ActionWith Application -> IO ()
 withApp perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
+
+  Right authenticator <- H.session pool $ do
+    Identity (role :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SELECT SESSION_USER|]
+    return role
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
@@ -66,7 +70,7 @@ withApp perform = do
   dbstructure <- case metadata of
     Left e -> fail $ show e
     Right (tabs, rels, cols, keys) ->
-      return $ DbStructure {
+      return DbStructure {
           tables=tabs
         , columns=cols
         , relations=rels
@@ -76,7 +80,7 @@ withApp perform = do
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ authenticated cfg (app dbstructure cfg body) req
+      $ runWithClaims cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False
@@ -88,7 +92,7 @@ resetDb = do
     <- H.acquirePool pgSettings testPoolOpts
   void . liftIO $ H.session pool $
     H.tx Nothing $ do
-      H.unitEx [H.stmt| drop schema if exists "1" cascade |]
+      H.unitEx [H.stmt| drop schema if exists test cascade |]
       H.unitEx [H.stmt| drop schema if exists private cascade |]
       H.unitEx [H.stmt| drop schema if exists postgrest cascade |]
 
@@ -129,7 +133,7 @@ clearTable :: Text -> IO ()
 clearTable table = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ B.Stmt ("delete from \"1\"."<>table) V.empty True
+    H.unitEx $ B.Stmt ("delete from test."<>table) V.empty True
 
 createItems :: Int -> IO ()
 createItems n = do
@@ -137,7 +141,7 @@ createItems n = do
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx stmts
-    stmts = map [H.stmt|insert into "1".items (id) values (?)|] [1..n]
+    stmts = map [H.stmt|insert into test.items (id) values (?)|] [1..n]
 
 createComplexItems :: IO ()
 createComplexItems = do
@@ -145,11 +149,11 @@ createComplexItems = do
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx stmts
-    stmts = getZipList $ [H.stmt|insert into "1".complex_items (id, name, settings) values (?,?,?)|]
+    stmts = getZipList $ [H.stmt|insert into test.complex_items (id, name, settings) values (?,?,?)|]
         <$> ZipList ([1..3]::[Int])
         <*> ZipList (["One", "Two", "Three"]::[Text])
-        <*> ZipList ([jobj,jobj,jobj])
-    jobj = (J.object [("foo", J.object [("int", J.Number 1),("bar", J.String "baz")])])
+        <*> ZipList [jobj,jobj,jobj]
+    jobj = J.object [("foo", J.object [("int", J.Number 1),("bar", J.String "baz")])]
 
 createNulls :: Int -> IO ()
 createNulls n = do
@@ -157,14 +161,14 @@ createNulls n = do
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx (stmt':stmts)
-    stmt' = [H.stmt|insert into "1".no_pk (a,b) values (null,null)|]
-    stmts = map [H.stmt|insert into "1".no_pk (a,b) values (?,0)|] [1..n]
+    stmt' = [H.stmt|insert into test.no_pk (a,b) values (null,null)|]
+    stmts = map [H.stmt|insert into test.no_pk (a,b) values (?,0)|] [1..n]
 
 createNullInteger :: IO ()
 createNullInteger = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ [H.stmt| insert into "1".nullable_integer (a) values (null) |]
+    H.unitEx $ [H.stmt| insert into "test".nullable_integer (a) values (null) |]
 
 createLikableStrings :: IO ()
 createLikableStrings = do
@@ -174,7 +178,7 @@ createLikableStrings = do
     H.unitEx $ insertSimplePk "xYYx" "v"
   where
     insertSimplePk :: Text -> Text -> H.Stmt P.Postgres
-    insertSimplePk = [H.stmt|insert into "1".simple_pk (k, extra) values (?,?)|]
+    insertSimplePk = [H.stmt|insert into test.simple_pk (k, extra) values (?,?)|]
 
 createJsonData :: IO ()
 createJsonData = do
@@ -182,6 +186,6 @@ createJsonData = do
   void . liftIO $ H.session pool $ H.tx Nothing $
     H.unitEx $
       [H.stmt|
-        insert into "1".json (data) values (?)
+        insert into test.json (data) values (?)
       |]
       (J.object [("foo", J.object [("bar", J.String "baz")])])

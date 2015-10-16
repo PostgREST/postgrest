@@ -34,34 +34,25 @@ import           Prelude
 
 -- | Data type to store all command line options
 data AppConfig = AppConfig {
-    configDbName    :: String
-  , configDbPort    :: Int
-  , configDbUser    :: String
-  , configDbPass    :: String
-  , configDbHost    :: String
-
+    configDatabase  :: String
   , configPort      :: Int
   , configAnonRole  :: String
+  , configSchema    :: String
   , configSecure    :: Bool
-  , configPool      :: Int
-  , configV1Schema  :: String
   , configJwtSecret :: String
+  , configPool      :: Int
   }
 
 argParser :: Parser AppConfig
 argParser = AppConfig
-  <$> strOption (long "db-name" <> short 'd' <> metavar "NAME" <> help "name of database")
-  <*> option auto (long "db-port" <> short 'P' <> metavar "PORT" <> value 5432 <> help "postgres server port" <> showDefault)
-  <*> strOption (long "db-user" <> short 'U' <> metavar "ROLE" <> help "postgres authenticator role")
-  <*> strOption (long "db-pass" <> metavar "PASS" <> value "" <> help "password for authenticator role")
-  <*> strOption (long "db-host" <> metavar "HOST" <> value "localhost" <> help "postgres server hostname" <> showDefault)
+  <$> argument str (help "database connection string" <> metavar "STRING")
 
-  <*> option auto (long "port" <> short 'p' <> metavar "PORT" <> value 3000 <> help "port number on which to run HTTP server" <> showDefault)
-  <*> strOption (long "anonymous" <> short 'a' <> metavar "ROLE" <> help "postgres role to use for non-authenticated requests")
-  <*> switch (long "secure" <> short 's' <> help "Redirect all requests to HTTPS")
-  <*> option auto (long "db-pool" <> metavar "COUNT" <> value 10 <> help "Max connections in database pool" <> showDefault)
-  <*> strOption (long "v1schema" <> metavar "NAME" <> value "1" <> help "Schema to use for nonspecified version (or explicit v1)" <> showDefault)
-  <*> strOption (long "jwt-secret" <> metavar "SECRET" <> value "secret" <> help "Secret used to encrypt and decrypt JWT tokens)" <> showDefault)
+  <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
+  <*> strOption    (long "anonymous"  <> short 'a' <> help "postgres role to use for non-authenticated requests" <> metavar "ROLE")
+  <*> strOption    (long "schema"     <> short 'S' <> help "schema to use for API routes" <> metavar "NAME" <> value "1" <> showDefault)
+  <*> switch       (long "secure"     <> short 's' <> help "redirect all requests to HTTPS")
+  <*> strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault)
+  <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing

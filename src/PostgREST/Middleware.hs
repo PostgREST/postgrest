@@ -27,47 +27,31 @@ import           Network.Wai.Middleware.Static (only, staticPolicy)
 import           Codec.Binary.Base64.String    (decode)
 import           PostgREST.App                 (contentTypeForAccept)
 import           PostgREST.Auth                (DbRole, LoginAttempt (..),
-                                                setRole, setUserId, signInRole,
-                                                signInWithJWT)
+                                                setRole, setJWTEnv)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
-import           Prelude
+import           Prelude hiding(concat)
+import qualified Web.JWT                 as JWT
 
-authenticated :: forall s. AppConfig ->
-                 (DbRole -> Request -> H.Tx P.Postgres s Response) ->
+import qualified Data.Vector             as V
+import qualified Hasql.Backend           as B
+
+runWithClaims :: forall s. AppConfig ->
+                 (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-authenticated conf app req = do
-  attempt <- httpRequesterRole (requestHeaders req)
-  case attempt of
-    MalformedAuth ->
-      return $ responseLBS status400 [] "Malformed basic auth header"
-    LoginFailed ->
-      return $ responseLBS status401 [] "Invalid username or password"
-    LoginSuccess role uid -> if role /= currentRole then runInRole role uid else app currentRole req
-    NoCredentials         -> if anon /= currentRole then runInRole anon "" else app currentRole req
-
+runWithClaims conf app req = do
+    H.unitEx $ B.Stmt env V.empty True
+    app req
  where
-   jwtSecret = cs $ configJwtSecret conf
-   currentRole = cs $ configDbUser conf
+   hdrs = requestHeaders req
+   jwtSecret = (cs $ configJwtSecret conf) :: Text
+   auth = fromMaybe "" $ lookup hAuthorization hdrs
    anon = cs $ configAnonRole conf
-   httpRequesterRole :: RequestHeaders -> H.Tx P.Postgres s LoginAttempt
-   httpRequesterRole hdrs = do
-    let auth = fromMaybe "" $ lookup hAuthorization hdrs
-    case split (==' ') (cs auth) of
-      ("Basic" : b64 : _) ->
-        case split (==':') (cs . decode . cs $ b64) of
-          (u:p:_) -> signInRole u p
-          _ -> return MalformedAuth
-      ("Bearer" : jwt : _) ->
-        return $ signInWithJWT jwtSecret jwt
-      _ -> return NoCredentials
-
-   runInRole :: Text -> Text -> H.Tx P.Postgres s Response
-   runInRole r uid = do
-     setUserId uid
-     setRole r
-     app r req
-
+   jwtEnv =
+     case split (==' ') (cs auth) of
+       ("Bearer" : jwt : _) -> fromMaybe [] (setJWTEnv jwtSecret jwt)
+       _ -> []
+   env = concat $ setRole anon : jwtEnv
 
 redirectInsecure :: Application -> Application
 redirectInsecure app req respond = do

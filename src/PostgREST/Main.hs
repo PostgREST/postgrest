@@ -1,38 +1,40 @@
 module Main where
 
 
+import           PostgREST.App
+import           PostgREST.Config                     (AppConfig (..),
+                                                       minimumPgVersion,
+                                                       prettyVersion,
+                                                       readOptions)
+import           PostgREST.Error                      (errResponse, PgError)
+import           PostgREST.Middleware
 import           PostgREST.PgStructure
 import           PostgREST.Types
-import           Network.Wai
-
-import           PostgREST.App
-import           PostgREST.Error                      (errResponse)
-import           PostgREST.Middleware
 
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
+import           Data.Aeson.Encode.Pretty             (encodePretty)
 import           Data.Functor.Identity
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import           Data.Text                            (Text)
 import qualified Hasql                                as H
 import qualified Hasql.Postgres                       as P
+import           Network.Wai
 import           Network.Wai.Handler.Warp             hiding (Connection)
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 
-import           PostgREST.Config                     (AppConfig (..),
-                                                       prettyVersion,
-                                                       readOptions,
-                                                       minimumPgVersion)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
-  Identity (row :: Text) <- H.tx Nothing $ H.singleEx $ [H.stmt|SHOW server_version_num|]
+  Identity (row :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SHOW server_version_num|]
   return $ read (cs row) >= minimumPgVersion
+
+hasqlError :: PgError -> IO a
+hasqlError = error . cs . encodePretty
 
 main :: IO ()
 main = do
@@ -50,11 +52,7 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = P.ParamSettings (cs $ configDbHost conf)
-                     (fromIntegral $ configDbPort conf)
-                     (cs $ configDbUser conf)
-                     (cs $ configDbPass conf)
-                     (cs $ configDbName conf)
+  let pgSettings = P.StringSettings $ cs (configDatabase conf)
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
@@ -65,11 +63,19 @@ main = do
   pool :: H.Pool P.Postgres <- H.acquirePool pgSettings poolSettings
 
   supportedOrError <- H.session pool isServerVersionSupported
-  either (fail . show)
+  either hasqlError
     (\supported ->
       unless supported $
-        fail "Cannot run in this PostgreSQL version, PostgREST needs at least 9.2.0"
+        error (
+          "Cannot run in this PostgreSQL version, PostgREST needs at least "
+          <> show minimumPgVersion)
     ) supportedOrError
+
+  roleOrError <- H.session pool $ do
+    Identity (role :: Text) <- H.tx Nothing $ H.singleEx
+      [H.stmt|SELECT SESSION_USER|]
+    return role
+  authenticator <- either hasqlError return roleOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
@@ -79,19 +85,18 @@ main = do
     keys <- allPrimaryKeys
     return (tabs, rels, cols, keys)
 
-  dbstructure <- case metadata of
-    Left e -> fail $ show e
-    Right (tabs, rels, cols, keys) ->
+  dbstructure <- either hasqlError
+    (\(tabs, rels, cols, keys) ->
       return DbStructure {
           tables=tabs
         , columns=cols
         , relations=rels
         , primaryKeys=keys
         }
-
+    ) metadata
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      authenticated conf (app dbstructure conf body) req
+      runWithClaims conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
