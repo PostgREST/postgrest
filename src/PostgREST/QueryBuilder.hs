@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module PostgREST.QueryBuilder
 where
 
@@ -20,17 +21,19 @@ findRelation :: [Relation] -> Text -> Text -> Text -> Maybe Relation
 findRelation allRelations s t1 t2 =
   find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
 
+
+
 addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
-addRelations schema allRelations parentNode node@(Node query@(Select {mainTable=table}) forest) =
+addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
   case parentNode of
-    Nothing -> Node query{relation=Nothing} <$> updatedForest
-    (Just (Node (Select{mainTable=parentTable}) _)) -> Node <$> (addRel query <$> rel) <*> updatedForest
+    Nothing -> Node (query, (table, Nothing)) <$> updatedForest
+    (Just (Node (_, (parentTable, _)) _)) -> Node <$> (addRel n <$> rel) <*> updatedForest
       where
         rel = note ("no relation between " <> table <> " and " <> parentTable)
             $  findRelation allRelations schema table parentTable
            <|> findRelation allRelations schema parentTable table
-        addRel :: Query -> Relation -> Query
-        addRel q r = q{relation = Just r}
+        addRel :: (Query, (NodeName, Maybe Relation)) -> Relation -> (Query, (NodeName, Maybe Relation))
+        addRel (q, (t, _)) r = (q, (t, Just r))
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
@@ -45,31 +48,31 @@ getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
     toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
 
 addJoinConditions :: Text -> [Column] -> ApiRequest -> Either Text ApiRequest
-addJoinConditions schema allColumns (Node query@(Select{relation=r}) forest) =
+addJoinConditions schema allColumns (Node (query, (t, r)) forest) =
   case r of
-    Nothing -> Node updatedQuery  <$> updatedForest -- this is the root node
-    Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel)) <$> updatedForest
-    Just (Relation{relType=Parent}) -> Node updatedQuery <$> updatedForest
+    Nothing -> Node (updatedQuery, (t, r))  <$> updatedForest -- this is the root node
+    Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(t,r)) <$> updatedForest
+    Just (Relation{relType=Parent}) -> Node (updatedQuery, (t,r)) <$> updatedForest
     Just rel@(Relation{relType=Many, relLTable=(Just linkTable)}) ->
-      Node <$> pure qq <*> updatedForest
+      Node (qq, (t, r)) <$> updatedForest
       where
          q = addCond updatedQuery (getJoinConditions rel)
-         qq = q{joinTables=linkTable:joinTables q}
+         qq = q{from=linkTable:from q}
     _ -> Left "unknow relation"
   where
     -- add parentTable and parentJoinConditions to the query
-    updatedQuery = foldr (flip addCond) (query{joinTables = parentTables ++ joinTables query}) parentJoinConditions
+    updatedQuery = foldr (flip addCond) (query{from = parentTables ++ from query}) parentJoinConditions
       where
         parentJoinConditions = map (getJoinConditions.snd) parents
         parentTables = map fst parents
         parents = mapMaybe (getParents.rootLabel) forest
-        getParents qq@(Select{relation=(Just rel@(Relation{relType=Parent}))}) = Just (mainTable qq, rel)
+        getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema allColumns) forest
-    addCond q con = q{filters=con ++ filters q}
+    addCond q con = q{where_=con ++ where_ q}
 
 requestToCountQuery :: Text -> ApiRequest -> PStmt
-requestToCountQuery schema (Node (Select mainTbl _ _ conditions _ _) _) =
+requestToCountQuery schema (Node (Select _ _ conditions _, (mainTbl, _)) _) =
   B.Stmt query V.empty True
   where
     query = Data.Text.unwords [
@@ -84,45 +87,45 @@ requestToCountQuery schema (Node (Select mainTbl _ _ conditions _ _) _) =
         fn  (Filter{value=VForeignKey _ _}) = False
 
 requestToQuery :: Text -> ApiRequest -> PStmt
-requestToQuery schema (Node (Select mainTbl colSelects tbls conditions ord _) forest) =
+requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
   orderT (fromMaybe [] ord)  query
   where
     query = B.Stmt qStr V.empty True
     qStr = Data.Text.unwords [
       ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
       "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
-      "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) (mainTbl:tbls)),
+      "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) tbls),
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions
       ]
     emptyOnNull val x = if null x then "" else val
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree Query -> ([Text], [Text]) -> ([Text], [Text])
-    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation {relType=Child}))}) forst) (w,s) = (w,sel:s)
+    getQueryParts :: Tree ApiNode -> ([Text], [Text]) -> ([Text], [Text])
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
+           where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
 
-    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation{relType=Parent}))}) forst) (w,s) = (wit:w,sel:s)
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
-          where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
+          where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
 
-    getQueryParts (Node q@(Select{mainTable=table, relation=(Just (Relation {relType=Many}))}) forst) (w,s) = (w,sel:s)
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where (B.Stmt subquery _ _) = requestToQuery schema (Node q forst)
+           where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
 
     -- the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
-    getQueryParts (Node (Select{relation=Nothing}) _) _ = undefined
+    getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
 
 pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
 pgFmtCondition table (Filter (col,jp) ops val) =

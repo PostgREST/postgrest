@@ -75,18 +75,18 @@ type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
 type Cast = Text
+type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
 data Query = Select {
-  mainTable::Text
-, fields::[SelectItem]
-, joinTables::[Text]
-, filters::[Filter]
+  select::[SelectItem]
+, from::[Text]
+, where_::[Filter]
 , order::Maybe [OrderTerm]
-, relation::Maybe Relation
 } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
-type ApiRequest = Tree Query
+type ApiNode = (Query, (NodeName, Maybe Relation))
+type ApiRequest = Tree ApiNode
 
 
 instance ToJSON Column where

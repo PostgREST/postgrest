@@ -91,9 +91,9 @@ app dbstructure conf authenticator reqBody dbrole req =
                   )
             row <- H.maybeEx q
             let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString) row
-                to = from+queryTotal-1
-                contentRange = contentRangeH from to tableTotal
-                status = rangeStatus from to tableTotal
+                to = frm+queryTotal-1
+                contentRange = contentRangeH frm to tableTotal
+                status = rangeStatus frm to tableTotal
                 canonical = urlEncodeVars
                   . sortBy (comparing fst)
                   . map (join (***) cs)
@@ -108,7 +108,7 @@ app dbstructure conf authenticator reqBody dbrole req =
               ] (fromMaybe "[]" body)
 
         where
-            from = fromMaybe 0 $ rangeOffset <$> range
+            frm = fromMaybe 0 $ rangeOffset <$> range
             apiRequest = first formatParserError (parseGetRequest req)
                      >>= first formatRelationError . addRelations schema allRels Nothing
                      >>= addJoinConditions schema allCols
@@ -309,22 +309,22 @@ isSqlError = undefined
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
-rangeStatus from to (Just total)
-  | from > total            = status416
-  | (1 + to - from) < total = status206
+rangeStatus frm to (Just total)
+  | frm > total            = status416
+  | (1 + to - frm) < total = status206
   | otherwise               = status200
 
 contentRangeH :: Int -> Int -> Maybe Int -> Header
-contentRangeH from to total =
+contentRangeH frm to total =
     ("Content-Range", cs headerValue)
     where
       headerValue   = rangeString <> "/" <> totalString
       rangeString
-        | totalNotZero && fromInRange = show from <> "-" <> cs (show to)
+        | totalNotZero && fromInRange = show frm <> "-" <> cs (show to)
         | otherwise = "*"
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
-      fromInRange   = from <= to
+      fromInRange   = frm <= to
 
 jsonMT :: BS.ByteString
 jsonMT = "application/json"
