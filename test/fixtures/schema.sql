@@ -5,10 +5,10 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 
-CREATE SCHEMA "1";
+CREATE SCHEMA test;
 
 
-ALTER SCHEMA "1" OWNER TO postgrest_test;
+ALTER SCHEMA test OWNER TO postgrest_test;
 
 
 CREATE SCHEMA postgrest;
@@ -30,7 +30,7 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
 
 CREATE TYPE enum_menagerie_type AS ENUM (
@@ -39,7 +39,7 @@ CREATE TYPE enum_menagerie_type AS ENUM (
 );
 
 
-ALTER TYPE "1".enum_menagerie_type OWNER TO postgrest_test;
+ALTER TYPE test.enum_menagerie_type OWNER TO postgrest_test;
 
 SET search_path = postgrest, pg_catalog;
 
@@ -83,18 +83,18 @@ $$;
 
 ALTER FUNCTION postgrest.set_authors_only_owner() OWNER TO postgrest_test;
 
-CREATE FUNCTION "1".insert_insertable_view_with_join() RETURNS trigger
+CREATE FUNCTION test.insert_insertable_view_with_join() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  INSERT INTO "1".auto_incrementing_pk (nullable_string, non_nullable_string) VALUES (NEW.nullable_string, NEW.non_nullable_string);
+  INSERT INTO test.auto_incrementing_pk (nullable_string, non_nullable_string) VALUES (NEW.nullable_string, NEW.non_nullable_string);
   RETURN NEW;
 end;
 $$;
 
-ALTER FUNCTION "1".insert_insertable_view_with_join() OWNER TO postgrest_test;
+ALTER FUNCTION test.insert_insertable_view_with_join() OWNER TO postgrest_test;
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
 SET default_tablespace = '';
 
@@ -107,7 +107,7 @@ CREATE TABLE authors_only (
 );
 
 
-ALTER TABLE "1".authors_only OWNER TO postgrest_test_author;
+ALTER TABLE test.authors_only OWNER TO postgrest_test_author;
 
 
 CREATE TABLE auto_incrementing_pk (
@@ -118,7 +118,7 @@ CREATE TABLE auto_incrementing_pk (
 );
 
 
-ALTER TABLE "1".auto_incrementing_pk OWNER TO postgrest_test;
+ALTER TABLE test.auto_incrementing_pk OWNER TO postgrest_test;
 
 
 CREATE SEQUENCE auto_incrementing_pk_id_seq
@@ -129,7 +129,7 @@ CREATE SEQUENCE auto_incrementing_pk_id_seq
     CACHE 1;
 
 
-ALTER TABLE "1".auto_incrementing_pk_id_seq OWNER TO postgrest_test;
+ALTER TABLE test.auto_incrementing_pk_id_seq OWNER TO postgrest_test;
 
 
 ALTER SEQUENCE auto_incrementing_pk_id_seq OWNED BY auto_incrementing_pk.id;
@@ -143,7 +143,7 @@ CREATE TABLE compound_pk (
 );
 
 
-ALTER TABLE "1".compound_pk OWNER TO postgrest_test;
+ALTER TABLE test.compound_pk OWNER TO postgrest_test;
 
 
 CREATE TABLE has_fk (
@@ -153,7 +153,7 @@ CREATE TABLE has_fk (
 );
 
 
-ALTER TABLE "1".has_fk OWNER TO postgrest_test;
+ALTER TABLE test.has_fk OWNER TO postgrest_test;
 
 
 CREATE SEQUENCE has_fk_id_seq
@@ -164,18 +164,18 @@ CREATE SEQUENCE has_fk_id_seq
     CACHE 1;
 
 
-ALTER TABLE "1".has_fk_id_seq OWNER TO postgrest_test;
+ALTER TABLE test.has_fk_id_seq OWNER TO postgrest_test;
 
 
 ALTER SEQUENCE has_fk_id_seq OWNED BY has_fk.id;
 
-CREATE MATERIALIZED VIEW "1".materialized_view AS
+CREATE MATERIALIZED VIEW test.materialized_view AS
  SELECT
     version();
 
-ALTER TABLE "1".materialized_view OWNER TO postgrest_test;
+ALTER TABLE test.materialized_view OWNER TO postgrest_test;
 
-CREATE VIEW "1".insertable_view_with_join AS
+CREATE VIEW test.insertable_view_with_join AS
  SELECT has_fk.id,
     has_fk.auto_inc_fk,
     has_fk.simple_fk,
@@ -186,12 +186,12 @@ CREATE VIEW "1".insertable_view_with_join AS
      JOIN auto_incrementing_pk USING (id));
 
 
-ALTER TABLE "1".insertable_view_with_join OWNER TO postgrest_test;
+ALTER TABLE test.insertable_view_with_join OWNER TO postgrest_test;
 
-CREATE VIEW "1".has_count_column AS
+CREATE VIEW test.has_count_column AS
  SELECT 1 AS count;
 
-ALTER TABLE "1".insertable_view_with_join OWNER TO postgrest_test;
+ALTER TABLE test.insertable_view_with_join OWNER TO postgrest_test;
 
 
 CREATE TABLE items (
@@ -199,7 +199,7 @@ CREATE TABLE items (
 );
 
 
-ALTER TABLE "1".items OWNER TO postgrest_test;
+ALTER TABLE test.items OWNER TO postgrest_test;
 
 CREATE TABLE complex_items (
     id bigint NOT NULL,
@@ -208,41 +208,41 @@ CREATE TABLE complex_items (
 );
 
 
-ALTER TABLE "1".complex_items OWNER TO postgrest_test;
+ALTER TABLE test.complex_items OWNER TO postgrest_test;
 
 --- Structure for testing table relations
 CREATE TABLE clients(
     id INT PRIMARY KEY     NOT NULL,
     name           TEXT    NOT NULL
 );
-ALTER TABLE "1".clients OWNER TO postgrest_test;
+ALTER TABLE test.clients OWNER TO postgrest_test;
 
 CREATE TABLE projects(
     id INT PRIMARY KEY     NOT NULL,
     name           TEXT    NOT NULL,
     client_id      INT     REFERENCES clients(id)
 );
-ALTER TABLE "1".projects OWNER TO postgrest_test;
+ALTER TABLE test.projects OWNER TO postgrest_test;
 
 CREATE TABLE tasks(
     id INT PRIMARY KEY     NOT NULL,
     name           TEXT    NOT NULL,
     project_id      INT     REFERENCES projects(id)
 );
-ALTER TABLE "1".tasks OWNER TO postgrest_test;
+ALTER TABLE test.tasks OWNER TO postgrest_test;
 
 CREATE TABLE users(
     id INT PRIMARY KEY     NOT NULL,
     name           TEXT    NOT NULL
 );
-ALTER TABLE "1".users OWNER TO postgrest_test;
+ALTER TABLE test.users OWNER TO postgrest_test;
 
 CREATE TABLE users_tasks(
     user_id      INT     REFERENCES users(id),
     task_id      INT     REFERENCES tasks(id),
     CONSTRAINT task_user PRIMARY KEY (task_id,user_id)
 );
-ALTER TABLE "1".users_tasks OWNER TO postgrest_test;
+ALTER TABLE test.users_tasks OWNER TO postgrest_test;
 
 CREATE TABLE comments(
 id INT PRIMARY KEY   NOT NULL,
@@ -252,22 +252,22 @@ task_id      INT     NOT NULL,
 content      TEXT    NOT NULL,
 FOREIGN KEY (task_id,user_id) REFERENCES users_tasks (task_id,user_id)
 );
-ALTER TABLE "1".comments OWNER TO postgrest_test;
+ALTER TABLE test.comments OWNER TO postgrest_test;
 
 CREATE TABLE users_projects(
     user_id         INT     REFERENCES users(id),
     project_id      INT     REFERENCES projects(id),
     CONSTRAINT project_user PRIMARY KEY (project_id, user_id)
 );
-ALTER TABLE "1".users_projects OWNER TO postgrest_test;
+ALTER TABLE test.users_projects OWNER TO postgrest_test;
 
-CREATE VIEW "1".projects_view AS
+CREATE VIEW test.projects_view AS
   SELECT
       projects.id,
       projects.name,
       projects.client_id
   FROM projects;
-ALTER TABLE "1".projects_view OWNER TO postgrest_test;
+ALTER TABLE test.projects_view OWNER TO postgrest_test;
 ------- SAMPLE DATA -----
 INSERT INTO clients VALUES (1, 'Microsoft'),(2, 'Apple');
 INSERT INTO projects VALUES (1,'Windows 7', 1),(2,'Windows 10', 1),(3,'IOS', 2),(4,'OSX', 2);
@@ -286,25 +286,25 @@ CREATE SEQUENCE items_id_seq
     CACHE 1;
 
 
-ALTER TABLE "1".items_id_seq OWNER TO postgrest_test;
+ALTER TABLE test.items_id_seq OWNER TO postgrest_test;
 
 
 ALTER SEQUENCE items_id_seq OWNED BY items.id;
 
 
 
-CREATE FUNCTION "1".getitemrange(min bigint, max bigint) RETURNS SETOF "1".items AS $$
-    SELECT * FROM "1".items WHERE id > $1 AND id <= $2;
+CREATE FUNCTION test.getitemrange(min bigint, max bigint) RETURNS SETOF test.items AS $$
+    SELECT * FROM test.items WHERE id > $1 AND id <= $2;
 $$ LANGUAGE SQL;
 
 
 
-CREATE FUNCTION "1".sayhello(name text) RETURNS text AS $$
+CREATE FUNCTION test.sayhello(name text) RETURNS text AS $$
     SELECT 'Hello, ' || $1;
 $$ LANGUAGE SQL;
 
 
-CREATE FUNCTION "1".problem() RETURNS void LANGUAGE plpgsql AS
+CREATE FUNCTION test.problem() RETURNS void LANGUAGE plpgsql AS
 $$
 BEGIN
       RAISE 'bad thing';
@@ -323,7 +323,7 @@ CREATE TABLE menagerie (
 );
 
 
-ALTER TABLE "1".menagerie OWNER TO postgrest_test;
+ALTER TABLE test.menagerie OWNER TO postgrest_test;
 
 
 CREATE TABLE no_pk (
@@ -332,7 +332,7 @@ CREATE TABLE no_pk (
 );
 
 
-ALTER TABLE "1".no_pk OWNER TO postgrest_test;
+ALTER TABLE test.no_pk OWNER TO postgrest_test;
 
 
 CREATE TABLE nullable_integer (
@@ -340,7 +340,7 @@ CREATE TABLE nullable_integer (
 );
 
 
-ALTER TABLE "1".nullable_integer OWNER TO postgrest_test;
+ALTER TABLE test.nullable_integer OWNER TO postgrest_test;
 
 
 CREATE TABLE simple_pk (
@@ -349,7 +349,7 @@ CREATE TABLE simple_pk (
 );
 
 
-ALTER TABLE "1".simple_pk OWNER TO postgrest_test;
+ALTER TABLE test.simple_pk OWNER TO postgrest_test;
 
 
 CREATE TABLE json
@@ -358,14 +358,14 @@ CREATE TABLE json
 );
 
 
-ALTER TABLE "1".json OWNER TO postgrest_test;
+ALTER TABLE test.json OWNER TO postgrest_test;
 
 
 CREATE TABLE tsearch (
     text_search_vector tsvector
 );
 
-ALTER TABLE "1".tsearch OWNER TO postgrest_test;
+ALTER TABLE test.tsearch OWNER TO postgrest_test;
 
 SET search_path = postgrest, pg_catalog;
 
@@ -406,7 +406,7 @@ ALTER TABLE private.articles_id_seq OWNER TO postgrest_test;
 ALTER SEQUENCE articles_id_seq OWNED BY articles.id;
 
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
 
 ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_incrementing_pk_id_seq'::regclass);
@@ -426,7 +426,7 @@ SET search_path = private, pg_catalog;
 ALTER TABLE ONLY articles ALTER COLUMN id SET DEFAULT nextval('articles_id_seq'::regclass);
 
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
 
 
@@ -471,20 +471,20 @@ SET search_path = private, pg_catalog;
 SELECT pg_catalog.setval('articles_id_seq', 1, false);
 
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
-CREATE FUNCTION public.always_true("1".items) RETURNS boolean
+CREATE FUNCTION public.always_true(test.items) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
 
-ALTER FUNCTION public.always_true("1".items) OWNER TO postgrest_test;
+ALTER FUNCTION public.always_true(test.items) OWNER TO postgrest_test;
 
 
 
 ALTER TABLE ONLY authors_only
     ADD CONSTRAINT authors_only_pkey PRIMARY KEY (secret);
 
-CREATE TRIGGER insert_insertable_view_with_join INSTEAD OF INSERT ON "1".insertable_view_with_join FOR EACH ROW EXECUTE PROCEDURE "1".insert_insertable_view_with_join();
+CREATE TRIGGER insert_insertable_view_with_join INSTEAD OF INSERT ON test.insertable_view_with_join FOR EACH ROW EXECUTE PROCEDURE test.insert_insertable_view_with_join();
 
 
 CREATE TRIGGER secrets_owner_track BEFORE INSERT OR UPDATE ON authors_only FOR EACH ROW EXECUTE PROCEDURE postgrest.set_authors_only_owner();
@@ -547,7 +547,7 @@ SET search_path = private, pg_catalog;
 CREATE TRIGGER articles_owner_track BEFORE INSERT OR UPDATE ON articles FOR EACH ROW EXECUTE PROCEDURE postgrest.update_owner();
 
 
-SET search_path = "1", pg_catalog;
+SET search_path = test, pg_catalog;
 
 
 ALTER TABLE ONLY has_fk
@@ -560,11 +560,11 @@ ALTER TABLE ONLY has_fk
 
 
 
-REVOKE ALL ON SCHEMA "1" FROM PUBLIC;
-REVOKE ALL ON SCHEMA "1" FROM postgrest_test;
-GRANT ALL ON SCHEMA "1" TO postgrest_test;
-GRANT USAGE ON SCHEMA "1" TO postgrest_anonymous;
-GRANT USAGE ON SCHEMA "1" TO postgrest_test_author;
+REVOKE ALL ON SCHEMA test FROM PUBLIC;
+REVOKE ALL ON SCHEMA test FROM postgrest_test;
+GRANT ALL ON SCHEMA test TO postgrest_test;
+GRANT USAGE ON SCHEMA test TO postgrest_anonymous;
+GRANT USAGE ON SCHEMA test TO postgrest_test_author;
 
 
 
@@ -737,10 +737,10 @@ REVOKE ALL ON TABLE has_count_column FROM postgrest_test;
 GRANT ALL ON TABLE has_count_column TO postgrest_test;
 GRANT ALL ON TABLE has_count_column TO postgrest_anonymous;
 
-REVOKE ALL ON FUNCTION public.always_true("1".items) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.always_true("1".items) FROM postgrest_test;
-GRANT ALL ON FUNCTION public.always_true("1".items) TO postgrest_test;
-GRANT ALL ON FUNCTION public.always_true("1".items) TO postgrest_anonymous;
+REVOKE ALL ON FUNCTION public.always_true(test.items) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.always_true(test.items) FROM postgrest_test;
+GRANT ALL ON FUNCTION public.always_true(test.items) TO postgrest_test;
+GRANT ALL ON FUNCTION public.always_true(test.items) TO postgrest_anonymous;
 
 
 SET search_path = postgrest, pg_catalog;

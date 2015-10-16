@@ -6,7 +6,6 @@ module PostgREST.App (
 , isSqlError
 , contentTypeForAccept
 , jsonH
-, requestedSchema
 , TableOptions(..)
 ) where
 
@@ -29,7 +28,6 @@ import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
-import           Text.Regex.TDFA           ((=~))
 
 import           Text.Parsec.Error
 
@@ -59,8 +57,8 @@ import           PostgREST.Types
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody dbrole req =
+app :: DbStructure -> AppConfig -> DbRole -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf authenticator reqBody dbrole req =
   case (path, verb) of
 
     ([], _) -> do
@@ -216,7 +214,7 @@ app dbstructure conf reqBody dbrole req =
 
       -- check that proc exists
       -- check that arg names are all specified
-      -- select * from "1".proc(a := "foo"::undefined) where whereT limit limitT
+      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -296,8 +294,7 @@ app dbstructure conf reqBody dbrole req =
     lookupHeader  = flip lookup hdrs
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
-    schema        = requestedSchema (cs $ configV1Schema conf) accept
-    authenticator = cs $ configDbUser conf
+    schema        = cs $ configSchema conf
     jwtSecret     = cs $ configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
@@ -328,17 +325,6 @@ contentRangeH from to total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = from <= to
-
-requestedSchema :: Text -> Maybe BS.ByteString -> Text
-requestedSchema v1schema accept =
-  case verStr of
-    Just [[_, ver]] -> if ver == "1" then v1schema else cs ver
-    _ -> v1schema
-
-  where
-    verRegex = "version[ ]*=[ ]*([0-9]+)" :: BS.ByteString
-    verStr = (=~ verRegex) <$> accept :: Maybe [[BS.ByteString]]
-
 
 jsonMT :: BS.ByteString
 jsonMT = "application/json"

@@ -9,6 +9,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Embed associations, e.g. `/film?select=*,director(*)` - @ruslantalpa
 - Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
 - Does not execute the count total if header "Prefer: count=none" - @diogob
+- Postgres connection string argument - @calebmer
+
+### Removed
+- API versioning feature - @calebmer
+- `--db-x` command line arguments - @calebmer
 
 ### Fixed
 - Tolerate a missing role in user creation - @calebmer
