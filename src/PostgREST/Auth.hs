@@ -12,7 +12,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.Monoid
 import           Data.String.Conversions (cs)
 import           Data.Text (Text)
-import           PostgREST.PgQuery       (pgFmtLit)
+import           PostgREST.PgQuery       (pgFmtLit, pgFmtIdent, insertableValue)
 import           Prelude
 import qualified Web.JWT                 as JWT
 import qualified Data.HashMap.Lazy       as HashMap
@@ -27,12 +27,8 @@ setDBEnv maybeClaims =
   (map setVar . toList) <$> maybeClaims
   where
     setVar ("role", String val) = setRole val
-    setVar (k, String val) = "set local postgrest.claims." <> k <> " = " <> pgFmtLit val <> ";"
-    setVar (k, Bool val) = "set local postgrest.claims." <> k <> " = " <> showText val <> ";"
-    setVar (k, Number val) = "set local postgrest.claims." <> k <> " = " <> showText val <> ";"
-    setVar _ = ""
-    showText :: Show a => a -> Text
-    showText = cs . show
+    setVar (k, val) = "set local postgrest.claims." <> pgFmtIdent k <>
+                  " = " <> insertableValue val <> ";"
 
 setRole :: Text -> Text
 setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
