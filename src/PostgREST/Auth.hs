@@ -57,7 +57,12 @@ setDBEnv maybeClaims =
   (map setVar . toList) <$> maybeClaims
   where
     setVar ("role", String val) = setRole val
-    setVar (key, String val) = "set local postgrest.claims" <> key <> " = " <> cs (pgFmtLit val) <> ";"
+    setVar (key, String val) = "set local postgrest.claims" <> key <> " = " <> pgFmtLit val <> ";"
+    setVar (key, Bool val) = "set local postgrest.claims" <> key <> " = " <> showText val <> ";"
+    setVar (key, Number val) = "set local postgrest.claims" <> key <> " = " <> showText val <> ";"
+    setVar _ = ""
+    showText :: Show a => a -> Text
+    showText = cs . show
 
 setRole :: Text -> Text
 setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
