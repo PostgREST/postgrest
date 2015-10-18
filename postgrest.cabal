@@ -53,6 +53,8 @@ executable postgrest
                      , mtl
                      , cassava
                      , jwt
+                     , lens
+                     , lens-aeson >= 1.0.0.5
                      , parsec
                      , errors
                      , bifunctors
@@ -66,34 +68,50 @@ library
 
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
-  build-depends:       base >=4.6 && <5
-                     , hasql, hasql-backend
-                     , hasql-postgres
-                     , warp, wai
-                     , wai-extra, wai-cors
-                     , wai-middleware-static
-                     , HTTP, convertible, http-types
-                     , case-insensitive
-                     , scientific, time
-                     , aeson, network
-                     , bytestring, text, split, string-conversions
-                     , stringsearch
-                     , containers, unordered-containers
-                     , optparse-applicative
-                     , regex-base, regex-tdfa
+  build-depends:       HTTP
+                     , MissingH
                      , Ranged-sets
-                     , transformers, MissingH
-                     , bcrypt, base64-string
-                     , network-uri
-                     , resource-pool
-                     , blaze-builder
-                     , vector
-                     , mtl
-                     , cassava
-                     , jwt
-                     , parsec
-                     , errors
+                     , aeson
+                     , base >=4.6 && <5
+                     , base64-string
+                     , bcrypt
                      , bifunctors
+                     , blaze-builder
+                     , bytestring
+                     , case-insensitive
+                     , cassava
+                     , containers
+                     , convertible
+                     , errors
+                     , hasql
+                     , hasql-backend
+                     , hasql-postgres
+                     , http-types
+                     , jwt
+                     , lens
+                     , lens-aeson >= 1.0.0.5
+                     , mtl
+                     , network
+                     , network-uri
+                     , optparse-applicative
+                     , parsec
+                     , regex-base
+                     , regex-tdfa
+                     , resource-pool
+                     , scientific
+                     , split
+                     , string-conversions
+                     , stringsearch
+                     , text
+                     , time
+                     , transformers
+                     , unordered-containers
+                     , vector
+                     , wai
+                     , wai-cors
+                     , wai-extra
+                     , wai-middleware-static
+                     , warp
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
@@ -163,6 +181,8 @@ Test-Suite spec
                      , process
                      , heredoc
                      , jwt
+                     , lens
+                     , lens-aeson >= 1.0.0.5
                      , parsec
                      , errors
                      , bifunctors

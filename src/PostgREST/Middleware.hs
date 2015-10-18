@@ -35,7 +35,7 @@ runWithClaims :: forall s. AppConfig ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
 runWithClaims conf app req = do
-    H.unitEx $ B.Stmt env V.empty True
+    mapM_ H.unitEx $ stmt <$> env
     app req
  where
    hdrs = requestHeaders req
@@ -46,7 +46,8 @@ runWithClaims conf app req = do
      case split (==' ') (cs auth) of
        ("Bearer" : jwt : _) -> fromMaybe [] (setJWTEnv jwtSecret jwt)
        _ -> []
-   env = concat $ setRole anon : jwtEnv
+   env = setRole anon : jwtEnv
+   stmt = (flip $ flip B.Stmt V.empty) True
 
 redirectInsecure :: Application -> Application
 redirectInsecure app req respond = do

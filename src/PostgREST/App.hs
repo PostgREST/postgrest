@@ -40,6 +40,7 @@ import           Network.Wai.Internal      (Response (..))
 import           Network.Wai.Parse         (parseHttpAccept)
 
 import           Data.Aeson
+import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
 import qualified Hasql                     as H
@@ -53,6 +54,7 @@ import           PostgREST.PgStructure
 import           PostgREST.QueryBuilder
 import           PostgREST.RangeQuery
 import           PostgREST.Types
+import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
 
@@ -172,9 +174,11 @@ app dbstructure conf reqBody req =
         then do
           let call = B.Stmt "select " V.empty True <>
                 asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
-          body :: Maybe (Identity Text) <- H.maybeEx call
+          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
           return $ responseLBS status200 [jsonH]
-            (cs $ fromMaybe "[]" $ runIdentity <$> body)
+                (if hasPrefer "return=jwt"
+                   then ("{\"token\":\"" <> (cs $ tokenJWT jwtSecret $ fromMaybe "[]" $ runIdentity <$> bodyJson) <> "\"}")
+                   else (cs $ encode $ fromMaybe emptyArray $ runIdentity <$> bodyJson))
         else return $ responseLBS status404 [] ""
 
       -- check that proc exists
