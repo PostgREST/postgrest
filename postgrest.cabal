@@ -53,8 +53,6 @@ executable postgrest
                      , mtl
                      , cassava
                      , jwt
-                     , lens
-                     , lens-aeson >= 1.0.0.5
                      , parsec
                      , errors
                      , bifunctors
@@ -88,8 +86,6 @@ library
                      , hasql-postgres
                      , http-types
                      , jwt
-                     , lens
-                     , lens-aeson >= 1.0.0.5
                      , mtl
                      , network
                      , network-uri
@@ -181,8 +177,6 @@ Test-Suite spec
                      , process
                      , heredoc
                      , jwt
-                     , lens
-                     , lens-aeson >= 1.0.0.5
                      , parsec
                      , errors
                      , bifunctors
