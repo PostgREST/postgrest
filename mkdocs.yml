@@ -1,0 +1,24 @@
+site_name: PostgREST
+site_url: http://postgrest.com
+site_description: Building declarative APIs
+site_author: Joe Nelson
+site_favicon: favicon.ico
+
+repo_url: https://github.com/begriffs/postgrest
+
+pages:
+- Home: index.md
+- Install:
+  - The Server: install/server.md
+  - Ecosystem: install/ecosystem.md
+- API:
+  - Reading: api/reading.md
+  - Writing: api/writing.md
+- Admin:
+  - Security: admin/security.md
+  - Versioning: admin/versioning.md
+  - Migration: admin/migration.md
+  - Deployment: admin/deployment.md
+  - Performance: admin/performance.md
+- Examples:
+  - Getting Started: examples/start.md
