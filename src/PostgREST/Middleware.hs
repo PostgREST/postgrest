@@ -3,6 +3,9 @@
 
 module PostgREST.Middleware where
 
+-- needed for ghc 7.8
+import           Data.Functor ((<$>))
+
 import           Data.Maybe                    (fromMaybe, isNothing)
 import           Data.Monoid
 import           Data.Text
