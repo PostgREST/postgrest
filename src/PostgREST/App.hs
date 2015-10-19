@@ -178,8 +178,8 @@ app dbstructure conf reqBody req =
           return $ responseLBS status200 [jsonH]
                  (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
                     if hasPrefer "return=jwt"
-                    then ("{\"token\":\"" <> (cs $ tokenJWT jwtSecret $ body) <> "\"}")
-                    else (cs $ encode $ body))
+                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                    else cs $ encode body)
         else return $ responseLBS status404 [] ""
 
       -- check that proc exists
