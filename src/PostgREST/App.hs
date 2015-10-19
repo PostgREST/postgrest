@@ -176,9 +176,10 @@ app dbstructure conf reqBody req =
                 asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
           bodyJson :: Maybe (Identity Value) <- H.maybeEx call
           return $ responseLBS status200 [jsonH]
-                (if hasPrefer "return=jwt"
-                   then ("{\"token\":\"" <> (cs $ tokenJWT jwtSecret $ fromMaybe "[]" $ runIdentity <$> bodyJson) <> "\"}")
-                   else (cs $ encode $ fromMaybe emptyArray $ runIdentity <$> bodyJson))
+                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                    if hasPrefer "return=jwt"
+                    then ("{\"token\":\"" <> (cs $ tokenJWT jwtSecret $ body) <> "\"}")
+                    else (cs $ encode $ body))
         else return $ responseLBS status404 [] ""
 
       -- check that proc exists
