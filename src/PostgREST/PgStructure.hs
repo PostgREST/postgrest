@@ -13,25 +13,39 @@ import           Data.Monoid
 import           Data.Text             (Text, split)
 import qualified Hasql                 as H
 import qualified Hasql.Postgres        as P
+import qualified Hasql.Backend         as B
 import           PostgREST.PgQuery     ()
 import           PostgREST.Types
 
 import           GHC.Exts              (groupWith)
 import           Prelude
 
+doesProc :: forall c s. B.CxValue c Int =>
+            (Text -> Text -> B.Stmt c) -> Text -> Text -> H.Tx c s Bool
+doesProc stmt schema proc = do
+  row :: Maybe (Identity Int) <- H.maybeEx $ stmt schema proc
+  return $ isJust row
 
 doesProcExist :: Text -> Text -> H.Tx P.Postgres s Bool
-doesProcExist schema proc = do
-  row :: Maybe (Identity Int) <- H.maybeEx $ [H.stmt|
+doesProcExist = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
       WHERE  nspname = ?
       AND    proname = ?
-    |] schema proc
-  return $ isJust row
+    |]
 
+doesProcReturnJWT :: Text -> Text -> H.Tx P.Postgres s Bool
+doesProcReturnJWT = doesProc [H.stmt|
+      SELECT 1
+      FROM   pg_catalog.pg_namespace n
+      JOIN   pg_catalog.pg_proc p
+      ON     pronamespace = n.oid
+      WHERE  nspname = ?
+      AND    proname = ?
+      AND    pg_catalog.pg_get_function_result(p.oid) = 'jwt'
+    |]
 
 tableFromRow :: (Text, Text, Bool, Maybe Text) -> Table
 tableFromRow (s, n, i, a) = Table s n i (parseAcl a)

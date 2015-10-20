@@ -175,9 +175,10 @@ app dbstructure conf reqBody req =
           let call = B.Stmt "select " V.empty True <>
                 asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
           bodyJson :: Maybe (Identity Value) <- H.maybeEx call
+          returnJWT <- doesProcReturnJWT schema proc
           return $ responseLBS status200 [jsonH]
                  (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
-                    if hasPrefer "return=jwt"
+                    if returnJWT
                     then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                     else cs $ encode body)
         else return $ responseLBS status404 [] ""
