@@ -20,7 +20,6 @@ import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Data.Maybe (fromMaybe)
-import Data.Functor.Identity
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
@@ -54,10 +53,6 @@ withApp :: ActionWith Application -> IO ()
 withApp perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
-
-  Right authenticator <- H.session pool $ do
-    Identity (role :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SELECT SESSION_USER|]
-    return role
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
