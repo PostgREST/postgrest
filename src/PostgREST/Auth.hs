@@ -44,7 +44,7 @@ tokenJWT secret (Array a) = JWT.encodeSigned JWT.HS256 (JWT.secret secret)
                                JWT.def { JWT.unregisteredClaims = fromHashMap o }
                           where
                             Object o = if V.null a then emptyObject else V.head a
+                            fromHashMap :: Object -> JWT.ClaimsMap
+                            fromHashMap = M.fromList . H.toList
 tokenJWT secret _          = tokenJWT secret emptyArray
 
-fromHashMap :: Object -> JWT.ClaimsMap
-fromHashMap = M.fromList . H.toList
