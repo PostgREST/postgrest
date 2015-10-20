@@ -284,11 +284,12 @@ spec = afterAll_ resetDb $ around withApp $ do
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
       _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
       _ <- post "/postgrest/users" [json| { "id":"jroe", "pass": "1234", "role": "postgrest_test_author" } |]
 
       p1 <- request methodPost "/authors_only"
-        [ authHeaderBasic "jdoe" "1234", ("Prefer", "return=representation") ]
+        [ auth, ("Prefer", "return=representation") ]
         [json| { "secret": "nyancat" } |]
       liftIO $ do
           simpleBody p1 `shouldBe` [json| { "owner":"jdoe", "secret":"nyancat" } |]

@@ -44,7 +44,7 @@ doesProcReturnJWT = doesProc [H.stmt|
       ON     pronamespace = n.oid
       WHERE  nspname = ?
       AND    proname = ?
-      AND    pg_catalog.pg_get_function_result(p.oid) = 'jwt'
+      AND    pg_catalog.pg_get_function_result(p.oid) = 'jwt_claims'
     |]
 
 tableFromRow :: (Text, Text, Bool, Maybe Text) -> Table
@@ -167,7 +167,7 @@ allRelations = do
 allColumns :: [Relation] -> H.Tx P.Postgres s [Column]
 allColumns rels = do
   cols <- H.listEx $ [H.stmt|
-      SELECT
+      SELECT DISTINCT
           info.table_schema AS schema,
           info.table_name AS table_name,
           info.column_name AS name,
