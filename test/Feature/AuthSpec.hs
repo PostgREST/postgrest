@@ -18,7 +18,7 @@ spec = beforeAll
   it "hides tables that anonymous does not own" $
     get "/authors_only" `shouldRespondWith` 404
 
-  it "returns jwt functions as jwt tokens" $ do
+  it "returns jwt functions as jwt tokens" $
     post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]
       `shouldRespondWith` ResponseMatcher {
           matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"} |]
