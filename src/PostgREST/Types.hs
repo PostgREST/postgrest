@@ -3,6 +3,7 @@ import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Char8 as BS
 import Data.Aeson
+import Data.Map
 
 data DbStructure = DbStructure {
   tables :: [Table]
@@ -78,12 +79,9 @@ type Cast = Text
 type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
-data Query = Select {
-  select::[SelectItem]
-, from::[Text]
-, where_::[Filter]
-, order::Maybe [OrderTerm]
-} deriving (Show, Eq)
+data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
+           | Insert { into::Text, fields::[Field], values::[[Value]] }
+           | Update { into::Text, set::Map Field Value, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 type ApiNode = (Query, (NodeName, Maybe Relation))
 type ApiRequest = Tree ApiNode

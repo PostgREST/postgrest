@@ -12,7 +12,7 @@ import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (PStmt, fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
-                                    pgFmtValue, whiteList)
+                                    pgFmtValue, whiteList, insertableValue)
 import           PostgREST.Types
 import qualified Data.Vector       as V (empty)
 import qualified Hasql.Backend     as B
@@ -126,6 +126,34 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
+requestToQuery schema (Node (Insert tbl flds vals, (mainTbl, _)) forest) =
+  query
+  where
+    query = B.Stmt qStr V.empty True
+    qi = QualifiedIdentifier schema mainTbl
+    qStr = Data.Text.unwords [
+      "INSERT INTO ", fromQi qi,
+      " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
+      "VALUES " <> intercalate ", "
+        ( map (\v ->
+            "(" <>
+            intercalate ", " ( map insertableValue v ) <>
+            ")"
+          ) vals
+        ),
+      "RETURNING " <> fromQi qi <> ".*"
+      ]
+    -- ("insert into " <> fromQi t <> " (" <>
+    --   T.intercalate ", " (V.toList $ V.map pgFmtIdent cols) <>
+    --   ") values "
+    --   <> T.intercalate ", "
+    --     (V.toList $ V.map (\v -> "("
+    --         <> T.intercalate ", " (V.toList $ V.map insertableValue v)
+    --         <> ")"
+    --       ) vals
+    --     )
+    --   <> " returning row_to_json(" <> fromQi t <> ".*)")
+
 
 pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
 pgFmtCondition table (Filter (col,jp) ops val) =
@@ -159,9 +187,12 @@ pgFmtJsonPath _ = ""
 pgFmtTable :: Table -> Text
 pgFmtTable Table{tableSchema=s, tableName=n} = fromQi $ QualifiedIdentifier s n
 
+pgFmtField :: QualifiedIdentifier -> Field -> Text
+pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
+
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
-pgFmtSelectItem table ((c, jp), Nothing) = pgFmtColumn table c <> pgFmtJsonPath jp <> asJsonPath jp
-pgFmtSelectItem table ((c, jp), Just cast ) = "CAST (" <> pgFmtColumn table c <> pgFmtJsonPath jp <> " AS " <> cast <> " )" <> asJsonPath jp
+pgFmtSelectItem table (f@(c, jp), Nothing) = pgFmtField table f <> asJsonPath jp
+pgFmtSelectItem table (f@(c, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> asJsonPath jp
 
 asJsonPath :: Maybe JsonPath -> Text
 asJsonPath Nothing = ""
