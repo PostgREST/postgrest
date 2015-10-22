@@ -16,7 +16,7 @@ module PostgREST.App where
 
 import qualified Blaze.ByteString.Builder  as BB
 import           Control.Applicative
-import           Control.Arrow             (second, (***))
+import           Control.Arrow             ((***))
 import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8     as BS
@@ -26,8 +26,7 @@ import qualified Data.Csv                  as CSV
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as M
 import           Data.List                 (find, sortBy, delete, transpose)
-import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing,
-                                            mapMaybe)
+import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
@@ -45,9 +44,8 @@ import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
 --import           Network.Wai.Internal
-import           Network.Wai.Internal      (Response (..), Request (..))
+import           Network.Wai.Internal      (Response (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import Text.Heredoc
 
 import           Data.Aeson
 import           Data.Monoid
@@ -85,9 +83,9 @@ app dbstructure conf authenticator reqBody dbrole req =
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else
-        case queries of
+        case query of
           Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-          Right (qs, cqs) -> do
+          Right qs -> do
             -- let qt = qualify table
             --     count = if hasPrefer "count=none"
             --           then countNone
@@ -140,8 +138,8 @@ app dbstructure conf authenticator reqBody dbrole req =
 
 
             query = requestToQuery schema <$> apiRequest
-            countQuery = requestToCountQuery schema <$> apiRequest
-            queries = (,) <$> query <*> countQuery
+            --countQuery = requestToCountQuery schema <$> apiRequest
+            --queries = (,) <$> query <*> countQuery
 
     (["postgrest", "users"], "POST") -> do
       let user = decode reqBody :: Maybe AuthUser
@@ -177,30 +175,31 @@ app dbstructure conf authenticator reqBody dbrole req =
                 _  -> return $ responseLBS status401 [jsonH] $
                   encode . object $ [("message", String "Failed authentication.")]
 
+
     ([table], "POST") -> do
       let echoRequested = hasPrefer "return=representation" --TODO!! do not request content at all in query if not echoRequested
       case insertQuery of
         Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-        Right q -> do
+        Right qs -> do
           let isSingle = either (const False) id returnSingle
               pKeys = map pkName $ filter (filterPk schema table) allPrKeys
-              qq = B.Stmt
-                   (withSourceF q <>
+              q = B.Stmt
+                   (withSourceF qs <>
                    " SELECT " <>
-                     (if isSingle then (locationF pKeys) else "null") <>
+                     (if isSingle then locationF pKeys else "null") <>
                      "," <>
                      countF <>
                      "," <>
                      (case contentType of
                         "text/csv" -> asCsvF
-                        _     -> (if isSingle then asJsonSingleF else asJsonF)
+                        _     -> if isSingle then asJsonSingleF else asJsonF
                      ) <>
                    " " <>
                    fromF ( limitF Nothing ))
                    V.empty True
 
-          row <- H.maybeEx qq
-          let (locationRaw, queryTotal, bodyRaw) = fromMaybe (Just "" :: Maybe BL.ByteString, Just (0::Int), Just "" :: Maybe BL.ByteString) row
+          row <- H.maybeEx q
+          let (locationRaw, _ {-- queryTotal --}, bodyRaw) = fromMaybe (Just "" :: Maybe BL.ByteString, Just (0::Int), Just "" :: Maybe BL.ByteString) row
               body = fromMaybe "[]" bodyRaw
               locationH = fromMaybe "" locationRaw
           return $ responseLBS status201
@@ -528,7 +527,7 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
       where
         maps :: Either String [M.HashMap Text [Value]]
         maps = mapM getElems $ V.toList a
-        getElems (Object o) = Right $ M.map (\x->[x]) o
+        getElems (Object o) = Right $ M.map (:[]) o
         getElems _ = Left invalidMsg
     groupByKey _ = Left invalidMsg
 

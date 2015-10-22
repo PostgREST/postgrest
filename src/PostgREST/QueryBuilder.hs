@@ -10,12 +10,12 @@ import           Data.Text         hiding (filter, find, foldr, head, last, map,
                                     null, zipWith)
 import           Control.Applicative
 import           Data.Tree
-import           PostgREST.PgQuery (PStmt, fromQi,
-                                    orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
+import           PostgREST.PgQuery (fromQi,
+                                    pgFmtIdent, pgFmtLit, pgFmtOperator,
                                     pgFmtValue, whiteList, insertableValue, orderF)
 import           PostgREST.Types
-import qualified Data.Vector       as V (empty)
-import qualified Hasql.Backend     as B
+--import qualified Data.Vector       as V (empty)
+--import qualified Hasql.Backend     as B
 
 findRelation :: [Relation] -> Text -> Text -> Text -> Maybe Relation
 findRelation allRelations s t1 t2 =
@@ -71,20 +71,20 @@ addJoinConditions schema allColumns (Node (query, (t, r)) forest) =
     updatedForest = mapM (addJoinConditions schema allColumns) forest
     addCond q con = q{where_=con ++ where_ q}
 
-requestToCountQuery :: Text -> ApiRequest -> PStmt
-requestToCountQuery schema (Node (Select _ _ conditions _, (mainTbl, _)) _) =
-  B.Stmt query V.empty True
-  where
-    query = Data.Text.unwords [
-      "SELECT pg_catalog.count(1)",
-      "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
-      ]
-    emptyOnNull val x = if null x then "" else val
-    localConditions = filter fn conditions
-      where
-        fn  (Filter{value=VText _}) = True
-        fn  (Filter{value=VForeignKey _ _}) = False
+-- requestToCountQuery :: Text -> ApiRequest -> PStmt
+-- requestToCountQuery schema (Node (Select _ _ conditions _, (mainTbl, _)) _) =
+--   B.Stmt query V.empty True
+--   where
+--     query = Data.Text.unwords [
+--       "SELECT pg_catalog.count(1)",
+--       "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
+--       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
+--       ]
+--     emptyOnNull val x = if null x then "" else val
+--     localConditions = filter fn conditions
+--       where
+--         fn  (Filter{value=VText _}) = True
+--         fn  (Filter{value=VForeignKey _ _}) = False
 
 --requestToQuery :: Text -> ApiRequest -> PStmt
 requestToQuery :: Text -> ApiRequest -> Text
@@ -133,7 +133,7 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
-requestToQuery schema (Node (Insert tbl flds vals, (mainTbl, _)) forest) =
+requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
   query
   where
     --query = B.Stmt qStr V.empty True
@@ -199,8 +199,8 @@ pgFmtField :: QualifiedIdentifier -> Field -> Text
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
-pgFmtSelectItem table (f@(c, jp), Nothing) = pgFmtField table f <> asJsonPath jp
-pgFmtSelectItem table (f@(c, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> asJsonPath jp
+pgFmtSelectItem table (f@(_, jp), Nothing) = pgFmtField table f <> asJsonPath jp
+pgFmtSelectItem table (f@(_, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> asJsonPath jp
 
 asJsonPath :: Maybe JsonPath -> Text
 asJsonPath Nothing = ""
