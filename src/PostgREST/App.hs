@@ -205,7 +205,7 @@ app dbstructure conf authenticator reqBody dbrole req =
               locationH = fromMaybe "" locationRaw
           return $ responseLBS status201
             [
-              jsonH,
+              contentTypeH,
               (hLocation, "/" <> cs table <> "?" <> cs locationH)
             ]
             $ if echoRequested then body else ""
@@ -493,13 +493,14 @@ parsePostRequest httpRequest reqBody =
         rows <- (map V.toList . V.toList) <$> CSV.decode CSV.NoHeader reqBody
         if null rows then Left "CSV requires header"
           else Right (head rows, (map $ map $ parseCsvCell . cs) (tail rows))
-      else jsn >>= \val -> convertJson val
-    jsn = eitherDecode reqBody
-    returnSingle = first cs $ jsn >>= (\v->
-      case v of
-        Object _  -> Right True
-        _         -> Right False
-      )
+      else eitherDecode reqBody >>= \val -> convertJson val
+    -- jsn = eitherDecode reqBody
+    -- returnSingle = first cs $ jsn >>= (\v->
+    --   case v of
+    --     Object _  -> Right True
+    --     _         -> Right False
+    --   )
+    returnSingle = (==1) . length . snd <$> parsed
     hdrs          = requestHeaders httpRequest
     lookupHeader  = flip lookup hdrs
     rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head

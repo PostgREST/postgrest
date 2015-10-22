@@ -1,6 +1,6 @@
 module Feature.InsertSpec where
 
-import Test.Hspec
+import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
@@ -130,16 +130,28 @@ spec = afterAll_ resetDb $ around withApp $ do
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
-      it "can post nulls" $
+      -- it "can post nulls (old way)" $ do
+      --   pendingWith "changed the response when in csv mode"
+      --   request methodPost "/no_pk"
+      --                [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
+      --                "a,b\nNULL,foo"
+      --     `shouldRespondWith` ResponseMatcher {
+      --       matchBody    = Just [json| { "a":null, "b":"foo" } |]
+      --     , matchStatus  = 201
+      --     , matchHeaders = ["Content-Type" <:> "application/json",
+      --                       "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
+      --     }
+      it "can post nulls" $ do
         request methodPost "/no_pk"
-                     [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
+                     [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "a,b\nNULL,foo"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| { "a":null, "b":"foo" } |]
+            matchBody    = Just "a,b\n,foo"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json",
+          , matchHeaders = ["Content-Type" <:> "text/csv",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
+
 
     after_ (clearTable "no_pk") . context "with wrong number of columns" $ do
       it "fails for too few" $ do

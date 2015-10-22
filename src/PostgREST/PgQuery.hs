@@ -378,7 +378,8 @@ locationF :: [T.Text] -> T.Text
 locationF pKeys =
     "(" <>
     " WITH s AS (SELECT row_to_json(source) as r from source limit 1)" <>
-    " SELECT string_agg(json_data.key || '=eq.' || json_data.value, '&')" <>
+--    " SELECT string_agg(json_data.key || '=eq.' || json_data.value, '&')" <>
+    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
     " FROM s, json_each_text(s.r) AS json_data" <>
     (
       if null pKeys
