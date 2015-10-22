@@ -121,12 +121,12 @@ spec = afterAll_ resetDb $ around withApp $ do
     after_ (clearTable "no_pk") . context "requesting full representation" $ do
       it "returns full details of inserted record" $
         request methodPost "/no_pk"
-                     [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
+                     [("Content-Type", "text/csv"), ("Accept", "text/csv"),  ("Prefer", "return=representation")]
                      "a,b\nbar,baz"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| { "a":"bar", "b":"baz" } |]
+            matchBody    = Just "a,b\rbar,baz"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json",
+          , matchHeaders = ["Content-Type" <:> "text/csv",
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
@@ -146,7 +146,7 @@ spec = afterAll_ resetDb $ around withApp $ do
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "a,b\nNULL,foo"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "a,b\n,foo"
+            matchBody    = Just "a,b\r,foo"
           , matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
@@ -303,7 +303,7 @@ spec = afterAll_ resetDb $ around withApp $ do
         [ authHeaderBasic "jdoe" "1234", ("Prefer", "return=representation") ]
         [json| { "secret": "nyancat" } |]
       liftIO $ do
-          simpleBody p1 `shouldBe` [json| { "owner":"jdoe", "secret":"nyancat" } |]
+          simpleBody p1 `shouldBe` [str|{"owner":"jdoe","secret":"nyancat"}|]
           simpleStatus p1 `shouldBe` created201
 
       p2 <- request methodPost "/authors_only"
@@ -311,5 +311,5 @@ spec = afterAll_ resetDb $ around withApp $ do
         [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.YuF_VfmyIxWyuceT7crnNKEprIYXsJAyXid3rjPjIow", ("Prefer", "return=representation") ]
         [json| { "secret": "lolcat", "owner": "hacker" } |]
       liftIO $ do
-          simpleBody p2 `shouldBe` [json| { "owner":"jroe", "secret":"lolcat" } |]
+          simpleBody p2 `shouldBe` [str|{"owner":"jroe","secret":"lolcat"}|]
           simpleStatus p2 `shouldBe` created201

@@ -337,7 +337,7 @@ countF :: T.Text
 countF = "pg_catalog.count(t)"
 
 countAllF :: T.Text
-countAllF = "(SELECT pg_catalog.count(a) FROM (SELECT * FROM source) a )"
+countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM source) a )"
 
 countNoneF :: T.Text
 countNoneF = "null"
