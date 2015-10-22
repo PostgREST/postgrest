@@ -101,6 +101,27 @@ countNone = B.Stmt "select null" empty True
 asCsvWithCount :: QualifiedIdentifier -> StatementT
 asCsvWithCount table = withCount . asCsv table
 
+{--
+WITH source AS (
+	SELECT * FROM projects
+)
+SELECT
+  (
+  	SELECT string_agg(k.kk, ',')
+  	FROM (
+  		SELECT json_object_keys(j)::TEXT as kk
+  		FROM (
+  			SELECT row_to_json(source) as j from source limit 1
+  		) l
+  	) k
+  )
+  || '\r' ||
+  coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\r'), '')
+FROM (
+	SELECT * FROM source
+) t;
+--}
+
 asCsv :: QualifiedIdentifier -> StatementT
 asCsv table s = s {
   B.stmtTemplate =
@@ -285,7 +306,10 @@ trimNullChars :: T.Text -> T.Text
 trimNullChars = T.takeWhile (/= '\x0')
 
 fromQi :: QualifiedIdentifier -> T.Text
-fromQi t = pgFmtIdent (qiSchema t) <> "." <> pgFmtIdent (qiName t)
+fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
+  where
+    n = qiName t
+    s = qiSchema t
 
 unquoted :: JSON.Value -> T.Text
 unquoted (JSON.String t) = t
@@ -304,3 +328,74 @@ insertableValue v = insertableText $ unquoted v
 paramFilter :: JSON.Value -> T.Text
 paramFilter JSON.Null = "is.null"
 paramFilter v = "eq." <> unquoted v
+
+
+withSourceF :: T.Text -> T.Text
+withSourceF s = "WITH source AS (" <> s <>")"
+
+countF :: T.Text
+countF = "pg_catalog.count(t)"
+
+countAllF :: T.Text
+countAllF = "(SELECT pg_catalog.count(a) FROM (SELECT * FROM source) a )"
+
+countNoneF :: T.Text
+countNoneF = "null"
+
+asJsonF :: T.Text
+asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
+
+asJsonSingleF :: T.Text --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
+
+asCsvF :: T.Text
+asCsvF = asCsvHeaderF <> " || '\r' || " <> asCsvBodyF
+
+asCsvHeaderF :: T.Text
+asCsvHeaderF =
+  "(SELECT string_agg(a.k, ',')" <>
+  "  FROM (" <>
+  "    SELECT json_object_keys(r)::TEXT as k" <>
+  "    FROM ( " <>
+  "      SELECT row_to_json(source) as r from source limit 1" <>
+  "    ) s" <>
+  "  ) a" <>
+  ")"
+
+asCsvBodyF :: T.Text
+asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\r'), '')"
+
+fromF :: T.Text -> T.Text
+fromF limit = "FROM (SELECT * FROM source " <> limit <> ") t"
+
+limitF :: Maybe NonnegRange -> T.Text
+limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
+  where
+    limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
+    offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
+
+locationF :: [T.Text] -> T.Text
+locationF pKeys =
+    "(" <>
+    " WITH s AS (SELECT row_to_json(source) as r from source limit 1)" <>
+    " SELECT string_agg(json_data.key || '=eq.' || json_data.value, '&')" <>
+    " FROM s, json_each_text(s.r) AS json_data" <>
+    (
+      if null pKeys
+      then ""
+      else " WHERE json_data.key IN ('" <> T.intercalate "','" pKeys <> "')"
+    ) <>
+    ")"
+
+orderF :: [OrderTerm] -> T.Text
+orderF ts =
+  if L.null ts
+    then ""
+    else "ORDER BY " <> clause
+  where
+    clause = T.intercalate "," (map queryTerm ts)
+    queryTerm :: OrderTerm -> T.Text
+    queryTerm t = " "
+           <> cs (pgFmtIdent $ otTerm t) <> " "
+           <> cs (otDirection t)         <> " "
+           <> maybe "" cs (otNullOrder t) <> " "

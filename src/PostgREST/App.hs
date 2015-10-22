@@ -88,17 +88,32 @@ app dbstructure conf authenticator reqBody dbrole req =
         case queries of
           Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
           Right (qs, cqs) -> do
-            let qt = qualify table
-                count = if hasPrefer "count=none"
-                      then countNone
-                      else cqs
-                q = B.Stmt "select " V.empty True <>
-                    parentheticT count
-                    <> commaq <> (
-                    bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
-                    . limitT range
-                    $ qs
-                  )
+            -- let qt = qualify table
+            --     count = if hasPrefer "count=none"
+            --           then countNone
+            --           else cqs
+            --     q = B.Stmt "select " V.empty True <>
+            --         parentheticT count
+            --         <> commaq <> (
+            --         bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
+            --         . limitT range
+            --         $ qs
+            --       )
+
+            let q = B.Stmt
+                    (withSourceF qs <>
+                    " SELECT " <>
+                      (if hasPrefer "count=none" then countNoneF else countAllF) <>
+                      "," <>
+                      countF <>
+                      "," <>
+                      (case contentType of
+                        "text/csv" -> asCsvF
+                        _     -> asJsonF
+                      ) <>
+                    " " <>
+                    fromF ( limitF range ))
+                    V.empty True
             row <- H.maybeEx q
             let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString) row
                 to = frm+queryTotal-1
@@ -163,15 +178,37 @@ app dbstructure conf authenticator reqBody dbrole req =
                   encode . object $ [("message", String "Failed authentication.")]
 
     ([table], "POST") -> do
-      let echoRequested = hasPrefer "return=representation"
-      case query of
+      let echoRequested = hasPrefer "return=representation" --TODO!! do not request content at all in query if not echoRequested
+      case insertQuery of
         Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
         Right q -> do
-          row <- H.maybeEx q
-          let (queryTotal, body) = fromMaybe (Just (0::Int), Just "" :: Maybe BL.ByteString) row
+          let isSingle = either (const False) id returnSingle
+              pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+              qq = B.Stmt
+                   (withSourceF q <>
+                   " SELECT " <>
+                     (if isSingle then (locationF pKeys) else "null") <>
+                     "," <>
+                     countF <>
+                     "," <>
+                     (case contentType of
+                        "text/csv" -> asCsvF
+                        _     -> (if isSingle then asJsonSingleF else asJsonF)
+                     ) <>
+                   " " <>
+                   fromF ( limitF Nothing ))
+                   V.empty True
+
+          row <- H.maybeEx qq
+          let (locationRaw, queryTotal, bodyRaw) = fromMaybe (Just "" :: Maybe BL.ByteString, Just (0::Int), Just "" :: Maybe BL.ByteString) row
+              body = fromMaybe "[]" bodyRaw
+              locationH = fromMaybe "" locationRaw
           return $ responseLBS status201
-            [jsonH]
-            $ if echoRequested then (fromMaybe "[]" body) else ""
+            [
+              jsonH,
+              (hLocation, "/" <> cs table <> "?" <> cs locationH)
+            ]
+            $ if echoRequested then body else ""
         -- let qt = qualify table
       --     echoRequested = hasPrefer "return=representation"
       --     parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
@@ -207,12 +244,24 @@ app dbstructure conf authenticator reqBody dbrole req =
       --     return $ multipart status201 responses
 
       where
-        apiRequest = parsePostRequest req reqBody
+        res = parsePostRequest req reqBody
+        apiRequest = snd <$> res
+        returnSingle = fst <$> res
         insertQuery = requestToQuery schema <$> apiRequest
-        query = withT
-            <$> insertQuery
-            <*> pure "t"
-            <*> pure (B.Stmt "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying" V.empty True)
+
+        -- localWithT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
+        --   B.Stmt ("WITH " <> v <> " AS (" <> eq <> ") " <> wq)
+        --     (ep <> wp)
+        --     (epre && wpre)
+        --
+        -- query = localWithT
+        --     <$> insertQuery
+        --     <*> pure "k"
+        --     <*> pure (
+        --       B.Stmt "SELECT " V.empty True <>
+        --       bodyForAccept contentType (QualifiedIdentifier "" "k") (B.Stmt "SELECT * FROM k" V.empty True)
+        --       )
+        --       -- TODO! csv does not work because k is not a real table
 
 
     (["rpc", proc], "POST") -> do
@@ -420,12 +469,13 @@ formatParserError e = cs $ encode $ object [
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 --parsePostRequest :: Request -> BL.ByteString -> Either String (V.Vector Text, V.Vector (V.Vector Value))
-parsePostRequest :: Request -> BL.ByteString -> Either Text ApiRequest
+parsePostRequest :: Request -> BL.ByteString -> Either Text (Bool, ApiRequest)
 parsePostRequest httpRequest reqBody =
-  Node <$> apiNode <*> pure []
+  (,) <$> returnSingle <*> node
   where
+    node = Node <$> apiNode <*> pure []
     apiNode = (,) <$> (Insert rootTableName <$> flds <*> vals) <*> pure (rootTableName, Nothing)
-    flds =  join $ first formatParserError . (mapM (parseField . cs)) <$> (fst <$> parsed)
+    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsed)
     vals = snd <$> parsed
     parseField f = parse pField ("failed to parse field <<"++f++">>") f
     parsed :: Either Text ([Text],[[Value]])
@@ -440,10 +490,16 @@ parsePostRequest httpRequest reqBody =
       ) =<<
       if isCsv
       then do
-        rows <- (map (V.toList) . V.toList) <$> CSV.decode CSV.NoHeader reqBody
+        rows <- (map V.toList . V.toList) <$> CSV.decode CSV.NoHeader reqBody
         if null rows then Left "CSV requires header"
           else Right (head rows, (map $ map $ parseCsvCell . cs) (tail rows))
-      else eitherDecode reqBody >>= \val -> convertJson val
+      else jsn >>= \val -> convertJson val
+    jsn = eitherDecode reqBody
+    returnSingle = first cs $ jsn >>= (\v->
+      case v of
+        Object _  -> Right True
+        _         -> Right False
+      )
     hdrs          = requestHeaders httpRequest
     lookupHeader  = flip lookup hdrs
     rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head

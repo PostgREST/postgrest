@@ -12,7 +12,7 @@ import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (PStmt, fromQi,
                                     orderT, pgFmtIdent, pgFmtLit, pgFmtOperator,
-                                    pgFmtValue, whiteList, insertableValue)
+                                    pgFmtValue, whiteList, insertableValue, orderF)
 import           PostgREST.Types
 import qualified Data.Vector       as V (empty)
 import qualified Hasql.Backend     as B
@@ -86,16 +86,20 @@ requestToCountQuery schema (Node (Select _ _ conditions _, (mainTbl, _)) _) =
         fn  (Filter{value=VText _}) = True
         fn  (Filter{value=VForeignKey _ _}) = False
 
-requestToQuery :: Text -> ApiRequest -> PStmt
+--requestToQuery :: Text -> ApiRequest -> PStmt
+requestToQuery :: Text -> ApiRequest -> Text
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
-  orderT (fromMaybe [] ord)  query
+  --orderT (fromMaybe [] ord)  query
+  query
   where
-    query = B.Stmt qStr V.empty True
-    qStr = Data.Text.unwords [
+    --query = B.Stmt qStr V.empty True
+    --qStr = Data.Text.unwords [
+    query = Data.Text.unwords [
       ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
       "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) tbls),
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions,
+      orderF (fromMaybe [] ord)
       ]
     emptyOnNull val x = if null x then "" else val
     (withs, selects) = foldr getQueryParts ([],[]) forest
@@ -106,13 +110,15 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+           --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (Node n forst)
 
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
-          where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+          --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+          where subquery = requestToQuery schema (Node n forst)
 
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
@@ -120,7 +126,8 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+           --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (Node n forst)
 
     -- the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
@@ -129,9 +136,10 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
 requestToQuery schema (Node (Insert tbl flds vals, (mainTbl, _)) forest) =
   query
   where
-    query = B.Stmt qStr V.empty True
+    --query = B.Stmt qStr V.empty True
     qi = QualifiedIdentifier schema mainTbl
-    qStr = Data.Text.unwords [
+    --qStr = Data.Text.unwords [
+    query = Data.Text.unwords [
       "INSERT INTO ", fromQi qi,
       " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
       "VALUES " <> intercalate ", "
