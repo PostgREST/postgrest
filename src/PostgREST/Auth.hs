@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-|
 Module      : PostgREST.Auth
 Description : PostgREST authorization functions.
@@ -10,10 +11,10 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
-{-# LANGUAGE FlexibleContexts #-}
 module PostgREST.Auth (
   setRole
-  , setJWTEnv
+  , claimsToSQL
+  , jwtClaims
   , tokenJWT
   ) where
 
@@ -32,22 +33,28 @@ import qualified Web.JWT                 as JWT
 import qualified Data.HashMap.Lazy       as H
 
 {-|
-  Receives the JWT secret (from config) and a JWT and
-  returns a list of PostgreSQL statements to set the claims
-  as user defined GUCs.
-  Except if we have a claim called role, this one is mapped to
-  a SET ROLE statement.
+  Receives a map of JWT claims and returns a list
+  of PostgreSQL statements to set the claims as user defined GUCs.
+  Except if we have a claim called role,
+  this one is mapped to a SET ROLE statement.
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-setJWTEnv :: Text -> Text -> Maybe [Text]
-setJWTEnv secret input = setDBEnv jwtClaims
+claimsToSQL :: JWT.ClaimsMap -> [Text]
+claimsToSQL = map setVar . toList
   where
-    setDBEnv maybeClaims = (map setVar . toList) <$> maybeClaims
     setVar ("role", String val) = setRole val
     setVar (k, val) = "set local postgrest.claims." <> pgFmtIdent k <>
                       " = " <> valueToVariable val <> ";"
     valueToVariable = pgFmtLit . unquoted
-    jwtClaims = JWT.unregisteredClaims <$> JWT.claims <$> decoded
+
+{-|
+  Receives the JWT secret (from config) and a JWT and
+  returns a map of JWT claims
+  In case there is any problem decoding the JWT it returns Nothing.
+-}
+jwtClaims :: Text -> Text -> Maybe JWT.ClaimsMap
+jwtClaims secret input = JWT.unregisteredClaims <$> JWT.claims <$> decoded
+  where
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
 
 -- | Receives the name of a role and returns a SET ROLE statement

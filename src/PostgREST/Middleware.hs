@@ -26,13 +26,14 @@ import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
 import           PostgREST.App                 (contentTypeForAccept)
-import           PostgREST.Auth                (setRole, setJWTEnv)
+import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
 import           Prelude hiding(concat)
 
 import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B
+import qualified Data.Map.Lazy           as M
 
 runWithClaims :: forall s. AppConfig ->
                  (Request -> H.Tx P.Postgres s Response) ->
@@ -41,16 +42,20 @@ runWithClaims conf app req = do
     mapM_ H.unitEx $ stmt <$> env
     app req
  where
+   stmt = (flip $ flip B.Stmt V.empty) True
    hdrs = requestHeaders req
    jwtSecret = (cs $ configJwtSecret conf) :: Text
    auth = fromMaybe "" $ lookup hAuthorization hdrs
    anon = cs $ configAnonRole conf
-   jwtEnv =
+   claims =
+     fromMaybe (M.fromList []) $
      case split (==' ') (cs auth) of
-       ("Bearer" : jwt : _) -> fromMaybe [] (setJWTEnv jwtSecret jwt)
-       _ -> []
-   env = setRole anon : jwtEnv
-   stmt = (flip $ flip B.Stmt V.empty) True
+       ("Bearer" : jwt : _) -> jwtClaims jwtSecret jwt
+       _ -> Nothing
+   env = if M.member "role" claims
+            then jwtEnv
+            else setRole anon : jwtEnv
+   jwtEnv = claimsToSQL claims
 
 redirectInsecure :: Application -> Application
 redirectInsecure app req respond = do
