@@ -2,6 +2,9 @@
 
 ### Tables and Views
 
+* ✅ Cacheable, prefetchable
+* ✅ Idempotent
+
 The list of accessible tables and views is provided at
 
 ```HTTP
@@ -31,6 +34,9 @@ on database permissions.
 </div>
 
 ### Stored Procedures
+
+* ❌ Cannot necessarily be cached or prefetched
+* ❌ Not necessarily idempotent
 
 Every stored procedure is accessible under the `/rpc` prefix. The
 API endpoint supports only POST which executes the function.
