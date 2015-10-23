@@ -13,7 +13,7 @@ import           PostgREST.Types
 
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
-import           Data.Aeson.Encode.Pretty             (encodePretty)
+import           Data.Aeson                           (encode)
 import           Data.Functor.Identity
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
@@ -34,7 +34,7 @@ isServerVersionSupported = do
   return $ read (cs row) >= minimumPgVersion
 
 hasqlError :: PgError -> IO a
-hasqlError = error . cs . encodePretty
+hasqlError = error . cs . encode
 
 main :: IO ()
 main = do
@@ -71,11 +71,12 @@ main = do
           <> show minimumPgVersion)
     ) supportedOrError
 
-  roleOrError <- H.session pool $ do
-    Identity (role :: Text) <- H.tx Nothing $ H.singleEx
-      [H.stmt|SELECT SESSION_USER|]
-    return role
-  authenticator <- either hasqlError return roleOrError
+  -- what was this code for?
+  -- roleOrError <- H.session pool $ do
+  --   Identity (role :: Text) <- H.tx Nothing $ H.singleEx
+  --     [H.stmt|SELECT SESSION_USER|]
+  --   return role
+  -- authenticator <- either hasqlError return roleOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do

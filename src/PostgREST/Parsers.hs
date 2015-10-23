@@ -5,8 +5,8 @@ where
 
 import           Control.Applicative hiding ((<$>))
 --lines needed for ghc 7.8
-import           Data.Functor ((<$>))
-import           Data.Traversable (traverse)
+-- import           Data.Functor ((<$>))
+-- import           Data.Traversable (traverse)
 
 --import           Control.Monad                 (join)
 --import           Data.List                     (delete, find)

@@ -10,9 +10,9 @@ import           Data.Text         hiding (filter, find, foldr, head, last, map,
                                     null, zipWith)
 import           Control.Applicative
 import           Data.Tree
-import           PostgREST.PgQuery (fromQi,
-                                    pgFmtIdent, pgFmtLit, pgFmtOperator,
-                                    pgFmtValue, whiteList, insertableValue, orderF)
+import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
+                                    pgFmtIdent, pgFmtCondition,
+                                    insertableValue, orderF)
 import           PostgREST.Types
 --import qualified Data.Vector       as V (empty)
 --import qualified Hasql.Backend     as B
@@ -161,47 +161,3 @@ requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
     --       ) vals
     --     )
     --   <> " returning row_to_json(" <> fromQi t <> ".*)")
-
-
-pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
-pgFmtCondition table (Filter (col,jp) ops val) =
-  notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
-    if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
-  where
-    headPredicate:rest = split (=='.') ops
-    hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
-    opCode      = hasNot (head rest) headPredicate
-    notOp       = hasNot headPredicate ""
-    sqlCol = case val of
-      VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
-      VForeignKey qi _ -> pgFmtColumn qi col
-    sqlValue = valToStr val
-    getInner v = case v of
-      VText s -> s
-      _      -> ""
-    valToStr v = case v of
-      VText s -> pgFmtValue opCode s
-      VForeignKey (QualifiedIdentifier s _) (ForeignKey ft fc) -> pgFmtColumn (QualifiedIdentifier s ft) fc
-
-pgFmtColumn :: QualifiedIdentifier -> Text -> Text
-pgFmtColumn table "*" = fromQi table <> ".*"
-pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
-
-pgFmtJsonPath :: Maybe JsonPath -> Text
-pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
-pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
-pgFmtJsonPath _ = ""
-
-pgFmtTable :: Table -> Text
-pgFmtTable Table{tableSchema=s, tableName=n} = fromQi $ QualifiedIdentifier s n
-
-pgFmtField :: QualifiedIdentifier -> Field -> Text
-pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
-
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
-pgFmtSelectItem table (f@(_, jp), Nothing) = pgFmtField table f <> asJsonPath jp
-pgFmtSelectItem table (f@(_, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> asJsonPath jp
-
-asJsonPath :: Maybe JsonPath -> Text
-asJsonPath Nothing = ""
-asJsonPath (Just xx) = " AS " <> last xx
