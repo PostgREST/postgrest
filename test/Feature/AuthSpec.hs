@@ -26,8 +26,19 @@ spec = beforeAll
         , matchHeaders = ["Content-Type" <:> "application/json"]
         }
 
-  it "allows users with permissions to see their tables (JWT)" $ do
-    _ <- post "/postgrest/users" [json| { "id": "jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+  it "allows users with permissions to see their tables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 200
+
+  it "hides tables from users with invalid JWT" $ do
+    let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 404
+
+  it "recovers after 400 error with logged in user" $ do
+    _ <- post "/authors_only" [json| { "owner": "jdoe", "secret": "test content" } |]
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
+    _ <- request methodPost "/rpc/problem" [auth] ""
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
