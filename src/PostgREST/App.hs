@@ -116,7 +116,7 @@ app dbstructure conf reqBody req =
 
         where
             frm = fromMaybe 0 $ rangeOffset <$> range
-            apiRequest = first formatParserError (parseGetRequest table req)
+            apiRequest = parseGetRequest table req
                      >>= first formatRelationError . addRelations schema allRels Nothing
                      >>= addJoinConditions schema allCols
             query = requestToQuery schema <$> apiRequest
@@ -361,36 +361,35 @@ parsePostRequest rootTableName httpRequest reqBody =
     vals = snd <$> parsed
     parseField f = parse pField ("failed to parse field <<"++f++">>") f
     parsed :: Either Text ([Text],[[Value]])
-    parsed = first cs $
-      (\v->
-        if headerMatchesContent v
-        then Right v
-        else
-          if isCsv
-          then Left "CSV header does not match rows length"
-          else Left "The number of keys in objects do not match"
-      ) =<<
-      if isCsv
-      then do
-        rows <- (map V.toList . V.toList) <$> CSV.decode CSV.NoHeader reqBody
-        if null rows then Left "CSV requires header"
-          else Right (head rows, (map $ map $ parseCsvCell . cs) (tail rows))
-      else eitherDecode reqBody >>= \val -> convertJson val
-    -- jsn = eitherDecode reqBody
-    -- returnSingle = first cs $ jsn >>= (\v->
-    --   case v of
-    --     Object _  -> Right True
-    --     _         -> Right False
-    --   )
+    parsed = parseRequestBody isCsv reqBody
     returnSingle = (==1) . length . snd <$> parsed -- not quite correct qhen the user send single row but in an array
     hdrs          = requestHeaders httpRequest
     lookupHeader  = flip lookup hdrs
     --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     isCsv = lookupHeader "Content-Type" == Just csvMT
 
-headerMatchesContent :: ([Text], [[Value]]) -> Bool
-headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
-  where headerLength = length header
+parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
+parseRequestBody isCsv reqBody = first cs $
+  checkStructure =<<
+  if isCsv
+  then do
+    rows <- (map V.toList . V.toList) <$> CSV.decode CSV.NoHeader reqBody
+    if null rows then Left "CSV requires header" -- TODO! should check if length rows > 1 (header and 1 row)
+      else Right (head rows, (map $ map $ parseCsvCell . cs) (tail rows))
+  else eitherDecode reqBody >>= convertJson
+  where
+    checkStructure :: ([Text], [[Value]]) -> Either String ([Text], [[Value]])
+    checkStructure v =
+      if headerMatchesContent v
+      then Right v
+      else
+        if isCsv
+        then Left "CSV header does not match rows length"
+        else Left "The number of keys in objects do not match"
+
+    headerMatchesContent :: ([Text], [[Value]]) -> Bool
+    headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
+      where headerLength = length header
 
 convertJson :: Value -> Either String ([Text],[[Value]])
 convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
@@ -421,9 +420,9 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         a@(Array _) -> Right a
         _ -> Left invalidMsg
 
-parseGetRequest :: NodeName -> Request -> Either ParseError ApiRequest
+parseGetRequest :: NodeName -> Request -> Either Text ApiRequest
 parseGetRequest rootTableName httpRequest =
-  foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
+  first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
     apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++selectStr++">>") $ cs selectStr
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
