@@ -40,8 +40,7 @@ spec = around withApp $ do
         {matchStatus = 200}
 
     it "lists only views user has permission to see" $ do
-      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      let auth = authHeaderBasic "jdoe" "1234"
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
 
       request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [
