@@ -25,7 +25,7 @@ executable postgrest
   main-is:             PostgREST/Main.hs
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   default-language:    Haskell2010
-  build-depends:       base >=4.6 && <5
+  build-depends:       base >= 4.8 && < 5
                      , postgrest
                      , hasql >= 0.7.3 && < 0.8
                      , hasql-backend >= 0.4.1 && < 0.5
@@ -57,6 +57,18 @@ executable postgrest
                      , errors
                      , bifunctors
   hs-source-dirs:      src
+  other-modules:       Paths_postgrest
+                     , PostgREST.App
+                     , PostgREST.Auth
+                     , PostgREST.Config
+                     , PostgREST.Error
+                     , PostgREST.Middleware
+                     , PostgREST.Parsers
+                     , PostgREST.PgQuery
+                     , PostgREST.PgStructure
+                     , PostgREST.QueryBuilder
+                     , PostgREST.RangeQuery
+                     , PostgREST.Types
 
 library
   if flag(ci)
@@ -111,16 +123,16 @@ library
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
-                     , PostgREST.Types
-                     , PostgREST.Parsers
-                     , PostgREST.QueryBuilder
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
                      , PostgREST.Middleware
+                     , PostgREST.Parsers
                      , PostgREST.PgQuery
                      , PostgREST.PgStructure
+                     , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
+                     , PostgREST.Types
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -133,20 +145,28 @@ Test-Suite spec
   else
     ghc-options:       -Wall -W -O2
   Main-Is:             Main.hs
-  Other-Modules:       PostgREST.App
-                     , PostgREST.Types
-                     , PostgREST.Parsers
-                     , PostgREST.QueryBuilder
+  Other-Modules:       Feature.AuthSpec
+                     , Feature.CorsSpec
+                     , Feature.DeleteSpec
+                     , Feature.InsertSpec
+                     , Feature.QuerySpec
+                     , Feature.RangeSpec
+                     , Feature.StructureSpec
+                     , Paths_postgrest
+                     , PostgREST.App
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
                      , PostgREST.Middleware
+                     , PostgREST.Parsers
                      , PostgREST.PgQuery
                      , PostgREST.PgStructure
+                     , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
+                     , PostgREST.Types
                      , Spec
                      , SpecHelper
-                     , Paths_postgrest
+                     , TestTypes
   Build-Depends:       base, hspec == 2.1.*, QuickCheck
                      , hspec-wai, hspec-wai-json
                      , hasql, hasql-backend
