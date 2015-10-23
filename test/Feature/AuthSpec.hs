@@ -36,6 +36,11 @@ spec = beforeAll
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 404
 
+  it "hides tables from users with JWT that contain no claims about role" $ do
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.MKYc_lOECtB0LJOiykilAdlHodB-I0_id2qHKq35dmc"
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 404
+
   it "recovers after 400 error with logged in user" $ do
     _ <- post "/authors_only" [json| { "owner": "jdoe", "secret": "test content" } |]
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
