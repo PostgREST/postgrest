@@ -76,7 +76,7 @@ CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.owner = current_setting('user_vars.user_id');
+  NEW.owner = current_setting('postgrest.claims.id');
   RETURN NEW;
 end
 $$;
@@ -268,15 +268,6 @@ CREATE VIEW test.projects_view AS
       projects.client_id
   FROM projects;
 ALTER TABLE test.projects_view OWNER TO postgrest_test;
-------- SAMPLE DATA -----
-INSERT INTO clients VALUES (1, 'Microsoft'),(2, 'Apple');
-INSERT INTO projects VALUES (1,'Windows 7', 1),(2,'Windows 10', 1),(3,'IOS', 2),(4,'OSX', 2);
-INSERT INTO tasks VALUES (1,'Design w7',1),(2,'Code w7',1),(3,'Design w10',2),(4,'Code w10',2),(5,'Design IOS',3),(6,'Code IOS',3),(7,'Design OSX',4),(8,'Code OSX',4);
-INSERT INTO users VALUES (1, 'Angela Martin'),(2, 'Michael Scott'),(3, 'Dwight Schrute');
-INSERT INTO users_projects VALUES(1,1),(1,2),(2,3),(2,4),(3,1),(3,3);
-INSERT INTO users_tasks VALUES(1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(3,1),(3,5);
-INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
-----------------
 
 CREATE SEQUENCE items_id_seq
     START WITH 1
@@ -298,6 +289,13 @@ CREATE FUNCTION test.getitemrange(min bigint, max bigint) RETURNS SETOF test.ite
 $$ LANGUAGE SQL;
 
 
+CREATE TYPE public.jwt_claims AS (role text, id text);
+CREATE FUNCTION test.login(id text, pass text)
+RETURNS public.jwt_claims
+SECURITY DEFINER
+AS $$
+SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass;
+$$ LANGUAGE SQL;
 
 CREATE FUNCTION test.sayhello(name text) RETURNS text AS $$
     SELECT 'Hello, ' || $1;
@@ -663,6 +661,10 @@ REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_anonymous;
 
+REVOKE ALL ON FUNCTION login(text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION login(text, text) FROM postgrest_test;
+GRANT EXECUTE ON FUNCTION login(text, text) TO postgrest_test;
+GRANT EXECUTE ON FUNCTION login(text, text) TO postgrest_anonymous;
 
 REVOKE ALL ON FUNCTION sayhello(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sayhello(text) FROM postgrest_test;
@@ -758,3 +760,16 @@ SET search_path = private, pg_catalog;
 REVOKE ALL ON TABLE articles FROM PUBLIC;
 REVOKE ALL ON TABLE articles FROM postgrest_test;
 GRANT ALL ON TABLE articles TO postgrest_test;
+
+SET search_path = test, private, postgrest, public, pg_catalog;
+
+------- SAMPLE DATA -----
+INSERT INTO clients VALUES (1, 'Microsoft'),(2, 'Apple');
+INSERT INTO projects VALUES (1,'Windows 7', 1),(2,'Windows 10', 1),(3,'IOS', 2),(4,'OSX', 2);
+INSERT INTO tasks VALUES (1,'Design w7',1),(2,'Code w7',1),(3,'Design w10',2),(4,'Code w10',2),(5,'Design IOS',3),(6,'Code IOS',3),(7,'Design OSX',4),(8,'Code OSX',4);
+INSERT INTO users VALUES (1, 'Angela Martin'),(2, 'Michael Scott'),(3, 'Dwight Schrute');
+INSERT INTO users_projects VALUES(1,1),(1,2),(2,3),(2,4),(3,1),(3,3);
+INSERT INTO users_tasks VALUES(1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(3,1),(3,5);
+INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
+INSERT INTO postgrest.auth (id, pass, rolname) VALUES ('jdoe', '1234', 'postgrest_test_author');
+----------------

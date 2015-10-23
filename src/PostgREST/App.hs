@@ -40,13 +40,13 @@ import           Network.Wai.Internal      (Response (..))
 import           Network.Wai.Parse         (parseHttpAccept)
 
 import           Data.Aeson
+import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
 import qualified Hasql                     as H
 import qualified Hasql.Backend             as B
 import qualified Hasql.Postgres            as P
 
-import           PostgREST.Auth
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.PgQuery
@@ -54,14 +54,16 @@ import           PostgREST.PgStructure
 import           PostgREST.QueryBuilder
 import           PostgREST.RangeQuery
 import           PostgREST.Types
+import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> DbRole -> BL.ByteString -> DbRole -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf authenticator reqBody dbrole req =
+app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app dbstructure conf reqBody req =
   case (path, verb) of
 
     ([], _) -> do
+      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
       let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
       return $ responseLBS status200 [jsonH] $ cs body
 
@@ -130,41 +132,6 @@ app dbstructure conf authenticator reqBody dbrole req =
             countQuery = requestToCountQuery schema <$> apiRequest
             queries = (,) <$> query <*> countQuery
 
-
-    (["postgrest", "users"], "POST") -> do
-      let user = decode reqBody :: Maybe AuthUser
-
-      case user of
-        Nothing -> return $ responseLBS status400 [jsonH] $
-          encode . object $ [("message", String "Failed to parse user.")]
-        Just u -> do
-          _ <- addUser (cs $ userId u)
-            (cs $ userPass u) (cs <$> userRole u)
-          return $ responseLBS status201
-            [ jsonH
-            , (hLocation, "/postgrest/users?id=eq." <> cs (userId u))
-            ] ""
-
-    (["postgrest", "tokens"], "POST") ->
-      case jwtSecret of
-        "secret" -> return $ responseLBS status500 [jsonH] $
-          encode . object $ [("message", String "JWT Secret is set as \"secret\" which is an unsafe default.")]
-        _ -> do
-          let user = decode reqBody :: Maybe AuthUser
-
-          case user of
-            Nothing -> return $ responseLBS status400 [jsonH] $
-              encode . object $ [("message", String "Failed to parse user.")]
-            Just u -> do
-              setRole authenticator
-              login <- signInRole (cs $ userId u) (cs $ userPass u)
-              case login of
-                LoginSuccess role uid ->
-                  return $ responseLBS status201 [ jsonH ] $
-                    encode . object $ [("token", String $ tokenJWT jwtSecret uid role)]
-                _  -> return $ responseLBS status401 [jsonH] $
-                  encode . object $ [("message", String "Failed authentication.")]
-
     ([table], "POST") -> do
       let qt = qualify table
           echoRequested = hasPrefer "return=representation"
@@ -207,9 +174,13 @@ app dbstructure conf authenticator reqBody dbrole req =
         then do
           let call = B.Stmt "select " V.empty True <>
                 asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
-          body :: Maybe (Identity Text) <- H.maybeEx call
+          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
+          returnJWT <- doesProcReturnJWT schema proc
           return $ responseLBS status200 [jsonH]
-            (cs $ fromMaybe "[]" $ runIdentity <$> body)
+                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                    if returnJWT
+                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                    else cs $ encode body)
         else return $ responseLBS status404 [] ""
 
       -- check that proc exists
@@ -295,7 +266,7 @@ app dbstructure conf authenticator reqBody dbrole req =
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = cs $ configSchema conf
-    jwtSecret     = cs $ configJwtSecret conf
+    jwtSecret     = (cs $ configJwtSecret conf) :: Text
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept

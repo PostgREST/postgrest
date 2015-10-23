@@ -98,5 +98,5 @@ main = do
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      authenticated conf authenticator (app dbstructure conf authenticator body) req
+      runWithClaims conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
