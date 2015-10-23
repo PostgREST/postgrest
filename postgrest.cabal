@@ -167,7 +167,7 @@ Test-Suite spec
                      , Spec
                      , SpecHelper
                      , TestTypes
-  Build-Depends:       base, hspec == 2.1.*, QuickCheck
+  Build-Depends:       base, hspec == 2.2.*, QuickCheck
                      , hspec-wai, hspec-wai-json
                      , hasql, hasql-backend
                      , hasql-postgres
