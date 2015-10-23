@@ -399,7 +399,7 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
     normalized = groupByKey =<< normalizeValue v
 
     vals :: [(Text, [Value])] -> [[Value]]
-    vals a = transpose $ map snd a
+    vals = transpose . map snd
 
     header :: [(Text, [Value])] -> [Text]
     header = map fst
