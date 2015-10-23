@@ -18,9 +18,6 @@ module PostgREST.Auth (
   , tokenJWT
   ) where
 
---line needed for ghc 7.8
-import           Data.Functor            ((<$>))
- 
 import           Data.Aeson              (Value (..), Object)
 import           Data.Aeson.Types        (emptyObject, emptyArray)
 import           Data.Vector             as V (null, head)
