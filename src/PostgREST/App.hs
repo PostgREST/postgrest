@@ -14,14 +14,12 @@ module PostgREST.App where
 -- , bb
 -- ) where
 
-import qualified Blaze.ByteString.Builder  as BB
 import           Control.Applicative
 import           Control.Arrow             ((***))
 import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as BL
-import           Data.CaseInsensitive      (original)
 import qualified Data.Csv                  as CSV
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as M
@@ -43,8 +41,6 @@ import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
---import           Network.Wai.Internal
-import           Network.Wai.Internal      (Response (..))
 import           Network.Wai.Parse         (parseHttpAccept)
 
 import           Data.Aeson
@@ -88,31 +84,17 @@ app dbstructure conf reqBody req =
         case query of
           Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
           Right qs -> do
-            -- let qt = qualify table
-            --     count = if hasPrefer "count=none"
-            --           then countNone
-            --           else cqs
-            --     q = B.Stmt "select " V.empty True <>
-            --         parentheticT count
-            --         <> commaq <> (
-            --         bodyForAccept contentType qt -- TODO! when in csv mode, the first row (columns) is not correct when requesting sub tables
-            --         . limitT range
-            --         $ qs
-            --       )
-
             let q = B.Stmt
-                    (withSourceF qs <>
-                    " SELECT " <>
-                      (if hasPrefer "count=none" then countNoneF else countAllF) <>
-                      "," <>
-                      countF <>
-                      "," <>
-                      (case contentType of
-                        "text/csv" -> asCsvF
-                        _     -> asJsonF
-                      ) <>
-                    " " <>
-                    fromF ( limitF range ))
+                    (
+                      wrapQuery qs [
+                        (if hasPrefer "count=none" then countNoneF else countAllF),
+                        countF,
+                        (case contentType of
+                          "text/csv" -> asCsvF -- TODO check when in csv mode if the header is correct when requesting nested data
+                          _     -> asJsonF
+                        )
+                      ] range
+                    )
                     V.empty True
             row <- H.maybeEx q
             let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString) row
@@ -134,37 +116,34 @@ app dbstructure conf reqBody req =
 
         where
             frm = fromMaybe 0 $ rangeOffset <$> range
-            apiRequest = first formatParserError (parseGetRequest req)
+            apiRequest = first formatParserError (parseGetRequest table req)
                      >>= first formatRelationError . addRelations schema allRels Nothing
                      >>= addJoinConditions schema allCols
-
-
-
             query = requestToQuery schema <$> apiRequest
-            --countQuery = requestToCountQuery schema <$> apiRequest
-            --queries = (,) <$> query <*> countQuery
 
     ([table], "POST") -> do
-      let echoRequested = hasPrefer "return=representation" --TODO!! do not request content at all in query if not echoRequested
+      let echoRequested = hasPrefer "return=representation"
       case insertQuery of
         Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
         Right qs -> do
           let isSingle = either (const False) id returnSingle
               pKeys = map pkName $ filter (filterPk schema table) allPrKeys
               q = B.Stmt
-                   (withSourceF qs <>
-                   " SELECT " <>
-                     (if isSingle then locationF pKeys else "null") <>
-                     "," <>
-                     countF <>
-                     "," <>
-                     (case contentType of
-                        "text/csv" -> asCsvF
-                        _     -> if isSingle then asJsonSingleF else asJsonF
-                     ) <>
-                   " " <>
-                   fromF ( limitF Nothing ))
-                   V.empty True
+                    (
+                      wrapQuery qs [
+                        (if isSingle then locationF pKeys else "null"),
+                        "null", -- countF,
+                        (
+                          if echoRequested
+                          then
+                            case contentType of
+                               "text/csv" -> asCsvF
+                               _     -> if isSingle then asJsonSingleF else asJsonF
+                          else "null"
+                        )
+                      ] Nothing
+                    )
+                    V.empty True
 
           row <- H.maybeEx q
           let (locationRaw, _ {-- queryTotal --}, bodyRaw) = fromMaybe (Just "" :: Maybe BL.ByteString, Just (0::Int), Just "" :: Maybe BL.ByteString) row
@@ -176,60 +155,11 @@ app dbstructure conf reqBody req =
               (hLocation, "/" <> cs table <> "?" <> cs locationH)
             ]
             $ if echoRequested then body else ""
-        -- let qt = qualify table
-      --     echoRequested = hasPrefer "return=representation"
-      --     parsed :: Either String (V.Vector Text, V.Vector (V.Vector Value))
-      --     parsed = if lookupHeader "Content-Type" == Just csvMT
-      --       then do
-      --         rows <- CSV.decode CSV.NoHeader reqBody
-      --         if V.null rows then Left "CSV requires header"
-      --           else Right (V.head rows, (V.map $ V.map $ parseCsvCell . cs) (V.tail rows))
-      --       else eitherDecode reqBody >>= \val ->
-      --         case val of
-      --           Object obj -> Right .  second V.singleton .  V.unzip .  V.fromList $
-      --             M.toList obj
-      --           _ -> Left "Expecting single JSON object or CSV rows"
-      -- case parsed of
-      --   Left err -> return $ responseLBS status400 [] $
-      --     encode . object $ [("message", String $ "Failed to parse JSON payload. " <> cs err)]
-      --   Right toBeInserted -> do
-      --     rows :: [Identity Text] <- H.listEx $ uncurry (insertInto qt) toBeInserted
-      --     let inserted :: [Object] = mapMaybe (decode . cs . runIdentity) rows
-      --         pKeys = map pkName $ filter (filterPk schema table) allPrKeys
-      --         responses = flip map inserted $ \obj -> do
-      --           let primaries =
-      --                 if Prelude.null pKeys
-      --                   then obj
-      --                   else M.filterWithKey (const . (`elem` pKeys)) obj
-      --           let params = urlEncodeVars
-      --                 $ map (\t -> (cs $ fst t, cs (paramFilter $ snd t)))
-      --                 $ sortBy (comparing fst) $ M.toList primaries
-      --           responseLBS status201
-      --             [ jsonH
-      --             , (hLocation, "/" <> cs table <> "?" <> cs params)
-      --             ] $ if echoRequested then encode obj else ""
-      --     return $ multipart status201 responses
-
       where
-        res = parsePostRequest req reqBody
+        res = parsePostRequest table req reqBody
         apiRequest = snd <$> res
         returnSingle = fst <$> res
         insertQuery = requestToQuery schema <$> apiRequest
-
-        -- localWithT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
-        --   B.Stmt ("WITH " <> v <> " AS (" <> eq <> ") " <> wq)
-        --     (ep <> wp)
-        --     (epre && wpre)
-        --
-        -- query = localWithT
-        --     <$> insertQuery
-        --     <*> pure "k"
-        --     <*> pure (
-        --       B.Stmt "SELECT " V.empty True <>
-        --       bodyForAccept contentType (QualifiedIdentifier "" "k") (B.Stmt "SELECT * FROM k" V.empty True)
-        --       )
-        --       -- TODO! csv does not work because k is not a real table
-
 
     (["rpc", proc], "POST") -> do
       let qi = QualifiedIdentifier schema (cs proc)
@@ -408,25 +338,6 @@ handleJsonObj reqBody handler = do
 parseCsvCell :: BL.ByteString -> Value
 parseCsvCell s = if s == "NULL" then Null else String $ cs s
 
-multipart :: Status -> [Response] -> Response
-multipart _ [] = responseLBS status204 [] ""
-multipart _ [r] = r
-multipart s rs =
-  responseLBS s [(hContentType, "multipart/mixed; boundary=\"postgrest_boundary\"")] $
-    BL.intercalate "\n--postgrest_boundary\n" (map renderResponseBody rs)
-
-  where
-    renderHeader :: Header -> BL.ByteString
-    renderHeader (k, v) = cs (original k) <> ": " <> cs v
-
-    renderResponseBody :: Response -> BL.ByteString
-    renderResponseBody (ResponseBuilder _ headers b) =
-      BL.intercalate "\n" (map renderHeader headers)
-        <> "\n\n" <> BB.toLazyByteString b
-    renderResponseBody _ = error
-      "Unable to create multipart response from non-ResponseBuilder"
-
-
 formatRelationError :: Text -> Text
 formatRelationError e = cs $ encode $ object [
   "mesage" .= ("could not find foreign keys between these entities"::String),
@@ -439,9 +350,9 @@ formatParserError e = cs $ encode $ object [
      message = show (errorPos e)
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
---parsePostRequest :: Request -> BL.ByteString -> Either String (V.Vector Text, V.Vector (V.Vector Value))
-parsePostRequest :: Request -> BL.ByteString -> Either Text (Bool, ApiRequest)
-parsePostRequest httpRequest reqBody =
+
+parsePostRequest :: NodeName -> Request -> BL.ByteString -> Either Text (Bool, ApiRequest)
+parsePostRequest rootTableName httpRequest reqBody =
   (,) <$> returnSingle <*> node
   where
     node = Node <$> apiNode <*> pure []
@@ -471,10 +382,10 @@ parsePostRequest httpRequest reqBody =
     --     Object _  -> Right True
     --     _         -> Right False
     --   )
-    returnSingle = (==1) . length . snd <$> parsed
+    returnSingle = (==1) . length . snd <$> parsed -- not quite correct qhen the user send single row but in an array
     hdrs          = requestHeaders httpRequest
     lookupHeader  = flip lookup hdrs
-    rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
+    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     isCsv = lookupHeader "Content-Type" == Just csvMT
 
 headerMatchesContent :: ([Text], [[Value]]) -> Bool
@@ -510,14 +421,14 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         a@(Array _) -> Right a
         _ -> Left invalidMsg
 
-parseGetRequest :: Request -> Either ParseError ApiRequest
-parseGetRequest httpRequest =
+parseGetRequest :: NodeName -> Request -> Either ParseError ApiRequest
+parseGetRequest rootTableName httpRequest =
   foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
     apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++selectStr++">>") $ cs selectStr
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
     flts = mapM pRequestFilter whereFilters
-    rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
+    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
     orderStr = join $ lookup "order" qString
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderStr++">>")) orderStr
