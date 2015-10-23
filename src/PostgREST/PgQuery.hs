@@ -72,6 +72,7 @@ import qualified Network.HTTP.Types.URI  as Net
 import           Text.Regex.TDFA         ((=~))
 
 import           Prelude
+import qualified Data.Map                as M
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
@@ -85,6 +86,24 @@ data JsonbPath =
   | SingleArrow JsonbPath JsonbPath
   | DoubleArrow JsonbPath JsonbPath
   deriving (Show)
+
+operators :: M.Map T.Text T.Text
+operators = M.fromList [
+  ("eq", "="),
+  ("gt", ">"),
+  ("lt", "<"),
+  ("gte", ">="),
+  ("lte", "<="),
+  ("neq", "<>"),
+  ("like", "like"),
+  ("ilike", "ilike"),
+  ("in", "in"),
+  ("notin", "not in"),
+  ("is", "is"),
+  ("isnot", "is not"),
+  ("@@", "@@")
+  ]
+
 
 whereT :: QualifiedIdentifier -> Net.Query -> StatementT
 whereT table params q =
@@ -323,22 +342,7 @@ pgFmtValue opCode val =
    unknownLiteral = (<> "::unknown ") . pgFmtLit
 
 pgFmtOperator :: T.Text -> T.Text
-pgFmtOperator opCode =
- case opCode of
-   "eq"  -> "="
-   "gt"  -> ">"
-   "lt"  -> "<"
-   "gte" -> ">="
-   "lte" -> "<="
-   "neq" -> "<>"
-   "like"-> "like"
-   "ilike"-> "ilike"
-   "in"  -> "in"
-   "notin" -> "not in"
-   "is"    -> "is"
-   "isnot" -> "is not"
-   "@@" -> "@@"
-   _     -> "="
+pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operators
 
 pgFmtJsonbPath :: QualifiedIdentifier -> T.Text -> T.Text
 pgFmtJsonbPath table p =
