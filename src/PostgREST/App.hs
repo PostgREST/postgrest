@@ -66,17 +66,6 @@ app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s
 app dbstructure conf reqBody req =
   case (path, verb) of
 
-    ([], _) -> do
-      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
-      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
-      return $ responseLBS status200 [jsonH] $ cs body
-
-    ([table], "OPTIONS") -> do
-      let cols = filter (filterCol schema table) allCols
-          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
-          body = encode (TableOptions cols pkeys)
-      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
-
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
@@ -161,26 +150,6 @@ app dbstructure conf reqBody req =
         returnSingle = fst <$> res
         insertQuery = requestToQuery schema <$> apiRequest
 
-    (["rpc", proc], "POST") -> do
-      let qi = QualifiedIdentifier schema (cs proc)
-      exists <- doesProcExist schema proc
-      if exists
-        then do
-          let call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
-          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
-          returnJWT <- doesProcReturnJWT schema proc
-          return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
-                    if returnJWT
-                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                    else cs $ encode body)
-        else return $ responseLBS status404 [] ""
-
-      -- check that proc exists
-      -- check that arg names are all specified
-      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
-
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
         let qt = qualify table
@@ -236,6 +205,37 @@ app dbstructure conf reqBody req =
       return $ if deletedCount == 0
         then responseLBS status404 [] ""
         else responseLBS status204 [("Content-Range", "*/"<> cs (show deletedCount))] ""
+
+    (["rpc", proc], "POST") -> do
+      let qi = QualifiedIdentifier schema (cs proc)
+      exists <- doesProcExist schema proc
+      if exists
+        then do
+          let call = B.Stmt "select " V.empty True <>
+                asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
+          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
+          returnJWT <- doesProcReturnJWT schema proc
+          return $ responseLBS status200 [jsonH]
+                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                    if returnJWT
+                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                    else cs $ encode body)
+        else return $ responseLBS status404 [] ""
+
+      -- check that proc exists
+      -- check that arg names are all specified
+      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
+
+    ([], _) -> do
+      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
+      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
+      return $ responseLBS status200 [jsonH] $ cs body
+
+    ([table], "OPTIONS") -> do
+      let cols = filter (filterCol schema table) allCols
+          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
+          body = encode (TableOptions cols pkeys)
+      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
     (_, _) ->
       return $ responseLBS status404 [] ""
