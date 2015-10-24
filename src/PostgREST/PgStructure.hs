@@ -105,7 +105,7 @@ allRelations = do
            LATERAL (SELECT array_agg(cols.attname) AS cols,
                            array_agg(cols.attnum)  AS nums,
                            array_agg(refs.attname) AS refs
-                      FROM unnest(conkey, confkey) AS _(col, ref),
+                      FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
                            LATERAL (SELECT * FROM pg_attribute
                                      WHERE attrelid = conrelid AND attnum = col)
                                 AS cols,
