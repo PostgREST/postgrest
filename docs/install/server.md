@@ -7,21 +7,13 @@ The [release page](https://github.com/begriffs/postgrest/releases/latest) has pr
 ```sh
 # Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
 
-$ tar zxf postgrest-0.2.11.1-osx.tar.xz
+$ tar zxf postgrest-0.2.12.0-osx.tar.xz
 
 # Try running it
-$ ./postgrest-0.2.11.1
+$ ./postgrest
 
 # You should see a usage help message
 ```
-
-<div class="admonition danger">
-    <p class="admonition-title">Deprecation Warning</p>
-
-    <p>The filename inside the tarball currently includes a version
-    number, but this will be removed in the next version for cleaner
-    post-extraction scripting.</p>
-</div>
 
 <div class="admonition warning">
     <p class="admonition-title">Invitation to Contribute</p>
@@ -36,7 +28,7 @@ $ ./postgrest-0.2.11.1
 We'll learn the meaning of the command line flags later, but here is a minimal example of running the app. It does all operations as user `postgres`, including for unauthenticated requests.
 
 ```sh
-$ ./postgrest-0.2.11.1 -d dbname -U postgres --a postgres --v1schema public
+$ ./postgrest -d dbname -U postgres --a postgres --v1schema public
 ```
 
 ### Building from Source
