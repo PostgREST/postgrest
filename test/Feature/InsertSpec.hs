@@ -172,7 +172,7 @@ spec = afterAll_ resetDb $ around withApp $ do
       --     , matchHeaders = ["Content-Type" <:> "application/json",
       --                       "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
       --     }
-      it "can post nulls" $ do
+      it "can post nulls" $
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "a,b\nNULL,foo"
