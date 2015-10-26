@@ -4,9 +4,9 @@ module PostgREST.Parsers
 where
 
 import           Control.Applicative hiding ((<$>))
-import           Control.Monad                 (join)
-import           Data.List                     (delete, find)
-import           Data.Maybe
+--import           Control.Monad                 (join)
+--import           Data.List                     (delete, find)
+--import           Data.Maybe
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)

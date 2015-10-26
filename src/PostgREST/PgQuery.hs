@@ -275,7 +275,7 @@ asJsonSingleF :: T.Text --TODO! unsafe when the query actually returns multiple 
 asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
 
 asCsvF :: T.Text
-asCsvF = asCsvHeaderF <> " || '\r' || " <> asCsvBodyF
+asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
 
 asCsvHeaderF :: T.Text
 asCsvHeaderF =
@@ -289,7 +289,7 @@ asCsvHeaderF =
   ")"
 
 asCsvBodyF :: T.Text
-asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\r'), '')"
+asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
 
 fromF :: T.Text -> T.Text
 fromF limit = "FROM (SELECT * FROM source " <> limit <> ") t"

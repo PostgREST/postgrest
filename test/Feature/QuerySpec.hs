@@ -272,7 +272,7 @@ spec =
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "k,extra\rxyyx,u\rxYYx,v"
+          matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv"]
         }
