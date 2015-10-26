@@ -78,10 +78,9 @@ app dbstructure conf reqBody req =
                       wrapQuery qs [
                         (if hasPrefer "count=none" then countNoneF else countAllF),
                         countF,
-                        (case contentType of
+                        case contentType of
                           "text/csv" -> asCsvF -- TODO check when in csv mode if the header is correct when requesting nested data
                           _     -> asJsonF
-                        )
                       ] range
                     )
                     V.empty True
@@ -120,7 +119,7 @@ app dbstructure conf reqBody req =
               q = B.Stmt
                     (
                       wrapQuery qs [
-                        (if isSingle then locationF pKeys else "null"),
+                        if isSingle then locationF pKeys else "null",
                         "null", -- countF,
                         (
                           if echoRequested
@@ -368,6 +367,7 @@ parsePostRequest rootTableName httpRequest reqBody =
     --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     isCsv = lookupHeader "Content-Type" == Just csvMT
 
+
 parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
 parseRequestBody isCsv reqBody = first cs $
   checkStructure =<<
@@ -379,13 +379,17 @@ parseRequestBody isCsv reqBody = first cs $
   else eitherDecode reqBody >>= convertJson
   where
     checkStructure :: ([Text], [[Value]]) -> Either String ([Text], [[Value]])
-    checkStructure v =
-      if headerMatchesContent v
-      then Right v
-      else
-        if isCsv
-        then Left "CSV header does not match rows length"
-        else Left "The number of keys in objects do not match"
+    checkStructure v
+    | headerMatchesContent v = Right v
+    | isCsv = Left "CSV header does not match rows length"
+    | otherwise = Left "The number of keys in objects do not match"
+    -- checkStructure v =
+    --   if headerMatchesContent v
+    --   then Right v
+    --   else
+    --     if isCsv
+    --     then Left "CSV header does not match rows length"
+    --     else Left "The number of keys in objects do not match"
 
     headerMatchesContent :: ([Text], [[Value]]) -> Bool
     headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
