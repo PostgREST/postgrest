@@ -19,16 +19,38 @@ import TestTypes(IncPK(..), CompoundPK(..))
 spec :: Spec
 spec = afterAll_ resetDb $ around withApp $ do
   describe "Posting new record" $ do
-    after_ (clearTable "menagerie") . it "accepts disparate json types" $ do
-      p <- post "/menagerie"
-        [json| {
-          "integer": 13, "double": 3.14159, "varchar": "testing!"
-        , "boolean": false, "date": "1900-01-01", "money": "$3.99"
-        , "enum": "foo"
-        } |]
-      liftIO $ do
-        simpleBody p `shouldBe` ""
-        simpleStatus p `shouldBe` created201
+    after_ (clearTable "menagerie") . context "disparate csv types" $ do
+      it "accepts disparate json types" $ do
+        p <- post "/menagerie"
+          [json| {
+            "integer": 13, "double": 3.14159, "varchar": "testing!"
+          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
+          , "enum": "foo"
+          } |]
+        liftIO $ do
+          simpleBody p `shouldBe` ""
+          simpleStatus p `shouldBe` created201
+
+      it "filters columns in result using &select" $ do
+        request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
+          [json| {
+            "integer": 14, "double": 3.14159, "varchar": "testing!"
+          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
+          , "enum": "foo"
+          } |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"integer":14,"varchar":"testing!"}|]
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "application/json"]
+          }
+
+      it "includes related data after insert" $ do
+        request methodPost "/projects?select=id,name,clients(id,name)" [("Prefer", "return=representation")]
+          [str|{"id":5,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"id":5,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "application/json", "Location" <:> "/projects?id=eq.5"]
+          }
+
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" . after_ (clearTable "auto_incrementing_pk") $

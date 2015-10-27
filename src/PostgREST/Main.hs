@@ -2,6 +2,7 @@ module Main where
 
 
 import           PostgREST.App
+-- import PostgREST.QueryBuilder
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
@@ -26,7 +27,7 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
-
+-- import Data.Maybe (mapMaybe)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -86,8 +87,10 @@ main = do
     keys <- allPrimaryKeys
     return (tabs, rels, cols, keys)
 
+
   dbstructure <- either hasqlError
     (\(tabs, rels, cols, keys) ->
+
       return DbStructure {
           tables=tabs
         , columns=cols
@@ -95,6 +98,11 @@ main = do
         , primaryKeys=keys
         }
     ) metadata
+
+  -- let allRels = relations dbstructure
+  --     fakeRels = mapMaybe (toSourceRelation "projects") allRels
+  --
+  -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req

@@ -11,6 +11,7 @@ import SpecHelper
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll (clearProjectsTable)
    . beforeAll (clearTable "complex_items" >> createComplexItems)
    . beforeAll (clearTable "nullable_integer" >> createNullInteger)
    . beforeAll (

@@ -36,6 +36,7 @@ module PostgREST.PgQuery (
 , whereT
 
 -- query fragments
+, sourceSubqueryName
 , orderF
 , countNoneF
 , countAllF
@@ -44,6 +45,7 @@ module PostgREST.PgQuery (
 , asCsvF
 , asJsonSingleF
 , asJsonF
+, selectStarF
 
 , StatementT
 ) where
@@ -246,24 +248,27 @@ insertableValue :: JSON.Value -> T.Text
 insertableValue JSON.Null = "null"
 insertableValue v = insertableText $ unquoted v
 
-wrapQuery :: T.Text -> [T.Text] -> Maybe NonnegRange -> T.Text
-wrapQuery source selectColumns range =
+wrapQuery :: T.Text -> [T.Text] -> T.Text ->  Maybe NonnegRange -> T.Text
+wrapQuery source selectColumns returnSelect range =
   withSourceF source <>
   " SELECT " <>
   T.intercalate ", " selectColumns <>
   " " <>
-  fromF ( limitF range )
+  fromF returnSelect ( limitF range )
 
 
 -- query fragments
+sourceSubqueryName :: T.Text
+sourceSubqueryName = "pg_source"
+
 withSourceF :: T.Text -> T.Text
-withSourceF s = "WITH source AS (" <> s <>")"
+withSourceF s = "WITH " <> sourceSubqueryName <> " AS (" <> s <>")"
 
 countF :: T.Text
 countF = "pg_catalog.count(t)"
 
 countAllF :: T.Text
-countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM source) a )"
+countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
 
 countNoneF :: T.Text
 countNoneF = "null"
@@ -283,7 +288,7 @@ asCsvHeaderF =
   "  FROM (" <>
   "    SELECT json_object_keys(r)::TEXT as k" <>
   "    FROM ( " <>
-  "      SELECT row_to_json(source) as r from source limit 1" <>
+  "      SELECT row_to_json(hh) as r from " <> sourceSubqueryName <> " as hh limit 1" <>
   "    ) s" <>
   "  ) a" <>
   ")"
@@ -291,8 +296,11 @@ asCsvHeaderF =
 asCsvBodyF :: T.Text
 asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
 
-fromF :: T.Text -> T.Text
-fromF limit = "FROM (SELECT * FROM source " <> limit <> ") t"
+selectStarF :: T.Text
+selectStarF = "SELECT * FROM " <> sourceSubqueryName
+
+fromF :: T.Text -> T.Text -> T.Text
+fromF sel limit = "FROM (" <> sel <> " " <> limit <> ") t"
 
 limitF :: Maybe NonnegRange -> T.Text
 limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
@@ -303,7 +311,7 @@ limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
 locationF :: [T.Text] -> T.Text
 locationF pKeys =
     "(" <>
-    " WITH s AS (SELECT row_to_json(source) as r from source limit 1)" <>
+    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
     " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
     " FROM s, json_each_text(s.r) AS json_data" <>
     (
@@ -375,23 +383,24 @@ pgFmtLit x =
 
 pgFmtCondition :: QualifiedIdentifier -> Filter -> T.Text
 pgFmtCondition table (Filter (col,jp) ops val) =
- notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
-   if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
- where
-   headPredicate:rest = T.split (=='.') ops
-   hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
-   opCode      = hasNot (head rest) headPredicate
-   notOp       = hasNot headPredicate ""
-   sqlCol = case val of
-     VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
-     VForeignKey qi _ -> pgFmtColumn qi col
-   sqlValue = valToStr val
-   getInner v = case v of
-     VText s -> s
-     _      -> ""
-   valToStr v = case v of
-     VText s -> pgFmtValue opCode s
-     VForeignKey (QualifiedIdentifier s _) (ForeignKey ft fc) -> pgFmtColumn (QualifiedIdentifier s ft) fc
+  notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
+    if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
+  where
+    headPredicate:rest = T.split (=='.') ops
+    hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
+    opCode      = hasNot (head rest) headPredicate
+    notOp       = hasNot headPredicate ""
+    sqlCol = case val of
+      VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
+      VForeignKey qi _ -> pgFmtColumn qi col
+    sqlValue = valToStr val
+    getInner v = case v of
+      VText s -> s
+      _      -> ""
+    valToStr v = case v of
+      VText s -> pgFmtValue opCode s
+      VForeignKey (QualifiedIdentifier s _) (ForeignKey ft fc) -> pgFmtColumn qi fc
+        where qi = QualifiedIdentifier (if ft == sourceSubqueryName then "" else s) ft
 
 pgFmtColumn :: QualifiedIdentifier -> T.Text -> T.Text
 pgFmtColumn table "*" = fromQi table <> ".*"

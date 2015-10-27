@@ -24,7 +24,7 @@ import qualified Data.Csv                  as CSV
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as M
 import           Data.List                 (find, sortBy, delete, transpose)
-import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing)
+import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import qualified Data.Set                  as S
@@ -61,6 +61,7 @@ import           PostgREST.Types
 import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
+import           Debug.Trace
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody req =
@@ -76,12 +77,12 @@ app dbstructure conf reqBody req =
             let q = B.Stmt
                     (
                       wrapQuery qs [
-                        (if hasPrefer "count=none" then countNoneF else countAllF),
+                        if hasPrefer "count=none" then countNoneF else countAllF,
                         countF,
                         case contentType of
                           "text/csv" -> asCsvF -- TODO check when in csv mode if the header is correct when requesting nested data
                           _     -> asJsonF
-                      ] range
+                      ] selectStarF range
                     )
                     V.empty True
             row <- H.maybeEx q
@@ -104,32 +105,32 @@ app dbstructure conf reqBody req =
 
         where
             frm = fromMaybe 0 $ rangeOffset <$> range
-            apiRequest = parseGetRequest table req
-                     >>= first formatRelationError . addRelations schema allRels Nothing
-                     >>= addJoinConditions schema allCols
+            -- apiRequest = parseGetRequest table req
+            --          >>= first formatRelationError . addRelations schema allRels Nothing
+            --          >>= addJoinConditions schema allCols
+            apiRequest = parseGetRequest table req >>= augumentRequestWithJoin schema allRels
             query = requestToQuery schema <$> apiRequest
 
     ([table], "POST") -> do
       let echoRequested = hasPrefer "return=representation"
-      case insertQuery of
+      case queries of
         Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-        Right qs -> do
+        Right (qi, qs) -> do
           let isSingle = either (const False) id returnSingle
               pKeys = map pkName $ filter (filterPk schema table) allPrKeys
               q = B.Stmt
                     (
-                      wrapQuery qs [
+                      wrapQuery qi [
                         if isSingle then locationF pKeys else "null",
                         "null", -- countF,
-                        (
-                          if echoRequested
-                          then
-                            case contentType of
-                               "text/csv" -> asCsvF
-                               _     -> if isSingle then asJsonSingleF else asJsonF
-                          else "null"
-                        )
-                      ] Nothing
+                        if echoRequested
+                        then
+                          case contentType of
+                             "text/csv" -> asCsvF
+                             _     -> if isSingle then asJsonSingleF else asJsonF
+                        else "null"
+
+                      ] qs Nothing
                     )
                     V.empty True
 
@@ -145,9 +146,18 @@ app dbstructure conf reqBody req =
             $ if echoRequested then body else ""
       where
         res = parsePostRequest table req reqBody
-        apiRequest = snd <$> res
-        returnSingle = fst <$> res
-        insertQuery = requestToQuery schema <$> apiRequest
+        ins = fst <$> res
+        insertApiRequest = snd <$> ins
+        returnSingle = fst <$> ins
+        insertQuery = requestToQuery schema <$> insertApiRequest
+        selectApiRequest = (snd <$> res) >>= augumentRequestWithJoin schema (fakeSourceRelations ++ allRels)
+        selectQuery = requestToQuery schema <$> selectApiRequest
+        queries = (,) <$> insertQuery <*> selectQuery
+        fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
+        --changeRootNodeToSource :: Text -> ApiRequest -> ApiRequest
+        --changeRootNodeToSource rootTableName (q, (rootTableName, r)) =
+
+        --returnSelect = selectStarF
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -350,11 +360,12 @@ formatParserError e = cs $ encode $ object [
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
-parsePostRequest :: NodeName -> Request -> BL.ByteString -> Either Text (Bool, ApiRequest)
+-- quite ugly return type
+parsePostRequest :: NodeName -> Request -> BL.ByteString -> Either Text ((Bool, ApiRequest), ApiRequest)
 parsePostRequest rootTableName httpRequest reqBody =
-  (,) <$> returnSingle <*> node
+  (,) <$> ((,) <$> returnSingle <*> insertApiRequest) <*> returnApiRequest
   where
-    node = Node <$> apiNode <*> pure []
+    insertApiRequest = Node <$> apiNode <*> pure []
     apiNode = (,) <$> (Insert rootTableName <$> flds <*> vals) <*> pure (rootTableName, Nothing)
     flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsed)
     vals = snd <$> parsed
@@ -366,6 +377,8 @@ parsePostRequest rootTableName httpRequest reqBody =
     lookupHeader  = flip lookup hdrs
     --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     isCsv = lookupHeader "Content-Type" == Just csvMT
+    qParams = queryParams httpRequest
+    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) (whereFilters qParams) (orderStr qParams)
 
 
 parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
@@ -426,17 +439,36 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
 
 parseGetRequest :: NodeName -> Request -> Either Text ApiRequest
 parseGetRequest rootTableName httpRequest =
+  buildSelectApiRequest rootTableName (selectStr qParams) (whereFilters qParams) (orderStr qParams)
+  where
+    qParams = queryParams httpRequest
+
+augumentRequestWithJoin :: Text ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
+augumentRequestWithJoin schema allRels request = return request
+         >>= first formatRelationError . addRelations schema allRels Nothing
+         >>= addJoinConditions schema
+
+-- we use strings here because most of this data will be sent to parsers (which need strings for now)
+queryParams :: Request -> [(String, Maybe String)]
+queryParams httpRequest = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
+
+selectStr :: [(String, Maybe String)] -> String
+selectStr qParams = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+
+whereFilters :: [(String, Maybe String)] -> [(String, String)]
+whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
+
+orderStr :: [(String, Maybe String)] -> Maybe String
+orderStr qParams = join $ lookup "order" qParams
+
+buildSelectApiRequest :: Text -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
+buildSelectApiRequest rootTableName sel wher orderS =
   first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++selectStr++">>") $ cs selectStr
+    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++sel++">>") $ sel
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
-    flts = mapM pRequestFilter whereFilters
-    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
-    qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
-    orderStr = join $ lookup "order" qString
-    ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderStr++">>")) orderStr
-    selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
-    whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
+    flts = mapM pRequestFilter wher
+    ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
 addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
 addFilter ([], flt) (Node (q@(Select {where_=flts}), i) forest) = Node (q {where_=flt:flts}, i) forest
@@ -453,6 +485,12 @@ addFilter (path, flt) (Node rn forest) =
         Just node -> (Just node, delete node forest)
       where maybeNode = find ((name==).fst.snd.rootLabel) forst
 
+toSourceRelation :: Text -> Relation -> Maybe Relation
+toSourceRelation mt r@(Relation _ t _ ft _ _ rt _ _)
+  | mt == t = Just $ r {relTable=sourceSubqueryName}
+  | mt == ft = Just $ r {relFTable=sourceSubqueryName}
+  | Just mt == rt = Just $ r {relLTable=Just sourceSubqueryName}
+  | otherwise = Nothing
 
 data TableOptions = TableOptions {
   tblOptcolumns :: [Column]

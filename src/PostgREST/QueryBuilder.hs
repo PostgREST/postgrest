@@ -12,7 +12,7 @@ import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
                                     pgFmtIdent, pgFmtCondition,
-                                    insertableValue, orderF)
+                                    insertableValue, orderF, sourceSubqueryName)
 import           PostgREST.Types
 --import qualified Data.Vector       as V (empty)
 --import qualified Hasql.Backend     as B
@@ -47,8 +47,8 @@ getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
     toFilter :: Text -> Text -> FieldName -> FieldName -> Filter
     toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
 
-addJoinConditions :: Text -> [Column] -> ApiRequest -> Either Text ApiRequest
-addJoinConditions schema allColumns (Node (query, (t, r)) forest) =
+addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
+addJoinConditions schema (Node (query, (t, r)) forest) =
   case r of
     Nothing -> Node (updatedQuery, (t, r))  <$> updatedForest -- this is the root node
     Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(t,r)) <$> updatedForest
@@ -68,7 +68,7 @@ addJoinConditions schema allColumns (Node (query, (t, r)) forest) =
         parents = mapMaybe (getParents.rootLabel) forest
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
-    updatedForest = mapM (addJoinConditions schema allColumns) forest
+    updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
 
 -- requestToCountQuery :: Text -> ApiRequest -> PStmt
@@ -94,11 +94,24 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
   where
     --query = B.Stmt qStr V.empty True
     --qStr = Data.Text.unwords [
+    -- query = Data.Text.unwords [
+    --   ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
+    --   "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
+    --   "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) tbls),
+    --   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions,
+    --   orderF (fromMaybe [] ord)
+    --   ]
+    -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
+    -- of our WITH query part
+    tblSchema tbl = if tbl == sourceSubqueryName then "" else schema
+    qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
+    toQi t = QualifiedIdentifier (tblSchema t) t
+
     query = Data.Text.unwords [
       ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
-      "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
-      "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) tbls),
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions,
+      "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
+      "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
     emptyOnNull val x = if null x then "" else val

@@ -130,6 +130,13 @@ clearTable table = do
   void . liftIO $ H.session pool $ H.tx Nothing $
     H.unitEx $ B.Stmt ("delete from test."<>table) V.empty True
 
+clearProjectsTable :: IO ()
+clearProjectsTable = do
+  pool <- testPool
+  void . liftIO $ H.session pool $ H.tx Nothing $
+    H.unitEx $ B.Stmt ("delete from test.projects where id > 4") V.empty True
+
+
 createItems :: Int -> IO ()
 createItems n = do
   pool <- testPool
