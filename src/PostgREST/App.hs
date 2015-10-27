@@ -61,7 +61,7 @@ import           PostgREST.Types
 import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
-import           Debug.Trace
+--import           Debug.Trace
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody req =
@@ -444,9 +444,9 @@ parseGetRequest rootTableName httpRequest =
     qParams = queryParams httpRequest
 
 augumentRequestWithJoin :: Text ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
-augumentRequestWithJoin schema allRels request = return request
-         >>= first formatRelationError . addRelations schema allRels Nothing
-         >>= addJoinConditions schema
+augumentRequestWithJoin schema allRels request =
+  (first formatRelationError . addRelations schema allRels Nothing) request
+  >>= addJoinConditions schema
 
 -- we use strings here because most of this data will be sent to parsers (which need strings for now)
 queryParams :: Request -> [(String, Maybe String)]
@@ -465,7 +465,7 @@ buildSelectApiRequest :: Text -> String -> [(String, String)] -> Maybe String ->
 buildSelectApiRequest rootTableName sel wher orderS =
   first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++sel++">>") $ sel
+    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++sel++">>") sel
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
     flts = mapM pRequestFilter wher
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS

@@ -31,7 +31,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           simpleBody p `shouldBe` ""
           simpleStatus p `shouldBe` created201
 
-      it "filters columns in result using &select" $ do
+      it "filters columns in result using &select" $
         request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
           [json| {
             "integer": 14, "double": 3.14159, "varchar": "testing!"
@@ -43,7 +43,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           , matchHeaders = ["Content-Type" <:> "application/json"]
           }
 
-      it "includes related data after insert" $ do
+      it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients(id,name)" [("Prefer", "return=representation")]
           [str|{"id":5,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":5,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
