@@ -22,7 +22,7 @@ import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
 import           Data.Functor.Identity
-import qualified Data.HashMap.Strict       as M
+import qualified Data.HashMap.Strict       as HM
 import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
@@ -31,6 +31,7 @@ import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
+import qualified Data.Map as M
 --import           Data.Foldable             (forlrM)
 
 import           Text.Parsec.Error
@@ -169,10 +170,10 @@ app dbstructure conf reqBody req =
             "You must speficy all and only primary keys as params"
           else do
             let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
-                cols = map cs $ M.keys obj
+                cols = map cs $ HM.keys obj
             if S.fromList tableCols == S.fromList cols
               then do
-                let vals = M.elems obj
+                let vals = HM.elems obj
                 H.unitEx $ iffNotT
                   (whereT qt qq $ update qt cols vals)
                   (insertSelect qt cols vals)
@@ -183,25 +184,49 @@ app dbstructure conf reqBody req =
                 else responseLBS status400 []
                   "You must specify all columns in PUT request"
 
-    ([table], "PATCH") ->
-      handleJsonObj reqBody $ \obj -> do
-        let qt = qualify table
-            up = returningStarT
-              . whereT qt qq
-              $ update qt (map cs $ M.keys obj) (M.elems obj)
-            patch = withT up "t" $ B.Stmt
-              "select count(t), array_to_json(array_agg(row_to_json(t)))::character varying"
-              V.empty True
+    ([table], "PATCH") -> do
+      let echoRequested = hasPrefer "return=representation"
+      case queries of
+        Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
+        Right (qu, qs) -> do
+          let q = B.Stmt
+                    (
+                      wrapQuery qu [
+                        countF,
+                        if echoRequested
+                        then
+                          case contentType of
+                             "text/csv" -> asCsvF
+                             _     -> asJsonF
+                        else "null"
 
-        row <- H.maybeEx patch
-        let (queryTotal, body) =
-              fromMaybe (0 :: Int, Just "" :: Maybe Text) row
-            r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
-            echoRequested = hasPrefer "return=representation"
-            s = case () of _ | queryTotal == 0 -> status404
-                             | echoRequested -> status200
-                             | otherwise -> status204
-        return $ responseLBS s [ jsonH, r ] $ if echoRequested then cs $ fromMaybe "[]" body else ""
+                      ] qs Nothing
+                    )
+                    V.empty True
+
+          row <- H.maybeEx q
+          let (queryTotal, bodyRaw) = fromMaybe (0::Int, Just "" :: Maybe BL.ByteString) row
+              body = fromMaybe "[]" bodyRaw
+              r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+              s = case () of _ | queryTotal == 0 -> status404
+                               | echoRequested -> status200
+                               | otherwise -> status204
+          --return $ responseLBS s [ jsonH, r ] $ if echoRequested then cs $ fromMaybe "[]" body else ""
+          return $ responseLBS s
+            [
+              contentTypeH,
+              r
+            ]
+            $ if echoRequested then body else ""
+
+      where
+        res = parsePatchRequest table req reqBody
+        updateApiRequest = fst <$> res
+        updateQuery = requestToQuery schema <$> updateApiRequest
+        selectApiRequest = (snd <$> res) >>= augumentRequestWithJoin schema (fakeSourceRelations ++ allRels)
+        selectQuery = requestToQuery schema <$> selectApiRequest
+        queries = (,) <$> updateQuery <*> selectQuery
+        fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
     ([table], "DELETE") -> do
       let qt = qualify table
@@ -221,7 +246,7 @@ app dbstructure conf reqBody req =
       if exists
         then do
           let call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi $ fromMaybe M.empty (decode reqBody))
+                asJson (callProc qi $ fromMaybe HM.empty (decode reqBody))
           bodyJson :: Maybe (Identity Value) <- H.maybeEx call
           returnJWT <- doesProcReturnJWT schema proc
           return $ responseLBS status200 [jsonH]
@@ -360,6 +385,32 @@ formatParserError e = cs $ encode $ object [
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
+parsePatchRequest :: NodeName -> Request -> BL.ByteString -> Either Text (ApiRequest, ApiRequest)
+parsePatchRequest rootTableName httpRequest reqBody =
+  (,) <$> updateApiRequest <*> returnApiRequest
+  where
+    updateApiRequest = Node <$> apiNode <*> pure []
+    apiNode = (,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)
+    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsed)
+    vals = head.snd <$> parsed -- TODO! cheack if head is safe here
+    parseField f = parse pField ("failed to parse field <<"++f++">>") f
+    parsed :: Either Text ([Text],[[Value]])
+    parsed = parseRequestBody isCsv reqBody
+    returnSingle = (==1) . length . snd <$> parsed
+    isSingle = either (const False) id returnSingle
+    setWith = if isSingle
+          then M.fromList <$> (zip <$> flds <*> vals)
+          else Left "Expecting a sigle CSV line with header or a JSON object"
+    hdrs          = requestHeaders httpRequest
+    lookupHeader  = flip lookup hdrs
+    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
+    isCsv = lookupHeader "Content-Type" == Just csvMT
+    qParams = queryParams httpRequest
+    selectFilters = filter (( '.' `elem` ) . fst) $ whereFilters qParams -- there can be no filters on the root table whre we are doing insert
+    updateFilters = filter (not . ( '.' `elem` ) . fst) $ whereFilters qParams -- update filters can be only on the root table
+    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) selectFilters (orderStr qParams)
+    cond = first formatParserError $ map snd <$> mapM pRequestFilter updateFilters
+
 -- quite ugly return type
 parsePostRequest :: NodeName -> Request -> BL.ByteString -> Either Text ((Bool, ApiRequest), ApiRequest)
 parsePostRequest rootTableName httpRequest reqBody =
@@ -378,7 +429,8 @@ parsePostRequest rootTableName httpRequest reqBody =
     --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
     isCsv = lookupHeader "Content-Type" == Just csvMT
     qParams = queryParams httpRequest
-    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) (whereFilters qParams) (orderStr qParams)
+    filters = filter (( '.' `elem` ) . fst) $ whereFilters qParams -- there can be no filters on the root table whre we are doing insert
+    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) filters (orderStr qParams)
 
 
 parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
@@ -422,11 +474,11 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
     header = map fst
 
     groupByKey :: Value -> Either String [(Text,[Value])]
-    groupByKey (Array a) = M.toList . foldr (M.unionWith (++)) (M.fromList []) <$> maps
+    groupByKey (Array a) = HM.toList . foldr (HM.unionWith (++)) (HM.fromList []) <$> maps
       where
-        maps :: Either String [M.HashMap Text [Value]]
+        maps :: Either String [HM.HashMap Text [Value]]
         maps = mapM getElems $ V.toList a
-        getElems (Object o) = Right $ M.map (:[]) o
+        getElems (Object o) = Right $ HM.map (:[]) o
         getElems _ = Left invalidMsg
     groupByKey _ = Left invalidMsg
 

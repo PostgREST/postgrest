@@ -12,8 +12,9 @@ import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
                                     pgFmtIdent, pgFmtCondition,
-                                    insertableValue, orderF, sourceSubqueryName)
+                                    insertableValue, orderF, sourceSubqueryName, pgFmtJsonPath)
 import           PostgREST.Types
+import qualified Data.Map as M
 --import qualified Data.Vector       as V (empty)
 --import qualified Hasql.Backend     as B
 
@@ -87,6 +88,9 @@ addJoinConditions schema (Node (query, (t, r)) forest) =
 --         fn  (Filter{value=VForeignKey _ _}) = False
 
 --requestToQuery :: Text -> ApiRequest -> PStmt
+emptyOnNull :: Text -> [a] -> Text
+emptyOnNull val x = if null x then "" else val
+
 requestToQuery :: Text -> ApiRequest -> Text
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
   --orderT (fromMaybe [] ord)  query
@@ -114,7 +118,7 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
-    emptyOnNull val x = if null x then "" else val
+
     (withs, selects) = foldr getQueryParts ([],[]) forest
     getQueryParts :: Tree ApiNode -> ([Text], [Text]) -> ([Text], [Text])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
@@ -149,9 +153,7 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
 requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
   query
   where
-    --query = B.Stmt qStr V.empty True
     qi = QualifiedIdentifier schema mainTbl
-    --qStr = Data.Text.unwords [
     query = Data.Text.unwords [
       "INSERT INTO ", fromQi qi,
       " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
@@ -164,13 +166,14 @@ requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
         ),
       "RETURNING " <> fromQi qi <> ".*"
       ]
-    -- ("insert into " <> fromQi t <> " (" <>
-    --   T.intercalate ", " (V.toList $ V.map pgFmtIdent cols) <>
-    --   ") values "
-    --   <> T.intercalate ", "
-    --     (V.toList $ V.map (\v -> "("
-    --         <> T.intercalate ", " (V.toList $ V.map insertableValue v)
-    --         <> ")"
-    --       ) vals
-    --     )
-    --   <> " returning row_to_json(" <> fromQi t <> ".*)")
+requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
+  query
+  where
+    qi = QualifiedIdentifier schema mainTbl
+    query = Data.Text.unwords [
+      "UPDATE ", fromQi qi,
+      " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      "RETURNING " <> fromQi qi <> ".*"
+      ]
+    formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
