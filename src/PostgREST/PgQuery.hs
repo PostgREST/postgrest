@@ -116,7 +116,7 @@ asJsonWithCount = withCount . asJson
 asJson :: StatementT
 asJson s = s {
   B.stmtTemplate =
-    "array_to_json(array_agg(row_to_json(t)))::character varying from ("
+    "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
 
 withCount :: StatementT

@@ -297,7 +297,9 @@ CREATE FUNCTION "1".getitemrange(min bigint, max bigint) RETURNS SETOF "1".items
     SELECT * FROM "1".items WHERE id > $1 AND id <= $2;
 $$ LANGUAGE SQL;
 
-
+CREATE FUNCTION "1".test_empty_rowset() RETURNS SETOF int AS $$
+    SELECT null::int FROM (SELECT 1) a WHERE false;
+$$ LANGUAGE SQL;
 
 CREATE FUNCTION "1".sayhello(name text) RETURNS text AS $$
     SELECT 'Hello, ' || $1;
@@ -663,6 +665,10 @@ REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_anonymous;
 
+REVOKE ALL ON FUNCTION test_empty_rowset() FROM PUBLIC;
+REVOKE ALL ON FUNCTION test_empty_rowset() FROM postgrest_test;
+GRANT EXECUTE ON FUNCTION test_empty_rowset() TO postgrest_test;
+GRANT EXECUTE ON FUNCTION test_empty_rowset() TO postgrest_anonymous;
 
 REVOKE ALL ON FUNCTION sayhello(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sayhello(text) FROM postgrest_test;
