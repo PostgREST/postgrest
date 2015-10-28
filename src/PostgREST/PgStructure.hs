@@ -8,7 +8,7 @@ module PostgREST.PgStructure where
 import           Control.Applicative
 import           Control.Monad         (join)
 import           Data.Functor.Identity
-import           Data.List             (elemIndex, find)
+import           Data.List             (elemIndex, find, subsequences)
 import           Data.Maybe            (fromMaybe, isJust, mapMaybe)
 import           Data.Monoid
 import           Data.Text             (Text, split)
@@ -172,16 +172,20 @@ allRelations = do
     )
   |]
   let simpleRelations = foldr (addParentRelation.relationFromRow) [] rels
-  let links = filter ((==2).length) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
+      links = join $ map (combinations 2) $ filter ((>=1).length) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
   return $ simpleRelations ++ mapMaybe link2Relation links
   where
     groupFn :: Relation -> Text
     groupFn (Relation{relSchema=s, relTable=t}) = s<>"_"<>t
+    combinations k ns = filter ((k==).length) (subsequences ns)
     link2Relation [
       Relation{relSchema=sc, relTable=lt, relColumns=lc1, relFTable=t, relFColumns=c},
       Relation{                           relColumns=lc2, relFTable=ft, relFColumns=fc}
-      ] = Just $ Relation sc t c ft fc Many (Just lt) (Just lc1) (Just lc2)
+      ]
+      | lc1 /= lc2 && length lc1 == 1 && length lc2 == 1 = Just $ Relation sc t c ft fc Many (Just lt) (Just lc1) (Just lc2)
+      | otherwise = Nothing
     link2Relation _ = Nothing
+
 
 allColumns :: [Relation] -> H.Tx P.Postgres s [Column]
 allColumns rels = do
