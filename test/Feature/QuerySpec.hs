@@ -310,6 +310,11 @@ spec =
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
 
+    context "a proc that returns an empty rowset" $
+      it "returns empty json array" $
+        post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
+          [json| [] |]
+
     context "a proc that returns plain text" $
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
