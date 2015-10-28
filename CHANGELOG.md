@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Fixed
+- Return empty array instead of 500 when a set returning function returns an empty result set - @diogob
+
 ## [0.2.12.0] - 2015-10-25
 
 ### Added
