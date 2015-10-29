@@ -1,18 +1,11 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-module PostgREST.App where
--- module PostgREST.App (
---   app
--- , sqlError
--- , isSqlError
--- , contentTypeForAccept
--- , jsonH
--- , TableOptions(..)
--- , parsePostRequest
--- , rr
--- , bb
--- ) where
+--module PostgREST.App where
+module PostgREST.App (
+  app
+, contentTypeForAccept
+) where
 
 import           Control.Applicative
 import           Control.Arrow             ((***))
@@ -72,26 +65,16 @@ app dbstructure conf reqBody req =
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
       else
-        case query of
-          Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-          Right qs -> do
-            let q = B.Stmt
-                    (
-                      wrapQuery qs [
-                        if hasPrefer "count=none" then countNoneF else countAllF,
-                        countF,
-                        case contentType of
-                          "text/csv" -> asCsvF -- TODO check when in csv mode if the header is correct when requesting nested data
-                          _     -> asJsonF
-                      ] selectStarF range
-                    )
-                    V.empty True
+        case request of
+          Left e -> return $ responseLBS status400 [jsonH] $ cs e
+          Right (selectQuery, _, _) -> do
+            let q = B.Stmt (createStatement selectQuery Nothing True range [] (not $ hasPrefer "count=none") isCsv) V.empty True
             row <- H.maybeEx q
-            let (tableTotal, queryTotal, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString) row
+            let (tableTotal, queryTotal, _ , body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
                 to = frm+queryTotal-1
                 contentRange = contentRangeH frm to tableTotal
                 status = rangeStatus frm to tableTotal
-                canonical = urlEncodeVars
+                canonical = urlEncodeVars -- should this be moved to the db (location)?
                   . sortBy (comparing fst)
                   . map (join (***) cs)
                   . parseSimpleQuery
@@ -106,59 +89,26 @@ app dbstructure conf reqBody req =
 
         where
             frm = fromMaybe 0 $ rangeOffset <$> range
-            -- apiRequest = parseGetRequest table req
-            --          >>= first formatRelationError . addRelations schema allRels Nothing
-            --          >>= addJoinConditions schema allCols
-            apiRequest = parseGetRequest table req >>= augumentRequestWithJoin schema allRels
-            query = requestToQuery schema <$> apiRequest
+            request = parseRequest schema allRels table req reqBody
 
     ([table], "POST") -> do
       let echoRequested = hasPrefer "return=representation"
-      case queries of
-        Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-        Right (qi, qs) -> do
-          let isSingle = either (const False) id returnSingle
-              pKeys = map pkName $ filter (filterPk schema table) allPrKeys
-              q = B.Stmt
-                    (
-                      wrapQuery qi [
-                        if isSingle then locationF pKeys else "null",
-                        "null", -- countF,
-                        if echoRequested
-                        then
-                          case contentType of
-                             "text/csv" -> asCsvF
-                             _     -> if isSingle then asJsonSingleF else asJsonF
-                        else "null"
-
-                      ] qs Nothing
-                    )
-                    V.empty True
-
+      case request of
+        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Right (selectQuery, mutateQuery, isSingle) -> do
+          let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+              q = B.Stmt (createStatement selectQuery (Just (mutateQuery, isSingle)) echoRequested Nothing pKeys False isCsv) V.empty True
           row <- H.maybeEx q
-          let (locationRaw, _ {-- queryTotal --}, bodyRaw) = fromMaybe (Just "" :: Maybe BL.ByteString, Just (0::Int), Just "" :: Maybe BL.ByteString) row
-              body = fromMaybe "[]" bodyRaw
-              locationH = fromMaybe "" locationRaw
+          let (_, _, location, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
           return $ responseLBS status201
             [
               contentTypeH,
-              (hLocation, "/" <> cs table <> "?" <> cs locationH)
+              (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
             ]
-            $ if echoRequested then body else ""
+            $ if echoRequested then (fromMaybe "[]" body) else ""
       where
-        res = parsePostRequest table req reqBody
-        ins = fst <$> res
-        insertApiRequest = snd <$> ins
-        returnSingle = fst <$> ins
-        insertQuery = requestToQuery schema <$> insertApiRequest
-        selectApiRequest = (snd <$> res) >>= augumentRequestWithJoin schema (fakeSourceRelations ++ allRels)
-        selectQuery = requestToQuery schema <$> selectApiRequest
-        queries = (,) <$> insertQuery <*> selectQuery
+        request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
-        --changeRootNodeToSource :: Text -> ApiRequest -> ApiRequest
-        --changeRootNodeToSource rootTableName (q, (rootTableName, r)) =
-
-        --returnSelect = selectStarF
 
     ([table], "PUT") ->
       handleJsonObj reqBody $ \obj -> do
@@ -186,46 +136,21 @@ app dbstructure conf reqBody req =
 
     ([table], "PATCH") -> do
       let echoRequested = hasPrefer "return=representation"
-      case queries of
-        Left e -> return $ responseLBS status400 [("Content-Type", "application/json")] $ cs e
-        Right (qu, qs) -> do
-          let q = B.Stmt
-                    (
-                      wrapQuery qu [
-                        countF,
-                        if echoRequested
-                        then
-                          case contentType of
-                             "text/csv" -> asCsvF
-                             _     -> asJsonF
-                        else "null"
-
-                      ] qs Nothing
-                    )
-                    V.empty True
-
+      case request of
+        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Right (selectQuery, mutateQuery, _) -> do
+          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) echoRequested Nothing [] False isCsv) V.empty True
           row <- H.maybeEx q
-          let (queryTotal, bodyRaw) = fromMaybe (0::Int, Just "" :: Maybe BL.ByteString) row
-              body = fromMaybe "[]" bodyRaw
+          let (_, queryTotal, _, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
               r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
                                | echoRequested -> status200
                                | otherwise -> status204
-          --return $ responseLBS s [ jsonH, r ] $ if echoRequested then cs $ fromMaybe "[]" body else ""
-          return $ responseLBS s
-            [
-              contentTypeH,
-              r
-            ]
-            $ if echoRequested then body else ""
+          return $ responseLBS s [contentTypeH, r]
+            $ if echoRequested then (fromMaybe "[]" body) else ""
 
       where
-        res = parsePatchRequest table req reqBody
-        updateApiRequest = fst <$> res
-        updateQuery = requestToQuery schema <$> updateApiRequest
-        selectApiRequest = (snd <$> res) >>= augumentRequestWithJoin schema (fakeSourceRelations ++ allRels)
-        selectQuery = requestToQuery schema <$> selectApiRequest
-        queries = (,) <$> updateQuery <*> selectQuery
+        request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
     ([table], "DELETE") -> do
@@ -298,13 +223,8 @@ app dbstructure conf reqBody req =
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept
+    isCsv         = contentType == csvMT
     contentTypeH  = (hContentType, contentType)
-
-sqlError :: t
-sqlError = undefined
-
-isSqlError :: t
-isSqlError = undefined
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -347,11 +267,6 @@ contentTypeForAccept accept
     findInAccept = flip find $ parseHttpAccept acceptH
     has          = isJust . findInAccept . BS.isPrefixOf
 
-bodyForAccept :: BS.ByteString -> QualifiedIdentifier  -> StatementT
-bodyForAccept contentType table
-  | contentType == csvMT = asCsvWithCount table
-  | otherwise = asJsonWithCount -- defaults to JSON
-
 handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
               -> H.Tx P.Postgres s Response
 handleJsonObj reqBody handler = do
@@ -376,6 +291,7 @@ formatRelationError :: Text -> Text
 formatRelationError e = cs $ encode $ object [
   "mesage" .= ("could not find foreign keys between these entities"::String),
   "details" .= e]
+
 formatParserError :: ParseError -> Text
 formatParserError e = cs $ encode $ object [
   "message" .= message,
@@ -384,54 +300,6 @@ formatParserError e = cs $ encode $ object [
      message = show (errorPos e)
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
-parsePatchRequest :: NodeName -> Request -> BL.ByteString -> Either Text (ApiRequest, ApiRequest)
-parsePatchRequest rootTableName httpRequest reqBody =
-  (,) <$> updateApiRequest <*> returnApiRequest
-  where
-    updateApiRequest = Node <$> apiNode <*> pure []
-    apiNode = (,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)
-    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsed)
-    vals = head.snd <$> parsed -- TODO! cheack if head is safe here
-    parseField f = parse pField ("failed to parse field <<"++f++">>") f
-    parsed :: Either Text ([Text],[[Value]])
-    parsed = parseRequestBody isCsv reqBody
-    returnSingle = (==1) . length . snd <$> parsed
-    isSingle = either (const False) id returnSingle
-    setWith = if isSingle
-          then M.fromList <$> (zip <$> flds <*> vals)
-          else Left "Expecting a sigle CSV line with header or a JSON object"
-    hdrs          = requestHeaders httpRequest
-    lookupHeader  = flip lookup hdrs
-    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
-    isCsv = lookupHeader "Content-Type" == Just csvMT
-    qParams = queryParams httpRequest
-    selectFilters = filter (( '.' `elem` ) . fst) $ whereFilters qParams -- there can be no filters on the root table whre we are doing insert
-    updateFilters = filter (not . ( '.' `elem` ) . fst) $ whereFilters qParams -- update filters can be only on the root table
-    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) selectFilters (orderStr qParams)
-    cond = first formatParserError $ map snd <$> mapM pRequestFilter updateFilters
-
--- quite ugly return type
-parsePostRequest :: NodeName -> Request -> BL.ByteString -> Either Text ((Bool, ApiRequest), ApiRequest)
-parsePostRequest rootTableName httpRequest reqBody =
-  (,) <$> ((,) <$> returnSingle <*> insertApiRequest) <*> returnApiRequest
-  where
-    insertApiRequest = Node <$> apiNode <*> pure []
-    apiNode = (,) <$> (Insert rootTableName <$> flds <*> vals) <*> pure (rootTableName, Nothing)
-    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsed)
-    vals = snd <$> parsed
-    parseField f = parse pField ("failed to parse field <<"++f++">>") f
-    parsed :: Either Text ([Text],[[Value]])
-    parsed = parseRequestBody isCsv reqBody
-    returnSingle = (==1) . length . snd <$> parsed -- not quite correct qhen the user send single row but in an array
-    hdrs          = requestHeaders httpRequest
-    lookupHeader  = flip lookup hdrs
-    --rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
-    isCsv = lookupHeader "Content-Type" == Just csvMT
-    qParams = queryParams httpRequest
-    filters = filter (( '.' `elem` ) . fst) $ whereFilters qParams -- there can be no filters on the root table whre we are doing insert
-    returnApiRequest = buildSelectApiRequest sourceSubqueryName (selectStr qParams) filters (orderStr qParams)
-
 
 parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
 parseRequestBody isCsv reqBody = first cs $
@@ -448,13 +316,6 @@ parseRequestBody isCsv reqBody = first cs $
       | headerMatchesContent v = Right v
       | isCsv = Left "CSV header does not match rows length"
       | otherwise = Left "The number of keys in objects do not match"
-    -- checkStructure v =
-    --   if headerMatchesContent v
-    --   then Right v
-    --   else
-    --     if isCsv
-    --     then Left "CSV header does not match rows length"
-    --     else Left "The number of keys in objects do not match"
 
     headerMatchesContent :: ([Text], [[Value]]) -> Bool
     headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
@@ -488,12 +349,6 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         Object obj  -> Right $ Array (V.fromList[Object obj])
         a@(Array _) -> Right a
         _ -> Left invalidMsg
-
-parseGetRequest :: NodeName -> Request -> Either Text ApiRequest
-parseGetRequest rootTableName httpRequest =
-  buildSelectApiRequest rootTableName (selectStr qParams) (whereFilters qParams) (orderStr qParams)
-  where
-    qParams = queryParams httpRequest
 
 augumentRequestWithJoin :: Text ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
 augumentRequestWithJoin schema allRels request =
@@ -553,3 +408,62 @@ instance ToJSON TableOptions where
   toJSON t = object [
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
+
+parseRequest :: Text -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
+parseRequest schema allRels rootTableName httpRequest reqBody =
+  (,,) <$> selectQuery
+       <*> (if method == "GET" then pure "" else mutateQuery)
+       <*> (if method == "GET" then pure False else pure isSingleRecord)
+  where
+    hdrs = requestHeaders httpRequest
+    lookupHeader = flip lookup hdrs
+    isCsv = lookupHeader "Content-Type" == Just csvMT
+    method = requestMethod httpRequest
+    qParams = queryParams httpRequest
+    parsedBody = parseRequestBody isCsv reqBody
+    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
+    parseField f = parse pField ("failed to parse field <<"++f++">>") f
+    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
+    vals = snd <$> parsedBody
+    setWith = if isSingleRecord
+          then M.fromList <$> (zip <$> flds <*> (head <$> vals))
+          else Left "Expecting a sigle CSV line with header or a JSON object"
+    allFilters = whereFilters qParams
+    updateFilters = filter (not . ( '.' `elem` ) . fst) $ allFilters -- update filters can be only on the root table
+    cond = first formatParserError $ map snd <$> mapM pRequestFilter updateFilters
+    selectApiRequest = augumentRequestWithJoin schema allRels
+      =<< buildSelectApiRequest rootName (selectStr qParams) filters (orderStr qParams)
+      where
+        rootName = if method == "GET"
+          then rootTableName
+          else sourceSubqueryName
+        filters = if method == "GET"
+          then allFilters
+          else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    selectQuery = requestToQuery schema <$> selectApiRequest
+    mutateQuery = requestToQuery schema <$> case method of
+      "POST"  -> (Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure [])
+      "PATCH" -> (Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
+      _       -> undefined
+
+createStatement :: Text -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> Text
+createStatement selectQuery Nothing _ range _ countTable asCsv =
+  wrapQuery selectQuery [
+    if countTable then countAllF else countNoneF,
+    countF,
+    "null", -- location header can not be calucalted
+    if asCsv then asCsvF else asJsonF
+  ] selectStarF range
+createStatement selectQuery (Just (changeQuery, isSingle)) echoRequested _ pKeys _ asCsv =
+  wrapQuery changeQuery [
+    countNoneF, -- when updateing it does not make sense
+    countF,
+    if isSingle then locationF pKeys else "null",
+    if echoRequested
+    then
+      if asCsv
+      then asCsvF
+      else if isSingle then asJsonSingleF else asJsonF
+    else "null"
+
+  ] selectQuery Nothing

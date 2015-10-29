@@ -15,14 +15,10 @@ import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
                                     insertableValue, orderF, sourceSubqueryName, pgFmtJsonPath)
 import           PostgREST.Types
 import qualified Data.Map as M
---import qualified Data.Vector       as V (empty)
---import qualified Hasql.Backend     as B
 
 findRelation :: [Relation] -> Text -> Text -> Text -> Maybe Relation
 findRelation allRelations s t1 t2 =
   find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
-
-
 
 addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
@@ -72,45 +68,18 @@ addJoinConditions schema (Node (query, (t, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
 
--- requestToCountQuery :: Text -> ApiRequest -> PStmt
--- requestToCountQuery schema (Node (Select _ _ conditions _, (mainTbl, _)) _) =
---   B.Stmt query V.empty True
---   where
---     query = Data.Text.unwords [
---       "SELECT pg_catalog.count(1)",
---       "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
---       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
---       ]
---     emptyOnNull val x = if null x then "" else val
---     localConditions = filter fn conditions
---       where
---         fn  (Filter{value=VText _}) = True
---         fn  (Filter{value=VForeignKey _ _}) = False
-
---requestToQuery :: Text -> ApiRequest -> PStmt
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
 
 requestToQuery :: Text -> ApiRequest -> Text
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
-  --orderT (fromMaybe [] ord)  query
   query
   where
-    --query = B.Stmt qStr V.empty True
-    --qStr = Data.Text.unwords [
-    -- query = Data.Text.unwords [
-    --   ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
-    --   "SELECT ", intercalate ", " (map (pgFmtSelectItem (QualifiedIdentifier schema mainTbl)) colSelects ++ selects),
-    --   "FROM ", intercalate ", " (map (fromQi . QualifiedIdentifier schema) tbls),
-    --   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl) ) conditions )) `emptyOnNull` conditions,
-    --   orderF (fromMaybe [] ord)
-    --   ]
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
     -- of our WITH query part
     tblSchema tbl = if tbl == sourceSubqueryName then "" else schema
     qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
     toQi t = QualifiedIdentifier (tblSchema t) t
-
     query = Data.Text.unwords [
       ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
@@ -118,7 +87,6 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
-
     (withs, selects) = foldr getQueryParts ([],[]) forest
     getQueryParts :: Tree ApiNode -> ([Text], [Text]) -> ([Text], [Text])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
@@ -127,26 +95,20 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
            where subquery = requestToQuery schema (Node n forst)
-
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
-          --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
           where subquery = requestToQuery schema (Node n forst)
-
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           --where (B.Stmt subquery _ _) = requestToQuery schema (Node n forst)
            where subquery = requestToQuery schema (Node n forst)
-
-    -- the following is just to remove the warning
+    --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
