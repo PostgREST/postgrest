@@ -55,7 +55,6 @@ import           PostgREST.Types
 import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
---import           Debug.Trace
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody req =
@@ -70,7 +69,7 @@ app dbstructure conf reqBody req =
           Right (selectQuery, _, _) -> do
             let q = B.Stmt (createStatement selectQuery Nothing True range [] (not $ hasPrefer "count=none") isCsv) V.empty True
             row <- H.maybeEx q
-            let (tableTotal, queryTotal, _ , body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
+            let (tableTotal, queryTotal, _ , body) = extractQueryResult row
                 to = frm+queryTotal-1
                 contentRange = contentRangeH frm to tableTotal
                 status = rangeStatus frm to tableTotal
@@ -99,7 +98,7 @@ app dbstructure conf reqBody req =
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
               q = B.Stmt (createStatement selectQuery (Just (mutateQuery, isSingle)) echoRequested Nothing pKeys False isCsv) V.empty True
           row <- H.maybeEx q
-          let (_, _, location, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
+          let (_, _, location, body) = extractQueryResult row
           return $ responseLBS status201
             [
               contentTypeH,
@@ -141,7 +140,7 @@ app dbstructure conf reqBody req =
         Right (selectQuery, mutateQuery, _) -> do
           let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) echoRequested Nothing [] False isCsv) V.empty True
           row <- H.maybeEx q
-          let (_, queryTotal, _, body) = fromMaybe (Just (0::Int), 0::Int, Just "" :: Maybe BL.ByteString, Just "" :: Maybe BL.ByteString) row
+          let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
                                | echoRequested -> status200
@@ -467,3 +466,7 @@ createStatement selectQuery (Just (changeQuery, isSingle)) echoRequested _ pKeys
     else "null"
 
   ] selectQuery Nothing
+
+extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
+                         -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
+extractQueryResult = fromMaybe (Just 0, 0, Just "", Just "")
