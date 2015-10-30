@@ -184,4 +184,6 @@ createJsonData = do
       [H.stmt|
         insert into "1".json (data) values (?)
       |]
-      (J.object [("foo", J.object [("bar", J.String "baz")])])
+      (J.object [("id", J.Number 1)
+                ,("foo", J.object [("bar", J.String "baz")])
+                ])
