@@ -81,6 +81,7 @@ type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
 data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
            | Insert { into::Text, fields::[Field], values::[[Value]] }
+           | Delete { from::[Text], where_::[Filter] }
            | Update { into::Text, set::Map Field Value, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 type ApiNode = (Query, (NodeName, Maybe Relation))

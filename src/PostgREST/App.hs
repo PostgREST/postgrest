@@ -20,7 +20,7 @@ import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
-import qualified Data.Set                  as S
+--import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
@@ -109,29 +109,29 @@ app dbstructure conf reqBody req =
         request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
-    ([table], "PUT") ->
-      handleJsonObj reqBody $ \obj -> do
-        let qt = qualify table
-            pKeys = map pkName $ filter (filterPk schema table) allPrKeys
-            specifiedKeys = map (cs . fst) qq
-        if S.fromList pKeys /= S.fromList specifiedKeys
-          then return $ responseLBS status405 []
-            "You must speficy all and only primary keys as params"
-          else do
-            let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
-                cols = map cs $ HM.keys obj
-            if S.fromList tableCols == S.fromList cols
-              then do
-                let vals = HM.elems obj
-                H.unitEx $ iffNotT
-                  (whereT qt qq $ update qt cols vals)
-                  (insertSelect qt cols vals)
-                return $ responseLBS status204 [ jsonH ] ""
-
-              else return $ if Prelude.null tableCols
-                then responseLBS status404 [] ""
-                else responseLBS status400 []
-                  "You must specify all columns in PUT request"
+    -- ([table], "PUT") ->
+    --   handleJsonObj reqBody $ \obj -> do
+    --     let qt = qualify table
+    --         pKeys = map pkName $ filter (filterPk schema table) allPrKeys
+    --         specifiedKeys = map (cs . fst) qq
+    --     if S.fromList pKeys /= S.fromList specifiedKeys
+    --       then return $ responseLBS status405 []
+    --         "You must speficy all and only primary keys as params"
+    --       else do
+    --         let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
+    --             cols = map cs $ HM.keys obj
+    --         if S.fromList tableCols == S.fromList cols
+    --           then do
+    --             let vals = HM.elems obj
+    --             H.unitEx $ iffNotT
+    --               (whereT qt qq $ update qt cols vals)
+    --               (insertSelect qt cols vals)
+    --             return $ responseLBS status204 [ jsonH ] ""
+    --
+    --           else return $ if Prelude.null tableCols
+    --             then responseLBS status404 [] ""
+    --             else responseLBS status400 []
+    --               "You must specify all columns in PUT request"
 
     ([table], "PATCH") -> do
       let echoRequested = hasPrefer "return=representation"
@@ -153,16 +153,19 @@ app dbstructure conf reqBody req =
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
     ([table], "DELETE") -> do
-      let qt = qualify table
-          del = countT
-            . returningStarT
-            . whereT qt qq
-            $ deleteFrom qt
-      row <- H.maybeEx del
-      let (Identity deletedCount) = fromMaybe (Identity 0 :: Identity Int) row
-      return $ if deletedCount == 0
-        then responseLBS status404 [] ""
-        else responseLBS status204 [("Content-Range", "*/"<> cs (show deletedCount))] ""
+      case request of
+        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Right (selectQuery, mutateQuery, _) -> do
+          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) False Nothing [] True isCsv) V.empty True
+          row <- H.maybeEx q
+          let (_, queryTotal, _, _) = extractQueryResult row
+          return $ if queryTotal == 0
+            then responseLBS status404 [] ""
+            else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+
+
+      where
+        request = parseRequest schema allRels table req reqBody
 
     (["rpc", proc], "POST") -> do
       let qi = QualifiedIdentifier schema (cs proc)
@@ -211,8 +214,8 @@ app dbstructure conf reqBody req =
     filterTableAcl r (Table{tableAcl=a}) = r `elem` a
     path          = pathInfo req
     verb          = requestMethod req
-    qq            = queryString req
-    qualify       = QualifiedIdentifier schema
+    --qq            = queryString req
+    --qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
@@ -266,22 +269,22 @@ contentTypeForAccept accept
     findInAccept = flip find $ parseHttpAccept acceptH
     has          = isJust . findInAccept . BS.isPrefixOf
 
-handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
-              -> H.Tx P.Postgres s Response
-handleJsonObj reqBody handler = do
-  let p = eitherDecode reqBody
-  case p of
-    Left err ->
-      return $ responseLBS status400 [jsonH] jErr
-      where
-        jErr = encode . object $
-          [("message", String $ "Failed to parse JSON payload. " <> cs err)]
-    Right (Object o) -> handler o
-    Right _ ->
-      return $ responseLBS status400 [jsonH] jErr
-      where
-        jErr = encode . object $
-          [("message", String "Expecting a JSON object")]
+-- handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
+--               -> H.Tx P.Postgres s Response
+-- handleJsonObj reqBody handler = do
+--   let p = eitherDecode reqBody
+--   case p of
+--     Left err ->
+--       return $ responseLBS status400 [jsonH] jErr
+--       where
+--         jErr = encode . object $
+--           [("message", String $ "Failed to parse JSON payload. " <> cs err)]
+--     Right (Object o) -> handler o
+--     Right _ ->
+--       return $ responseLBS status400 [jsonH] jErr
+--       where
+--         jErr = encode . object $
+--           [("message", String "Expecting a JSON object")]
 
 parseCsvCell :: BL.ByteString -> Value
 parseCsvCell s = if s == "NULL" then Null else String $ cs s
@@ -428,11 +431,14 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           then M.fromList <$> (zip <$> flds <*> (head <$> vals))
           else Left "Expecting a sigle CSV line with header or a JSON object"
     allFilters = whereFilters qParams
-    updateFilters = filter (not . ( '.' `elem` ) . fst) $ allFilters -- update filters can be only on the root table
-    cond = first formatParserError $ map snd <$> mapM pRequestFilter updateFilters
+    mutateFilters = filter (not . ( '.' `elem` ) . fst) $ allFilters -- update/delete filters can be only on the root table
+    cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
     selectApiRequest = augumentRequestWithJoin schema allRels
-      =<< buildSelectApiRequest rootName (selectStr qParams) filters (orderStr qParams)
+      =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
       where
+        sel = if method == "DELETE"
+          then "*" -- we are not returning the records so no need to consider nested items
+          else selectStr qParams
         rootName = if method == "GET"
           then rootTableName
           else sourceSubqueryName
@@ -441,9 +447,10 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
     selectQuery = requestToQuery schema <$> selectApiRequest
     mutateQuery = requestToQuery schema <$> case method of
-      "POST"  -> (Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure [])
-      "PATCH" -> (Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
-      _       -> undefined
+      "POST"   -> (Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure [])
+      "PATCH"  -> (Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
+      "DELETE" -> (Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
+      _        -> undefined
 
 createStatement :: Text -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> Text
 createStatement selectQuery Nothing _ range _ countTable asCsv =

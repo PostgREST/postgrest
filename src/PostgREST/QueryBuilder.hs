@@ -139,3 +139,12 @@ requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
       "RETURNING " <> fromQi qi <> ".*"
       ]
     formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
+requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
+  query
+  where
+    qi = QualifiedIdentifier schema mainTbl
+    query = Data.Text.unwords [
+      "DELETE FROM ", fromQi qi,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      "RETURNING " <> fromQi qi <> ".*"
+      ]

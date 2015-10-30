@@ -224,7 +224,8 @@ spec = afterAll_ resetDb $ around withApp $ do
 
     context "to a known uri" $ do
       context "without a fully-specified primary key" $
-        it "is not an allowed operation" $
+        it "is not an allowed operation" $ do
+          pendingWith "Decide on PUT usefullness"
           request methodPut "/compound_pk?k1=eq.12" []
             [json| { "k1":12, "k2":42 } |]
               `shouldRespondWith` 405
@@ -232,13 +233,15 @@ spec = afterAll_ resetDb $ around withApp $ do
       context "with a fully-specified primary key" $ do
 
         context "not specifying every column in the table" $
-          it "is rejected for lack of idempotence" $
+          it "is rejected for lack of idempotence" $ do
+            pendingWith "Decide on PUT usefullness"
             request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
               [json| { "k1":12, "k2":42 } |]
                 `shouldRespondWith` 400
 
         context "specifying every column in the table" . after_ (clearTable "compound_pk") $ do
           it "can create a new record" $ do
+            pendingWith "Decide on PUT usefullness"
             p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
                  [json| { "k1":12, "k2":42, "extra":3 } |]
             liftIO $ do
@@ -255,6 +258,7 @@ spec = afterAll_ resetDb $ around withApp $ do
               compoundExtra record `shouldBe` Just 3
 
           it "can update an existing record" $ do
+            pendingWith "Decide on PUT usefullness"
             _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
                  [json| { "k1":12, "k2":42, "extra":4 } |]
             _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
@@ -269,7 +273,8 @@ spec = afterAll_ resetDb $ around withApp $ do
 
       context "with an auto-incrementing primary key" . after_ (clearTable "auto_incrementing_pk") $
 
-        it "succeeds with 204" $
+        it "succeeds with 204" $ do
+          pendingWith "Decide on PUT usefullness"
           request methodPut "/auto_incrementing_pk?id=eq.1" []
                [json| {
                  "id":1,
