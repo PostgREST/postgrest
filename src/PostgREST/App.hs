@@ -104,7 +104,7 @@ app dbstructure conf reqBody req =
               contentTypeH,
               (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
             ]
-            $ if echoRequested then (fromMaybe "[]" body) else ""
+            $ if echoRequested then fromMaybe "[]" body else ""
       where
         request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
@@ -146,13 +146,13 @@ app dbstructure conf reqBody req =
                                | echoRequested -> status200
                                | otherwise -> status204
           return $ responseLBS s [contentTypeH, r]
-            $ if echoRequested then (fromMaybe "[]" body) else ""
+            $ if echoRequested then fromMaybe "[]" body else ""
 
       where
         request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
-    ([table], "DELETE") -> do
+    ([table], "DELETE") ->
       case request of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (selectQuery, mutateQuery, _) -> do
@@ -431,7 +431,7 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           then M.fromList <$> (zip <$> flds <*> (head <$> vals))
           else Left "Expecting a sigle CSV line with header or a JSON object"
     allFilters = whereFilters qParams
-    mutateFilters = filter (not . ( '.' `elem` ) . fst) $ allFilters -- update/delete filters can be only on the root table
+    mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
     selectApiRequest = augumentRequestWithJoin schema allRels
       =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
@@ -447,9 +447,9 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
     selectQuery = requestToQuery schema <$> selectApiRequest
     mutateQuery = requestToQuery schema <$> case method of
-      "POST"   -> (Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure [])
-      "PATCH"  -> (Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
-      "DELETE" -> (Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure [])
+      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> undefined
 
 createStatement :: Text -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> Text

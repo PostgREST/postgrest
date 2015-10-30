@@ -151,6 +151,7 @@ spec = afterAll_ resetDb $ around withApp $ do
 
     after_ (clearTable "menagerie") . context "disparate csv types" $
       it "succeeds with multipart response" $ do
+        pendingWith "Decide on what to do with CSV insert"
         let inserted = [str|integer,double,varchar,boolean,date,money,enum
             |13,3.14159,testing!,false,1900-01-01,$3.99,foo
             |12,0.1,a string,true,1929-10-01,12,bar
