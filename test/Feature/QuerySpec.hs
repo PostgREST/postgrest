@@ -296,12 +296,16 @@ spec =
   describe "jsonb" $ do
     it "can filter by properties inside json column" $ do
       get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
-        [json| [{"data": {"foo": {"bar": "baz"}}}] |]
+        [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
       get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
         [json| [] |]
     it "can filter by properties inside json column using not" $
       get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
+    it "can filter by properties inside json column using ->>" $ do
+      pendingWith "see issue #334"
+      get "/json?data->>id=eq.1" `shouldRespondWith`
+        [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 
   describe "remote procedure call" $ do
     context "a proc that returns a set" . before_ (clearTable "items" >> createItems 10) .
