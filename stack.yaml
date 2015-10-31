@@ -1,11 +1,7 @@
 flags: {}
 packages:
 - '.'
-extra-deps: 
+extra-deps:
   - Ranged-sets-0.3.0
   - packdeps-0.4.1
-  - hspec-2.2.0
-  - hspec-core-2.2.0
-  - hspec-discover-2.2.0
-  - hspec-expectations-0.7.2
-resolver: lts-3.10
+resolver: nightly-2015-10-27
