@@ -11,6 +11,7 @@ import SpecHelper
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll clearProjectsTable
    . beforeAll (clearTable "complex_items" >> createComplexItems)
    . beforeAll (clearTable "nullable_integer" >> createNullInteger)
    . beforeAll (
@@ -198,10 +199,9 @@ spec =
       get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
 
-    it "requesting children with composite key" $ do
-      pendingWith "have to resolve issue #302"
+    it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
-        [json| [{"user_id":2,"task_id":6,"comments":[{"content": "Needs to be delivered ASAP"}]}] |]
+        "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
 
 
   describe "ordering response" $ do
@@ -273,7 +273,7 @@ spec =
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "k,extra\rxyyx,u\rxYYx,v"
+          matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv"]
         }

@@ -2,7 +2,6 @@ module Main where
 
 
 import           PostgREST.App
--- import PostgREST.QueryBuilder
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
@@ -28,6 +27,11 @@ import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 -- import Data.Maybe (mapMaybe)
+-- import Data.List (subsequences)
+-- import Control.Monad (join)
+-- import PostgREST.QueryBuilder
+-- import           GHC.Exts              (groupWith)
+
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -37,11 +41,15 @@ isServerVersionSupported = do
 hasqlError :: PgError -> IO a
 hasqlError = error . cs . encode
 
+
 main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
+
+  -- let dbString = "postgres://postgrest_test@localhost:5432/postgrest_test" :: String
+  --     conf = AppConfig dbString 3000 "postgrest_anonymous" "test" False "safe" 10 :: AppConfig
 
   conf <- readOptions
   let port = configPort conf
@@ -98,14 +106,26 @@ main = do
         , primaryKeys=keys
         }
     ) metadata
-
-  -- let allRels = relations dbstructure
-  --     fakeRels = mapMaybe (toSourceRelation "projects") allRels
-  --
-  -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
-
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
       runWithClaims conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError
+
+  --let allRels = relations dbstructure
+      -- links = join $ map (combinations 2) $ filter ((>=1).length) $ groupWith groupFn $ filter ( (==Child). relType) allRels
+      -- combinations k ns = filter ((k==).length) (subsequences ns)
+
+  --print $ findRelation allRels "test" "projects" "users"
+  --mapM_ print $ mapMaybe link2Relation links
+
+  -- where
+  --   groupFn :: Relation -> Text
+  --   groupFn (Relation{relSchema=s, relTable=t}) = s<>"_"<>t
+  --   link2Relation [
+  --     Relation{relSchema=sc, relTable=lt, relColumns=lc1, relFTable=t, relFColumns=c},
+  --     Relation{                           relColumns=lc2, relFTable=ft, relFColumns=fc}
+  --     ]
+  --     | lc1 /= lc2 && length lc1 == 1 && length lc2 == 1 = Just $ Relation sc t c ft fc Many (Just lt) (Just lc1) (Just lc2)
+  --     | otherwise = Nothing
+  --   link2Relation _ = Nothing

@@ -1,43 +1,30 @@
 module PostgREST.Parsers
-( parseGetRequest
-)
+-- ( parseGetRequest
+-- )
 where
 
 import           Control.Applicative hiding ((<$>))
-import           Control.Monad                 (join)
-import           Data.List                     (delete, find)
-import           Data.Maybe
+--import           Control.Monad                 (join)
+--import           Data.List                     (delete, find)
+--import           Data.Maybe
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)
 import           Data.Tree
-import           Network.Wai                   (Request, pathInfo, queryString)
+--import           Network.Wai                   (Request, pathInfo, queryString)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-parseGetRequest :: Request -> Either ParseError ApiRequest
-parseGetRequest httpRequest =
-  foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
-  where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++selectStr++">>") $ cs selectStr
-    addOrder (Node r f) o = Node r{order=o} f
-    flts = mapM pRequestFilter whereFilters
-    rootTableName = cs $ head $ pathInfo httpRequest -- TODO unsafe head
-    qString = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
-    orderStr = join $ lookup "order" qString
-    ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderStr++">>")) orderStr
-    selectStr = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qString --in case the parametre is missing or empty we default to *
-    whereFilters = [ (k, fromJust v) | (k,v) <- qString, k `notElem` ["select", "order"], isJust v ]
 
 pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (Select rootNodeName [] [] [] Nothing Nothing) []) fieldTree
+  return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (rootNodeName, Nothing)) []) fieldTree
   where
     treeEntry :: Tree SelectItem -> ApiRequest -> ApiRequest
-    treeEntry (Node fld@((fn, _),_) fldForest) (Node rNode rForest) =
+    treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
       case fldForest of
-        [] -> Node (rNode {fields=fld:fields rNode}) rForest
-        _  -> Node rNode (foldr treeEntry (Node (Select fn [] [] [] Nothing Nothing) []) fldForest:rForest)
+        [] -> Node (q {select=fld:select q}, i) rForest
+        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [fn] [] Nothing, (fn, Nothing)) []) fldForest:rForest)
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -49,20 +36,6 @@ pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
     op = fst <$> opVal
     val = snd <$> opVal
 
-addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
-addFilter ([], flt) (Node rn@(Select {filters=flts}) forest) = Node (rn {filters=flt:flts}) forest
-addFilter (path, flt) (Node rn forest) =
-  case targetNode of
-    Nothing -> Node rn forest -- the filter is silenty dropped in the Request does not contain the required path
-    Just tn -> Node rn (addFilter (remainingPath, flt) tn:restForest)
-  where
-    targetNodeName:remainingPath = path
-    (targetNode,restForest) = splitForest targetNodeName forest
-    splitForest name forst =
-      case maybeNode of
-        Nothing -> (Nothing,forest)
-        Just node -> (Just node, delete node forest)
-      where maybeNode = find ((name==).mainTable.rootLabel) forst
 
 ws :: Parser Text
 ws = cs <$> many (oneOf " \t")

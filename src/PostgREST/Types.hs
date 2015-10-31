@@ -3,6 +3,7 @@ import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Char8 as BS
 import Data.Aeson
+import Data.Map
 
 data DbStructure = DbStructure {
   tables :: [Table]
@@ -21,7 +22,7 @@ data Table = Table {
 
 data ForeignKey = ForeignKey {
   fkTable::Text, fkCol::Text
-} deriving (Show)
+} deriving (Show, Eq)
 
 
 data Column = Column {
@@ -49,38 +50,42 @@ data OrderTerm = OrderTerm {
 , otNullOrder :: Maybe BS.ByteString
 } deriving (Show, Eq)
 
+data QualifiedIdentifier = QualifiedIdentifier {
+  qiSchema :: Text
+, qiName   :: Text
+} deriving (Show, Eq)
+
+
 data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
   relSchema  :: Text
 , relTable   :: Text
-, relColumn  :: Text
+, relColumns  :: [Text]
 , relFTable  :: Text
-, relFColumn :: Text
+, relFColumns :: [Text]
 , relType    :: RelationType
 , relLTable  :: Maybe Text
-, relLCol1   :: Maybe Text
-, relLCol2   :: Maybe Text
+, relLCols1   :: Maybe [Text]
+, relLCols2   :: Maybe [Text]
 } deriving (Show, Eq)
 
 
 type Operator = Text
-data FValue = VText Text | VForeignKey Relation deriving (Show, Eq)
+data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
 type Cast = Text
+type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
-data Query = Select {
-  mainTable::Text
-, fields::[SelectItem]
-, joinTables::[Text]
-, filters::[Filter]
-, order::Maybe [OrderTerm]
-, relation::Maybe Relation
-} deriving (Show, Eq)
+data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
+           | Insert { into::Text, fields::[Field], values::[[Value]] }
+           | Delete { from::[Text], where_::[Filter] }
+           | Update { into::Text, set::Map Field Value, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
-type ApiRequest = Tree Query
+type ApiNode = (Query, (NodeName, Maybe Relation))
+type ApiRequest = Tree ApiNode
 
 
 instance ToJSON Column where
