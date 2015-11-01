@@ -50,7 +50,7 @@ claimsToSQL = map setVar . toList
   In case there is any problem decoding the JWT it returns Nothing.
 -}
 jwtClaims :: Text -> Text -> Maybe JWT.ClaimsMap
-jwtClaims secret input = JWT.unregisteredClaims <$> JWT.claims <$> decoded
+jwtClaims secret input = JWT.unregisteredClaims . JWT.claims <$> decoded
   where
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
 
