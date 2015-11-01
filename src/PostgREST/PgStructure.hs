@@ -172,7 +172,7 @@ allRelations = do
     )
   |]
   let simpleRelations = foldr (addParentRelation.relationFromRow) [] rels
-      links = join $ map (combinations 2) $ filter ((>=1).length) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
+      links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
   return $ simpleRelations ++ mapMaybe link2Relation links
   where
     groupFn :: Relation -> Text
