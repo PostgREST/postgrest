@@ -57,7 +57,11 @@ import           Prelude
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody req =
   case (path, verb) of
-
+    -- ([table], v) ->
+    --   case request of
+    --     Left e -> return $ responseLBS status400 [jsonH] $ cs e
+    --     Right (selectQuery, mutateQuery, isSingle) ->
+        
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
@@ -83,13 +87,10 @@ app dbstructure conf reqBody req =
                     if Prelude.null canonical then "" else "?" <> cs canonical
                 )
               ] (fromMaybe "[]" body)
-
         where
             frm = fromMaybe 0 $ rangeOffset <$> range
-            request = parseRequest schema allRels table req reqBody
 
-    ([table], "POST") -> do
-      let echoRequested = hasPrefer "return=representation"
+    ([table], "POST") ->
       case request of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (selectQuery, mutateQuery, isSingle) -> do
@@ -103,12 +104,8 @@ app dbstructure conf reqBody req =
               (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
             ]
             $ if echoRequested then fromMaybe "[]" body else ""
-      where
-        request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
-        fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
 
-    ([table], "PATCH") -> do
-      let echoRequested = hasPrefer "return=representation"
+    ([_], "PATCH") ->
       case request of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (selectQuery, mutateQuery, _) -> do
@@ -122,11 +119,7 @@ app dbstructure conf reqBody req =
           return $ responseLBS s [contentTypeH, r]
             $ if echoRequested then fromMaybe "[]" body else ""
 
-      where
-        request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
-        fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
-
-    ([table], "DELETE") ->
+    ([_], "DELETE") ->
       case request of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (selectQuery, mutateQuery, _) -> do
@@ -136,10 +129,6 @@ app dbstructure conf reqBody req =
           return $ if queryTotal == 0
             then responseLBS status404 [] ""
             else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
-
-
-      where
-        request = parseRequest schema allRels table req reqBody
 
     (["rpc", proc], "POST") -> do
       let qi = QualifiedIdentifier schema (cs proc)
@@ -201,6 +190,8 @@ app dbstructure conf reqBody req =
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept
     isCsv         = contentType == csvMT
     contentTypeH  = (hContentType, contentType)
+    echoRequested = hasPrefer "return=representation"
+    request = parseRequest schema allRels (head path) req reqBody --TODO! is head safe?
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -390,7 +381,12 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     allFilters = whereFilters qParams
     mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-    selectApiRequest = augumentRequestWithJoin schema allRels
+    fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels
+    rels = case method of
+      "POST"  -> fakeSourceRelations ++ allRels
+      "PATCH" -> fakeSourceRelations ++ allRels
+      _       -> allRels
+    selectApiRequest = augumentRequestWithJoin schema rels
       =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
       where
         sel = if method == "DELETE"
