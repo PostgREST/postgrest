@@ -4,16 +4,14 @@ module PostgREST.Parsers
 where
 
 import           Control.Applicative hiding ((<$>))
---import           Control.Monad                 (join)
---import           Data.List                     (delete, find)
---import           Data.Maybe
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)
 import           Data.Tree
---import           Network.Wai                   (Request, pathInfo, queryString)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
+import           PostgREST.PgQuery (operators)
+
 
 pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do
@@ -50,8 +48,6 @@ pTreePath = do
   let pp = map cs p
       jpp = map cs <$> jp
   return (init pp, (last pp, jpp))
-  where
-
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
@@ -84,22 +80,8 @@ pSelect = lexeme $
     return ((s, Nothing), Nothing)
 
 pOperator :: Parser Operator
-pOperator = cs <$> ( try (string "lte") -- has to be before lt
-     <|> try (string "lt")
-     <|> try (string "eq")
-     <|> try (string "gte") -- has to be before gh
-     <|> try (string "gt")
-     <|> try (string "lt")
-     <|> try (string "neq")
-     <|> try (string "like")
-     <|> try (string "ilike")
-     <|> try (string "in")
-     <|> try (string "notin")
-     <|> try (string "is" )
-     <|> try (string "isnot")
-     <|> try (string "@@")
-     <?> "operator (eq, gt, ...)"
-     )
+pOperator = cs <$> (pOp <?> "operator (eq, gt, ...)")
+  where pOp = foldl (<|>) empty $ map (try . string . cs . fst) operators
 
 pValue :: Parser FValue
 pValue = VText <$> (cs <$> many anyChar)

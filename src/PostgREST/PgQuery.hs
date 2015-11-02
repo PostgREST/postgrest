@@ -9,13 +9,8 @@ module PostgREST.PgQuery (
 , wrapQuery
 , asJson
 , callProc
--- , iffNotT
--- , update
--- , insertSelect
--- , deleteFrom
--- , asCsvWithCount
--- , asJsonWithCount
 , unquoted
+, operators
 
 -- format functions
 , pgFmtLit
@@ -28,12 +23,6 @@ module PostgREST.PgQuery (
 , pgFmtField
 , pgFmtSelectItem
 , pgFmtAsJsonPath
-
--- query transformers (to be removed)
--- , withT
--- , countT
--- , returningStarT
--- , whereT
 
 -- query fragments
 , sourceSubqueryName
@@ -70,7 +59,6 @@ import           Data.Scientific         (FPFormat (..), formatScientific,
 import           Data.String.Conversions (cs)
 import qualified Data.Text               as T
 import           Data.Vector             (empty)
---import qualified Network.HTTP.Types.URI  as Net
 import           Text.Regex.TDFA         ((=~))
 
 import           Prelude
@@ -89,100 +77,34 @@ data JsonbPath =
   | DoubleArrow JsonbPath JsonbPath
   deriving (Show)
 
-operators :: M.Map T.Text T.Text
-operators = M.fromList [
+
+operators :: [(T.Text, T.Text)]
+operators = [
   ("eq", "="),
+  ("gte", ">="), -- has to be before gt (parsers)
   ("gt", ">"),
+  ("lte", "<="), -- has to be before lt (parsers)
   ("lt", "<"),
-  ("gte", ">="),
-  ("lte", "<="),
   ("neq", "<>"),
   ("like", "like"),
   ("ilike", "ilike"),
   ("in", "in"),
   ("notin", "not in"),
+  ("isnot", "is not"), -- has to be before is (parsers)
   ("is", "is"),
-  ("isnot", "is not"),
-  ("@@", "@@")
+  ("@@", "@@"),
+  ("@>", "@>"),
+  ("<@", "<@")
   ]
 
+operatorsMap :: M.Map T.Text T.Text
+operatorsMap = M.fromList operators
 
--- whereT :: QualifiedIdentifier -> Net.Query -> StatementT
--- whereT table params q =
---   if L.null cols
---     then q
---     else q <> B.Stmt " where " empty True <> conjunction
---   where
---     cols = [ col | col <- params, fst col `notElem` ["order","select"] ]
---     wherePredTable = wherePred table
---     conjunction = mconcat $ L.intersperse andq (map wherePredTable cols)
---
--- withT :: PStmt -> T.Text -> StatementT
--- withT (B.Stmt eq ep epre) v (B.Stmt wq wp wpre) =
---   B.Stmt ("WITH " <> v <> " AS (" <> eq <> ") " <> wq <> " from " <> v)
---     (ep <> wp)
---     (epre && wpre)
---
--- iffNotT :: PStmt -> StatementT
--- iffNotT (B.Stmt aq ap apre) (B.Stmt bq bp bpre) =
---   B.Stmt
---     ("WITH aaa AS (" <> aq <> " returning *) " <>
---       bq <> " WHERE NOT EXISTS (SELECT * FROM aaa)")
---     (ap <> bp)
---     (apre && bpre)
---
--- countT :: StatementT
--- countT s =
---   s { B.stmtTemplate = "WITH qqq AS (" <> B.stmtTemplate s <> ") SELECT pg_catalog.count(1) FROM qqq" }
---
--- asCsvWithCount :: QualifiedIdentifier -> StatementT
--- asCsvWithCount table = withCount . asCsv table
---
--- asCsv :: QualifiedIdentifier -> StatementT
--- asCsv table s = s {
---   B.stmtTemplate =
---     "(select string_agg(quote_ident(column_name::text), ',') from "
---     <> "(select column_name from information_schema.columns where quote_ident(table_schema) || '.' || table_name = '"
---     <> fromQi table <> "' order by ordinal_position) h) || '\r' || "
---     <> "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\r'), '') from ("
---     <> B.stmtTemplate s <> ") t" }
---
--- asJsonWithCount :: StatementT
--- asJsonWithCount = withCount . asJson
---
 asJson :: StatementT
 asJson s = s {
   B.stmtTemplate =
     "array_to_json(array_agg(row_to_json(t)))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
---
--- withCount :: StatementT
--- withCount s = s { B.stmtTemplate = "pg_catalog.count(t), " <> B.stmtTemplate s }
---
--- returningStarT :: StatementT
--- returningStarT s = s { B.stmtTemplate = B.stmtTemplate s <> " RETURNING *" }
---
--- deleteFrom :: QualifiedIdentifier -> PStmt
--- deleteFrom t = B.Stmt ("delete from " <> fromQi t) empty True
---
--- insertSelect :: QualifiedIdentifier -> [T.Text] -> [JSON.Value] -> PStmt
--- insertSelect t [] _ = B.Stmt
---   ("insert into " <> fromQi t <> " default values returning *") empty True
--- insertSelect t cols vals = B.Stmt
---   ("insert into " <> fromQi t <> " ("
---     <> T.intercalate ", " (map pgFmtIdent cols)
---     <> ") select "
---     <> T.intercalate ", " (map insertableValue vals))
---   empty True
---
--- update :: QualifiedIdentifier -> [T.Text] -> [JSON.Value] -> PStmt
--- update t cols vals = B.Stmt
---   ("update " <> fromQi t <> " set ("
---     <> T.intercalate ", " (map pgFmtIdent cols)
---     <> ") = ("
---     <> T.intercalate ", " (map insertableValue vals)
---     <> ")")
---   empty True
 
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
@@ -191,39 +113,10 @@ callProc qi params = do
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
--- wherePred :: QualifiedIdentifier -> Net.QueryItem -> PStmt
--- wherePred table (col, predicate) =
---   B.Stmt (notOp <> " " <> pgFmtJsonbPath table (cs col) <> " " <> op <> " " <>
---       if opCode `elem` ["is","isnot"] then whiteList val
---                                  else cs sqlValue)
---       empty True
---
---   where
---     headPredicate:rest = T.split (=='.') $ cs $ fromMaybe "." predicate
---     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
---     opCode        = hasNot (head rest) headPredicate
---     notOp         = hasNot headPredicate ""
---     val         = hasNot (T.intercalate "." $ tail rest) (T.intercalate "." rest)
---     sqlValue = pgFmtValue opCode val
---     op = pgFmtOperator opCode
-
 whiteList :: T.Text -> T.Text
 whiteList val = fromMaybe
   (cs (pgFmtLit val) <> "::unknown ")
   (L.find ((==) . T.toLower $ val) ["null","true","false"])
-
--- andq :: PStmt
--- andq = B.Stmt " and " empty True
-
--- parseJsonbPath :: T.Text -> Maybe JsonbPath
--- parseJsonbPath p =
---   case T.splitOn "->>" p of
---     [a,b] ->
---       let i:is = T.splitOn "->" a in
---       Just $ DoubleArrow
---         (foldl SingleArrow (ColIdentifier i) (map KeyIdentifier is))
---         (KeyIdentifier b)
---     _ -> Nothing
 
 trimNullChars :: T.Text -> T.Text
 trimNullChars = T.takeWhile (/= '\x0')
@@ -350,18 +243,7 @@ pgFmtValue opCode val =
    unknownLiteral = (<> "::unknown ") . pgFmtLit
 
 pgFmtOperator :: T.Text -> T.Text
-pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operators
-
--- pgFmtJsonbPath :: QualifiedIdentifier -> T.Text -> T.Text
--- pgFmtJsonbPath table p =
---  pgFmtJsonbPath' $ fromMaybe (ColIdentifier p) (parseJsonbPath p)
---  where
---    pgFmtJsonbPath' (ColIdentifier i) = fromQi table <> "." <> pgFmtIdent i
---    pgFmtJsonbPath' (KeyIdentifier i) = pgFmtLit i
---    pgFmtJsonbPath' (SingleArrow a b) =
---      pgFmtJsonbPath' a <> "->" <> pgFmtJsonbPath' b
---    pgFmtJsonbPath' (DoubleArrow a b) =
---      pgFmtJsonbPath' a <> "->>" <> pgFmtJsonbPath' b
+pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operatorsMap
 
 pgFmtIdent :: T.Text -> T.Text
 pgFmtIdent x =
