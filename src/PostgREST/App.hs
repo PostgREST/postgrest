@@ -20,12 +20,10 @@ import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
---import qualified Data.Set                  as S
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
 import qualified Data.Map as M
---import           Data.Foldable             (forlrM)
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
@@ -108,30 +106,6 @@ app dbstructure conf reqBody req =
       where
         request = parseRequest schema (fakeSourceRelations ++ allRels) table req reqBody
         fakeSourceRelations = mapMaybe (toSourceRelation table) allRels
-
-    -- ([table], "PUT") ->
-    --   handleJsonObj reqBody $ \obj -> do
-    --     let qt = qualify table
-    --         pKeys = map pkName $ filter (filterPk schema table) allPrKeys
-    --         specifiedKeys = map (cs . fst) qq
-    --     if S.fromList pKeys /= S.fromList specifiedKeys
-    --       then return $ responseLBS status405 []
-    --         "You must speficy all and only primary keys as params"
-    --       else do
-    --         let tableCols = map (cs . colName) $ filter (filterCol schema table) allCols
-    --             cols = map cs $ HM.keys obj
-    --         if S.fromList tableCols == S.fromList cols
-    --           then do
-    --             let vals = HM.elems obj
-    --             H.unitEx $ iffNotT
-    --               (whereT qt qq $ update qt cols vals)
-    --               (insertSelect qt cols vals)
-    --             return $ responseLBS status204 [ jsonH ] ""
-    --
-    --           else return $ if Prelude.null tableCols
-    --             then responseLBS status404 [] ""
-    --             else responseLBS status400 []
-    --               "You must specify all columns in PUT request"
 
     ([table], "PATCH") -> do
       let echoRequested = hasPrefer "return=representation"
@@ -268,23 +242,6 @@ contentTypeForAccept accept
     Just acceptH = accept
     findInAccept = flip find $ parseHttpAccept acceptH
     has          = isJust . findInAccept . BS.isPrefixOf
-
--- handleJsonObj :: BL.ByteString -> (Object -> H.Tx P.Postgres s Response)
---               -> H.Tx P.Postgres s Response
--- handleJsonObj reqBody handler = do
---   let p = eitherDecode reqBody
---   case p of
---     Left err ->
---       return $ responseLBS status400 [jsonH] jErr
---       where
---         jErr = encode . object $
---           [("message", String $ "Failed to parse JSON payload. " <> cs err)]
---     Right (Object o) -> handler o
---     Right _ ->
---       return $ responseLBS status400 [jsonH] jErr
---       where
---         jErr = encode . object $
---           [("message", String "Expecting a JSON object")]
 
 parseCsvCell :: BL.ByteString -> Value
 parseCsvCell s = if s == "NULL" then Null else String $ cs s

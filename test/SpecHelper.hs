@@ -151,10 +151,11 @@ createComplexItems = do
   void . liftIO $ H.session pool $ H.tx Nothing txn
   where
     txn = mapM_ H.unitEx stmts
-    stmts = getZipList $ [H.stmt|insert into test.complex_items (id, name, settings) values (?,?,?)|]
+    stmts = getZipList $ [H.stmt|insert into test.complex_items (id, name, settings, arr_data) values (?,?,?,?)|]
         <$> ZipList ([1..3]::[Int])
         <*> ZipList (["One", "Two", "Three"]::[Text])
         <*> ZipList [jobj,jobj,jobj]
+        <*> ZipList ([[1], [1,2], [1,2,3]]::[[Int]])
     jobj = J.object [("foo", J.object [("int", J.Number 1),("bar", J.String "baz")])]
 
 createNulls :: Int -> IO ()

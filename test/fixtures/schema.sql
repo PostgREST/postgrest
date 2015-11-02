@@ -204,7 +204,8 @@ ALTER TABLE test.items OWNER TO postgrest_test;
 CREATE TABLE complex_items (
     id bigint NOT NULL,
     name text,
-    settings json
+    settings json,
+    arr_data INTEGER[]
 );
 
 
