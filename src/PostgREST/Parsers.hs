@@ -18,6 +18,7 @@ import           Data.Tree
 import           Network.Wai                   (Request, pathInfo, queryString)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
+
 parseGetRequest :: Request -> Either ParseError ApiRequest
 parseGetRequest httpRequest =
   foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
@@ -77,7 +78,7 @@ lexeme p = ws *> p <* ws
 pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
-  jp <- optionMaybe ( string "->" >>  pJsonPath)
+  jp <- optionMaybe pJsonPath
   let pp = map cs p
       jpp = map cs <$> jp
   return (init pp, (last pp, jpp))
@@ -98,14 +99,14 @@ pFieldName :: Parser Text
 pFieldName =  cs <$> (many1 (letter <|> digit <|> oneOf "_")
       <?> "field name (* or [a..z0..9_])")
 
-pJsonPathDelimiter :: Parser Text
-pJsonPathDelimiter = cs <$> (try (string "->>") <|> string "->")
+pJsonPathStep :: Parser Text
+pJsonPathStep = cs <$> try (string "->" *> pFieldName)
 
 pJsonPath :: Parser [Text]
-pJsonPath = pFieldName `sepBy1` pJsonPathDelimiter
+pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
 
 pField :: Parser Field
-pField = lexeme $ (,) <$> pFieldName <*> optionMaybe ( pJsonPathDelimiter *>  pJsonPath)
+pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 
 pSelect :: Parser SelectItem
 pSelect = lexeme $

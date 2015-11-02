@@ -303,7 +303,6 @@ spec =
       get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
     it "can filter by properties inside json column using ->>" $ do
-      pendingWith "see issue #334"
       get "/json?data->>id=eq.1" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 
