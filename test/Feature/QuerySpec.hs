@@ -302,7 +302,7 @@ spec =
     it "can filter by properties inside json column using not" $
       get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
-    it "can filter by properties inside json column using ->>" $ do
+    it "can filter by properties inside json column using ->>" $
       get "/json?data->>id=eq.1" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 

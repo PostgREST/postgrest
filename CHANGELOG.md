@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+- Correct order for -> and ->> in a json path - @ruslantalpa
 - Return empty array instead of 500 when a set returning function returns an empty result set - @diogob
 
 ## [0.2.12.0] - 2015-10-25
