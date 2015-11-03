@@ -1,9 +1,14 @@
+-------------------------------------------------------------------------------
+-- Adapted from https://github.com/robconery/pg-auth
+
 begin;
 
 create schema if not exists basic_auth;
-set search_path to basic_auth;
 
-create table login (
+-------------------------------------------------------------------------------
+-- Login storage and constraints
+
+create table basic_auth.login (
   user      character varying not null,
   pass      character(60) not null,
   role      name not null,
@@ -13,7 +18,7 @@ create table login (
   constraint l_pkey primary key (user)
 );
 
-create function check_role_exists() returns trigger
+create function basic_auth.check_role_exists() returns trigger
   language plpgsql
   as $$
 begin
@@ -27,11 +32,11 @@ end
 $$;
 
 create constraint trigger ensure_login_role_exists
-  after insert or update on login
+  after insert or update on basic_auth.login
   for each row
   execute procedure check_role_exists();
 
-create function encrypt_pass() returns trigger
+create function basic_auth.encrypt_pass() returns trigger
   language plpgsql
   as $$
 begin
@@ -43,22 +48,28 @@ end
 $$;
 
 create trigger protect_passwords
-  before insert or update on login
+  before insert or update on basic_auth.login
   for each row
   execute procedure encrypt_pass(); |]
 
+-------------------------------------------------------------------------------
+-- Password checking
+
 create function if not exists
-login_role(_login text, _pass text, out _matched_role text) returns text
+basic_auth.login_role(_login text, _pass text, out _matched_role text) returns text
   language plpgsql
   as $$
 begin
-  select role into _matched_role from auth
+  select role into _matched_role from basic_auth.login
    where login = _login
      and pass  = crypt(_pass, pass);
 end;
 $$;
 
-create table if not exists token (
+-------------------------------------------------------------------------------
+-- Password changing
+
+create table if not exists basic_auth.token (
   token       uuid unique,
   token_type  varchar(64) not null,
   user        character varying not null,
