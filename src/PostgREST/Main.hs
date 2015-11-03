@@ -81,19 +81,17 @@ main = do
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
-    tabs <- allTables
     rels <- allRelations
     cols <- allColumns rels
     keys <- allPrimaryKeys
-    return (tabs, rels, cols, keys)
+    return (rels, cols, keys)
 
 
   dbstructure <- either hasqlError
-    (\(tabs, rels, cols, keys) ->
+    (\(rels, cols, keys) ->
 
       return DbStructure {
-          tables=tabs
-        , columns=cols
+          columns=cols
         , relations=rels
         , primaryKeys=keys
         }

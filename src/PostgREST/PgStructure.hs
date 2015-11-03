@@ -48,11 +48,8 @@ doesProcReturnJWT = doesProc [H.stmt|
       AND    pg_catalog.pg_get_function_result(p.oid) = 'jwt_claims'
     |]
 
-tableFromRow :: (Text, Text, Bool, Maybe Text) -> Table
-tableFromRow (s, n, i, a) = Table s n i (parseAcl a)
-  where
-    parseAcl :: Maybe Text -> [Text]
-    parseAcl str = fromMaybe [] $ split (==',') <$> str
+tableFromRow :: (Text, Text, Bool) -> Table
+tableFromRow (s, n, i) = Table s n i
 
 columnFromRow :: (Text,       Text,      Text,
                   Int,        Bool,      Text,
@@ -77,34 +74,62 @@ pkFromRow (s, t, n) = PrimaryKey s t n
 addParentRelation :: Relation -> [Relation] -> [Relation]
 addParentRelation rel@(Relation s t c ft fc _ _ _ _) rels = Relation s ft fc t c Parent Nothing Nothing Nothing:rel:rels
 
-allTables :: H.Tx P.Postgres s [Table]
-allTables = do
-    rows <- H.listEx $ [H.stmt|
-      SELECT
-        n.nspname AS table_schema,
-        c.relname AS table_name,
-        c.relkind = 'r' OR (c.relkind IN ('v','f'))
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-        OR (EXISTS
-          ( SELECT 1
-            FROM pg_trigger
-            WHERE pg_trigger.tgrelid = c.oid
-            AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable,
-        array_to_string(array_agg(r.rolname), ',') AS acl
-      FROM pg_class c
-      CROSS JOIN pg_roles r
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE c.relkind IN ('v','r','m')
-        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-        AND (
-          pg_has_role(r.rolname, c.relowner, 'USAGE'::text) OR
-          has_table_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR
-          has_any_column_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text) )
+-- allTables :: H.Tx P.Postgres s [Table]
+-- allTables = do
+--     rows <- H.listEx $ [H.stmt|
+--       SELECT
+--         n.nspname AS table_schema,
+--         c.relname AS table_name,
+--         c.relkind = 'r' OR (c.relkind IN ('v','f'))
+--         AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+--         OR (EXISTS
+--           ( SELECT 1
+--             FROM pg_trigger
+--             WHERE pg_trigger.tgrelid = c.oid
+--             AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable,
+--         array_to_string(array_agg(r.rolname), ',') AS acl
+--       FROM pg_class c
+--       CROSS JOIN pg_roles r
+--       JOIN pg_namespace n ON n.oid = c.relnamespace
+--       WHERE c.relkind IN ('v','r','m')
+--         AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+--         AND (
+--           pg_has_role(r.rolname, c.relowner, 'USAGE'::text) OR
+--           has_table_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR
+--           has_any_column_privilege(r.rolname, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text) )
+--
+--       GROUP BY table_schema, table_name, insertable
+--       ORDER BY table_schema, table_name
+--     |]
+--     return $ map tableFromRow rows
 
-      GROUP BY table_schema, table_name, insertable
-      ORDER BY table_schema, table_name
-    |]
-    return $ map tableFromRow rows
+tables :: Text -> H.Tx P.Postgres s [Table]
+tables schema = do
+  rows <- H.listEx $
+    [H.stmt|
+      select
+        n.nspname as table_schema,
+        relname as table_name,
+        c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+        or (exists (
+           select 1
+           from pg_trigger
+           where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+        ) as insertable
+      from
+        pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+      where
+        c.relkind in ('v', 'r', 'm')
+        and n.nspname = ?
+        and (
+          pg_has_role(c.relowner, 'USAGE'::text)
+          or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
+          or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+        )
+      order by relname
+    |] schema
+  return $ map tableFromRow rows
 
 allRelations :: H.Tx P.Postgres s [Relation]
 allRelations = do

@@ -6,8 +6,7 @@ import Data.Aeson
 import Data.Map
 
 data DbStructure = DbStructure {
-  tables :: [Table]
-, columns :: [Column]
+  columns :: [Column]
 , relations :: [Relation]
 , primaryKeys :: [PrimaryKey]
 }
@@ -17,7 +16,6 @@ data Table = Table {
   tableSchema :: Text
 , tableName :: Text
 , tableInsertable :: Bool
-, tableAcl :: [Text]
 } deriving (Show)
 
 data ForeignKey = ForeignKey {

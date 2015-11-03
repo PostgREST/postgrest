@@ -57,11 +57,7 @@ import           Prelude
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbstructure conf reqBody req =
   case (path, verb) of
-    -- ([table], v) ->
-    --   case request of
-    --     Left e -> return $ responseLBS status400 [jsonH] $ cs e
-    --     Right (selectQuery, mutateQuery, isSingle) ->
-        
+
     ([table], "GET") ->
       if range == Just emptyRange
       then return $ responseLBS status416 [] "HTTP Range error"
@@ -151,8 +147,7 @@ app dbstructure conf reqBody req =
       -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([], _) -> do
-      Identity (dbrole :: Text) <- H.singleEx $ [H.stmt|SELECT current_user|]
-      let body = encode $ filter (filterTableAcl dbrole) $ filter ((cs schema==).tableSchema) allTabs
+      body <- encode <$> tables (cs schema)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -165,20 +160,14 @@ app dbstructure conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    allTabs = tables dbstructure
     allRels = relations dbstructure
     allCols = columns dbstructure
     allPrKeys = primaryKeys dbstructure
     filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
     filterCol _ _ _ =  False
     filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
-
-    filterTableAcl :: Text -> Table -> Bool
-    filterTableAcl r (Table{tableAcl=a}) = r `elem` a
     path          = pathInfo req
     verb          = requestMethod req
-    --qq            = queryString req
-    --qualify       = QualifiedIdentifier schema
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
