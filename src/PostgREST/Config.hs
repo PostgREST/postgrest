@@ -56,7 +56,7 @@ argParser = AppConfig
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
-  ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
+  ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
   (Just $ 60*60*24) False False True
 
 -- | CORS policy to be used in by Wai Cors middleware
