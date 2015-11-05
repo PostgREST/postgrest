@@ -4,19 +4,15 @@
 module PostgREST.Middleware where
 
 import           Data.Maybe                    (fromMaybe, isNothing)
-import           Data.Monoid
 import           Data.Text
 import           Data.String.Conversions       (cs)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
-import           Network.HTTP.Types.Header     (hAccept, hAuthorization,
-                                                hLocation)
-import           Network.HTTP.Types.Status     (status301, status400, status415)
-import           Network.URI                   (URI (..), parseURI)
+import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
+import           Network.HTTP.Types.Status     (status403, status415)
 import           Network.Wai                   (Application, Request (..),
-                                                Response, isSecure, rawPathInfo,
-                                                rawQueryString, requestHeaders,
+                                                Response, isSecure, requestHeaders,
                                                 responseLBS)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
@@ -54,26 +50,14 @@ runWithClaims conf app req = do
             else setRole anon : jwtEnv
    jwtEnv = claimsToSQL claims
 
-redirectInsecure :: Application -> Application
-redirectInsecure app req respond = do
-  let hdrs = requestHeaders req
-      host = lookup "host" hdrs
-      uriM = parseURI . cs =<< mconcat [
-        Just "https://",
-        host,
-        Just $ rawPathInfo req,
-        Just $ rawQueryString req]
-      isHerokuSecure = lookup "x-forwarded-proto" hdrs == Just "https"
-
+checkInsecure :: Application -> Application
+checkInsecure app req respond =
   if not (isSecure req || isHerokuSecure)
-    then case uriM of
-      Just uri ->
-        respond $ responseLBS status301 [
-            (hLocation, cs . show $ uri { uriScheme = "https:" })
-          ] ""
-      Nothing ->
-        respond $ responseLBS status400 [] "SSL is required"
+    then respond $ responseLBS status403 [] "SSL is required"
     else app req respond
+  where
+    hdrs = requestHeaders req
+    isHerokuSecure = lookup "x-forwarded-proto" hdrs == Just "https"
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond = do
@@ -84,7 +68,7 @@ unsupportedAccept app req respond = do
   else app req respond
 
 defaultMiddle :: Bool -> Application -> Application
-defaultMiddle secure = (if secure then redirectInsecure else id)
+defaultMiddle secure = (if secure then checkInsecure else id)
   . gzip def . cors corsPolicy
   . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
   . unsupportedAccept
