@@ -106,17 +106,19 @@ create table tokens (
 -- Passwording
 
 create function
-login_role(_user text, _pass text, out _matched_role text) returns text
+login_role(username text, pass text) returns text
   language plpgsql
   as $$
 begin
-  select role into _matched_role from login
-   where username = _user
-     and pass = crypt(_pass, pass);
+  return (
+  select role from basic_auth.logins
+   where logins.username = login_role.username
+     and logins.pass = crypt(login_role.pass, logins.pass)
+  );
 end;
 $$;
 
-create function request_password_reset(_user text) returns text
+create function request_password_reset(username text) returns void
   language plpgsql
   as $$
 declare
@@ -124,54 +126,58 @@ declare
 begin
   delete from basic_auth.tokens
    where token_type = 'reset'
-     and username = _user;
+     and tokens.username = request_password_reset.username;
 
   select basic_auth.random_value(64) into tok;
   insert into basic_auth.tokens (token, token_type, username)
-         values (tok, 'reset', new.username);
-  select pg_notify('reset',
+         values (tok, 'reset', request_password_reset.username);
+  perform pg_notify('reset',
     json_build_object(
-      'email', new.email,
-      'username', new.username,
+      'email', (select email
+                  from basic_auth.logins
+                 where logins.username = request_password_reset.username),
+      'username', request_password_reset.username,
       'token', tok
     )::text
   );
 end;
 $$;
 
-create function reset_password(_user text, _token text, _pass text)
-  returns text
+create or replace function basic_auth.reset_password(username text, token text, pass text)
+  returns void
   language plpgsql
   as $$
 declare
   tok character varying;
 begin
   if exists(select 1 from basic_auth.tokens
-             where username = _user
-               and token = _token
+             where tokens.username = reset_password.username
+               and tokens.token = reset_password.token
                and token_type = 'reset') then
-    update login set pass=_pass
-     where username = _user;
+    update basic_auth.logins set pass=reset_password.pass
+     where logins.username = reset_password.username;
 
     delete from basic_auth.tokens
-     where username = _user
-       and token = _token
+     where tokens.username = reset_password.username
+       and tokens.token = reset_password.token
        and token_type = 'reset';
   else
     raise invalid_password using message =
       'invalid user or token';
   end if;
   delete from basic_auth.tokens
-   where type = 'reset'
-     and username = _user;
+   where token_type = 'reset'
+     and tokens.username = reset_password.username;
 
   select basic_auth.random_value(64) into tok;
   insert into basic_auth.tokens (token, token_type, username)
-         values (tok, 'reset', _user);
-  select pg_notify('reset',
+         values (tok, 'reset', reset_password.username);
+  perform pg_notify('reset',
     json_build_object(
-      'email', (select email from basic_auth.tokens where username = _user),
-      'username', _user,
+      'email', (select email
+                  from basic_auth.logins
+                 where logins.username = reset_password.username),
+      'username', reset_password.username,
       'token', tok
     )::text
   );
