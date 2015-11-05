@@ -7,6 +7,7 @@ import           Data.Maybe                    (fromMaybe, isNothing)
 import           Data.Monoid
 import           Data.Text
 import           Data.String.Conversions       (cs)
+import           Data.Time.Clock               (NominalDiffTime)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
@@ -32,27 +33,30 @@ import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B
 import qualified Data.Map.Lazy           as M
 
-runWithClaims :: forall s. AppConfig ->
+runWithClaims :: forall s. AppConfig -> NominalDiffTime ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-runWithClaims conf app req = do
-    mapM_ H.unitEx $ stmt <$> env
-    app req
- where
-   stmt = (flip $ flip B.Stmt V.empty) True
-   hdrs = requestHeaders req
-   jwtSecret = (cs $ configJwtSecret conf) :: Text
-   auth = fromMaybe "" $ lookup hAuthorization hdrs
-   anon = cs $ configAnonRole conf
-   claims =
-     fromMaybe (M.fromList []) $
-     case split (==' ') (cs auth) of
-       ("Bearer" : jwt : _) -> jwtClaims jwtSecret jwt
-       _ -> Nothing
-   env = if M.member "role" claims
-            then jwtEnv
-            else setRole anon : jwtEnv
-   jwtEnv = claimsToSQL claims
+runWithClaims conf time app req = do
+    _ <- H.unitEx $ stmt setAnon
+    case split (== ' ') (cs auth) of
+      ("Bearer" : tokenStr : _) ->
+        case jwtClaims jwtSecret tokenStr time of
+          Just claims ->
+            if M.member "role" claims
+            then do
+              mapM_ H.unitEx $ stmt <$> claimsToSQL claims
+              app req
+            else invalidJWT
+          _ -> invalidJWT
+      _ -> app req
+  where
+    stmt = (flip $ flip B.Stmt V.empty) True
+    hdrs = requestHeaders req
+    jwtSecret = (cs $ configJwtSecret conf) :: Text
+    auth = fromMaybe "" $ lookup hAuthorization hdrs
+    anon = cs $ configAnonRole conf
+    setAnon = setRole anon
+    invalidJWT = return $ responseLBS status400 [] "Invalid JWT"
 
 redirectInsecure :: Application -> Application
 redirectInsecure app req respond = do

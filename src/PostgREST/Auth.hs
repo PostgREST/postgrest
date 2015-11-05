@@ -25,6 +25,7 @@ import           Data.Map                as M (fromList, toList)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
+import           Data.Time.Clock         (NominalDiffTime)
 import           PostgREST.PgQuery       (pgFmtLit, pgFmtIdent, unquoted)
 import qualified Web.JWT                 as JWT
 import qualified Data.HashMap.Lazy       as H
@@ -49,10 +50,19 @@ claimsToSQL = map setVar . toList
   returns a map of JWT claims
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-jwtClaims :: Text -> Text -> Maybe JWT.ClaimsMap
-jwtClaims secret input = JWT.unregisteredClaims . JWT.claims <$> decoded
+jwtClaims :: Text -> Text -> NominalDiffTime -> Maybe JWT.ClaimsMap
+jwtClaims secret input time =
+  case claim JWT.exp of
+    Just (Just expires) ->
+      if JWT.secondsSinceEpoch expires > time
+        then customClaims
+        else Nothing
+    _ -> customClaims
   where
     decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
+    claim :: (JWT.JWTClaimsSet -> a) -> Maybe a
+    claim prop = prop . JWT.claims <$> decoded
+    customClaims = claim JWT.unregisteredClaims
 
 -- | Receives the name of a role and returns a SET ROLE statement
 setRole :: Text -> Text

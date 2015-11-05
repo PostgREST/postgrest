@@ -11,6 +11,7 @@ import Hasql.Postgres as P
 import Data.String.Conversions (cs)
 import Data.Monoid
 import Data.Text hiding (map)
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Vector as V
 import Control.Monad (void)
 import Control.Applicative
@@ -73,9 +74,10 @@ withApp perform = do
         }
 
   perform $ middle $ \req resp -> do
+    time <- getPOSIXTime
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg (app dbstructure cfg body) req
+      $ runWithClaims cfg time (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False
@@ -134,7 +136,7 @@ clearProjectsTable :: IO ()
 clearProjectsTable = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ B.Stmt ("delete from test.projects where id > 4") V.empty True
+    H.unitEx $ B.Stmt "delete from test.projects where id > 4" V.empty True
 
 
 createItems :: Int -> IO ()

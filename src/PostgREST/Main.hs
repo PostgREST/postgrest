@@ -24,6 +24,7 @@ import qualified Hasql.Postgres                       as P
 import           Network.Wai
 import           Network.Wai.Handler.Warp             hiding (Connection)
 import           Network.Wai.Middleware.RequestLogger (logStdout)
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
@@ -72,13 +73,6 @@ main = do
           <> show minimumPgVersion)
     ) supportedOrError
 
-  -- what was this code for?
-  -- roleOrError <- H.session pool $ do
-  --   Identity (role :: Text) <- H.tx Nothing $ H.singleEx
-  --     [H.stmt|SELECT SESSION_USER|]
-  --   return role
-  -- authenticator <- either hasqlError return roleOrError
-
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
     tabs <- allTables
@@ -105,7 +99,8 @@ main = do
   -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
 
   runSettings appSettings $ middle $ \ req respond -> do
+    time <- getPOSIXTime
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app dbstructure conf body) req
+      runWithClaims conf time (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError

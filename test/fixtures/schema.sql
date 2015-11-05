@@ -291,6 +291,7 @@ $$ LANGUAGE SQL;
 
 
 CREATE TYPE public.jwt_claims AS (role text, id text);
+
 CREATE FUNCTION test.login(id text, pass text)
 RETURNS public.jwt_claims
 SECURITY DEFINER
