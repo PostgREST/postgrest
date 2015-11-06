@@ -1,7 +1,9 @@
 {-# LANGUAGE TupleSections #-}
-module PostgREST.QueryBuilder
-where
-
+module PostgREST.QueryBuilder (
+    addRelations
+  , addJoinConditions
+  , requestToQuery
+  ) where
 
 import           Control.Error
 import           Data.List         (find)
@@ -10,15 +12,10 @@ import           Data.Text         hiding (filter, find, foldr, head, last, map,
                                     null, zipWith)
 import           Control.Applicative
 import           Data.Tree
-import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
-                                    pgFmtIdent, pgFmtCondition,
-                                    insertableValue, orderF, sourceSubqueryName, pgFmtJsonPath)
+import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem, pgFmtCondition, insertableValue
+                                    , orderF, pgFmtJsonPath, sourceSubqueryName, pgFmtIdent)
 import           PostgREST.Types
 import qualified Data.Map as M
-
-findRelation :: [Relation] -> Text -> Text -> Text -> Maybe Relation
-findRelation allRelations s t1 t2 =
-  find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
 
 addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
@@ -27,22 +24,14 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
     (Just (Node (_, (parentTable, _)) _)) -> Node <$> (addRel n <$> rel) <*> updatedForest
       where
         rel = note ("no relation between " <> table <> " and " <> parentTable)
-            $  findRelation allRelations schema table parentTable
-           <|> findRelation allRelations schema parentTable table
+            $  findRelation schema table parentTable
+           <|> findRelation schema parentTable table
         addRel :: (Query, (NodeName, Maybe Relation)) -> Relation -> (Query, (NodeName, Maybe Relation))
         addRel (q, (t, _)) r = (q, (t, Just r))
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-
-getJoinConditions :: Relation -> [Filter]
-getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
-  case typ of
-    Child  -> zipWith (toFilter t ft) cs fcs
-    Parent -> zipWith (toFilter t ft) cs fcs
-    Many   -> zipWith (toFilter t (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
-  where
-    toFilter :: Text -> Text -> FieldName -> FieldName -> Filter
-    toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
+    findRelation s t1 t2 =
+      find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
 
 addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema (Node (query, (t, r)) forest) =
@@ -67,9 +56,6 @@ addJoinConditions schema (Node (query, (t, r)) forest) =
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
-
-emptyOnNull :: Text -> [a] -> Text
-emptyOnNull val x = if null x then "" else val
 
 requestToQuery :: Text -> ApiRequest -> Text
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
@@ -148,3 +134,17 @@ requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       "RETURNING " <> fromQi qi <> ".*"
       ]
+
+-- private functions
+getJoinConditions :: Relation -> [Filter]
+getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
+  case typ of
+    Child  -> zipWith (toFilter t ft) cs fcs
+    Parent -> zipWith (toFilter t ft) cs fcs
+    Many   -> zipWith (toFilter t (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
+  where
+    toFilter :: Text -> Text -> FieldName -> FieldName -> Filter
+    toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
+
+emptyOnNull :: Text -> [a] -> Text
+emptyOnNull val x = if null x then "" else val
