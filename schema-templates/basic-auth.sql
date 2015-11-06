@@ -184,4 +184,23 @@ begin
 end;
 $$;
 
+create type jwt_claims AS (role text, username text);
+
+create or replace function
+obtain_auth_token(username text, pass text) returns jwt_claims
+  language plpgsql
+  as $$
+declare
+  _role character varying;
+  result jwt_claims;
+begin
+  select basic_auth.login_role(username, pass) into _role;
+  if _role is null then
+    raise invalid_password using message = 'invalid user or password';
+  end if;
+  select _role as role, obtain_auth_token.username as username into result;
+  return result;
+end;
+$$;
+
 commit;
