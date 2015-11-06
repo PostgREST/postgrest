@@ -22,13 +22,13 @@ $ ./postgrest
 
     <ul><li>Scientific Linux 6</li><li>CentOS</li><li>RHEL 6</li></ul>
 
-    Also it would be good to create packages for Homebrew, and apt.</p>
+    Also it would be good to create a package for apt.</p>
 </div>
 
 We'll learn the meaning of the command line flags later, but here is a minimal example of running the app. It does all operations as user `postgres`, including for unauthenticated requests.
 
 ```sh
-$ ./postgrest -d dbname -U postgres --a postgres --v1schema public
+$ ./postgrest -d dbname -U postgres -a postgres --v1schema public
 ```
 
 ### Building from Source
@@ -52,6 +52,29 @@ stack exec postgrest -- arg1 arg2
 ```
 
 If you want to run the test suite, stack can do that too: `stack test`.
+
+### Install via Homebrew (Mac OS X)
+
+You can use the Homebrew package manager to install PostgREST on Mac
+
+```bash
+# Ensure brew is up to date
+brew update
+
+# Check for any problems with brew's setup
+brew doctor
+
+# Install the postgrest package
+brew install postgrest
+```
+
+This will automatically install PostgreSQL as a dependency (see the [Installing PostgreSQL](#installing-postgresql) section for setup instructions). The process tends to take around 15 minutes to install the package and its dependencies.
+
+After installation completes, the tool is added to your $PATH and can be used from anywhere with:
+
+```bash
+postgrest --help
+```
 
 ### Installing PostgreSQL
 
