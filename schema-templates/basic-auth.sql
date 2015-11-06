@@ -3,14 +3,14 @@
 
 begin;
 
-drop schema if exists basic_auth cascade;
+create extension if not exists pgcrypto;
 create schema if not exists basic_auth;
-set search_path to basic_auth;
 
 -------------------------------------------------------------------------------
 -- Utility functions
 
-create function random_value(len int, out result varchar(32)) as
+create or replace function
+basic_auth.random_value(len int, out result varchar(32)) as
 $$
 BEGIN
 SELECT substring(md5(random()::text),0, len) into result;
@@ -20,7 +20,8 @@ $$ LANGUAGE plpgsql;
 -------------------------------------------------------------------------------
 -- Login storage and constraints
 
-create table logins (
+create table if not exists
+basic_auth.logins (
   username character varying not null,
   pass   character(60) not null,
   role   name not null,
@@ -30,7 +31,8 @@ create table logins (
   constraint l_pkey primary key (username)
 );
 
-create function check_role_exists() returns trigger
+create or replace function
+basic_auth.check_role_exists() returns trigger
   language plpgsql
   as $$
 begin
@@ -43,12 +45,14 @@ begin
 end
 $$;
 
+drop trigger if exists ensure_login_role_exists on basic_auth.logins;
 create constraint trigger ensure_login_role_exists
-  after insert or update on logins
+  after insert or update on basic_auth.logins
   for each row
-  execute procedure check_role_exists();
+  execute procedure basic_auth.check_role_exists();
 
-create function encrypt_pass() returns trigger
+create or replace function
+basic_auth.encrypt_pass() returns trigger
   language plpgsql
   as $$
 begin
@@ -59,12 +63,14 @@ begin
 end
 $$;
 
+drop trigger if exists protect_passwords on basic_auth.logins;
 create trigger protect_passwords
-  before insert or update on logins
+  before insert or update on basic_auth.logins
   for each row
-  execute procedure encrypt_pass();
+  execute procedure basic_auth.encrypt_pass();
 
-create function send_validation() returns trigger
+create or replace function
+basic_auth.send_validation() returns trigger
   language plpgsql
   as $$
 declare
@@ -77,36 +83,39 @@ begin
     json_build_object(
       'email', new.email,
       'username', new.username,
-      'token', tok
+      'token', tok,
+      'token_type', 'validation'
     )::text
   );
   return new;
 end
 $$;
 
+drop trigger if exists send_validation_t on basic_auth.logins;
 create trigger send_validation_t
-  after insert on logins
+  after insert on basic_auth.logins
   for each row
-  execute procedure send_validation();
+  execute procedure basic_auth.send_validation();
 
 -------------------------------------------------------------------------------
 -- Email Validation and Password Reset
 
-create table tokens (
+create table if not exists
+basic_auth.tokens (
   token       character varying unique,
   token_type  varchar(64) not null,
   username    character varying not null,
   created_at  timestamptz not null default current_date,
   constraint  t_pk primary key (token),
-  constraint  t_login_fk foreign key (username) references logins
+  constraint  t_login_fk foreign key (username) references basic_auth.logins
               on delete cascade on update cascade
 );
 
 -------------------------------------------------------------------------------
--- Passwording
+-- Login helper
 
-create function
-login_role(username text, pass text) returns text
+create or replace function
+basic_auth.login_role(username text, pass text) returns text
   language plpgsql
   as $$
 begin
@@ -118,7 +127,11 @@ begin
 end;
 $$;
 
-create function request_password_reset(username text) returns void
+-------------------------------------------------------------------------------
+-- Public functions (in current schema, not basic_auth)
+
+create or replace function
+request_password_reset(username text) returns void
   language plpgsql
   as $$
 declare
@@ -137,13 +150,15 @@ begin
                   from basic_auth.logins
                  where logins.username = request_password_reset.username),
       'username', request_password_reset.username,
-      'token', tok
+      'token', tok,
+      'token_type', 'reset'
     )::text
   );
 end;
 $$;
 
-create or replace function basic_auth.reset_password(username text, token text, pass text)
+create or replace function
+reset_password(username text, token text, pass text)
   returns void
   language plpgsql
   as $$
@@ -184,21 +199,23 @@ begin
 end;
 $$;
 
-create type jwt_claims AS (role text, username text);
+drop type if exists basic_auth.jwt_claims cascade;
+create type
+basic_auth.jwt_claims AS (role text, username text);
 
-create function
-obtain_auth_token(username text, pass text) returns jwt_claims
+create or replace function
+create_auth_token(username text, pass text) returns basic_auth.jwt_claims
   language plpgsql
   as $$
 declare
   _role character varying;
-  result jwt_claims;
+  result basic_auth.jwt_claims;
 begin
   select basic_auth.login_role(username, pass) into _role;
   if _role is null then
     raise invalid_password using message = 'invalid user or password';
   end if;
-  select _role as role, obtain_auth_token.username as username into result;
+  select _role as role, create_auth_token.username as username into result;
   return result;
 end;
 $$;
