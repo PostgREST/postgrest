@@ -17,6 +17,26 @@ SELECT substring(md5(random()::text),0, len) into result;
 END
 $$ LANGUAGE plpgsql;
 
+
+create or replace function
+basic_auth.clearance_for_role(u name) returns void as
+$$
+declare
+  ok boolean;
+begin
+  select exists (
+    select rolname
+      from pg_authid
+     where pg_has_role(current_user, oid, 'member')
+       and rolname = u
+  ) into ok;
+  if not ok then
+    raise invalid_password using message =
+      'current user not member of role ' || u;
+  end if;
+end
+$$ LANGUAGE plpgsql;
+
 -------------------------------------------------------------------------------
 -- Login storage and constraints
 
@@ -219,5 +239,60 @@ begin
   return result;
 end;
 $$;
+
+-------------------------------------------------------------------------------
+-- User management
+
+create or replace view logins as
+select actual.username as username,
+       actual.role as role,
+       '***'::text as pass,
+       actual.email as email,
+       actual.active as active,
+       actual.more as more
+from basic_auth.logins as actual,
+     (select rolname
+        from pg_authid
+       where pg_has_role(current_user, oid, 'member')
+     ) as member_of
+where actual.role = member_of.rolname;
+
+create or replace function
+update_logins() returns trigger
+language plpgsql
+AS $$
+begin
+  if tg_op = 'INSERT' then
+    perform basic_auth.clearance_for_role(new.role);
+
+    insert into basic_auth.logins
+      (username, role, pass, email, active, more) values
+      (new.username, new.role, new.pass, new.email,
+       new.active, new.more);
+    return new;
+  elsif tg_op = 'UPDATE' then
+    -- no need to check clearance for old.role because
+    -- an ineligible row would not even available to update (http 404)
+    perform basic_auth.clearance_for_role(new.role);
+
+    update basic_auth.logins set
+      username = new.username, role  = new.role,
+      pass     = new.pass,     email = new.email,
+      active   = new.active,   more  = new.more
+      where username = old.username;
+    return new;
+  elsif tg_op = 'DELETE' then
+    -- no need to check clearance for old.role (see previous case)
+
+    delete from basic_auth.logins
+     where basic_auth.username = old.username;
+    return null;
+  end if;
+end
+$$;
+
+create trigger update_logins_t
+  instead of insert or update or delete on
+    logins for each row execute procedure update_logins();
 
 commit;
