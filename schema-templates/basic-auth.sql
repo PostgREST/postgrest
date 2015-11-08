@@ -4,19 +4,11 @@
 begin;
 
 create extension if not exists pgcrypto;
+create extension if not exists "uuid-ossp";
 create schema if not exists basic_auth;
 
 -------------------------------------------------------------------------------
 -- Utility functions
-
-create or replace function
-basic_auth.random_value(len int, out result varchar(32)) as
-$$
-BEGIN
-SELECT substring(md5(random()::text),0, len) into result;
-END
-$$ LANGUAGE plpgsql;
-
 
 create or replace function
 basic_auth.clearance_for_role(u name) returns void as
@@ -96,7 +88,7 @@ basic_auth.send_validation() returns trigger
 declare
   tok character varying;
 begin
-  select basic_auth.random_value(64) into tok;
+  select uuid_generate_v4() into tok;
   insert into basic_auth.tokens (token, token_type, username)
          values (tok, 'validation', new.username);
   perform pg_notify('validate',
@@ -161,7 +153,7 @@ begin
    where token_type = 'reset'
      and tokens.username = request_password_reset.username;
 
-  select basic_auth.random_value(64) into tok;
+  select uuid_generate_v4() into tok;
   insert into basic_auth.tokens (token, token_type, username)
          values (tok, 'reset', request_password_reset.username);
   perform pg_notify('reset',
@@ -204,7 +196,7 @@ begin
    where token_type = 'reset'
      and tokens.username = reset_password.username;
 
-  select basic_auth.random_value(64) into tok;
+  select uuid_generate_v4() into tok;
   insert into basic_auth.tokens (token, token_type, username)
          values (tok, 'reset', reset_password.username);
   perform pg_notify('reset',
