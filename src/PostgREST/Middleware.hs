@@ -10,10 +10,9 @@ import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
-import           Network.HTTP.Types.Status     (status403, status415)
-import           Network.Wai                   (Application, Request (..),
-                                                Response, isSecure, requestHeaders,
-                                                responseLBS)
+import           Network.HTTP.Types.Status     (status415)
+import           Network.Wai                   (Application, Request (..), Response,
+                                                requestHeaders, responseLBS)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
@@ -50,15 +49,6 @@ runWithClaims conf app req = do
             else setRole anon : jwtEnv
    jwtEnv = claimsToSQL claims
 
-checkInsecure :: Application -> Application
-checkInsecure app req respond =
-  if not (isSecure req || isHerokuSecure)
-    then respond $ responseLBS status403 [] "SSL is required"
-    else app req respond
-  where
-    hdrs = requestHeaders req
-    isHerokuSecure = lookup "x-forwarded-proto" hdrs == Just "https"
-
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond = do
   let
@@ -67,8 +57,9 @@ unsupportedAccept app req respond = do
   then respond $ responseLBS status415 [] "Unsupported Accept header, try: application/json"
   else app req respond
 
-defaultMiddle :: Bool -> Application -> Application
-defaultMiddle secure = (if secure then checkInsecure else id)
-  . gzip def . cors corsPolicy
+defaultMiddle :: Application -> Application
+defaultMiddle =
+    gzip def
+  . cors corsPolicy
   . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
   . unsupportedAccept
