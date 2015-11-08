@@ -34,18 +34,18 @@ end
 $$ LANGUAGE plpgsql;
 
 -------------------------------------------------------------------------------
--- Login storage and constraints
+-- Users storage and constraints
 
 create table if not exists
-basic_auth.logins (
+basic_auth.users (
   username text not null,
   pass   text not null,
   role   name not null,
   email  text not null unique,
   active boolean not null default false,
   more   JSON,
-  constraint l_pkey primary key (username),
-  constraint login_field_length_limits check (
+  constraint user_pkey primary key (username),
+  constraint user_field_length_limits check (
     length(username::text) < 512 AND length(pass) < 512 AND
     length(email::text) < 512    AND length(more::text) < 1024)
 );
@@ -64,9 +64,9 @@ begin
 end
 $$;
 
-drop trigger if exists ensure_login_role_exists on basic_auth.logins;
-create constraint trigger ensure_login_role_exists
-  after insert or update on basic_auth.logins
+drop trigger if exists ensure_user_role_exists on basic_auth.users;
+create constraint trigger ensure_user_role_exists
+  after insert or update on basic_auth.users
   for each row
   execute procedure basic_auth.check_role_exists();
 
@@ -82,9 +82,9 @@ begin
 end
 $$;
 
-drop trigger if exists protect_passwords on basic_auth.logins;
+drop trigger if exists protect_passwords on basic_auth.users;
 create trigger protect_passwords
-  before insert or update on basic_auth.logins
+  before insert or update on basic_auth.users
   for each row
   execute procedure basic_auth.encrypt_pass();
 
@@ -110,9 +110,9 @@ begin
 end
 $$;
 
-drop trigger if exists send_validation_t on basic_auth.logins;
+drop trigger if exists send_validation_t on basic_auth.users;
 create trigger send_validation_t
-  after insert on basic_auth.logins
+  after insert on basic_auth.users
   for each row
   execute procedure basic_auth.send_validation();
 
@@ -126,7 +126,7 @@ basic_auth.tokens (
   username    text not null,
   created_at  timestamptz not null default current_date,
   constraint  t_pk primary key (token),
-  constraint  t_login_fk foreign key (username) references basic_auth.logins
+  constraint  t_user_fk foreign key (username) references basic_auth.users
               on delete cascade on update cascade
 );
 
@@ -134,14 +134,14 @@ basic_auth.tokens (
 -- Login helper
 
 create or replace function
-basic_auth.login_role(username text, pass text) returns text
+basic_auth.user_role(username text, pass text) returns text
   language plpgsql
   as $$
 begin
   return (
-  select role from basic_auth.logins
-   where logins.username = login_role.username
-     and logins.pass = crypt(login_role.pass, logins.pass)
+  select role from basic_auth.users
+   where users.username = user_role.username
+     and users.pass = crypt(user_role.pass, users.pass)
   );
 end;
 $$;
@@ -166,8 +166,8 @@ begin
   perform pg_notify('reset',
     json_build_object(
       'email', (select email
-                  from basic_auth.logins
-                 where logins.username = request_password_reset.username),
+                  from basic_auth.users
+                 where users.username = request_password_reset.username),
       'username', request_password_reset.username,
       'token', tok,
       'token_type', 'reset'
@@ -188,8 +188,8 @@ begin
              where tokens.username = reset_password.username
                and tokens.token = reset_password.token
                and token_type = 'reset') then
-    update basic_auth.logins set pass=reset_password.pass
-     where logins.username = reset_password.username;
+    update basic_auth.users set pass=reset_password.pass
+     where users.username = reset_password.username;
 
     delete from basic_auth.tokens
      where tokens.username = reset_password.username
@@ -209,8 +209,8 @@ begin
   perform pg_notify('reset',
     json_build_object(
       'email', (select email
-                  from basic_auth.logins
-                 where logins.username = reset_password.username),
+                  from basic_auth.users
+                 where users.username = reset_password.username),
       'username', reset_password.username,
       'token', tok
     )::text
@@ -230,7 +230,7 @@ declare
   _role text;
   result basic_auth.jwt_claims;
 begin
-  select basic_auth.login_role(username, pass) into _role;
+  select basic_auth.user_role(username, pass) into _role;
   if _role is null then
     raise invalid_password using message = 'invalid user or password';
   end if;
@@ -242,14 +242,14 @@ $$;
 -------------------------------------------------------------------------------
 -- User management
 
-create or replace view logins as
+create or replace view users as
 select actual.username as username,
        actual.role as role,
        '***'::text as pass,
        actual.email as email,
        actual.active as active,
        actual.more as more
-from basic_auth.logins as actual,
+from basic_auth.users as actual,
      (select rolname
         from pg_authid
        where pg_has_role(current_user, oid, 'member')
@@ -257,14 +257,14 @@ from basic_auth.logins as actual,
 where actual.role = member_of.rolname;
 
 create or replace function
-update_logins() returns trigger
+update_users() returns trigger
 language plpgsql
 AS $$
 begin
   if tg_op = 'INSERT' then
     perform basic_auth.clearance_for_role(new.role);
 
-    insert into basic_auth.logins
+    insert into basic_auth.users
       (username, role, pass, email, active, more) values
       (new.username, new.role, new.pass, new.email,
        coalesce(new.active, false), new.more);
@@ -274,7 +274,7 @@ begin
     -- an ineligible row would not even available to update (http 404)
     perform basic_auth.clearance_for_role(new.role);
 
-    update basic_auth.logins set
+    update basic_auth.users set
       username = new.username, role  = new.role,
       pass     = new.pass,     email = new.email,
       active   = coalesce(new.active, old.active, false),
@@ -284,16 +284,16 @@ begin
   elsif tg_op = 'DELETE' then
     -- no need to check clearance for old.role (see previous case)
 
-    delete from basic_auth.logins
+    delete from basic_auth.users
      where basic_auth.username = old.username;
     return null;
   end if;
 end
 $$;
 
-drop trigger if exists update_logins_t on logins;
-create trigger update_logins_t
+drop trigger if exists update_users_t on users;
+create trigger update_users_t
   instead of insert or update or delete on
-    logins for each row execute procedure update_logins();
+    users for each row execute procedure update_users();
 
 commit;
