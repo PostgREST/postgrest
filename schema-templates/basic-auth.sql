@@ -5,6 +5,10 @@ begin;
 
 create extension if not exists pgcrypto;
 create extension if not exists "uuid-ossp";
+
+-- We put things inside the basic_auth schema to hide
+-- them from public view. Certain public procs/views will
+-- refer to helpers and tables inside.
 create schema if not exists basic_auth;
 
 -------------------------------------------------------------------------------
