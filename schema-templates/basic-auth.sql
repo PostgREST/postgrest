@@ -291,6 +291,7 @@ begin
 end
 $$;
 
+drop trigger if exists update_logins_t on logins;
 create trigger update_logins_t
   instead of insert or update or delete on
     logins for each row execute procedure update_logins();
