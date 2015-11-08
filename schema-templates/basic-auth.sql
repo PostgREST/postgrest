@@ -260,7 +260,7 @@ begin
     insert into basic_auth.logins
       (username, role, pass, email, active, more) values
       (new.username, new.role, new.pass, new.email,
-       new.active, new.more);
+       coalesce(new.active, false), new.more);
     return new;
   elsif tg_op = 'UPDATE' then
     -- no need to check clearance for old.role because
@@ -270,7 +270,8 @@ begin
     update basic_auth.logins set
       username = new.username, role  = new.role,
       pass     = new.pass,     email = new.email,
-      active   = new.active,   more  = new.more
+      active   = coalesce(new.active, old.active, false),
+      more  = new.more
       where username = old.username;
     return new;
   elsif tg_op = 'DELETE' then
