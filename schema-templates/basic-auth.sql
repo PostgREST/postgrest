@@ -34,13 +34,16 @@ $$ LANGUAGE plpgsql;
 
 create table if not exists
 basic_auth.logins (
-  username character varying not null,
-  pass   character(60) not null,
+  username text not null,
+  pass   text not null,
   role   name not null,
-  email  character varying not null unique,
+  email  text not null unique,
   active boolean not null default false,
   more   JSON,
-  constraint l_pkey primary key (username)
+  constraint l_pkey primary key (username),
+  constraint login_field_length_limits check (
+    length(username::text) < 512 AND length(pass) < 512 AND
+    length(email::text) < 512    AND length(more::text) < 1024)
 );
 
 create or replace function
@@ -86,7 +89,7 @@ basic_auth.send_validation() returns trigger
   language plpgsql
   as $$
 declare
-  tok character varying;
+  tok text;
 begin
   select uuid_generate_v4() into tok;
   insert into basic_auth.tokens (token, token_type, username)
@@ -114,9 +117,9 @@ create trigger send_validation_t
 
 create table if not exists
 basic_auth.tokens (
-  token       character varying unique,
-  token_type  varchar(64) not null,
-  username    character varying not null,
+  token       text unique,
+  token_type  text not null,
+  username    text not null,
   created_at  timestamptz not null default current_date,
   constraint  t_pk primary key (token),
   constraint  t_login_fk foreign key (username) references basic_auth.logins
@@ -147,7 +150,7 @@ request_password_reset(username text) returns void
   language plpgsql
   as $$
 declare
-  tok character varying;
+  tok text;
 begin
   delete from basic_auth.tokens
    where token_type = 'reset'
@@ -175,7 +178,7 @@ reset_password(username text, token text, pass text)
   language plpgsql
   as $$
 declare
-  tok character varying;
+  tok text;
 begin
   if exists(select 1 from basic_auth.tokens
              where tokens.username = reset_password.username
@@ -220,7 +223,7 @@ create_auth_token(username text, pass text) returns basic_auth.jwt_claims
   language plpgsql
   as $$
 declare
-  _role character varying;
+  _role text;
   result basic_auth.jwt_claims;
 begin
   select basic_auth.login_role(username, pass) into _role;
