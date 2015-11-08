@@ -38,7 +38,6 @@ data AppConfig = AppConfig {
   , configPort      :: Int
   , configAnonRole  :: String
   , configSchema    :: String
-  , configSecure    :: Bool
   , configJwtSecret :: String
   , configPool      :: Int
   }
@@ -49,8 +48,7 @@ argParser = AppConfig
 
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
   <*> strOption    (long "anonymous"  <> short 'a' <> help "postgres role to use for non-authenticated requests" <> metavar "ROLE")
-  <*> strOption    (long "schema"     <> short 'S' <> help "schema to use for API routes" <> metavar "NAME" <> value "1" <> showDefault)
-  <*> switch       (long "secure"     <> short 's' <> help "redirect all requests to HTTPS")
+  <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "1" <> showDefault)
   <*> strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault)
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
 
