@@ -239,6 +239,16 @@ begin
 end;
 $$;
 
+create or replace function
+signup(username text, email text, pass text) returns void
+  language plpgsql
+  as $$
+begin
+  insert into basic_auth.users (username, email, pass, role) values
+    (signup.username, signup.email, signup.pass, 'author');
+end;
+$$;
+
 -------------------------------------------------------------------------------
 -- User management
 
@@ -266,8 +276,8 @@ begin
 
     insert into basic_auth.users
       (username, role, pass, email, active, more) values
-      (new.username, new.role, new.pass, new.email,
-       coalesce(new.active, false), new.more);
+      (new.username, coalesce(new.role, 'author'), new.pass,
+        new.email, coalesce(new.active, false), new.more);
     return new;
   elsif tg_op = 'UPDATE' then
     -- no need to check clearance for old.role because
@@ -295,5 +305,75 @@ drop trigger if exists update_users_t on users;
 create trigger update_users_t
   instead of insert or update or delete on
     users for each row execute procedure update_users();
+
+-------------------------------------------------------------------------------
+-- Blogging stuff!
+
+create table if not exists
+posts (
+  id         bigserial not null,
+  title      text not null,
+  body       text not null,
+  author     text not null,
+  created_at timestamptz not null default current_date,
+  constraint post_pk primary key (id),
+  constraint post_user_fk foreign key (author)
+             references basic_auth.users
+             on delete restrict on update cascade
+);
+
+create table if not exists
+comments (
+  id         bigserial not null,
+  body       text not null,
+  author     text not null,
+  post       bigint not null,
+  created_at timestamptz not null default current_date,
+  constraint comment_pk primary key (id),
+  constraint comment_user_fk foreign key (author)
+             references basic_auth.users
+             on delete restrict on update cascade,
+  constraint comment_post_fk foreign key (post) references posts
+             on delete cascade on update cascade
+);
+
+-------------------------------------------------------------------------------
+-- Permissions
+
+--create role anon noinherit;
+grant insert on table basic_auth.users, basic_auth.tokens to anon;
+grant select on table pg_authid, basic_auth.users, posts, comments to anon;
+grant execute on function
+  login(text,text),
+  request_password_reset(text),
+  reset_password(text,text,text),
+  signup(text, text, text)
+  to anon;
+
+--create role author;
+grant author to anon;
+grant select, insert, update, delete
+  on table basic_auth.users, users, posts, comments to author;
+grant usage, select on sequence posts_id_seq, comments_id_seq to author;
+
+grant usage on schema public, basic_auth to anon, author;
+
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+drop policy if exists authors_eigenedit on posts;
+create policy authors_eigenedit on posts
+  for all
+  using (true)
+  with check (
+    author = current_setting('postgrest.claims.username')
+  );
+
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+drop policy if exists authors_eigenedit on comments;
+create policy authors_eigenedit on comments
+  for all
+  using (true)
+  with check (
+    author = current_setting('postgrest.claims.username')
+  );
 
 commit;
