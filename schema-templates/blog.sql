@@ -264,7 +264,11 @@ from basic_auth.users as actual,
         from pg_authid
        where pg_has_role(current_user, oid, 'member')
      ) as member_of
-where actual.role = member_of.rolname;
+where actual.role = member_of.rolname
+  and (
+    actual.role <> 'author'
+    or username = current_setting('postgrest.claims.username')
+  );
 
 create or replace function
 update_users() returns trigger
@@ -361,7 +365,6 @@ grant usage on schema public, basic_auth to anon, author;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 drop policy if exists authors_eigenedit on posts;
 create policy authors_eigenedit on posts
-  for all
   using (true)
   with check (
     author = current_setting('postgrest.claims.username')
@@ -370,7 +373,6 @@ create policy authors_eigenedit on posts
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 drop policy if exists authors_eigenedit on comments;
 create policy authors_eigenedit on comments
-  for all
   using (true)
   with check (
     author = current_setting('postgrest.claims.username')
