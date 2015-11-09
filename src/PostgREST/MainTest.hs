@@ -8,7 +8,7 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        readOptions)
 import           PostgREST.Error                      (errResponse, PgError)
 import           PostgREST.Middleware
-import           PostgREST.PgStructure
+import           PostgREST.DbStructure
 import           PostgREST.Types
 
 import           Control.Monad                        (unless)
@@ -94,7 +94,7 @@ main = do
     return (tabs, rels, cols, keys)
 
 
-  dbstructure <- either hasqlError
+  db <- either hasqlError
     (\(tabs, rels, cols, keys) ->
 
       return DbStructure {
@@ -107,10 +107,10 @@ main = do
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app dbstructure conf body) req
+      runWithClaims conf (app db conf body) req
     either (respond . errResponse) respond resOrError
 
-  --let allRels = relations dbstructure
+  --let allRels = relations db
       -- links = join $ map (combinations 2) $ filter ((>=1).length) $ groupWith groupFn $ filter ( (==Child). relType) allRels
       -- combinations k ns = filter ((k==).length) (subsequences ns)
 

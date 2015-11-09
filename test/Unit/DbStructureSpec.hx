@@ -1,7 +1,7 @@
-module Unit.PgStructureSpec where
+module Unit.DbStructureSpec where
 
 import Test.Hspec
-import PgStructure (Table(..), tables, Column(..), columns, ForeignKey(..),
+import DbStructure (Table(..), tables, Column(..), columns, ForeignKey(..),
   foreignKeys)
 
 import Database.HDBC (quickQuery)

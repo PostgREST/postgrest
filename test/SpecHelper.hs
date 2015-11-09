@@ -30,8 +30,7 @@ import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(errResponse)
-import PostgREST.PgStructure
-import PostgREST.Types
+import PostgREST.DbStructure
 
 dbString :: String
 dbString = "postgres://postgrest_test@localhost:5432/postgrest_test"
@@ -55,25 +54,13 @@ withApp perform = do
     <- H.acquirePool pgSettings testPoolOpts
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  metadata <- H.session pool $ H.tx txSettings $ do
-    rels <- allRelations
-    cols <- allColumns rels
-    keys <- allPrimaryKeys
-    return (rels, cols, keys)
-
-  dbstructure <- case metadata of
-    Left e -> fail $ show e
-    Right (rels, cols, keys) ->
-      return DbStructure {
-          columns=cols
-        , relations=rels
-        , primaryKeys=keys
-        }
+  dbOrError <- H.session pool $ H.tx txSettings createDbStructure
+  db <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg (app dbstructure cfg body) req
+      $ runWithClaims cfg (app db cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle

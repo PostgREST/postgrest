@@ -35,14 +35,14 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
 getJoinConditions :: Relation -> [Filter]
-getJoinConditions (Relation s t cs ft fcs typ lt lc1 lc2) =
+getJoinConditions (Relation s t cs fs ft fcs typ ls lt lc1 lc2) =
   case typ of
-    Child  -> zipWith (toFilter t ft) cs fcs
-    Parent -> zipWith (toFilter t ft) cs fcs
-    Many   -> zipWith (toFilter t (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
+    Child  -> zipWith (toFilter t fs ft) cs fcs
+    Parent -> zipWith (toFilter t fs ft) cs fcs
+    Many   -> zipWith (toFilter t (fromMaybe "" ls) (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" ls) (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
   where
-    toFilter :: Text -> Text -> FieldName -> FieldName -> Filter
-    toFilter tb ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey ftb fc))
+    toFilter :: Text -> Text -> Text -> FieldName -> FieldName -> Filter
+    toFilter tb fsc ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey fsc ftb fc))
 
 addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema (Node (query, (t, r)) forest) =
@@ -55,7 +55,7 @@ addJoinConditions schema (Node (query, (t, r)) forest) =
       where
          q = addCond updatedQuery (getJoinConditions rel)
          qq = q{from=linkTable:from q}
-    _ -> Left "unknow relation"
+    _ -> Left "unknown relation"
   where
     -- add parentTable and parentJoinConditions to the query
     updatedQuery = foldr (flip addCond) (query{from = parentTables ++ from query}) parentJoinConditions

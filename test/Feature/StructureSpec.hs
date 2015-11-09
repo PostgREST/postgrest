@@ -175,6 +175,7 @@ spec = around withApp $ do
             },
             {
                "references":{
+                  "schema":"test",
                   "column":"id",
                   "table":"auto_incrementing_pk"
                },
@@ -191,6 +192,7 @@ spec = around withApp $ do
             },
             {
                "references":{
+                  "schema":"test",
                   "column":"k",
                   "table":"simple_pk"
                },

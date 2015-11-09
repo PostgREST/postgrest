@@ -2,14 +2,13 @@ module Main where
 
 
 import           PostgREST.App
--- import PostgREST.QueryBuilder
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
 import           PostgREST.Error                      (errResponse, PgError)
 import           PostgREST.Middleware
-import           PostgREST.PgStructure
+import           PostgREST.DbStructure
 import           PostgREST.Types
 
 import           Control.Monad                        (unless)
@@ -27,7 +26,6 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
--- import Data.Maybe (mapMaybe)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -70,38 +68,12 @@ main = do
           <> show minimumPgVersion)
     ) supportedOrError
 
-  -- what was this code for?
-  -- roleOrError <- H.session pool $ do
-  --   Identity (role :: Text) <- H.tx Nothing $ H.singleEx
-  --     [H.stmt|SELECT SESSION_USER|]
-  --   return role
-  -- authenticator <- either hasqlError return roleOrError
-
   let txSettings = Just (H.ReadCommitted, Just True)
-  metadata <- H.session pool $ H.tx txSettings $ do
-    rels <- allRelations
-    cols <- allColumns rels
-    keys <- allPrimaryKeys
-    return (rels, cols, keys)
-
-
-  dbstructure <- either hasqlError
-    (\(rels, cols, keys) ->
-
-      return DbStructure {
-          columns=cols
-        , relations=rels
-        , primaryKeys=keys
-        }
-    ) metadata
-
-  -- let allRels = relations dbstructure
-  --     fakeRels = mapMaybe (toSourceRelation "projects") allRels
-  --
-  -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
+  dbOrError <- H.session pool $ H.tx txSettings createDbStructure
+  db <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app dbstructure conf body) req
+      runWithClaims conf (app db conf body) req
     either (respond . errResponse) respond resOrError

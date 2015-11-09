@@ -46,7 +46,7 @@ import qualified Hasql.Postgres            as P
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.PgQuery
-import           PostgREST.PgStructure
+import           PostgREST.DbStructure
 import           PostgREST.QueryBuilder
 import           PostgREST.RangeQuery
 import           PostgREST.Types
@@ -55,7 +55,7 @@ import           PostgREST.Auth (tokenJWT)
 import           Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody req =
+app db conf reqBody req =
   case (path, verb) of
 
     ([table], "GET") ->
@@ -160,9 +160,9 @@ app dbstructure conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    allRels = relations dbstructure
-    allCols = columns dbstructure
-    allPrKeys = primaryKeys dbstructure
+    allRels = relations db
+    allCols = columns db
+    allPrKeys = primaryKeys db
     filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
     filterCol _ _ _ =  False
     filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
@@ -332,7 +332,7 @@ addFilter (path, flt) (Node rn forest) =
       where maybeNode = find ((name==).fst.snd.rootLabel) forst
 
 toSourceRelation :: Text -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation _ t _ ft _ _ rt _ _)
+toSourceRelation mt r@(Relation _ t _ _ ft _ _ _ rt _ _)
   | mt == t = Just $ r {relTable=sourceSubqueryName}
   | mt == ft = Just $ r {relFTable=sourceSubqueryName}
   | Just mt == rt = Just $ r {relLTable=Just sourceSubqueryName}

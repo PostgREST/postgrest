@@ -19,7 +19,9 @@ data Table = Table {
 } deriving (Show)
 
 data ForeignKey = ForeignKey {
-  fkTable::Text, fkCol::Text
+  fkSchema :: Text,
+  fkTable :: Text,
+  fkCol :: Text
 } deriving (Show, Eq)
 
 
@@ -36,7 +38,7 @@ data Column = Column {
 , colDefault :: Maybe Text
 , colEnum :: [Text]
 , colFK :: Maybe ForeignKey
-} | Star {colSchema :: Text, colTable :: Text } deriving (Show)
+} | Star { colSchema :: Text, colTable :: Text } deriving (Show)
 
 data PrimaryKey = PrimaryKey {
   pkSchema::Text, pkTable::Text, pkName::Text
@@ -56,13 +58,15 @@ data QualifiedIdentifier = QualifiedIdentifier {
 
 data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
-  relSchema  :: Text
-, relTable   :: Text
+  relSchema   :: Text
+, relTable    :: Text
 , relColumns  :: [Text]
-, relFTable  :: Text
+, relFSchema  :: Text
+, relFTable   :: Text
 , relFColumns :: [Text]
-, relType    :: RelationType
-, relLTable  :: Maybe Text
+, relType     :: RelationType
+, relLSchema  :: Maybe Text
+, relLTable   :: Maybe Text
 , relLCols1   :: Maybe [Text]
 , relLCols2   :: Maybe [Text]
 } deriving (Show, Eq)
@@ -101,7 +105,7 @@ instance ToJSON Column where
     , "enum"      .= colEnum c ]
 
 instance ToJSON ForeignKey where
-  toJSON fk = object ["table".=fkTable fk, "column".=fkCol fk]
+  toJSON fk = object ["schema".=fkSchema fk, "table".=fkTable fk, "column".=fkCol fk]
 
 instance ToJSON Table where
   toJSON v = object [

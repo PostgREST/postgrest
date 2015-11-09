@@ -70,7 +70,7 @@ executable postgrest
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.PgQuery
-                     , PostgREST.PgStructure
+                     , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
@@ -134,7 +134,7 @@ library
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.PgQuery
-                     , PostgREST.PgStructure
+                     , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
@@ -165,7 +165,7 @@ Test-Suite spec
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.PgQuery
-                     , PostgREST.PgStructure
+                     , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
