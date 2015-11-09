@@ -148,70 +148,30 @@ tables schema = do
 allRelations :: H.Tx P.Postgres s [Relation]
 allRelations = do
   rels <- H.listEx $ [H.stmt|
-    WITH table_fk AS (
-        SELECT ns1.nspname AS table_schema,
-               tab.relname AS table_name,
-               column_info.cols AS columns,
-               ns2.nspname AS foreign_table_schema,
-               other.relname AS foreign_table_name,
-               column_info.refs AS foreign_columns
-        FROM pg_constraint,
-           LATERAL (SELECT array_agg(cols.attname) AS cols,
-                           array_agg(cols.attnum)  AS nums,
-                           array_agg(refs.attname) AS refs
-                      FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
-                           LATERAL (SELECT * FROM pg_attribute
-                                     WHERE attrelid = conrelid AND attnum = col)
-                                AS cols,
-                           LATERAL (SELECT * FROM pg_attribute
-                                     WHERE attrelid = confrelid AND attnum = ref)
-                                AS refs)
-                AS column_info,
-           LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = connamespace) AS ns1,
-           LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
-           LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
-           LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
-        WHERE confrelid != 0
-        ORDER BY (conrelid, column_info.nums)
-    )
-
-    SELECT * FROM table_fk
-    UNION
-    (
-        SELECT
-            vcu.table_schema,
-            vcu.view_name AS table_name,
-            array_agg(vcu.column_name::text) AS columns,
-            table_fk.foreign_table_schema,
-            table_fk.foreign_table_name,
-            table_fk.foreign_columns
-        FROM information_schema.view_column_usage AS vcu
-        JOIN table_fk ON
-            table_fk.table_schema = vcu.view_schema AND
-            table_fk.table_name = vcu.table_name AND
-            vcu.column_name = ANY (table_fk.columns)
-        WHERE vcu.view_schema NOT IN ('pg_catalog', 'information_schema')
-        AND columns = table_fk.columns
-        GROUP BY vcu.table_schema, vcu.view_name, table_fk.foreign_table_schema, table_fk.foreign_table_name, table_fk.foreign_columns
-    )
-    UNION
-    (
-        SELECT
-            table_fk.table_schema,
-            table_fk.table_name,
-            table_fk.columns,
-            vcu.view_schema AS foreign_table_schema,
-            vcu.view_name AS foreign_table_name,
-            array_agg(vcu.column_name::text) AS foreign_columns
-        FROM information_schema.view_column_usage AS vcu
-        JOIN table_fk ON
-            table_fk.table_schema = vcu.view_schema AND
-            table_fk.foreign_table_name = vcu.table_name AND
-            vcu.column_name = ANY (table_fk.foreign_columns)
-        WHERE vcu.view_schema NOT IN ('pg_catalog', 'information_schema')
-            AND foreign_columns = table_fk.foreign_columns
-        GROUP BY table_fk.table_schema, table_fk.table_name, vcu.view_schema, vcu.view_name, table_fk.columns
-    )
+    SELECT ns1.nspname AS table_schema,
+           tab.relname AS table_name,
+           column_info.cols AS columns,
+           ns2.nspname AS foreign_table_schema,
+           other.relname AS foreign_table_name,
+           column_info.refs AS foreign_columns
+    FROM pg_constraint,
+       LATERAL (SELECT array_agg(cols.attname) AS cols,
+                       array_agg(cols.attnum)  AS nums,
+                       array_agg(refs.attname) AS refs
+                  FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
+                       LATERAL (SELECT * FROM pg_attribute
+                                 WHERE attrelid = conrelid AND attnum = col)
+                            AS cols,
+                       LATERAL (SELECT * FROM pg_attribute
+                                 WHERE attrelid = confrelid AND attnum = ref)
+                            AS refs)
+            AS column_info,
+       LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = connamespace) AS ns1,
+       LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
+       LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
+       LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
+    WHERE confrelid != 0
+    ORDER BY (conrelid, column_info.nums)
   |]
   let simpleRelations = foldr (addParentRelation.relationFromRow) [] rels
       links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
@@ -289,36 +249,18 @@ allColumns rels = do
 allPrimaryKeys :: H.Tx P.Postgres s [PrimaryKey]
 allPrimaryKeys = do
   pks <- H.listEx $ [H.stmt|
-    WITH table_pk AS (
-        SELECT
-            kc.table_schema,
-            kc.table_name,
-            kc.column_name
-        FROM
-            information_schema.table_constraints tc,
-            information_schema.key_column_usage kc
-        WHERE
-            tc.constraint_type = 'PRIMARY KEY' AND
-            kc.table_name = tc.table_name AND
-            kc.table_schema = tc.table_schema AND
-            kc.constraint_name = tc.constraint_name AND
-            kc.table_schema NOT IN ('pg_catalog', 'information_schema')
-    )
-    SELECT table_schema,
-           table_name,
-           column_name
-    FROM table_pk
-    UNION (
-        SELECT
-            vcu.view_schema,
-            vcu.view_name,
-            vcu.column_name
-         FROM information_schema.view_column_usage AS vcu
-         JOIN
-            table_pk ON table_pk.table_schema = vcu.view_schema AND
-            table_pk.table_name = vcu.table_name AND
-            table_pk.column_name = vcu.column_name
-         WHERE vcu.view_schema NOT IN ('pg_catalog','information_schema')
-    )
+    SELECT
+        kc.table_schema,
+        kc.table_name,
+        kc.column_name
+    FROM
+        information_schema.table_constraints tc,
+        information_schema.key_column_usage kc
+    WHERE
+        tc.constraint_type = 'PRIMARY KEY' AND
+        kc.table_name = tc.table_name AND
+        kc.table_schema = tc.table_schema AND
+        kc.constraint_name = tc.constraint_name AND
+        kc.table_schema NOT IN ('pg_catalog', 'information_schema')
     |]
   return $ map pkFromRow pks
