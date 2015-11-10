@@ -27,7 +27,7 @@ import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
 import           Data.Time.Clock         (NominalDiffTime)
-import           PostgREST.PgQuery       (pgFmtLit, pgFmtIdent, unquoted)
+import           PostgREST.QueryBuilder  (pgFmtLit, pgFmtIdent, unquoted)
 import qualified Web.JWT                 as JWT
 import qualified Data.HashMap.Lazy       as H
 
