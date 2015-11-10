@@ -38,16 +38,15 @@ $$ LANGUAGE plpgsql;
 
 create table if not exists
 basic_auth.users (
-  username text not null,
+  email  text not null,
   pass   text not null,
   role   name not null,
-  email  text not null unique,
   active boolean not null default false,
-  more   JSON,
-  constraint user_pkey primary key (username),
+  -- If you like add more columns, or a json column
+  constraint user_pkey primary key (email),
   constraint user_field_length_limits check (
-    length(username::text) < 512 AND length(pass) < 512 AND
-    length(email::text) < 512    AND length(more::text) < 1024)
+    length(pass) < 512
+    AND length(email::text) < 512)
 );
 
 create or replace function
@@ -96,12 +95,11 @@ declare
   tok text;
 begin
   select uuid_generate_v4() into tok;
-  insert into basic_auth.tokens (token, token_type, username)
-         values (tok, 'validation', new.username);
+  insert into basic_auth.tokens (token, token_type, email)
+         values (tok, 'validation', new.email);
   perform pg_notify('validate',
     json_build_object(
       'email', new.email,
-      'username', new.username,
       'token', tok,
       'token_type', 'validation'
     )::text
@@ -123,10 +121,10 @@ create table if not exists
 basic_auth.tokens (
   token       text unique,
   token_type  text not null,
-  username    text not null,
+  email       text not null,
   created_at  timestamptz not null default current_date,
   constraint  t_pk primary key (token),
-  constraint  t_user_fk foreign key (username) references basic_auth.users
+  constraint  t_user_fk foreign key (email) references basic_auth.users
               on delete cascade on update cascade
 );
 
@@ -134,23 +132,36 @@ basic_auth.tokens (
 -- Login helper
 
 create or replace function
-basic_auth.user_role(username text, pass text) returns text
+basic_auth.user_role(email text, pass text) returns text
   language plpgsql
   as $$
 begin
   return (
   select role from basic_auth.users
-   where users.username = user_role.username
+   where users.email = user_role.email
      and users.pass = crypt(user_role.pass, users.pass)
   );
 end;
 $$;
 
+create or replace function
+basic_auth.current_email() returns text
+  language plpgsql
+  as $$
+begin
+  return current_setting('postgrest.claims.email');
+exception
+  -- handle unrecognized configuration parameter error
+  when undefined_object then return '';
+end;
+$$;
+
+
 -------------------------------------------------------------------------------
 -- Public functions (in current schema, not basic_auth)
 
 create or replace function
-request_password_reset(username text) returns void
+request_password_reset(email text) returns void
   language plpgsql
   as $$
 declare
@@ -158,17 +169,14 @@ declare
 begin
   delete from basic_auth.tokens
    where token_type = 'reset'
-     and tokens.username = request_password_reset.username;
+     and tokens.email = request_password_reset.email;
 
   select uuid_generate_v4() into tok;
-  insert into basic_auth.tokens (token, token_type, username)
-         values (tok, 'reset', request_password_reset.username);
+  insert into basic_auth.tokens (token, token_type, email)
+         values (tok, 'reset', request_password_reset.email);
   perform pg_notify('reset',
     json_build_object(
-      'email', (select email
-                  from basic_auth.users
-                 where users.username = request_password_reset.username),
-      'username', request_password_reset.username,
+      'email', request_password_reset.email,
       'token', tok,
       'token_type', 'reset'
     )::text
@@ -177,7 +185,7 @@ end;
 $$;
 
 create or replace function
-reset_password(username text, token text, pass text)
+reset_password(email text, token text, pass text)
   returns void
   language plpgsql
   as $$
@@ -185,14 +193,14 @@ declare
   tok text;
 begin
   if exists(select 1 from basic_auth.tokens
-             where tokens.username = reset_password.username
+             where tokens.email = reset_password.email
                and tokens.token = reset_password.token
                and token_type = 'reset') then
     update basic_auth.users set pass=reset_password.pass
-     where users.username = reset_password.username;
+     where users.email = reset_password.email;
 
     delete from basic_auth.tokens
-     where tokens.username = reset_password.username
+     where tokens.email = reset_password.email
        and tokens.token = reset_password.token
        and token_type = 'reset';
   else
@@ -201,17 +209,14 @@ begin
   end if;
   delete from basic_auth.tokens
    where token_type = 'reset'
-     and tokens.username = reset_password.username;
+     and tokens.email = reset_password.email;
 
   select uuid_generate_v4() into tok;
-  insert into basic_auth.tokens (token, token_type, username)
-         values (tok, 'reset', reset_password.username);
+  insert into basic_auth.tokens (token, token_type, email)
+         values (tok, 'reset', reset_password.email);
   perform pg_notify('reset',
     json_build_object(
-      'email', (select email
-                  from basic_auth.users
-                 where users.username = reset_password.username),
-      'username', reset_password.username,
+      'email', reset_password.email,
       'token', tok
     )::text
   );
@@ -220,32 +225,34 @@ $$;
 
 drop type if exists basic_auth.jwt_claims cascade;
 create type
-basic_auth.jwt_claims AS (role text, username text);
+basic_auth.jwt_claims AS (role text, email text);
 
 create or replace function
-login(username text, pass text) returns basic_auth.jwt_claims
+login(email text, pass text) returns basic_auth.jwt_claims
   language plpgsql
   as $$
 declare
   _role text;
   result basic_auth.jwt_claims;
 begin
-  select basic_auth.user_role(username, pass) into _role;
+  select basic_auth.user_role(email, pass) into _role;
   if _role is null then
     raise invalid_password using message = 'invalid user or password';
   end if;
-  select _role as role, login.username as username into result;
+  -- TODO; check active flag if you care whether users
+  -- have validated their emails
+  select _role as role, login.email as email into result;
   return result;
 end;
 $$;
 
 create or replace function
-signup(username text, email text, pass text) returns void
+signup(email text, pass text) returns void
   language plpgsql
   as $$
 begin
-  insert into basic_auth.users (username, email, pass, role) values
-    (signup.username, signup.email, signup.pass, 'author');
+  insert into basic_auth.users (email, pass, role) values
+    (signup.email, signup.pass, 'author');
 end;
 $$;
 
@@ -253,12 +260,10 @@ $$;
 -- User management
 
 create or replace view users as
-select actual.username as username,
-       actual.role as role,
+select actual.role as role,
        '***'::text as pass,
        actual.email as email,
-       actual.active as active,
-       actual.more as more
+       actual.active as active
 from basic_auth.users as actual,
      (select rolname
         from pg_authid
@@ -267,7 +272,7 @@ from basic_auth.users as actual,
 where actual.role = member_of.rolname
   and (
     actual.role <> 'author'
-    or username = current_setting('postgrest.claims.username')
+    or email = basic_auth.current_email()
   );
 
 create or replace function
@@ -279,9 +284,9 @@ begin
     perform basic_auth.clearance_for_role(new.role);
 
     insert into basic_auth.users
-      (username, role, pass, email, active, more) values
-      (new.username, coalesce(new.role, 'author'), new.pass,
-        new.email, coalesce(new.active, false), new.more);
+      (role, pass, email, active) values
+      (coalesce(new.role, 'author'), new.pass,
+        new.email, coalesce(new.active, false));
     return new;
   elsif tg_op = 'UPDATE' then
     -- no need to check clearance for old.role because
@@ -289,17 +294,17 @@ begin
     perform basic_auth.clearance_for_role(new.role);
 
     update basic_auth.users set
-      username = new.username, role  = new.role,
-      pass     = new.pass,     email = new.email,
-      active   = coalesce(new.active, old.active, false),
-      more  = new.more
-      where username = old.username;
+      email  = new.email,
+      role   = new.role,
+      pass   = new.pass,
+      active = coalesce(new.active, old.active, false)
+      where email = old.email;
     return new;
   elsif tg_op = 'DELETE' then
     -- no need to check clearance for old.role (see previous case)
 
     delete from basic_auth.users
-     where basic_auth.username = old.username;
+     where basic_auth.email = old.email;
     return null;
   end if;
 end
@@ -344,20 +349,20 @@ comments (
 -------------------------------------------------------------------------------
 -- Permissions
 
---create role anon noinherit;
 grant insert on table basic_auth.users, basic_auth.tokens to anon;
 grant select on table pg_authid, basic_auth.users, posts, comments to anon;
 grant execute on function
   login(text,text),
   request_password_reset(text),
   reset_password(text,text,text),
-  signup(text, text, text)
+  signup(text, text)
   to anon;
 
---create role author;
 grant author to anon;
 grant select, insert, update, delete
-  on table basic_auth.users, users, posts, comments to author;
+  on basic_auth.tokens, basic_auth.users to anon, author;
+grant select, insert, update, delete
+  on table users, posts, comments to author;
 grant usage, select on sequence posts_id_seq, comments_id_seq to author;
 
 grant usage on schema public, basic_auth to anon, author;
@@ -367,7 +372,7 @@ drop policy if exists authors_eigenedit on posts;
 create policy authors_eigenedit on posts
   using (true)
   with check (
-    author = current_setting('postgrest.claims.username')
+    author = basic_auth.current_email()
   );
 
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
@@ -375,7 +380,7 @@ drop policy if exists authors_eigenedit on comments;
 create policy authors_eigenedit on comments
   using (true)
   with check (
-    author = current_setting('postgrest.claims.username')
+    author = basic_auth.current_email()
   );
 
 commit;
