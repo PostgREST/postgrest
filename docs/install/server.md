@@ -54,7 +54,6 @@ sudo stack install --install-ghc --local-bin-path /usr/local/bin
 
 ```bash
 postgrest dbconnectionstring arg1 arg2
-# ... your arguments after the double dashes
 ```
 
 If you want to run the test suite, stack can do that too: `stack test`.
