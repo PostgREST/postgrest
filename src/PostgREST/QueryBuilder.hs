@@ -7,7 +7,7 @@ import           Control.Error
 import           Data.List         (find)
 import           Data.Monoid
 import           Data.Text         hiding (filter, find, foldr, head, last, map,
-                                    null, zipWith)
+                                    null, zipWith, concatMap)
 import           Control.Applicative
 import           Data.Tree
 import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
@@ -16,11 +16,11 @@ import           PostgREST.PgQuery (fromQi, pgFmtCondition, pgFmtSelectItem,
 import           PostgREST.Types
 import qualified Data.Map as M
 
-findRelation :: [Relation] -> Text -> Text -> Text -> Maybe Relation
+findRelation :: [Relation] -> Schema -> Text -> Text -> Maybe Relation
 findRelation allRelations s t1 t2 =
-  find (\r -> s == relSchema r && t1 == relTable r && t2 == relFTable r) allRelations
+  find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
 
-addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
+addRelations :: Schema -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
   case parentNode of
     Nothing -> Node (query, (table, Nothing)) <$> updatedForest
@@ -35,14 +35,14 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
 getJoinConditions :: Relation -> [Filter]
-getJoinConditions (Relation s t cs fs ft fcs typ ls lt lc1 lc2) =
+getJoinConditions (Relation t cs ft fcs typ _ lc1 lc2) =
   case typ of
-    Child  -> zipWith (toFilter t fs ft) cs fcs
-    Parent -> zipWith (toFilter t fs ft) cs fcs
-    Many   -> zipWith (toFilter t (fromMaybe "" ls) (fromMaybe "" lt)) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft (fromMaybe "" ls) (fromMaybe "" lt)) fcs (fromMaybe [] lc2)
+    Child  -> zipWith (toFilter t) cs fcs
+    Parent -> zipWith (toFilter t) cs fcs
+    Many   -> zipWith (toFilter t) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft) fcs (fromMaybe [] lc2)
   where
-    toFilter :: Text -> Text -> Text -> FieldName -> FieldName -> Filter
-    toFilter tb fsc ftb c fc = Filter (c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey fsc ftb fc))
+    toFilter :: Table -> Column -> Column -> Filter
+    toFilter tb c fc = Filter (colName c, Nothing) "=" (VForeignKey (QualifiedIdentifier (tableSchema tb) (tableName tb)) (ForeignKey fc))
 
 addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema (Node (query, (t, r)) forest) =
@@ -54,15 +54,15 @@ addJoinConditions schema (Node (query, (t, r)) forest) =
       Node (qq, (t, r)) <$> updatedForest
       where
          q = addCond updatedQuery (getJoinConditions rel)
-         qq = q{from=linkTable:from q}
+         qq = q{from=tableName linkTable : from q}
     _ -> Left "unknown relation"
   where
     -- add parentTable and parentJoinConditions to the query
     updatedQuery = foldr (flip addCond) (query{from = parentTables ++ from query}) parentJoinConditions
       where
-        parentJoinConditions = map (getJoinConditions.snd) parents
+        parentJoinConditions = map (getJoinConditions . snd) parents
         parentTables = map fst parents
-        parents = mapMaybe (getParents.rootLabel) forest
+        parents = mapMaybe (getParents . rootLabel) forest
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest

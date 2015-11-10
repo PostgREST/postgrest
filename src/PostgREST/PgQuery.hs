@@ -281,8 +281,9 @@ pgFmtCondition table (Filter (col,jp) ops val) =
       _      -> ""
     valToStr v = case v of
       VText s -> pgFmtValue opCode s
-      VForeignKey (QualifiedIdentifier s _) (ForeignKey _ ft fc) -> pgFmtColumn qi fc
+      VForeignKey (QualifiedIdentifier s _) (ForeignKey Column{colTable=Table{tableName=ft}, colName=fc}) -> pgFmtColumn qi fc
         where qi = QualifiedIdentifier (if ft == sourceSubqueryName then "" else s) ft
+      _ -> ""
 
 pgFmtColumn :: QualifiedIdentifier -> T.Text -> T.Text
 pgFmtColumn table "*" = fromQi table <> ".*"

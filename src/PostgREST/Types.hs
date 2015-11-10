@@ -9,66 +9,62 @@ data DbStructure = DbStructure {
   columns :: [Column]
 , relations :: [Relation]
 , primaryKeys :: [PrimaryKey]
-}
+} deriving (Show, Eq)
 
+type Schema = Text
 
 data Table = Table {
-  tableSchema :: Text
-, tableName :: Text
+  tableSchema     :: Schema
+, tableName       :: Text
 , tableInsertable :: Bool
 } deriving (Show)
 
-data ForeignKey = ForeignKey {
-  fkSchema :: Text,
-  fkTable :: Text,
-  fkCol :: Text
-} deriving (Show, Eq)
+data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq)
 
-
-data Column = Column {
-  colSchema :: Text
-, colTable :: Text
-, colName :: Text
-, colPosition :: Int
-, colNullable :: Bool
-, colType :: Text
-, colUpdatable :: Bool
-, colMaxLen :: Maybe Int
-, colPrecision :: Maybe Int
-, colDefault :: Maybe Text
-, colEnum :: [Text]
-, colFK :: Maybe ForeignKey
-} | Star { colSchema :: Text, colTable :: Text } deriving (Show)
+data Column =
+    Column {
+      colTable     :: Table
+    , colName      :: Text
+    , colPosition  :: Int
+    , colNullable  :: Bool
+    , colType      :: Text
+    , colUpdatable :: Bool
+    , colMaxLen    :: Maybe Int
+    , colPrecision :: Maybe Int
+    , colDefault   :: Maybe Text
+    , colEnum      :: [Text]
+    , colFK        :: Maybe ForeignKey
+    }
+  | Star { colTable :: Table }
+  deriving (Show, Eq)
 
 data PrimaryKey = PrimaryKey {
-  pkSchema::Text, pkTable::Text, pkName::Text
-}
+    pkTable :: Table
+  , pkName  :: Text
+} deriving (Show, Eq)
 
 data OrderTerm = OrderTerm {
-  otTerm :: Text
+  otTerm      :: Text
 , otDirection :: BS.ByteString
 , otNullOrder :: Maybe BS.ByteString
 } deriving (Show, Eq)
 
 data QualifiedIdentifier = QualifiedIdentifier {
-  qiSchema :: Text
+  qiSchema :: Schema
 , qiName   :: Text
 } deriving (Show, Eq)
 
 
 data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
-  relSchema   :: Text
-, relTable    :: Text
-, relColumns  :: [Text]
-, relFSchema  :: Text
-, relFTable   :: Text
-, relFColumns :: [Text]
+  relTable    :: Table
+, relColumns  :: [Column]
+, relFTable   :: Table
+, relFColumns :: [Column]
 , relType     :: RelationType
-, relLSchema  :: Maybe Text
-, relLTable   :: Maybe Text
-, relLCols1   :: Maybe [Text]
-, relLCols2   :: Maybe [Text]
+, relLTable   :: Maybe Table
+, relLCols1   :: Maybe [Column]
+, relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
 
@@ -92,7 +88,7 @@ type ApiRequest = Tree ApiNode
 
 instance ToJSON Column where
   toJSON c = object [
-      "schema"    .= colSchema c
+      "schema"    .= tableSchema t
     , "name"      .= colName c
     , "position"  .= colPosition c
     , "nullable"  .= colNullable c
@@ -103,9 +99,17 @@ instance ToJSON Column where
     , "references".= colFK c
     , "default"   .= colDefault c
     , "enum"      .= colEnum c ]
+    where
+      t = colTable c
 
 instance ToJSON ForeignKey where
-  toJSON fk = object ["schema".=fkSchema fk, "table".=fkTable fk, "column".=fkCol fk]
+  toJSON fk = object [
+      "schema" .= tableSchema t
+    , "table"  .= tableName t
+    , "column" .= colName c ]
+    where
+      c = fkCol fk
+      t = colTable c
 
 instance ToJSON Table where
   toJSON v = object [

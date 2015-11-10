@@ -163,9 +163,9 @@ app db conf reqBody req =
     allRels = relations db
     allCols = columns db
     allPrKeys = primaryKeys db
-    filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
+    filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
     filterCol _ _ _ =  False
-    filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
+    filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     path          = pathInfo req
     verb          = requestMethod req
     hdrs          = requestHeaders req
@@ -289,7 +289,7 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         a@(Array _) -> Right a
         _ -> Left invalidMsg
 
-augumentRequestWithJoin :: Text ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
+augumentRequestWithJoin :: Schema ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
@@ -332,10 +332,10 @@ addFilter (path, flt) (Node rn forest) =
       where maybeNode = find ((name==).fst.snd.rootLabel) forst
 
 toSourceRelation :: Text -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation _ t _ _ ft _ _ _ rt _ _)
-  | mt == t = Just $ r {relTable=sourceSubqueryName}
-  | mt == ft = Just $ r {relFTable=sourceSubqueryName}
-  | Just mt == rt = Just $ r {relLTable=Just sourceSubqueryName}
+toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
+  | mt == tableName t = Just $ r {relTable=t {tableName=sourceSubqueryName}}
+  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceSubqueryName}}
+  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceSubqueryName}) <$> rt}
   | otherwise = Nothing
 
 data TableOptions = TableOptions {
@@ -348,7 +348,7 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
-parseRequest :: Text -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
+parseRequest :: Schema -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
 parseRequest schema allRels rootTableName httpRequest reqBody =
   (,,) <$> selectQuery
        <*> (if method == "GET" then pure "" else mutateQuery)
