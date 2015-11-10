@@ -69,7 +69,6 @@ executable postgrest
                      , PostgREST.Error
                      , PostgREST.Middleware
                      , PostgREST.Parsers
-                     , PostgREST.PgQuery
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
@@ -133,7 +132,6 @@ library
                      , PostgREST.Error
                      , PostgREST.Middleware
                      , PostgREST.Parsers
-                     , PostgREST.PgQuery
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
@@ -164,7 +162,6 @@ Test-Suite spec
                      , PostgREST.Error
                      , PostgREST.Middleware
                      , PostgREST.Parsers
-                     , PostgREST.PgQuery
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
