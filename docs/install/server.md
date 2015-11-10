@@ -36,18 +36,24 @@ $ ./postgrest -d dbname -U postgres -a postgres --v1schema public
 When a prebuilt binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. [Stack](https://github.com/commercialhaskell/stack) makes it easy. It will install any necessary Haskell dependencies on your system.
 
 * [Install Stack](https://github.com/commercialhaskell/stack#how-to-install) for your platform
-* Build the project
+```bash
+#ubuntu example
+wget -q -O- https://s3.amazonaws.com/download.fpcomplete.com/ubuntu/fpco.key | sudo apt-key add -
+echo 'deb http://download.fpcomplete.com/ubuntu/trusty stable main'|sudo tee /etc/apt/sources.list.d/fpco.list
+sudo apt-get update && sudo apt-get install stack -y
+```
+* Build & install in one step
 
 ```bash
 git clone https://github.com/begriffs/postgrest.git
 cd postgrest
-stack build
+sudo stack install --install-ghc --local-bin-path /usr/local/bin
 ```
 
 * Run the server
 
 ```bash
-stack exec postgrest -- arg1 arg2
+postgrest dbconnectionstring arg1 arg2
 # ... your arguments after the double dashes
 ```
 
@@ -82,4 +88,3 @@ To use PostgREST you will need an underlying database. You can use something lik
 
 * [Instructions for OS X](http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/)
 * [Instructions for Ubuntu 14.04](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04)
-
