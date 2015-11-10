@@ -3,6 +3,9 @@
 
 begin;
 
+create role anon noinherit;
+create role author;
+
 create extension if not exists pgcrypto;
 create extension if not exists "uuid-ossp";
 
