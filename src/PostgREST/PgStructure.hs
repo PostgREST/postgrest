@@ -45,7 +45,7 @@ doesProcReturnJWT = doesProc [H.stmt|
       ON     pronamespace = n.oid
       WHERE  nspname = ?
       AND    proname = ?
-      AND    pg_catalog.pg_get_function_result(p.oid) = 'jwt_claims'
+      AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     |]
 
 tableFromRow :: (Text, Text, Bool) -> Table

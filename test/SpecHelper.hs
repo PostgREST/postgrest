@@ -41,7 +41,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" False "safe" 10
+cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" "safe" 10
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
@@ -76,7 +76,7 @@ withApp perform = do
       $ runWithClaims cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
-  where middle = defaultMiddle False
+  where middle = defaultMiddle
 
 
 resetDb :: IO ()

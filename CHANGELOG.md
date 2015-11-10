@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Removed
 - API versioning feature - @calebmer
 - `--db-x` command line arguments - @calebmer
+- Remove secure flag - @calebmer
 
 ### Fixed
 - Tolerate a missing role in user creation - @calebmer

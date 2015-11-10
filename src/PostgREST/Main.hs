@@ -46,8 +46,6 @@ main = do
   conf <- readOptions
   let port = configPort conf
 
-  unless (configSecure conf) $
-    putStrLn "WARNING, running in insecure mode, auth will be in plaintext"
   unless ("secret" /= configJwtSecret conf) $
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
@@ -57,7 +55,7 @@ main = do
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
-      middle = logStdout . defaultMiddle (configSecure conf)
+      middle = logStdout . defaultMiddle
 
   poolSettings <- maybe (fail "Improper session settings") return $
     H.poolSettings (fromIntegral $ configPool conf) 30
