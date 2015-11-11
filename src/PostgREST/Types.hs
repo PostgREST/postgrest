@@ -6,7 +6,8 @@ import Data.Aeson
 import Data.Map
 
 data DbStructure = DbStructure {
-  columns :: [Column]
+  tables :: [Table]
+, columns :: [Column]
 , relations :: [Relation]
 , primaryKeys :: [PrimaryKey]
 } deriving (Show, Eq)

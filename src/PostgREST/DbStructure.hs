@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.DbStructure (
   createDbStructure
+, accessibleTables
 , doesProcExist
 , doesProcReturnJWT
 ) where
@@ -70,6 +71,26 @@ doesProcReturnJWT = doesProc [H.stmt|
       AND    proname = ?
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     |]
+
+accessibleTables :: [Table] -> H.Tx P.Postgres s [Table]
+accessibleTables allTabs = do
+  accessible <- H.listEx $ [H.stmt|
+      SELECT
+        n.nspname AS table_schema,
+        c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE
+        c.relkind IN ('v','r','m') AND
+        n.nspname NOT IN ('pg_catalog', 'information_schema') AND (
+          pg_has_role(c.relowner, 'USAGE'::text) OR
+          has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR
+          has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+        )
+      ORDER BY table_schema, table_name
+    |]
+  let isAccessible table = isJust $ find (\(s,n) -> tableSchema table == s && tableName table == n) accessible
+  return $ filter isAccessible allTabs
 
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
@@ -159,7 +180,7 @@ allTables = do
       WHERE c.relkind IN ('v','r','m')
         AND n.nspname NOT IN ('pg_catalog', 'information_schema')
       GROUP BY table_schema, table_name, insertable
-      ORDER BY table_schema, table_name;
+      ORDER BY table_schema, table_name
     |]
     return $ map tableFromRow rows
 

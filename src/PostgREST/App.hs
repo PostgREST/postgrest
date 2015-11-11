@@ -147,7 +147,7 @@ app db conf reqBody req =
       -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([], _) -> do
-      body <- encode <$> tables (cs schema)
+      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) allTabs)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -160,6 +160,7 @@ app db conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
+    allTabs = tables db
     allRels = relations db
     allCols = columns db
     allPrKeys = primaryKeys db
