@@ -2,7 +2,6 @@ module Main where
 
 
 import           PostgREST.App
--- import PostgREST.QueryBuilder
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
@@ -69,13 +68,6 @@ main = do
           "Cannot run in this PostgreSQL version, PostgREST needs at least "
           <> show minimumPgVersion)
     ) supportedOrError
-
-  -- what was this code for?
-  -- roleOrError <- H.session pool $ do
-  --   Identity (role :: Text) <- H.tx Nothing $ H.singleEx
-  --     [H.stmt|SELECT SESSION_USER|]
-  --   return role
-  -- authenticator <- either hasqlError return roleOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do

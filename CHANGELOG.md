@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
 - Does not execute the count total if header "Prefer: count=none" - @diogob
 - Postgres connection string argument - @calebmer
+- Ensure JWT expires - @calebmer
 
 ### Removed
 - API versioning feature - @calebmer
