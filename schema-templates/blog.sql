@@ -84,8 +84,8 @@ begin
 end
 $$;
 
-drop trigger if exists protect_passwords on basic_auth.users;
-create trigger protect_passwords
+drop trigger if exists encrypt_pass on basic_auth.users;
+create trigger encrypt_pass
   before insert or update on basic_auth.users
   for each row
   execute procedure basic_auth.encrypt_pass();
@@ -111,8 +111,8 @@ begin
 end
 $$;
 
-drop trigger if exists send_validation_t on basic_auth.users;
-create trigger send_validation_t
+drop trigger if exists send_validation on basic_auth.users;
+create trigger send_validation
   after insert on basic_auth.users
   for each row
   execute procedure basic_auth.send_validation();
@@ -313,8 +313,8 @@ begin
 end
 $$;
 
-drop trigger if exists update_users_t on users;
-create trigger update_users_t
+drop trigger if exists update_users on users;
+create trigger update_users
   instead of insert or update or delete on
     users for each row execute procedure update_users();
 
