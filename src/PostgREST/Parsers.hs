@@ -34,7 +34,6 @@ pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
     op = fst <$> opVal
     val = snd <$> opVal
 
-
 ws :: Parser Text
 ws = cs <$> many (oneOf " \t")
 
@@ -45,23 +44,21 @@ pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe ( string "->" >>  pJsonPath)
-  let pp = map cs p
-      jpp = map cs <$> jp
-  return (init pp, (last pp, jpp))
+  return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree = try (Node <$> pSelect <*> ( char '(' *> pFieldForest <* char ')'))
-      <|>    Node <$> pSelect <*> pure []
+pFieldTree = try (Node <$> pSelect <*> between (char '(') (char ')') pFieldForest)
+          <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser Text
 pStar = cs <$> (string "*" *> pure ("*"::String))
 
 pFieldName :: Parser Text
 pFieldName =  cs <$> (many1 (letter <|> digit <|> oneOf "_")
-      <?> "field name (* or [a..z0..9_])")
+          <?> "field name (* or [a..z0..9_])")
 
 pJsonPathDelimiter :: Parser Text
 pJsonPathDelimiter = cs <$> (try (string "->>") <|> string "->")

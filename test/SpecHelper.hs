@@ -56,18 +56,16 @@ withApp perform = do
 
   let txSettings = Just (H.ReadCommitted, Just True)
   metadata <- H.session pool $ H.tx txSettings $ do
-    tabs <- allTables
     rels <- allRelations
     cols <- allColumns rels
     keys <- allPrimaryKeys
-    return (tabs, rels, cols, keys)
+    return (rels, cols, keys)
 
   dbstructure <- case metadata of
     Left e -> fail $ show e
-    Right (tabs, rels, cols, keys) ->
+    Right (rels, cols, keys) ->
       return DbStructure {
-          tables=tabs
-        , columns=cols
+          columns=cols
         , relations=rels
         , primaryKeys=keys
         }
