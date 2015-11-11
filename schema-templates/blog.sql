@@ -44,7 +44,7 @@ basic_auth.users (
   email  text not null,
   pass   text not null,
   role   name not null,
-  active boolean not null default false,
+  verified boolean not null default false,
   -- If you like add more columns, or a json column
   constraint user_pkey primary key (email),
   constraint user_field_length_limits check (
@@ -244,7 +244,7 @@ begin
   if _role is null then
     raise invalid_password using message = 'invalid user or password';
   end if;
-  -- TODO; check active flag if you care whether users
+  -- TODO; check verified flag if you care whether users
   -- have validated their emails
   select _role as role, login.email as email into result;
   return result;
@@ -265,7 +265,7 @@ create or replace view users as
 select actual.role as role,
        '***'::text as pass,
        actual.email as email,
-       actual.active as active
+       actual.verified as verified
 from basic_auth.users as actual,
      (select rolname
         from pg_authid
@@ -286,9 +286,9 @@ begin
     perform basic_auth.clearance_for_role(new.role);
 
     insert into basic_auth.users
-      (role, pass, email, active) values
+      (role, pass, email, verified) values
       (coalesce(new.role, 'author'), new.pass,
-        new.email, coalesce(new.active, false));
+        new.email, coalesce(new.verified, false));
     return new;
   elsif tg_op = 'UPDATE' then
     -- no need to check clearance for old.role because
@@ -299,7 +299,7 @@ begin
       email  = new.email,
       role   = new.role,
       pass   = new.pass,
-      active = coalesce(new.active, old.active, false)
+      verified = coalesce(new.verified, old.verified, false)
       where email = old.email;
     return new;
   elsif tg_op = 'DELETE' then
