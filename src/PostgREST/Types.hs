@@ -17,9 +17,9 @@ data Table = Table {
   tableSchema     :: Schema
 , tableName       :: Text
 , tableInsertable :: Bool
-} deriving (Show)
+} deriving (Show, Ord)
 
-data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq)
+data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
 data Column =
     Column {
@@ -36,7 +36,9 @@ data Column =
     , colFK        :: Maybe ForeignKey
     }
   | Star { colTable :: Table }
-  deriving (Show, Eq)
+  deriving (Show, Ord)
+
+type Synonym = (Column,Column)
 
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
@@ -116,3 +118,10 @@ instance ToJSON Table where
       "schema"     .= tableSchema v
     , "name"       .= tableName v
     , "insertable" .= tableInsertable v ]
+
+instance Eq Table where
+  Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
+
+instance Eq Column where
+  Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
+  _ == _ = False

@@ -9,7 +9,6 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.Error                      (errResponse, PgError)
 import           PostgREST.Middleware
 import           PostgREST.DbStructure
-import           PostgREST.Types
 
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
@@ -69,7 +68,7 @@ main = do
     ) supportedOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings createDbStructure
+  dbOrError <- H.session pool $ H.tx txSettings $ createDbStructure (cs $ configSchema conf)
   db <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do

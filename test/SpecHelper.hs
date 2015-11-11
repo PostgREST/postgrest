@@ -54,7 +54,7 @@ withApp perform = do
     <- H.acquirePool pgSettings testPoolOpts
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings createDbStructure
+  dbOrError <- H.session pool $ H.tx txSettings $ createDbStructure (cs $ configSchema cfg)
   db <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do

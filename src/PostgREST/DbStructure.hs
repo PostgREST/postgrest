@@ -10,33 +10,38 @@ module PostgREST.DbStructure (
 ) where
 
 import           Control.Applicative
-import           Control.Monad         (join)
+import           Control.Monad          (join)
 import           Data.Functor.Identity
-import           Data.List             (elemIndex, find, subsequences)
-import           Data.Maybe            (fromMaybe, fromJust, isJust, mapMaybe)
+import           Data.List              (elemIndex, find, subsequences, sort, transpose)
+import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
 import           Data.Monoid
-import           Data.Text             (Text, split)
-import qualified Hasql                 as H
-import qualified Hasql.Postgres        as P
-import qualified Hasql.Backend         as B
-import           PostgREST.PgQuery     ()
+import           Data.Text              (Text, split)
+import qualified Hasql                  as H
+import qualified Hasql.Postgres         as P
+import qualified Hasql.Backend          as B
+import           PostgREST.PgQuery      ()
 import           PostgREST.Types
 
-import           GHC.Exts              (groupWith)
+import           GHC.Exts               (groupWith)
 import           Prelude
 
-createDbStructure :: H.Tx P.Postgres s DbStructure
-createDbStructure = do
+createDbStructure :: Schema -> H.Tx P.Postgres s DbStructure
+createDbStructure schema = do
   tabs <- allTables
   cols <- allColumns tabs
+  syns <- allSynonyms cols
   rels <- allRelations tabs cols
   keys <- allPrimaryKeys tabs
 
+  let rels' = (manyToManyRelations . raiseRelations schema syns . parentRelations . synonymousRelations syns) rels
+      cols' = addForeignKeys rels' cols
+      keys' = synonymousPrimaryKeys syns keys
+
   return DbStructure {
       tables = tabs
-    , columns = addForeignKeys rels cols
-    , relations = rels
-    , primaryKeys = keys
+    , columns = cols'
+    , relations = rels'
+    , primaryKeys = keys'
     }
 
 doesProc :: forall c s. B.CxValue c Int =>
@@ -66,6 +71,16 @@ doesProcReturnJWT = doesProc [H.stmt|
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     |]
 
+synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
+synonymousColumns allSyns cols = synCols'
+  where
+    syns = sort $ filter ((== colTable (head cols)) . colTable . fst) allSyns
+    synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
+    synCols' = (filter sameTable . filter matchLength) synCols
+    matchLength cs = length cols == length cs
+    sameTable (c:cs) = all (\cc -> colTable c == colTable cc) (c:cs)
+    sameTable [] = False
+
 addForeignKeys :: [Relation] -> [Column] -> [Column]
 addForeignKeys rels = map addFk
   where
@@ -79,38 +94,52 @@ addForeignKeys rels = map addFk
         pos = elemIndex col cols
         colF = (colsF !!) <$> pos
 
-columnFromRow :: [Table] ->
-                 (Text,       Text,      Text,
-                  Int,        Bool,      Text,
-                  Bool,       Maybe Int, Maybe Int,
-                  Maybe Text, Maybe Text)
-                 -> Column
-columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) =
-  Column table n pos nul typ u l p d (parseEnum e) Nothing
+synonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
+synonymousRelations _ [] = []
+synonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ synonymousRelations syns rels
   where
-    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
-    parseEnum :: Maybe Text -> [Text]
-    parseEnum str = fromMaybe [] $ split (==',') <$> str
+    synRelsP = synRels (relColumns rel) (\t cs -> rel{relTable=t,relColumns=cs})
+    synRelsF = synRels (relFColumns rel) (\t cs -> rel{relFTable=t,relFColumns=cs})
+    synRels cols mapFn = map (\cs -> mapFn (colTable $ head cs) cs) $ synonymousColumns syns cols
 
+parentRelations :: [Relation] -> [Relation]
+parentRelations [] = []
+parentRelations (rel@(Relation t c ft fc _ _ _ _):rels) = Relation ft fc t c Parent Nothing Nothing Nothing : rel : parentRelations rels
 
-relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Relation
-relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) = Relation table cols tableF colsF Child Nothing Nothing Nothing
+manyToManyRelations :: [Relation] -> [Relation]
+manyToManyRelations rels = rels ++ mapMaybe link2Relation links
   where
-    findTable s t = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
-    findCols s t cs = filter (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col `elem` cs) allCols
-    table  = findTable rs rt
-    tableF = findTable frs frt
-    cols  = findCols rs rt rcs
-    colsF = findCols frs frt frcs
+    links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
+    groupFn :: Relation -> Text
+    groupFn (Relation{relTable=Table{tableSchema=s, tableName=t}}) = s<>"_"<>t
+    combinations k ns = filter ((k==).length) (subsequences ns)
+    link2Relation [
+      Relation{relTable=lt, relColumns=lc1, relFTable=t,  relFColumns=c},
+      Relation{             relColumns=lc2, relFTable=ft, relFColumns=fc}
+      ]
+      | lc1 /= lc2 && length lc1 == 1 && length lc2 == 1 = Just $ Relation t c ft fc Many (Just lt) (Just lc1) (Just lc2)
+      | otherwise = Nothing
+    link2Relation _ = Nothing
 
-pkFromRow :: [Table] -> (Schema, Text, Text) -> PrimaryKey
-pkFromRow tabs (s, t, n) = PrimaryKey table n
+raiseRelations :: Schema -> [(Column,Column)] -> [Relation] -> [Relation]
+raiseRelations schema syns = map raiseRel
   where
-    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+    raiseRel rel
+      | tableSchema table == schema = rel
+      | isJust newCols = rel{relFTable=fromJust newTable,relFColumns=fromJust newCols}
+      | otherwise = rel
+      where
+        cols = relFColumns rel
+        table = relFTable rel
+        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . head) (synonymousColumns syns cols)
+        newTable = (colTable . head) <$> newCols
 
-
-addParentRelation :: Relation -> [Relation] -> [Relation]
-addParentRelation rel@(Relation t c ft fc _ _ _ _) rels = Relation ft fc t c Parent Nothing Nothing Nothing : rel : rels
+synonymousPrimaryKeys :: [(Column,Column)] -> [PrimaryKey] -> [PrimaryKey]
+synonymousPrimaryKeys _ [] = []
+synonymousPrimaryKeys syns (key:keys) = key : newKeys ++ synonymousPrimaryKeys syns keys
+  where
+    keySyns = filter ((\c -> colTable c == pkTable key && colName c == pkName key) . fst) syns
+    newKeys = map ((\c -> PrimaryKey{pkTable=colTable c,pkName=colName c}) . snd) keySyns
 
 allTables :: H.Tx P.Postgres s [Table]
 allTables = do
@@ -182,6 +211,19 @@ allColumns tabs = do
   |]
   return $ map (columnFromRow tabs) cols
 
+columnFromRow :: [Table] ->
+                 (Text,       Text,      Text,
+                  Int,        Bool,      Text,
+                  Bool,       Maybe Int, Maybe Int,
+                  Maybe Text, Maybe Text)
+                 -> Column
+columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) =
+  Column table n pos nul typ u l p d (parseEnum e) Nothing
+  where
+    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+    parseEnum :: Maybe Text -> [Text]
+    parseEnum str = fromMaybe [] $ split (==',') <$> str
+
 allRelations :: [Table] -> [Column] -> H.Tx P.Postgres s [Relation]
 allRelations tabs cols = do
   rels <- H.listEx $ [H.stmt|
@@ -210,20 +252,17 @@ allRelations tabs cols = do
     WHERE confrelid != 0
     ORDER BY (conrelid, column_info.nums)
   |]
-  let simpleRelations = foldr (addParentRelation . relationFromRow tabs cols) [] rels
-      links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) simpleRelations
-  return $ simpleRelations ++ mapMaybe link2Relation links
+  return $ map (relationFromRow tabs cols) rels
+
+relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Relation
+relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) = Relation table cols tableF colsF Child Nothing Nothing Nothing
   where
-    groupFn :: Relation -> Text
-    groupFn (Relation{relTable=Table{tableSchema=s, tableName=t}}) = s<>"_"<>t
-    combinations k ns = filter ((k==).length) (subsequences ns)
-    link2Relation [
-      Relation{relTable=lt, relColumns=lc1, relFTable=t,  relFColumns=c},
-      Relation{             relColumns=lc2, relFTable=ft, relFColumns=fc}
-      ]
-      | lc1 /= lc2 && length lc1 == 1 && length lc2 == 1 = Just $ Relation t c ft fc Many (Just lt) (Just lc1) (Just lc2)
-      | otherwise = Nothing
-    link2Relation _ = Nothing
+    findTable s t = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
+    findCols s t cs = filter (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col `elem` cs) allCols
+    table  = findTable rs rt
+    tableF = findTable frs frt
+    cols  = findCols rs rt rcs
+    colsF = findCols frs frt frcs
 
 allPrimaryKeys :: [Table] -> H.Tx P.Postgres s [PrimaryKey]
 allPrimaryKeys tabs = do
@@ -243,3 +282,45 @@ allPrimaryKeys tabs = do
         kc.table_schema NOT IN ('pg_catalog', 'information_schema')
     |]
   return $ map (pkFromRow tabs) pks
+
+pkFromRow :: [Table] -> (Schema, Text, Text) -> PrimaryKey
+pkFromRow tabs (s, t, n) = PrimaryKey table n
+  where
+    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+
+allSynonyms :: [Column] -> H.Tx P.Postgres s [(Column,Column)]
+allSynonyms allCols = do
+  srcSyns <- H.listEx $ [H.stmt|
+    WITH synonyms AS (
+      SELECT
+        vcu.table_schema AS src_table_schema,
+        vcu.table_name AS src_table_name,
+        vcu.column_name AS src_column_name,
+        view.table_schema AS syn_table_schema,
+        view.table_name AS syn_table_name,
+        view.view_definition AS view_definition
+      FROM
+        information_schema.views AS view,
+        information_schema.view_column_usage AS vcu
+      WHERE
+        view.table_schema = vcu.view_schema AND
+        view.table_name = vcu.view_name AND
+        view.table_schema NOT IN ('pg_catalog', 'information_schema') AND
+        (SELECT COUNT(*) FROM information_schema.view_table_usage WHERE view_schema = view.table_schema AND view_name = view.table_name) = 1
+    )
+    SELECT
+      src_table_schema, src_table_name, src_column_name,
+      syn_table_schema, syn_table_name,
+      (regexp_matches(view_definition, CONCAT('\.(', src_column_name, ')(?=,|$)'), 'gn'))[1]
+    FROM synonyms
+    UNION (
+      SELECT
+        src_table_schema, src_table_name, src_column_name,
+        syn_table_schema, syn_table_name,
+        (regexp_matches(view_definition, CONCAT('\.', src_column_name, '\sAS\s("?)(.+?)\1(,|$)'), 'gn'))[2] /* " <- for syntax highlighting */
+      FROM synonyms
+    )
+    |]
+  return $ map (\(a,b,c,d,e,f) -> (findCol a b c,findCol d e f)) srcSyns
+  where
+    findCol s t c = fromJust $ find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
