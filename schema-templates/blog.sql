@@ -120,10 +120,12 @@ create trigger send_validation
 -------------------------------------------------------------------------------
 -- Email Validation and Password Reset
 
+create type token_type_enum as enum ('validation', 'reset');
+
 create table if not exists
 basic_auth.tokens (
   token       uuid unique,
-  token_type  text not null,
+  token_type  token_type_enum not null,
   email       text not null,
   created_at  timestamptz not null default current_date,
   constraint  t_pk primary key (token),
