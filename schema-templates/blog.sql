@@ -251,13 +251,10 @@ $$;
 
 create or replace function
 signup(email text, pass text) returns void
-  language plpgsql
-  as $$
-begin
+as $$
   insert into basic_auth.users (email, pass, role) values
     (signup.email, signup.pass, 'author');
-end;
-$$;
+$$ language sql;
 
 -------------------------------------------------------------------------------
 -- User management
