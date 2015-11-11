@@ -18,6 +18,7 @@ module PostgREST.Auth (
   , tokenJWT
   ) where
 
+import           Control.Monad           (join)
 import           Data.Aeson              (Value (..), Object)
 import           Data.Aeson.Types        (emptyObject, emptyArray)
 import           Data.Vector             as V (null, head)
@@ -52,8 +53,8 @@ claimsToSQL = map setVar . toList
 -}
 jwtClaims :: Text -> Text -> NominalDiffTime -> Maybe JWT.ClaimsMap
 jwtClaims secret input time =
-  case claim JWT.exp of
-    Just (Just expires) ->
+  case join $ claim JWT.exp of
+    Just expires ->
       if JWT.secondsSinceEpoch expires > time
         then customClaims
         else Nothing

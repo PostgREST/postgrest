@@ -11,7 +11,6 @@ import Hasql.Postgres as P
 import Data.String.Conversions (cs)
 import Data.Monoid
 import Data.Text hiding (map)
-import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Vector as V
 import Control.Monad (void)
 import Control.Applicative
@@ -74,10 +73,9 @@ withApp perform = do
         }
 
   perform $ middle $ \req resp -> do
-    time <- getPOSIXTime
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg time (app dbstructure cfg body) req
+      $ runWithClaims cfg (app dbstructure cfg body) req
     either (resp . errResponse) resp result
 
   where middle = defaultMiddle False

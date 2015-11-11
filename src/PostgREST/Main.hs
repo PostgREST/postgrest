@@ -2,7 +2,6 @@ module Main where
 
 
 import           PostgREST.App
--- import PostgREST.QueryBuilder
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
@@ -24,7 +23,6 @@ import qualified Hasql.Postgres                       as P
 import           Network.Wai
 import           Network.Wai.Handler.Warp             hiding (Connection)
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
@@ -99,8 +97,7 @@ main = do
   -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
 
   runSettings appSettings $ middle $ \ req respond -> do
-    time <- getPOSIXTime
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf time (app dbstructure conf body) req
+      runWithClaims conf (app dbstructure conf body) req
     either (respond . errResponse) respond resOrError

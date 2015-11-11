@@ -7,7 +7,7 @@ import           Data.Maybe                    (fromMaybe, isNothing)
 import           Data.Monoid
 import           Data.Text
 import           Data.String.Conversions       (cs)
-import           Data.Time.Clock               (NominalDiffTime)
+import           Data.Time.Clock.POSIX         (getPOSIXTime)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
@@ -27,17 +27,20 @@ import           PostgREST.App                 (contentTypeForAccept)
 import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 
+import           System.IO.Unsafe              (unsafePerformIO)
+
 import           Prelude hiding(concat)
 
 import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B
 import qualified Data.Map.Lazy           as M
 
-runWithClaims :: forall s. AppConfig -> NominalDiffTime ->
+runWithClaims :: forall s. AppConfig ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-runWithClaims conf time app req = do
+runWithClaims conf app req = do
     _ <- H.unitEx $ stmt setAnon
+    let time = unsafePerformIO getPOSIXTime
     case split (== ' ') (cs auth) of
       ("Bearer" : tokenStr : _) ->
         case jwtClaims jwtSecret tokenStr time of
@@ -50,13 +53,13 @@ runWithClaims conf time app req = do
           _ -> invalidJWT
       _ -> app req
   where
-    stmt = (flip $ flip B.Stmt V.empty) True
+    stmt c = B.Stmt c V.empty True
     hdrs = requestHeaders req
     jwtSecret = (cs $ configJwtSecret conf) :: Text
     auth = fromMaybe "" $ lookup hAuthorization hdrs
     anon = cs $ configAnonRole conf
     setAnon = setRole anon
-    invalidJWT = return $ responseLBS status400 [] "Invalid JWT"
+    invalidJWT = return $ responseLBS status400 [("Content-Type","application/json")] "{\"message\":\"Invalid JWT\"}"
 
 redirectInsecure :: Application -> Application
 redirectInsecure app req respond = do
