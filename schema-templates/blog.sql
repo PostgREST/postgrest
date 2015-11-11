@@ -95,7 +95,7 @@ basic_auth.send_validation() returns trigger
   language plpgsql
   as $$
 declare
-  tok text;
+  tok uuid;
 begin
   select uuid_generate_v4() into tok;
   insert into basic_auth.tokens (token, token_type, email)
@@ -122,7 +122,7 @@ create trigger send_validation
 
 create table if not exists
 basic_auth.tokens (
-  token       text unique,
+  token       uuid unique,
   token_type  text not null,
   email       text not null,
   created_at  timestamptz not null default current_date,
@@ -135,7 +135,7 @@ basic_auth.tokens (
 -- Login helper
 
 create or replace function
-basic_auth.user_role(email text, pass text) returns text
+basic_auth.user_role(email text, pass text) returns name
   language plpgsql
   as $$
 begin
@@ -168,7 +168,7 @@ request_password_reset(email text) returns void
   language plpgsql
   as $$
 declare
-  tok text;
+  tok uuid;
 begin
   delete from basic_auth.tokens
    where token_type = 'reset'
@@ -188,12 +188,12 @@ end;
 $$;
 
 create or replace function
-reset_password(email text, token text, pass text)
+reset_password(email text, token uuid, pass text)
   returns void
   language plpgsql
   as $$
 declare
-  tok text;
+  tok uuid;
 begin
   if exists(select 1 from basic_auth.tokens
              where tokens.email = reset_password.email
@@ -235,7 +235,7 @@ login(email text, pass text) returns basic_auth.jwt_claims
   language plpgsql
   as $$
 declare
-  _role text;
+  _role name;
   result basic_auth.jwt_claims;
 begin
   select basic_auth.user_role(email, pass) into _role;
@@ -357,7 +357,7 @@ grant select on table pg_authid, basic_auth.users, posts, comments to anon;
 grant execute on function
   login(text,text),
   request_password_reset(text),
-  reset_password(text,text,text),
+  reset_password(text,uuid,text),
   signup(text, text)
   to anon;
 
