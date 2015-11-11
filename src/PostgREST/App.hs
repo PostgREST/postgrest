@@ -55,7 +55,7 @@ import           PostgREST.Auth (tokenJWT)
 import           Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app db conf reqBody req =
+app dbStructure conf reqBody req =
   case (path, verb) of
 
     ([table], "GET") ->
@@ -71,7 +71,7 @@ app db conf reqBody req =
                 to = frm+queryTotal-1
                 contentRange = contentRangeH frm to tableTotal
                 status = rangeStatus frm to tableTotal
-                canonical = urlEncodeVars -- should this be moved to the db (location)?
+                canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
                   . sortBy (comparing fst)
                   . map (join (***) cs)
                   . parseSimpleQuery
@@ -160,10 +160,10 @@ app db conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    allTabs = tables db
-    allRels = relations db
-    allCols = columns db
-    allPrKeys = primaryKeys db
+    allTabs = tables dbStructure
+    allRels = relations dbStructure
+    allCols = columns dbStructure
+    allPrKeys = primaryKeys dbStructure
     filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
     filterCol _ _ _ =  False
     filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk

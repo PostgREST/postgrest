@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.DbStructure (
-  createDbStructure
+  getDbStructure
 , accessibleTables
 , doesProcExist
 , doesProcReturnJWT
@@ -26,15 +26,15 @@ import           PostgREST.Types
 import           GHC.Exts               (groupWith)
 import           Prelude
 
-createDbStructure :: Schema -> H.Tx P.Postgres s DbStructure
-createDbStructure schema = do
+getDbStructure :: Schema -> H.Tx P.Postgres s DbStructure
+getDbStructure schema = do
   tabs <- allTables
   cols <- allColumns tabs
   syns <- allSynonyms cols
   rels <- allRelations tabs cols
   keys <- allPrimaryKeys tabs
 
-  let rels' = (manyToManyRelations . raiseRelations schema syns . parentRelations . synonymousRelations syns) rels
+  let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
       keys' = synonymousPrimaryKeys syns keys
 
@@ -115,20 +115,20 @@ addForeignKeys rels = map addFk
         pos = elemIndex col cols
         colF = (colsF !!) <$> pos
 
-synonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
-synonymousRelations _ [] = []
-synonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ synonymousRelations syns rels
+addSynonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
+addSynonymousRelations _ [] = []
+addSynonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ addSynonymousRelations syns rels
   where
     synRelsP = synRels (relColumns rel) (\t cs -> rel{relTable=t,relColumns=cs})
     synRelsF = synRels (relFColumns rel) (\t cs -> rel{relFTable=t,relFColumns=cs})
     synRels cols mapFn = map (\cs -> mapFn (colTable $ head cs) cs) $ synonymousColumns syns cols
 
-parentRelations :: [Relation] -> [Relation]
-parentRelations [] = []
-parentRelations (rel@(Relation t c ft fc _ _ _ _):rels) = Relation ft fc t c Parent Nothing Nothing Nothing : rel : parentRelations rels
+addParentRelations :: [Relation] -> [Relation]
+addParentRelations [] = []
+addParentRelations (rel@(Relation t c ft fc _ _ _ _):rels) = Relation ft fc t c Parent Nothing Nothing Nothing : rel : addParentRelations rels
 
-manyToManyRelations :: [Relation] -> [Relation]
-manyToManyRelations rels = rels ++ mapMaybe link2Relation links
+addManyToManyRelations :: [Relation] -> [Relation]
+addManyToManyRelations rels = rels ++ mapMaybe link2Relation links
   where
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text

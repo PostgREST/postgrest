@@ -68,11 +68,11 @@ main = do
     ) supportedOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ createDbStructure (cs $ configSchema conf)
-  db <- either hasqlError return dbOrError
+  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
+  dbStructure <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app db conf body) req
+      runWithClaims conf (app dbStructure conf body) req
     either (respond . errResponse) respond resOrError

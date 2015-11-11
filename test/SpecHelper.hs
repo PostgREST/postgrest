@@ -54,7 +54,7 @@ withApp perform = do
     <- H.acquirePool pgSettings testPoolOpts
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ createDbStructure (cs $ configSchema cfg)
+  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema cfg)
   db <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do
@@ -119,7 +119,7 @@ clearProjectsTable :: IO ()
 clearProjectsTable = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ B.Stmt ("delete from test.projects where id > 4") V.empty True
+    H.unitEx $ B.Stmt "delete from test.projects where id > 4" V.empty True
 
 
 createItems :: Int -> IO ()
