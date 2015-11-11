@@ -450,10 +450,6 @@ SET search_path = private, pg_catalog;
 
 
 
-
-SELECT pg_catalog.setval('articles_id_seq', 1, false);
-
-
 SET search_path = test, pg_catalog;
 
 CREATE FUNCTION public.always_true(test.items) RETURNS boolean
@@ -512,10 +508,6 @@ ALTER TABLE ONLY auth
 
 
 SET search_path = private, pg_catalog;
-
-
-ALTER TABLE ONLY articles
-    ADD CONSTRAINT articles_pkey PRIMARY KEY (id);
 
 
 SET search_path = postgrest, pg_catalog;
