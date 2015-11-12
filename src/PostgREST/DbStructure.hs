@@ -230,18 +230,20 @@ allColumns tabs = do
       ) AS enum_info ON (info.udt_name = enum_info.n)
       ORDER BY schema, position
   |]
-  return $ map (columnFromRow tabs) cols
+  return $ mapMaybe (columnFromRow tabs) cols
 
 columnFromRow :: [Table] ->
                  (Text,       Text,      Text,
                   Int,        Bool,      Text,
                   Bool,       Maybe Int, Maybe Int,
                   Maybe Text, Maybe Text)
-                 -> Column
+                 -> Maybe Column
 columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) =
-  Column table n pos nul typ u l p d (parseEnum e) Nothing
+  if isJust table
+    then Just $ Column (fromJust table) n pos nul typ u l p d (parseEnum e) Nothing
+    else Nothing
   where
-    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+    table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
@@ -273,12 +275,15 @@ allRelations tabs cols = do
     WHERE confrelid != 0
     ORDER BY (conrelid, column_info.nums)
   |]
-  return $ map (relationFromRow tabs cols) rels
+  return $ mapMaybe (relationFromRow tabs cols) rels
 
-relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Relation
-relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) = Relation table cols tableF colsF Child Nothing Nothing Nothing
+relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
+relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
+  if isJust table && isJust tableF && length cols == length rcs && length colsF == length frcs
+    then Just $ Relation (fromJust table) cols (fromJust tableF) colsF Child Nothing Nothing Nothing
+    else Nothing
   where
-    findTable s t = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
+    findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCols s t cs = filter (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col `elem` cs) allCols
     table  = findTable rs rt
     tableF = findTable frs frt
@@ -302,16 +307,19 @@ allPrimaryKeys tabs = do
         kc.constraint_name = tc.constraint_name AND
         kc.table_schema NOT IN ('pg_catalog', 'information_schema')
     |]
-  return $ map (pkFromRow tabs) pks
+  return $ mapMaybe (pkFromRow tabs) pks
 
-pkFromRow :: [Table] -> (Schema, Text, Text) -> PrimaryKey
-pkFromRow tabs (s, t, n) = PrimaryKey table n
+pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
+pkFromRow tabs (s, t, n) =
+  if isJust table
+    then Just $ PrimaryKey (fromJust table) n
+    else Nothing
   where
-    table = fromJust $ find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+    table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 allSynonyms :: [Column] -> H.Tx P.Postgres s [(Column,Column)]
 allSynonyms allCols = do
-  srcSyns <- H.listEx $ [H.stmt|
+  syns <- H.listEx $ [H.stmt|
     WITH synonyms AS (
       SELECT
         vcu.table_schema AS src_table_schema,
@@ -342,6 +350,14 @@ allSynonyms allCols = do
       FROM synonyms
     )
     |]
-  return $ map (\(a,b,c,d,e,f) -> (findCol a b c,findCol d e f)) srcSyns
+  return $ mapMaybe (synonymFromRow allCols) syns
+
+synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)
+synonymFromRow allCols (s1,t1,c1,s2,t2,c2) =
+  if isJust col1 && isJust col2
+    then Just (fromJust col1,fromJust col2)
+    else Nothing
   where
-    findCol s t c = fromJust $ find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
+    col1 = findCol s1 t1 c1
+    col2 = findCol s2 t2 c2
+    findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
