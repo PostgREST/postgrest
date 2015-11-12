@@ -27,6 +27,3 @@
 
 # default schema
 #POSTGREST_SCHEMA=public
-
-# secure (use 1 to enable, empty string to disable)
-#POSTGREST_SECURE=
