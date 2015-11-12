@@ -238,11 +238,9 @@ columnFromRow :: [Table] ->
                   Bool,       Maybe Int, Maybe Int,
                   Maybe Text, Maybe Text)
                  -> Maybe Column
-columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) =
-  if isJust table
-    then Just $ Column (fromJust table) n pos nul typ u l p d (parseEnum e) Nothing
-    else Nothing
+columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> table
   where
+    buildColumn tbl = Column tbl n pos nul typ u l p d (parseEnum e) Nothing
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
@@ -310,12 +308,8 @@ allPrimaryKeys tabs = do
   return $ mapMaybe (pkFromRow tabs) pks
 
 pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
-pkFromRow tabs (s, t, n) =
-  if isJust table
-    then Just $ PrimaryKey (fromJust table) n
-    else Nothing
-  where
-    table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
+pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
+  where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 allSynonyms :: [Column] -> H.Tx P.Postgres s [(Column,Column)]
 allSynonyms allCols = do
@@ -353,10 +347,7 @@ allSynonyms allCols = do
   return $ mapMaybe (synonymFromRow allCols) syns
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)
-synonymFromRow allCols (s1,t1,c1,s2,t2,c2) =
-  if isJust col1 && isJust col2
-    then Just (fromJust col1,fromJust col2)
-    else Nothing
+synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
   where
     col1 = findCol s1 t1 c1
     col2 = findCol s2 t2 c2
