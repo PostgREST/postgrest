@@ -160,10 +160,10 @@ app dbStructure conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    allTabs = tables dbStructure
-    allRels = relations dbStructure
-    allCols = columns dbStructure
-    allPrKeys = primaryKeys dbStructure
+    allTabs = dbTables dbStructure
+    allRels = dbRelations dbStructure
+    allCols = dbColumns dbStructure
+    allPrKeys = dbPrimaryKeys dbStructure
     filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
     filterCol _ _ _ =  False
     filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk

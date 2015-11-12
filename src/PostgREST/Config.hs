@@ -28,7 +28,7 @@ import           Data.Text                   (strip)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import           Options.Applicative         hiding (columns)
+import           Options.Applicative
 import           Paths_postgrest             (version)
 import           Prelude
 

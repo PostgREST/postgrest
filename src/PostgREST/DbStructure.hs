@@ -39,10 +39,10 @@ getDbStructure schema = do
       keys' = synonymousPrimaryKeys syns keys
 
   return DbStructure {
-      tables = tabs
-    , columns = cols'
-    , relations = rels'
-    , primaryKeys = keys'
+      dbTables = tabs
+    , dbColumns = cols'
+    , dbRelations = rels'
+    , dbPrimaryKeys = keys'
     }
 
 doesProc :: forall c s. B.CxValue c Int =>

@@ -98,10 +98,10 @@ main = do
     (\(tabs, rels, cols, keys) ->
 
       return DbStructure {
-          tables=tabs
-        , columns=cols
-        , relations=rels
-        , primaryKeys=keys
+          dbTables=tabs
+        , dbColumns=cols
+        , dbRelations=rels
+        , dbPrimaryKeys=keys
         }
     ) metadata
   runSettings appSettings $ middle $ \ req respond -> do

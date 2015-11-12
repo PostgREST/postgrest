@@ -6,10 +6,10 @@ import Data.Aeson
 import Data.Map
 
 data DbStructure = DbStructure {
-  tables :: [Table]
-, columns :: [Column]
-, relations :: [Relation]
-, primaryKeys :: [PrimaryKey]
+  dbTables :: [Table]
+, dbColumns :: [Column]
+, dbRelations :: [Relation]
+, dbPrimaryKeys :: [PrimaryKey]
 } deriving (Show, Eq)
 
 type Schema = Text
