@@ -1,6 +1,6 @@
 ![Logo](static/logo.png "Logo")
 
-[![Build Status](https://circleci.com/gh/begriffs/postgrest.png?style=shield&circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
+[![Build Status](https://circleci.com/gh/begriffs/postgrest/tree/v3.svg?style=shield&circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/v3)
 <a href="https://heroku.com/deploy?template=https://github.com/begriffs/postgrest">
   <img src="https://img.shields.io/badge/%E2%86%91_Deploy_to-Heroku-7056bf.svg" alt="Deploy">
 </a>
