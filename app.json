@@ -10,7 +10,7 @@
     },
     "POSTGREST_VER": {
       "description": "Version of PostgREST to deploy",
-      "value": "0.2.12.0"
+      "value": "0.2.12.1"
     },
     "DB_NAME": {
       "description": "Database name",

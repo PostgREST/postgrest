@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.2.12.1] - 2015-11-12
 
 ### Fixed
 - Correct order for -> and ->> in a json path - @ruslantalpa
