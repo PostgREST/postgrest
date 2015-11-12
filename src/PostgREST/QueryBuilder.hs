@@ -35,23 +35,27 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
 
 getJoinConditions :: Relation -> [Filter]
-getJoinConditions (Relation t cs ft fcs typ _ lc1 lc2) =
+getJoinConditions (Relation t cs ft fcs typ lt lc1 lc2) =
   case typ of
-    Child  -> zipWith (toFilter t) cs fcs
-    Parent -> zipWith (toFilter t) cs fcs
-    Many   -> zipWith (toFilter t) cs (fromMaybe [] lc1) ++ zipWith (toFilter ft) fcs (fromMaybe [] lc2)
+    Child  -> zipWith (toFilter tN ftN) cs fcs
+    Parent -> zipWith (toFilter tN ftN) cs fcs
+    Many   -> zipWith (toFilter tN ltN) cs (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
   where
-    toFilter :: Table -> Column -> Column -> Filter
-    toFilter tb c fc = Filter (colName c, Nothing) "=" (VForeignKey (QualifiedIdentifier (tableSchema tb) (tableName tb)) (ForeignKey fc))
+    s = tableSchema t
+    tN = tableName t
+    ftN = tableName ft
+    ltN = fromMaybe "" (tableName <$> lt)
+    toFilter :: Text -> Text -> Column -> Column -> Filter
+    toFilter tb ftb c fc = Filter (colName c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}}))
 
 addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
-addJoinConditions schema (Node (query, (t, r)) forest) =
+addJoinConditions schema (Node (query, (n, r)) forest) =
   case r of
-    Nothing -> Node (updatedQuery, (t, r))  <$> updatedForest -- this is the root node
-    Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(t,r)) <$> updatedForest
-    Just (Relation{relType=Parent}) -> Node (updatedQuery, (t,r)) <$> updatedForest
+    Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
+    Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(n,r)) <$> updatedForest
+    Just (Relation{relType=Parent}) -> Node (updatedQuery, (n,r)) <$> updatedForest
     Just rel@(Relation{relType=Many, relLTable=(Just linkTable)}) ->
-      Node (qq, (t, r)) <$> updatedForest
+      Node (qq, (n, r)) <$> updatedForest
       where
          q = addCond updatedQuery (getJoinConditions rel)
          qq = q{from=tableName linkTable : from q}
