@@ -11,7 +11,7 @@ import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
-import           Network.HTTP.Types.Status     (status415)
+import           Network.HTTP.Types.Status     (status415, status400)
 import           Network.Wai                   (Application, Request (..), Response,
                                                 requestHeaders, responseLBS)
 import           Network.Wai.Middleware.Cors   (cors)
