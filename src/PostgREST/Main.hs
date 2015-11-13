@@ -26,7 +26,6 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
--- import Data.Maybe (mapMaybe)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -86,11 +85,6 @@ main = do
         , primaryKeys=keys
         }
     ) metadata
-
-  -- let allRels = relations dbstructure
-  --     fakeRels = mapMaybe (toSourceRelation "projects") allRels
-  --
-  -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
