@@ -3,6 +3,8 @@
 
 begin;
 
+-- comment out the role creation statements if
+-- you want to run this script more than once
 create role anon noinherit;
 create role author;
 
@@ -41,15 +43,11 @@ $$ LANGUAGE plpgsql;
 
 create table if not exists
 basic_auth.users (
-  email  text not null,
-  pass   text not null,
-  role   name not null,
-  verified boolean not null default false,
+  email    text primary key,
+  pass     text not null check (length(pass) < 512),
+  role     name not null check (length(role) < 512),
+  verified boolean not null default false
   -- If you like add more columns, or a json column
-  constraint user_pkey primary key (email),
-  constraint user_field_length_limits check (
-    length(pass) < 512
-    AND length(email::text) < 512)
 );
 
 create or replace function
@@ -120,17 +118,16 @@ create trigger send_validation
 -------------------------------------------------------------------------------
 -- Email Validation and Password Reset
 
+drop type if exists token_type_enum cascade;
 create type token_type_enum as enum ('validation', 'reset');
 
 create table if not exists
 basic_auth.tokens (
-  token       uuid unique,
+  token       uuid primary key,
   token_type  token_type_enum not null,
-  email       text not null,
-  created_at  timestamptz not null default current_date,
-  constraint  t_pk primary key (token),
-  constraint  t_user_fk foreign key (email) references basic_auth.users
-              on delete cascade on update cascade
+  email       text not null references basic_auth.users (email)
+                on delete cascade on update cascade,
+  created_at  timestamptz not null default current_date
 );
 
 -------------------------------------------------------------------------------
@@ -322,30 +319,23 @@ create trigger update_users
 
 create table if not exists
 posts (
-  id         bigserial not null,
+  id         bigserial primary key,
   title      text not null,
   body       text not null,
-  author     text not null,
-  created_at timestamptz not null default current_date,
-  constraint post_pk primary key (id),
-  constraint post_user_fk foreign key (author)
-             references basic_auth.users
-             on delete restrict on update cascade
+  author     text not null references basic_auth.users (email)
+               on delete restrict on update cascade,
+  created_at timestamptz not null default current_date
 );
 
 create table if not exists
 comments (
-  id         bigserial not null,
+  id         bigserial primary key,
   body       text not null,
-  author     text not null,
-  post       bigint not null,
-  created_at timestamptz not null default current_date,
-  constraint comment_pk primary key (id),
-  constraint comment_user_fk foreign key (author)
-             references basic_auth.users
-             on delete restrict on update cascade,
-  constraint comment_post_fk foreign key (post) references posts
-             on delete cascade on update cascade
+  author     text not null references basic_auth.users (email)
+               on delete restrict on update cascade,
+  post       bigint not null references posts (id)
+               on delete cascade on update cascade,
+  created_at timestamptz not null default current_date
 );
 
 -------------------------------------------------------------------------------
