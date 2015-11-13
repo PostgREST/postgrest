@@ -43,7 +43,7 @@ $$ LANGUAGE plpgsql;
 
 create table if not exists
 basic_auth.users (
-  email    text primary key,
+  email    text primary key check ( email ~* '^.+@.+\..+$' ),
   pass     text not null check (length(pass) < 512),
   role     name not null check (length(role) < 512),
   verified boolean not null default false
