@@ -383,8 +383,8 @@ SET search_path = private, pg_catalog;
 
 
 CREATE TABLE articles (
+    id integer PRIMARY KEY NOT NULL,
     body text,
-    id integer NOT NULL,
     owner name NOT NULL
 );
 
@@ -392,22 +392,32 @@ CREATE TABLE articles (
 ALTER TABLE private.articles OWNER TO postgrest_test;
 
 
-CREATE SEQUENCE articles_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+CREATE TABLE article_stars (
+  article_id int REFERENCES articles(id),
+  user_id int REFERENCES test.users(id),
+  created_at timestamp NOT NULL DEFAULT now(),
+  CONSTRAINT user_article PRIMARY KEY (article_id, user_id)
+);
 
+ALTER TABLE private.article_stars OWNER TO postgrest_test;
 
-ALTER TABLE private.articles_id_seq OWNER TO postgrest_test;
-
-
-ALTER SEQUENCE articles_id_seq OWNED BY articles.id;
 
 
 SET search_path = test, pg_catalog;
 
+
+
+CREATE VIEW "articleStars" AS
+  SELECT article_id AS "articleId", user_id AS "userId", created_at AS "createdAt"
+  FROM private.article_stars;
+
+ALTER TABLE test."articleStars" OWNER TO postgrest_test;
+
+CREATE VIEW articles AS
+  SELECT *
+  FROM private.articles;
+
+ALTER TABLE test.articles OWNER TO postgrest_test;
 
 ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_incrementing_pk_id_seq'::regclass);
 
@@ -415,35 +425,9 @@ ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_
 
 ALTER TABLE ONLY has_fk ALTER COLUMN id SET DEFAULT nextval('has_fk_id_seq'::regclass);
 
-
-
 ALTER TABLE ONLY items ALTER COLUMN id SET DEFAULT nextval('items_id_seq'::regclass);
 
-
-SET search_path = private, pg_catalog;
-
-
-ALTER TABLE ONLY articles ALTER COLUMN id SET DEFAULT nextval('articles_id_seq'::regclass);
-
-
-SET search_path = test, pg_catalog;
-
-
-
-
-
-
-
-
 SELECT pg_catalog.setval('auto_incrementing_pk_id_seq', 1, true);
-
-
-
-
-
-
-
-
 
 SELECT pg_catalog.setval('has_fk_id_seq', 1, false);
 
@@ -465,10 +449,6 @@ SET search_path = postgrest, pg_catalog;
 SET search_path = private, pg_catalog;
 
 
-
-
-
-SELECT pg_catalog.setval('articles_id_seq', 1, false);
 
 
 SET search_path = test, pg_catalog;
@@ -529,10 +509,6 @@ ALTER TABLE ONLY auth
 
 
 SET search_path = private, pg_catalog;
-
-
-ALTER TABLE ONLY articles
-    ADD CONSTRAINT articles_pkey PRIMARY KEY (id);
 
 
 SET search_path = postgrest, pg_catalog;
@@ -655,6 +631,14 @@ REVOKE ALL ON TABLE projects_view FROM PUBLIC;
 REVOKE ALL ON TABLE projects_view FROM postgrest_test;
 GRANT ALL ON TABLE projects_view TO postgrest_test;
 GRANT ALL ON TABLE projects_view TO postgrest_anonymous;
+REVOKE ALL ON TABLE articles FROM PUBLIC;
+REVOKE ALL ON TABLE articles FROM postgrest_test;
+GRANT ALL ON TABLE  articles TO postgrest_test;
+GRANT ALL ON TABLE  articles TO postgrest_anonymous;
+REVOKE ALL ON TABLE "articleStars" FROM PUBLIC;
+REVOKE ALL ON TABLE "articleStars" FROM postgrest_test;
+GRANT ALL ON TABLE  "articleStars" TO postgrest_test;
+GRANT ALL ON TABLE  "articleStars" TO postgrest_anonymous;
 ---------
 
 
@@ -774,4 +758,6 @@ INSERT INTO users_projects VALUES(1,1),(1,2),(2,3),(2,4),(3,1),(3,3);
 INSERT INTO users_tasks VALUES(1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(3,1),(3,5);
 INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
 INSERT INTO postgrest.auth (id, pass, rolname) VALUES ('jdoe', '1234', 'postgrest_test_author');
+INSERT INTO private.articles (id, body, owner) VALUES (1, 'No… It''s a thing; it''s like a plan, but with more greatness.', 2), (2, 'Stop talking, brain thinking. Hush.', 3), (3, 'It''s a fez. I wear a fez now. Fezes are cool.', 1);
+INSERT INTO private.article_stars (article_id, user_id) VALUES (1,1), (1,2), (2,3), (3,2), (1,3);
 ----------------

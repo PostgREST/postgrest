@@ -14,7 +14,9 @@ spec = around withApp $ do
     it "lists views in schema" $
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
-          {"schema":"test","name":"auto_incrementing_pk","insertable":true}
+          {"schema":"test","name":"articleStars","insertable":true}
+        , {"schema":"test","name":"articles","insertable":true}
+        , {"schema":"test","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"test","name":"clients","insertable":true}
         , {"schema":"test","name":"comments","insertable":true}
         , {"schema":"test","name":"complex_items","insertable":true}
@@ -47,7 +49,6 @@ spec = around withApp $ do
             {"schema":"test","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
-
 
   describe "Table info" $ do
     it "is available with OPTIONS verb" $
@@ -153,98 +154,57 @@ spec = around withApp $ do
       |]
 
     it "it includes primary and foreign keys for views" $
-      request methodOptions "/insertable_view_with_join" [] "" `shouldRespondWith`
+      request methodOptions "/projects_view" [] "" `shouldRespondWith`
       [json|
       {
          "pkey":[
             "id"
          ],
          "columns":[
-            {
-               "references":null,
-               "default":null,
-               "precision":64,
-               "updatable":false,
-               "schema":"test",
-               "name":"id",
-               "type":"bigint",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":1
+          {
+            "references":null,
+            "default":null,
+            "precision":32,
+            "updatable":true,
+            "schema":"test",
+            "name":"id",
+            "type":"integer",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":1
+          },
+          {
+            "references":null,
+            "default":null,
+            "precision":null,
+            "updatable":true,
+            "schema":"test",
+            "name":"name",
+            "type":"text",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":2
+          },
+          {
+            "references": {
+              "schema":"test",
+              "column":"id",
+              "table":"clients"
             },
-            {
-               "references":{
-                  "column":"id",
-                  "table":"auto_incrementing_pk"
-               },
-               "default":null,
-               "precision":32,
-               "updatable":false,
-               "schema":"test",
-               "name":"auto_inc_fk",
-               "type":"integer",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":2
-            },
-            {
-               "references":{
-                  "column":"k",
-                  "table":"simple_pk"
-               },
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"test",
-               "name":"simple_fk",
-               "type":"character varying",
-               "maxLen":255,
-               "enum":[],
-               "nullable":true,
-               "position":3
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"test",
-               "name":"nullable_string",
-               "type":"character varying",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":4
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"test",
-               "name":"non_nullable_string",
-               "type":"character varying",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":5
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"test",
-               "name":"inserted_at",
-               "type":"timestamp with time zone",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":6
-            }
-         ]
+            "default":null,
+            "precision":32,
+            "updatable":true,
+            "schema":"test",
+            "name":"client_id",
+            "type":"integer",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":3
+          }
+        ]
       }
       |]
 
@@ -296,3 +256,63 @@ spec = around withApp $ do
         ]
       }
       |]
+
+    it "includes all information on views for renamed columns, and raises relations to correct schema" $
+      request methodOptions "/articleStars" [] ""
+        `shouldRespondWith` [json|
+          {
+            "pkey": [
+              "articleId",
+              "userId"
+            ],
+            "columns": [
+              {
+                "references": {
+                  "schema": "test",
+                  "column": "id",
+                  "table": "articles"
+                },
+                "default": null,
+                "precision": 32,
+                "updatable": true,
+                "schema": "test",
+                "name": "articleId",
+                "type": "integer",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 1
+              },
+              {
+                "references": {
+                  "schema": "test",
+                  "column": "id",
+                  "table": "users"
+                },
+                "default": null,
+                "precision": 32,
+                "updatable": true,
+                "schema": "test",
+                "name": "userId",
+                "type": "integer",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 2
+              },
+              {
+                "references": null,
+                "default": null,
+                "precision": null,
+                "updatable": true,
+                "schema": "test",
+                "name": "createdAt",
+                "type": "timestamp without time zone",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 3
+              }
+            ]
+          }
+        |]

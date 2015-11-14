@@ -8,8 +8,7 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        readOptions)
 import           PostgREST.Error                      (errResponse, PgError)
 import           PostgREST.Middleware
-import           PostgREST.PgStructure
-import           PostgREST.Types
+import           PostgREST.DbStructure
 
 import           Control.Monad                        (unless)
 import           Control.Monad.IO.Class               (liftIO)
@@ -26,7 +25,6 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
--- import Data.Maybe (mapMaybe)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -70,30 +68,11 @@ main = do
     ) supportedOrError
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  metadata <- H.session pool $ H.tx txSettings $ do
-    rels <- allRelations
-    cols <- allColumns rels
-    keys <- allPrimaryKeys
-    return (rels, cols, keys)
-
-
-  dbstructure <- either hasqlError
-    (\(rels, cols, keys) ->
-
-      return DbStructure {
-          columns=cols
-        , relations=rels
-        , primaryKeys=keys
-        }
-    ) metadata
-
-  -- let allRels = relations dbstructure
-  --     fakeRels = mapMaybe (toSourceRelation "projects") allRels
-  --
-  -- print $ findRelation (fakeRels ++ allRels) "test" "pg_source" "clients"
+  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
+  dbStructure <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app dbstructure conf body) req
+      runWithClaims conf (app dbStructure conf body) req
     either (respond . errResponse) respond resOrError

@@ -46,7 +46,7 @@ import qualified Hasql.Postgres            as P
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.PgQuery
-import           PostgREST.PgStructure
+import           PostgREST.DbStructure
 import           PostgREST.QueryBuilder
 import           PostgREST.RangeQuery
 import           PostgREST.Types
@@ -55,7 +55,7 @@ import           PostgREST.Auth (tokenJWT)
 import           Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
-app dbstructure conf reqBody req =
+app dbStructure conf reqBody req =
   case (path, verb) of
 
     ([table], "GET") ->
@@ -71,7 +71,7 @@ app dbstructure conf reqBody req =
                 to = frm+queryTotal-1
                 contentRange = contentRangeH frm to tableTotal
                 status = rangeStatus frm to tableTotal
-                canonical = urlEncodeVars -- should this be moved to the db (location)?
+                canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
                   . sortBy (comparing fst)
                   . map (join (***) cs)
                   . parseSimpleQuery
@@ -147,7 +147,7 @@ app dbstructure conf reqBody req =
       -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
     ([], _) -> do
-      body <- encode <$> tables (cs schema)
+      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) allTabs)
       return $ responseLBS status200 [jsonH] $ cs body
 
     ([table], "OPTIONS") -> do
@@ -160,12 +160,13 @@ app dbstructure conf reqBody req =
       return $ responseLBS status404 [] ""
 
   where
-    allRels = relations dbstructure
-    allCols = columns dbstructure
-    allPrKeys = primaryKeys dbstructure
-    filterCol sc table (Column{colSchema=s, colTable=t}) =  s==sc && table==t
+    allTabs = dbTables dbStructure
+    allRels = dbRelations dbStructure
+    allCols = dbColumns dbStructure
+    allPrKeys = dbPrimaryKeys dbStructure
+    filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
     filterCol _ _ _ =  False
-    filterPk sc table pk = sc == pkSchema pk && table == pkTable pk
+    filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     path          = pathInfo req
     verb          = requestMethod req
     hdrs          = requestHeaders req
@@ -289,7 +290,7 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         a@(Array _) -> Right a
         _ -> Left invalidMsg
 
-augumentRequestWithJoin :: Text ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
+augumentRequestWithJoin :: Schema ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
@@ -332,10 +333,10 @@ addFilter (path, flt) (Node rn forest) =
       where maybeNode = find ((name==).fst.snd.rootLabel) forst
 
 toSourceRelation :: Text -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation _ t _ ft _ _ rt _ _)
-  | mt == t = Just $ r {relTable=sourceSubqueryName}
-  | mt == ft = Just $ r {relFTable=sourceSubqueryName}
-  | Just mt == rt = Just $ r {relLTable=Just sourceSubqueryName}
+toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
+  | mt == tableName t = Just $ r {relTable=t {tableName=sourceSubqueryName}}
+  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceSubqueryName}}
+  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceSubqueryName}) <$> rt}
   | otherwise = Nothing
 
 data TableOptions = TableOptions {
@@ -348,7 +349,7 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
-parseRequest :: Text -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
+parseRequest :: Schema -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
 parseRequest schema allRels rootTableName httpRequest reqBody =
   (,,) <$> selectQuery
        <*> (if method == "GET" then pure "" else mutateQuery)
