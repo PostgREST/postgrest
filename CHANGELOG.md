@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Postgres connection string argument - @calebmer
 - Encode JWT for procs that return type `jwt_claims` - @
 - Full text operators `@>`,`<@` - @ruslantalpa
+- Shaping of the response body (filter columns, embed relations) with &select parameter for POST/PATCH @ruslantalpa
 
 ### Removed
 - API versioning feature - @calebmer
