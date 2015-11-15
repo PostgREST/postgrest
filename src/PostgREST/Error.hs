@@ -2,13 +2,14 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (PgError, errResponse) where
+module PostgREST.Error (PgError, pgErrResponse, errResponse) where
 
 
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
 import           Data.String.Conversions   (cs)
 import           Data.String.Utils         (replace)
+import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import qualified Hasql                     as H
 import qualified Hasql.Postgres            as P
@@ -18,8 +19,11 @@ import           Network.Wai               (Response, responseLBS)
 
 type PgError = H.SessionError P.Postgres
 
-errResponse :: PgError -> Response
-errResponse e = responseLBS (httpStatus e)
+errResponse :: HT.Status -> Text -> Response
+errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
+
+pgErrResponse :: PgError -> Response
+pgErrResponse e = responseLBS (httpStatus e)
   [(hContentType, "application/json")] (JSON.encode e)
 
 instance JSON.ToJSON PgError where

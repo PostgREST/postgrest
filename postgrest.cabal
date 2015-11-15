@@ -73,6 +73,7 @@ executable postgrest
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
+                     , PostgREST.Router
 
 library
   if flag(ci)
@@ -136,6 +137,7 @@ library
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
+                     , PostgREST.Router
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -166,6 +168,7 @@ Test-Suite spec
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
+                     , PostgREST.Router
                      , Spec
                      , SpecHelper
                      , TestTypes

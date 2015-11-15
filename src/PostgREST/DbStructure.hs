@@ -8,6 +8,9 @@ module PostgREST.DbStructure (
 , accessibleTables
 , doesProcExist
 , doesProcReturnJWT
+, dbFindTable
+, dbFindColumn
+, dbFindPKeys
 ) where
 
 import           Control.Applicative
@@ -45,13 +48,13 @@ getDbStructure schema = do
     }
 
 dbFindTable :: DbStructure -> Schema -> Text -> Maybe Table
-dbFindTable db schema tableN = find (\t -> tableSchema t == schema && tableName t == tableN) (tables db)
+dbFindTable db schema tableN = find (\t -> tableSchema t == schema && tableName t == tableN) (dbTables db)
 
 dbFindColumn :: DbStructure -> Table -> Text -> Maybe Column
-dbFindColumn db t columnN = find (\c -> colSchema c == tableSchema t && colTable c == tableName t && colName c == columnN) (columns db)
+dbFindColumn db t columnN = find (\c -> colTable c == t && colName c == columnN) (dbColumns db)
 
 dbFindPKeys :: DbStructure -> Table -> [PrimaryKey]
-dbFindPKeys db t = filter (\k -> pkSchema k == tableSchema t && pkTable k == tableName t) (primaryKeys db)
+dbFindPKeys db t = filter ((== t) . pkTable) (dbPrimaryKeys db)
 
 doesProc :: forall c s. B.CxValue c Int =>
             (Text -> Text -> B.Stmt c) -> Text -> Text -> H.Tx c s Bool

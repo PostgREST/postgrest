@@ -22,8 +22,9 @@ import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
+import qualified Data.Text                 as T
 import           Data.Tree
-import qualified Data.Map as M
+import qualified Data.Map                  as M
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
@@ -65,124 +66,138 @@ import           PostgREST.QueryBuilder ( asJson
 import           PostgREST.RangeQuery
 import           PostgREST.Types
 import           PostgREST.Auth (tokenJWT)
+import           PostgREST.Router
 
 import           Prelude
 
 app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
 app dbStructure conf reqBody req =
-  case (path, verb) of
+  case route RootE dbStructure schema path of
+    Just endpoint ->
+      case endpoint of
+        RootE ->
+          case verb of
+            "GET" -> do
+              body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) allTabs)
+              return $ responseLBS status200 [jsonH] $ cs body
 
-    ([table], "GET") ->
-      if range == Just emptyRange
-      then return $ responseLBS status416 [] "HTTP Range error"
-      else
-        case request of
-          Left e -> return $ responseLBS status400 [jsonH] $ cs e
-          Right (selectQuery, _, _) -> do
-            let q = B.Stmt (createStatement selectQuery Nothing True range [] (not $ hasPrefer "count=none") isCsv) V.empty True
-            row <- H.maybeEx q
-            let (tableTotal, queryTotal, _ , body) = extractQueryResult row
-                to = frm+queryTotal-1
-                contentRange = contentRangeH frm to tableTotal
-                status = rangeStatus frm to tableTotal
-                canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
-                  . sortBy (comparing fst)
-                  . map (join (***) cs)
-                  . parseSimpleQuery
-                  $ rawQueryString req
-            return $ responseLBS status
-              [contentTypeH, contentRange,
-                ("Content-Location",
-                  "/" <> cs table <>
-                    if Prelude.null canonical then "" else "?" <> cs canonical
-                )
-              ] (fromMaybe "[]" body)
-        where
-            frm = fromMaybe 0 $ rangeOffset <$> range
+            _ -> notFound
 
-    ([table], "POST") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, isSingle) -> do
-          let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-              q = B.Stmt (createStatement selectQuery (Just (mutateQuery, isSingle)) echoRequested Nothing pKeys False isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, _, location, body) = extractQueryResult row
-          return $ responseLBS status201
-            [
-              contentTypeH,
-              (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
-            ]
-            $ if echoRequested then fromMaybe "[]" body else ""
+        TableE table ->
+          case verb of
+            "GET" ->
+              if range == Just emptyRange
+                then return $ responseLBS status416 [] "HTTP Range error"
+                else
+                  case request of
+                    Left e -> return $ responseLBS status400 [jsonH] $ cs e
+                    Right (selectQuery, _, _) -> do
+                      let q = B.Stmt (createStatement selectQuery Nothing True range [] (not $ hasPrefer "count=none") isCsv) V.empty True
+                      row <- H.maybeEx q
+                      let (tableTotal, queryTotal, _ , body) = extractQueryResult row
+                          to = frm+queryTotal-1
+                          contentRange = contentRangeH frm to tableTotal
+                          status = rangeStatus frm to tableTotal
+                          canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
+                            . sortBy (comparing fst)
+                            . map (join (***) cs)
+                            . parseSimpleQuery
+                            $ rawQueryString req
+                      return $ responseLBS status
+                        [contentTypeH, contentRange,
+                          ("Content-Location",
+                            "/" <> cs (tableName table) <>
+                              if Prelude.null canonical then "" else "?" <> cs canonical
+                          )
+                        ] (fromMaybe "[]" body)
+                where
+                  frm = fromMaybe 0 $ rangeOffset <$> range
 
-    ([_], "PATCH") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, _) -> do
-          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) echoRequested Nothing [] False isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
-              s = case () of _ | queryTotal == 0 -> status404
-                               | echoRequested -> status200
-                               | otherwise -> status204
-          return $ responseLBS s [contentTypeH, r]
-            $ if echoRequested then fromMaybe "[]" body else ""
+            "POST" ->
+              case request of
+                Left e -> return $ responseLBS status400 [jsonH] $ cs e
+                Right (selectQuery, mutateQuery, isSingle) -> do
+                  let pKeys = map pkName $ filter (filterPk schema tableN) allPKeys -- would it be ok to move primary key detection in the query itself?
+                  row <- H.maybeEx $ B.Stmt (createStatement selectQuery (Just (mutateQuery, isSingle)) echoRequested Nothing pKeys False isCsv) V.empty True
+                  let (_, _, location, body) = extractQueryResult row
+                  return $ responseLBS status201
+                    [
+                      contentTypeH,
+                      (hLocation, cs fullPath <> "?" <> cs (fromMaybe "" location))
+                    ]
+                    $ if echoRequested then fromMaybe "[]" body else ""
 
-    ([_], "DELETE") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, _) -> do
-          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) False Nothing [] True isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, queryTotal, _, _) = extractQueryResult row
-          return $ if queryTotal == 0
-            then responseLBS status404 [] ""
-            else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+            "PATCH" ->
+              case request of
+                Left e -> return $ responseLBS status400 [jsonH] $ cs e
+                Right (selectQuery, mutateQuery, _) -> do
+                  let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) echoRequested Nothing [] False isCsv) V.empty True
+                  row <- H.maybeEx q
+                  let (_, queryTotal, _, body) = extractQueryResult row
+                      r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+                      s = case () of _ | queryTotal == 0 -> status404
+                                       | echoRequested -> status200
+                                       | otherwise -> status204
+                  return $ responseLBS s [contentTypeH, r]
+                    $ if echoRequested then fromMaybe "[]" body else ""
 
-    (["rpc", proc], "POST") -> do
-      let qi = QualifiedIdentifier schema (cs proc)
-      exists <- doesProcExist schema proc
-      if exists
-        then do
-          let call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi $ fromMaybe HM.empty (decode reqBody))
-          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
-          returnJWT <- doesProcReturnJWT schema proc
-          return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
-                    if returnJWT
-                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                    else cs $ encode body)
-        else return $ responseLBS status404 [] ""
+            "DELETE" ->
+              case request of
+                Left e -> return $ responseLBS status400 [jsonH] $ cs e
+                Right (selectQuery, mutateQuery, _) -> do
+                  let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) False Nothing [] True isCsv) V.empty True
+                  row <- H.maybeEx q
+                  let (_, queryTotal, _, _) = extractQueryResult row
+                  return $ if queryTotal == 0
+                    then responseLBS status404 [] ""
+                    else responseLBS status204 [("Content-Range", "*/" <> cs (show queryTotal))] ""
 
-      -- check that proc exists
-      -- check that arg names are all specified
-      -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
+            "OPTIONS" -> do
+              let cols = filter (filterCol schema tableN) allCols
+                  pKeys = map pkName $ filter (filterPk schema tableN) allPKeys
+                  body = encode (TableOptions cols pKeys)
+              return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
-    ([], _) -> do
-      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) allTabs)
-      return $ responseLBS status200 [jsonH] $ cs body
+            _ -> notFound
 
-    ([table], "OPTIONS") -> do
-      let cols = filter (filterCol schema table) allCols
-          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
-          body = encode (TableOptions cols pkeys)
-      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
+          where
+            tableN = tableName table
+            request = parseRequest schema allRels tableN req reqBody
 
-    (_, _) ->
-      return $ responseLBS status404 [] ""
+        ProcedureE proc ->
+          case verb of
+            "POST" -> do
+              let qi = QualifiedIdentifier schema (cs proc)
+              exists <- doesProcExist schema proc
+              if exists
+                then do
+                  let call = B.Stmt "select " V.empty True <>
+                        asJson (callProc qi $ fromMaybe HM.empty (decode reqBody))
+                  bodyJson :: Maybe (Identity Value) <- H.maybeEx call
+                  returnJWT <- doesProcReturnJWT schema proc
+                  return $ responseLBS status200 [jsonH]
+                         (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                            if returnJWT
+                            then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                            else cs $ encode body)
+                else return $ responseLBS status404 [] ""
+
+            _ -> notFound
+
+    _ -> notFound
 
   where
-    allTabs = dbTables dbStructure
-    allRels = dbRelations dbStructure
-    allCols = dbColumns dbStructure
-    allPrKeys = dbPrimaryKeys dbStructure
-    filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
+    notFound = return $ responseLBS status404 [] ""
+    allTabs  = dbTables dbStructure
+    allRels  = dbRelations dbStructure
+    allCols  = dbColumns dbStructure
+    allPKeys = dbPrimaryKeys dbStructure
+    filterCol sc table (Column{colTable=Table{tableSchema=s,tableName=t}}) =  s==sc && table==t
     filterCol _ _ _ =  False
     filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     path          = pathInfo req
     verb          = requestMethod req
+    fullPath      = T.cons '/' (T.intercalate (T.singleton '/') path)
     hdrs          = requestHeaders req
     lookupHeader  = flip lookup hdrs
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
@@ -195,7 +210,6 @@ app dbStructure conf reqBody req =
     isCsv         = contentType == csvMT
     contentTypeH  = (hContentType, contentType)
     echoRequested = hasPrefer "return=representation"
-    request = parseRequest schema allRels (head path) req reqBody --TODO! is head safe?
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
