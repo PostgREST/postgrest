@@ -3,10 +3,11 @@ module PostgREST.Parsers
 -- )
 where
 
-import           Control.Applicative hiding ((<$>))
+import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)
+import qualified Data.Text                     as T
 import           Data.Tree
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
@@ -106,3 +107,8 @@ pOrderTerm =
     return $ OrderTerm (cs c) (cs d) (cs <$> nls)
   )
   <|> OrderTerm <$> (cs <$> pFieldName) <*> pure "asc" <*> pure Nothing
+
+pUriValues :: Text -> [Text]
+pUriValues s
+  | T.head s == '(' && T.last s == ')' = (T.split (== ',') . T.init . T.tail) s
+  | otherwise = [s]

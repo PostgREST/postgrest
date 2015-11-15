@@ -104,7 +104,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
             matchStatus  = 201,
-            matchHeaders = ["Location" <:> "/compound_pk?k1=eq.12&k2=eq.42"]
+            matchHeaders = ["Location" <:> "/compound_pk?k2=eq.42&k1=eq.12"]
           }
 
     context "with invalid json payload" $
@@ -320,6 +320,21 @@ spec = afterAll_ resetDb $ around withApp $ do
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
 
+      it "can update an item on a single route" $ do
+        _ <- request methodPatch "/items/2" []
+          [json| { "id":101 } |]
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing,
+              matchStatus  = 404, -- <- we are changing the primary key
+              matchHeaders = []
+            }
+        get "/items/101"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "{\"id\":101}",
+            matchStatus  = 200,
+            matchHeaders = []
+          }
+
       it "can update multiple items" $ do
         replicateM_ 10 $ post "/auto_incrementing_pk"
           [json| { non_nullable_string: "a" } |]
@@ -344,6 +359,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           [("Prefer", "return=representation")]
           [json| { id: 100 } |]
           `shouldRespondWith` 404
+
       it "can provide a representation" $ do
         _ <- post "/items"
           [json| { id: 1 } |]

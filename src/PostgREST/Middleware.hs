@@ -13,7 +13,7 @@ import qualified Hasql.Postgres                as P
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
 import           Network.HTTP.Types.Status     (status415, status400)
 import           Network.Wai                   (Application, Request (..), Response,
-                                                requestHeaders, responseLBS)
+                                                requestHeaders)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
@@ -21,10 +21,11 @@ import           Network.Wai.Middleware.Static (only, staticPolicy)
 import           PostgREST.App                 (contentTypeForAccept)
 import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
+import           PostgREST.Error               (errResponse)
 
 import           System.IO.Unsafe              (unsafePerformIO)
 
-import           Prelude hiding(concat)
+import           Prelude                       hiding (concat)
 
 import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B
@@ -54,14 +55,14 @@ runWithClaims conf app req = do
     auth = fromMaybe "" $ lookup hAuthorization hdrs
     anon = cs $ configAnonRole conf
     setAnon = setRole anon
-    invalidJWT = return $ responseLBS status400 [("Content-Type","application/json")] "{\"message\":\"Invalid JWT\"}"
+    invalidJWT = return $ errResponse status400 "Invalid JWT"
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond = do
   let
     accept = lookup hAccept $ requestHeaders req
   if isNothing $ contentTypeForAccept accept
-  then respond $ responseLBS status415 [] "Unsupported Accept header, try: application/json"
+  then respond $ errResponse status415 "Unsupported Accept header, try: application/json"
   else app req respond
 
 defaultMiddle :: Application -> Application

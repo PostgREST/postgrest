@@ -10,13 +10,13 @@ module PostgREST.DbStructure (
 , doesProcReturnJWT
 , dbFindTable
 , dbFindColumn
-, dbFindPKeys
+, dbFindPrimaryKeys
 ) where
 
 import           Control.Applicative
 import           Control.Monad          (join)
 import           Data.Functor.Identity
-import           Data.List              (elemIndex, find, subsequences, sort, transpose)
+import           Data.List              (elemIndex, find, subsequences, transpose)
 import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
 import           Data.Monoid
 import           Data.Text              (Text, split)
@@ -53,8 +53,8 @@ dbFindTable db schema tableN = find (\t -> tableSchema t == schema && tableName 
 dbFindColumn :: DbStructure -> Table -> Text -> Maybe Column
 dbFindColumn db t columnN = find (\c -> colTable c == t && colName c == columnN) (dbColumns db)
 
-dbFindPKeys :: DbStructure -> Table -> [PrimaryKey]
-dbFindPKeys db t = filter ((== t) . pkTable) (dbPrimaryKeys db)
+dbFindPrimaryKeys :: DbStructure -> Table -> [PrimaryKey]
+dbFindPrimaryKeys db t = filter ((== t) . pkTable) (dbPrimaryKeys db)
 
 doesProc :: forall c s. B.CxValue c Int =>
             (Text -> Text -> B.Stmt c) -> Text -> Text -> H.Tx c s Bool
@@ -106,7 +106,7 @@ accessibleTables allTabs = do
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
   where
-    syns = sort $ filter ((== colTable (head cols)) . colTable . fst) allSyns
+    syns = filter ((== colTable (head cols)) . colTable . fst) allSyns
     synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
     synCols' = (filter sameTable . filter matchLength) synCols
     matchLength cs = length cols == length cs
@@ -315,6 +315,10 @@ allPrimaryKeys tabs = do
         kc.table_schema = tc.table_schema AND
         kc.constraint_name = tc.constraint_name AND
         kc.table_schema NOT IN ('pg_catalog', 'information_schema')
+    ORDER BY
+        kc.table_schema,
+        kc.table_name,
+        kc.ordinal_position DESC
     |]
   return $ mapMaybe (pkFromRow tabs) pks
 
