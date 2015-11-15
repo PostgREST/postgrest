@@ -140,7 +140,7 @@ app dbStructure conf reqBody req =
             _         -> return $ responseLBS status404 [] ""
 
     (["rpc", proc], "POST") -> do
-      let qi = QualifiedIdentifier schema (cs proc)
+      let qi = [schema, cs proc]
       exists <- doesProcExist schema proc
       if exists
         then do
@@ -310,7 +310,7 @@ whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["selec
 orderStr :: [(String, Maybe String)] -> Maybe String
 orderStr qParams = join $ lookup "order" qParams
 
-buildSelectApiRequest :: TableName -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
+buildSelectApiRequest :: QualifiedIdentifier -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
 buildSelectApiRequest rootTableName sel wher orderS =
   first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
@@ -383,16 +383,17 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           then "*" -- we are not returning the records so no need to consider nested items
           else selectStr qParams
         rootName = if method == "GET"
-          then rootTableName
-          else sourceSubqueryName
+          then [schema,rootTableName]
+          else [sourceSubqueryName]
         filters = if method == "GET"
           then allFilters
           else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
-    selectQuery = requestToQuery schema <$> selectApiRequest
-    mutateQuery = requestToQuery schema <$> case method of
-      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+    buildRequest = requestToQuery schema . qualifyRequest schema
+    selectQuery = buildRequest <$> selectApiRequest
+    mutateQuery = buildRequest <$> case method of
+      "POST"   -> Node <$> ((,) <$> (Insert [schema,rootTableName] <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update [schema,rootTableName] <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [[schema,rootTableName]] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> Left "Unsupported HTTP verb"
       where
         parseField f = parse pField ("failed to parse field <<"++f++">>") f
@@ -403,6 +404,30 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
         setWith = if isSingleRecord
               then M.fromList <$> (zip <$> flds <*> (head <$> vals))
               else Left "Expecting a sigle CSV line with header or a JSON object"
+
+qualifyRequest :: Schema -> ApiRequest -> ApiRequest
+qualifyRequest schema (Node (q,x@(name,_)) forest) =
+  case q of
+    Select sel frm whr ord -> Node (Select (quSelectItems sel) (quFrom frm) (quWhere whr) ord, x) updatedForest
+    Insert int fds vls     -> Node (Insert (quTable int) (quFields fds) vls, x) updatedForest
+    Delete frm whr         -> Node (Delete (quFrom frm) (quWhere whr), x) updatedForest
+    Update int hsh whr     -> Node (Update (quTable int) (quHash hsh) (quWhere whr), x) updatedForest
+  where
+    updatedForest = map (qualifyRequest schema) forest
+
+    quTable ["",uqi] = sch ++ [uqi] where sch = if uqi == sourceSubqueryName then [] else [schema]
+    quTable qi = qi
+    quColumn ["",uqi] = sch ++ [name,uqi] where sch = if name == sourceSubqueryName then [] else [schema]
+    quColumn qi = qi
+
+    quField (qi,jp) = (quColumn qi,jp)
+    quFilter flt = flt{field=quField $ field flt}
+    quSelectItem (fld,c) = (quField fld,c)
+    quFrom = map quTable
+    quFields = map quField
+    quWhere = map quFilter
+    quSelectItems = map quSelectItem
+    quHash = M.mapKeys (first (\qi -> [last qi]))
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range countTable asCsv =
