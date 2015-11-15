@@ -44,6 +44,15 @@ getDbStructure schema = do
     , dbPrimaryKeys = keys'
     }
 
+dbFindTable :: DbStructure -> Schema -> Text -> Maybe Table
+dbFindTable db schema tableN = find (\t -> tableSchema t == schema && tableName t == tableN) (tables db)
+
+dbFindColumn :: DbStructure -> Table -> Text -> Maybe Column
+dbFindColumn db t columnN = find (\c -> colSchema c == tableSchema t && colTable c == tableName t && colName c == columnN) (columns db)
+
+dbFindPKeys :: DbStructure -> Table -> [PrimaryKey]
+dbFindPKeys db t = filter (\k -> pkSchema k == tableSchema t && pkTable k == tableName t) (primaryKeys db)
+
 doesProc :: forall c s. B.CxValue c Int =>
             (Text -> Text -> B.Stmt c) -> Text -> Text -> H.Tx c s Bool
 doesProc stmt schema proc = do
