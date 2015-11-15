@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Added
+- Ensure JWT expires - @calebmer
+- Postgres connection string argument - @calebmer
+- Encode JWT for procs that return type `jwt_claims` - @
+- Full text operators `@>`,`<@` - @ruslantalpa
+
+### Removed
+- API versioning feature - @calebmer
+- `--db-x` command line arguments - @calebmer
+- Secure flag - @calebmer
+- PUT request handling - @ruslantalpa
+
 ## [0.2.12.1] - 2015-11-12
 
 ### Fixed

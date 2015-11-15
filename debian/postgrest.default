@@ -7,17 +7,23 @@
 # database host
 #POSTGREST_DBHOST=localhost
 
+# database host
+#POSTGREST_DBPORT=5432
+
 # database to use
-#POSTGREST_DBNAME=
+#POSTGREST_DBNAME=app
 
 # database user
-#POSTGREST_DBUSER=postgres
+#POSTGREST_DBUSER=authenticator
 
 # database password
 #POSTGREST_DBPASS=
 
 # database pool
-#POSTGREST_DBPOOL=10
+#POSTGREST_POOL=10
 
-# additional options
-#POSTGREST_OPTS=
+# jwt secret
+#POSTGREST_JWT_SECRET=secret
+
+# default schema
+#POSTGREST_SCHEMA=public

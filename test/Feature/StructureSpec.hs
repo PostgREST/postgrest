@@ -14,41 +14,41 @@ spec = around withApp $ do
     it "lists views in schema" $
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
-          {"schema":"1","name":"auto_incrementing_pk","insertable":true}
-        , {"schema":"1","name":"clients","insertable":true}
-        , {"schema":"1","name":"comments","insertable":true}
-        , {"schema":"1","name":"complex_items","insertable":true}
-        , {"schema":"1","name":"compound_pk","insertable":true}
-        , {"schema":"1","name":"has_count_column","insertable":false}
-        , {"schema":"1","name":"has_fk","insertable":true}
-        , {"schema":"1","name":"insertable_view_with_join","insertable":true}
-        , {"schema":"1","name":"items","insertable":true}
-        , {"schema":"1","name":"json","insertable":true}
-        , {"schema":"1","name":"materialized_view","insertable":false}
-        , {"schema":"1","name":"menagerie","insertable":true}
-        , {"schema":"1","name":"no_pk","insertable":true}
-        , {"schema":"1","name":"nullable_integer","insertable":true}
-        , {"schema":"1","name":"projects","insertable":true}
-        , {"schema":"1","name":"projects_view","insertable":true}
-        , {"schema":"1","name":"simple_pk","insertable":true}
-        , {"schema":"1","name":"tasks","insertable":true}
-        , {"schema":"1","name":"tsearch","insertable":true}
-        , {"schema":"1","name":"users","insertable":true}
-        , {"schema":"1","name":"users_projects","insertable":true}
-        , {"schema":"1","name":"users_tasks","insertable":true}
+          {"schema":"test","name":"articleStars","insertable":true}
+        , {"schema":"test","name":"articles","insertable":true}
+        , {"schema":"test","name":"auto_incrementing_pk","insertable":true}
+        , {"schema":"test","name":"clients","insertable":true}
+        , {"schema":"test","name":"comments","insertable":true}
+        , {"schema":"test","name":"complex_items","insertable":true}
+        , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"has_count_column","insertable":false}
+        , {"schema":"test","name":"has_fk","insertable":true}
+        , {"schema":"test","name":"insertable_view_with_join","insertable":true}
+        , {"schema":"test","name":"items","insertable":true}
+        , {"schema":"test","name":"json","insertable":true}
+        , {"schema":"test","name":"materialized_view","insertable":false}
+        , {"schema":"test","name":"menagerie","insertable":true}
+        , {"schema":"test","name":"no_pk","insertable":true}
+        , {"schema":"test","name":"nullable_integer","insertable":true}
+        , {"schema":"test","name":"projects","insertable":true}
+        , {"schema":"test","name":"projects_view","insertable":true}
+        , {"schema":"test","name":"simple_pk","insertable":true}
+        , {"schema":"test","name":"tasks","insertable":true}
+        , {"schema":"test","name":"tsearch","insertable":true}
+        , {"schema":"test","name":"users","insertable":true}
+        , {"schema":"test","name":"users_projects","insertable":true}
+        , {"schema":"test","name":"users_tasks","insertable":true}
         ] |]
         {matchStatus = 200}
 
     it "lists only views user has permission to see" $ do
-      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      let auth = authHeaderBasic "jdoe" "1234"
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
 
       request methodGet "/" [auth] ""
         `shouldRespondWith` [json| [
-            {"schema":"1","name":"authors_only","insertable":true}
+            {"schema":"test","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
-
 
   describe "Table info" $ do
     it "is available with OPTIONS verb" $
@@ -61,7 +61,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 32,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "integer",
             "type": "integer",
             "maxLen": null,
@@ -74,7 +74,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 53,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "double",
             "type": "double precision",
             "maxLen": null,
@@ -86,7 +86,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "varchar",
             "type": "character varying",
             "maxLen": null,
@@ -99,7 +99,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "boolean",
             "type": "boolean",
             "maxLen": null,
@@ -111,7 +111,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "date",
             "type": "date",
             "maxLen": null,
@@ -123,7 +123,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "money",
             "type": "money",
             "maxLen": null,
@@ -136,7 +136,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "enum",
             "type": "USER-DEFINED",
             "maxLen": null,
@@ -154,98 +154,57 @@ spec = around withApp $ do
       |]
 
     it "it includes primary and foreign keys for views" $
-      request methodOptions "/insertable_view_with_join" [] "" `shouldRespondWith`
+      request methodOptions "/projects_view" [] "" `shouldRespondWith`
       [json|
       {
          "pkey":[
             "id"
          ],
          "columns":[
-            {
-               "references":null,
-               "default":null,
-               "precision":64,
-               "updatable":false,
-               "schema":"1",
-               "name":"id",
-               "type":"bigint",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":1
+          {
+            "references":null,
+            "default":null,
+            "precision":32,
+            "updatable":true,
+            "schema":"test",
+            "name":"id",
+            "type":"integer",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":1
+          },
+          {
+            "references":null,
+            "default":null,
+            "precision":null,
+            "updatable":true,
+            "schema":"test",
+            "name":"name",
+            "type":"text",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":2
+          },
+          {
+            "references": {
+              "schema":"test",
+              "column":"id",
+              "table":"clients"
             },
-            {
-               "references":{
-                  "column":"id",
-                  "table":"auto_incrementing_pk"
-               },
-               "default":null,
-               "precision":32,
-               "updatable":false,
-               "schema":"1",
-               "name":"auto_inc_fk",
-               "type":"integer",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":2
-            },
-            {
-               "references":{
-                  "column":"k",
-                  "table":"simple_pk"
-               },
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"1",
-               "name":"simple_fk",
-               "type":"character varying",
-               "maxLen":255,
-               "enum":[],
-               "nullable":true,
-               "position":3
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"1",
-               "name":"nullable_string",
-               "type":"character varying",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":4
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"1",
-               "name":"non_nullable_string",
-               "type":"character varying",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":5
-            },
-            {
-               "references":null,
-               "default":null,
-               "precision":null,
-               "updatable":false,
-               "schema":"1",
-               "name":"inserted_at",
-               "type":"timestamp with time zone",
-               "maxLen":null,
-               "enum":[],
-               "nullable":true,
-               "position":6
-            }
-         ]
+            "default":null,
+            "precision":32,
+            "updatable":true,
+            "schema":"test",
+            "name":"client_id",
+            "type":"integer",
+            "maxLen":null,
+            "enum":[],
+            "nullable":true,
+            "position":3
+          }
+        ]
       }
       |]
 
@@ -261,7 +220,7 @@ spec = around withApp $ do
             "default": "nextval('\"1\".has_fk_id_seq'::regclass)",
             "precision": 64,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "id",
             "type": "bigint",
             "maxLen": null,
@@ -273,7 +232,7 @@ spec = around withApp $ do
             "default": null,
             "precision": 32,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "auto_inc_fk",
             "type": "integer",
             "maxLen": null,
@@ -285,7 +244,7 @@ spec = around withApp $ do
             "default": null,
             "precision": null,
             "updatable": true,
-            "schema": "1",
+            "schema": "test",
             "name": "simple_fk",
             "type": "character varying",
             "maxLen": 255,
@@ -297,3 +256,63 @@ spec = around withApp $ do
         ]
       }
       |]
+
+    it "includes all information on views for renamed columns, and raises relations to correct schema" $
+      request methodOptions "/articleStars" [] ""
+        `shouldRespondWith` [json|
+          {
+            "pkey": [
+              "articleId",
+              "userId"
+            ],
+            "columns": [
+              {
+                "references": {
+                  "schema": "test",
+                  "column": "id",
+                  "table": "articles"
+                },
+                "default": null,
+                "precision": 32,
+                "updatable": true,
+                "schema": "test",
+                "name": "articleId",
+                "type": "integer",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 1
+              },
+              {
+                "references": {
+                  "schema": "test",
+                  "column": "id",
+                  "table": "users"
+                },
+                "default": null,
+                "precision": 32,
+                "updatable": true,
+                "schema": "test",
+                "name": "userId",
+                "type": "integer",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 2
+              },
+              {
+                "references": null,
+                "default": null,
+                "precision": null,
+                "updatable": true,
+                "schema": "test",
+                "name": "createdAt",
+                "type": "timestamp without time zone",
+                "maxLen": null,
+                "enum": [],
+                "nullable": true,
+                "position": 3
+              }
+            ]
+          }
+        |]

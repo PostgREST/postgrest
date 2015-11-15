@@ -1,7 +1,7 @@
 flags: {}
 packages:
 - '.'
-extra-deps: 
+extra-deps:
   - Ranged-sets-0.3.0
   - packdeps-0.4.1
-resolver: lts-3.10
+resolver: nightly-2015-10-27

@@ -41,7 +41,7 @@ spec = around withApp $ describe "CORS" $ do
             "true"
           respHeaders `shouldSatisfy` matchHeader
             "Access-Control-Allow-Methods"
-            "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+            "GET, POST, PATCH, DELETE, OPTIONS, HEAD"
           respHeaders `shouldSatisfy` matchHeader
             "Access-Control-Allow-Headers"
             "Authentication, Foo, Bar, Accept, Accept-Language, Content-Language"

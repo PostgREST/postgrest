@@ -7,10 +7,13 @@ import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders))
 
 import SpecHelper
+import Text.Heredoc
+
 
 spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
+   . beforeAll clearProjectsTable
    . beforeAll (clearTable "complex_items" >> createComplexItems)
    . beforeAll (clearTable "nullable_integer" >> createNullInteger)
    . beforeAll (
@@ -134,11 +137,20 @@ spec =
       get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
         "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1,\"name\":\"Design w7\"}]},{\"id\":2,\"tasks\":[{\"id\":3,\"name\":\"Design w10\"}]}]},{\"id\":2,\"projects\":[{\"id\":3,\"tasks\":[{\"id\":5,\"name\":\"Design IOS\"}]},{\"id\":4,\"tasks\":[{\"id\":7,\"name\":\"Design OSX\"}]}]}]"
 
+    it "matches with @> operator" $
+      get "/complex_items?select=id&arr_data=@>.{2}" `shouldRespondWith`
+        [str|[{"id":2},{"id":3}]|]
+
+    it "matches with <@ operator" $
+      get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
+        [str|[{"id":1},{"id":2}]|]
+
+
   describe "Shaping response with select parameter" $ do
 
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
-        "[{\"id\":3,\"name\":\"Three\",\"settings\":{\"foo\":{\"int\":1,\"bar\":\"baz\"}}}]"
+        [str|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3]}]|]
 
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
@@ -272,7 +284,7 @@ spec =
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "k,extra\rxyyx,u\rxYYx,v"
+          matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv"]
         }
