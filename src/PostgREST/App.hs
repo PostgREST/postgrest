@@ -45,9 +45,23 @@ import qualified Hasql.Postgres            as P
 
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
-import           PostgREST.PgQuery
 import           PostgREST.DbStructure
-import           PostgREST.QueryBuilder
+import           PostgREST.QueryBuilder ( asJson
+                                        , callProc
+                                        , asCsvF
+                                        , asJsonF
+                                        , selectStarF
+                                        , countF
+                                        , locationF
+                                        , asJsonSingleF
+                                        , addJoinConditions
+                                        , sourceSubqueryName
+                                        , requestToQuery
+                                        , wrapQuery
+                                        , countAllF
+                                        , countNoneF
+                                        , addRelations
+                                        )
 import           PostgREST.RangeQuery
 import           PostgREST.Types
 import           PostgREST.Auth (tokenJWT)

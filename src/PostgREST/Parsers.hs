@@ -10,7 +10,7 @@ import           Data.Text                     (Text)
 import           Data.Tree
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-import           PostgREST.PgQuery (operators)
+import           PostgREST.QueryBuilder (operators)
 
 pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do

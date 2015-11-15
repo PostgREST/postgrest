@@ -20,7 +20,6 @@ import           Data.Text              (Text, split)
 import qualified Hasql                  as H
 import qualified Hasql.Postgres         as P
 import qualified Hasql.Backend          as B
-import           PostgREST.PgQuery      ()
 import           PostgREST.Types
 
 import           GHC.Exts               (groupWith)
