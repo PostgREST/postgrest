@@ -56,7 +56,7 @@ instance Monoid PStmt where
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
 
-addRelations :: Text -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
+addRelations :: Schema -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
   case parentNode of
     Nothing -> Node (query, (table, Nothing)) <$> updatedForest
@@ -72,7 +72,7 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
     findRelation s t1 t2 =
       find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
 
-addJoinConditions :: Text -> ApiRequest -> Either Text ApiRequest
+addJoinConditions :: Schema -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
   case r of
     Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
@@ -187,7 +187,7 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
-requestToQuery :: Text -> ApiRequest -> Text
+requestToQuery :: Schema -> ApiRequest -> Text
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
   query
   where
