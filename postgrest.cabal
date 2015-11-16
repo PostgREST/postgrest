@@ -25,7 +25,7 @@ executable postgrest
   if flag(ci)
     ghc-options:       -Wall -W -Werror
   else
-    ghc-options:       -Wall -W -O2
+    ghc-options:       -Wall -W
 
   main-is:             PostgREST/Main.hs
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
@@ -78,7 +78,7 @@ library
   if flag(ci)
     ghc-options:       -Wall -W -Werror
   else
-    ghc-options:       -Wall -W -O2
+    ghc-options:       -Wall -W
 
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
@@ -146,7 +146,7 @@ Test-Suite spec
   if flag(ci)
     ghc-options:       -Wall -W -Werror
   else
-    ghc-options:       -Wall -W -O2
+    ghc-options:       -Wall -W
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
                      , Feature.CorsSpec
