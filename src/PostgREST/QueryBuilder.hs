@@ -60,20 +60,23 @@ instance Monoid PStmt where
 type StatementT = PStmt -> PStmt
 
 addRelations :: Schema -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
-addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
+addRelations schema allRelations parentNode node@(Node apiNode@(query, (name, _)) forest) =
   case parentNode of
-    Nothing -> Node (query, (table, Nothing)) <$> updatedForest
-    (Just (Node (_, (parentTable, _)) _)) -> Node <$> (addRel n <$> rel) <*> updatedForest
+    Nothing -> Node (query, (name, Nothing)) <$> updatedForest
+    (Just (Node (_, (parentName, _)) _)) -> Node <$> (addRel apiNode <$> rel) <*> updatedForest
       where
-        rel = note ("no relation between " <> table <> " and " <> parentTable)
-            $  findRelation schema table parentTable
-           <|> findRelation schema parentTable table
+        rel = note ("no relation between " <> name <> " and " <> parentName)
+            $  findRelation name parentName
+           <|> findRelation parentName name
+           <|> findRelationWithCol parentName name
         addRel :: (Query, (NodeName, Maybe Relation)) -> Relation -> (Query, (NodeName, Maybe Relation))
-        addRel (q, (t, _)) r = (q, (t, Just r))
+        addRel (q, (n, _)) r = (q{from=(tableQi . relTable) r : from q}, (n, Just r))
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    findRelation s t1 t2 =
-      find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
+    findRelation t1 t2 =
+      find (\r -> schema == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
+    findRelationWithCol t c =
+      find (\r -> schema == (tableSchema . relFTable) r && t == (tableName . relFTable) r && length (relFColumns r) == 1 && (colName . head) (relFColumns r) == c) allRelations
 
 addJoinConditions :: Schema -> ApiRequest -> Either Text ApiRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
@@ -81,11 +84,11 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
     Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(n,r)) <$> updatedForest
     Just (Relation{relType=Parent}) -> Node (updatedQuery, (n,r)) <$> updatedForest
-    Just rel@(Relation{relType=Many, relLTable=(Just linkTable)}) ->
-      Node (qq, (n, r)) <$> updatedForest
+    Just rel@(Relation{relType=Many, relLTable=Just linkTable}) ->
+      Node (q', (n, r)) <$> updatedForest
       where
-         q = addCond updatedQuery (getJoinConditions rel)
-         qq = q{from=tableQi linkTable : from q}
+         q  = addCond updatedQuery (getJoinConditions rel)
+         q' = q{from=tableQi linkTable : from q}
     _ -> Left "unknown relation"
   where
     -- add parentTable and parentJoinConditions to the query
@@ -94,7 +97,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
         parentJoinConditions = map (getJoinConditions . snd) parents
         parentTables = map fst parents
         parents = mapMaybe (getParents . rootLabel) forest
-        getParents (_, (_, Just rel@(Relation{relType=Parent,relTable=tbl}))) = Just (tableQi tbl, rel)
+        getParents (_, (name, Just rel@(Relation{relType=Parent}))) = Just (QualifiedIdentifier Nothing name Nothing, rel{relTable=(relTable rel){tableName=name}})
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
@@ -203,24 +206,24 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, _) forest) =
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
     getQueryParts :: Tree ApiNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
-           <> "FROM (" <> subquery <> ") " <> table
-           <> ") AS " <> table
+           <> "SELECT array_to_json(array_agg(row_to_json(" <> pgFmtIdent name <> "))) "
+           <> "FROM (" <> subquery <> ") " <> pgFmtIdent name
+           <> ") AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (Node n forst)
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
-        sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
-        wit = table <> " AS ( " <> subquery <> " )"
+        sel = "row_to_json(" <> pgFmtIdent name <> ".*) AS " <> pgFmtIdent name
+        wit = pgFmtIdent name <> " AS ( " <> subquery <> " )"
           where subquery = requestToQuery schema (Node n forst)
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
-           <> "FROM (" <> subquery <> ") " <> table
-           <> ") AS " <> table
+           <> "SELECT array_to_json(array_agg(row_to_json(" <> pgFmtIdent name <> "))) "
+           <> "FROM (" <> subquery <> ") " <> pgFmtIdent name
+           <> ") AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (Node n forst)
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
@@ -303,8 +306,7 @@ getJoinConditions (Relation t cols ft fcols typ mlt lc1 lc2) =
   where
     lt = fromJust mlt -- This is ok because it is only used when the relation is of the `Many` type
     toFilter tb ftb c fc = Filter (makeQi tb c, Nothing) "=" $ VForeignKey (makeQi ftb fc)
-    makeQi tb c = QualifiedIdentifier sch (tableName tb) (Just $ colName c)
-      where sch = if tableName tb == sourceSubqueryName then Nothing else Just (tableSchema tb)
+    makeQi tb c = QualifiedIdentifier Nothing (tableName tb) (Just $ colName c)
 
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val

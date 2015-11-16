@@ -214,6 +214,10 @@ spec =
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
 
+    it "can select by column name" $
+      get "/projects?id=in.1,3&select=id,name,client_id,client_id(id,name)" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client_id\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client_id\":{\"id\":2,\"name\":\"Apple\"}}]"
+
 
   describe "ordering response" $ do
     it "by a column asc" $

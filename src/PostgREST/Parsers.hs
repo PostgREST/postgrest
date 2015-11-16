@@ -18,7 +18,7 @@ pRequestSelect rootNodeName = do
     treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [fn] [] Nothing, (qiName fn, Nothing)) []) fldForest:rForest)
+        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [] [] Nothing, (qiName fn, Nothing)) []) fldForest:rForest)
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)

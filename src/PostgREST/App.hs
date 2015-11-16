@@ -292,7 +292,7 @@ convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
         a@(Array _) -> Right a
         _ -> Left invalidMsg
 
-augumentRequestWithJoin :: Schema ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
+augumentRequestWithJoin :: Schema -> [Relation] -> ApiRequest -> Either Text ApiRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
@@ -407,18 +407,19 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
               else Left "Expecting a sigle CSV line with header or a JSON object"
 
 qualifyRequest :: Schema -> ApiRequest -> ApiRequest
-qualifyRequest schema (Node (q,x@(name,_)) forest) =
+qualifyRequest schema (Node (q,x@(name,rel)) forest) =
   case q of
     Select sel frm whr ord -> Node (Select (quSelectItems sel) (quFrom frm) (quWhere whr) ord, x) updatedForest
     Insert int fds vls     -> Node (Insert (quTable int) (quFields fds) vls, x) updatedForest
     Delete frm whr         -> Node (Delete (quFrom frm) (quWhere whr), x) updatedForest
     Update int hsh whr     -> Node (Update (quTable int) (quHash hsh) (quWhere whr), x) updatedForest
   where
+    tableN = fromMaybe name (tableName . relTable <$> rel)
     updatedForest = map (qualifyRequest schema) forest
 
-    quTable (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch uqi Nothing where sch = if name == sourceSubqueryName then Nothing else Just schema
+    quTable (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch uqi Nothing where sch = if tableN == sourceSubqueryName then Nothing else Just schema
     quTable qi = qi
-    quColumn (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch name (Just uqi) where sch = if name == sourceSubqueryName then Nothing else Just schema
+    quColumn (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch tableN (Just uqi) where sch = if tableN == sourceSubqueryName then Nothing else Just schema
     quColumn qi = qi
 
     quField (qi,jp) = (quColumn qi,jp)
