@@ -6,7 +6,7 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
-import           PostgREST.Error                      (errResponse, PgError)
+import           PostgREST.Error                      (pgErrResponse, PgError)
 import           PostgREST.Middleware
 import           PostgREST.DbStructure
 
@@ -75,4 +75,4 @@ main = do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
       runWithClaims conf (app dbStructure conf body) req
-    either (respond . errResponse) respond resOrError
+    either (respond . pgErrResponse) respond resOrError

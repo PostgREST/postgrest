@@ -145,7 +145,6 @@ spec =
       get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
         [str|[{"id":1},{"id":2}]|]
 
-
   describe "Shaping response with select parameter" $ do
 
     it "selectStar works in absense of parameter" $
@@ -213,6 +212,32 @@ spec =
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
+
+  describe "Plurality singular" $ do
+    it "will select an existing object" $
+      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"id":5} |]
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
+    it "will respond with 404 when not found" $
+      request methodGet "/items?id=eq.9999" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` 404
+
+    it "will select an object using a compound key" $
+      request methodGet "/compound_pk?k2=eq.2&k1=eq.4" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just "{\"k2\":2,\"k1\":4,\"extra\":5}"
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
+    it "can shape plurality singular object routes" $
+      request methodGet "/projects_view?id=eq.1&select=id,name,clients(*),tasks(id,name)" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith`
+          "{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}"
 
 
   describe "ordering response" $ do
@@ -319,6 +344,14 @@ spec =
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 
   describe "remote procedure call" $ do
+    it "can be called from the /rpc route" $
+      post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
+        [json| [{"sayhello":"Hello, world"}] |]
+
+    it "can be called using an @" $
+      post "/@sayhello" [json| { "name": "world" } |] `shouldRespondWith`
+        [json| [{"sayhello":"Hello, world"}] |]
+
     context "a proc that returns a set" . before_ (clearTable "items" >> createItems 10) .
       after_ (clearTable "items") $
       it "returns proper json" $

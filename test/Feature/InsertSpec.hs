@@ -104,7 +104,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
             matchStatus  = 201,
-            matchHeaders = ["Location" <:> "/compound_pk?k1=eq.12&k2=eq.42"]
+            matchHeaders = ["Location" <:> "/compound_pk?k2=eq.42&k1=eq.12"]
           }
 
     context "with invalid json payload" $
@@ -344,6 +344,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           [("Prefer", "return=representation")]
           [json| { id: 100 } |]
           `shouldRespondWith` 404
+
       it "can provide a representation" $ do
         _ <- post "/items"
           [json| { id: 1 } |]

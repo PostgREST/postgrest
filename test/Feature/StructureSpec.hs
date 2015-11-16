@@ -153,6 +153,10 @@ spec = around withApp $ do
       }
       |]
 
+    it "is not available for tables which do not exist" $
+      request methodOptions "/i_dont_exist" [] ""
+        `shouldRespondWith` 404
+
     it "it includes primary and foreign keys for views" $
       request methodOptions "/projects_view" [] "" `shouldRespondWith`
       [json|
@@ -262,8 +266,8 @@ spec = around withApp $ do
         `shouldRespondWith` [json|
           {
             "pkey": [
-              "articleId",
-              "userId"
+              "userId",
+              "articleId"
             ],
             "columns": [
               {
