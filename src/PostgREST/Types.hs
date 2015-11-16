@@ -13,10 +13,13 @@ data DbStructure = DbStructure {
 } deriving (Show, Eq)
 
 type Schema = Text
+type TableName = Text
+type SqlQuery = Text
+type SqlFragment = Text
 
 data Table = Table {
   tableSchema     :: Schema
-, tableName       :: Text
+, tableName       :: TableName
 , tableInsertable :: Bool
 } deriving (Show, Ord)
 
@@ -54,7 +57,7 @@ data OrderTerm = OrderTerm {
 
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
-, qiName   :: Text
+, qiName   :: TableName
 } deriving (Show, Eq)
 
 
