@@ -3,15 +3,14 @@ module PostgREST.Parsers
 -- )
 where
 
-import           Control.Applicative hiding ((<$>))
+import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)
 import           Data.Tree
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-import           PostgREST.PgQuery (operators)
-
+import           PostgREST.QueryBuilder (operators)
 
 pRequestSelect :: Text -> Parser ApiRequest
 pRequestSelect rootNodeName = do
@@ -43,8 +42,10 @@ lexeme p = ws *> p <* ws
 pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
-  jp <- optionMaybe ( string "->" >>  pJsonPath)
-  return (init p, (last p, jp))
+  jp <- optionMaybe pJsonPath
+  let pp = map cs p
+      jpp = map cs <$> jp
+  return (init pp, (last pp, jpp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
@@ -60,14 +61,14 @@ pFieldName :: Parser Text
 pFieldName =  cs <$> (many1 (letter <|> digit <|> oneOf "_")
           <?> "field name (* or [a..z0..9_])")
 
-pJsonPathDelimiter :: Parser Text
-pJsonPathDelimiter = cs <$> (try (string "->>") <|> string "->")
+pJsonPathStep :: Parser Text
+pJsonPathStep = cs <$> try (string "->" *> pFieldName)
 
 pJsonPath :: Parser [Text]
-pJsonPath = pFieldName `sepBy1` pJsonPathDelimiter
+pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
 
 pField :: Parser Field
-pField = lexeme $ (,) <$> pFieldName <*> optionMaybe ( pJsonPathDelimiter *>  pJsonPath)
+pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 
 pSelect :: Parser SelectItem
 pSelect = lexeme $

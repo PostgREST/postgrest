@@ -29,7 +29,7 @@ import qualified Data.Aeson.Types as J
 import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
-import PostgREST.Error(errResponse)
+import PostgREST.Error (pgErrResponse)
 import PostgREST.DbStructure
 
 dbString :: String
@@ -55,13 +55,13 @@ withApp perform = do
 
   let txSettings = Just (H.ReadCommitted, Just True)
   dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema cfg)
-  db <- either (fail . show) return dbOrError
+  dbStructure <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg (app db cfg body) req
-    either (resp . errResponse) resp result
+      $ runWithClaims cfg (app dbStructure cfg body) req
+    either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle
 
@@ -176,4 +176,6 @@ createJsonData = do
       [H.stmt|
         insert into test.json (data) values (?)
       |]
-      (J.object [("foo", J.object [("bar", J.String "baz")])])
+      (J.object [("id", J.Number 1)
+                ,("foo", J.object [("bar", J.String "baz")])
+                ])

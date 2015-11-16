@@ -137,8 +137,8 @@ ALTER SEQUENCE auto_incrementing_pk_id_seq OWNED BY auto_incrementing_pk.id;
 
 
 CREATE TABLE compound_pk (
-    k1 integer NOT NULL,
     k2 integer NOT NULL,
+    k1 integer NOT NULL,
     extra integer
 );
 
@@ -289,6 +289,9 @@ CREATE FUNCTION test.getitemrange(min bigint, max bigint) RETURNS SETOF test.ite
     SELECT * FROM test.items WHERE id > $1 AND id <= $2;
 $$ LANGUAGE SQL;
 
+CREATE FUNCTION test_empty_rowset() RETURNS SETOF int AS $$
+    SELECT null::int FROM (SELECT 1) a WHERE false;
+$$ LANGUAGE SQL;
 
 CREATE TYPE public.jwt_claims AS (role text, id text);
 
@@ -647,6 +650,11 @@ REVOKE ALL ON FUNCTION getitemrange(bigint, bigint) FROM postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_test;
 GRANT EXECUTE ON FUNCTION getitemrange(bigint, bigint) TO postgrest_anonymous;
 
+REVOKE ALL ON FUNCTION test_empty_rowset() FROM PUBLIC;
+REVOKE ALL ON FUNCTION test_empty_rowset() FROM postgrest_test;
+GRANT EXECUTE ON FUNCTION test_empty_rowset() TO postgrest_test;
+GRANT EXECUTE ON FUNCTION test_empty_rowset() TO postgrest_anonymous;
+
 REVOKE ALL ON FUNCTION login(text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION login(text, text) FROM postgrest_test;
 GRANT EXECUTE ON FUNCTION login(text, text) TO postgrest_test;
@@ -757,6 +765,7 @@ INSERT INTO users VALUES (1, 'Angela Martin'),(2, 'Michael Scott'),(3, 'Dwight S
 INSERT INTO users_projects VALUES(1,1),(1,2),(2,3),(2,4),(3,1),(3,3);
 INSERT INTO users_tasks VALUES(1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(3,1),(3,5);
 INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
+INSERT INTO compound_pk (k1, k2, extra) VALUES (1,5,4),(2,4,1),(3,3,3),(4,2,5),(5,1,2);
 INSERT INTO postgrest.auth (id, pass, rolname) VALUES ('jdoe', '1234', 'postgrest_test_author');
 INSERT INTO private.articles (id, body, owner) VALUES (1, 'No… It''s a thing; it''s like a plan, but with more greatness.', 2), (2, 'Stop talking, brain thinking. Hush.', 3), (3, 'It''s a fez. I wear a fez now. Fezes are cool.', 1);
 INSERT INTO private.article_stars (article_id, user_id) VALUES (1,1), (1,2), (2,3), (3,2), (1,3);

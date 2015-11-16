@@ -8,19 +8,21 @@ module PostgREST.DbStructure (
 , accessibleTables
 , doesProcExist
 , doesProcReturnJWT
+, dbFindTable
+, dbFindColumn
+, dbFindPrimaryKeys
 ) where
 
 import           Control.Applicative
 import           Control.Monad          (join)
 import           Data.Functor.Identity
-import           Data.List              (elemIndex, find, subsequences, sort, transpose)
+import           Data.List              (elemIndex, find, subsequences, transpose)
 import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
 import           Data.Monoid
 import           Data.Text              (Text, split)
 import qualified Hasql                  as H
 import qualified Hasql.Postgres         as P
 import qualified Hasql.Backend          as B
-import           PostgREST.PgQuery      ()
 import           PostgREST.Types
 
 import           GHC.Exts               (groupWith)
@@ -44,6 +46,15 @@ getDbStructure schema = do
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
     }
+
+dbFindTable :: DbStructure -> Schema -> Text -> Maybe Table
+dbFindTable db schema tableN = find (\t -> tableSchema t == schema && tableName t == tableN) (dbTables db)
+
+dbFindColumn :: DbStructure -> Table -> Text -> Maybe Column
+dbFindColumn db t columnN = find (\c -> colTable c == t && colName c == columnN) (dbColumns db)
+
+dbFindPrimaryKeys :: DbStructure -> Table -> [PrimaryKey]
+dbFindPrimaryKeys db t = filter ((== t) . pkTable) (dbPrimaryKeys db)
 
 doesProc :: forall c s. B.CxValue c Int =>
             (Text -> Text -> B.Stmt c) -> Text -> Text -> H.Tx c s Bool
@@ -95,7 +106,7 @@ accessibleTables allTabs = do
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
   where
-    syns = sort $ filter ((== colTable (head cols)) . colTable . fst) allSyns
+    syns = filter ((== colTable (head cols)) . colTable . fst) allSyns
     synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
     synCols' = (filter sameTable . filter matchLength) synCols
     matchLength cs = length cols == length cs
@@ -304,6 +315,10 @@ allPrimaryKeys tabs = do
         kc.table_schema = tc.table_schema AND
         kc.constraint_name = tc.constraint_name AND
         kc.table_schema NOT IN ('pg_catalog', 'information_schema')
+    ORDER BY
+        kc.table_schema,
+        kc.table_name,
+        kc.ordinal_position DESC
     |]
   return $ mapMaybe (pkFromRow tabs) pks
 

@@ -1,14 +1,15 @@
 module PostgREST.Types where
-import Data.Text
-import Data.Tree
+
+import           Data.Text (Text)
+import           Data.Tree
 import qualified Data.ByteString.Char8 as BS
-import Data.Aeson
-import Data.Map
+import           Data.Aeson
+import           Data.Map (Map)
 
 data DbStructure = DbStructure {
-  dbTables :: [Table]
-, dbColumns :: [Column]
-, dbRelations :: [Relation]
+  dbTables      :: [Table]
+, dbColumns     :: [Column]
+, dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
 } deriving (Show, Eq)
 
@@ -18,9 +19,9 @@ data Table = Table {
   tableSchema     :: Schema
 , tableName       :: Text
 , tableInsertable :: Bool
-} deriving (Show, Ord)
+} deriving (Show)
 
-data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
+data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq)
 
 data Column =
     Column {
@@ -37,13 +38,13 @@ data Column =
     , colFK        :: Maybe ForeignKey
     }
   | Star { colTable :: Table }
-  deriving (Show, Ord)
+  deriving (Show)
 
 type Synonym = (Column,Column)
 
 data PrimaryKey = PrimaryKey {
-    pkTable :: Table
-  , pkName  :: Text
+  pkTable    :: Table
+, pkName     :: Text
 } deriving (Show, Eq)
 
 data OrderTerm = OrderTerm {

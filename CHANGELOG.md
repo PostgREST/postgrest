@@ -6,19 +6,35 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
-- Embed associations, e.g. `/film?select=*,director(*)` - @ruslantalpa
-- Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
-- Does not execute the count total if header "Prefer: count=none" - @diogob
-- Postgres connection string argument - @calebmer
 - Ensure JWT expires - @calebmer
+- Postgres connection string argument - @calebmer
+- Encode JWT for procs that return type `jwt_claims` - @
+- Full text operators `@>`,`<@` - @ruslantalpa
+- Shaping of the response body (filter columns, embed relations) with &select parameter for POST/PATCH - @ruslantalpa
+- Detect relationships between public views and private tables - @calebmer
 
 ### Removed
 - API versioning feature - @calebmer
 - `--db-x` command line arguments - @calebmer
-- Remove secure flag - @calebmer
+- Secure flag - @calebmer
+- PUT request handling - @ruslantalpa
+
+## [0.2.12.1] - 2015-11-12
+
+### Fixed
+- Correct order for -> and ->> in a json path - @ruslantalpa
+- Return empty array instead of 500 when a set returning function returns an empty result set - @diogob
+
+## [0.2.12.0] - 2015-10-25
+
+### Added
+- Embed associations, e.g. `/film?select=*,director(*)` - @ruslantalpa
+- Filter columns, e.g. `?select=col1,col2` - @ruslantalpa
+- Does not execute the count total if header "Prefer: count=none" - @diogob
 
 ### Fixed
 - Tolerate a missing role in user creation - @calebmer
+- Avoid unnecessary text re-encoding - @ruslantalpa
 
 ## [0.2.11.1] - 2015-09-01
 

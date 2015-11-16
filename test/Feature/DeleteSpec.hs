@@ -7,7 +7,7 @@ import SpecHelper
 import Network.HTTP.Types
 
 spec :: Spec
-spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable "items")
+spec = beforeAll (clearTable "items" >> createItems 30) . afterAll_ (clearTable "items")
   . around withApp $
   describe "Deleting" $ do
     context "existing record" $ do
@@ -19,9 +19,9 @@ spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable 
           , matchHeaders = ["Content-Range" <:> "*/1"]
           }
 
-      it "actually clears items ouf the db" $ do
+      it "actually clears items out of the db" $ do
         _ <- request methodDelete "/items?id=lt.15" [] ""
-        get "/items"
+        get "/items?id=lte.15"
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "[{\"id\":15}]"
           , matchStatus  = 200
