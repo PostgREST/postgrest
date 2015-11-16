@@ -34,8 +34,8 @@ import           Control.Error           (note, fromMaybe, mapMaybe)
 import           Control.Monad           (join)
 import           Data.List               (find)
 import           Data.Monoid             ((<>))
-import           Data.Text               (Text)
-import qualified Data.Text as T
+import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
+import qualified Data.Text as T          (map, takeWhile)
 import           Data.String.Conversions (cs)
 import qualified Data.HashMap.Strict     as H
 import           Control.Applicative     (empty, (<|>))
@@ -48,6 +48,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
+import           Prelude hiding (unwords)
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
@@ -96,7 +97,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
 
-asCsvF :: T.Text
+asCsvF :: Text
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
     asCsvHeaderF =
@@ -116,29 +117,29 @@ asJson s = s {
     "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
 
-asJsonF :: T.Text
+asJsonF :: Text
 asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
 
-asJsonSingleF :: T.Text --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF :: Text --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
 
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
-  let args = T.intercalate "," $ map assignment (H.toList params)
+  let args = intercalate "," $ map assignment (H.toList params)
   B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
-countAllF :: T.Text
+countAllF :: Text
 countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
 
-countF :: T.Text
+countF :: Text
 countF = "pg_catalog.count(t)"
 
-countNoneF :: T.Text
+countNoneF :: Text
 countNoneF = "null"
 
-locationF :: [T.Text] -> T.Text
+locationF :: [Text] -> Text
 locationF pKeys =
     "(" <>
     " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
@@ -147,11 +148,11 @@ locationF pKeys =
     (
       if null pKeys
       then ""
-      else " WHERE json_data.key IN ('" <> T.intercalate "','" pKeys <> "')"
+      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
     ) <>
     ")"
 
-operators :: [(T.Text, T.Text)]
+operators :: [(Text, Text)]
 operators = [
   ("eq", "="),
   ("gte", ">="), -- has to be before gt (parsers)
@@ -170,20 +171,20 @@ operators = [
   ("<@", "<@")
   ]
 
-pgFmtIdent :: T.Text -> T.Text
+pgFmtIdent :: Text -> Text
 pgFmtIdent x =
- let escaped = T.replace "\"" "\"\"" (trimNullChars $ cs x) in
+ let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
  if (cs escaped :: BS.ByteString) =~ danger
    then "\"" <> escaped <> "\""
    else escaped
  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
 
-pgFmtLit :: T.Text -> T.Text
+pgFmtLit :: Text -> Text
 pgFmtLit x =
  let trimmed = trimNullChars x
-     escaped = "'" <> T.replace "'" "''" trimmed <> "'"
-     slashed = T.replace "\\" "\\\\" escaped in
- if T.isInfixOf "\\\\" escaped
+     escaped = "'" <> replace "'" "''" trimmed <> "'"
+     slashed = replace "\\" "\\\\" escaped in
+ if "\\\\" `isInfixOf` escaped
    then "E" <> slashed
    else slashed
 
@@ -196,11 +197,11 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
     tblSchema tbl = if tbl == sourceSubqueryName then "" else schema
     qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
     toQi t = QualifiedIdentifier (tblSchema t) t
-    query = T.unwords [
-      ("WITH " <> T.intercalate ", " withs) `emptyOnNull` withs,
-      "SELECT ", T.intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-      "FROM ", T.intercalate ", " (map (fromQi . toQi) tbls),
-      ("WHERE " <> T.intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+    query = unwords [
+      ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
+      "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
+      "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
@@ -232,13 +233,13 @@ requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
-    query = T.unwords [
+    query = unwords [
       "INSERT INTO ", fromQi qi,
-      " (" <> T.intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
-      "VALUES " <> T.intercalate ", "
+      " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
+      "VALUES " <> intercalate ", "
         ( map (\v ->
             "(" <>
-            T.intercalate ", " ( map insertableValue v ) <>
+            intercalate ", " ( map insertableValue v ) <>
             ")"
           ) vals
         ),
@@ -248,10 +249,10 @@ requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
-    query = T.unwords [
+    query = unwords [
       "UPDATE ", fromQi qi,
-      " SET " <> T.intercalate ", " (map formatSet (M.toList setWith)) <> " ",
-      ("WHERE " <> T.intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       "RETURNING " <> fromQi qi <> ".*"
       ]
     formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
@@ -259,35 +260,35 @@ requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
-    query = T.unwords [
+    query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> T.intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       "RETURNING " <> fromQi qi <> ".*"
       ]
 
-selectStarF :: T.Text
+selectStarF :: Text
 selectStarF = "SELECT * FROM " <> sourceSubqueryName
 
-sourceSubqueryName :: T.Text
+sourceSubqueryName :: Text
 sourceSubqueryName = "pg_source"
 
-unquoted :: JSON.Value -> T.Text
+unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted v = cs $ JSON.encode v
 
-wrapQuery :: T.Text -> [T.Text] -> T.Text ->  Maybe NonnegRange -> T.Text
+wrapQuery :: Text -> [Text] -> Text ->  Maybe NonnegRange -> Text
 wrapQuery source selectColumns returnSelect range =
   withSourceF source <>
   " SELECT " <>
-  T.intercalate ", " selectColumns <>
+  intercalate ", " selectColumns <>
   " " <>
   fromF returnSelect ( limitF range )
 
 -- private functions
-fromQi :: QualifiedIdentifier -> T.Text
+fromQi :: QualifiedIdentifier -> Text
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
@@ -310,45 +311,45 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
 
-orderF :: [OrderTerm] -> T.Text
+orderF :: [OrderTerm] -> Text
 orderF ts =
   if null ts
     then ""
     else "ORDER BY " <> clause
   where
-    clause = T.intercalate "," (map queryTerm ts)
-    queryTerm :: OrderTerm -> T.Text
+    clause = intercalate "," (map queryTerm ts)
+    queryTerm :: OrderTerm -> Text
     queryTerm t = " "
            <> cs (pgFmtIdent $ otTerm t) <> " "
            <> cs (otDirection t)         <> " "
            <> maybe "" cs (otNullOrder t) <> " "
 
-insertableValue :: JSON.Value -> T.Text
+insertableValue :: JSON.Value -> Text
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
-whiteList :: T.Text -> T.Text
+whiteList :: Text -> Text
 whiteList val = fromMaybe
   (cs (pgFmtLit val) <> "::unknown ")
-  (find ((==) . T.toLower $ val) ["null","true","false"])
+  (find ((==) . toLower $ val) ["null","true","false"])
 
-pgFmtColumn :: QualifiedIdentifier -> T.Text -> T.Text
+pgFmtColumn :: QualifiedIdentifier -> Text -> Text
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
 
-pgFmtField :: QualifiedIdentifier -> Field -> T.Text
+pgFmtField :: QualifiedIdentifier -> Field -> Text
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> T.Text
+pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
 pgFmtSelectItem table (f@(_, jp), Nothing) = pgFmtField table f <> pgFmtAsJsonPath jp
 pgFmtSelectItem table (f@(_, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAsJsonPath jp
 
-pgFmtCondition :: QualifiedIdentifier -> Filter -> T.Text
+pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
 pgFmtCondition table (Filter (col,jp) ops val) =
   notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
     if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
   where
-    headPredicate:rest = T.split (=='.') ops
+    headPredicate:rest = split (=='.') ops
     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
     opCode      = hasNot (head rest) headPredicate
     notOp       = hasNot headPredicate ""
@@ -365,43 +366,43 @@ pgFmtCondition table (Filter (col,jp) ops val) =
         where qi = QualifiedIdentifier (if ft == sourceSubqueryName then "" else s) ft
       _ -> ""
 
-pgFmtValue :: T.Text -> T.Text -> T.Text
+pgFmtValue :: Text -> Text -> Text
 pgFmtValue opCode val =
  case opCode of
    "like" -> unknownLiteral $ T.map star val
    "ilike" -> unknownLiteral $ T.map star val
-   "in" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') val) <> ") "
-   "notin" -> "(" <> T.intercalate ", " (map unknownLiteral $ T.split (==',') val) <> ") "
+   "in" -> "(" <> intercalate ", " (map unknownLiteral $ split (==',') val) <> ") "
+   "notin" -> "(" <> intercalate ", " (map unknownLiteral $ split (==',') val) <> ") "
    "@@" -> "to_tsquery(" <> unknownLiteral val <> ") "
    _    -> unknownLiteral val
  where
    star c = if c == '*' then '%' else c
    unknownLiteral = (<> "::unknown ") . pgFmtLit
 
-pgFmtOperator :: T.Text -> T.Text
+pgFmtOperator :: Text -> Text
 pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operatorsMap
   where
     operatorsMap = M.fromList operators
 
-pgFmtJsonPath :: Maybe JsonPath -> T.Text
+pgFmtJsonPath :: Maybe JsonPath -> Text
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
 pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
 pgFmtJsonPath _ = ""
 
-pgFmtAsJsonPath :: Maybe JsonPath -> T.Text
+pgFmtAsJsonPath :: Maybe JsonPath -> Text
 pgFmtAsJsonPath Nothing = ""
 pgFmtAsJsonPath (Just xx) = " AS " <> last xx
 
-trimNullChars :: T.Text -> T.Text
+trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
-withSourceF :: T.Text -> T.Text
+withSourceF :: Text -> Text
 withSourceF s = "WITH " <> sourceSubqueryName <> " AS (" <> s <>")"
 
-fromF :: T.Text -> T.Text -> T.Text
+fromF :: Text -> Text -> Text
 fromF sel limit = "FROM (" <> sel <> " " <> limit <> ") t"
 
-limitF :: Maybe NonnegRange -> T.Text
+limitF :: Maybe NonnegRange -> Text
 limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
