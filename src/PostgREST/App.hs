@@ -140,7 +140,7 @@ app dbStructure conf reqBody req =
             _         -> return $ responseLBS status404 [] ""
 
     (["rpc", proc], "POST") -> do
-      let qi = [schema, cs proc]
+      let qi = QualifiedIdentifier (Just schema) (cs proc) Nothing
       exists <- doesProcExist schema proc
       if exists
         then do
@@ -369,8 +369,9 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     method = requestMethod httpRequest
     qParams = queryParams httpRequest
     parsedBody = parseRequestBody isCsv reqBody
-    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
+    isSingleRecord = either (const False) ((==1) . length . snd) parsedBody
     allFilters = whereFilters qParams
+    rootTableQi = QualifiedIdentifier (Just schema) rootTableName Nothing
     selectApiRequest = augumentRequestWithJoin schema rels
       =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
       where
@@ -383,17 +384,17 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
           then "*" -- we are not returning the records so no need to consider nested items
           else selectStr qParams
         rootName = if method == "GET"
-          then [schema,rootTableName]
-          else [sourceSubqueryName]
+          then rootTableQi
+          else QualifiedIdentifier Nothing sourceSubqueryName Nothing
         filters = if method == "GET"
           then allFilters
           else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
     buildRequest = requestToQuery schema . qualifyRequest schema
     selectQuery = buildRequest <$> selectApiRequest
     mutateQuery = buildRequest <$> case method of
-      "POST"   -> Node <$> ((,) <$> (Insert [schema,rootTableName] <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      "PATCH"  -> Node <$> ((,) <$> (Update [schema,rootTableName] <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      "DELETE" -> Node <$> ((,) <$> (Delete [[schema,rootTableName]] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "POST"   -> Node <$> ((,) <$> (Insert rootTableQi <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update rootTableQi <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableQi] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> Left "Unsupported HTTP verb"
       where
         parseField f = parse pField ("failed to parse field <<"++f++">>") f
@@ -415,9 +416,9 @@ qualifyRequest schema (Node (q,x@(name,_)) forest) =
   where
     updatedForest = map (qualifyRequest schema) forest
 
-    quTable ["",uqi] = sch ++ [uqi] where sch = if uqi == sourceSubqueryName then [] else [schema]
+    quTable (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch uqi Nothing where sch = if name == sourceSubqueryName then Nothing else Just schema
     quTable qi = qi
-    quColumn ["",uqi] = sch ++ [name,uqi] where sch = if name == sourceSubqueryName then [] else [schema]
+    quColumn (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch name (Just uqi) where sch = if name == sourceSubqueryName then Nothing else Just schema
     quColumn qi = qi
 
     quField (qi,jp) = (quColumn qi,jp)
@@ -427,7 +428,7 @@ qualifyRequest schema (Node (q,x@(name,_)) forest) =
     quFields = map quField
     quWhere = map quFilter
     quSelectItems = map quSelectItem
-    quHash = M.mapKeys (first (\qi -> [last qi]))
+    quHash = M.mapKeys quField
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range countTable asCsv =

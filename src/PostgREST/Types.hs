@@ -26,7 +26,7 @@ data Table = Table {
 } deriving (Show, Ord)
 
 tableQi :: Table -> QualifiedIdentifier
-tableQi t = [tableSchema t, tableName t]
+tableQi t = QualifiedIdentifier (Just $ tableSchema t) (tableName t) Nothing
 
 data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
@@ -47,7 +47,7 @@ data Column = Column {
 } deriving (Show, Ord)
 
 colQi :: Column -> QualifiedIdentifier
-colQi c = tableQi (colTable c) ++ [colName c]
+colQi c = QualifiedIdentifier (Just $ (tableSchema . colTable) c) ((tableName . colTable) c) (Just $ colName c)
 
 type Synonym = (Column,Column)
 
@@ -74,7 +74,14 @@ data Relation = Relation {
 , relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
-type QualifiedIdentifier = [Text]
+data QualifiedIdentifier = QualifiedIdentifier {
+  qiSchema :: Maybe Schema
+, qiTable  :: Text
+, qiColumn :: Maybe Text
+} | UnqualifiedIdentifier {
+  qiName   :: Text
+} deriving (Show, Eq, Ord)
+
 type Path = [Text]
 type JsonPath = [Text]
 type Operator = Text

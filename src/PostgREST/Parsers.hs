@@ -12,13 +12,13 @@ import           PostgREST.QueryBuilder        (operators)
 pRequestSelect :: QualifiedIdentifier -> Parser ApiRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (last rootNodeName, Nothing)) []) fieldTree
+  return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (qiTable rootNodeName, Nothing)) []) fieldTree
   where
     treeEntry :: Tree SelectItem -> ApiRequest -> ApiRequest
     treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [fn] [] Nothing, (last fn, Nothing)) []) fldForest:rForest)
+        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [fn] [] Nothing, (qiName fn, Nothing)) []) fldForest:rForest)
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -42,7 +42,7 @@ pTreePath = do
   jp <- optionMaybe pJsonPath
   let pp = map cs p
       jpp = map cs <$> jp
-  return (init pp, (["",last pp], jpp))
+  return (init pp, (UnqualifiedIdentifier (last pp), jpp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
@@ -65,14 +65,14 @@ pJsonPath :: Parser [Text]
 pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
 
 pField :: Parser Field
-pField = lexeme $ (,) <$> ((\x -> ["",x]) <$> pFieldName) <*> optionMaybe pJsonPath
+pField = lexeme $ (,) <$> (UnqualifiedIdentifier <$> pFieldName) <*> optionMaybe pJsonPath
 
 pSelect :: Parser SelectItem
 pSelect = lexeme $
   try ((,) <$> pField <*>((cs <$>) <$> optionMaybe (string "::" *> many letter)) )
   <|> do
     s <- pStar
-    return ((["",s], Nothing), Nothing)
+    return ((UnqualifiedIdentifier s, Nothing), Nothing)
 
 pOperator :: Parser Operator
 pOperator = cs <$> (pOp <?> "operator (eq, gt, ...)")

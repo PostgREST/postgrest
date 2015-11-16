@@ -230,14 +230,14 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, _) forest) =
 requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
   query
   where
-    qi = [schema,mainTbl]
+    qi = QualifiedIdentifier (Just schema) mainTbl Nothing
     query = unwords [
       "INSERT INTO ", fromQi qi,
-      " (" <> intercalate ", " (map (pgFmtIdent . last . fst) flds) <> ") ",
+      " (" <> intercalate ", " (map pgFmtIdent $ mapMaybe (qiColumn . fst) flds) <> ") ",
       "VALUES " <> intercalate ", "
         ( map (\v ->
             "(" <>
-            intercalate ", " ( map insertableValue v ) <>
+            intercalate ", " (map insertableValue v) <>
             ")"
           ) vals
         ),
@@ -247,19 +247,20 @@ requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
 requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
   query
   where
-    qi = [schema,mainTbl]
+    qi = QualifiedIdentifier (Just schema) mainTbl Nothing
     query = unwords [
       "UPDATE ", fromQi qi,
-      " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
+      " SET " <> intercalate ", " (mapMaybe formatSet (M.toList setWith)) <> " ",
       ("WHERE " <> intercalate " AND " (map pgFmtCondition conditions)) `emptyOnNull` conditions,
       "RETURNING " <> fromQi qi <> ".*"
       ]
-    formatSet ((qqi, jp), v) = fromQi qqi <> pgFmtJsonPath jp <> " = " <> insertableValue v
+    formatSet ((QualifiedIdentifier _ _ (Just c), jp), v) = Just $ pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
+    formatSet _ = Nothing
 
 requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
   query
   where
-    qi = [schema,mainTbl]
+    qi = QualifiedIdentifier (Just schema) mainTbl Nothing
     query = unwords [
       "DELETE FROM ", fromQi qi,
       ("WHERE " <> intercalate " AND " (map pgFmtCondition conditions)) `emptyOnNull` conditions,
@@ -289,7 +290,9 @@ wrapQuery source selectColumns returnSelect range =
 
 -- private functions
 fromQi :: QualifiedIdentifier -> SqlFragment
-fromQi t = intercalate "." $ map pgFmtIdent t
+fromQi (QualifiedIdentifier s t (Just "*")) = fromQi (QualifiedIdentifier s t Nothing) <> ".*"
+fromQi (QualifiedIdentifier s t c) = intercalate "." $ mapMaybe (pgFmtIdent <$>) [s,Just t,c]
+fromQi (UnqualifiedIdentifier _) = error "Identifier must be qualified"
 
 getJoinConditions :: Relation -> [Filter]
 getJoinConditions (Relation t cols ft fcols typ mlt lc1 lc2) =
@@ -300,7 +303,8 @@ getJoinConditions (Relation t cols ft fcols typ mlt lc1 lc2) =
   where
     lt = fromJust mlt -- This is ok because it is only used when the relation is of the `Many` type
     toFilter tb ftb c fc = Filter (makeQi tb c, Nothing) "=" $ VForeignKey (makeQi ftb fc)
-    makeQi tb c = (if tableName tb == sourceSubqueryName then [] else [tableSchema tb]) ++ [tableName tb, colName c]
+    makeQi tb c = QualifiedIdentifier sch (tableName tb) (Just $ colName c)
+      where sch = if tableName tb == sourceSubqueryName then Nothing else Just (tableSchema tb)
 
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
@@ -327,17 +331,8 @@ whiteList val = fromMaybe
   (cs (pgFmtLit val) <> "::unknown ")
   (find ((==) . toLower $ val) ["null","true","false"])
 
-pgFmtColumn :: QualifiedIdentifier -> SqlFragment
-pgFmtColumn qi =
-  if col == "*"
-    then fromQi table <> ".*"
-    else fromQi qi
-  where
-    table = init qi
-    col = last qi
-
 pgFmtField :: Field -> SqlFragment
-pgFmtField (c, jp) = pgFmtColumn c <> pgFmtJsonPath jp
+pgFmtField (c, jp) = fromQi c <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: SelectItem -> SqlFragment
 pgFmtSelectItem (f@(_, jp), Nothing) = pgFmtField f <> pgFmtAsJsonPath jp
@@ -353,14 +348,14 @@ pgFmtCondition (Filter (col,jp) ops val) =
     opCode      = hasNot (head rest) headPredicate
     notOp       = hasNot headPredicate ""
     sqlCol = case val of
-      VText _ -> pgFmtColumn col <> pgFmtJsonPath jp
-      VForeignKey _ -> pgFmtColumn col
+      VText _ -> fromQi col <> pgFmtJsonPath jp
+      VForeignKey _ -> fromQi col
     innerVal = case val of
       VText s -> s
       _ -> ""
     sqlValue = case val of
       VText s -> pgFmtValue opCode s
-      VForeignKey qi -> pgFmtColumn qi
+      VForeignKey qi -> fromQi qi
 
 pgFmtValue :: Text -> Text -> SqlFragment
 pgFmtValue opCode val =
