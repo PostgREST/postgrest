@@ -19,7 +19,7 @@ import qualified Data.HashMap.Strict       as HM
 import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
-import           Data.Ranged.Ranges        (emptyRange)
+import           Data.Ranged.Ranges        (emptyRange, singletonRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
@@ -88,25 +88,30 @@ app dbStructure conf reqBody req =
           if range == Just emptyRange
           then return $ responseLBS status416 [] "HTTP Range error"
           else do
-            let q = createReadStatement selectQuery range (not $ hasPrefer "count=none") isCsv
+            let q = createReadStatement selectQuery (if singular then Nothing else range) singular (not $ hasPrefer "count=none") isCsv
             row <- H.maybeEx q
             let (tableTotal, queryTotal, _ , body) = extractQueryResult row
-                frm = fromMaybe 0 $ rangeOffset <$> range
-                to = frm+queryTotal-1
-                contentRange = contentRangeH frm to tableTotal
-                status = rangeStatus frm to tableTotal
-                canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
-                  . sortBy (comparing fst)
-                  . map (join (***) cs)
-                  . parseSimpleQuery
-                  $ rawQueryString req
-            return $ responseLBS status
-              [contentTypeH, contentRange,
-                ("Content-Location",
-                  "/" <> cs table <>
-                    if Prelude.null canonical then "" else "?" <> cs canonical
-                )
-              ] (fromMaybe "[]" body)
+            if singular
+            then return $ if queryTotal <= 0
+              then responseLBS status404 [] ""
+              else responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
+            else do
+              let frm = fromMaybe 0 $ rangeOffset <$> range
+                  to = frm+queryTotal-1
+                  contentRange = contentRangeH frm to tableTotal
+                  status = rangeStatus frm to tableTotal
+                  canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
+                    . sortBy (comparing fst)
+                    . map (join (***) cs)
+                    . parseSimpleQuery
+                    $ rawQueryString req
+              return $ responseLBS status
+                [contentTypeH, contentRange,
+                  ("Content-Location",
+                    "/" <> cs table <>
+                      if Prelude.null canonical then "" else "?" <> cs canonical
+                  )
+                ] (fromMaybe "[]" body)
         Right (selectQuery, Just (mutateQuery, isSingle)) ->
           case verb of
             "POST"    -> do
@@ -183,6 +188,7 @@ app dbStructure conf reqBody req =
     isCsv         = contentType == csvMT
     contentTypeH  = (hContentType, contentType)
     echoRequested = hasPrefer "return=representation"
+    singular      = hasPrefer "plurality=singular"
     request = parseRequest schema (dbRelations dbStructure) (head path) req reqBody --TODO! is head safe?
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
@@ -404,15 +410,17 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
               then M.fromList <$> (zip <$> flds <*> (head <$> vals))
               else Left "Expecting a sigle CSV line with header or a JSON object"
 
-createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
-createReadStatement selectQuery range countTable asCsv =
+createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
+createReadStatement selectQuery range isSingle countTable asCsv =
   B.Stmt (
     wrapQuery selectQuery [
       if countTable then countAllF else countNoneF,
       countF,
       "null", -- location header can not be calucalted
-      if asCsv then asCsvF else asJsonF
-    ] selectStarF range
+      if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
   ) V.empty True
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> [Text] -> Bool -> B.Stmt P.Postgres
