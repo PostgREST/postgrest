@@ -322,7 +322,7 @@ whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["selec
 orderStr :: [(String, Maybe String)] -> Maybe String
 orderStr qParams = join $ lookup "order" qParams
 
-buildSelectApiRequest :: Text -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
+buildSelectApiRequest :: TableName -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
 buildSelectApiRequest rootTableName sel wher orderS =
   first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
   where
@@ -346,7 +346,12 @@ addFilter (path, flt) (Node rn forest) =
         Just node -> (Just node, delete node forest)
       where maybeNode = find ((name==).fst.snd.rootLabel) forst
 
-toSourceRelation :: Text -> Relation -> Maybe Relation
+-- in a relation where one of the tables mathces "TableName"
+-- replace the name to that table with pg_source
+-- this "fake" relations is needed so that in a mutate query
+-- we can look a the "returning *" part which is wrapped with a "with"
+-- as just another table that has relations with other tables
+toSourceRelation :: TableName -> Relation -> Maybe Relation
 toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | mt == tableName t = Just $ r {relTable=t {tableName=sourceSubqueryName}}
   | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceSubqueryName}}
@@ -363,7 +368,7 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
-parseRequest :: Schema -> [Relation] -> NodeName -> Request -> BL.ByteString -> Either Text (Text, Text, Bool)
+parseRequest :: Schema -> [Relation] -> TableName -> Request -> BL.ByteString -> Either Text (SqlQuery, SqlQuery, Bool)
 parseRequest schema allRels rootTableName httpRequest reqBody =
   (,,) <$> selectQuery
        <*> (if method == "GET" then pure "" else mutateQuery)
@@ -385,7 +390,7 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     allFilters = whereFilters qParams
     mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-    fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels
+    fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
     rels = case method of
       "POST"  -> fakeSourceRelations ++ allRels
       "PATCH" -> fakeSourceRelations ++ allRels
@@ -409,7 +414,7 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
       "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> undefined
 
-createStatement :: Text -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> Text
+createStatement :: SqlQuery -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> SqlQuery
 createStatement selectQuery Nothing _ range _ countTable asCsv =
   wrapQuery selectQuery [
     if countTable then countAllF else countNoneF,

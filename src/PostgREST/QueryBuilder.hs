@@ -48,7 +48,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
-import           Prelude hiding (unwords)
+import           Prelude hiding          (unwords)
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
@@ -97,7 +97,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{where_=con ++ where_ q}
 
-asCsvF :: Text
+asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
     asCsvHeaderF =
@@ -117,10 +117,10 @@ asJson s = s {
     "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
 
-asJsonF :: Text
+asJsonF :: SqlFragment
 asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
 
-asJsonSingleF :: Text --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
 
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
@@ -130,16 +130,16 @@ callProc qi params = do
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
-countAllF :: Text
+countAllF :: SqlFragment
 countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
 
-countF :: Text
+countF :: SqlFragment
 countF = "pg_catalog.count(t)"
 
-countNoneF :: Text
+countNoneF :: SqlFragment
 countNoneF = "null"
 
-locationF :: [Text] -> Text
+locationF :: [Text] -> SqlFragment
 locationF pKeys =
     "(" <>
     " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
@@ -152,7 +152,7 @@ locationF pKeys =
     ) <>
     ")"
 
-operators :: [(Text, Text)]
+operators :: [(Text, SqlFragment)]
 operators = [
   ("eq", "="),
   ("gte", ">="), -- has to be before gt (parsers)
@@ -171,7 +171,7 @@ operators = [
   ("<@", "<@")
   ]
 
-pgFmtIdent :: Text -> Text
+pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x =
  let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
  if (cs escaped :: BS.ByteString) =~ danger
@@ -179,7 +179,7 @@ pgFmtIdent x =
    else escaped
  where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
 
-pgFmtLit :: Text -> Text
+pgFmtLit :: SqlFragment -> SqlFragment
 pgFmtLit x =
  let trimmed = trimNullChars x
      escaped = "'" <> replace "'" "''" trimmed <> "'"
@@ -188,7 +188,7 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
-requestToQuery :: Schema -> ApiRequest -> Text
+requestToQuery :: Schema -> ApiRequest -> SqlQuery
 requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
   query
   where
@@ -205,7 +205,7 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
       orderF (fromMaybe [] ord)
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree ApiNode -> ([Text], [Text]) -> ([Text], [Text])
+    getQueryParts :: Tree ApiNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
@@ -266,10 +266,10 @@ requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
       "RETURNING " <> fromQi qi <> ".*"
       ]
 
-selectStarF :: Text
+selectStarF :: SqlFragment
 selectStarF = "SELECT * FROM " <> sourceSubqueryName
 
-sourceSubqueryName :: Text
+sourceSubqueryName :: SqlFragment
 sourceSubqueryName = "pg_source"
 
 unquoted :: JSON.Value -> Text
@@ -279,7 +279,7 @@ unquoted (JSON.Number n) =
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted v = cs $ JSON.encode v
 
-wrapQuery :: Text -> [Text] -> Text ->  Maybe NonnegRange -> Text
+wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
 wrapQuery source selectColumns returnSelect range =
   withSourceF source <>
   " SELECT " <>
@@ -288,7 +288,7 @@ wrapQuery source selectColumns returnSelect range =
   fromF returnSelect ( limitF range )
 
 -- private functions
-fromQi :: QualifiedIdentifier -> Text
+fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
@@ -311,7 +311,7 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
 
-orderF :: [OrderTerm] -> Text
+orderF :: [OrderTerm] -> SqlFragment
 orderF ts =
   if null ts
     then ""
@@ -324,27 +324,27 @@ orderF ts =
            <> cs (otDirection t)         <> " "
            <> maybe "" cs (otNullOrder t) <> " "
 
-insertableValue :: JSON.Value -> Text
+insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
-whiteList :: Text -> Text
+whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe
   (cs (pgFmtLit val) <> "::unknown ")
   (find ((==) . toLower $ val) ["null","true","false"])
 
-pgFmtColumn :: QualifiedIdentifier -> Text -> Text
+pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
 
-pgFmtField :: QualifiedIdentifier -> Field -> Text
+pgFmtField :: QualifiedIdentifier -> Field -> SqlFragment
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> Text
+pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
 pgFmtSelectItem table (f@(_, jp), Nothing) = pgFmtField table f <> pgFmtAsJsonPath jp
 pgFmtSelectItem table (f@(_, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAsJsonPath jp
 
-pgFmtCondition :: QualifiedIdentifier -> Filter -> Text
+pgFmtCondition :: QualifiedIdentifier -> Filter -> SqlFragment
 pgFmtCondition table (Filter (col,jp) ops val) =
   notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
     if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
@@ -366,7 +366,7 @@ pgFmtCondition table (Filter (col,jp) ops val) =
         where qi = QualifiedIdentifier (if ft == sourceSubqueryName then "" else s) ft
       _ -> ""
 
-pgFmtValue :: Text -> Text -> Text
+pgFmtValue :: Text -> Text -> SqlFragment
 pgFmtValue opCode val =
  case opCode of
    "like" -> unknownLiteral $ T.map star val
@@ -379,30 +379,30 @@ pgFmtValue opCode val =
    star c = if c == '*' then '%' else c
    unknownLiteral = (<> "::unknown ") . pgFmtLit
 
-pgFmtOperator :: Text -> Text
+pgFmtOperator :: Text -> SqlFragment
 pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operatorsMap
   where
     operatorsMap = M.fromList operators
 
-pgFmtJsonPath :: Maybe JsonPath -> Text
+pgFmtJsonPath :: Maybe JsonPath -> SqlFragment
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
 pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
 pgFmtJsonPath _ = ""
 
-pgFmtAsJsonPath :: Maybe JsonPath -> Text
+pgFmtAsJsonPath :: Maybe JsonPath -> SqlFragment
 pgFmtAsJsonPath Nothing = ""
 pgFmtAsJsonPath (Just xx) = " AS " <> last xx
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
-withSourceF :: Text -> Text
+withSourceF :: SqlFragment -> SqlFragment
 withSourceF s = "WITH " <> sourceSubqueryName <> " AS (" <> s <>")"
 
-fromF :: Text -> Text -> Text
+fromF :: SqlFragment -> SqlFragment -> SqlFragment
 fromF sel limit = "FROM (" <> sel <> " " <> limit <> ") t"
 
-limitF :: Maybe NonnegRange -> Text
+limitF :: Maybe NonnegRange -> SqlFragment
 limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
