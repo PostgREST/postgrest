@@ -32,10 +32,6 @@ spec =
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404
 
-  describe "Querying a nonexistent row" $
-    it "causes a 404" $
-      get "/items/101" `shouldRespondWith` 404
-
   describe "Filtering response" $ do
     it "matches with equality" $
       get "/items?id=eq.5"
@@ -149,39 +145,6 @@ spec =
       get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
         [str|[{"id":1},{"id":2}]|]
 
-  describe "Single row route" $ do
-    it "will select an existing object" $
-      get "/items/5"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will select an existing object with parentheses syntax" $
-      get "/items/(5)"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will select an object using a compound key" $
-      get "/compound_pk/(2,4)"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "{\"k2\":2,\"k1\":4,\"extra\":5}"
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will fail with too many keys" $
-      get "/compound_pk/(2,4,5)"
-        `shouldRespondWith` 404
-
-    it "will fail without tuple syntax" $
-      get "/compound_pk/2,4"
-        `shouldRespondWith` 404
-
   describe "Shaping response with select parameter" $ do
 
     it "selectStar works in absense of parameter" $
@@ -250,9 +213,31 @@ spec =
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
 
-    it "can shape single object routes" $
-      get "/projects_view/1?select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
-        "{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}"
+  describe "Plurality singular" $ do
+    it "will select an existing object" $
+      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"id":5} |]
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
+    it "will respond with 404 when not found" $
+      request methodGet "/items?id=eq.9999" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` 404
+
+    it "will select an object using a compound key" $
+      request methodGet "/compound_pk?k2=eq.2&k1=eq.4" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just "{\"k2\":2,\"k1\":4,\"extra\":5}"
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
+    it "can shape plurality singular object routes" $
+      request methodGet "/projects_view?id=eq.1&select=id,name,clients(*),tasks(id,name)" [("Prefer","plurality=singular")] ""
+        `shouldRespondWith`
+          "{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}"
 
 
   describe "ordering response" $ do

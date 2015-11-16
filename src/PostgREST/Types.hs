@@ -89,8 +89,6 @@ data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving 
 type ApiNode = (Query, (NodeName, Maybe Relation))
 type ApiRequest = Tree ApiNode
 
-data Locus = Locus Table [Filter] deriving (Show, Eq)
-
 
 instance ToJSON Column where
   toJSON c = object [

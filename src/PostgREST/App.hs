@@ -93,26 +93,32 @@ app dbStructure conf reqBody req =
                   case request of
                     Left e -> requestErr e
                     Right (selectQuery, _, _) -> do
-                      let q = B.Stmt (createReadStatement selectQuery range False (not $ hasPrefer "count=none") isCsv) V.empty True
+                      let q = B.Stmt (createReadStatement selectQuery (if isSingle then Nothing else range) isSingle (not $ hasPrefer "count=none") isCsv) V.empty True
                       row <- H.maybeEx q
                       let (tableTotal, queryTotal, _ , body) = extractQueryResult row
-                          to = frm+queryTotal-1
-                          contentRange = contentRangeH frm to tableTotal
-                          status = rangeStatus frm to tableTotal
-                          canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
-                            . sortBy (comparing fst)
-                            . map (join (***) cs)
-                            . parseSimpleQuery
-                            $ rawQueryString req
-                      return $ responseLBS status
-                        [contentTypeH, contentRange,
-                          ("Content-Location",
-                            "/" <> cs (tableName table) <>
-                              if Prelude.null canonical then "" else "?" <> cs canonical
-                          )
-                        ] (fromMaybe "[]" body)
+                      if isSingle
+                        then if queryTotal <= 0
+                          then notFound
+                          else return $ responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
+                        else do
+                          let to = frm+queryTotal-1
+                              contentRange = contentRangeH frm to tableTotal
+                              status = rangeStatus frm to tableTotal
+                              canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
+                                . sortBy (comparing fst)
+                                . map (join (***) cs)
+                                . parseSimpleQuery
+                                $ rawQueryString req
+                          return $ responseLBS status
+                            [contentTypeH, contentRange,
+                              ("Content-Location",
+                                "/" <> cs (tableName table) <>
+                                  if Prelude.null canonical then "" else "?" <> cs canonical
+                              )
+                            ] (fromMaybe "[]" body)
                 where
                   frm = fromMaybe 0 $ rangeOffset <$> range
+                  isSingle = hasPrefer "plurality=singular"
 
             "POST" ->
               case request of
@@ -162,50 +168,6 @@ app dbStructure conf reqBody req =
             request = parseRequest schema allRels tableN req [] reqBody
             range = rangeRequested hdrs
             pKeys = map pkName $ dbFindPrimaryKeys dbStructure table
-
-        RowE (Locus table filters) ->
-          case verb of
-            "GET" ->
-              case request of
-                Left e -> requestErr e
-                Right (selectQuery, _, _) -> do
-                  let q = B.Stmt (createReadStatement selectQuery Nothing True False isCsv) V.empty True
-                  row <- H.maybeEx q
-                  let (_, queryTotal, _, body) = extractQueryResult row
-                  if queryTotal <= 0
-                    then notFound
-                    else return $ responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
-
-            "PATCH" ->
-              case request of
-                Left e -> requestErr e
-                Right (selectQuery, mutateQuery, _) -> do
-                  let q = B.Stmt (createWriteStatement selectQuery mutateQuery True echoRequested [] isCsv) V.empty True
-                  row <- H.maybeEx q
-                  let (_, queryTotal, _, body) = extractQueryResult row
-                      (s,b) = if echoRequested
-                        then (status200, fromMaybe "{}" body)
-                        else (status204, "")
-                  if queryTotal <= 0
-                    then notFound
-                    else return $ responseLBS s [contentTypeH] b
-
-            "DELETE" ->
-              case request of
-                Left e -> requestErr e
-                Right (selectQuery, mutateQuery, _) -> do
-                  let q = B.Stmt (createWriteStatement selectQuery mutateQuery True False [] isCsv) V.empty True
-                  row <- H.maybeEx q
-                  let (_, queryTotal, _, _) = extractQueryResult row
-                  if queryTotal <= 0
-                    then notFound
-                    else return $ responseLBS status204 [] ""
-
-            _ -> notFound
-
-            where
-              tableN = tableName table
-              request = parseRequest schema allRels tableN req filters reqBody
 
         ProcedureE proc ->
           case verb of

@@ -28,20 +28,6 @@ spec = beforeAll (clearTable "items" >> createItems 30) . afterAll_ (clearTable 
           , matchHeaders = ["Content-Range" <:> "0-0/1"]
           }
 
-    context "single route" $ do
-      it "succeeds with 204" $
-        request methodDelete "/items/16" [] ""
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Nothing
-          , matchStatus  = 204
-          , matchHeaders = []
-          }
-
-      it "actually clears items out of the db" $ do
-        _ <- request methodDelete "/items/17" [] ""
-        get "/items/17"
-          `shouldRespondWith` 404
-
     context "known route, unknown record" $
       it "fails with 404" $
         request methodDelete "/items?id=eq.101" [] "" `shouldRespondWith` 404
