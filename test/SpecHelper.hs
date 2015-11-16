@@ -29,7 +29,7 @@ import qualified Data.Aeson.Types as J
 import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
-import PostgREST.Error(errResponse)
+import PostgREST.Error(pgErrResponse)
 import PostgREST.DbStructure
 
 dbString :: String
@@ -61,7 +61,7 @@ withApp perform = do
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
       $ runWithClaims cfg (app db cfg body) req
-    either (resp . errResponse) resp result
+    either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle
 

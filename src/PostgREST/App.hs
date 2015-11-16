@@ -46,6 +46,11 @@ import qualified Hasql.Postgres            as P
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.DbStructure
+import           PostgREST.RangeQuery
+import           PostgREST.Types
+import           PostgREST.Auth            (tokenJWT)
+import           PostgREST.Error           (errResponse)
+
 import           PostgREST.QueryBuilder ( asJson
                                         , callProc
                                         , asCsvF
@@ -62,9 +67,6 @@ import           PostgREST.QueryBuilder ( asJson
                                         , countNoneF
                                         , addRelations
                                         )
-import           PostgREST.RangeQuery
-import           PostgREST.Types
-import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
 
@@ -86,7 +88,7 @@ app dbStructure conf reqBody req =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (selectQuery, Nothing) -> -- should we do sanity check to make sure its a GET request?
           if range == Just emptyRange
-          then return $ responseLBS status416 [] "HTTP Range error"
+          then return $ errResponse status416 "HTTP Range error"
           else do
             let q = createReadStatement selectQuery range (not $ hasPrefer "count=none") isCsv
             row <- H.maybeEx q
@@ -135,9 +137,9 @@ app dbStructure conf reqBody req =
               row <- H.maybeEx q
               let (_, queryTotal, _, _) = extractQueryResult row
               return $ if queryTotal == 0
-                then responseLBS status404 [] ""
+                then notFound
                 else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
-            _         -> return $ responseLBS status404 [] ""
+            _         -> return notFound
 
     (["rpc", proc], "POST") -> do
       let qi = QualifiedIdentifier schema (cs proc)
@@ -153,7 +155,7 @@ app dbStructure conf reqBody req =
                     if returnJWT
                     then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                     else cs $ encode body)
-        else return $ responseLBS status404 [] ""
+        else return notFound
 
       -- check that proc exists
       -- check that arg names are all specified
@@ -164,9 +166,10 @@ app dbStructure conf reqBody req =
       return $ responseLBS status200 [jsonH] $ cs body
 
     (_, _) ->
-      return $ responseLBS status404 [] ""
+      return notFound
 
   where
+    notFound = responseLBS status404 [] ""
     allPrKeys = dbPrimaryKeys dbStructure
     filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     path          = pathInfo req
