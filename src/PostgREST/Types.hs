@@ -2,6 +2,7 @@ module PostgREST.Types where
 import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy  as BL
 import Data.Aeson
 import Data.Map
 
@@ -16,6 +17,7 @@ type Schema = Text
 type TableName = Text
 type SqlQuery = Text
 type SqlFragment = Text
+type RequestBody = BL.ByteString
 
 data Table = Table {
   tableSchema     :: Schema

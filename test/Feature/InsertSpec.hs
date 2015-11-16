@@ -218,7 +218,8 @@ spec = afterAll_ resetDb $ around withApp $ do
   describe "Putting record" $ do
 
     context "to unkonwn uri" $
-      it "gives a 404" $
+      it "gives a 404" $ do
+        pendingWith "Decide on PUT usefullness"
         request methodPut "/fake" []
           [json| { "real": false } |]
             `shouldRespondWith` 404

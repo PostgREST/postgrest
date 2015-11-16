@@ -68,20 +68,30 @@ import           PostgREST.Auth (tokenJWT)
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> BL.ByteString -> Request -> H.Tx P.Postgres s Response
+app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Tx P.Postgres s Response
 app dbStructure conf reqBody req =
   case (path, verb) of
+    ([table], "OPTIONS") -> do
+      let cols = filter (filterCol schema table) $ dbColumns dbStructure
+          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
+          body = encode (TableOptions cols pkeys)
+          filterCol :: Schema -> TableName -> Column -> Bool
+          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
+          filterCol _ _ _ =  False
 
-    ([table], "GET") ->
-      if range == Just emptyRange
-      then return $ responseLBS status416 [] "HTTP Range error"
-      else
-        case request of
-          Left e -> return $ responseLBS status400 [jsonH] $ cs e
-          Right (selectQuery, _, _) -> do
-            let q = B.Stmt (createStatement selectQuery Nothing True range [] (not $ hasPrefer "count=none") isCsv) V.empty True
+      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
+
+    ([table], _) ->
+      case request of
+        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Right (selectQuery, Nothing) -> -- should we do sanity check to make sure its a GET request?
+          if range == Just emptyRange
+          then return $ responseLBS status416 [] "HTTP Range error"
+          else do
+            let q = createReadStatement selectQuery range (not $ hasPrefer "count=none") isCsv
             row <- H.maybeEx q
             let (tableTotal, queryTotal, _ , body) = extractQueryResult row
+                frm = fromMaybe 0 $ rangeOffset <$> range
                 to = frm+queryTotal-1
                 contentRange = contentRangeH frm to tableTotal
                 status = rangeStatus frm to tableTotal
@@ -97,48 +107,37 @@ app dbStructure conf reqBody req =
                     if Prelude.null canonical then "" else "?" <> cs canonical
                 )
               ] (fromMaybe "[]" body)
-        where
-            frm = fromMaybe 0 $ rangeOffset <$> range
-
-    ([table], "POST") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, isSingle) -> do
-          let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-              q = B.Stmt (createStatement selectQuery (Just (mutateQuery, isSingle)) echoRequested Nothing pKeys False isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, _, location, body) = extractQueryResult row
-          return $ responseLBS status201
-            [
-              contentTypeH,
-              (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
-            ]
-            $ if echoRequested then fromMaybe "[]" body else ""
-
-    ([_], "PATCH") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, _) -> do
-          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) echoRequested Nothing [] False isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
-              s = case () of _ | queryTotal == 0 -> status404
-                               | echoRequested -> status200
-                               | otherwise -> status204
-          return $ responseLBS s [contentTypeH, r]
-            $ if echoRequested then fromMaybe "[]" body else ""
-
-    ([_], "DELETE") ->
-      case request of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (selectQuery, mutateQuery, _) -> do
-          let q = B.Stmt (createStatement selectQuery (Just (mutateQuery, False)) False Nothing [] True isCsv) V.empty True
-          row <- H.maybeEx q
-          let (_, queryTotal, _, _) = extractQueryResult row
-          return $ if queryTotal == 0
-            then responseLBS status404 [] ""
-            else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+        Right (selectQuery, Just (mutateQuery, isSingle)) ->
+          case verb of
+            "POST"    -> do
+              let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+                  q = createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys isCsv
+              row <- H.maybeEx q
+              let (_, _, location, body) = extractQueryResult row
+              return $ responseLBS status201
+                [
+                  contentTypeH,
+                  (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
+                ]
+                $ if echoRequested then fromMaybe "[]" body else ""
+            "PATCH"   -> do
+              let q = createWriteStatement selectQuery mutateQuery False echoRequested [] isCsv
+              row <- H.maybeEx q
+              let (_, queryTotal, _, body) = extractQueryResult row
+                  r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+                  s = case () of _ | queryTotal == 0 -> status404
+                                   | echoRequested -> status200
+                                   | otherwise -> status204
+              return $ responseLBS s [contentTypeH, r]
+                $ if echoRequested then fromMaybe "[]" body else ""
+            "DELETE"  -> do
+              let q = createWriteStatement selectQuery mutateQuery False False [] isCsv
+              row <- H.maybeEx q
+              let (_, queryTotal, _, _) = extractQueryResult row
+              return $ if queryTotal == 0
+                then responseLBS status404 [] ""
+                else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+            _         -> return $ responseLBS status404 [] ""
 
     (["rpc", proc], "POST") -> do
       let qi = QualifiedIdentifier schema (cs proc)
@@ -160,26 +159,15 @@ app dbStructure conf reqBody req =
       -- check that arg names are all specified
       -- select * from public.proc(a := "foo"::undefined) where whereT limit limitT
 
-    ([], _) -> do
-      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) allTabs)
+    ([], "GET") -> do -- this should be a GET request only
+      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) (dbTables dbStructure))
       return $ responseLBS status200 [jsonH] $ cs body
-
-    ([table], "OPTIONS") -> do
-      let cols = filter (filterCol schema table) allCols
-          pkeys = map pkName $ filter (filterPk schema table) allPrKeys
-          body = encode (TableOptions cols pkeys)
-      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
     (_, _) ->
       return $ responseLBS status404 [] ""
 
   where
-    allTabs = dbTables dbStructure
-    allRels = dbRelations dbStructure
-    allCols = dbColumns dbStructure
     allPrKeys = dbPrimaryKeys dbStructure
-    filterCol sc table (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && table==t
-    filterCol _ _ _ =  False
     filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     path          = pathInfo req
     verb          = requestMethod req
@@ -195,7 +183,7 @@ app dbStructure conf reqBody req =
     isCsv         = contentType == csvMT
     contentTypeH  = (hContentType, contentType)
     echoRequested = hasPrefer "return=representation"
-    request = parseRequest schema allRels (head path) req reqBody --TODO! is head safe?
+    request = parseRequest schema (dbRelations dbStructure) (head path) req reqBody --TODO! is head safe?
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -255,7 +243,7 @@ formatParserError e = cs $ encode $ object [
      details = strip $ replace "\n" " " $ cs
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
-parseRequestBody :: Bool -> BL.ByteString -> Either Text ([Text],[[Value]])
+parseRequestBody :: Bool -> RequestBody -> Either Text ([Text],[[Value]])
 parseRequestBody isCsv reqBody = first cs $
   checkStructure =<<
   if isCsv
@@ -368,12 +356,13 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
-parseRequest :: Schema -> [Relation] -> TableName -> Request -> BL.ByteString -> Either Text (SqlQuery, SqlQuery, Bool)
+parseRequest :: Schema -> [Relation] -> TableName -> Request -> RequestBody -> Either Text (SqlQuery, Maybe (SqlQuery, Bool))
 parseRequest schema allRels rootTableName httpRequest reqBody =
-  (,,) <$> selectQuery
-       <*> (if method == "GET" then pure "" else mutateQuery)
-       <*> (if method == "GET" then pure False else pure isSingleRecord)
+  if method == "GET"
+  then (,Nothing) <$> selectQuery
+  else (,) <$> selectQuery <*> (  Just <$> mutatePart  )
   where
+    mutatePart = (,) <$> mutateQuery <*> pure isSingleRecord
     hdrs = requestHeaders httpRequest
     lookupHeader = flip lookup hdrs
     isCsv = lookupHeader "Content-Type" == Just csvMT
@@ -381,23 +370,15 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     qParams = queryParams httpRequest
     parsedBody = parseRequestBody isCsv reqBody
     isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
-    parseField f = parse pField ("failed to parse field <<"++f++">>") f
-    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
-    vals = snd <$> parsedBody
-    setWith = if isSingleRecord
-          then M.fromList <$> (zip <$> flds <*> (head <$> vals))
-          else Left "Expecting a sigle CSV line with header or a JSON object"
     allFilters = whereFilters qParams
-    mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
-    cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-    fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
-    rels = case method of
-      "POST"  -> fakeSourceRelations ++ allRels
-      "PATCH" -> fakeSourceRelations ++ allRels
-      _       -> allRels
     selectApiRequest = augumentRequestWithJoin schema rels
       =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
       where
+        rels = case method of
+          "POST"  -> fakeSourceRelations ++ allRels
+          "PATCH" -> fakeSourceRelations ++ allRels
+          _       -> allRels
+          where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
         sel = if method == "DELETE"
           then "*" -- we are not returning the records so no need to consider nested items
           else selectStr qParams
@@ -412,29 +393,44 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
       "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
       "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      _        -> undefined
+      _        -> Left "Unsupported HTTP verb"
+      where
+        parseField f = parse pField ("failed to parse field <<"++f++">>") f
+        flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
+        vals = snd <$> parsedBody
+        mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
+        cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+        setWith = if isSingleRecord
+              then M.fromList <$> (zip <$> flds <*> (head <$> vals))
+              else Left "Expecting a sigle CSV line with header or a JSON object"
 
-createStatement :: SqlQuery -> Maybe (Text, Bool) -> Bool -> Maybe NonnegRange -> [Text] -> Bool -> Bool -> SqlQuery
-createStatement selectQuery Nothing _ range _ countTable asCsv =
-  wrapQuery selectQuery [
-    if countTable then countAllF else countNoneF,
-    countF,
-    "null", -- location header can not be calucalted
-    if asCsv then asCsvF else asJsonF
-  ] selectStarF range
-createStatement selectQuery (Just (changeQuery, isSingle)) echoRequested _ pKeys _ asCsv =
-  wrapQuery changeQuery [
-    countNoneF, -- when updateing it does not make sense
-    countF,
-    if isSingle then locationF pKeys else "null",
-    if echoRequested
-    then
-      if asCsv
-      then asCsvF
-      else if isSingle then asJsonSingleF else asJsonF
-    else "null"
+createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
+createReadStatement selectQuery range countTable asCsv =
+  B.Stmt (
+    wrapQuery selectQuery [
+      if countTable then countAllF else countNoneF,
+      countF,
+      "null", -- location header can not be calucalted
+      if asCsv then asCsvF else asJsonF
+    ] selectStarF range
+  ) V.empty True
 
-  ] selectQuery Nothing
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> [Text] -> Bool -> B.Stmt P.Postgres
+createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv =
+  B.Stmt (
+    wrapQuery mutateQuery [
+      countNoneF, -- when updateing it does not make sense
+      countF,
+      if isSingle then locationF pKeys else "null",
+      if echoRequested
+      then
+        if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+      else "null"
+
+    ] selectQuery Nothing
+  ) V.empty True
 
 extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
                          -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
