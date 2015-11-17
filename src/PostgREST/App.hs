@@ -313,13 +313,29 @@ whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["selec
 orderStr :: [(String, Maybe String)] -> Maybe String
 orderStr qParams = join $ lookup "order" qParams
 
-buildSelectApiRequest :: TableName -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
-buildSelectApiRequest rootTableName sel wher orderS =
-  first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
+buildSelectApiRequest :: Text -> Schema -> TableName  -> [(String, String)] ->  [Relation] -> [(String, Maybe String)] -> Either Text ApiRequest
+buildSelectApiRequest method schema rootTableName allFilters allRels qParams =
+  augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
   where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++sel++">>") sel
+    selStr = selectStr qParams
+    orderS = orderStr qParams
+    rels = case method of
+      "POST"  -> fakeSourceRelations ++ allRels
+      "PATCH" -> fakeSourceRelations ++ allRels
+      _       -> allRels
+      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
+    sel = if method == "DELETE"
+      then "*" -- we are not returning the records so no need to consider nested items
+      else selStr
+    rootName = if method == "GET"
+      then rootTableName
+      else sourceSubqueryName
+    filters = if method == "GET"
+      then allFilters
+      else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    apiRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++sel++">>") sel
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
-    flts = mapM pRequestFilter wher
+    flts = mapM pRequestFilter filters
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
 buildMutateApiRequest :: Text -> Bool -> TableName -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
@@ -392,23 +408,7 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     method = requestMethod httpRequest
     qParams = queryParams httpRequest
     allFilters = whereFilters qParams
-    selectApiRequest = augumentRequestWithJoin schema rels
-      =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
-      where
-        rels = case method of
-          "POST"  -> fakeSourceRelations ++ allRels
-          "PATCH" -> fakeSourceRelations ++ allRels
-          _       -> allRels
-          where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
-        sel = if method == "DELETE"
-          then "*" -- we are not returning the records so no need to consider nested items
-          else selectStr qParams
-        rootName = if method == "GET"
-          then rootTableName
-          else sourceSubqueryName
-        filters = if method == "GET"
-          then allFilters
-          else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    selectApiRequest = buildSelectApiRequest (cs method) schema rootTableName allFilters allRels qParams
     mutateTuple = buildMutateApiRequest (cs method) isCsv rootTableName reqBody allFilters
     mutateApiRequest = fst <$> mutateTuple
     isSingleRecord = snd <$> mutateTuple
