@@ -313,14 +313,50 @@ whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["selec
 orderStr :: [(String, Maybe String)] -> Maybe String
 orderStr qParams = join $ lookup "order" qParams
 
-buildSelectApiRequest :: TableName -> String -> [(String, String)] -> Maybe String -> Either Text ApiRequest
-buildSelectApiRequest rootTableName sel wher orderS =
-  first formatParserError $ foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts
+buildSelectApiRequest :: Text -> Schema -> TableName  -> [(String, String)] ->  [Relation] -> [(String, Maybe String)] -> Either Text ApiRequest
+buildSelectApiRequest method schema rootTableName allFilters allRels qParams =
+  augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
   where
-    apiRequest = parse (pRequestSelect rootTableName) ("failed to parse select parameter <<"++sel++">>") sel
+    selStr = selectStr qParams
+    orderS = orderStr qParams
+    rels = case method of
+      "POST"  -> fakeSourceRelations ++ allRels
+      "PATCH" -> fakeSourceRelations ++ allRels
+      _       -> allRels
+      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
+    sel = if method == "DELETE"
+      then "*" -- we are not returning the records so no need to consider nested items
+      else selStr
+    rootName = if method == "GET"
+      then rootTableName
+      else sourceSubqueryName
+    filters = if method == "GET"
+      then allFilters
+      else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    apiRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++sel++">>") sel
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
-    flts = mapM pRequestFilter wher
+    flts = mapM pRequestFilter filters
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
+
+buildMutateApiRequest :: Text -> Bool -> TableName -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
+buildMutateApiRequest method isCsv rootTableName reqBody allFilters =
+  (,) <$> mutateApiRequest <*> pure isSingleRecord
+  where
+    mutateApiRequest = case method of
+      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      _        -> Left "Unsupported HTTP verb"
+    parseField f = parse pField ("failed to parse field <<"++f++">>") f
+    parsedBody = parseRequestBody isCsv reqBody
+    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
+    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
+    vals = snd <$> parsedBody
+    mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
+    cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+    setWith = if isSingleRecord
+          then M.fromList <$> (zip <$> flds <*> (head <$> vals))
+          else Left "Expecting a sigle CSV line with header or a JSON object"
 
 addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
 addFilter ([], flt) (Node (q@(Select {where_=flts}), i) forest) = Node (q {where_=flt:flts}, i) forest
@@ -365,47 +401,19 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
   then (,Nothing) <$> selectQuery
   else (,) <$> selectQuery <*> (  Just <$> mutatePart  )
   where
-    mutatePart = (,) <$> mutateQuery <*> pure isSingleRecord
+    mutatePart = (,) <$> mutateQuery <*> isSingleRecord
     hdrs = requestHeaders httpRequest
     lookupHeader = flip lookup hdrs
     isCsv = lookupHeader "Content-Type" == Just csvMT
     method = requestMethod httpRequest
     qParams = queryParams httpRequest
-    parsedBody = parseRequestBody isCsv reqBody
-    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
     allFilters = whereFilters qParams
-    selectApiRequest = augumentRequestWithJoin schema rels
-      =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
-      where
-        rels = case method of
-          "POST"  -> fakeSourceRelations ++ allRels
-          "PATCH" -> fakeSourceRelations ++ allRels
-          _       -> allRels
-          where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
-        sel = if method == "DELETE"
-          then "*" -- we are not returning the records so no need to consider nested items
-          else selectStr qParams
-        rootName = if method == "GET"
-          then rootTableName
-          else sourceSubqueryName
-        filters = if method == "GET"
-          then allFilters
-          else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    selectApiRequest = buildSelectApiRequest (cs method) schema rootTableName allFilters allRels qParams
+    mutateTuple = buildMutateApiRequest (cs method) isCsv rootTableName reqBody allFilters
+    mutateApiRequest = fst <$> mutateTuple
+    isSingleRecord = snd <$> mutateTuple
     selectQuery = requestToQuery schema <$> selectApiRequest
-    mutateQuery = requestToQuery schema <$> case method of
-      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      _        -> Left "Unsupported HTTP verb"
-      where
-        parseField f = parse pField ("failed to parse field <<"++f++">>") f
-        flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
-        vals = snd <$> parsedBody
-        mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
-        cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-        setWith = if isSingleRecord
-              then M.fromList <$> (zip <$> flds <*> (head <$> vals))
-              else Left "Expecting a sigle CSV line with header or a JSON object"
+    mutateQuery = requestToQuery schema <$> mutateApiRequest
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range countTable asCsv =
