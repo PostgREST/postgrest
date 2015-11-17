@@ -322,6 +322,26 @@ buildSelectApiRequest rootTableName sel wher orderS =
     flts = mapM pRequestFilter wher
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
+buildMutateApiRequest :: Text -> Bool -> TableName -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
+buildMutateApiRequest method isCsv rootTableName reqBody allFilters =
+  (,) <$> mutateApiRequest <*> pure isSingleRecord
+  where
+    mutateApiRequest = case method of
+      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      _        -> Left "Unsupported HTTP verb"
+    parseField f = parse pField ("failed to parse field <<"++f++">>") f
+    parsedBody = parseRequestBody isCsv reqBody
+    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
+    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
+    vals = snd <$> parsedBody
+    mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
+    cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+    setWith = if isSingleRecord
+          then M.fromList <$> (zip <$> flds <*> (head <$> vals))
+          else Left "Expecting a sigle CSV line with header or a JSON object"
+
 addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
 addFilter ([], flt) (Node (q@(Select {where_=flts}), i) forest) = Node (q {where_=flt:flts}, i) forest
 addFilter (path, flt) (Node rn forest) =
@@ -365,14 +385,12 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
   then (,Nothing) <$> selectQuery
   else (,) <$> selectQuery <*> (  Just <$> mutatePart  )
   where
-    mutatePart = (,) <$> mutateQuery <*> pure isSingleRecord
+    mutatePart = (,) <$> mutateQuery <*> isSingleRecord
     hdrs = requestHeaders httpRequest
     lookupHeader = flip lookup hdrs
     isCsv = lookupHeader "Content-Type" == Just csvMT
     method = requestMethod httpRequest
     qParams = queryParams httpRequest
-    parsedBody = parseRequestBody isCsv reqBody
-    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
     allFilters = whereFilters qParams
     selectApiRequest = augumentRequestWithJoin schema rels
       =<< buildSelectApiRequest rootName sel filters (orderStr qParams)
@@ -391,21 +409,11 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
         filters = if method == "GET"
           then allFilters
           else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
+    mutateTuple = buildMutateApiRequest (cs method) isCsv rootTableName reqBody allFilters
+    mutateApiRequest = fst <$> mutateTuple
+    isSingleRecord = snd <$> mutateTuple
     selectQuery = requestToQuery schema <$> selectApiRequest
-    mutateQuery = requestToQuery schema <$> case method of
-      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      _        -> Left "Unsupported HTTP verb"
-      where
-        parseField f = parse pField ("failed to parse field <<"++f++">>") f
-        flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
-        vals = snd <$> parsedBody
-        mutateFilters = filter (not . ( '.' `elem` ) . fst) allFilters -- update/delete filters can be only on the root table
-        cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-        setWith = if isSingleRecord
-              then M.fromList <$> (zip <$> flds <*> (head <$> vals))
-              else Left "Expecting a sigle CSV line with header or a JSON object"
+    mutateQuery = requestToQuery schema <$> mutateApiRequest
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range countTable asCsv =
