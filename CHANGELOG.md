@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Full text operators `@>`,`<@` - @ruslantalpa
 - Shaping of the response body (filter columns, embed relations) with &select parameter for POST/PATCH - @ruslantalpa
 - Detect relationships between public views and private tables - @calebmer
+- `Prefer: plurality=singular` for selecting single objects - @calebmer
 
 ### Removed
 - API versioning feature - @calebmer
