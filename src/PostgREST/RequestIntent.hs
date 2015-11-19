@@ -23,6 +23,7 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
+            | ActionUnknown BS.ByteString
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetRoot
@@ -42,7 +43,7 @@ data Payload = PayloadJSON JSON.Array
 -- if it is an action we are able to perform.
 data Intent = Intent {
   -- | Set to Nothing for unknown HTTP verbs
-    iAction :: Maybe Action
+    iAction :: Action
   -- | Set to Nothing for malformed range
   , iRange  :: Maybe NonnegRange
   -- | Set to Nothing for strangely nested urls
@@ -63,14 +64,14 @@ data Intent = Intent {
 userIntent :: Schema -> Request -> RequestBody -> Intent
 userIntent schema req reqBody =
   let action = case requestMethod req of
-                 "GET"     -> Just ActionRead
-                 "POST"    -> Just $ if isTargetingProc
+                 "GET"     -> ActionRead
+                 "POST"    -> if isTargetingProc
                                 then ActionInvoke
                                 else ActionCreate
-                 "PATCH"   -> Just ActionUpdate
-                 "DELETE"  -> Just ActionDelete
-                 "OPTIONS" -> Just ActionInfo
-                 _         -> Nothing
+                 "PATCH"   -> ActionUpdate
+                 "DELETE"  -> ActionDelete
+                 "OPTIONS" -> ActionInfo
+                 other     -> ActionUnknown other
       target = case path of
                  []            -> Just TargetRoot
                  [table]       -> Just $ TargetIdent
