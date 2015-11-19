@@ -184,7 +184,7 @@ app dbStructure conf reqBody req =
     hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
     accept        = lookupHeader hAccept
     schema        = cs $ configSchema conf
-    jwtSecret     = (cs $ configJwtSecret conf) :: Text
+    jwtSecret     = configJwtSecret conf
     range         = rangeRequested hdrs
     allOrigins    = ("Access-Control-Allow-Origin", "*") :: Header
     contentType   = fromMaybe "application/json" $ contentTypeForAccept accept

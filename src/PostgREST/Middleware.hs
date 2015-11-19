@@ -51,7 +51,7 @@ runWithClaims conf app req = do
   where
     stmt c = B.Stmt c V.empty True
     hdrs = requestHeaders req
-    jwtSecret = (cs $ configJwtSecret conf) :: Text
+    jwtSecret = configJwtSecret conf
     auth = fromMaybe "" $ lookup hAuthorization hdrs
     anon = cs $ configAnonRole conf
     setAnon = setRole anon
