@@ -431,7 +431,7 @@ createReadStatement selectQuery range isSingle countTable asCsv =
       if asCsv
         then asCsvF
         else if isSingle then asJsonSingleF else asJsonF
-    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
+    ] selectStarF (if isSingle then Just $ singletonRange 0 else range)
   ) V.empty True
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> [Text] -> Bool -> B.Stmt P.Postgres
