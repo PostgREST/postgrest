@@ -27,6 +27,7 @@ data Action = ActionCreate | ActionRead
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetRoot
+            | TargetUnknown [T.Text]
 -- | Enumeration of currently supported content types for
 -- route responses and upload payloads
 data ContentType = ApplicationJSON | TextCSV
@@ -47,7 +48,7 @@ data Intent = Intent {
   -- | Set to Nothing for malformed range
   , iRange  :: Maybe NonnegRange
   -- | Set to Nothing for strangely nested urls
-  , iTarget :: Maybe Target
+  , iTarget :: Target
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
   -- | Data sent by client and used for mutation actions
@@ -73,12 +74,12 @@ userIntent schema req reqBody =
                  "OPTIONS" -> ActionInfo
                  other     -> ActionUnknown other
       target = case path of
-                 []            -> Just TargetRoot
-                 [table]       -> Just $ TargetIdent
-                                       $ QualifiedIdentifier schema table
-                 ["rpc", proc] -> Just $ TargetIdent
-                                       $ QualifiedIdentifier schema proc
-                 _             -> Nothing
+                 []            -> TargetRoot
+                 [table]       -> TargetIdent
+                                  $ QualifiedIdentifier schema table
+                 ["rpc", proc] -> TargetIdent
+                                  $ QualifiedIdentifier schema proc
+                 other         -> TargetUnknown other
       reqPayload = case pickContentType (lookupHeader "content-type") of
                      Right ApplicationJSON ->
                        either (PayloadParseError . cs)
