@@ -8,6 +8,7 @@ import           Data.List               (find)
 import qualified Data.HashMap.Strict     as M
 import           Data.Maybe              (fromMaybe, isJust, isNothing,
                                           listToMaybe)
+import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import qualified Data.Text               as T
 import qualified Data.Vector             as V
@@ -48,8 +49,8 @@ data Intent = Intent {
   , iTarget :: Maybe Target
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
-  -- | Set to Nothing when client sends no data
-  , iPayload :: Maybe Payload
+  -- | Data sent by client and used for mutation actions
+  , iPayload :: Payload
   -- | Taken from JSON Web Token
   , iTrustedClaims :: Maybe JSON.Object
   -- | If client wants created items echoed back
@@ -60,7 +61,7 @@ data Intent = Intent {
 
 -- | Examines HTTP request and translates it into user intent.
 userIntent :: Schema -> Request -> RequestBody -> Intent
-userIntent schema req _ =
+userIntent schema req reqBody =
   let action = case requestMethod req of
                  "GET"     -> Just ActionRead
                  "POST"    -> Just $ if isTargetingProc
@@ -76,13 +77,25 @@ userIntent schema req _ =
                                        $ QualifiedIdentifier schema table
                  ["rpc", proc] -> Just $ TargetIdent
                                        $ QualifiedIdentifier schema proc
-                 _             -> Nothing  in
+                 _             -> Nothing
+      reqPayload = case pickContentType (lookupHeader "content-type") of
+                     Right ApplicationJSON ->
+                       either (PayloadParseError . cs)
+                         (PayloadJSON . pluralize)
+                         (JSON.eitherDecode reqBody)
+                     Right TextCSV ->
+                       either (PayloadParseError . cs)
+                         (PayloadJSON . csvToJson)
+                         (CSV.decodeByName reqBody)
+                     Left accept ->
+                       PayloadParseError $
+                         "Content-type not acceptable: " <> accept in
 
   Intent action
     (rangeRequested hdrs)
     target
     (pickContentType $ lookupHeader "accept")
-    Nothing -- TODO: calculate payload
+    reqPayload
     Nothing -- TODO: decode jwt
     (hasPrefer "return=representation")
     (hasPrefer "plurality=singular")
@@ -94,6 +107,7 @@ userIntent schema req _ =
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
 
+
 -- PRIVATE ---------------------------------------------------------------
 
 -- | Chooses a payload from the items in an accept header.
@@ -102,30 +116,41 @@ pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
 pickContentType accept
   | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
   | has ctCsv = Right TextCSV
-  | otherwise = Left acceptH
+  | otherwise = Left accept'
  where
   ctAll  = "*/*"
   ctCsv  = "text/csv"
   ctJson = "application/json"
-  Just acceptH = accept
-  findInAccept = flip find $ parseHttpAccept acceptH
+  Just accept' = accept
+  findInAccept = flip find $ parseHttpAccept accept'
   has          = isJust . findInAccept . BS.isPrefixOf
 
-type CsvData = V.Vector (V.Vector BL.ByteString)
+type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
 
--- | Convert
+-- | Converts CSV like
 -- a,b
--- 1,2
--- 3,4
+-- 1,hi
+-- 2,bye
 --
--- into
--- [ {"a": 1, "b": 2}, {"a": 3, "b": 4} ]
+-- into a JSON array like
+-- [ {"a": "1", "b": "hi"}, {"a": 2, "b": "bye"} ]
+--
+-- The reason for its odd signature is so that it can compose
+-- directly with CSV.decodeByName
 csvToJson :: (CSV.Header, CsvData) -> JSON.Array
-csvToJson (cols, vals) =
-  V.map rowToJson vals
+csvToJson (_, vals) =
+  V.map rowToJsonObj vals
  where
-  cols' = V.map cs cols :: V.Vector T.Text
-  rowToJson :: V.Vector BL.ByteString -> JSON.Value
-  rowToJson val = JSON.Object $
-    let val' = V.map (JSON.String . cs) val in
-    M.fromList . V.toList $ V.zip cols' val'
+  rowToJsonObj = JSON.Object .
+    M.map (\str ->
+        if str == "NULL"
+          then JSON.Null
+          else JSON.String $ cs str
+      )
+
+-- | Convert {foo} to [{foo}], leave arrays unchanged
+-- and truncate everything else to an empty array.
+pluralize :: JSON.Value -> JSON.Array
+pluralize obj@(JSON.Object _) = V.singleton obj
+pluralize (JSON.Array arr)    = arr
+pluralize _                   = V.empty
