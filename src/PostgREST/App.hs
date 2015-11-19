@@ -147,7 +147,7 @@ app dbStructure conf reqBody req =
             _         -> return notFound
 
     (["rpc", proc], "POST") -> do
-      let qi = QualifiedIdentifier schema (cs proc)
+      let qi = QualifiedIdentifier (Just schema) (cs proc) Nothing
       exists <- doesProcExist schema proc
       if exists
         then do
@@ -319,8 +319,8 @@ whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["selec
 orderStr :: [(String, Maybe String)] -> Maybe String
 orderStr qParams = join $ lookup "order" qParams
 
-buildSelectApiRequest :: Text -> Schema -> TableName  -> [(String, String)] ->  [Relation] -> [(String, Maybe String)] -> Either Text ApiRequest
-buildSelectApiRequest method schema rootTableName allFilters allRels qParams =
+buildSelectApiRequest :: Text -> Schema -> QualifiedIdentifier  -> [(String, String)] ->  [Relation] -> [(String, Maybe String)] -> Either Text ApiRequest
+buildSelectApiRequest method schema rootTable allFilters allRels qParams =
   augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
   where
     selStr = selectStr qParams
@@ -329,29 +329,30 @@ buildSelectApiRequest method schema rootTableName allFilters allRels qParams =
       "POST"  -> fakeSourceRelations ++ allRels
       "PATCH" -> fakeSourceRelations ++ allRels
       _       -> allRels
-      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
+      where fakeSourceRelations = mapMaybe (toSourceRelation (qiTable rootTable)) allRels -- see comment in toSourceRelation
     sel = if method == "DELETE"
       then "*" -- we are not returning the records so no need to consider nested items
       else selStr
-    rootName = if method == "GET"
-      then rootTableName
-      else sourceSubqueryName
+    rootQi = if method == "GET"
+      then rootTable
+      else QualifiedIdentifier Nothing sourceSubqueryName Nothing
     filters = if method == "GET"
       then allFilters
       else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
-    apiRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++sel++">>") sel
+    apiRequest = parse (pRequestSelect rootQi) ("failed to parse select parameter <<"++sel++">>") sel
     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
     flts = mapM pRequestFilter filters
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
-buildMutateApiRequest :: Text -> Bool -> TableName -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
-buildMutateApiRequest method isCsv rootTableName reqBody allFilters =
+buildMutateApiRequest :: Text -> Bool -> QualifiedIdentifier -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
+buildMutateApiRequest method isCsv rootTable reqBody allFilters =
   (,) <$> mutateApiRequest <*> pure isSingleRecord
   where
+    rootTableName = qiTable rootTable
     mutateApiRequest = case method of
-      "POST"   -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      "PATCH"  -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
-      "DELETE" -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "POST"   -> Node <$> ((,) <$> (Insert rootTable <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
+      "PATCH"  -> Node <$> ((,) <$> (Update rootTable <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      "DELETE" -> Node <$> ((,) <$> (Delete [rootTable] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> Left "Unsupported HTTP verb"
     parseField f = parse pField ("failed to parse field <<"++f++">>") f
     parsedBody = parseRequestBody isCsv reqBody
@@ -407,6 +408,7 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
   then (,Nothing) <$> selectQuery
   else (,) <$> selectQuery <*> (  Just <$> mutatePart  )
   where
+    rootTable = QualifiedIdentifier (Just schema) rootTableName Nothing
     mutatePart = (,) <$> mutateQuery <*> isSingleRecord
     hdrs = requestHeaders httpRequest
     lookupHeader = flip lookup hdrs
@@ -414,12 +416,37 @@ parseRequest schema allRels rootTableName httpRequest reqBody =
     method = requestMethod httpRequest
     qParams = queryParams httpRequest
     allFilters = whereFilters qParams
-    selectApiRequest = buildSelectApiRequest (cs method) schema rootTableName allFilters allRels qParams
-    mutateTuple = buildMutateApiRequest (cs method) isCsv rootTableName reqBody allFilters
+    selectApiRequest = buildSelectApiRequest (cs method) schema rootTable allFilters allRels qParams
+    mutateTuple = buildMutateApiRequest (cs method) isCsv rootTable reqBody allFilters
     mutateApiRequest = fst <$> mutateTuple
     isSingleRecord = snd <$> mutateTuple
-    selectQuery = requestToQuery schema <$> selectApiRequest
-    mutateQuery = requestToQuery schema <$> mutateApiRequest
+    buildRequestQuery = requestToQuery schema . qualifyRequest schema
+    selectQuery = buildRequestQuery <$> selectApiRequest
+    mutateQuery = buildRequestQuery <$> mutateApiRequest
+
+qualifyRequest :: Schema -> ApiRequest -> ApiRequest
+qualifyRequest schema (Node (q,x@(name,_)) forest) =
+  case q of
+    Select sel frm whr ord -> Node (Select (quSelectItems sel) (quFrom frm) (quWhere whr) ord, x) updatedForest
+    Insert int fds vls     -> Node (Insert (quTable int) (quFields fds) vls, x) updatedForest
+    Delete frm whr         -> Node (Delete (quFrom frm) (quWhere whr), x) updatedForest
+    Update int hsh whr     -> Node (Update (quTable int) (quHash hsh) (quWhere whr), x) updatedForest
+  where
+    updatedForest = map (qualifyRequest schema) forest
+
+    quTable (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch uqi Nothing where sch = if name == sourceSubqueryName then Nothing else Just schema
+    quTable qi = qi
+    quColumn (UnqualifiedIdentifier uqi) = QualifiedIdentifier sch name (Just uqi) where sch = if name == sourceSubqueryName then Nothing else Just schema
+    quColumn qi = qi
+
+    quField (qi,jp) = (quColumn qi,jp)
+    quFilter flt = flt{field=quField $ field flt}
+    quSelectItem (fld,c) = (quField fld,c)
+    quFrom = map quTable
+    quFields = map quField
+    quWhere = map quFilter
+    quSelectItems = map quSelectItem
+    quHash = M.mapKeys quField
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range isSingle countTable asCsv =
