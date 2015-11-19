@@ -1,15 +1,20 @@
 module PostgREST.RequestIntent where
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString      as BS
-import qualified Data.ByteString.Lazy as BL
-import           Data.List            (find)
-import           Data.Maybe           (fromMaybe, isJust, isNothing,
-                                       listToMaybe)
-import           Network.Wai          (Request (..))
-import           Network.Wai.Parse    (parseHttpAccept)
-import           PostgREST.RangeQuery (NonnegRange, rangeRequested)
-import           PostgREST.Types      (QualifiedIdentifier (..), Schema)
+import qualified Data.Aeson              as JSON
+import qualified Data.ByteString         as BS
+import qualified Data.ByteString.Lazy    as BL
+import qualified Data.Csv                as CSV
+import           Data.List               (find)
+import qualified Data.HashMap.Strict     as M
+import           Data.Maybe              (fromMaybe, isJust, isNothing,
+                                          listToMaybe)
+import           Data.String.Conversions (cs)
+import qualified Data.Text               as T
+import qualified Data.Vector             as V
+import           Network.Wai             (Request (..))
+import           Network.Wai.Parse       (parseHttpAccept)
+import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
+import           PostgREST.Types         (QualifiedIdentifier (..), Schema)
 
 type RequestBody = BL.ByteString
 
@@ -25,8 +30,9 @@ data Target = TargetIdent QualifiedIdentifier
 data ContentType = ApplicationJSON | TextCSV
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
--- then CSV is converted to a JSON array
+-- then CSV is converted to a JSON array.
 data Payload = PayloadJSON JSON.Array
+             | PayloadParseError BS.ByteString
 
 -- | Describes what the user wants to do. This data type is a
 -- translation of the raw elements of an HTTP request into domain
@@ -42,7 +48,7 @@ data Intent = Intent {
   , iTarget :: Maybe Target
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
-  -- | {foo} becomes [{foo}] and CSV is converted to JSON
+  -- | Set to Nothing when client sends no data
   , iPayload :: Maybe Payload
   -- | Taken from JSON Web Token
   , iTrustedClaims :: Maybe JSON.Object
@@ -88,6 +94,8 @@ userIntent schema req _ =
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
 
+-- PRIVATE ---------------------------------------------------------------
+
 -- | Chooses a payload from the items in an accept header.
 -- When possible it picks JSON.
 pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
@@ -102,3 +110,22 @@ pickContentType accept
   Just acceptH = accept
   findInAccept = flip find $ parseHttpAccept acceptH
   has          = isJust . findInAccept . BS.isPrefixOf
+
+type CsvData = V.Vector (V.Vector BL.ByteString)
+
+-- | Convert
+-- a,b
+-- 1,2
+-- 3,4
+--
+-- into
+-- [ {"a": 1, "b": 2}, {"a": 3, "b": 4} ]
+csvToJson :: (CSV.Header, CsvData) -> JSON.Array
+csvToJson (cols, vals) =
+  V.map rowToJson vals
+ where
+  cols' = V.map cs cols :: V.Vector T.Text
+  rowToJson :: V.Vector BL.ByteString -> JSON.Value
+  rowToJson val = JSON.Object $
+    let val' = V.map (JSON.String . cs) val in
+    M.fromList . V.toList $ V.zip cols' val'
