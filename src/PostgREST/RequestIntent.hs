@@ -112,8 +112,14 @@ userIntent schema req reqBody =
 
 -- PRIVATE ---------------------------------------------------------------
 
--- | Chooses a payload from the items in an accept header.
--- When possible it picks JSON.
+-- | Picks a preferred content type from an Accept header (or from
+-- Content-Type as a degenerate case).
+--
+-- For example
+-- text/csv -> TextCSV
+-- */*      -> ApplicationJSON
+-- text/csv, application/json -> TextCSV
+-- application/json, text/csv -> ApplicationJSON
 pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
 pickContentType accept
   | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
