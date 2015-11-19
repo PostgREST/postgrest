@@ -55,8 +55,6 @@ data Intent = Intent {
   , iAccepts :: Either BS.ByteString ContentType
   -- | Data sent by client and used for mutation actions
   , iPayload :: Payload
-  -- | Taken from JSON Web Token
-  , iTrustedClaims :: Maybe JSON.Object
   -- | If client wants created items echoed back
   , iPreferRepresentation :: Bool
   -- | If client wants first row as raw object
@@ -100,7 +98,6 @@ userIntent schema req reqBody =
     target
     (pickContentType $ lookupHeader "accept")
     reqPayload
-    Nothing -- TODO: decode jwt
     (hasPrefer "return=representation")
     (hasPrefer "plurality=singular")
 

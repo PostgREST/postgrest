@@ -23,6 +23,7 @@ import Data.Maybe (fromMaybe)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
+import Web.JWT (secret)
 
 import qualified Data.Aeson.Types as J
 
@@ -40,7 +41,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" "safe" 10
+cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
