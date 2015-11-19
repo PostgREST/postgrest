@@ -101,8 +101,12 @@ pOrderTerm =
   try ( do
     c <- pFieldName
     _ <- pDelimiter
-    d <- string "asc" <|> string "desc"
-    nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
-    return $ OrderTerm (cs c) (cs d) (cs <$> nls)
+    d <- (string "asc" *> pure OrderAsc)
+         <|> (string "desc" *> pure OrderDesc)
+    nls <- optionMaybe (pDelimiter *> (
+                 try(string "nullslast" *> pure OrderNullsLast)
+             <|> try(string "nullsfirst" *> pure OrderNullsFirst)
+           ))
+    return $ OrderTerm c d nls
   )
-  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure "asc" <*> pure Nothing
+  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure OrderAsc <*> pure Nothing

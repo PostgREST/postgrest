@@ -1,8 +1,7 @@
 module PostgREST.Types where
 import Data.Text
 import Data.Tree
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy  as BL
+import qualified Data.ByteString.Lazy as BL
 import Data.Aeson
 import Data.Map
 
@@ -51,10 +50,13 @@ data PrimaryKey = PrimaryKey {
   , pkName  :: Text
 } deriving (Show, Eq)
 
+data OrderDirection = OrderAsc | OrderDesc deriving (Show, Eq)
+data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Show, Eq)
+
 data OrderTerm = OrderTerm {
   otTerm      :: Text
-, otDirection :: BS.ByteString
-, otNullOrder :: Maybe BS.ByteString
+, otDirection :: OrderDirection
+, otNullOrder :: Maybe OrderNulls
 } deriving (Show, Eq)
 
 data QualifiedIdentifier = QualifiedIdentifier {
