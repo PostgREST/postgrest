@@ -37,11 +37,13 @@ data ContentType = ApplicationJSON | TextCSV
 data Payload = PayloadJSON JSON.Array
              | PayloadParseError BS.ByteString
 
--- | Describes what the user wants to do. This data type is a
--- translation of the raw elements of an HTTP request into domain
--- specific language.  There is no guarantee that the intent is
--- sensible, it is up to a later stage of processing to determine
--- if it is an action we are able to perform.
+{-|
+  Describes what the user wants to do. This data type is a
+  translation of the raw elements of an HTTP request into domain
+  specific language.  There is no guarantee that the intent is
+  sensible, it is up to a later stage of processing to determine
+  if it is an action we are able to perform.
+-}
 data Intent = Intent {
   -- | Set to Nothing for unknown HTTP verbs
     iAction :: Action
@@ -112,14 +114,16 @@ userIntent schema req reqBody =
 
 -- PRIVATE ---------------------------------------------------------------
 
--- | Picks a preferred content type from an Accept header (or from
--- Content-Type as a degenerate case).
---
--- For example
--- text/csv -> TextCSV
--- */*      -> ApplicationJSON
--- text/csv, application/json -> TextCSV
--- application/json, text/csv -> ApplicationJSON
+{-|
+  Picks a preferred content type from an Accept header (or from
+  Content-Type as a degenerate case).
+
+  For example
+  text/csv -> TextCSV
+  */*      -> ApplicationJSON
+  text/csv, application/json -> TextCSV
+  application/json, text/csv -> ApplicationJSON
+-}
 pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
 pickContentType accept
   | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
@@ -135,16 +139,18 @@ pickContentType accept
 
 type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
 
--- | Converts CSV like
--- a,b
--- 1,hi
--- 2,bye
---
--- into a JSON array like
--- [ {"a": "1", "b": "hi"}, {"a": 2, "b": "bye"} ]
---
--- The reason for its odd signature is so that it can compose
--- directly with CSV.decodeByName
+{-|
+  Converts CSV like
+  a,b
+  1,hi
+  2,bye
+
+  into a JSON array like
+  [ {"a": "1", "b": "hi"}, {"a": 2, "b": "bye"} ]
+
+  The reason for its odd signature is so that it can compose
+  directly with CSV.decodeByName
+-}
 csvToJson :: (CSV.Header, CsvData) -> JSON.Array
 csvToJson (_, vals) =
   V.map rowToJsonObj vals
