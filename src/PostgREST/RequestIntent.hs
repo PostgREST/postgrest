@@ -92,6 +92,7 @@ userIntent schema req reqBody =
       reqPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
+        ActionInvoke -> Just payload
         _            -> Nothing
         where payload = case pickContentType (lookupHeader "content-type") of
                      Right ApplicationJSON ->
