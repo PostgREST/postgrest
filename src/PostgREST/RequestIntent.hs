@@ -16,7 +16,8 @@ import qualified Data.Vector             as V
 import           Network.Wai             (Request (..))
 import           Network.Wai.Parse       (parseHttpAccept)
 import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
-import           PostgREST.Types         (QualifiedIdentifier (..), Schema)
+import           PostgREST.Types         (QualifiedIdentifier (..),
+                                          Schema, Payload(..))
 
 type RequestBody = BL.ByteString
 
@@ -35,12 +36,6 @@ data ContentType = ApplicationJSON | TextCSV deriving Eq
 instance Show ContentType where
   show ApplicationJSON = "application/json"
   show TextCSV         = "text/csv"
-
--- | When Hasql supports the COPY command then we can
--- have a special payload just for CSV, but until
--- then CSV is converted to a JSON array.
-data Payload = PayloadJSON JSON.Array
-             | PayloadParseError BS.ByteString
 
 {-|
   Describes what the user wants to do. This data type is a

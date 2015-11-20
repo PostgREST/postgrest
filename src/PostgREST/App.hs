@@ -20,7 +20,6 @@ import           Data.Ranged.Ranges        (emptyRange, singletonRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
-import qualified Data.Map                  as M
 import qualified Data.Aeson                as JSON
 
 import           Text.Parsec.Error
@@ -46,7 +45,7 @@ import           PostgREST.DbStructure
 import           PostgREST.RangeQuery
 import           PostgREST.RequestIntent   (Intent(..), ContentType(..)
                                             , Action(..), Target(..)
-                                            , Payload(..), userIntent)
+                                            , userIntent)
 import           PostgREST.Types
 import           PostgREST.Auth            (tokenJWT)
 import           PostgREST.Error           (errResponse)
@@ -114,13 +113,13 @@ app dbStructure conf reqBody req =
                   )
                 ] (fromMaybe "[]" body)
 
-    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just (PayloadJSON payload)) ->
+    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let isSingle = (==1) $ V.length payload
+          let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-          let stm = createWriteStatement sq mq isSingle (iPreferRepresentation intent) pKeys (contentType == TextCSV)
+          let stm = createWriteStatement sq mq isSingle (iPreferRepresentation intent) pKeys (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, _, location, body) = extractQueryResult row
           return $ responseLBS status201
@@ -130,11 +129,11 @@ app dbStructure conf reqBody req =
             ]
             $ if iPreferRepresentation intent then fromMaybe "[]" body else ""
 
-    (ActionUpdate, TargetIdent _, Just (PayloadJSON _)) ->
+    (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON _)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let stm = createWriteStatement sq mq False (iPreferRepresentation intent) [] (contentType == TextCSV)
+          let stm = createWriteStatement sq mq False (iPreferRepresentation intent) [] (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
@@ -148,7 +147,8 @@ app dbStructure conf reqBody req =
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let stm = createWriteStatement sq mq False False [] (contentType == TextCSV)
+          let fakeload = PayloadJSON V.empty
+          let stm = createWriteStatement sq mq False False [] (contentType == TextCSV) fakeload
           row <- H.maybeEx stm
           let (_, queryTotal, _, _) = extractQueryResult row
           return $ if queryTotal == 0
@@ -326,28 +326,18 @@ buildMutateApiRequest intent =
   where
     action = iAction intent
     target = iTarget intent
-    rootTableName = fromJust $ -- Make it safe
+    payload = fromJust $ iPayload intent
+    rootTableName = -- TODO: Make it safe
       case target of
-        (TargetIdent (QualifiedIdentifier _ t) ) -> Just t
-        _ -> Nothing
+        (TargetIdent (QualifiedIdentifier _ t) ) -> t
+        _ -> undefined
     mutateApiRequest = case action of
-      ActionCreate -> Node <$> ((,) <$> (Insert rootTableName <$> flds <*> vals)    <*> pure (rootTableName, Nothing)) <*> pure []
-      ActionUpdate -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      ActionCreate -> Node <$> ((,) <$> (Insert rootTableName <$> pure payload) <*> pure (rootTableName, Nothing)) <*> pure []
+      --ActionUpdate -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       ActionDelete -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> Left "Unsupported HTTP verb"
-    parseField f = parse pField ("failed to parse field <<"++f++">>") f
-    payload = case iPayload intent of
-      Just (PayloadJSON v) -> JSON.Array v
-      _ -> undefined --TODO! fix
-    parsedBody = checkStructure =<< convertJson payload
-    isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
-    flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
-    vals = snd <$> parsedBody
     mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters intent -- update/delete filters can be only on the root table
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-    setWith = if isSingleRecord
-          then M.fromList <$> (zip <$> flds <*> (head <$> vals))
-          else Left "Expecting a sigle CSV line with header or a JSON object"
 
 addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
 addFilter ([], flt) (Node (q@(Select {where_=flts}), i) forest) = Node (q {where_=flt:flts}, i) forest
@@ -399,8 +389,9 @@ createReadStatement selectQuery range isSingle countTable asCsv =
     ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
   ) V.empty True
 
-createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> [Text] -> Bool -> B.Stmt P.Postgres
-createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv =
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
+                        [Text] -> Bool -> Payload -> B.Stmt P.Postgres
+createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv (PayloadJSON rows) =
   B.Stmt (
     wrapQuery mutateQuery [
       countNoneF, -- when updateing it does not make sense
@@ -414,7 +405,7 @@ createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv 
       else "null"
 
     ] selectQuery Nothing
-  ) V.empty True
+  ) (V.singleton . B.encodeValue . JSON.Array $ rows) True
 
 extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
                          -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)

@@ -229,33 +229,24 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
-requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
-  query
-  where
-    qi = QualifiedIdentifier schema mainTbl
-    query = unwords [
-      "INSERT INTO ", fromQi qi,
-      " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
-      "VALUES " <> intercalate ", "
-        ( map (\v ->
-            "(" <>
-            intercalate ", " ( map insertableValue v ) <>
-            ")"
-          ) vals
-        ),
-      "RETURNING " <> fromQi qi <> ".*"
-      ]
-requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
-  query
-  where
-    qi = QualifiedIdentifier schema mainTbl
-    query = unwords [
-      "UPDATE ", fromQi qi,
-      " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-      "RETURNING " <> fromQi qi <> ".*"
-      ]
-    formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
+requestToQuery schema (Node (Insert _ payload, (mainTbl, _)) _) =
+  let qi = QualifiedIdentifier schema mainTbl in
+  unwords [
+    "INSERT INTO ", fromQi qi,
+    "select * from json_populate_recordset(null::" , fromQi qi, ", ?)",
+    "RETURNING " <> fromQi qi <> ".*"
+    ]
+-- requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
+--   query
+--   where
+--     qi = QualifiedIdentifier schema mainTbl
+--     query = unwords [
+--       "UPDATE ", fromQi qi,
+--       " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
+--       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+--       "RETURNING " <> fromQi qi <> ".*"
+--       ]
+--     formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
 requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
   query
   where

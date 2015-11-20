@@ -2,8 +2,8 @@ module PostgREST.Types where
 import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString      as BS
 import Data.Aeson
-import Data.Map
 
 data DbStructure = DbStructure {
   dbTables :: [Table]
@@ -84,6 +84,12 @@ data Relation = Relation {
 , relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
+-- | When Hasql supports the COPY command then we can
+-- have a special payload just for CSV, but until
+-- then CSV is converted to a JSON array.
+data Payload = PayloadJSON Array
+             | PayloadParseError BS.ByteString
+             deriving (Show, Eq)
 
 type Operator = Text
 data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
@@ -95,9 +101,9 @@ type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
 data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
-           | Insert { into::Text, fields::[Field], values::[[Value]] }
+           | Insert { into::Text, qPayload::Payload }
            | Delete { from::[Text], where_::[Filter] }
-           | Update { into::Text, set::Map Field Value, where_::[Filter] } deriving (Show, Eq)
+           | Update { into::Text, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 type ApiNode = (Query, (NodeName, Maybe Relation))
 type ApiRequest = Tree ApiNode
