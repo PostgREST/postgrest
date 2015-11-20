@@ -213,54 +213,6 @@ app dbStructure conf reqBody req =
   isSingleRecord = snd <$> mutateTuple
   mutateQuery = requestToQuery schema <$> mutateApiRequest
   queries = (,,) <$> selectQuery <*> mutateQuery <*> isSingleRecord
-  --   path          = pathInfo req
-  --   verb          = requestMethod req
-  --   hdrs          = requestHeaders req
-  --   lookupHeader  = flip lookup hdrs
-  --   hasPrefer val = any (\(h,v) -> h == "Prefer" && v == val) hdrs
-  --   range         = rangeRequested hdrs
-  --   request = parseRequest schema (dbRelations dbStructure) (head path) req reqBody --TODO! is head safe?
-
-
-
-  -- case (path, verb) of
-  --   ([table], _) ->
-  --     case request of
-  --       Left e -> return $ responseLBS status400 [jsonH] $ cs e
-  --       Right (selectQuery, Nothing) -> -- should we do sanity check to make sure its a GET request?
-  --       Right (selectQuery, Just (mutateQuery, isSingle)) ->
-  --         case verb of
-  --           "POST"    -> do
-  --             let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-  --                 q = createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys isCsv
-  --             row <- H.maybeEx q
-  --             let (_, _, location, body) = extractQueryResult row
-  --             return $ responseLBS status201
-  --               [
-  --                 contentTypeH,
-  --                 (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
-  --               ]
-  --               $ if echoRequested then fromMaybe "[]" body else ""
-  --           "PATCH"   -> do
-  --             let q = createWriteStatement selectQuery mutateQuery False echoRequested [] isCsv
-  --             row <- H.maybeEx q
-  --             let (_, queryTotal, _, body) = extractQueryResult row
-  --                 r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
-  --                 s = case () of _ | queryTotal == 0 -> status404
-  --                                  | echoRequested -> status200
-  --                                  | otherwise -> status204
-  --             return $ responseLBS s [contentTypeH, r]
-  --               $ if echoRequested then fromMaybe "[]" body else ""
-  --           "DELETE"  -> do
-  --             let q = createWriteStatement selectQuery mutateQuery False False [] isCsv
-  --             row <- H.maybeEx q
-  --             let (_, queryTotal, _, _) = extractQueryResult row
-  --             return $ if queryTotal == 0
-  --               then notFound
-  --               else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
-  --           _         -> return notFound
-
-  -- where
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -302,9 +254,6 @@ contentTypeForAccept accept
     Just acceptH = accept
     findInAccept = flip find $ parseHttpAccept acceptH
     has          = isJust . findInAccept . BS.isPrefixOf
-
--- parseCsvCell :: BL.ByteString -> Value
--- parseCsvCell s = if s == "NULL" then Null else String $ cs s
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError
@@ -376,19 +325,6 @@ augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
 
--- we use strings here because most of this data will be sent to parsers (which need strings for now)
--- queryParams :: Request -> [(String, Maybe String)]
--- queryParams httpRequest = [(cs k, cs <$> v)|(k,v) <- queryString httpRequest]
---
--- selectStr :: [(String, Maybe String)] -> String
--- selectStr qParams = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
---
--- whereFilters :: [(String, Maybe String)] -> [(String, String)]
--- whereFilters qParams = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
---
--- orderStr :: [(String, Maybe String)] -> Maybe String
--- orderStr qParams = join $ lookup "order" qParams
-
 buildSelectApiRequest :: Intent -> [Relation] -> Either Text ApiRequest
 buildSelectApiRequest intent allRels =
   augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
@@ -418,8 +354,6 @@ buildSelectApiRequest intent allRels =
     flts = mapM pRequestFilter filters
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
---buildMutateApiRequest :: Text -> Bool -> TableName -> RequestBody -> [(String, String)] -> Either Text (ApiRequest, Bool)
---buildMutateApiRequest method isCsv rootTableName reqBody allFilters =
 buildMutateApiRequest :: Intent -> Either Text (ApiRequest, Bool)
 buildMutateApiRequest intent =
   (,) <$> mutateApiRequest <*> pure isSingleRecord
@@ -448,32 +382,6 @@ buildMutateApiRequest intent =
     setWith = if isSingleRecord
           then M.fromList <$> (zip <$> flds <*> (head <$> vals))
           else Left "Expecting a sigle CSV line with header or a JSON object"
-
--- buildSelectApiRequest :: Text -> Schema -> TableName  -> [(String, String)] ->  [Relation] -> [(String, Maybe String)] -> Either Text ApiRequest
--- buildSelectApiRequest method schema rootTableName allFilters allRels qParams =
---   augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
---   where
---     selStr = selectStr qParams
---     orderS = orderStr qParams
---     rels = case method of
---       "POST"  -> fakeSourceRelations ++ allRels
---       "PATCH" -> fakeSourceRelations ++ allRels
---       _       -> allRels
---       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
---     sel = if method == "DELETE"
---       then "*" -- we are not returning the records so no need to consider nested items
---       else selStr
---     rootName = if method == "GET"
---       then rootTableName
---       else sourceSubqueryName
---     filters = if method == "GET"
---       then allFilters
---       else filter (( '.' `elem` ) . fst) allFilters -- there can be no filters on the root table whre we are doing insert/update
---     apiRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++sel++">>") sel
---     addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
---     flts = mapM pRequestFilter filters
---     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
-
 
 addFilter :: (Path, Filter) -> ApiRequest -> ApiRequest
 addFilter ([], flt) (Node (q@(Select {where_=flts}), i) forest) = Node (q {where_=flt:flts}, i) forest
@@ -511,31 +419,6 @@ instance ToJSON TableOptions where
   toJSON t = object [
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
-
--- createSelectQuery :: [Relation] -> QualifiedIdentifier -> SqlQuery
--- createSelectQuery rels qi =
---   requestToQuery schema <$> selectApiRequest
---   undefined
-
--- parseRequest :: Schema -> [Relation] -> TableName -> Request -> RequestBody -> Either Text (SqlQuery, Maybe (SqlQuery, Bool))
--- parseRequest schema allRels rootTableName httpRequest reqBody =
---   if method == "GET"
---   then (,Nothing) <$> selectQuery
---   else (,) <$> selectQuery <*> (  Just <$> mutatePart  )
---   where
---     mutatePart = (,) <$> mutateQuery <*> isSingleRecord
---     hdrs = requestHeaders httpRequest
---     lookupHeader = flip lookup hdrs
---     isCsv = lookupHeader "Content-Type" == Just csvMT
---     method = requestMethod httpRequest
---     qParams = queryParams httpRequest
---     allFilters = whereFilters qParams
---     selectApiRequest = buildSelectApiRequest (cs method) schema rootTableName allFilters allRels qParams
---     mutateTuple = buildMutateApiRequest (cs method) isCsv rootTableName reqBody allFilters
---     mutateApiRequest = fst <$> mutateTuple
---     isSingleRecord = snd <$> mutateTuple
---     selectQuery = requestToQuery schema <$> selectApiRequest
---     mutateQuery = requestToQuery schema <$> mutateApiRequest
 
 createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range isSingle countTable asCsv =
