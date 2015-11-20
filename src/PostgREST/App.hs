@@ -4,20 +4,17 @@
 --module PostgREST.App where
 module PostgREST.App (
   app
-, contentTypeForAccept
 ) where
 
 import           Control.Applicative
 import           Control.Arrow             ((***))
 import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
-import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as BL
---import qualified Data.Csv                  as CSV
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as HM
 import           Data.List                 (find, sortBy, delete, transpose)
-import           Data.Maybe                (fromMaybe, fromJust, isJust, isNothing, mapMaybe)
+import           Data.Maybe                (fromMaybe, fromJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange, singletonRange)
 import           Data.String.Conversions   (cs)
@@ -34,7 +31,6 @@ import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
-import           Network.Wai.Parse         (parseHttpAccept)
 
 import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
@@ -77,7 +73,7 @@ import           Prelude
 app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Tx P.Postgres s Response
 app dbStructure conf reqBody req =
   let
-      -- TODO: blow up for Left values
+      -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts intent)
       contentTypeS ct = case ct of
         ApplicationJSON -> "application/json"
@@ -85,47 +81,8 @@ app dbStructure conf reqBody req =
       contentTypeH = (hContentType, contentTypeS contentType) in
 
   case (iAction intent, iTarget intent, iPayload intent) of
-    (ActionUnknown _, _, _) -> return notFound
-    (_, TargetUnknown _, _) -> return notFound
-    (_, _, Just (PayloadParseError e)) ->
-      return $ responseLBS status400 [jsonH] $
-        cs (formatGeneralError "Cannot parse request payload" (cs e))
 
-    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), _) -> do
-      let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-          pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-          body = encode (TableOptions cols pkeys)
-          filterCol :: Schema -> TableName -> Column -> Bool
-          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
-          filterCol _ _ _ =  False
-      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
-
-    (ActionRead, TargetRoot, _) -> do
-      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) (dbTables dbStructure))
-      return $ responseLBS status200 [jsonH] $ cs body
-
-    (ActionInvoke, TargetIdent qi, Just (PayloadJSON payload)) -> do
-      exists <- doesProcExist qi
-      if exists
-        then do
-          let p = case pp of
-                    JSON.Object o -> o
-                    _ -> undefined
-                  where pp = V.head payload
-              call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi p)
-              jwtSecret = configJwtSecret conf
-
-          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
-          returnJWT <- doesProcReturnJWT qi
-          return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
-                    if returnJWT
-                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                    else cs $ encode body)
-        else return notFound
-
-    (ActionRead, TargetIdent qi, _) ->
+    (ActionRead, TargetIdent qi, Nothing) ->
       case selectQuery of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right q -> do
@@ -159,7 +116,8 @@ app dbStructure conf reqBody req =
                       if Prelude.null canonical then "" else "?" <> cs canonical
                   )
                 ] (fromMaybe "[]" body)
-    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), _) ->
+
+    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just (PayloadJSON _)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq,isSingle) -> do
@@ -173,7 +131,8 @@ app dbStructure conf reqBody req =
               (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
             ]
             $ if iPreferRepresentation intent then fromMaybe "[]" body else ""
-    (ActionUpdate, TargetIdent _, _) ->
+
+    (ActionUpdate, TargetIdent _, Just (PayloadJSON _)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq,_) -> do
@@ -186,7 +145,8 @@ app dbStructure conf reqBody req =
                                | otherwise -> status204
           return $ responseLBS s [contentTypeH, r]
             $ if iPreferRepresentation intent then fromMaybe "[]" body else ""
-    (ActionDelete, TargetIdent _, _) ->
+
+    (ActionDelete, TargetIdent _, Nothing) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq,_) -> do
@@ -196,6 +156,48 @@ app dbStructure conf reqBody req =
           return $ if queryTotal == 0
             then notFound
             else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+
+    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) -> do
+      let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+          pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+          body = encode (TableOptions cols pkeys)
+          filterCol :: Schema -> TableName -> Column -> Bool
+          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
+          filterCol _ _ _ =  False
+      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
+
+    (ActionInvoke, TargetIdent qi, Just (PayloadJSON payload)) -> do
+      exists <- doesProcExist qi
+      if exists
+        then do
+          let p = case pp of
+                    JSON.Object o -> o
+                    _ -> undefined
+                  where pp = V.head payload
+              call = B.Stmt "select " V.empty True <>
+                asJson (callProc qi p)
+              jwtSecret = configJwtSecret conf
+
+          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
+          returnJWT <- doesProcReturnJWT qi
+          return $ responseLBS status200 [jsonH]
+                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                    if returnJWT
+                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                    else cs $ encode body)
+        else return notFound
+
+    (ActionRead, TargetRoot, Nothing) -> do
+      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) (dbTables dbStructure))
+      return $ responseLBS status200 [jsonH] $ cs body
+
+    (ActionUnknown _, _, _) -> return notFound
+
+    (_, TargetUnknown _, _) -> return notFound
+
+    (_, _, Just (PayloadParseError e)) ->
+      return $ responseLBS status400 [jsonH] $
+        cs (formatGeneralError "Cannot parse request payload" (cs e))
 
     (_, _, _) -> return notFound
 
@@ -233,27 +235,8 @@ contentRangeH frm to total =
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = frm <= to
 
-jsonMT :: BS.ByteString
-jsonMT = "application/json"
-
-csvMT :: BS.ByteString
-csvMT = "text/csv"
-
-allMT :: BS.ByteString
-allMT = "*/*"
-
 jsonH :: Header
-jsonH = (hContentType, jsonMT)
-
-contentTypeForAccept :: Maybe BS.ByteString -> Maybe BS.ByteString
-contentTypeForAccept accept
-  | isNothing accept || has allMT || has jsonMT = Just jsonMT
-  | has csvMT = Just csvMT
-  | otherwise = Nothing
-  where
-    Just acceptH = accept
-    findInAccept = flip find $ parseHttpAccept acceptH
-    has          = isJust . findInAccept . BS.isPrefixOf
+jsonH = (hContentType, "application/json")
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError
