@@ -50,8 +50,15 @@ data PrimaryKey = PrimaryKey {
   , pkName  :: Text
 } deriving (Show, Eq)
 
-data OrderDirection = OrderAsc | OrderDesc deriving (Show, Eq)
-data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Show, Eq)
+data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
+instance Show OrderDirection where
+  show OrderAsc  = "asc"
+  show OrderDesc = "desc"
+
+data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
+instance Show OrderNulls where
+  show OrderNullsFirst = "nulls first"
+  show OrderNullsLast  = "nulls last"
 
 data OrderTerm = OrderTerm {
   otTerm      :: Text

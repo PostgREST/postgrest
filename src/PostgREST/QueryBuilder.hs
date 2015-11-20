@@ -321,20 +321,8 @@ orderF ts =
     queryTerm :: OrderTerm -> Text
     queryTerm t = " "
            <> cs (pgFmtIdent $ otTerm t) <> " "
-           <> sqlOrderDirection (otDirection t) <> " "
-           <> maybe "" sqlOrderNulls (otNullOrder t) <> " "
-
-sqlOrderDirection :: OrderDirection -> SqlFragment
-sqlOrderDirection d =
-  case d of
-    OrderDesc -> "desc"
-    OrderAsc  -> "asc"
-
-sqlOrderNulls :: OrderNulls -> SqlFragment
-sqlOrderNulls d =
-  case d of
-    OrderNullsFirst -> "nulls first"
-    OrderNullsLast  -> "nulls last"
+           <> (cs.show) (otDirection t) <> " "
+           <> maybe "" (cs.show) (otNullOrder t) <> " "
 
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"

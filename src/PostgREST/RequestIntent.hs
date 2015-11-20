@@ -32,6 +32,10 @@ data Target = TargetIdent QualifiedIdentifier
 -- | Enumeration of currently supported content types for
 -- route responses and upload payloads
 data ContentType = ApplicationJSON | TextCSV deriving Eq
+instance Show ContentType where
+  show ApplicationJSON = "application/json"
+  show TextCSV         = "text/csv"
+
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.
@@ -128,7 +132,7 @@ userIntent schema req reqBody =
   method          = requestMethod req
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   hdrs            = requestHeaders req
-  qParams        = [(cs k, cs <$> v)|(k,v) <- queryString req]
+  qParams         = [(cs k, cs <$> v)|(k,v) <- queryString req]
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
   singular        = hasPrefer "plurality=singular"

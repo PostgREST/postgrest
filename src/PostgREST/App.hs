@@ -75,10 +75,7 @@ app dbStructure conf reqBody req =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts intent)
-      contentTypeS ct = case ct of
-        ApplicationJSON -> "application/json"
-        TextCSV -> "text/csv"
-      contentTypeH = (hContentType, contentTypeS contentType) in
+      contentTypeH = (hContentType, cs $ show contentType) in
 
   case (iAction intent, iTarget intent, iPayload intent) of
 
