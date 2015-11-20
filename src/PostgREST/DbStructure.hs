@@ -51,7 +51,7 @@ doesProc stmt qi = do
   return $ isJust row
 
 doesProcExist :: QualifiedIdentifier -> H.Tx P.Postgres s Bool
-doesProcExist = doesProc $ [H.stmt|
+doesProcExist = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p

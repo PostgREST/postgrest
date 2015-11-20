@@ -7,7 +7,8 @@ import qualified Data.Csv                as CSV
 import           Data.List               (find)
 import qualified Data.HashMap.Strict     as M
 import           Data.Maybe              (fromMaybe, isJust, isNothing,
-                                          listToMaybe)
+                                          listToMaybe, fromJust)
+import           Control.Monad           (join)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import qualified Data.Text               as T
@@ -23,14 +24,14 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
-            | ActionUnknown BS.ByteString
+            | ActionUnknown BS.ByteString deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetRoot
             | TargetUnknown [T.Text]
 -- | Enumeration of currently supported content types for
 -- route responses and upload payloads
-data ContentType = ApplicationJSON | TextCSV
+data ContentType = ApplicationJSON | TextCSV deriving Eq
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.
@@ -54,19 +55,25 @@ data Intent = Intent {
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
   -- | Data sent by client and used for mutation actions
-  , iPayload :: Payload
+  , iPayload :: Maybe Payload
   -- | If client wants created items echoed back
   , iPreferRepresentation :: Bool
   -- | If client wants first row as raw object
   , iPreferSingular :: Bool
   -- | Whether the client wants a result count (slower)
   , iPreferCount :: Bool
+  -- | Filters on the result ("id", "eq.10")
+  , iFilters :: [(String, String)]
+  -- | &select parameter used to shape the response
+  , iSelect :: String
+  -- | &order parameter
+  , iOrder :: Maybe String
   }
 
 -- | Examines HTTP request and translates it into user intent.
 userIntent :: Schema -> Request -> RequestBody -> Intent
 userIntent schema req reqBody =
-  let action = case requestMethod req of
+  let action = case method of
                  "GET"     -> ActionRead
                  "POST"    -> if isTargetingProc
                                 then ActionInvoke
@@ -82,7 +89,11 @@ userIntent schema req reqBody =
                  ["rpc", proc] -> TargetIdent
                                   $ QualifiedIdentifier schema proc
                  other         -> TargetUnknown other
-      reqPayload = case pickContentType (lookupHeader "content-type") of
+      reqPayload = case action of
+        ActionCreate -> Just payload
+        ActionUpdate -> Just payload
+        _            -> Nothing
+        where payload = case pickContentType (lookupHeader "content-type") of
                      Right ApplicationJSON ->
                        either (PayloadParseError . cs)
                          (PayloadJSON . pluralize)
@@ -95,22 +106,32 @@ userIntent schema req reqBody =
                        PayloadParseError $
                          "Content-type not acceptable: " <> accept in
 
-  Intent action
-    (if singular then Nothing else rangeRequested hdrs)
-    target
-    (pickContentType $ lookupHeader "accept")
-    reqPayload
-    (hasPrefer "return=representation")
-    singular
-    (not $ hasPrefer "count=none")
+  Intent {
+    iAction = action
+  , iRange  = if singular then Nothing else rangeRequested hdrs
+  , iTarget = target
+  , iAccepts = pickContentType $ lookupHeader "accept"
+  , iPayload = reqPayload
+  , iPreferRepresentation = hasPrefer "return=representation"
+  , iPreferSingular = singular
+  , iPreferCount = not $ hasPrefer "count=none"
+  , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
+  , iSelect = if method == "DELETE"
+              then "*"
+              else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+  , iOrder = join $ lookup "order" qParams
+  }
 
  where
   path            = pathInfo req
+  method          = requestMethod req
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   hdrs            = requestHeaders req
+  qParams        = [(cs k, cs <$> v)|(k,v) <- queryString req]
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
-  singular        = (hasPrefer "plurality=singular")
+  singular        = hasPrefer "plurality=singular"
+
 
 
 -- PRIVATE ---------------------------------------------------------------
