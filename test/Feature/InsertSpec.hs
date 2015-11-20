@@ -207,7 +207,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           }
 
 
-    after_ (clearTable "no_pk") . context "with wrong number of columns" $ do
+    after_ (clearTable "no_pk") . context "with wrong number of columns" $
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         liftIO $ simpleStatus p `shouldBe` badRequest400
