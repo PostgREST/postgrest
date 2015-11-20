@@ -59,6 +59,8 @@ data Intent = Intent {
   , iPreferRepresentation :: Bool
   -- | If client wants first row as raw object
   , iPreferSingular :: Bool
+  -- | Whether the client wants a result count (slower)
+  , iPreferCount :: Bool
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -94,12 +96,13 @@ userIntent schema req reqBody =
                          "Content-type not acceptable: " <> accept in
 
   Intent action
-    (rangeRequested hdrs)
+    (if singular then Nothing else rangeRequested hdrs)
     target
     (pickContentType $ lookupHeader "accept")
     reqPayload
     (hasPrefer "return=representation")
-    (hasPrefer "plurality=singular")
+    singular
+    (not $ hasPrefer "count=none")
 
  where
   path            = pathInfo req
@@ -107,6 +110,7 @@ userIntent schema req reqBody =
   hdrs            = requestHeaders req
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
+  singular        = (hasPrefer "plurality=singular")
 
 
 -- PRIVATE ---------------------------------------------------------------
