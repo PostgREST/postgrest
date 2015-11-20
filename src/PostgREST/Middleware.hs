@@ -3,7 +3,7 @@
 
 module PostgREST.Middleware where
 
-import           Data.Maybe                    (fromMaybe, isNothing)
+import           Data.Maybe                    (fromMaybe)
 import           Data.Text
 import           Data.String.Conversions       (cs)
 import           Data.Time.Clock.POSIX         (getPOSIXTime)
@@ -18,7 +18,7 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.App                 (contentTypeForAccept)
+import           PostgREST.RequestIntent       (pickContentType)
 import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
@@ -58,12 +58,11 @@ runWithClaims conf app req = do
     invalidJWT = return $ errResponse status400 "Invalid JWT"
 
 unsupportedAccept :: Application -> Application
-unsupportedAccept app req respond = do
-  let
-    accept = lookup hAccept $ requestHeaders req
-  if isNothing $ contentTypeForAccept accept
-  then respond $ errResponse status415 "Unsupported Accept header, try: application/json"
-  else app req respond
+unsupportedAccept app req respond =
+  case accept of
+    Left _ -> respond $ errResponse status415 "Unsupported Accept header, try: application/json"
+    Right _ -> app req respond
+  where accept = pickContentType $ lookup hAccept $ requestHeaders req
 
 defaultMiddle :: Application -> Application
 defaultMiddle =
