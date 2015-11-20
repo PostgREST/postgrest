@@ -254,25 +254,14 @@ formatGeneralError message details = cs $ encode $ object [
   "message" .= message,
   "details" .= details]
 
--- parseRequestBody :: Bool -> RequestBody -> Either Text ([Text],[[Value]])
--- parseRequestBody isCsv reqBody = first cs $
---   checkStructure =<<
---   if isCsv
---   then do
---     rows <- (map V.toList . V.toList) <$> CSV.decode CSV.NoHeader reqBody
---     if null rows then Left "CSV requires header" -- TODO! should check if length rows > 1 (header and 1 row)
---       else Right (head rows, (map $ map $ parseCsvCell . cs) (tail rows))
---   else eitherDecode reqBody >>= convertJson
---   where
---     checkStructure :: ([Text], [[Value]]) -> Either String ([Text], [[Value]])
---     checkStructure v
---       | headerMatchesContent v = Right v
---       | isCsv = Left "CSV header does not match rows length"
---       | otherwise = Left "The number of keys in objects do not match"
---
---     headerMatchesContent :: ([Text], [[Value]]) -> Bool
---     headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
---       where headerLength = length header
+checkStructure :: ([Text], [[Value]]) -> Either Text ([Text], [[Value]])
+checkStructure v
+  | headerMatchesContent v = Right v
+  | otherwise = Left "The number of keys in objects do not match"
+
+headerMatchesContent :: ([Text], [[Value]]) -> Bool
+headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
+  where headerLength = length header
 
 convertJson :: Value -> Either Text ([Text],[[Value]])
 convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
@@ -356,7 +345,7 @@ buildMutateApiRequest intent =
     payload = case iPayload intent of
       Just (PayloadJSON v) -> JSON.Array v
       _ -> undefined --TODO! fix
-    parsedBody = convertJson payload -- TODO! either check structure or refactor to send json directly to postgres
+    parsedBody = checkStructure =<< convertJson payload
     isSingleRecord = either (const False) ((==1) . length . snd ) parsedBody
     flds =  join $ first formatParserError . mapM (parseField . cs) <$> (fst <$> parsedBody)
     vals = snd <$> parsedBody
