@@ -117,10 +117,11 @@ app dbStructure conf reqBody req =
                   )
                 ] (fromMaybe "[]" body)
 
-    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just (PayloadJSON _)) ->
+    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just (PayloadJSON payload)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (sq,mq,isSingle) -> do
+        Right (sq,mq) -> do
+          let isSingle = (==1) $ V.length payload
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement sq mq isSingle (iPreferRepresentation intent) pKeys (contentType == TextCSV)
           row <- H.maybeEx stm
@@ -135,7 +136,7 @@ app dbStructure conf reqBody req =
     (ActionUpdate, TargetIdent _, Just (PayloadJSON _)) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (sq,mq,_) -> do
+        Right (sq,mq) -> do
           let stm = createWriteStatement sq mq False (iPreferRepresentation intent) [] (contentType == TextCSV)
           row <- H.maybeEx stm
           let (_, queryTotal, _, body) = extractQueryResult row
@@ -149,7 +150,7 @@ app dbStructure conf reqBody req =
     (ActionDelete, TargetIdent _, Nothing) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right (sq,mq,_) -> do
+        Right (sq,mq) -> do
           let stm = createWriteStatement sq mq False False [] (contentType == TextCSV)
           row <- H.maybeEx stm
           let (_, queryTotal, _, _) = extractQueryResult row
@@ -208,13 +209,9 @@ app dbStructure conf reqBody req =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   intent = userIntent schema req reqBody
-  selectApiRequest = buildSelectApiRequest intent (dbRelations dbStructure)
-  selectQuery = requestToQuery schema <$> selectApiRequest
-  mutateTuple = buildMutateApiRequest intent
-  mutateApiRequest = fst <$> mutateTuple
-  isSingleRecord = snd <$> mutateTuple
-  mutateQuery = requestToQuery schema <$> mutateApiRequest
-  queries = (,,) <$> selectQuery <*> mutateQuery <*> isSingleRecord
+  selectQuery = requestToQuery schema <$> buildSelectApiRequest (dbRelations dbStructure) intent
+  mutateQuery = requestToQuery schema <$> buildMutateApiRequest intent
+  queries = (,) <$> selectQuery <*> mutateQuery
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -297,8 +294,8 @@ augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
 
-buildSelectApiRequest :: Intent -> [Relation] -> Either Text ApiRequest
-buildSelectApiRequest intent allRels =
+buildSelectApiRequest :: [Relation] -> Intent -> Either Text ApiRequest
+buildSelectApiRequest allRels intent  =
   augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> apiRequest <*> ord) <*> flts)
   where
     selStr = iSelect intent
@@ -326,9 +323,9 @@ buildSelectApiRequest intent allRels =
     flts = mapM pRequestFilter filters
     ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
 
-buildMutateApiRequest :: Intent -> Either Text (ApiRequest, Bool)
+buildMutateApiRequest :: Intent -> Either Text ApiRequest
 buildMutateApiRequest intent =
-  (,) <$> mutateApiRequest <*> pure isSingleRecord
+  mutateApiRequest
   where
     action = iAction intent
     target = iTarget intent
