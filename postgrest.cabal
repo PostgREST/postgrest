@@ -61,6 +61,8 @@ executable postgrest
                      , parsec
                      , errors
                      , bifunctors
+                     , servant
+                     , servant-server
   hs-source-dirs:      src
   other-modules:       Paths_postgrest
                      , PostgREST.App
@@ -73,6 +75,7 @@ executable postgrest
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
+                     , PostgREST.Api
 
 library
   if flag(ci)
@@ -124,6 +127,8 @@ library
                      , wai-extra
                      , wai-middleware-static
                      , warp
+                     , servant
+                     , servant-server
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
@@ -136,6 +141,7 @@ library
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
+                     , PostgREST.Api
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -202,3 +208,5 @@ Test-Suite spec
                      , parsec
                      , errors
                      , bifunctors
+                     , servant
+                     , servant-server
