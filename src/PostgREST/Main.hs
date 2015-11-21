@@ -1,6 +1,7 @@
 module Main where
 
 
+import           PostgREST.Api (runTestServer)
 import           PostgREST.App
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
@@ -71,8 +72,11 @@ main = do
   dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
   dbStructure <- either hasqlError return dbOrError
 
+  runTestServer 8001
+  {-
   runSettings appSettings $ middle $ \ req respond -> do
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
       runWithClaims conf (app dbStructure conf body) req
     either (respond . pgErrResponse) respond resOrError
+  -}
