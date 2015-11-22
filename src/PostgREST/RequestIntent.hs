@@ -201,19 +201,14 @@ ensureUniform :: JSON.Array -> Maybe UniformObjects
 ensureUniform arr =
   let objs :: V.Vector JSON.Object
       objs = foldr -- filter non-objects, map to raw objects
-               (\result val -> case val of
+               (\val result -> case val of
                   JSON.Object o -> V.cons o result
                   _ -> result)
                V.empty arr
-      keysPerObj :: [S.Set T.Text]
-      keysPerObj = V.toList $ V.map (S.fromList . M.keys) objs
-      allKeys    :: S.Set T.Text
-      allKeys    = S.unions keysPerObj
-      commonKeys :: S.Set T.Text
-      commonKeys = case keysPerObj of
-                     h : _ -> foldr S.intersection h keysPerObj
-                     [] -> S.empty in
+      keysPerObj = V.map (S.fromList . M.keys) objs
+      canonicalKeys = fromMaybe S.empty $ keysPerObj V.!? 0
+      areKeysUniform = all (==canonicalKeys) keysPerObj in
 
-  if (length objs == length arr) && (allKeys == commonKeys)
+  if (V.length objs == V.length arr) && areKeysUniform
     then Just (UniformObjects objs)
     else Nothing
