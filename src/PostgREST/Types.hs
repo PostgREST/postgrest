@@ -3,6 +3,7 @@ import Data.Text
 import Data.Tree
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString      as BS
+import qualified Data.Vector          as V
 import Data.Aeson
 
 data DbStructure = DbStructure {
@@ -84,10 +85,15 @@ data Relation = Relation {
 , relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
+-- | An array of JSON objects that has been verified to have
+-- the same keys in every object
+newtype UniformObjects = UniformObjects (V.Vector Object)
+  deriving (Show, Eq)
+
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.
-data Payload = PayloadJSON Array
+data Payload = PayloadJSON UniformObjects
              | PayloadParseError BS.ByteString
              deriving (Show, Eq)
 

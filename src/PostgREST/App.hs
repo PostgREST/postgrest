@@ -13,6 +13,7 @@ import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Lazy      as BL
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as HM
+import qualified Data.HashSet              as S
 import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
@@ -113,7 +114,8 @@ app dbStructure conf reqBody req =
                   )
                 ] (fromMaybe "[]" body)
 
-    (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
+    (ActionCreate, TargetIdent (QualifiedIdentifier _ table),
+     Just payload@(PayloadJSON (UniformObjects rows))) ->
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
@@ -147,7 +149,7 @@ app dbStructure conf reqBody req =
       case queries of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let fakeload = PayloadJSON V.empty
+          let fakeload = PayloadJSON $ UniformObjects V.empty
           let stm = createWriteStatement sq mq False False [] (contentType == TextCSV) fakeload
           row <- H.maybeEx stm
           let (_, queryTotal, _, _) = extractQueryResult row
@@ -164,14 +166,12 @@ app dbStructure conf reqBody req =
           filterCol _ _ _ =  False
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
-    (ActionInvoke, TargetIdent qi, Just (PayloadJSON payload)) -> do
+    (ActionInvoke, TargetIdent qi,
+     Just (PayloadJSON (UniformObjects payload))) -> do
       exists <- doesProcExist qi
       if exists
         then do
-          let p = case pp of
-                    JSON.Object o -> o
-                    _ -> undefined
-                  where pp = V.head payload
+          let p = V.head payload
               call = B.Stmt "select " V.empty True <>
                 asJson (callProc qi p)
               jwtSecret = configJwtSecret conf
@@ -391,7 +391,8 @@ createReadStatement selectQuery range isSingle countTable asCsv =
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
                         [Text] -> Bool -> Payload -> B.Stmt P.Postgres
-createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv (PayloadJSON rows) =
+createWriteStatement selectQuery mutateQuery isSingle echoRequested
+                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
   B.Stmt (
     wrapQuery mutateQuery [
       countNoneF, -- when updateing it does not make sense
@@ -405,7 +406,7 @@ createWriteStatement selectQuery mutateQuery isSingle echoRequested pKeys asCsv 
       else "null"
 
     ] selectQuery Nothing
-  ) (V.singleton . B.encodeValue . JSON.Array $ rows) True
+  ) (V.singleton . B.encodeValue . JSON.Array . V.map Object $ rows) True
 
 extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
                          -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)

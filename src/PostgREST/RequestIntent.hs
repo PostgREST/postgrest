@@ -6,6 +6,7 @@ import qualified Data.ByteString.Lazy    as BL
 import qualified Data.Csv                as CSV
 import           Data.List               (find)
 import qualified Data.HashMap.Strict     as M
+import qualified Data.Set                as S
 import           Data.Maybe              (fromMaybe, isJust, isNothing,
                                           listToMaybe, fromJust)
 import           Control.Monad           (join)
@@ -17,7 +18,8 @@ import           Network.Wai             (Request (..))
 import           Network.Wai.Parse       (parseHttpAccept)
 import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
 import           PostgREST.Types         (QualifiedIdentifier (..),
-                                          Schema, Payload(..))
+                                          Schema, Payload(..),
+                                          UniformObjects(..))
 
 type RequestBody = BL.ByteString
 
@@ -88,30 +90,32 @@ userIntent schema req reqBody =
                  ["rpc", proc] -> TargetIdent
                                   $ QualifiedIdentifier schema proc
                  other         -> TargetUnknown other
-      reqPayload = case action of
+      payload = case pickContentType (lookupHeader "content-type") of
+        Right ApplicationJSON ->
+          either (PayloadParseError . cs)
+            (\val -> case ensureUniform (pluralize val) of
+              Nothing -> PayloadParseError "All object keys must match"
+              Just json -> PayloadJSON json)
+            (JSON.eitherDecode reqBody)
+        Right TextCSV ->
+          either (PayloadParseError . cs)
+            (PayloadJSON . csvToJson)
+            (CSV.decodeByName reqBody)
+        Left accept ->
+          PayloadParseError $
+            "Content-type not acceptable: " <> accept
+      relevantPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
         ActionInvoke -> Just payload
-        _            -> Nothing
-        where payload = case pickContentType (lookupHeader "content-type") of
-                     Right ApplicationJSON ->
-                       either (PayloadParseError . cs)
-                         (PayloadJSON . pluralize)
-                         (JSON.eitherDecode reqBody)
-                     Right TextCSV ->
-                       either (PayloadParseError . cs)
-                         (PayloadJSON . csvToJson)
-                         (CSV.decodeByName reqBody)
-                     Left accept ->
-                       PayloadParseError $
-                         "Content-type not acceptable: " <> accept in
+        _            -> Nothing in
 
   Intent {
     iAction = action
   , iRange  = if singular then Nothing else rangeRequested hdrs
   , iTarget = target
   , iAccepts = pickContentType $ lookupHeader "accept"
-  , iPayload = reqPayload
+  , iPayload = relevantPayload
   , iPreferRepresentation = hasPrefer "return=representation"
   , iPreferSingular = singular
   , iPreferCount = not $ hasPrefer "count=none"
@@ -173,11 +177,11 @@ type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
   The reason for its odd signature is so that it can compose
   directly with CSV.decodeByName
 -}
-csvToJson :: (CSV.Header, CsvData) -> JSON.Array
+csvToJson :: (CSV.Header, CsvData) -> UniformObjects
 csvToJson (_, vals) =
-  V.map rowToJsonObj vals
+  UniformObjects $ V.map rowToJsonObj vals
  where
-  rowToJsonObj = JSON.Object .
+  rowToJsonObj =
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
@@ -190,3 +194,26 @@ pluralize :: JSON.Value -> JSON.Array
 pluralize obj@(JSON.Object _) = V.singleton obj
 pluralize (JSON.Array arr)    = arr
 pluralize _                   = V.empty
+
+-- | Test that Array contains only Objects having the same keys
+-- and if so mark it as UniformObjects
+ensureUniform :: JSON.Array -> Maybe UniformObjects
+ensureUniform arr =
+  let objs :: V.Vector JSON.Object
+      objs = foldr -- filter non-objects, map to raw objects
+               (\result val -> case val of
+                  JSON.Object o -> V.cons o result
+                  _ -> result)
+               V.empty arr
+      keysPerObj :: [S.Set T.Text]
+      keysPerObj = V.toList $ V.map (S.fromList . M.keys) objs
+      allKeys    :: S.Set T.Text
+      allKeys    = S.unions keysPerObj
+      commonKeys :: S.Set T.Text
+      commonKeys = case keysPerObj of
+                     h : _ -> foldr S.intersection h keysPerObj
+                     [] -> S.empty in
+
+  if (length objs == length arr) && (allKeys == commonKeys)
+    then Just (UniformObjects objs)
+    else Nothing
