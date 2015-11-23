@@ -51,7 +51,7 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree = try (Node <$> pSelect <*> between (char '(') (char ')') pFieldForest)
+pFieldTree = try (Node <$> pSelect <*> between (char '{') (char '}') pFieldForest)
           <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser Text

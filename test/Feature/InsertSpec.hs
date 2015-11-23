@@ -44,7 +44,7 @@ spec = afterAll_ resetDb $ around withApp $ do
           }
 
       it "includes related data after insert" $
-        request methodPost "/projects?select=id,name,clients(id,name)" [("Prefer", "return=representation")]
+        request methodPost "/projects?select=id,name,clients{id,name}" [("Prefer", "return=representation")]
           [str|{"id":5,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":5,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
           , matchStatus  = 201
