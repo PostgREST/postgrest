@@ -13,13 +13,12 @@ import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Lazy      as BL
 import           Data.Functor.Identity
 import           Data.List                 (find, sortBy, delete)
-import           Data.Maybe                (fromMaybe, fromJust, isNothing, mapMaybe)
+import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ord                  (comparing)
-import           Data.Ranged.Ranges        (emptyRange, singletonRange)
+import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
-import qualified Data.Aeson                as JSON
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
@@ -51,19 +50,12 @@ import           PostgREST.Error           (errResponse)
 
 import           PostgREST.QueryBuilder ( asJson
                                         , callProc
-                                        , asCsvF
-                                        , asJsonF
-                                        , selectStarF
-                                        , countF
-                                        , locationF
-                                        , asJsonSingleF
                                         , addJoinConditions
                                         , sourceSubqueryName
                                         , requestToQuery
-                                        , wrapQuery
-                                        , countAllF
-                                        , countNoneF
                                         , addRelations
+                                        , createReadStatement
+                                        , createWriteStatement
                                         )
 
 import           Prelude
@@ -336,38 +328,6 @@ instance ToJSON TableOptions where
       "columns" .= tblOptcolumns t
     , "pkey"   .= tblOptpkey t ]
 
-createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
-createReadStatement selectQuery range isSingle countTable asCsv =
-  B.Stmt (
-    wrapQuery selectQuery [
-      if countTable then countAllF else countNoneF,
-      countF,
-      "null", -- location header can not be calucalted
-      if asCsv
-        then asCsvF
-        else if isSingle then asJsonSingleF else asJsonF
-    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
-  ) V.empty True
-
-createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
-                        [Text] -> Bool -> Payload -> B.Stmt P.Postgres
-createWriteStatement _ _ _ _ _ _ (PayloadParseError _) = undefined
-createWriteStatement selectQuery mutateQuery isSingle echoRequested
-                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
-  B.Stmt (
-    wrapQuery mutateQuery [
-      countNoneF, -- when updateing it does not make sense
-      countF,
-      if isSingle then locationF pKeys else "null",
-      if echoRequested
-      then
-        if asCsv
-        then asCsvF
-        else if isSingle then asJsonSingleF else asJsonF
-      else "null"
-
-    ] selectQuery Nothing
-  ) (V.singleton . B.encodeValue . JSON.Array . V.map Object $ rows) True
 
 extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
                          -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)

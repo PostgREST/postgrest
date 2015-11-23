@@ -4,23 +4,16 @@
 module PostgREST.QueryBuilder (
     addRelations
   , addJoinConditions
-  , asCsvF
   , asJson
-  , asJsonF
-  , asJsonSingleF
   , callProc
-  , countAllF
-  , countF
-  , countNoneF
-  , locationF
+  , createReadStatement
+  , createWriteStatement
   , operators
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
-  , selectStarF
   , sourceSubqueryName
   , unquoted
-  , wrapQuery
   ) where
 
 import qualified Hasql                   as H
@@ -31,6 +24,7 @@ import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
+import           Data.Maybe              (isNothing)
 import           Control.Monad           (join)
 import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
@@ -51,12 +45,47 @@ import           Data.Scientific         ( FPFormat (..)
                                          )
 import           Prelude hiding          (unwords)
 
+import           Data.Ranged.Ranges      (singletonRange)
+
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
   mappend (B.Stmt query params prep) (B.Stmt query' params' prep') =
     B.Stmt (query <> query') (params <> params') (prep && prep')
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
+
+createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
+createReadStatement selectQuery range isSingle countTable asCsv =
+  B.Stmt (
+    wrapQuery selectQuery [
+      if countTable then countAllF else countNoneF,
+      countF,
+      "null", -- location header can not be calucalted
+      if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
+  ) V.empty True
+
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
+                        [Text] -> Bool -> Payload -> B.Stmt P.Postgres
+createWriteStatement _ _ _ _ _ _ (PayloadParseError _) = undefined
+createWriteStatement selectQuery mutateQuery isSingle echoRequested
+                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
+  B.Stmt (
+    wrapQuery mutateQuery [
+      countNoneF, -- when updateing it does not make sense
+      countF,
+      if isSingle then locationF pKeys else "null",
+      if echoRequested
+      then
+        if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+      else "null"
+
+    ] selectQuery Nothing
+  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
@@ -98,31 +127,11 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond q con = q{flt_=con ++ flt_ q}
 
-asCsvF :: SqlFragment
-asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
-  where
-    asCsvHeaderF =
-      "(SELECT string_agg(a.k, ',')" <>
-      "  FROM (" <>
-      "    SELECT json_object_keys(r)::TEXT as k" <>
-      "    FROM ( " <>
-      "      SELECT row_to_json(hh) as r from " <> sourceSubqueryName <> " as hh limit 1" <>
-      "    ) s" <>
-      "  ) a" <>
-      ")"
-    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
-
 asJson :: StatementT
 asJson s = s {
   B.stmtTemplate =
     "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
-
-asJsonF :: SqlFragment
-asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
-
-asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
 
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
@@ -130,28 +139,6 @@ callProc qi params = do
   B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-
-countAllF :: SqlFragment
-countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
-
-countF :: SqlFragment
-countF = "pg_catalog.count(t)"
-
-countNoneF :: SqlFragment
-countNoneF = "null"
-
-locationF :: [Text] -> SqlFragment
-locationF pKeys =
-    "(" <>
-    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
-    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
-    " FROM s, json_each_text(s.r) AS json_data" <>
-    (
-      if null pKeys
-      then ""
-      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
-    ) <>
-    ")"
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -268,9 +255,6 @@ requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
       "RETURNING " <> fromQi qi <> ".*"
       ]
 
-selectStarF :: SqlFragment
-selectStarF = "SELECT * FROM " <> sourceSubqueryName
-
 sourceSubqueryName :: SqlFragment
 sourceSubqueryName = "pg_source"
 
@@ -281,15 +265,49 @@ unquoted (JSON.Number n) =
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted v = cs $ JSON.encode v
 
-wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
-wrapQuery source selectColumns returnSelect range =
-  withSourceF source <>
-  " SELECT " <>
-  intercalate ", " selectColumns <>
-  " " <>
-  fromF returnSelect ( limitF range )
-
 -- private functions
+asCsvF :: SqlFragment
+asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
+  where
+    asCsvHeaderF =
+      "(SELECT string_agg(a.k, ',')" <>
+      "  FROM (" <>
+      "    SELECT json_object_keys(r)::TEXT as k" <>
+      "    FROM ( " <>
+      "      SELECT row_to_json(hh) as r from " <> sourceSubqueryName <> " as hh limit 1" <>
+      "    ) s" <>
+      "  ) a" <>
+      ")"
+    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
+
+asJsonF :: SqlFragment
+asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
+
+asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
+
+countAllF :: SqlFragment
+countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
+
+countF :: SqlFragment
+countF = "pg_catalog.count(t)"
+
+countNoneF :: SqlFragment
+countNoneF = "null"
+
+locationF :: [Text] -> SqlFragment
+locationF pKeys =
+    "(" <>
+    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
+    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
+    " FROM s, json_each_text(s.r) AS json_data" <>
+    (
+      if null pKeys
+      then ""
+      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
+    ) <>
+    ")"
+
 fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
@@ -409,3 +427,14 @@ limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
     offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
+
+selectStarF :: SqlFragment
+selectStarF = "SELECT * FROM " <> sourceSubqueryName
+
+wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
+wrapQuery source selectColumns returnSelect range =
+  withSourceF source <>
+  " SELECT " <>
+  intercalate ", " selectColumns <>
+  " " <>
+  fromF returnSelect ( limitF range )
