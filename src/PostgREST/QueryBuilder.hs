@@ -58,7 +58,7 @@ instance Monoid PStmt where
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
 
-addRelations :: Schema -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
+addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
   case parentNode of
     Nothing -> Node (query, (table, Nothing)) <$> updatedForest
@@ -67,14 +67,14 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
         rel = note ("no relation between " <> table <> " and " <> parentTable)
             $  findRelation schema table parentTable
            <|> findRelation schema parentTable table
-        addRel :: (Query, (NodeName, Maybe Relation)) -> Relation -> (Query, (NodeName, Maybe Relation))
+        addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
         addRel (q, (t, _)) r = (q, (t, Just r))
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
     findRelation s t1 t2 =
       find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
 
-addJoinConditions :: Schema -> ApiRequest -> Either Text ApiRequest
+addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
   case r of
     Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
@@ -96,7 +96,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
-    addCond q con = q{where_=con ++ where_ q}
+    addCond q con = q{flt_=con ++ flt_ q}
 
 asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
@@ -189,8 +189,10 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
-requestToQuery :: Schema -> ApiRequest -> SqlQuery
-requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
+requestToQuery :: Schema -> DbRequest -> SqlQuery
+requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
+requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
+requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -206,31 +208,31 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
       orderF (fromMaybe [] ord)
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree ApiNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
+    getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where subquery = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
-          where subquery = requestToQuery schema (Node n forst)
+          where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where subquery = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
-requestToQuery schema (Node (Insert _ (PayloadJSON (UniformObjects rows)), (mainTbl, _)) _) =
+requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
       colsString = intercalate ", " cols in
@@ -241,22 +243,22 @@ requestToQuery schema (Node (Insert _ (PayloadJSON (UniformObjects rows)), (main
     " FROM json_populate_recordset(null::" , fromQi qi, ", ?)",
     " RETURNING " <> fromQi qi <> ".*"
     ]
-requestToQuery schema (Node (Update _ (PayloadJSON (UniformObjects rows)) conditions, (mainTbl, _)) _) =
+requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
             (\(k,v) -> pgFmtIdent k <> "=" <> insertableValue v) $ HM.toList obj in
       unwords [
         "UPDATE ", fromQi qi,
-        " SET " <> (intercalate "," assignments) <> " ",
+        " SET " <> intercalate "," assignments <> " ",
         ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
         "RETURNING " <> fromQi qi <> ".*"
         ]
-    Nothing -> ""
+    Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
 
-requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
+requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl

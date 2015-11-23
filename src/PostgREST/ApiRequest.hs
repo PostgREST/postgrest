@@ -1,4 +1,4 @@
-module PostgREST.RequestIntent where
+module PostgREST.ApiRequest where
 
 import qualified Data.Aeson              as JSON
 import qualified Data.ByteString         as BS
@@ -46,7 +46,7 @@ instance Show ContentType where
   sensible, it is up to a later stage of processing to determine
   if it is an action we are able to perform.
 -}
-data Intent = Intent {
+data ApiRequest = ApiRequest {
   -- | Set to Nothing for unknown HTTP verbs
     iAction :: Action
   -- | Set to Nothing for malformed range
@@ -72,8 +72,8 @@ data Intent = Intent {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userIntent :: Schema -> Request -> RequestBody -> Intent
-userIntent schema req reqBody =
+userApiRequest :: Schema -> Request -> RequestBody -> ApiRequest
+userApiRequest schema req reqBody =
   let action = case method of
                  "GET"     -> ActionRead
                  "POST"    -> if isTargetingProc
@@ -112,7 +112,7 @@ userIntent schema req reqBody =
         ActionInvoke -> Just payload
         _            -> Nothing in
 
-  Intent {
+  ApiRequest {
     iAction = action
   , iRange  = if singular then Nothing else rangeRequested hdrs
   , iTarget = target
