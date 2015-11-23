@@ -106,13 +106,15 @@ type Cast = Text
 type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
-data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
-           | Insert { into::Text, qPayload::Payload }
-           | Delete { from::[Text], where_::[Filter] }
-           | Update { into::Text, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[Text], flt_::[Filter], order::Maybe [OrderTerm] }  deriving (Show, Eq)
+data MutateQuery = Insert { in_::Text, qPayload::Payload }
+                 | Delete { in_::Text, where_::[Filter] }
+                 | Update { in_::Text, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
-type ApiNode = (Query, (NodeName, Maybe Relation))
-type ApiRequest = Tree ApiNode
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation))
+type ReadRequest = Tree ReadNode
+type MutateRequest = MutateQuery
+data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
 
 instance ToJSON Column where

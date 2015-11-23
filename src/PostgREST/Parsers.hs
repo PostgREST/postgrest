@@ -12,12 +12,12 @@ import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           PostgREST.QueryBuilder (operators)
 
-pRequestSelect :: Text -> Parser ApiRequest
+pRequestSelect :: Text -> Parser ReadRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (rootNodeName, Nothing)) []) fieldTree
   where
-    treeEntry :: Tree SelectItem -> ApiRequest -> ApiRequest
+    treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest

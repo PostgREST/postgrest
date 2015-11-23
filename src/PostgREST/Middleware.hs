@@ -18,7 +18,7 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.RequestIntent       (pickContentType)
+import           PostgREST.ApiRequest       (pickContentType)
 import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)

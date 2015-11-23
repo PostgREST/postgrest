@@ -72,7 +72,7 @@ executable postgrest
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
-                     , PostgREST.RequestIntent
+                     , PostgREST.ApiRequest
                      , PostgREST.Types
 
 library
@@ -136,7 +136,7 @@ library
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
-                     , PostgREST.RequestIntent
+                     , PostgREST.ApiRequest
                      , PostgREST.Types
   hs-source-dirs:      src
 
@@ -167,7 +167,7 @@ Test-Suite spec
                      , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
-                     , PostgREST.RequestIntent
+                     , PostgREST.ApiRequest
                      , PostgREST.Types
                      , Spec
                      , SpecHelper
