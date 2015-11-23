@@ -5,10 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+- Use reasonable amount of memory during bulk inserts - @begriffs
+
 ### Added
 - Ensure JWT expires - @calebmer
 - Postgres connection string argument - @calebmer
-- Encode JWT for procs that return type `jwt_claims` - @
+- Encode JWT for procs that return type `jwt_claims` - @diogob
 - Full text operators `@>`,`<@` - @ruslantalpa
 - Shaping of the response body (filter columns, embed relations) with &select parameter for POST/PATCH - @ruslantalpa
 - Detect relationships between public views and private tables - @calebmer
@@ -19,6 +22,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - `--db-x` command line arguments - @calebmer
 - Secure flag - @calebmer
 - PUT request handling - @ruslantalpa
+
+### Changed
+- Embed foreign keys with {} rather than () - @begriffs
 
 ## [0.2.12.1] - 2015-11-12
 
