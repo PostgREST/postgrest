@@ -99,7 +99,9 @@ userIntent schema req reqBody =
             (JSON.eitherDecode reqBody)
         Right TextCSV ->
           either (PayloadParseError . cs)
-            (PayloadJSON . csvToJson)
+            (\val -> case ensureUniform (csvToJson val) of
+              Nothing -> PayloadParseError "All lines must have same number of fields"
+              Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
         Left accept ->
           PayloadParseError $
@@ -177,11 +179,11 @@ type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
   The reason for its odd signature is so that it can compose
   directly with CSV.decodeByName
 -}
-csvToJson :: (CSV.Header, CsvData) -> UniformObjects
+csvToJson :: (CSV.Header, CsvData) -> JSON.Array
 csvToJson (_, vals) =
-  UniformObjects $ V.map rowToJsonObj vals
+  V.map rowToJsonObj vals
  where
-  rowToJsonObj =
+  rowToJsonObj = JSON.Object .
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
