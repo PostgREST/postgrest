@@ -1,6 +1,16 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-|
+Module      : PostgREST.QueryBuilder
+Description : PostgREST SQL generating functions.
+
+This module provides functions to consume data types that
+represent database objects (e.g. Relation, Schema, SqlQuery)
+and produces SQL Statements.
+
+Any function that outputs a SQL fragment should be in this module.
+-}
 module PostgREST.QueryBuilder (
     addRelations
   , addJoinConditions
