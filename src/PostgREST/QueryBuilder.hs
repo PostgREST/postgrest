@@ -32,14 +32,15 @@ import qualified Data.Aeson              as JSON
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
 import           Control.Monad           (join)
+import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
 import           Data.String.Conversions (cs)
-import qualified Data.HashMap.Strict     as H
 import           Control.Applicative     (empty, (<|>))
 import           Data.Tree               (Tree(..))
+import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
 import           Text.Regex.TDFA         ((=~))
@@ -125,7 +126,7 @@ asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
 
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
-  let args = intercalate "," $ map assignment (H.toList params)
+  let args = intercalate "," $ map assignment (HM.toList params)
   B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
@@ -229,12 +230,16 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
-requestToQuery schema (Node (Insert _ payload, (mainTbl, _)) _) =
-  let qi = QualifiedIdentifier schema mainTbl in
+requestToQuery schema (Node (Insert _ (PayloadJSON (UniformObjects rows)), (mainTbl, _)) _) =
+  let qi = QualifiedIdentifier schema mainTbl
+      cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
+      colsString = intercalate ", " cols in
   unwords [
     "INSERT INTO ", fromQi qi,
-    "select * from json_populate_recordset(null::" , fromQi qi, ", ?)",
-    "RETURNING " <> fromQi qi <> ".*"
+    " (" <> colsString <> ")" <>
+    " SELECT " <> colsString <>
+    " FROM json_populate_recordset(null::" , fromQi qi, ", ?)",
+    " RETURNING " <> fromQi qi <> ".*"
     ]
 -- requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
 --   query
