@@ -13,7 +13,6 @@ import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Lazy      as BL
 import           Data.Functor.Identity
 import qualified Data.HashMap.Strict       as HM
-import qualified Data.HashSet              as S
 import           Data.List                 (find, sortBy, delete, transpose)
 import           Data.Maybe                (fromMaybe, fromJust, isNothing, mapMaybe)
 import           Data.Ord                  (comparing)
@@ -248,44 +247,6 @@ formatGeneralError message details = cs $ encode $ object [
   "message" .= message,
   "details" .= details]
 
-checkStructure :: ([Text], [[Value]]) -> Either Text ([Text], [[Value]])
-checkStructure v
-  | headerMatchesContent v = Right v
-  | otherwise = Left "The number of keys in objects do not match"
-
-headerMatchesContent :: ([Text], [[Value]]) -> Bool
-headerMatchesContent (header, vals) = all ( (headerLength ==) . length) vals
-  where headerLength = length header
-
-convertJson :: Value -> Either Text ([Text],[[Value]])
-convertJson v = (,) <$> (header <$> normalized) <*> (vals <$> normalized)
-  where
-    invalidMsg = "Expecting single JSON object or JSON array of objects"::Text
-    normalized :: Either Text [(Text, [Value])]
-    normalized = groupByKey =<< normalizeValue v
-
-    vals :: [(Text, [Value])] -> [[Value]]
-    vals = transpose . map snd
-
-    header :: [(Text, [Value])] -> [Text]
-    header = map fst
-
-    groupByKey :: Value -> Either Text [(Text,[Value])]
-    groupByKey (Array a) = HM.toList . foldr (HM.unionWith (++)) (HM.fromList []) <$> maps
-      where
-        maps :: Either Text [HM.HashMap Text [Value]]
-        maps = mapM getElems $ V.toList a
-        getElems (Object o) = Right $ HM.map (:[]) o
-        getElems _ = Left invalidMsg
-    groupByKey _ = Left invalidMsg
-
-    normalizeValue :: Value -> Either Text Value
-    normalizeValue val =
-      case val of
-        Object obj  -> Right $ Array (V.fromList[Object obj])
-        a@(Array _) -> Right a
-        _ -> Left invalidMsg
-
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ApiRequest -> Either Text ApiRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
@@ -333,7 +294,7 @@ buildMutateApiRequest intent =
         _ -> undefined
     mutateApiRequest = case action of
       ActionCreate -> Node <$> ((,) <$> (Insert rootTableName <$> pure payload) <*> pure (rootTableName, Nothing)) <*> pure []
-      --ActionUpdate -> Node <$> ((,) <$> (Update rootTableName <$> setWith <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
+      ActionUpdate -> Node <$> ((,) <$> (Update rootTableName <$> pure payload <*> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       ActionDelete -> Node <$> ((,) <$> (Delete [rootTableName] <$> cond) <*> pure (rootTableName, Nothing)) <*> pure []
       _        -> Left "Unsupported HTTP verb"
     mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters intent -- update/delete filters can be only on the root table

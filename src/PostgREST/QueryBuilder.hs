@@ -241,17 +241,21 @@ requestToQuery schema (Node (Insert _ (PayloadJSON (UniformObjects rows)), (main
     " FROM json_populate_recordset(null::" , fromQi qi, ", ?)",
     " RETURNING " <> fromQi qi <> ".*"
     ]
--- requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
---   query
---   where
---     qi = QualifiedIdentifier schema mainTbl
---     query = unwords [
---       "UPDATE ", fromQi qi,
---       " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
---       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
---       "RETURNING " <> fromQi qi <> ".*"
---       ]
---     formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
+requestToQuery schema (Node (Update _ (PayloadJSON (UniformObjects rows)) conditions, (mainTbl, _)) _) =
+  case rows V.!? 0 of
+    Just obj ->
+      let assignments = map
+            (\(k,v) -> pgFmtIdent k <> "=" <> insertableValue v) $ HM.toList obj in
+      unwords [
+        "UPDATE ", fromQi qi,
+        " SET " <> (intercalate "," assignments) <> " ",
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+        "RETURNING " <> fromQi qi <> ".*"
+        ]
+    Nothing -> ""
+  where
+    qi = QualifiedIdentifier schema mainTbl
+
 requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
   query
   where
