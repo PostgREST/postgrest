@@ -51,7 +51,7 @@ claimsToSQL = map setVar . toList
   returns a map of JWT claims
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-jwtClaims :: Text -> Text -> NominalDiffTime -> Maybe JWT.ClaimsMap
+jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Maybe JWT.ClaimsMap
 jwtClaims secret input time =
   case join $ claim JWT.exp of
     Just expires ->
@@ -60,7 +60,7 @@ jwtClaims secret input time =
         else Nothing
     _ -> customClaims
   where
-    decoded = JWT.decodeAndVerifySignature (JWT.secret secret) input
+    decoded = JWT.decodeAndVerifySignature secret input
     claim :: (JWT.JWTClaimsSet -> a) -> Maybe a
     claim prop = prop . JWT.claims <$> decoded
     customClaims = claim JWT.unregisteredClaims
@@ -74,8 +74,8 @@ setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
   Receives the JWT secret (from config) and a JWT and a JSON value
   and returns a signed JWT.
 -}
-tokenJWT :: Text -> Value -> Text
-tokenJWT secret (Array a) = JWT.encodeSigned JWT.HS256 (JWT.secret secret)
+tokenJWT :: JWT.Secret -> Value -> Text
+tokenJWT secret (Array a) = JWT.encodeSigned JWT.HS256 secret
                                JWT.def { JWT.unregisteredClaims = fromHashMap o }
                           where
                             Object o = if V.null a then emptyObject else V.head a

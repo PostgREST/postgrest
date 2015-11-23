@@ -1,26 +1,29 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-|
+Module      : PostgREST.QueryBuilder
+Description : PostgREST SQL generating functions.
+
+This module provides functions to consume data types that
+represent database objects (e.g. Relation, Schema, SqlQuery)
+and produces SQL Statements.
+
+Any function that outputs a SQL fragment should be in this module.
+-}
 module PostgREST.QueryBuilder (
     addRelations
   , addJoinConditions
-  , asCsvF
   , asJson
-  , asJsonF
-  , asJsonSingleF
   , callProc
-  , countAllF
-  , countF
-  , countNoneF
-  , locationF
+  , createReadStatement
+  , createWriteStatement
   , operators
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
-  , selectStarF
   , sourceSubqueryName
   , unquoted
-  , wrapQuery
   ) where
 
 import qualified Hasql                   as H
@@ -31,15 +34,17 @@ import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
+import           Data.Maybe              (isNothing)
 import           Control.Monad           (join)
+import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
 import           Data.String.Conversions (cs)
-import qualified Data.HashMap.Strict     as H
 import           Control.Applicative     (empty, (<|>))
 import           Data.Tree               (Tree(..))
+import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
 import           Text.Regex.TDFA         ((=~))
@@ -50,6 +55,8 @@ import           Data.Scientific         ( FPFormat (..)
                                          )
 import           Prelude hiding          (unwords)
 
+import           Data.Ranged.Ranges      (singletonRange)
+
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
   mappend (B.Stmt query params prep) (B.Stmt query' params' prep') =
@@ -57,7 +64,40 @@ instance Monoid PStmt where
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
 
-addRelations :: Schema -> [Relation] -> Maybe ApiRequest -> ApiRequest -> Either Text ApiRequest
+createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
+createReadStatement selectQuery range isSingle countTable asCsv =
+  B.Stmt (
+    wrapQuery selectQuery [
+      if countTable then countAllF else countNoneF,
+      countF,
+      "null", -- location header can not be calucalted
+      if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
+  ) V.empty True
+
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
+                        [Text] -> Bool -> Payload -> B.Stmt P.Postgres
+createWriteStatement _ _ _ _ _ _ (PayloadParseError _) = undefined
+createWriteStatement selectQuery mutateQuery isSingle echoRequested
+                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
+  B.Stmt (
+    wrapQuery mutateQuery [
+      countNoneF, -- when updateing it does not make sense
+      countF,
+      if isSingle then locationF pKeys else "null",
+      if echoRequested
+      then
+        if asCsv
+        then asCsvF
+        else if isSingle then asJsonSingleF else asJsonF
+      else "null"
+
+    ] selectQuery Nothing
+  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
+
+addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
 addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
   case parentNode of
     Nothing -> Node (query, (table, Nothing)) <$> updatedForest
@@ -66,14 +106,14 @@ addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) for
         rel = note ("no relation between " <> table <> " and " <> parentTable)
             $  findRelation schema table parentTable
            <|> findRelation schema parentTable table
-        addRel :: (Query, (NodeName, Maybe Relation)) -> Relation -> (Query, (NodeName, Maybe Relation))
+        addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
         addRel (q, (t, _)) r = (q, (t, Just r))
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
     findRelation s t1 t2 =
       find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
 
-addJoinConditions :: Schema -> ApiRequest -> Either Text ApiRequest
+addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
   case r of
     Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
@@ -95,21 +135,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
-    addCond q con = q{where_=con ++ where_ q}
-
-asCsvF :: SqlFragment
-asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
-  where
-    asCsvHeaderF =
-      "(SELECT string_agg(a.k, ',')" <>
-      "  FROM (" <>
-      "    SELECT json_object_keys(r)::TEXT as k" <>
-      "    FROM ( " <>
-      "      SELECT row_to_json(hh) as r from " <> sourceSubqueryName <> " as hh limit 1" <>
-      "    ) s" <>
-      "  ) a" <>
-      ")"
-    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
+    addCond q con = q{flt_=con ++ flt_ q}
 
 asJson :: StatementT
 asJson s = s {
@@ -117,40 +143,12 @@ asJson s = s {
     "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
     <> B.stmtTemplate s <> ") t" }
 
-asJsonF :: SqlFragment
-asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
-
-asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
-
 callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
 callProc qi params = do
-  let args = intercalate "," $ map assignment (H.toList params)
+  let args = intercalate "," $ map assignment (HM.toList params)
   B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
   where
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-
-countAllF :: SqlFragment
-countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
-
-countF :: SqlFragment
-countF = "pg_catalog.count(t)"
-
-countNoneF :: SqlFragment
-countNoneF = "null"
-
-locationF :: [Text] -> SqlFragment
-locationF pKeys =
-    "(" <>
-    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
-    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
-    " FROM s, json_each_text(s.r) AS json_data" <>
-    (
-      if null pKeys
-      then ""
-      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
-    ) <>
-    ")"
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -188,8 +186,10 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
-requestToQuery :: Schema -> ApiRequest -> SqlQuery
-requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest) =
+requestToQuery :: Schema -> DbRequest -> SqlQuery
+requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
+requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
+requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -205,58 +205,57 @@ requestToQuery schema (Node (Select colSelects tbls conditions ord, (mainTbl, _)
       orderF (fromMaybe [] ord)
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree ApiNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
+    getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where subquery = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
         wit = table <> " AS ( " <> subquery <> " )"
-          where subquery = requestToQuery schema (Node n forst)
+          where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
            <> ") AS " <> table
-           where subquery = requestToQuery schema (Node n forst)
+           where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
-requestToQuery schema (Node (Insert _ flds vals, (mainTbl, _)) _) =
-  query
+requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
+  let qi = QualifiedIdentifier schema mainTbl
+      cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
+      colsString = intercalate ", " cols in
+  unwords [
+    "INSERT INTO ", fromQi qi,
+    " (" <> colsString <> ")" <>
+    " SELECT " <> colsString <>
+    " FROM json_populate_recordset(null::" , fromQi qi, ", ?)",
+    " RETURNING " <> fromQi qi <> ".*"
+    ]
+requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+  case rows V.!? 0 of
+    Just obj ->
+      let assignments = map
+            (\(k,v) -> pgFmtIdent k <> "=" <> insertableValue v) $ HM.toList obj in
+      unwords [
+        "UPDATE ", fromQi qi,
+        " SET " <> intercalate "," assignments <> " ",
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+        "RETURNING " <> fromQi qi <> ".*"
+        ]
+    Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-    query = unwords [
-      "INSERT INTO ", fromQi qi,
-      " (" <> intercalate ", " (map (pgFmtIdent . fst) flds) <> ") ",
-      "VALUES " <> intercalate ", "
-        ( map (\v ->
-            "(" <>
-            intercalate ", " ( map insertableValue v ) <>
-            ")"
-          ) vals
-        ),
-      "RETURNING " <> fromQi qi <> ".*"
-      ]
-requestToQuery schema (Node (Update _ setWith conditions, (mainTbl, _)) _) =
-  query
-  where
-    qi = QualifiedIdentifier schema mainTbl
-    query = unwords [
-      "UPDATE ", fromQi qi,
-      " SET " <> intercalate ", " (map formatSet (M.toList setWith)) <> " ",
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-      "RETURNING " <> fromQi qi <> ".*"
-      ]
-    formatSet ((c, jp), v) = pgFmtIdent c <> pgFmtJsonPath jp <> " = " <> insertableValue v
-requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
+
+requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
@@ -265,9 +264,6 @@ requestToQuery schema (Node (Delete _ conditions, (mainTbl, _)) _) =
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       "RETURNING " <> fromQi qi <> ".*"
       ]
-
-selectStarF :: SqlFragment
-selectStarF = "SELECT * FROM " <> sourceSubqueryName
 
 sourceSubqueryName :: SqlFragment
 sourceSubqueryName = "pg_source"
@@ -279,15 +275,49 @@ unquoted (JSON.Number n) =
 unquoted (JSON.Bool b) = cs . show $ b
 unquoted v = cs $ JSON.encode v
 
-wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
-wrapQuery source selectColumns returnSelect range =
-  withSourceF source <>
-  " SELECT " <>
-  intercalate ", " selectColumns <>
-  " " <>
-  fromF returnSelect ( limitF range )
-
 -- private functions
+asCsvF :: SqlFragment
+asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
+  where
+    asCsvHeaderF =
+      "(SELECT string_agg(a.k, ',')" <>
+      "  FROM (" <>
+      "    SELECT json_object_keys(r)::TEXT as k" <>
+      "    FROM ( " <>
+      "      SELECT row_to_json(hh) as r from " <> sourceSubqueryName <> " as hh limit 1" <>
+      "    ) s" <>
+      "  ) a" <>
+      ")"
+    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
+
+asJsonF :: SqlFragment
+asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
+
+asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
+
+countAllF :: SqlFragment
+countAllF = "(SELECT pg_catalog.count(1) FROM (SELECT * FROM " <> sourceSubqueryName <> ") a )"
+
+countF :: SqlFragment
+countF = "pg_catalog.count(t)"
+
+countNoneF :: SqlFragment
+countNoneF = "null"
+
+locationF :: [Text] -> SqlFragment
+locationF pKeys =
+    "(" <>
+    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceSubqueryName <> " as ss  limit 1)" <>
+    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
+    " FROM s, json_each_text(s.r) AS json_data" <>
+    (
+      if null pKeys
+      then ""
+      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
+    ) <>
+    ")"
+
 fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
@@ -321,8 +351,8 @@ orderF ts =
     queryTerm :: OrderTerm -> Text
     queryTerm t = " "
            <> cs (pgFmtIdent $ otTerm t) <> " "
-           <> cs (otDirection t)         <> " "
-           <> maybe "" cs (otNullOrder t) <> " "
+           <> (cs.show) (otDirection t) <> " "
+           <> maybe "" (cs.show) (otNullOrder t) <> " "
 
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
@@ -407,3 +437,14 @@ limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
     offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
+
+selectStarF :: SqlFragment
+selectStarF = "SELECT * FROM " <> sourceSubqueryName
+
+wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
+wrapQuery source selectColumns returnSelect range =
+  withSourceF source <>
+  " SELECT " <>
+  intercalate ", " selectColumns <>
+  " " <>
+  fromF returnSelect ( limitF range )

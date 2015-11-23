@@ -12,12 +12,12 @@ import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           PostgREST.QueryBuilder (operators)
 
-pRequestSelect :: Text -> Parser ApiRequest
+pRequestSelect :: Text -> Parser ReadRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (rootNodeName, Nothing)) []) fieldTree
   where
-    treeEntry :: Tree SelectItem -> ApiRequest -> ApiRequest
+    treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
@@ -51,7 +51,7 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree = try (Node <$> pSelect <*> between (char '(') (char ')') pFieldForest)
+pFieldTree = try (Node <$> pSelect <*> between (char '{') (char '}') pFieldForest)
           <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser Text
@@ -101,8 +101,12 @@ pOrderTerm =
   try ( do
     c <- pFieldName
     _ <- pDelimiter
-    d <- string "asc" <|> string "desc"
-    nls <- optionMaybe (pDelimiter *> ( try(string "nullslast" *> pure ("nulls last"::String)) <|> try(string "nullsfirst" *> pure ("nulls first"::String))))
-    return $ OrderTerm (cs c) (cs d) (cs <$> nls)
+    d <- (string "asc" *> pure OrderAsc)
+         <|> (string "desc" *> pure OrderDesc)
+    nls <- optionMaybe (pDelimiter *> (
+                 try(string "nullslast" *> pure OrderNullsLast)
+             <|> try(string "nullsfirst" *> pure OrderNullsFirst)
+           ))
+    return $ OrderTerm c d nls
   )
-  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure "asc" <*> pure Nothing
+  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure OrderAsc <*> pure Nothing

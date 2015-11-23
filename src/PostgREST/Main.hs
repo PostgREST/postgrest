@@ -25,6 +25,7 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
+import           Web.JWT                              (secret)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -43,7 +44,7 @@ main = do
   conf <- readOptions
   let port = configPort conf
 
-  unless ("secret" /= configJwtSecret conf) $
+  unless (secret "secret" /= configJwtSecret conf) $
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)

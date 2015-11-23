@@ -134,7 +134,7 @@ spec =
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
     it "matches filtering nested items" $
-      get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
+      get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
         "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1,\"name\":\"Design w7\"}]},{\"id\":2,\"tasks\":[{\"id\":3,\"name\":\"Design w10\"}]}]},{\"id\":2,\"projects\":[{\"id\":3,\"tasks\":[{\"id\":5,\"name\":\"Design IOS\"}]},{\"id\":4,\"tasks\":[{\"id\":7,\"name\":\"Design OSX\"}]}]}]"
 
     it "matches with @> operator" $
@@ -195,23 +195,23 @@ spec =
         [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
 
     it "requesting parents and children" $
-      get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+      get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
 
     it "requesting children 2 levels" $
-      get "/clients?id=eq.1&select=id,projects(id,tasks(id))" `shouldRespondWith`
+      get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
         "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1},{\"id\":2}]},{\"id\":2,\"tasks\":[{\"id\":3},{\"id\":4}]}]}]"
 
     it "requesting many<->many relation" $
-      get "/tasks?select=id,users(id)" `shouldRespondWith`
+      get "/tasks?select=id,users{id}" `shouldRespondWith`
         "[{\"id\":1,\"users\":[{\"id\":1},{\"id\":3}]},{\"id\":2,\"users\":[{\"id\":1}]},{\"id\":3,\"users\":[{\"id\":1}]},{\"id\":4,\"users\":[{\"id\":1}]},{\"id\":5,\"users\":[{\"id\":2},{\"id\":3}]},{\"id\":6,\"users\":[{\"id\":2}]},{\"id\":7,\"users\":[{\"id\":2}]},{\"id\":8,\"users\":null}]"
 
     it "requesting parents and children on views" $
-      get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+      get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
 
     it "requesting children with composite key" $
-      get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
+      get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
         "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
 
   describe "Plurality singular" $ do
@@ -228,7 +228,7 @@ spec =
         `shouldRespondWith` 404
 
     it "can shape plurality singular object routes" $
-      request methodGet "/projects_view?id=eq.1&select=id,name,clients(*),tasks(id,name)" [("Prefer","plurality=singular")] ""
+      request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [("Prefer","plurality=singular")] ""
         `shouldRespondWith`
           "{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}"
 

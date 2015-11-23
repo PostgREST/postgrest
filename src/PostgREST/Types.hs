@@ -1,10 +1,10 @@
 module PostgREST.Types where
 import Data.Text
 import Data.Tree
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy  as BL
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString      as BS
+import qualified Data.Vector          as V
 import Data.Aeson
-import Data.Map
 
 data DbStructure = DbStructure {
   dbTables :: [Table]
@@ -51,10 +51,20 @@ data PrimaryKey = PrimaryKey {
   , pkName  :: Text
 } deriving (Show, Eq)
 
+data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
+instance Show OrderDirection where
+  show OrderAsc  = "asc"
+  show OrderDesc = "desc"
+
+data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
+instance Show OrderNulls where
+  show OrderNullsFirst = "nulls first"
+  show OrderNullsLast  = "nulls last"
+
 data OrderTerm = OrderTerm {
   otTerm      :: Text
-, otDirection :: BS.ByteString
-, otNullOrder :: Maybe BS.ByteString
+, otDirection :: OrderDirection
+, otNullOrder :: Maybe OrderNulls
 } deriving (Show, Eq)
 
 data QualifiedIdentifier = QualifiedIdentifier {
@@ -75,6 +85,17 @@ data Relation = Relation {
 , relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
+-- | An array of JSON objects that has been verified to have
+-- the same keys in every object
+newtype UniformObjects = UniformObjects (V.Vector Object)
+  deriving (Show, Eq)
+
+-- | When Hasql supports the COPY command then we can
+-- have a special payload just for CSV, but until
+-- then CSV is converted to a JSON array.
+data Payload = PayloadJSON UniformObjects
+             | PayloadParseError BS.ByteString
+             deriving (Show, Eq)
 
 type Operator = Text
 data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
@@ -85,13 +106,15 @@ type Cast = Text
 type NodeName = Text
 type SelectItem = (Field, Maybe Cast)
 type Path = [Text]
-data Query = Select { select::[SelectItem], from::[Text], where_::[Filter], order::Maybe [OrderTerm] }
-           | Insert { into::Text, fields::[Field], values::[[Value]] }
-           | Delete { from::[Text], where_::[Filter] }
-           | Update { into::Text, set::Map Field Value, where_::[Filter] } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[Text], flt_::[Filter], order::Maybe [OrderTerm] }  deriving (Show, Eq)
+data MutateQuery = Insert { in_::Text, qPayload::Payload }
+                 | Delete { in_::Text, where_::[Filter] }
+                 | Update { in_::Text, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
-type ApiNode = (Query, (NodeName, Maybe Relation))
-type ApiRequest = Tree ApiNode
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation))
+type ReadRequest = Tree ReadNode
+type MutateRequest = MutateQuery
+data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
 
 instance ToJSON Column where

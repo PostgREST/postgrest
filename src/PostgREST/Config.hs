@@ -30,6 +30,7 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
+import           Web.JWT                     (Secret, secret)
 import           Prelude
 
 -- | Data type to store all command line options
@@ -38,7 +39,7 @@ data AppConfig = AppConfig {
   , configPort      :: Int
   , configAnonRole  :: String
   , configSchema    :: String
-  , configJwtSecret :: String
+  , configJwtSecret :: Secret
   , configPool      :: Int
   }
 
@@ -49,7 +50,8 @@ argParser = AppConfig
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
   <*> strOption    (long "anonymous"  <> short 'a' <> help "postgres role to use for non-authenticated requests" <> metavar "ROLE")
   <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "1" <> showDefault)
-  <*> strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault)
+  <*> (secret . cs <$>
+      strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
 
 defaultCorsPolicy :: CorsResourcePolicy
