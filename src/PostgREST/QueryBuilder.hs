@@ -34,7 +34,6 @@ import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
-import           Data.Maybe              (isNothing)
 import           Control.Monad           (join)
 import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
@@ -55,8 +54,6 @@ import           Data.Scientific         ( FPFormat (..)
                                          )
 import           Prelude hiding          (unwords)
 
-import           Data.Ranged.Ranges      (singletonRange)
-
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
   mappend (B.Stmt query params prep) (B.Stmt query' params' prep') =
@@ -74,7 +71,7 @@ createReadStatement selectQuery range isSingle countTable asCsv =
       if asCsv
         then asCsvF
         else if isSingle then asJsonSingleF else asJsonF
-    ] selectStarF (if isNothing range && isSingle then Just $ singletonRange 0 else range)
+    ] selectStarF range
   ) V.empty True
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->

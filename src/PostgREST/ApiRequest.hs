@@ -20,6 +20,7 @@ import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
 import           PostgREST.Types         (QualifiedIdentifier (..),
                                           Schema, Payload(..),
                                           UniformObjects(..))
+import           Data.Ranged.Ranges      (singletonRange)                                          
 
 type RequestBody = BL.ByteString
 
@@ -114,7 +115,7 @@ userApiRequest schema req reqBody =
 
   ApiRequest {
     iAction = action
-  , iRange  = if singular then Nothing else rangeRequested hdrs
+  , iRange  = if singular then Just (singletonRange 0) else rangeRequested hdrs
   , iTarget = target
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload
