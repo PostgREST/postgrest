@@ -7,7 +7,7 @@ The [release page](https://github.com/begriffs/postgrest/releases/latest) has pr
 ```sh
 # Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
 
-$ tar zxf postgrest-0.2.12.1-osx.tar.xz
+$ tar zxf postgrest-[version]-[platform].tar.xz
 
 # Try running it
 $ ./postgrest
