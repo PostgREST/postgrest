@@ -10,7 +10,8 @@ PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
 API than you are likely to write from scratch.
 
-### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com) | Watch [Video](http://begriffs.com/posts/2014-12-30-intro-to-postgrest.html) | [GUI Demo](http://marmelab.com/ng-admin-postgrest)
+### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com) | Read [Docs](http://postgrest.com/) | Watch [Video](http://begriffs.com/posts/2014-12-30-intro-to-postgrest.html)
+
 
 Try making requests to the live demo server with an HTTP client
 such as [postman](http://www.getpostman.com/). The structure of the
@@ -19,36 +20,39 @@ demo database is defined by
 You can use it as inspiration for test-driven server migrations in
 your own projects.
 
+Also try other tools in the PostgREST
+[ecosystem](http://postgrest.com/install/ecosystem/) like the
+[ng-admin demo](http://marmelab.com/ng-admin-postgrest).
+
 ### Usage
 
-Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest)) and invoke like so:
+1. Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest))
+   for your platform.
+2. Invoke like so:
 
-```bash
-postgrest postgres://postgres:foobar@localhost:5432/my_db \
-          --port 3000 \
-          --schema public \
-          --anonymous postgres \
-          --pool 200
-```
+    ```bash
+    postgrest postgres://postgres:foobar@localhost:5432/my_db \
+              --port 3000 \
+              --schema public \
+              --anonymous postgres \
+              --pool 200
+    ```
 
 For more information on valid connection strings see the
-[Postgres docs](http://www.postgresql.org/docs/9.4/static/libpq-connect.html#LIBPQ-CONNSTRING).
-
-In production include the `--secure` option which redirects all
-requests to HTTPS. Note that PostgREST does not handle the SSL
-internally and must be put behind another server that does (such
-as nginx or the Heroku load balancer).
+[PostgreSQL docs](http://www.postgresql.org/docs/9.4/static/libpq-connect.html#LIBPQ-CONNSTRING).
 
 ### Performance
 
-TLDR; subsecond response times for up to 2000 requests/sec on Heroku free tier. ([see the load test](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling))
+TLDR; subsecond response times for up to 2000 requests/sec on Heroku
+free tier. ([see the load
+test](http://postgrest.com/admin/performance/#benchmarks))
 
 If you're used to servers written in interpreted languages (or named
 after precious gems), prepare to be pleasantly surprised by PostgREST
 performance.
 
 Three factors contribute to the speed. First the server is written
-in [Haskell](https://new-www.haskell.org/) using the
+in [Haskell](https://www.haskell.org/) using the
 [Warp](http://www.yesodweb.com/blog/2011/03/preliminary-warp-cross-language-benchmarks)
 HTTP server (aka a compiled language with lightweight threads).
 Next it delegates as much calculation as possible to the database
@@ -66,61 +70,64 @@ by
 
 * Reusing prepared statements
 * Keeping a pool of db connections
-* Using the Postgres binary protocol
+* Using the PostgreSQL binary protocol
 * Being stateless to allow horizontal scaling
 
 Ultimately the server (when load balanced) is constrained by database
 performance. This may make it inappropriate for very large traffic
 load. To learn more about scaling with Heroku and Amazon RDS see
-the [performance guide](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling).
+the [performance guide](http://postgrest.com/admin/performance/).
+Alternatively [CitusDB](https://www.citusdata.com/products/what-is-citusdb)
+supports Postgres clustering for higher performance.
 
 Other optimizations are possible, and some are outlined in the
 [Future Features](#future-features).
 
 ### Security
 
-PostgREST handles authentication (HTTP Basic over SSL or [JSON Web
-Tokens](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions#json-web-tokens))
+PostgREST handles authentication (via [JSON Web
+Tokens](http://postgrest.com/admin/security/#json-web-tokens))
 and delegates authorization to the role information defined in the
 database. This ensures there is a single declarative source of truth
 for security.  When dealing with the database the server assumes
 the identity of the currently authenticated user, and for the
 duration of the connection cannot do anything the user themselves
-couldn't.
+couldn't. Other forms of authentication can be built on top
+of the JWT primitive. See the docs for more information.
 
-Postgres 9.5 will soon support true [row-level
-security](http://michael.otacoo.com/postgresql-2/postgres-9-5-feature-highlight-row-level-security/).
-In the meantime what isn't yet implemented can be simulated with
-triggers and security-barrier views. Because the possible queries
-to the database are limited to certain templates using
+PostgreSQL 9.5 supports true [row-level
+security](http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html).
+In previous versions it can be simulated with triggers and
+security-barrier views. Because the possible queries to the database
+are limited to certain templates using
 [leakproof](http://blog.2ndquadrant.com/how-do-postgresql-security_barrier-views-work/)
 functions, the trigger workaround does not compromise row-level
 security.
 
 For example security patterns see the [security
-guide](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions).
+guide](http://postgrest.com/admin/security/).
 
 ### Versioning
 
 A robust long-lived API needs the freedom to exist in multiple
-versions. Therefore it is a best practice that you version the database
-schema exposed to PostgREST (e.g. `public1` or `api2`). This way you
-future proof your API by allowing it to be backwards compatible when
-you want to publish breaking API changes (e.g. a later version could
-be `public2` or `api3`).
-
-For routing to different versions of a PostgREST API use a request
-proxy (such as [nginx](http://nginx.org)).
+versions. PostgREST does versioning through database schemas. This
+allows you to expose tables and views without making the app brittle.
+Underlying tables can be superseded and hidden behind public facing
+views. You run an instance of PostgREST per schema and route requests
+among them with a reverse proxy such as [nginx](http://nginx.org).
+Learn more [here](http://postgrest.com/admin/versioning/).
 
 ### Self-documention
 
 Rather than writing and maintaining separate docs yourself let the
 API explain its own affordances using HTTP. All PostgREST endpoints
 respond to the OPTIONS verb and explain what they support as well
-as the data format of their JSON payload.
+as the data format of their JSON payload. RAML support is an upcoming
+feature.
 
-The number of rows returned by an endpoint is reported by - and
-limited with - range headers. More about
+The project uses HTTP itself to commicate other metadata. For
+instance the number of rows returned by an endpoint is reported by -
+and limited with - range headers. More about
 [that](http://begriffs.com/posts/2014-03-06-beyond-http-header-links.html).
 
 There are more opportunities for self-documentation listed in [Future
@@ -136,9 +143,9 @@ data (including your API server).
 The PostgREST exposes HTTP interface with safeguards to prevent
 surprises, such as enforcing idempotent PUT requests, and
 
-See examples of [Postgres
+See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
-and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
+and the [guide to routing](http://postgrest.com/api/reading/).
 
 ### Future Features
 
@@ -151,30 +158,14 @@ and the [guide to routing](https://github.com/begriffs/postgrest/wiki/Routing).
 * Describe more relationships with Link headers
 * Depending on accept headers, render OPTIONS as [RAML](http://raml.org/) or a
   relational diagram
-* Add two-legged auth with OAuth 1.0a(?)
 * ... the other [issues](https://github.com/begriffs/postgrest/issues)
-
-### Guides
-
-* [Routing](https://github.com/begriffs/postgrest/wiki/Routing)
-* [Performance](https://github.com/begriffs/postgrest/wiki/Performance-and-Scaling)
-* [Security](https://github.com/begriffs/postgrest/wiki/Security-and-Permissions)
-* [Tutorial](http://blog.jonharrington.org/postgrest-introduction/) (external)
-* [Heroku](https://github.com/begriffs/postgrest/wiki/Heroku)
 
 ### Thanks
 
-* [Ruslan Talpa](https://github.com/ruslantalpa) for rewriting the
-  route parsing and query generation code to support resource embedding
-* [Adam Baker](https://github.com/adambaker) for code
-  contributions and many fundamental design discussions
-* [Diogo Biazus](https://github.com/diogob) for many improvements
-  and deep postgresql knowledge
-* [Nikita Volkov](https://github.com/nikita-volkov) for writing the
-  wonderful [Hasql](https://github.com/nikita-volkov/hasql) library
-  and helping me use it
-* [Mikey Casalaina](https://github.com/casalaina) for the cool logo
-* [Jonathan Harrington](https://github.com/prio) for writing a [nice
-  tutorial](http://blog.jonharrington.org/postgrest-introduction/)
-* [Federico Rampazzo](https://github.com/framp) for suggesting and
-  implementing [JWT](http://jwt.io/) support
+I'm grateful to the generous project
+[contributors](https://github.com/begriffs/postgrest/graphs/contributors)
+who have improved PostgREST immensely with their code and good
+judgement.  See more details in the
+[changelog](https://github.com/begriffs/postgrest/blob/master/CHANGELOG.md).
+
+The cool logo came from [Mikey Casalaina](https://github.com/casalaina).
