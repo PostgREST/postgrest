@@ -124,10 +124,9 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     _ -> Left "unknown relation"
   where
     -- add parentTable and parentJoinConditions to the query
-    updatedQuery = foldr (flip addCond) (query{from = parentTables ++ from query}) parentJoinConditions
+    updatedQuery = foldr (flip addCond) query parentJoinConditions
       where
         parentJoinConditions = map (getJoinConditions . snd) parents
-        parentTables = map fst parents
         parents = mapMaybe (getParents . rootLabel) forest
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
@@ -195,14 +194,14 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
     qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
     toQi t = QualifiedIdentifier (tblSchema t) t
     query = unwords [
-      ("WITH " <> intercalate ", " withs) `emptyOnNull` withs,
+      ("WITH " <> intercalate ", " (map fst withs)) `emptyOnNull` withs,
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-      "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
+      "FROM ", intercalate ", " (map (fromQi . toQi) tbls ++ map snd withs),
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
     (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
+    getQueryParts :: Tree ReadNode -> ([(SqlFragment, Text)], [SqlFragment]) -> ([(SqlFragment,Text)], [SqlFragment])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
       where
         sel = "("
@@ -213,7 +212,7 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
-        wit = table <> " AS ( " <> subquery <> " )"
+        wit = (table <> " AS ( " <> subquery <> " )", table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
       where
@@ -328,7 +327,7 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
     Parent -> zipWith (toFilter tN ftN) cols fcs
     Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
   where
-    s = tableSchema t
+    s = if typ == Parent then "" else tableSchema t
     tN = tableName t
     ftN = tableName ft
     ltN = fromMaybe "" (tableName <$> lt)
