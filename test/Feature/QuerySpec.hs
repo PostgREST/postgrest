@@ -223,6 +223,16 @@ spec =
         , matchHeaders = []
         }
 
+    it "works in the presence of a range header" $
+      let headers = ("Prefer","plurality=singular") :
+            rangeHdrs (ByteRangeFromTo 0 9) in
+      request methodGet "/items" headers ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"id":1} |]
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
     it "will respond with 404 when not found" $
       request methodGet "/items?id=eq.9999" [("Prefer","plurality=singular")] ""
         `shouldRespondWith` 404
