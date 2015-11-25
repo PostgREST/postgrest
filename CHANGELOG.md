@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.3.0.0] - 2015-11-24
 
 ### Fixed
 - Use reasonable amount of memory during bulk inserts - @begriffs
