@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.3.0.1] - 2015-11-27
 
 ### Fixed
 - Filter columns on embedded parent items - @ruslantalpa
@@ -30,6 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Embed foreign keys with {} rather than () - @begriffs
+- Remove version number from binary filename in release - @begriffs
 
 ## [0.2.12.1] - 2015-11-12
 
