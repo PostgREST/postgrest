@@ -198,6 +198,10 @@ spec =
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
 
+    it "requesting parents and filtering parent columns" $
+      get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1}}]"
+
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
         "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1},{\"id\":2}]},{\"id\":2,\"tasks\":[{\"id\":3},{\"id\":4}]}]}]"
