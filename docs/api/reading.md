@@ -20,7 +20,7 @@ GET /people
 ```
 
 There are no `deeply/nested/routes`. Each route provides `OPTIONS`,
-`GET`, `POST`, `PUT`, `PATCH`, and `DELETE` verbs depending entirely
+`GET`, `POST`, `PATCH`, and `DELETE` verbs depending entirely
 on database permissions.
 
 <div class="admonition note">
@@ -28,9 +28,9 @@ on database permissions.
 
   <p>Why not provide nested routes? Many APIs allow nesting to
   retrieve related information, such as <code>/films/1/director</code>.
-  We offer a more flexible mechanism instead to embed related
-  information, including many-to-many relationships. This is covered
-  in the section about Embedding.</p>
+  We offer a more flexible mechanism (inspired by GraphQL) to embed
+  related information. It can handle one-to-many and many-to-many
+  relationships. This is covered in the section about Embedding.</p>
 </div>
 
 ### Stored Procedures
@@ -47,7 +47,7 @@ POST /rpc/proc_name
 
 PostgREST supports calling procedures with [named
 arguments](http://www.postgresql.org/docs/9.4/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED).
-To do so include a JSON object in the request payload and each
+Include a JSON object in the request payload and each
 key/value of the object will become an argument.
 
 <div class="admonition note">
@@ -212,7 +212,7 @@ count total using a ```Prefer``` header as:
 Prefer: count=none
 ```
 
-So the PostgREST response will be something like:
+With count suppressed the PostgREST response will look like:
 
 ```
 Range-Unit: items
@@ -227,7 +227,7 @@ API you can have it embed the client within each project response.
 For example,
 
 ```HTTP
-GET /projects?id=eq.1&select=id, name, clients(*)
+GET /projects?id=eq.1&select=id, name, clients{*}
 ```
 
 Notice this is the same `select` keyword which is used to choose
@@ -240,7 +240,15 @@ The embedding works for 1-N, N-1, and N-N relationships. That means
 you could also ask for a client and all their projects:
 
 ```HTTP
-GET /clients?id=eq.42&select=id, name, projects(*)
+GET /clients?id=eq.42&select=id, name, projects{*}
+```
+
+In the examples above we asked for all columns in the embedded resource
+but the the select query is recursive. You could for instance specify
+
+
+```HTTP
+GET /foo?select=x, y, bar{z, w, baz{*}}
 ```
 
 ### Response Format
@@ -265,7 +273,8 @@ For consistency's sake all these endpoints return a JSON array,
 `/stories`, `/stories?genre=eq.mystery`, `/stories?id=eq.1`. They
 are all filtering a bigger array. However you might want the
 last one to return a single JSON object, not an array with one
-element. There is currently an open issue to enable this.
+element. To request a singular response send the header
+`Prefer: plurality=singular`.
 
 ### Data Schema
 

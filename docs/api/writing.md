@@ -26,9 +26,13 @@ the server side.
 * ❌ Cannot be cached or prefetched
 * ❌ Not idempotent
 
-While regular insertion uses JSON to encode the value, bulk insertion
-uses CSV. Simply post to a table route with `Content-Type: text/csv`
-and include the names of the columns as the first row. For instance
+You can POST a JSON array or CSV to insert multiple rows in a single
+HTTP request. Note that using CSV requires less parsing on the server
+and is **much faster**.
+
+Example of CSV bulk insert. Simply post to a table route with
+`Content-Type: text/csv` and include the names of the columns as
+the first row. For instance
 
 ```HTTP
 POST /people
@@ -41,42 +45,31 @@ An empty field (`,,`) is coerced to an empty string and the reserved
 word `NULL` is mapped to the SQL null value. Note that there should
 be no spaces between the column names and commas.
 
-The server sends a multipart response for bulk insertions. Each part
-contains a Location header with URL of each created resource.
+Example of JSON bulk insert. Send an array:
 
 ```HTTP
-Content-Type: application/json
-Location: /festival?name=eq.Venice%20Film%20Festival
-
-
---postgrest_boundary
-Content-Type: application/json
-Location: /festival?name=eq.Cannes%20Film%20Festival
+POST /people
+[
+  { "name": "J Doe", "age": 62, "height": 70 },
+  { "name": "Janus", "age": 10, "height": 55 }
+]
 ```
-
-### Upsertion
-
-* ❌ Cannot be cached or prefetched
-* ✅ Idempotent
-
-To insert or update a single row use the `PUT` verb on a properly
-filtered table url:
-
-```HTTP
-PUT /table_name?primary_key=eq.foo
-{ "col1": "value1", "col2": "value2" }
-```
-
-The request must satisfy two things. First all columns must be
-specified (because a default value might be a changing value which
-would violate idempotence). Second the URL must match the URL you
-would use to get the value of the resource. This means that all
-primary key columns must be included in the filter (there are more
-than one when the primary key is compound).
 
 If you would like to get the full object back in the response to
 your request, include the header `Prefer: return=representation`.
-It will of match exactly the object you sent though.
+Chances are you only want certain information back, though, like
+created ids. You can pass a `select` parameter to affect the shape
+of the response (further documented in the [reading](/api/reading/)
+page). For instance
+
+```HTTP
+POST /people?select=id
+[...]
+```
+returns something like
+```json
+[ { "id": 1 }, { "id": 2 } ]
+```
 
 ### Bulk Updates
 
@@ -110,14 +103,13 @@ Simply use the `DELETE` verb. All recors that match your filter
 will be removed. For instance deleting inactive users:
 
 ```HTTP
-DELETE /user?active=eq.false
+DELETE /user?active=is.false
 ```
 
 ### Protecting Dangerous Actions
 
 Notice that it is very easy to delete or update many records at
 once. In fact forgetting a filter will affect an entire table!
-
 
 <div class="admonition warning">
     <p class="admonition-title">Invitation to Contribute</p>
