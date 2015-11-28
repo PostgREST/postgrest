@@ -12,6 +12,7 @@
 
 ### Example Apps
 
+* [ruslantalpa/blogdemo](https://github.com/ruslantalpa/blogdemo) - blog api demo in a vagrant image
 * [timwis/ext-postgrest-crud](https://github.com/timwis/ext-postgrest-crud) - browser-based spreadsheet
 * [srid/chronicle](https://github.com/srid/chronicle#deploying-to-heroku) - tracking a tree of personal memories
 * [begriffs/postgrest-example](https://github.com/begriffs/postgrest-example) - how to configure a db for use as an API
