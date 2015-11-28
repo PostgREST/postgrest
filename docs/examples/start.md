@@ -78,10 +78,10 @@ pbpaste | psql demo1
 # xclip -selection clipboard -o | psql demo1
 ```
 
-Start the PostgREST server and point it at the new database.
+Start the PostgREST server and point it at the new database. (See the [installation instructions](/install/server/).)
 
 ```sh
-postgrest -d demo1 -U postgres -a postgres --v1schema public
+postgrest postgres://postgres:@localhost:5432/demo1 -a postgres --schema public
 ```
 
 <div class="admonition note">
@@ -91,6 +91,8 @@ postgrest -d demo1 -U postgres -a postgres --v1schema public
     database username may be your own login rather than
     <code>postgres</code>.</p>
 </div>
+
+### Populating Data
 
 Let's use PostgREST to populate the database. Install a REST client such as [Postman](https://chrome.google.com/webstore/detail/postman/fhbjgbiflinjbdggehcddcbncdddomop?hl=en). Now let's insert some data as a bulk post in CSV format:
 
@@ -107,21 +109,11 @@ In Postman it will look like this
 
 ![Festival bulk insert in postman](/img/post-festivals.png)
 
-Notice that the post type is `raw` and that `Content-Type: text/csv` set in the Headers tab. 
+Notice that the post type is `raw` and that `Content-Type: text/csv` set in the Headers tab.
 
-Note that the server returns a multipart response with URL of each created resource.
+The server returns HTTP 201 Created. Because we inserted more than one item at once there is no `Location` header in the response. However sometimes you want to learn more about items which you just inserted. To have the server include the full restuls include the header `Prefer: return=representation`.
 
-```HTTP
-Content-Type: application/json
-Location: /festival?name=eq.Venice%20Film%20Festival
-
-
---postgrest_boundary
-Content-Type: application/json
-Location: /festival?name=eq.Cannes%20Film%20Festival
-```
-
-If you send a GET request to `/festival` it should return
+At this point if you send a GET request to `/festival` it should return
 
 ```json
 [
@@ -267,80 +259,261 @@ competition,film,won
 2,35,f
 ```
 
-At this point nominations are fully specified but it's not a convenient interface for a rest client. Let's make a view they can use. Paste this into `psql demo1`.
+### Getting and Embedding Data
 
-```sql
-create or replace view nomination as
-select comp.festival,  
-       comp.name as competition,
-       comp.year,
-       film.title,
-       film.director,
-       film.rating
- from film_nomination as nom
- left join film on nom.film = film.id
- left join competition as comp on nom.competition = comp.id
- order by comp.year desc, comp.festival, competition;
-```
-
-Time to try it out. Let's get the contents of the new view, ordered by film rating
-
-```
-GET http://localhost:3000/nomination?order=rating.desc
-```
-
-If you find it more human readable, add an `Accept: text/csv` header.
-
-### Releasing a New Version
-
-Suppose we want this endpoint to cater to those moviegoers with attention deficit disorder. In today's busy world we don't have time to read an extra couple words or compare nuanced reviews. In API version two we will truncate the names and round the ratings!
-
-Each version lives in a numbered schema, so let's make a schema for version two.
-
-```sql
-CREATE SCHEMA "2";
-GRANT USAGE ON SCHEMA "2" TO PUBLIC;
-ALTER DATABASE demo1 SET search_path = "2", "public";
-```
-
-To override the `films` endpoint create a view in the "2" schema with that name:
-
-```sql
-create or replace view "2".film as
-select id, substring(f.title from 1 for 10) as title,
-       year, director, round(f.rating) as rating, language
-from "public".film as f;
-```
-
-We select the desired version as part of content negotiation. Try this get request:
-
-```HTTP
+First let's review which films are stored in the database:
+```http
 GET http://localhost:3000/film
-Accept: text/csv; version=2
+```
+It gives us back a list of JSON objects. What if we care only about the film titles? Use `select` to shape the output:
+
+```http
+GET http://localhost:3000/film?select=title
+```
+```json
+[
+  {
+    "title": "Chuang ru zhe"
+  },
+  {
+    "title": "The Look of Silence"
+  },
+  {
+    "title": "Fires on the Plain"
+  },
+  ...
+]
 ```
 
-Then try toggling the version string in the Accept header and watch the results change. Pretty good, now how about writing values? PostgreSQL's nice feature called auto-updatable views allows writes to pass through views. Sadly this view is not eligible because truncation and rounding cannot be uniquely reversed. If we attempt to post a new result it complains:
+Here is where it gets cool. PostgREST can embed objects in its response through foreign key relationships. Earlier we created a join table called `film_nomination`. It joins films and competitions. We can ask the server about the structure of this table:
+
+```
+OPTIONS http://localhost:3000/film_nomination
+```
 
 ```json
 {
-  "hint": null,
-  "details": "View columns that are not columns of their base relation are not updatable.",
-  "code": "0A000",
-  "message": "cannot insert into column \"title\" of view \"film\""
+  "pkey": [
+    "id"
+  ],
+  "columns": [
+    {
+      "references": null,
+      "default": "nextval('film_nomination_id_seq'::regclass)",
+      "precision": 32,
+      "updatable": true,
+      "schema": "public",
+      "name": "id",
+      "type": "integer",
+      "maxLen": null,
+      "enum": [],
+      "nullable": false,
+      "position": 1
+    },
+    {
+      "references": {
+        "schema": "public",
+        "column": "id",
+        "table": "competition"
+      },
+      "default": null,
+      "precision": 32,
+      "updatable": true,
+      "schema": "public",
+      "name": "competition",
+      "type": "integer",
+      "maxLen": null,
+      "enum": [],
+      "nullable": false,
+      "position": 2
+    },
+    {
+      "references": {
+        "schema": "public",
+        "column": "id",
+        "table": "film"
+      },
+      "default": null,
+      "precision": 32,
+      "updatable": true,
+      "schema": "public",
+      "name": "film",
+      "type": "integer",
+      "maxLen": null,
+      "enum": [],
+      "nullable": false,
+      "position": 3
+    },
+    {
+      "references": null,
+      "default": "true",
+      "precision": null,
+      "updatable": true,
+      "schema": "public",
+      "name": "won",
+      "type": "boolean",
+      "maxLen": null,
+      "enum": [],
+      "nullable": false,
+      "position": 4
+    }
+  ]
 }
 ```
 
-This is a case where we need explicit triggers
+From this you can see that the columns `film` and `competition` reference their eponymous tables. Let's ask the server for each film along with names of the competitions it entered. You don't have to do any custom coding. Send this query:
 
-```sql
--- TODO - FIX THIS
-
--- CREATE OR REPLACE RULE insert_v2_films AS
---   ON INSERT TO "2".film
---   DO INSTEAD
---      INSERT INTO public.film (id, title, year, director, rating, language)
---      VALUES (NEW.id,     NEW.title,
---              NEW.year,   NEW.director,
---              NEW.rating, NEW.language)
---      RETURNING public.film.*;
+```http
+GET http://localhost:3000/film?select=title,competition{name}
 ```
+
+```json
+[
+  {
+    "title": "Chuang ru zhe",
+    "competition": [
+      {
+        "name": "Golden Lion"
+      }
+    ]
+  },
+  {
+    "title": "The Look of Silence",
+    "competition": [
+      {
+        "name": "Golden Lion"
+      }
+    ]
+  },
+  ...
+]
+```
+
+The relation flows both ways. Here is how to get the name of each competition's name and the movies shown at it.
+
+```http
+GET http://localhost:3000/competition?select=name,film{title}
+```
+
+```json
+[
+  {
+    "name": "Golden Lion",
+    "film": [
+      {
+        "title": "Chuang ru zhe"
+      },
+      {
+        "title": "The Look of Silence"
+      },
+      ...
+    ]
+  },
+  {
+    "name": "Palme d'Or",
+    "film": [
+      {
+        "title": "The Wonders"
+      },
+      {
+        "title": "Foxcatcher"
+      },
+      ...
+    ]
+  }
+]
+```
+
+Why not learn about the directors too? There is a many-to-one relation directly between films and directors. We can alter our previous query to include directors in its results.
+
+
+```http
+GET http://localhost:3000/competition?select=name,film{title,director{*}}
+```
+
+```json
+[
+  {
+    "name": "Golden Lion",
+    "film": [
+      {
+        "title": "Manglehorn",
+        "director": {
+          "name": "David Gordon Green"
+        }
+      },
+      {
+        "title": "Belye nochi pochtalona Alekseya Tryapitsyna",
+        "director": {
+          "name": "Andrey Konchalovskiy"
+        }
+      },
+      ...
+    ]
+  },
+  ...
+]
+```
+
+### Singular Responses
+
+How do we ask for a single film, for instance the second one we inserted?
+
+```http
+GET http://localhost:3000/film?id=eq.2
+```
+It returns
+```json
+[
+  {
+    "id": 2,
+    "title": "The Look of Silence",
+    "year": "2014-01-01",
+    "director": "Joshua Oppenheimer",
+    "rating": 8.3,
+    "language": "Indonesian"
+  }
+]
+```
+
+Like any query, it gives us a result *set*, in this case an array with one element. However you and I know that `id` is a primary key, it will never return more than one result. We might want it returned as a JSON object, not an array. To express this preference include the header `Prefer: plurality=singular`. It will respond with
+
+
+```json
+{
+  "id": 2,
+  "title": "The Look of Silence",
+  "year": "2014-01-01",
+  "director": "Joshua Oppenheimer",
+  "rating": 8.3,
+  "language": "Indonesian"
+}
+```
+
+<div class="admonition note">
+    <p class="admonition-title">Why this approach to singular responses?</p>
+
+    <p>
+    PostgREST knows which columns comprise a primary key for a
+    table, so why not automatically choose plurality=singular when
+    these column filters are present? The fact is it could come as a
+    shock to a client that by adding one more filter condition it can
+    change the entire response format.
+    </p>
+    <p>
+    Then why not expose another kind of route such as /film/2 to indicate
+    one particular film? Because this does not accommodate compound keys.
+    The convention complects a plurality preference with table key
+    assumptions. We should separate concerns.
+    </p>
+    <p>
+    It turns out you can still have routes like /film/2.  Use a
+    proxy such as Nginx. It can rewrite routes such as /films/2
+    into /films?id=eq.2 and add the Prefer header to make the results
+    singular.
+    </p>
+</div>
+
+### Conclusion
+
+This tutorial showed how to create a database with a basic schema, run PostgREST, and interact with the API. The next tutorial will show how to enable security for a multi-tenant blogging API.
