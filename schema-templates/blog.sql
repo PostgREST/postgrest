@@ -5,8 +5,10 @@ begin;
 
 -- comment out the role creation statements if
 -- you want to run this script more than once
-create role anon noinherit;
+create role anon;
 create role author;
+create role authenticator noinherit;
+grant anon, author to authenticator;
 
 create extension if not exists pgcrypto;
 create extension if not exists "uuid-ossp";
@@ -350,7 +352,6 @@ grant execute on function
   signup(text, text)
   to anon;
 
-grant author to anon;
 grant select, insert, update, delete
   on basic_auth.tokens, basic_auth.users to anon, author;
 grant select, insert, update, delete
