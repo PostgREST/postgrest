@@ -13,4 +13,4 @@ dependencies:
 test:
   post:
     - cabal exec hlint -- -X QuasiQuotes src/**/*.hs test/**/*.hs
-    - cabal exec packdeps postgrest.cabal
+    - cabal exec packdeps postgrest.cabal || true

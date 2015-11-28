@@ -6,7 +6,7 @@ module PostgREST.Middleware where
 import           Data.Maybe                    (fromMaybe)
 import           Data.Text
 import           Data.String.Conversions       (cs)
-import           Data.Time.Clock.POSIX         (getPOSIXTime)
+import           Data.Time.Clock               (NominalDiffTime)
 import qualified Hasql                         as H
 import qualified Hasql.Postgres                as P
 
@@ -23,20 +23,17 @@ import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
 
-import           System.IO.Unsafe              (unsafePerformIO)
-
 import           Prelude hiding(concat)
 
 import qualified Data.Vector             as V
 import qualified Hasql.Backend           as B
 import qualified Data.Map.Lazy           as M
 
-runWithClaims :: forall s. AppConfig ->
+runWithClaims :: forall s. AppConfig -> NominalDiffTime ->
                  (Request -> H.Tx P.Postgres s Response) ->
                  Request -> H.Tx P.Postgres s Response
-runWithClaims conf app req = do
+runWithClaims conf time app req = do
     _ <- H.unitEx $ stmt setAnon
-    let time = unsafePerformIO getPOSIXTime
     case split (== ' ') (cs auth) of
       ("Bearer" : tokenStr : _) ->
         case jwtClaims jwtSecret tokenStr time of

@@ -17,6 +17,7 @@ import           Data.Functor.Identity
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import           Data.Text                            (Text)
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql                                as H
 import qualified Hasql.Postgres                       as P
 import           Network.Wai
@@ -73,7 +74,8 @@ main = do
   dbStructure <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do
+    time <- getPOSIXTime
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf (app dbStructure conf body) req
+      runWithClaims conf time (app dbStructure conf body) req
     either (respond . pgErrResponse) respond resOrError

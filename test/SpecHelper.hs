@@ -12,6 +12,7 @@ import Data.String.Conversions (cs)
 import Data.Monoid
 import Data.Text hiding (map)
 import qualified Data.Vector as V
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import Control.Monad (void)
 import Control.Applicative
 
@@ -59,9 +60,10 @@ withApp perform = do
   db <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do
+    time <- getPOSIXTime
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg (app db cfg body) req
+      $ runWithClaims cfg time (app db cfg body) req
     either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle
