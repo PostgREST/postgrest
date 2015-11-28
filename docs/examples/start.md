@@ -25,12 +25,10 @@ CREATE TABLE film
   id serial PRIMARY KEY,
   title text NOT NULL,
   year date NOT NULL,
-  director text,
+  director text REFERENCES director (name)
+    ON UPDATE CASCADE ON DELETE CASCADE,
   rating real NOT NULL DEFAULT 0,
-  language text NOT NULL,
-  CONSTRAINT film_director_fkey FOREIGN KEY (director)
-      REFERENCES director (name) MATCH SIMPLE
-      ON UPDATE CASCADE ON DELETE CASCADE
+  language text NOT NULL
 );
 
 CREATE TABLE festival
@@ -42,27 +40,19 @@ CREATE TABLE competition
 (
   id serial PRIMARY KEY,
   name text NOT NULL,
-  festival text NOT NULL,
-  year date NOT NULL,
-
-  CONSTRAINT comp_festival_fkey FOREIGN KEY (festival)
-      REFERENCES festival (name) MATCH SIMPLE
-      ON UPDATE CASCADE ON DELETE CASCADE
+  festival text NOT NULL REFERENCES festival (name)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  year date NOT NULL
 );
 
 CREATE TABLE film_nomination
 (
   id serial PRIMARY KEY,
-  competition integer NOT NULL,
-  film integer NOT NULL,
-  won boolean NOT NULL DEFAULT true,
-
-  CONSTRAINT nomination_competition_fkey FOREIGN KEY (competition)
-     REFERENCES competition (id) MATCH SIMPLE
-     ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT nomination_film_fkey FOREIGN KEY (film)
-     REFERENCES film (id) MATCH SIMPLE
-     ON UPDATE CASCADE ON DELETE CASCADE
+  competition integer NOT NULL REFERENCES competition (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION,
+  film integer NOT NULL REFERENCES film (id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  won boolean NOT NULL DEFAULT true
 );
 
 COMMIT;
