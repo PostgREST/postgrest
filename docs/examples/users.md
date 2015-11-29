@@ -9,19 +9,21 @@ Future examples such as the multi-tenant blogging platform will use
 the results from this example for their auth. We will build a system
 for users to sign up, log in, manage their accounts, and for admins
 to manange other people's accounts. We will also see how to trigger
-outside events like sending signup validation emails.
+outside events like sending password reset emails.
 
 Before jumping into the code, a little more about how the tokens
 work. Every JWT contains cryptographically signed *claims*. PostgREST
 cares specificaly about a claim called `role`. When a client includes
-a `role` claim PG executes their request using that database role.
+a `role` claim PostgREST executes their request using that database
+role.
 
-How would a client include that claim? Without knowing the server
-JWT secret a client cannot create a claim. The only place to get a
-JWT is from the PG server or from another service sharing the secret
-and acting on its behalf.  We'll use a stored procedure returning
-type `jwt_claims` which is a special type and causes the server to
-encrypt and sign the return value.
+How would a client include a role claim, or claims in general?
+Without knowing the server JWT secret a client cannot create a
+claim. The only place to get a JWT is from the PostgREST server or
+from another service sharing the secret and acting on its behalf.
+We'll use a stored procedure returning type `jwt_claims` which is
+a special type causing the server to encrypt and sign the return
+value.
 
 ### Storing Users and Passwords
 
@@ -41,8 +43,8 @@ create schema if not exists basic_auth;
 ```
 
 Next a table to store the mapping from usernames and passwords to
-database roles. Includes triggers and functions to encrypt the
-password and ensure the role exists.
+database roles. The code below includes triggers and functions to
+encrypt the password and ensure the role exists.
 
 ```sql
 create table if not exists
@@ -132,9 +134,9 @@ basic_auth.tokens (
 );
 ```
 
-In the main schema (not `basic_auth`) we expose a password reset
-request function for the front end to call. It takes the email
-address of the user.
+In the main schema (as opposed to the `basic_auth` schema) we expose
+a password reset request function. HTTP clients will call it. The
+function takes the email address of the user.
 
 ```sql
 create or replace function
@@ -164,9 +166,9 @@ $$;
 
 This function does not send any emails. It sends a postgres
 [NOTIFY](http://www.postgresql.org/docs/current/static/sql-notify.html)
-command to trigger external actions. The most robust way to process
-these signals is by pushing them onto work queues. Here are two
-programs to do that:
+command. External programs such as a mailer listen for this event
+and do the work. The most robust way to process these signals is
+by pushing them onto work queues. Here are two programs to do that:
 
 1. [aweber/pgsql-listen-exchange](https://github.com/aweber/pgsql-listen-exchange) for RabbitMQ
 2. [SpiderOak/skeeter](https://github.com/SpiderOak/skeeter) for ZeroMQ
@@ -192,8 +194,9 @@ ps.addChannel('validate', console.log);
 // modify me to send emails
 ```
 
-Once the user has a reset token they can call this function
-through the PostgREST RPC interface.
+Once the user has a reset token they can use it as an argument to
+the password reset function, calling it through the PostgREST RPC
+interface.
 
 ```sql
 create or replace function
@@ -240,8 +243,214 @@ $$;
 
 This is similar to password resets. Once again we generate a token.
 It differs in that there is a trigger to send validations when a
-new login is added to the user table.
+new login is added to the users table.
 
 ```sql
+create or replace function
+basic_auth.send_validation() returns trigger
+  language plpgsql
+  as $$
+declare
+  tok uuid;
+begin
+  select uuid_generate_v4() into tok;
+  insert into basic_auth.tokens (token, token_type, email)
+         values (tok, 'validation', new.email);
+  perform pg_notify('validate',
+    json_build_object(
+      'email', new.email,
+      'token', tok,
+      'token_type', 'validation'
+    )::text
+  );
+  return new;
+end
+$$;
 
+drop trigger if exists send_validation on basic_auth.users;
+create trigger send_validation
+  after insert on basic_auth.users
+  for each row
+  execute procedure basic_auth.send_validation();
 ```
+
+### Editing Own User
+
+We'll construct a redacted view for users. It hides passwords and
+shows only those users whose roles the currently logged in user has
+db permission to access.
+
+```sql
+create or replace view users as
+select actual.role as role,
+       '***'::text as pass,
+       actual.email as email,
+       actual.verified as verified
+from basic_auth.users as actual,
+     (select rolname
+        from pg_authid
+       where pg_has_role(current_user, oid, 'member')
+     ) as member_of
+where actual.role = member_of.rolname;
+  -- can also add restriction that current_setting('postgrest.claims.email')
+  -- is equal to email so that user can only see themselves
+```
+
+Using this view clients can see themeslves and any other users with
+the right db roles. This view does not yet support inserts or updates
+because not all the columns refer directly to underlying columns.
+Nor do we want it to be auto-updatable because it would allow an escalation
+of privileges. Someone could update their own row and change their
+role to become more powerful.
+
+We'll handle updates with a trigger, but we'll need a helper function
+to prevent an escalation of privileges.
+
+```sql
+create or replace function
+basic_auth.clearance_for_role(u name) returns void as
+$$
+declare
+  ok boolean;
+begin
+  select exists (
+    select rolname
+      from pg_authid
+     where pg_has_role(current_user, oid, 'member')
+       and rolname = u
+  ) into ok;
+  if not ok then
+    raise invalid_password using message =
+      'current user not member of role ' || u;
+  end if;
+end
+$$ LANGUAGE plpgsql;
+```
+
+With the above function we can now make a safe trigger to allow
+user updates.
+
+```sql
+create or replace function
+update_users() returns trigger
+language plpgsql
+AS $$
+begin
+  if tg_op = 'INSERT' then
+    perform basic_auth.clearance_for_role(new.role);
+
+    insert into basic_auth.users
+      (role, pass, email, verified)
+    values
+      (new.role, new.pass, new.email,
+      coalesce(new.verified, false));
+    return new;
+  elsif tg_op = 'UPDATE' then
+    -- no need to check clearance for old.role because
+    -- an ineligible row would not have been available to update (http 404)
+    perform basic_auth.clearance_for_role(new.role);
+
+    update basic_auth.users set
+      email  = new.email,
+      role   = new.role,
+      pass   = new.pass,
+      verified = coalesce(new.verified, old.verified, false)
+      where email = old.email;
+    return new;
+  elsif tg_op = 'DELETE' then
+    -- no need to check clearance for old.role (see previous case)
+
+    delete from basic_auth.users
+     where basic_auth.email = old.email;
+    return null;
+  end if;
+end
+$$;
+
+drop trigger if exists update_users on users;
+create trigger update_users
+  instead of insert or update or delete on
+    users for each row execute procedure update_users();
+```
+
+Finally add a public function people can use to sign up. You can
+hard code a default db role in it. It alters the underlying
+`basic_auth.users` so you can set whatever role you want without
+restriction.
+
+```sql
+create or replace function
+signup(email text, pass text) returns void
+as $$
+  insert into basic_auth.users (email, pass, role) values
+    (signup.email, signup.pass, 'hardcoded-role-here');
+$$ language sql;
+```
+
+### Generating JWT
+
+As mentioned at the start, clients authenticate with JWT. PostgREST
+has a special convention to allow your sql functions to return JWT.
+Any function that returns a type whose name ends in `jwt_claims` will
+have its return value encoded. For instance, let's make a login function
+which consults our users table.
+
+First create a return type:
+
+```sql
+drop type if exists basic_auth.jwt_claims cascade;
+create type basic_auth.jwt_claims AS (role text, email text);
+```
+
+And now the function:
+
+```sql
+create or replace function
+login(email text, pass text) returns basic_auth.jwt_claims
+  language plpgsql
+  as $$
+declare
+  _role name;
+  result basic_auth.jwt_claims;
+begin
+  select basic_auth.user_role(email, pass) into _role;
+  if _role is null then
+    raise invalid_password using message = 'invalid user or password';
+  end if;
+  -- TODO; check verified flag if you care whether users
+  -- have validated their emails
+  select _role as role, login.email as email into result;
+  return result;
+end;
+$$;
+```
+
+An API request to login would look like this.
+
+```HTTP
+POST /rpc/login
+
+{ "email": "foo@bar.com", "pass": "foobar" }
+```
+
+Response
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicm9sZSI6ImF1dGhvciJ9.KHwYdK9dAMAg-MGCQXuDiFuvbmW-y8FjfYIcMrETnto"
+}
+```
+
+Try decoding the token at [jwt.io](http://jwt.io/). (It was encoded
+with a secret of `secret` which is the default.) To use this token
+in a future API request include it in an `Authorization` request
+header.
+
+```HTTP
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicm9sZSI6ImF1dGhvciJ9.KHwYdK9dAMAg-MGCQXuDiFuvbmW-y8FjfYIcMrETnto
+```
+
+### Conclusion
+
+This section explained the implementation details for building a
+password based authentication system in pure sql. The next example
+will put it to work in a multi-tenant blogging API.
