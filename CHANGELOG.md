@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Miscalculation of time used for expiring tokens - @calebmer
+- Remove bcrypt dependency to fix Windows build - @begriffs
 
 ## [0.3.0.1] - 2015-11-27
 
