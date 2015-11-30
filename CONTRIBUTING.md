@@ -27,6 +27,10 @@ your contributions.
 * Provide steps to reproduce the issue, including your OS version and
   the specific database schema that you are using.
 
+* Please include SQL logs for issues involving runtime problems. To obtain logs first
+  [enable logging all statements](http://www.microhowto.info/howto/log_all_queries_to_a_postgresql_server.html),
+  then [find your logs](http://blog.endpoint.com/2014/11/dear-postgresql-where-are-my-logs.html).
+
 ## Code
 
 ### Haskell Conventions
