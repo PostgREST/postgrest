@@ -50,7 +50,7 @@ executable postgrest
                      , regex-base, regex-tdfa
                      , Ranged-sets
                      , transformers, MissingH
-                     , bcrypt >= 0.0.6, base64-string
+                     , base64-string
                      , network-uri >= 2.6
                      , resource-pool
                      , blaze-builder
@@ -89,7 +89,6 @@ library
                      , aeson
                      , base >=4.6 && <5
                      , base64-string
-                     , bcrypt
                      , bifunctors
                      , blaze-builder
                      , bytestring
@@ -192,7 +191,7 @@ Test-Suite spec
                      , http-media, regex-tdfa
                      , Ranged-sets
                      , transformers, MissingH, split
-                     , bcrypt, base64-string
+                     , base64-string
                      , network-uri
                      , resource-pool
                      , blaze-builder
