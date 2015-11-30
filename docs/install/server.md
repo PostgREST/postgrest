@@ -2,7 +2,10 @@
 
 ### Installing from Pre-Built Release
 
-The [release page](https://github.com/begriffs/postgrest/releases/latest) has precompiled binaries for Mac OS X and 64-bit Ubuntu. Next extract the tarball and run the binary inside with no arguments to see usage instructions:
+The [release page](https://github.com/begriffs/postgrest/releases/latest)
+has precompiled binaries for Mac OS X, Windows, and several Linux
+distros.  Extract the tarball and run the binary inside with no
+arguments to see usage instructions:
 
 ```sh
 # Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
@@ -18,22 +21,21 @@ $ ./postgrest
 <div class="admonition warning">
     <p class="admonition-title">Invitation to Contribute</p>
 
-    <p>I currently build the binaries manually for each version. We need to set up an automated build matrix for various architectures. It should support 32- and 64-bit versions of
+    <p>I currently build the binaries manually for each architecture.
+    It would be nice to set up an automated build matrix for various
+    architectures. It should support Mac, Windows and 32- and 64-bit
+    versions of
 
-    <ul><li>Scientific Linux 6</li><li>CentOS</li><li>RHEL 6</li></ul>
-
-    Also it would be good to create a package for apt.</p>
+    <ul><li>Scientific Linux 6</li><li>CentOS</li><li>RHEL 6</li></ul></p>
 </div>
-
-We'll learn the meaning of the command line flags later, but here is a minimal example of running the app. It does all operations as user `postgres`, including for unauthenticated requests.
-
-```sh
-$ ./postgrest -d dbname -U postgres -a postgres --v1schema public
-```
 
 ### Building from Source
 
-When a prebuilt binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. [Stack](https://github.com/commercialhaskell/stack) makes it easy. It will install any necessary Haskell dependencies on your system.
+When a prebuilt binary does not exist for your system you can build
+the project from source. You'll also need to do this if you want
+to help with development.
+[Stack](https://github.com/commercialhaskell/stack) makes it easy.
+It will install any necessary Haskell dependencies on your system.
 
 * [Install Stack](https://github.com/commercialhaskell/stack#how-to-install) for your platform
 ```bash
@@ -52,11 +54,58 @@ sudo stack install --install-ghc --local-bin-path /usr/local/bin
 
 * Run the server
 
+If you want to run the test suite, stack can do that too: `stack test`.
+
+### Running the Server
+
 ```bash
-postgrest dbconnectionstring arg1 arg2
+postgrest postgres://user:pass@host:port/db [flags]
 ```
 
-If you want to run the test suite, stack can do that too: `stack test`.
+The user in the connection string is the "authenticator role," i.e.
+a role which is used temporarily to switch into other roles depending
+on the authentication request JWT. For simple API's you can use the
+same role for authenticator and anonymous.
+
+The possible flags are:
+
+<dl>
+<dt>-p, --port</dt>
+<dd>The port on which the server will listen for HTTP requests.
+    Defaults to 3000.</dd>
+
+<dt>-a, --anonymous</dt>
+<dd>The database role used to execute commands for those requests
+    which provide no JWT authorization.</dd>
+
+<dt>-s, --schema</dt>
+<dd>The db schema which you want to expose as an API. For historical
+    reasons it defaults to <code>1</code>, but you're more likely
+    to want to choose a value of <code>public</code>.</dd>
+
+<dt>-j, --jwt-secret</dt>
+<dd>The secret passphrase used to encrypt JWT tokens. Defaults to
+    <code>secret</code> but do not use the default in production!
+    Load-balanced PostgREST servers should share the same secret.</dd>
+
+<dt>-p, --pool</dt>
+<dd>Max connections to use in db pool. Defaults to to 10, but you
+    should find an optimal value for your db by running the SQL
+    command <code>show max_connections;</code></dd>
+</dl>
+
+<div class="admonition note">
+    <p class="admonition-title">Hiding Password from Process List</p>
+
+    <p>Passing the database password and JWT secret as naked
+    parameters might not be a good idea because the parameters are
+    visible in a <code>ps</code> listing. One solution is to set
+    environment variables such as PASS and use <code>$PASS</code>
+    in the connection string.  Another is to use a user-specific
+    <a
+    href="http://www.postgresql.org/docs/current/static/libpq-pgpass.html">.pgpass</a>
+    file.</p>
+</div>
 
 ### Installing PostgreSQL
 
@@ -64,3 +113,4 @@ To use PostgREST you will need an underlying database. You can use something lik
 
 * [Instructions for OS X](http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/)
 * [Instructions for Ubuntu 14.04](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04)
+* [Installer for Windows](http://www.enterprisedb.com/products-services-training/pgdownload#windows)
