@@ -1,3 +1,18 @@
+<style>
+.videoWrapper {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 */
+  padding-top: 25px;
+  height: 0;
+}
+.videoWrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+</style>
 ![PostgREST logo](img/logo.png)
 
 ## Introduction
@@ -34,6 +49,14 @@ PostgREST has a focused scope. It works well with other tools like Nginx. This f
 #### Shared Improvements
 
 As with any open source project, we all gain from features and fixes in the tool. It's more beneficial than improvements locked inextricably within custom codebases.
+
+### Intro Video
+
+Some things have changed since this video was created but the basics are the same. Learn the big vision behind automating APIs.
+
+<div class="videoWrapper">
+<iframe src="https://player.vimeo.com/video/115668217" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+</div>
 
 ### Myths
 
