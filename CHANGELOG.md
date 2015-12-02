@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Miscalculation of time used for expiring tokens - @calebmer
 - Remove bcrypt dependency to fix Windows build - @begriffs
 
+### Added
+- Allow order by computed columns - @diogob
+
 ## [0.3.0.1] - 2015-11-27
 
 ### Fixed
