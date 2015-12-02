@@ -134,7 +134,7 @@ spec =
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
     it "order by computed column" $
-      get "/items?order=always_true.asc,id.asc" `shouldRespondWith`
+      get "/items?order=anti_id.desc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
     it "matches filtering nested items" $

@@ -462,6 +462,11 @@ CREATE FUNCTION public.always_true(test.items) RETURNS boolean
 
 ALTER FUNCTION public.always_true(test.items) OWNER TO postgrest_test;
 
+CREATE FUNCTION public.anti_id(test.items) RETURNS bigint
+LANGUAGE sql STABLE
+AS $$ SELECT $1.id * -1 $$;
+
+ALTER FUNCTION public.anti_id(test.items) OWNER TO postgrest_test;
 
 
 ALTER TABLE ONLY authors_only
