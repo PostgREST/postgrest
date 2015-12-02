@@ -200,6 +200,17 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
+    orderF ts =
+        if null ts
+            then ""
+            else "ORDER BY " <> clause
+        where
+            clause = intercalate "," (map queryTerm ts)
+            queryTerm :: OrderTerm -> Text
+            queryTerm t = " "
+                <> cs (pgFmtColumn qi $ otTerm t) <> " "
+                <> (cs.show) (otDirection t) <> " "
+                <> maybe "" (cs.show) (otNullOrder t) <> " "
     (withs, selects) = foldr getQueryParts ([],[]) forest
     getQueryParts :: Tree ReadNode -> ([(SqlFragment, Text)], [SqlFragment]) -> ([(SqlFragment,Text)], [SqlFragment])
     getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
@@ -336,19 +347,6 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
 
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
-
-orderF :: [OrderTerm] -> SqlFragment
-orderF ts =
-  if null ts
-    then ""
-    else "ORDER BY " <> clause
-  where
-    clause = intercalate "," (map queryTerm ts)
-    queryTerm :: OrderTerm -> Text
-    queryTerm t = " "
-           <> cs (pgFmtIdent $ otTerm t) <> " "
-           <> (cs.show) (otDirection t) <> " "
-           <> maybe "" (cs.show) (otNullOrder t) <> " "
 
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
