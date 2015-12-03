@@ -171,6 +171,11 @@ If you care where nulls are sorted, add `nullsfirst` or `nullslast`:
 GET /people?order=age.nullsfirst
 ```
 
+You can also use [computed
+columns](http://www.postgresql.org/docs/current/interactive/xfunc-sql.html#XFUNC-SQL-COMPOSITE-FUNCTIONS)
+to order the results, even though the computed
+columns will not appear in the output.
+
 ### Limiting and Pagination
 
 #### Pagination by Limit-Offset
