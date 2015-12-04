@@ -325,7 +325,8 @@ posts (
   title      text not null,
   body       text not null,
   author     text not null references basic_auth.users (email)
-               on delete restrict on update cascade,
+               on delete restrict on update cascade
+               default basic_auth.current_email(),
   created_at timestamptz not null default current_date
 );
 
@@ -334,7 +335,8 @@ comments (
   id         bigserial primary key,
   body       text not null,
   author     text not null references basic_auth.users (email)
-               on delete restrict on update cascade,
+               on delete restrict on update cascade
+               default basic_auth.current_email(),
   post       bigint not null references posts (id)
                on delete cascade on update cascade,
   created_at timestamptz not null default current_date
