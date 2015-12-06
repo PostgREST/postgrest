@@ -34,7 +34,6 @@ import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
-import           Control.Monad           (join)
 import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
 import           Data.Monoid             ((<>))
@@ -61,10 +60,10 @@ instance Monoid PStmt where
   mempty = B.Stmt "" empty True
 type StatementT = PStmt -> PStmt
 
-createReadStatement :: SqlQuery -> Maybe NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
+createReadStatement :: SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
 createReadStatement selectQuery range isSingle countTable asCsv =
   B.Stmt (
-    wrapQuery selectQuery [
+    wrapLimitedQuery selectQuery [
       if countTable then countAllF else countNoneF,
       countF,
       "null", -- location header can not be calucalted
@@ -91,7 +90,7 @@ createWriteStatement selectQuery mutateQuery isSingle echoRequested
         else if isSingle then asJsonSingleF else asJsonF
       else "null"
 
-    ] selectQuery Nothing
+    ] selectQuery
   ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
@@ -426,19 +425,27 @@ withSourceF s = "WITH " <> sourceSubqueryName <> " AS (" <> s <>")"
 fromF :: SqlFragment -> SqlFragment -> SqlFragment
 fromF sel limit = "FROM (" <> sel <> " " <> limit <> ") t"
 
-limitF :: Maybe NonnegRange -> SqlFragment
+limitF :: NonnegRange -> SqlFragment
 limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
   where
-    limit  = maybe "ALL" (cs . show) $ join $ rangeLimit <$> r
-    offset = cs . show $ fromMaybe 0 $ rangeOffset <$> r
+    limit  = maybe "ALL" (cs . show) $ rangeLimit r
+    offset = cs . show $ rangeOffset r
 
 selectStarF :: SqlFragment
 selectStarF = "SELECT * FROM " <> sourceSubqueryName
 
-wrapQuery :: SqlQuery -> [Text] -> Text ->  Maybe NonnegRange -> SqlQuery
-wrapQuery source selectColumns returnSelect range =
+wrapLimitedQuery :: SqlQuery -> [Text] -> Text -> NonnegRange -> SqlQuery
+wrapLimitedQuery source selectColumns returnSelect range =
   withSourceF source <>
   " SELECT " <>
   intercalate ", " selectColumns <>
   " " <>
   fromF returnSelect ( limitF range )
+
+wrapQuery :: SqlQuery -> [Text] -> Text -> SqlQuery
+wrapQuery source selectColumns returnSelect =
+  withSourceF source <>
+  " SELECT " <>
+  intercalate ", " selectColumns <>
+  " " <>
+  fromF returnSelect ""

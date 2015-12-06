@@ -8,7 +8,7 @@ import Network.HTTP.Types
 
 spec :: Spec
 spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable "items")
-  . around withApp $
+  . around (withApp cfgDefault) $
   describe "Deleting" $ do
     context "existing record" $ do
       it "succeeds with 204 and deletion count" $

@@ -22,7 +22,7 @@ spec =
        createLikableStrings >>
        createJsonData)
    . afterAll_ (clearTable "items" >> clearTable "complex_items" >> clearTable "no_pk" >> clearTable "simple_pk")
-   . around withApp $ do
+   . around (withApp cfgDefault) $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $

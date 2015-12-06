@@ -12,7 +12,7 @@ import SpecHelper
 spec :: Spec
 spec = beforeAll
   (clearTable "postgrest.auth") . afterAll_ (clearTable "postgrest.auth")
-  $ around withApp
+  $ around (withApp cfgDefault)
   $ describe "authorization" $ do
 
   it "hides tables that anonymous does not own" $

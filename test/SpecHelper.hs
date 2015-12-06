@@ -41,8 +41,13 @@ isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
-cfg :: AppConfig
-cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10
+cfgDefault :: AppConfig
+cfgDefault = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10 Nothing
+
+cfgLimitRows :: Int -> AppConfig
+cfgLimitRows limit =
+  AppConfig dbString 3000 "postgrest_anonymous" "test"
+    (secret "safe") 10 (Just limit)
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
@@ -50,20 +55,20 @@ testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 pgSettings :: P.Settings
 pgSettings = P.StringSettings $ cs dbString
 
-withApp :: ActionWith Application -> IO ()
-withApp perform = do
+withApp :: AppConfig -> ActionWith Application -> IO ()
+withApp config perform = do
   pool :: H.Pool P.Postgres
     <- H.acquirePool pgSettings testPoolOpts
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema cfg)
+  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema config)
   db <- either (fail . show) return dbOrError
 
   perform $ middle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
     result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims cfg time (app db cfg body) req
+      $ runWithClaims config time (app db config body) req
     either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle

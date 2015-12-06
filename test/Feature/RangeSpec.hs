@@ -10,7 +10,7 @@ import SpecHelper
 
 spec :: Spec
 spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable "items")
-  . around withApp $
+  . around (withApp cfgDefault) $
   describe "GET /items" $ do
 
     context "without range headers" $ do

@@ -73,11 +73,11 @@ app dbStructure conf reqBody req =
       case selectQuery of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right q -> do
-          let range = iRange apiRequest
+          let range = restrictRange (configMaxRows conf) $ iRange apiRequest
               singular = iPreferSingular apiRequest
               stm = createReadStatement q range singular
                     (iPreferCount apiRequest) (contentType == TextCSV)
-          if range == Just emptyRange
+          if range == emptyRange
           then return $ errResponse status416 "HTTP Range error"
           else do
             row <- H.maybeEx stm
@@ -87,7 +87,7 @@ app dbStructure conf reqBody req =
               then responseLBS status404 [] ""
               else responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
             else do
-              let frm = fromMaybe 0 $ rangeOffset <$> range
+              let frm = rangeOffset range
                   to = frm+queryTotal-1
                   contentRange = contentRangeH frm to tableTotal
                   status = rangeStatus frm to tableTotal

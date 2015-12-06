@@ -30,6 +30,7 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
+import           Safe                        (readMay)
 import           Web.JWT                     (Secret, secret)
 import           Prelude
 
@@ -41,6 +42,7 @@ data AppConfig = AppConfig {
   , configSchema    :: String
   , configJwtSecret :: Secret
   , configPool      :: Int
+  , configMaxRows   :: Maybe Int
   }
 
 argParser :: Parser AppConfig
@@ -53,6 +55,7 @@ argParser = AppConfig
   <*> (secret . cs <$>
       strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
+  <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
