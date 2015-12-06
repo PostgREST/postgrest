@@ -20,7 +20,7 @@ import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
 import           PostgREST.Types         (QualifiedIdentifier (..),
                                           Schema, Payload(..),
                                           UniformObjects(..))
-import           Data.Ranged.Ranges      (singletonRange)                                          
+import           Data.Ranged.Ranges      (singletonRange)
 
 type RequestBody = BL.ByteString
 
@@ -51,7 +51,7 @@ data ApiRequest = ApiRequest {
   -- | Set to Nothing for unknown HTTP verbs
     iAction :: Action
   -- | Set to Nothing for malformed range
-  , iRange  :: Maybe NonnegRange
+  , iRange  :: NonnegRange
   -- | Set to Nothing for strangely nested urls
   , iTarget :: Target
   -- | The content type the client most desires (or JSON if undecided)
@@ -115,7 +115,7 @@ userApiRequest schema req reqBody =
 
   ApiRequest {
     iAction = action
-  , iRange  = if singular then Just (singletonRange 0) else rangeRequested hdrs
+  , iRange  = if singular then singletonRange 0 else rangeRequested hdrs
   , iTarget = target
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload

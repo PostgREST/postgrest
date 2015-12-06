@@ -45,6 +45,7 @@ executable postgrest
                      , parsec
                      , postgrest
                      , regex-tdfa
+                     , safe >= 0.3 && < 0.4
                      , scientific
                      , string-conversions
                      , text
@@ -98,6 +99,7 @@ library
                      , optparse-applicative
                      , parsec
                      , regex-tdfa
+                     , safe
                      , scientific
                      , string-conversions
                      , text
@@ -181,6 +183,7 @@ Test-Suite spec
                      , parsec
                      , process
                      , regex-tdfa
+                     , safe
                      , scientific
                      , string-conversions
                      , text

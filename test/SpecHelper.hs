@@ -42,7 +42,7 @@ isLeft (Left _ ) = True
 isLeft _ = False
 
 cfg :: AppConfig
-cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10
+cfg = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10 Nothing
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30

@@ -3,6 +3,7 @@ module PostgREST.RangeQuery (
 , rangeRequested
 , rangeLimit
 , rangeOffset
+, restrictRange
 , NonnegRange
 ) where
 
@@ -25,20 +26,26 @@ import           Prelude
 
 type NonnegRange = Range Int
 
-rangeParse :: BS.ByteString -> Maybe NonnegRange
+rangeParse :: BS.ByteString -> NonnegRange
 rangeParse range = do
   let rangeRegex = "^([0-9]+)-([0-9]*)$" :: BS.ByteString
 
-  parsedRange <- listToMaybe (range =~ rangeRegex :: [[BS.ByteString]])
+  case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
+    Just parsedRange ->
+      let [_, from, to] = readMaybe . cs <$> parsedRange
+          lower         = fromMaybe emptyRange   (rangeGeq <$> from)
+          upper         = fromMaybe (rangeGeq 0) (rangeLeq <$> to) in
+      rangeIntersection lower upper
+    Nothing -> rangeGeq 0
 
-  let [_, from, to] = readMaybe . cs <$> parsedRange
-  let lower = fromMaybe emptyRange   (rangeGeq <$> from)
-  let upper = fromMaybe (rangeGeq 0) (rangeLeq <$> to)
+rangeRequested :: RequestHeaders -> NonnegRange
+rangeRequested = rangeParse . fromMaybe "" . lookup hRange
 
-  return $ rangeIntersection lower upper
-
-rangeRequested :: RequestHeaders -> Maybe NonnegRange
-rangeRequested = (rangeParse =<<) . lookup hRange
+restrictRange :: Maybe Int -> NonnegRange -> NonnegRange
+restrictRange Nothing r = r
+restrictRange (Just limit) r =
+  rangeIntersection r $
+    Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
 
 rangeLimit :: NonnegRange -> Maybe Int
 rangeLimit range =
