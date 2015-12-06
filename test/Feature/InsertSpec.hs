@@ -17,7 +17,7 @@ import Control.Monad (replicateM_)
 import TestTypes(IncPK(..), CompoundPK(..))
 
 spec :: Spec
-spec = afterAll_ resetDb $ around withApp $ do
+spec = afterAll_ resetDb $ around (withApp cfgDefault) $ do
   describe "Posting new record" $ do
     after_ (clearTable "menagerie") . context "disparate csv types" $ do
       it "accepts disparate json types" $ do

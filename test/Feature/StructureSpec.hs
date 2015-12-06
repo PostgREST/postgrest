@@ -9,7 +9,7 @@ import SpecHelper
 import Network.HTTP.Types
 
 spec :: Spec
-spec = around withApp $ do
+spec = around (withApp cfgDefault) $ do
   describe "GET /" $ do
     it "lists views in schema" $
       request methodGet "/" [] ""
