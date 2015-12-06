@@ -92,6 +92,10 @@ The possible flags are:
 <dd>Max connections to use in db pool. Defaults to to 10, but you
     should find an optimal value for your db by running the SQL
     command <code>show max_connections;</code></dd>
+
+<dt>-m, --max-rows</dt>
+<dd>Max number of rows to return in a read request. The default is
+    no limit.</dd>
 </dl>
 
 <div class="admonition note">
