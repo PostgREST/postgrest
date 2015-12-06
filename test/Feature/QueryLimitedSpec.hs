@@ -12,8 +12,7 @@ spec :: Spec
 spec =
   beforeAll (clearTable "items" >> createItems 15)
    . afterAll_ (clearTable "items")
-   . around (withApp $ cfgLimitRows 3) $ do
-
+   . around (withApp $ cfgLimitRows 3) $
   describe "Requesting many items with server limits enabled" $ do
     it "restricts results" $
       get "/items"
