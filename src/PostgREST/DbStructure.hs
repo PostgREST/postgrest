@@ -276,16 +276,14 @@ allRelations tabs cols = do
 
 relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
 relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
-  if isJust table && isJust tableF && length cols == length rcs && length colsF == length frcs
-    then Just $ Relation (fromJust table) cols (fromJust tableF) colsF Child Nothing Nothing Nothing
-    else Nothing
+  Relation <$> table <*> cols <*> tableF <*> colsF <*> pure Child <*> pure Nothing <*> pure Nothing <*> pure Nothing
   where
     findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
-    findCols s t cs = filter (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col `elem` cs) allCols
+    findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
     table  = findTable rs rt
     tableF = findTable frs frt
-    cols  = findCols rs rt rcs
-    colsF = findCols frs frt frcs
+    cols  = mapM (findCol rs rt) rcs
+    colsF = mapM (findCol frs frt) frcs
 
 allPrimaryKeys :: [Table] -> H.Tx P.Postgres s [PrimaryKey]
 allPrimaryKeys tabs = do
@@ -314,32 +312,65 @@ allSynonyms :: [Column] -> H.Tx P.Postgres s [(Column,Column)]
 allSynonyms allCols = do
   syns <- H.listEx $ [H.stmt|
     WITH synonyms AS (
+      /*
+      -- CTE to replace the view from information_schema because the information in it depended on the logged in role
+      -- notice the commented line
+      */
+      WITH view_column_usage AS (
+        SELECT DISTINCT
+               CAST(current_database() AS character varying) AS view_catalog,
+               CAST(nv.nspname AS character varying) AS view_schema,
+               CAST(v.relname AS character varying) AS view_name,
+               CAST(current_database() AS character varying) AS table_catalog,
+               CAST(nt.nspname AS character varying) AS table_schema,
+               CAST(t.relname AS character varying) AS table_name,
+               CAST(a.attname AS character varying) AS column_name
+        FROM pg_namespace nv, pg_class v, pg_depend dv,
+             pg_depend dt, pg_class t, pg_namespace nt,
+             pg_attribute a
+        WHERE nv.oid = v.relnamespace
+              AND v.relkind = 'v'
+              AND v.oid = dv.refobjid
+              AND dv.refclassid = 'pg_catalog.pg_class'::regclass
+              AND dv.classid = 'pg_catalog.pg_rewrite'::regclass
+              AND dv.deptype = 'i'
+              AND dv.objid = dt.objid
+              AND dv.refobjid <> dt.refobjid
+              AND dt.classid = 'pg_catalog.pg_rewrite'::regclass
+              AND dt.refclassid = 'pg_catalog.pg_class'::regclass
+              AND dt.refobjid = t.oid
+              AND t.relnamespace = nt.oid
+              AND t.relkind IN ('r', 'v', 'f')
+              AND t.oid = a.attrelid
+              AND dt.refobjsubid = a.attnum
+              /*--AND pg_has_role(t.relowner, 'USAGE')*/
+      )
       SELECT
         vcu.table_schema AS src_table_schema,
         vcu.table_name AS src_table_name,
         vcu.column_name AS src_column_name,
-        view.table_schema AS syn_table_schema,
-        view.table_name AS syn_table_name,
-        view.view_definition AS view_definition
+        view.schemaname AS syn_table_schema,
+        view.viewname AS syn_table_name,
+        view.definition AS view_definition
       FROM
-        information_schema.views AS view,
-        information_schema.view_column_usage AS vcu
+        pg_catalog.pg_views AS view,
+        view_column_usage AS vcu
       WHERE
-        view.table_schema = vcu.view_schema AND
-        view.table_name = vcu.view_name AND
-        view.table_schema NOT IN ('pg_catalog', 'information_schema') AND
-        (SELECT COUNT(*) FROM information_schema.view_table_usage WHERE view_schema = view.table_schema AND view_name = view.table_name) = 1
+        view.schemaname = vcu.view_schema AND
+        view.viewname = vcu.view_name AND
+        view.schemaname NOT IN ('pg_catalog', 'information_schema')
+        /*--AND (SELECT COUNT(*) FROM information_schema.view_table_usage WHERE view_schema = view.schemaname AND view_name = view.viewname) = 1*/
     )
     SELECT
       src_table_schema, src_table_name, src_column_name,
       syn_table_schema, syn_table_name,
-      (regexp_matches(view_definition, CONCAT('\.(', src_column_name, ')(?=,|$)'), 'gn'))[1]
+      (regexp_matches(view_definition, CONCAT('\.(', src_column_name, ')(?=,|$)'), 'gn'))[1] AS syn_column_name
     FROM synonyms
     UNION (
       SELECT
         src_table_schema, src_table_name, src_column_name,
         syn_table_schema, syn_table_name,
-        (regexp_matches(view_definition, CONCAT('\.', src_column_name, '\sAS\s("?)(.+?)\1(,|$)'), 'gn'))[2] /* " <- for syntax highlighting */
+        (regexp_matches(view_definition, CONCAT('\.', src_column_name, '\sAS\s("?)(.+?)\1(,|$)'), 'gn'))[2] AS syn_column_name /* " <- for syntax highlighting */
       FROM synonyms
     )
     |]
