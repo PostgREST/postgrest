@@ -111,6 +111,29 @@ The possible flags are:
     file.</p>
 </div>
 
+### Install via Homebrew (Mac OS X)
+
+You can use the Homebrew package manager to install PostgREST on Mac
+
+```bash
+# Ensure brew is up to date
+brew update
+
+# Check for any problems with brew's setup
+brew doctor
+
+# Install the postgrest package
+brew install postgrest
+```
+
+This will automatically install PostgreSQL as a dependency (see the [Installing PostgreSQL](#installing-postgresql) section for setup instructions). The process tends to take around 15 minutes to install the package and its dependencies.
+
+After installation completes, the tool is added to your $PATH and can be used from anywhere with:
+
+```bash
+postgrest --help
+```
+
 ### Installing PostgreSQL
 
 To use PostgREST you will need an underlying database (PostgreSQL version 9.3 or greater is required). You can use something like Amazon [RDS](https://aws.amazon.com/rds/) but installing your own locally is cheaper and more convenient for development.
