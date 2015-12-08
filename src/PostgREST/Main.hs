@@ -6,9 +6,9 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
-import           PostgREST.Error                      (pgErrResponse, PgError)
-import           PostgREST.Middleware
 import           PostgREST.DbStructure
+import           PostgREST.Error                      (PgError, pgErrResponse)
+import           PostgREST.Middleware
 
 import           Control.Concurrent                   (myThreadId)
 import           Control.Exception.Base               (throwTo, AsyncException(..))
