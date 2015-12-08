@@ -72,6 +72,7 @@ setupDb = do
   void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []
   loadFixture "roles"
   loadFixture "schema"
+  loadFixture "privileges"
   resetDb
 
 resetDb :: IO ()
