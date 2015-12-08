@@ -32,7 +32,7 @@ import PostgREST.Error(pgErrResponse)
 import PostgREST.DbStructure
 
 dbString :: String
-dbString = "postgres://postgrest_authenticator@localhost:5432/postgrest_test"
+dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
 cfg :: String -> Maybe Int -> AppConfig
 cfg conStr = AppConfig conStr 3000 "postgrest_anonymous" "test" (secret "safe") 10
