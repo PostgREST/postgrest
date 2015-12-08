@@ -74,7 +74,6 @@ main = do
 
   tid <- myThreadId
   void $ installHandler keyboardSignal (Catch $ do
-      putStrLn "\nReleasing connection pool..."
       H.releasePool pool
       throwTo tid UserInterrupt
     ) Nothing
