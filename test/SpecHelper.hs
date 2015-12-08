@@ -35,7 +35,7 @@ dbString :: String
 dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
 cfg :: String -> Maybe Int -> AppConfig
-cfg conStr = AppConfig conStr 3000 "postgrest_anonymous" "test" (secret "safe") 10
+cfg conStr = AppConfig conStr 3000 "postgrest_test_anonymous" "test" (secret "safe") 10
 
 cfgDefault :: AppConfig
 cfgDefault = cfg dbString Nothing

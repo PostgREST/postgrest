@@ -2,7 +2,7 @@
 GRANT USAGE ON SCHEMA
       postgrest
     , test
-TO postgrest_anonymous;
+TO postgrest_test_anonymous;
 
 -- Schema test objects
 SET search_path = test, pg_catalog;
@@ -32,12 +32,12 @@ GRANT ALL ON TABLE
     , users
     , users_projects
     , users_tasks
-TO postgrest_anonymous;
+TO postgrest_test_anonymous;
 
 GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq
     , items_id_seq
-TO postgrest_anonymous;
+TO postgrest_test_anonymous;
 
 -- Privileges for non anonymous users
 GRANT USAGE ON SCHEMA test TO postgrest_test_author;
