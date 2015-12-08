@@ -890,4 +890,3 @@ ALTER TABLE ONLY users_tasks
 --
 -- PostgreSQL database dump complete
 --
-

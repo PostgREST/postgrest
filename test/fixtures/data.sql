@@ -99,6 +99,7 @@ INSERT INTO projects VALUES (1, 'Windows 7', 1);
 INSERT INTO projects VALUES (2, 'Windows 10', 1);
 INSERT INTO projects VALUES (3, 'IOS', 2);
 INSERT INTO projects VALUES (4, 'OSX', 2);
+INSERT INTO projects VALUES (5, 'Orphan', NULL);
 
 
 --
@@ -263,4 +264,3 @@ INSERT INTO users_projects VALUES (3, 3);
 --
 -- PostgreSQL database dump complete
 --
-

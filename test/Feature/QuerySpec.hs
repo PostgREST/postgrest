@@ -195,13 +195,21 @@ spec = around (withApp cfgDefault) $ do
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1}}]"
 
+    it "rows with missing parents are included" $
+      get "/projects?id=in.1,5&select=id,clients{id}" `shouldRespondWith`
+        "[{\"id\":1,\"clients\":{\"id\":1}},{\"id\":5,\"clients\":null}]"
+
+    it "rows with no children return [] instead of null" $
+      get "/projects?id=in.5&select=id,tasks{id}" `shouldRespondWith`
+        [str|[{"id":5,"tasks":[]}]|]
+
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
         "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1},{\"id\":2}]},{\"id\":2,\"tasks\":[{\"id\":3},{\"id\":4}]}]}]"
 
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
-        "[{\"id\":1,\"users\":[{\"id\":1},{\"id\":3}]},{\"id\":2,\"users\":[{\"id\":1}]},{\"id\":3,\"users\":[{\"id\":1}]},{\"id\":4,\"users\":[{\"id\":1}]},{\"id\":5,\"users\":[{\"id\":2},{\"id\":3}]},{\"id\":6,\"users\":[{\"id\":2}]},{\"id\":7,\"users\":[{\"id\":2}]},{\"id\":8,\"users\":null}]"
+        "[{\"id\":1,\"users\":[{\"id\":1},{\"id\":3}]},{\"id\":2,\"users\":[{\"id\":1}]},{\"id\":3,\"users\":[{\"id\":1}]},{\"id\":4,\"users\":[{\"id\":1}]},{\"id\":5,\"users\":[{\"id\":2},{\"id\":3}]},{\"id\":6,\"users\":[{\"id\":2}]},{\"id\":7,\"users\":[{\"id\":2}]},{\"id\":8,\"users\":[]}]"
 
     it "requesting parents and children on views" $
       get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
