@@ -31,33 +31,23 @@ import PostgREST.Middleware
 import PostgREST.Error(pgErrResponse)
 import PostgREST.DbStructure
 
-systemDb :: String
-systemDb = "postgres://localhost"
-
 dbString :: String
 dbString = "postgres://postgrest_authenticator@localhost:5432/postgrest_test"
 
-isLeft :: Either a b -> Bool
-isLeft (Left _ ) = True
-isLeft _ = False
-
 cfg :: String -> Maybe Int -> AppConfig
-cfg conStr limit = AppConfig conStr 3000 "postgrest_anonymous" "test" (secret "safe") 10 limit
+cfg conStr = AppConfig conStr 3000 "postgrest_anonymous" "test" (secret "safe") 10
 
 cfgDefault :: AppConfig
 cfgDefault = cfg dbString Nothing
 
 cfgLimitRows :: Int -> AppConfig
-cfgLimitRows = (cfg dbString) . Just
+cfgLimitRows = cfg dbString . Just
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: P.Settings
 pgSettings = P.StringSettings $ cs dbString
-
-setupSettings :: P.Settings
-setupSettings = P.StringSettings $ cs systemDb
 
 withApp :: AppConfig -> ActionWith Application -> IO ()
 withApp config perform = do
@@ -85,13 +75,11 @@ setupDb = do
   resetDb
 
 resetDb :: IO ()
-resetDb = do
-  loadFixture "data"
+resetDb = loadFixture "data"
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
   void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
-
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
