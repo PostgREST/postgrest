@@ -43,6 +43,7 @@ import           PostgREST.DbStructure
 import           PostgREST.RangeQuery
 import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
+                                            , PreferRepresentation (..)
                                             , userApiRequest)
 import           PostgREST.Types
 import           PostgREST.Auth            (tokenJWT)
@@ -105,14 +106,14 @@ app dbStructure conf reqBody req =
                   )
                 ] (fromMaybe "[]" body)
 
-    (ActionCreate, TargetIdent (QualifiedIdentifier _ table),
+    (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
      Just payload@(PayloadJSON (UniformObjects rows))) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-          let stm = createWriteStatement sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
+          let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, _, location, body) = extractQueryResult row
           return $ responseLBS status201
@@ -120,28 +121,28 @@ app dbStructure conf reqBody req =
               contentTypeH,
               (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
             ]
-            $ if iPreferRepresentation apiRequest then fromMaybe "[]" body else ""
+            $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
 
-    (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON _)) ->
+    (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON _)) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let stm = createWriteStatement sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
+          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
-                               | iPreferRepresentation apiRequest -> status200
+                               | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
           return $ responseLBS s [contentTypeH, r]
-            $ if iPreferRepresentation apiRequest then fromMaybe "[]" body else ""
+            $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
 
-    (ActionDelete, TargetIdent _, Nothing) ->
+    (ActionDelete, TargetIdent qi, Nothing) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let fakeload = PayloadJSON $ UniformObjects V.empty
-          let stm = createWriteStatement sq mq False False [] (contentType == TextCSV) fakeload
+          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
           row <- H.maybeEx stm
           let (_, queryTotal, _, _) = extractQueryResult row
           return $ if queryTotal == 0

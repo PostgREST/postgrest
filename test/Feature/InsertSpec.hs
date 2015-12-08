@@ -93,6 +93,15 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
             simpleStatus p `shouldBe` created201
 
+        it "can insert in tables with no select privileges" $ do
+          p <- request methodPost "/insertonly"
+                       [("Prefer", "return=minimal")]
+                       [json| { "v":"some value" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` ""
+            simpleStatus p `shouldBe` created201
+
+
         it "can post nulls" $ do
           p <- request methodPost "/no_pk"
                        [("Prefer", "return=representation")]

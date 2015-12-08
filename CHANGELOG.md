@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - `pgFmtIdent` always quotes #388 - @calebmer
 - Default schema, changed from `"1"` to `public` - @calebmer
 - #414 revert to separate count query
+- Fix #399, allow inserting in tables with no select privileges using "Prefer: representation=minimal" - @ruslantalpa
 
 ### Added
 - Allow order by computed columns - @diogob

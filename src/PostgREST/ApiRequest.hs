@@ -33,6 +33,8 @@ data Action = ActionCreate | ActionRead
 data Target = TargetIdent QualifiedIdentifier
             | TargetRoot
             | TargetUnknown [T.Text]
+-- | How to return the inserted data
+data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -- | Enumeration of currently supported content types for
 -- route responses and upload payloads
 data ContentType = ApplicationJSON | TextCSV deriving Eq
@@ -59,7 +61,7 @@ data ApiRequest = ApiRequest {
   -- | Data sent by client and used for mutation actions
   , iPayload :: Maybe Payload
   -- | If client wants created items echoed back
-  , iPreferRepresentation :: Bool
+  , iPreferRepresentation :: PreferRepresentation
   -- | If client wants first row as raw object
   , iPreferSingular :: Bool
   -- | Whether the client wants a result count (slower)
@@ -119,7 +121,7 @@ userApiRequest schema req reqBody =
   , iTarget = target
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload
-  , iPreferRepresentation = hasPrefer "return=representation"
+  , iPreferRepresentation = representation
   , iPreferSingular = singular
   , iPreferCount = not $ hasPrefer "count=none"
   , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
@@ -138,8 +140,10 @@ userApiRequest schema req reqBody =
   lookupHeader    = flip lookup hdrs
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
   singular        = hasPrefer "plurality=singular"
-
-
+  representation
+    | hasPrefer "return=representation" = Full
+    | hasPrefer "return=minimal" = None
+    | otherwise = HeadersOnly
 
 -- PRIVATE ---------------------------------------------------------------
 

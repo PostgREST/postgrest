@@ -34,6 +34,8 @@ GRANT ALL ON TABLE
     , users_tasks
 TO postgrest_test_anonymous;
 
+GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
+
 GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq
     , items_id_seq
