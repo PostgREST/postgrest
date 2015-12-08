@@ -1258,5 +1258,3 @@ GRANT ALL ON TABLE users_tasks TO postgrest_anonymous;
 --
 -- PostgreSQL database dump complete
 --
-
-GRANT ALL ON ALL TABLES IN SCHEMA public, private, test, postgrest TO postgrest_authenticator;
