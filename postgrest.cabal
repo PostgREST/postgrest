@@ -61,6 +61,7 @@ executable postgrest
                      , HTTP, http-types
                      , MissingH
                      , Ranged-sets
+                     , unix >= 2.7 && < 3
 
   hs-source-dirs:      src
   other-modules:       Paths_postgrest
