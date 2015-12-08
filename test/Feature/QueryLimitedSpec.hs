@@ -10,8 +10,7 @@ import SpecHelper
 
 spec :: Spec
 spec =
-  beforeAll (clearTable "items" >> createItems 15)
-   . afterAll_ (clearTable "items")
+  beforeAll resetDb
    . around (withApp $ cfgLimitRows 3) $
   describe "Requesting many items with server limits enabled" $ do
     it "restricts results" $

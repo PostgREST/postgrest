@@ -60,7 +60,7 @@ spec = around dbWithSchema $ do
         quickALQuery c "select * from \"1\".items where id = ?" [snd row]
           `shouldReturn` [[row]]
 
-  let {user = "jdoe"; pass = "secret"; role = "test_default_role"}
+  let {user = "jdoe"; pass = "secret"; role = "postgrest_test_default_role"}
   describe "addUser" $ do
     it "adds a correct user to the right table" $ \conn -> do
       addUser user pass role conn

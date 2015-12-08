@@ -17,7 +17,7 @@ import Control.Monad (replicateM_)
 import TestTypes(IncPK(..), CompoundPK(..))
 
 spec :: Spec
-spec = afterAll_ resetDb $ around (withApp cfgDefault) $ do
+spec = beforeAll_ resetDb $ around (withApp cfgDefault) $ do
   describe "Posting new record" $ do
     after_ (clearTable "menagerie") . context "disparate csv types" $ do
       it "accepts disparate json types" $ do
@@ -301,17 +301,16 @@ spec = afterAll_ resetDb $ around (withApp cfgDefault) $ do
 
     context "on an empty table" $
       it "indicates no records found to update" $
-        request methodPatch "/simple_pk" []
+        request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
             `shouldRespondWith` 404
 
-    context "in a nonempty table" . before_ (clearTable "items" >> createItems 15) .
-      after_ (clearTable "items") $ do
+    context "in a nonempty table" $ do
       it "can update a single item" $ do
         g <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
-        request methodPatch "/items?id=eq.1" []
+        request methodPatch "/items?id=eq.2" []
           [json| { "id":42 } |]
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing,

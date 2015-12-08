@@ -257,7 +257,8 @@ spec = around (withApp cfgDefault) $ do
       }
       |]
 
-    it "includes all information on views for renamed columns, and raises relations to correct schema" $
+    it "includes all information on views for renamed columns, and raises relations to correct schema" $ do
+      pendingWith "have to resolve issue #107"
       request methodOptions "/articleStars" [] ""
         `shouldRespondWith` [json|
           {

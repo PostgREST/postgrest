@@ -9,7 +9,7 @@ import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
 import SpecHelper
 
 spec :: Spec
-spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable "items")
+spec = beforeAll resetDb
   . around (withApp cfgDefault) $
   describe "GET /items" $ do
 

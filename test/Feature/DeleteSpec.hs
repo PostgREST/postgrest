@@ -7,7 +7,7 @@ import SpecHelper
 import Network.HTTP.Types
 
 spec :: Spec
-spec = beforeAll (clearTable "items" >> createItems 15) . afterAll_ (clearTable "items")
+spec = beforeAll resetDb
   . around (withApp cfgDefault) $
   describe "Deleting" $ do
     context "existing record" $ do

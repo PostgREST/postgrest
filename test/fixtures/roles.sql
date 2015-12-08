@@ -1,16 +1,7 @@
-create function pg_temp.create_role_if_not_exists(rolename name, opts character varying) RETURNS text
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  IF NOT EXISTS (SELECT * FROM pg_roles WHERE rolname = rolename) THEN
-    EXECUTE format('CREATE ROLE %I %s', rolename, opts);
-    RETURN 'CREATE ROLE';
-  ELSE
-    RETURN format('ROLE ''%I'' ALREADY EXISTS', rolename);
-  END IF;
-END;
-$$;
+DROP ROLE IF EXISTS postgrest_test_authenticator, postgrest_test_anonymous, postgrest_test_default_role, postgrest_test_author;
+CREATE ROLE postgrest_test_authenticator WITH login;
+CREATE ROLE postgrest_test_anonymous;
+CREATE ROLE postgrest_test_default_role;
+CREATE ROLE postgrest_test_author;
 
-select pg_temp.create_role_if_not_exists('postgrest_anonymous', 'with nologin') as a
-     , pg_temp.create_role_if_not_exists('test_default_role', 'with nologin') as b
-     , pg_temp.create_role_if_not_exists('postgrest_test_author', 'with nologin') into temp shh;
+GRANT postgrest_test_anonymous, postgrest_test_default_role, postgrest_test_author TO postgrest_test_authenticator;
