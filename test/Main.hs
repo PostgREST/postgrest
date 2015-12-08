@@ -5,4 +5,4 @@ import SpecHelper
 import Spec
 
 main :: IO ()
-main = resetDb >> hspec spec
+main = setupDb >> hspec spec

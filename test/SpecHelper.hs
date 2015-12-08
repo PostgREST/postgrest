@@ -14,7 +14,6 @@ import Data.Text hiding (map)
 import qualified Data.Vector as V
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Control.Monad (void)
-import Control.Applicative
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization, hAccept)
@@ -26,34 +25,39 @@ import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
 import Web.JWT (secret)
 
-import qualified Data.Aeson.Types as J
-
 import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(pgErrResponse)
 import PostgREST.DbStructure
 
+systemDb :: String
+systemDb = "postgres://localhost"
+
 dbString :: String
-dbString = "postgres://postgrest_test@localhost:5432/postgrest_test"
+dbString = "postgres://postgrest_authenticator@localhost:5432/postgrest_test"
 
 isLeft :: Either a b -> Bool
 isLeft (Left _ ) = True
 isLeft _ = False
 
+cfg :: String -> Maybe Int -> AppConfig
+cfg conStr limit = AppConfig conStr 3000 "postgrest_anonymous" "test" (secret "safe") 10 limit
+
 cfgDefault :: AppConfig
-cfgDefault = AppConfig dbString 3000 "postgrest_anonymous" "test" (secret "safe") 10 Nothing
+cfgDefault = cfg dbString Nothing
 
 cfgLimitRows :: Int -> AppConfig
-cfgLimitRows limit =
-  AppConfig dbString 3000 "postgrest_anonymous" "test"
-    (secret "safe") 10 (Just limit)
+cfgLimitRows = (cfg dbString) . Just
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 
 pgSettings :: P.Settings
 pgSettings = P.StringSettings $ cs dbString
+
+setupSettings :: P.Settings
+setupSettings = P.StringSettings $ cs systemDb
 
 withApp :: AppConfig -> ActionWith Application -> IO ()
 withApp config perform = do
@@ -73,20 +77,16 @@ withApp config perform = do
 
   where middle = defaultMiddle
 
+setupDb :: IO ()
+setupDb = do
+  void $ readProcess "psql" ["-a", "-f", "test/fixtures/database.sql"] []
+  loadFixture "roles"
+  loadFixture "schema"
+  resetDb
 
 resetDb :: IO ()
 resetDb = do
-  pool :: H.Pool P.Postgres
-    <- H.acquirePool pgSettings testPoolOpts
-  void . liftIO $ H.session pool $
-    H.tx Nothing $ do
-      H.unitEx [H.stmt| drop schema if exists test cascade |]
-      H.unitEx [H.stmt| drop schema if exists private cascade |]
-      H.unitEx [H.stmt| drop schema if exists postgrest cascade |]
-
-  loadFixture "roles"
-  loadFixture "schema"
-
+  loadFixture "data"
 
 loadFixture :: FilePath -> IO()
 loadFixture name =
@@ -121,69 +121,4 @@ clearTable :: Text -> IO ()
 clearTable table = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ B.Stmt ("delete from test."<>table) V.empty True
-
-clearProjectsTable :: IO ()
-clearProjectsTable = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ B.Stmt "delete from test.projects where id > 4" V.empty True
-
-
-createItems :: Int -> IO ()
-createItems n = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing txn
-  where
-    txn = mapM_ H.unitEx stmts
-    stmts = map [H.stmt|insert into test.items (id) values (?)|] [1..n]
-
-createComplexItems :: IO ()
-createComplexItems = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing txn
-  where
-    txn = mapM_ H.unitEx stmts
-    stmts = getZipList $ [H.stmt|insert into test.complex_items (id, name, settings, arr_data) values (?,?,?,?)|]
-        <$> ZipList ([1..3]::[Int])
-        <*> ZipList (["One", "Two", "Three"]::[Text])
-        <*> ZipList [jobj,jobj,jobj]
-        <*> ZipList ([[1], [1,2], [1,2,3]]::[[Int]])
-    jobj = J.object [("foo", J.object [("int", J.Number 1),("bar", J.String "baz")])]
-
-createNulls :: Int -> IO ()
-createNulls n = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing txn
-  where
-    txn = mapM_ H.unitEx (stmt':stmts)
-    stmt' = [H.stmt|insert into test.no_pk (a,b) values (null,null)|]
-    stmts = map [H.stmt|insert into test.no_pk (a,b) values (?,0)|] [1..n]
-
-createNullInteger :: IO ()
-createNullInteger = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $ [H.stmt| insert into "test".nullable_integer (a) values (null) |]
-
-createLikableStrings :: IO ()
-createLikableStrings = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing $ do
-    H.unitEx $ insertSimplePk "xyyx" "u"
-    H.unitEx $ insertSimplePk "xYYx" "v"
-  where
-    insertSimplePk :: Text -> Text -> H.Stmt P.Postgres
-    insertSimplePk = [H.stmt|insert into test.simple_pk (k, extra) values (?,?)|]
-
-createJsonData :: IO ()
-createJsonData = do
-  pool <- testPool
-  void . liftIO $ H.session pool $ H.tx Nothing $
-    H.unitEx $
-      [H.stmt|
-        insert into test.json (data) values (?)
-      |]
-      (J.object [("id", J.Number 1)
-                ,("foo", J.object [("bar", J.String "baz")])
-                ])
+    H.unitEx $ B.Stmt ("truncate table test." <> table <> " cascade") V.empty True

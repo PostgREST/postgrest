@@ -11,18 +11,7 @@ import Text.Heredoc
 
 
 spec :: Spec
-spec =
-  beforeAll (clearTable "items" >> createItems 15)
-   . beforeAll clearProjectsTable
-   . beforeAll (clearTable "complex_items" >> createComplexItems)
-   . beforeAll (clearTable "nullable_integer" >> createNullInteger)
-   . beforeAll (
-       clearTable "no_pk" >>
-       createNulls 2 >>
-       createLikableStrings >>
-       createJsonData)
-   . afterAll_ (clearTable "items" >> clearTable "complex_items" >> clearTable "no_pk" >> clearTable "simple_pk")
-   . around (withApp cfgDefault) $ do
+spec = around (withApp cfgDefault) $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $
@@ -355,8 +344,7 @@ spec =
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 
   describe "remote procedure call" $ do
-    context "a proc that returns a set" . before_ (clearTable "items" >> createItems 10) .
-      after_ (clearTable "items") $
+    context "a proc that returns a set" $
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
