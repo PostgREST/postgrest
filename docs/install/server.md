@@ -126,7 +126,7 @@ brew doctor
 brew install postgrest
 ```
 
-This will automatically install PostgreSQL as a dependency (see the [Installing PostgreSQL](#installing-postgresql) section for setup instructions). The process tends to take around 15 minutes to install the package and its dependencies.
+This will automatically install PostgreSQL as a dependency (see the [Installing PostgreSQL](#installing-postgresql) section for setup instructions). The process tends to take up to 15 minutes to install the package and its dependencies.
 
 After installation completes, the tool is added to your $PATH and can be used from anywhere with:
 
