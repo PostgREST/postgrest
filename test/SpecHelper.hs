@@ -69,7 +69,7 @@ withApp config perform = do
 
 setupDb :: IO ()
 setupDb = do
-  void $ readProcess "psql" ["-a", "-f", "test/fixtures/database.sql"] []
+  void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []
   loadFixture "roles"
   loadFixture "schema"
   resetDb
