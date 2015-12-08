@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Miscalculation of time used for expiring tokens - @calebmer
 - Remove bcrypt dependency to fix Windows build - @begriffs
 - Detect relations event when authenticator does not have rights to intermediate tables - @ruslantalpa 
+- Ensure db connections released on sigint - @begriffs
 
 ### Added
 - Allow order by computed columns - @diogob

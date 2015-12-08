@@ -6,11 +6,13 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
-import           PostgREST.Error                      (pgErrResponse, PgError)
-import           PostgREST.Middleware
 import           PostgREST.DbStructure
+import           PostgREST.Error                      (PgError, pgErrResponse)
+import           PostgREST.Middleware
 
-import           Control.Monad                        (unless)
+import           Control.Concurrent                   (myThreadId)
+import           Control.Exception.Base               (throwTo, AsyncException(..))
+import           Control.Monad                        (unless, void)
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Aeson                           (encode)
 import           Data.Functor.Identity
@@ -26,6 +28,7 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
+import           System.Posix.Signals
 import           Web.JWT                              (secret)
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
@@ -68,6 +71,12 @@ main = do
           "Cannot run in this PostgreSQL version, PostgREST needs at least "
           <> show minimumPgVersion)
     ) supportedOrError
+
+  tid <- myThreadId
+  void $ installHandler keyboardSignal (Catch $ do
+      H.releasePool pool
+      throwTo tid UserInterrupt
+    ) Nothing
 
   let txSettings = Just (H.ReadCommitted, Just True)
   dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
