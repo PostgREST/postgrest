@@ -208,16 +208,14 @@ spec = around (withApp cfgDefault) $ do
       }
       |]
 
-    it "includes foreign key data" $ do
-      pendingWith "have to resolve issue #107"
-
+    it "includes foreign key data" $
       request methodOptions "/has_fk" [] ""
         `shouldRespondWith` [json|
       {
         "pkey": ["id"],
         "columns":[
           {
-            "default": "nextval('\"1\".has_fk_id_seq'::regclass)",
+            "default": "nextval('test.has_fk_id_seq'::regclass)",
             "precision": 64,
             "updatable": true,
             "schema": "test",
@@ -239,7 +237,7 @@ spec = around (withApp cfgDefault) $ do
             "nullable": true,
             "position": 2,
             "enum": [],
-            "references": {"table": "auto_incrementing_pk", "column": "id"}
+            "references": {"schema":"test", "table": "auto_incrementing_pk", "column": "id"}
           }, {
             "default": null,
             "precision": null,
@@ -251,14 +249,13 @@ spec = around (withApp cfgDefault) $ do
             "nullable": true,
             "position": 3,
             "enum": [],
-            "references": {"table": "simple_pk", "column": "k"}
+            "references": {"schema":"test", "table": "simple_pk", "column": "k"}
           }
         ]
       }
       |]
 
-    it "includes all information on views for renamed columns, and raises relations to correct schema" $ do
-      pendingWith "have to resolve issue #107"
+    it "includes all information on views for renamed columns, and raises relations to correct schema" $
       request methodOptions "/articleStars" [] ""
         `shouldRespondWith` [json|
           {

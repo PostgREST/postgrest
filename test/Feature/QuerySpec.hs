@@ -211,6 +211,11 @@ spec = around (withApp cfgDefault) $ do
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
         "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
 
+    it "detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
+      get "/articles?id=eq.1&select=id,articleStars{users{*}}" `shouldRespondWith`
+        [str|[{"id":1,"articlestars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+
+
   describe "Plurality singular" $ do
     it "will select an existing object" $
       request methodGet "/items?id=eq.5" [("Prefer","plurality=singular")] ""
