@@ -35,12 +35,13 @@ import qualified Data.Aeson              as JSON
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
 import qualified Data.HashMap.Strict     as HM
-import           Data.List               (find)
+import           Data.List               (find, (\\))
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
 import           Data.String.Conversions (cs)
 import           Control.Applicative     (empty, (<|>))
+import           Control.Monad           (join)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
@@ -193,10 +194,10 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
     qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
     toQi t = QualifiedIdentifier (tblSchema t) t
     query = unwords [
-      ("WITH " <> intercalate ", " (map fst withs)) `emptyOnNull` withs,
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-      "FROM ", intercalate ", " (map (fromQi . toQi) tbls ++ map snd withs),
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
+      unwords (map joinStr joins),
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) localConditions )) `emptyOnNull` localConditions,
       orderF (fromMaybe [] ord)
       ]
     orderF ts =
@@ -210,26 +211,37 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
                 <> cs (pgFmtColumn qi $ otTerm t) <> " "
                 <> (cs.show) (otDirection t) <> " "
                 <> maybe "" (cs.show) (otNullOrder t) <> " "
-    (withs, selects) = foldr getQueryParts ([],[]) forest
-    getQueryParts :: Tree ReadNode -> ([(SqlFragment, Text)], [SqlFragment]) -> ([(SqlFragment,Text)], [SqlFragment])
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (w,s) = (w,sel:s)
+    (joins, selects) = foldr getQueryParts ([],[]) forest
+    parentTables = map snd joins
+    parentConditions = join $ map (( `filter` conditions ) . filterParentConditions) parentTables
+    localConditions = conditions \\ parentConditions
+    joinStr :: (SqlFragment, TableName) -> SqlFragment
+    joinStr (sql, t) = "LEFT OUTER JOIN " <> sql <> " ON " <>
+      intercalate " AND " ( map (pgFmtCondition qi ) joinConditions )
       where
-        sel = "("
+        joinConditions = filter (filterParentConditions t) conditions
+    filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) =
+      parentTable == t
+    filterParentConditions _ _ = False
+    getQueryParts :: Tree ReadNode -> ([(SqlFragment, TableName)], [SqlFragment]) -> ([(SqlFragment,TableName)], [SqlFragment])
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (j,s) = (j,sel:s)
+      where
+        sel = "COALESCE(("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
-           <> ") AS " <> table
+           <> "), '[]') AS " <> table
            where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (w,s) = (wit:w,sel:s)
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (j,s) = (joi:j,sel:s)
       where
         sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
-        wit = (table <> " AS ( " <> subquery <> " )", table)
+        joi = ("( " <> subquery <> " ) AS " <> table, table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (w,s) = (w,sel:s)
+    getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (j,s) = (j,sel:s)
       where
-        sel = "("
+        sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
-           <> ") AS " <> table
+           <> "), '[]') AS " <> table
            where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
