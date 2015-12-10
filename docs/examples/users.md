@@ -449,6 +449,32 @@ header.
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicm9sZSI6ImF1dGhvciJ9.KHwYdK9dAMAg-MGCQXuDiFuvbmW-y8FjfYIcMrETnto
 ```
 
+### Same-Role Users
+
+You may not want a separate db role for every user. You can distinguish
+one user from another in SQL by examining the JWT claims which
+PostgREST makes available in the SQL variable `postgrest.claims`.
+Here's a function to get the email of the currently authenticated
+user.
+
+```sql
+create or replace function
+basic_auth.current_email() returns text
+  language plpgsql
+  as $$
+begin
+  return current_setting('postgrest.claims.email');
+exception
+  -- handle unrecognized configuration parameter error
+  when undefined_object then return '';
+end;
+$$;
+```
+
+Remember that the `login` function set the claims `email` and `role`.
+You can modify `login` to set other claims as well if they are
+useful for your other SQL functions to reference later.
+
 ### Conclusion
 
 This section explained the implementation details for building a
