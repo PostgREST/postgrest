@@ -6,12 +6,15 @@ import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders))
 
+import Hasql as H
+import Hasql.Postgres as P
+
 import SpecHelper
+import PostgREST.Types (DbStructure(..))
 import Text.Heredoc
 
-
-spec :: Spec
-spec = around (withApp cfgDefault) $ do
+spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec struct pool = around (withApp cfgDefault struct pool) $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $

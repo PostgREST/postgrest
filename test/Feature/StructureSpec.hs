@@ -4,12 +4,16 @@ import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import Hasql as H
+import Hasql.Postgres as P
+
 import SpecHelper
+import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
 
-spec :: Spec
-spec = around (withApp cfgDefault) $ do
+spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec struct pool = around (withApp cfgDefault struct pool) $ do
   describe "GET /" $ do
     it "lists views in schema" $
       request methodGet "/" [] ""

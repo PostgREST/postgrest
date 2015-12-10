@@ -2,13 +2,18 @@ module Feature.DeleteSpec where
 
 import Test.Hspec
 import Test.Hspec.Wai
+
+import Hasql as H
+import Hasql.Postgres as P
+
 import SpecHelper
+import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
 
-spec :: Spec
-spec = beforeAll resetDb
-  . around (withApp cfgDefault) $
+spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec struct pool = beforeAll resetDb
+  . around (withApp cfgDefault struct pool) $
   describe "Deleting" $ do
     context "existing record" $ do
       it "succeeds with 204 and deletion count" $

@@ -5,7 +5,11 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
+import Hasql as H
+import Hasql.Postgres as P
+
 import SpecHelper
+import PostgREST.Types (DbStructure(..))
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
@@ -16,8 +20,8 @@ import Control.Monad (replicateM_)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
-spec :: Spec
-spec = beforeAll_ resetDb $ around (withApp cfgDefault) $ do
+spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) $ do
   describe "Posting new record" $ do
     after_ (clearTable "menagerie") . context "disparate csv types" $ do
       it "accepts disparate json types" $ do

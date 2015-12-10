@@ -6,11 +6,15 @@ import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
 
-import SpecHelper
+import Hasql as H
+import Hasql.Postgres as P
 
-spec :: Spec
-spec = beforeAll resetDb
-  . around (withApp cfgDefault) $
+import SpecHelper
+import PostgREST.Types (DbStructure(..))
+
+spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec struct pool = beforeAll resetDb
+  . around (withApp cfgDefault struct pool) $
   describe "GET /items" $ do
 
     context "without range headers" $ do
