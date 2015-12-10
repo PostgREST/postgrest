@@ -26,10 +26,10 @@ ENV POSTGREST_CONNECTION_POOL_SIZE 10
 ENV POSTGREST_JWT_SECRET secret
 ENV POSTGREST_SCHEMA public
 
-# Connstring shorthand variable
-ENV CONNSTRING postgres://${POSTGREST_DB_USER}:${POSTGREST_DB_PASS}@${POSTGREST_DB_HOST}:${POSTGREST_DB_PORT}/${POSTGREST_DB_NAME}
+# POSTGREST_CONNSTRING can be set as well. If not set it defaults to a
+# connstring constructed from the user, password, host, port, and db name vars
 
-CMD postgrest ${CONNSTRING} \
+CMD postgrest ${POSTGREST_CONNSTRING:=postgres://${POSTGREST_DB_USER}:${POSTGREST_DB_PASS}@${POSTGREST_DB_HOST}:${POSTGREST_DB_PORT}/${POSTGREST_DB_NAME}} \
               --port 3000 \
               --anonymous ${POSTGREST_ANON_USER} \
               --schema ${POSTGREST_SCHEMA} \
