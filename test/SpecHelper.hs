@@ -56,7 +56,7 @@ specDbPool = H.acquirePool pgSettings testPoolOpts
 specDbStructure :: H.Pool P.Postgres -> IO DbStructure
 specDbStructure pool = do
   dbOrError <- H.session pool $ H.tx specTxSettings
-    $ getDbStructure "postgrest_test"
+    $ getDbStructure "test"
   either (fail . show) return dbOrError
 
 withApp :: AppConfig -> DbStructure -> H.Pool P.Postgres
@@ -116,4 +116,5 @@ clearTable table = do
   void . liftIO $ H.session pool $ H.tx Nothing $
     H.unitEx $ B.Stmt ("truncate table test." <> table <> " cascade") V.empty True
 
+specTxSettings :: Maybe (TxIsolationLevel, Maybe Bool)
 specTxSettings = Just (H.ReadCommitted, Just True)
