@@ -169,6 +169,7 @@ If you care where nulls are sorted, add `nullsfirst` or `nullslast`:
 
 ```HTTP
 GET /people?order=age.nullsfirst
+GET /people?order=age.desc.nullslast
 ```
 
 You can also use [computed
