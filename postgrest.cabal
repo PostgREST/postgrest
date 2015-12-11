@@ -158,7 +158,6 @@ Test-Suite spec
                      , PostgREST.RangeQuery
                      , PostgREST.ApiRequest
                      , PostgREST.Types
-                     , Spec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
