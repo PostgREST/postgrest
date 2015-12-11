@@ -30,6 +30,7 @@ import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(pgErrResponse)
 import PostgREST.DbStructure
+import PostgREST.Types
 
 dbString :: String
 dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
@@ -49,20 +50,23 @@ testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
 pgSettings :: P.Settings
 pgSettings = P.StringSettings $ cs dbString
 
-withApp :: AppConfig -> ActionWith Application -> IO ()
-withApp config perform = do
-  pool :: H.Pool P.Postgres
-    <- H.acquirePool pgSettings testPoolOpts
+specDbPool :: IO (H.Pool P.Postgres)
+specDbPool = H.acquirePool pgSettings testPoolOpts
 
-  let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema config)
-  db <- either (fail . show) return dbOrError
+specDbStructure :: H.Pool P.Postgres -> IO DbStructure
+specDbStructure pool = do
+  dbOrError <- H.session pool $ H.tx specTxSettings
+    $ getDbStructure "test"
+  either (fail . show) return dbOrError
 
+withApp :: AppConfig -> DbStructure -> H.Pool P.Postgres
+        -> ActionWith Application -> IO ()
+withApp config dbStructure pool perform = do
   perform $ middle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    result <- liftIO $ H.session pool $ H.tx txSettings
-      $ runWithClaims config time (app db config body) req
+    result <- liftIO $ H.session pool $ H.tx specTxSettings
+      $ runWithClaims config time (app dbStructure config body) req
     either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle
@@ -111,3 +115,6 @@ clearTable table = do
   pool <- testPool
   void . liftIO $ H.session pool $ H.tx Nothing $
     H.unitEx $ B.Stmt ("truncate table test." <> table <> " cascade") V.empty True
+
+specTxSettings :: Maybe (TxIsolationLevel, Maybe Bool)
+specTxSettings = Just (H.ReadCommitted, Just True)
