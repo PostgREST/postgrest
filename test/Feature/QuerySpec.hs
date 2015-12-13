@@ -224,7 +224,11 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
 
     it "detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
       get "/articles?id=eq.1&select=id,articleStars{users{*}}" `shouldRespondWith`
-        [str|[{"id":1,"articlestars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+        [str|[{"id":1,"articleStars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+
+    it "can select by column name" $
+      get "/projects?id=in.1,3&select=id,name,client_id,client_id{id,name}" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client_id\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client_id\":{\"id\":2,\"name\":\"Apple\"}}]"
 
 
   describe "Plurality singular" $ do
