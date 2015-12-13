@@ -46,8 +46,6 @@ import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
-import           Text.Regex.TDFA         ((=~))
-import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
@@ -166,12 +164,7 @@ operators = [
   ]
 
 pgFmtIdent :: SqlFragment -> SqlFragment
-pgFmtIdent x =
- let escaped = replace "\"" "\"\"" (trimNullChars $ cs x) in
- if (cs escaped :: BS.ByteString) =~ danger
-   then "\"" <> escaped <> "\""
-   else escaped
- where danger = "^$|^[^a-z_]|[^a-z_0-9]" :: BS.ByteString
+pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ cs x) <> "\""
 
 pgFmtLit :: SqlFragment -> SqlFragment
 pgFmtLit x =

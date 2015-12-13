@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Detect relations event when authenticator does not have rights to intermediate tables - @ruslantalpa
 - Ensure db connections released on sigint - @begriffs
 - Fix #396 include records with missing parents - @ruslantalpa
+- `pgFmtIdent` always quotes #388 - @calebmer
 
 ### Added
 - Allow order by computed columns - @diogob
