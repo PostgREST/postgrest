@@ -90,25 +90,25 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
 
-      get "/nullable_integer?a=is.null" `shouldRespondWith` "[{\"a\":null}]"
+      get "/nullable_integer?a=is.null" `shouldRespondWith` [str|[{"a":null}]|]
 
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`
-        "[{\"k\":\"xyyx\",\"extra\":\"u\"}]"
+        [str|[{"k":"xyyx","extra":"u"}]|]
       get "/simple_pk?k=like.xy*" `shouldRespondWith`
-        "[{\"k\":\"xyyx\",\"extra\":\"u\"}]"
+        [str|[{"k":"xyyx","extra":"u"}]|]
       get "/simple_pk?k=like.*YY*" `shouldRespondWith`
-        "[{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+        [str|[{"k":"xYYx","extra":"v"}]|]
 
     it "matches with like using not operator" $
       get "/simple_pk?k=not.like.*yx" `shouldRespondWith`
-        "[{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+        [str|[{"k":"xYYx","extra":"v"}]|]
 
     it "matches with ilike" $ do
       get "/simple_pk?k=ilike.xy*&order=extra.asc" `shouldRespondWith`
-        "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+        [str|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
       get "/simple_pk?k=ilike.*YY*&order=extra.asc" `shouldRespondWith`
-        "[{\"k\":\"xyyx\",\"extra\":\"u\"},{\"k\":\"xYYx\",\"extra\":\"v\"}]"
+        [str|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
 
     it "matches with ilike using not operator" $
       get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
@@ -131,7 +131,7 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
 
     it "matches filtering nested items" $
       get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
-        "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1,\"name\":\"Design w7\"}]},{\"id\":2,\"tasks\":[{\"id\":3,\"name\":\"Design w10\"}]}]},{\"id\":2,\"projects\":[{\"id\":3,\"tasks\":[{\"id\":5,\"name\":\"Design IOS\"}]},{\"id\":4,\"tasks\":[{\"id\":7,\"name\":\"Design OSX\"}]}]}]"
+        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
 
     it "matches with @> operator" $
       get "/complex_items?select=id&arr_data=@>.{2}" `shouldRespondWith`
@@ -192,15 +192,15 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
 
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
-        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
+        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
-        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1}}]"
+        [str|[{"id":1,"name":"Windows 7","clients":{"id":1}}]|]
 
     it "rows with missing parents are included" $
       get "/projects?id=in.1,5&select=id,clients{id}" `shouldRespondWith`
-        "[{\"id\":1,\"clients\":{\"id\":1}},{\"id\":5,\"clients\":null}]"
+        [str|[{"id":1,"clients":{"id":1}},{"id":5,"clients":null}]|]
 
     it "rows with no children return [] instead of null" $
       get "/projects?id=in.5&select=id,tasks{id}" `shouldRespondWith`
@@ -208,19 +208,19 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
 
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
-        "[{\"id\":1,\"projects\":[{\"id\":1,\"tasks\":[{\"id\":1},{\"id\":2}]},{\"id\":2,\"tasks\":[{\"id\":3},{\"id\":4}]}]}]"
+        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
 
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
-        "[{\"id\":1,\"users\":[{\"id\":1},{\"id\":3}]},{\"id\":2,\"users\":[{\"id\":1}]},{\"id\":3,\"users\":[{\"id\":1}]},{\"id\":4,\"users\":[{\"id\":1}]},{\"id\":5,\"users\":[{\"id\":2},{\"id\":3}]},{\"id\":6,\"users\":[{\"id\":2}]},{\"id\":7,\"users\":[{\"id\":2}]},{\"id\":8,\"users\":[]}]"
+        [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
 
     it "requesting parents and children on views" $
       get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
-        "[{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}]"
+        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
-        "[{\"user_id\":2,\"task_id\":6,\"comments\":[{\"content\":\"Needs to be delivered ASAP\"}]}]"
+        [str|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
 
     it "detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
       get "/articles?id=eq.1&select=id,articleStars{users{*}}" `shouldRespondWith`
@@ -228,11 +228,11 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
 
     it "can select by column name" $
       get "/projects?id=in.1,3&select=id,name,client_id,client_id{id,name}" `shouldRespondWith`
-        "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client_id\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client_id\":{\"id\":2,\"name\":\"Apple\"}}]"
+        [str|[{"id":1,"name":"Windows 7","client_id":1,"client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client_id":{"id":2,"name":"Apple"}}]|]
 
     it "can select by column name sans id" $
       get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
-        "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client\":{\"id\":2,\"name\":\"Apple\"}}]"
+        [str|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
 
 
   describe "Plurality singular" $ do
@@ -261,7 +261,7 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
     it "can shape plurality singular object routes" $
       request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [("Prefer","plurality=singular")] ""
         `shouldRespondWith`
-          "{\"id\":1,\"name\":\"Windows 7\",\"clients\":{\"id\":1,\"name\":\"Microsoft\"},\"tasks\":[{\"id\":1,\"name\":\"Design w7\"},{\"id\":2,\"name\":\"Code w7\"}]}"
+          [str|{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}|]
 
 
   describe "ordering response" $ do
