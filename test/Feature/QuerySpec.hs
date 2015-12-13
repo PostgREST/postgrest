@@ -230,6 +230,10 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
       get "/projects?id=in.1,3&select=id,name,client_id,client_id{id,name}" `shouldRespondWith`
         "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client_id\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client_id\":{\"id\":2,\"name\":\"Apple\"}}]"
 
+    it "can select by column name sans id" $
+      get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
+        "[{\"id\":1,\"name\":\"Windows 7\",\"client_id\":1,\"client\":{\"id\":1,\"name\":\"Microsoft\"}},{\"id\":3,\"name\":\"IOS\",\"client_id\":2,\"client\":{\"id\":2,\"name\":\"Apple\"}}]"
+
 
   describe "Plurality singular" $ do
     it "will select an existing object" $
