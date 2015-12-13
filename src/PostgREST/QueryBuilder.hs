@@ -126,9 +126,9 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
     (Just (Node (Select{from=[parentTable]}, (_, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
       where
         rel = note ("no relation between " <> parentTable <> " and " <> name)
-            $  findRelationTable schema name parentTable
-           <|> findRelationTable schema parentTable name
-           <|> findRelationColumn schema parentTable name
+            $  findRelationByTable schema name parentTable
+           <|> findRelationByTable schema parentTable name
+           <|> findRelationByColumn schema parentTable name
         addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
         addRel (q, (n, _)) r = (q {from=fromRelation}, (n, Just r))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from q)
@@ -136,9 +136,12 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
     _ -> Node (query, (name, Nothing)) <$> updatedForest
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    findRelationTable s t1 t2 =
-      find (\r -> s == tableSchema (relTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
-    findRelationColumn s t c =
+    -- Searches through all the relations and returns a match given the parameter conditions.
+    -- Will only find a relation where both schemas are in the PostgREST schema.
+    -- `findRelationByColumn` also does a ducktype check to see if the column name has any variation of `id` or `fk`. If so then the relation is returned as a match.
+    findRelationByTable s t1 t2 =
+      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
+    findRelationByColumn s t c =
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
       where n `colMatches` rc = (cs ("^" <> rc <> "(?:|_id|Id)$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
