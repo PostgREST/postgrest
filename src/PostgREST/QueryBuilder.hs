@@ -143,7 +143,7 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
     findRelationByColumn s t c =
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
-      where n `colMatches` rc = (cs ("^" <> rc <> "(?:|_id|Id)$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
+      where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
