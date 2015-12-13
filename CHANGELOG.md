@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Allow order by computed columns - @diogob
 - Set max rows in response with --max-rows - @begriffs
+- Selection by column name (can detect if `_id` is not included) - @calebmer
 
 ## [0.3.0.1] - 2015-11-27
 
