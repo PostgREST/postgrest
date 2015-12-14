@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Ensure db connections released on sigint - @begriffs
 - Fix #396 include records with missing parents - @ruslantalpa
 - `pgFmtIdent` always quotes #388 - @calebmer
+- Default schema, changed from `"1"` to `public` - @calebmer
 
 ### Added
 - Allow order by computed columns - @diogob
