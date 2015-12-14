@@ -34,6 +34,12 @@ CREATE SCHEMA test;
 
 
 --
+-- Name: test_v2; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA test_v2;
+
+--
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -253,6 +259,14 @@ CREATE TABLE articles (
     body text,
     owner name NOT NULL
 );
+
+
+--
+-- Name: private_schema_view; Type: VIEW; Schema: private; Owner: -
+--
+
+CREATE VIEW private_schema_view AS
+  SELECT 'Private';
 
 
 SET search_path = test, pg_catalog;
@@ -894,6 +908,16 @@ ALTER TABLE ONLY users_tasks
 
 ALTER TABLE ONLY users_tasks
     ADD CONSTRAINT users_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+
+
+SET search_path = test_v2, pg_catalog;
+
+--
+-- Name: new_v2; Type: TABLE; Schema: test_v2; Owner: -
+--
+
+CREATE VIEW new_v2 AS
+  SELECT 'New for v2';
 
 
 --
