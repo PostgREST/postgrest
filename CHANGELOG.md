@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix #396 include records with missing parents - @ruslantalpa
 - `pgFmtIdent` always quotes #388 - @calebmer
 - Default schema, changed from `"1"` to `public` - @calebmer
+- #414 revert to separate count query
 
 ### Added
 - Allow order by computed columns - @diogob

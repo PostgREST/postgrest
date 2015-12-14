@@ -51,8 +51,9 @@ import           PostgREST.Error           (errResponse)
 import           PostgREST.QueryBuilder ( asJson
                                         , callProc
                                         , addJoinConditions
-                                        , sourceSubqueryName
+                                        , sourceCTEName
                                         , requestToQuery
+                                        , requestToCountQuery
                                         , addRelations
                                         , createReadStatement
                                         , createWriteStatement
@@ -70,12 +71,12 @@ app dbStructure conf reqBody req =
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
-      case selectQuery of
+      case readSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
-        Right q -> do
+        Right (q, cq) -> do
           let range = restrictRange (configMaxRows conf) $ iRange apiRequest
               singular = iPreferSingular apiRequest
-              stm = createReadStatement q range singular
+              stm = createReadStatement q cq range singular
                     (iPreferCount apiRequest) (contentType == TextCSV)
           if range == emptyRange
           then return $ errResponse status416 "HTTP Range error"
@@ -106,7 +107,7 @@ app dbStructure conf reqBody req =
 
     (ActionCreate, TargetIdent (QualifiedIdentifier _ table),
      Just payload@(PayloadJSON (UniformObjects rows))) ->
-      case queries of
+      case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
@@ -122,7 +123,7 @@ app dbStructure conf reqBody req =
             $ if iPreferRepresentation apiRequest then fromMaybe "[]" body else ""
 
     (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON _)) ->
-      case queries of
+      case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let stm = createWriteStatement sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
@@ -136,7 +137,7 @@ app dbStructure conf reqBody req =
             $ if iPreferRepresentation apiRequest then fromMaybe "[]" body else ""
 
     (ActionDelete, TargetIdent _, Nothing) ->
-      case queries of
+      case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let fakeload = PayloadJSON $ UniformObjects V.empty
@@ -196,9 +197,13 @@ app dbStructure conf reqBody req =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   apiRequest = userApiRequest schema req reqBody
-  selectQuery = requestToQuery schema <$> (DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest)
-  mutateQuery = requestToQuery schema <$> (DbMutate <$> buildMutateRequest apiRequest)
-  queries = (,) <$> selectQuery <*> mutateQuery
+  readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
+  mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
+  selectQuery = requestToQuery schema <$> readDbRequest
+  countQuery = requestToCountQuery schema <$> readDbRequest
+  mutateQuery = requestToQuery schema <$> mutateDbRequest
+  readSqlParts = (,) <$> selectQuery <*> countQuery
+  mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
 rangeStatus :: Int -> Int -> Maybe Int -> Status
 rangeStatus _ _ Nothing = status200
@@ -258,7 +263,7 @@ buildReadRequest allRels apiRequest  =
 
     rootName = if action == ActionRead
       then rootTableName
-      else sourceSubqueryName
+      else sourceCTEName
     filters = if action == ActionRead
       then iFilters apiRequest
       else filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
@@ -313,9 +318,9 @@ addFilter (path, flt) (Node rn forest) =
 -- as just another table that has relations with other tables
 toSourceRelation :: TableName -> Relation -> Maybe Relation
 toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
-  | mt == tableName t = Just $ r {relTable=t {tableName=sourceSubqueryName}}
-  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceSubqueryName}}
-  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceSubqueryName}) <$> rt}
+  | mt == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
+  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
   | otherwise = Nothing
 
 data TableOptions = TableOptions {
