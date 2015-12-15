@@ -45,29 +45,27 @@ getDbStructure schema = do
     }
 
 doesProc :: forall c s. B.CxValue c Int =>
-            (Text -> Text -> B.Stmt c) -> QualifiedIdentifier -> H.Tx c s Bool
-doesProc stmt qi = do
-  row :: Maybe (Identity Int) <- H.maybeEx $ stmt (qiSchema qi) (qiName qi)
+            (Text -> B.Stmt c) -> Text -> H.Tx c s Bool
+doesProc stmt proc = do
+  row :: Maybe (Identity Int) <- H.maybeEx $ stmt proc
   return $ isJust row
 
-doesProcExist :: QualifiedIdentifier -> H.Tx P.Postgres s Bool
+doesProcExist :: Text -> H.Tx P.Postgres s Bool
 doesProcExist = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
-      WHERE  nspname = ?
-      AND    proname = ?
+      WHERE  proname = ?
     |]
 
-doesProcReturnJWT :: QualifiedIdentifier -> H.Tx P.Postgres s Bool
+doesProcReturnJWT :: Text -> H.Tx P.Postgres s Bool
 doesProcReturnJWT = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
-      WHERE  nspname = ?
-      AND    proname = ?
+      WHERE  proname = ?
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     |]
 

@@ -11,6 +11,7 @@ It currently includes a hardcoded CORS policy but this could easly be turned in 
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
+
 module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
@@ -24,12 +25,14 @@ import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import           Data.List                   (intercalate)
 import           Data.String.Conversions     (cs)
-import           Data.Text                   (strip)
+import           Data.Text                   (strip, split)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
+import           PostgREST.QueryBuilder      (pgFmtIdent)
+import           PostgREST.Types             (SqlFragment)
 import           Safe                        (readMay)
 import           Web.JWT                     (Secret, secret)
 import           Prelude
@@ -39,7 +42,7 @@ data AppConfig = AppConfig {
     configDatabase  :: String
   , configPort      :: Int
   , configAnonRole  :: String
-  , configSchema    :: String
+  , configSchema    :: [SqlFragment]
   , configJwtSecret :: Secret
   , configPool      :: Int
   , configMaxRows   :: Maybe Int
@@ -51,7 +54,8 @@ argParser = AppConfig
 
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
   <*> strOption    (long "anonymous"  <> short 'a' <> help "postgres role to use for non-authenticated requests" <> metavar "ROLE")
-  <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault)
+  <*> (map pgFmtIdent . split (==',') . cs <$>
+      strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault))
   <*> (secret . cs <$>
       strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)

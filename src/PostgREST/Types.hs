@@ -67,11 +67,6 @@ data OrderTerm = OrderTerm {
 , otNullOrder :: Maybe OrderNulls
 } deriving (Show, Eq)
 
-data QualifiedIdentifier = QualifiedIdentifier {
-  qiSchema :: Schema
-, qiName   :: TableName
-} deriving (Show, Eq)
-
 
 data RelationType = Child | Parent | Many deriving (Show, Eq)
 data Relation = Relation {
@@ -98,7 +93,7 @@ data Payload = PayloadJSON UniformObjects
              deriving (Show, Eq)
 
 type Operator = Text
-data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
+data FValue = VText Text | VForeignKey TableName ForeignKey deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
