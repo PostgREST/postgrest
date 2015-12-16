@@ -37,9 +37,11 @@ to help with development.
 [Stack](https://github.com/commercialhaskell/stack) makes it easy.
 It will install any necessary Haskell dependencies on your system.
 
-* [Install Stack](https://github.com/commercialhaskell/stack#how-to-install) for your platform
+* [Install Stack](http://docs.haskellstack.org/en/stable/README.html#how-to-install) for your platform
 ```bash
 #ubuntu example
+#See the link above for other operating systems
+
 wget -q -O- https://s3.amazonaws.com/download.fpcomplete.com/ubuntu/fpco.key | sudo apt-key add -
 echo 'deb http://download.fpcomplete.com/ubuntu/trusty stable main'|sudo tee /etc/apt/sources.list.d/fpco.list
 sudo apt-get update && sudo apt-get install stack -y
