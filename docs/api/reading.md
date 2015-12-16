@@ -227,10 +227,11 @@ Content-Range → 0-14/*
 
 ### Embedding Foreign Entities
 
-Suppose you have a `projects` table which references `clients` through
-a foreign key called `client_id`. When listing projects through the
-API you can have it embed the client within each project response.
-For example,
+To help you make fewer requests, PostgREST allows the embedding of
+traditional SQL relationships into a response. Suppose you have a
+`projects` table which references `clients` through a foreign key
+called `client_id`. When listing projects through the API you can
+have it embed the client within each project response. For example,
 
 ```HTTP
 GET /projects?id=eq.1&select=id, name, clients{*}
@@ -256,6 +257,33 @@ but the the select query is recursive. You could for instance specify
 ```HTTP
 GET /foo?select=x, y, bar{z, w, baz{*}}
 ```
+
+You can select not only using table names, but also column names!
+To embed the same foreign key row from our client example earlier
+you could do the following:
+
+```HTTP
+GET /projects?id=eq.1&select=id, name, client_id{*}
+```
+
+In the response there will be a `client_id` object containing all
+the data for that row.
+
+However, a `client_id` object doesn't make a lot of sense, so you
+could do one of two things. Create a view which renames `client_id`
+to just `client` (this is the hard way), or just try `client{*}`
+in the select parameter! PostgREST supports smart ducktype checking
+for common foreign key names, so if your column name ends with
+`_id`, `_fk`, or any variation of the two (including camelcase)
+you can embed a row with just the name's beginning.
+
+So for a complete example:
+
+```HTTP
+GET /projects?id=eq.1&select=id, name, client{*}
+```
+
+Would embed in the `client` key the row referenced with `client_id`.
 
 ### Response Format
 
