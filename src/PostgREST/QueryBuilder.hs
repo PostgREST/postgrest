@@ -52,6 +52,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , isInteger
                                          )
 import           Prelude hiding          (unwords)
+import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 type PStmt = H.Stmt P.Postgres
 instance Monoid PStmt where
@@ -79,23 +80,40 @@ createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
       | isSingle = asJsonSingleF
       | otherwise = asJsonF
 
-createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
+createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool -> PreferRepresentation ->
                         [Text] -> Bool -> Payload -> B.Stmt P.Postgres
-createWriteStatement _ _ _ _ _ _ (PayloadParseError _) = undefined
-createWriteStatement selectQuery mutateQuery isSingle echoRequested
-                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
+createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
+createWriteStatement _ _ mutateQuery _ None
+                     _ _ (PayloadJSON (UniformObjects rows)) =
   B.Stmt (
     "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
+    "SELECT null, 0, null, null"
+  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
+createWriteStatement qi _ mutateQuery isSingle HeadersOnly
+                     pKeys _ (PayloadJSON (UniformObjects rows)) =
+  B.Stmt (
+    "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> " RETURNING " <> fromQi qi <> ".*" <> ") " <>
+    "SELECT " <> intercalate ", " [
+      "null AS total_result_set",
+      "pg_catalog.count(t) AS page_total",
+      if isSingle then locationF pKeys else "null",
+      "null"
+    ] <>
+    " FROM (SELECT 1 FROM " <> sourceCTEName <> ") t"
+  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
+createWriteStatement qi selectQuery mutateQuery isSingle Full
+                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
+  B.Stmt (
+    "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> " RETURNING " <> fromQi qi <> ".*" <> ") " <>
     "SELECT " <> intercalate ", " [
       "null AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(t) AS page_total",
-      location <> " AS header",
-      (if echoRequested then bodyF else "null") <> " AS body"
+      if isSingle then locationF pKeys else "null" <> " AS header",
+      bodyF <> " AS body"
     ] <>
     " FROM ( "<>selectQuery<>") t"
   ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
   where
-    location = if isSingle then locationF pKeys else "null"
     bodyF
       | asCsv = asCsvF
       | isSingle = asJsonSingleF
@@ -270,8 +288,7 @@ requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects row
     "INSERT INTO ", fromQi qi,
     " (" <> colsString <> ")" <>
     " SELECT " <> colsString <>
-    " FROM json_populate_recordset(null::" , fromQi qi, ", ?)",
-    " RETURNING " <> fromQi qi <> ".*"
+    " FROM json_populate_recordset(null::" , fromQi qi, ", ?)"
     ]
 requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
@@ -281,8 +298,7 @@ requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects row
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-        "RETURNING " <> fromQi qi <> ".*"
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
         ]
     Nothing -> undefined
   where
@@ -294,8 +310,7 @@ requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-      "RETURNING " <> fromQi qi <> ".*"
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
       ]
 
 sourceCTEName :: SqlFragment

@@ -28,6 +28,7 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
         , {"schema":"test","name":"has_count_column","insertable":false}
         , {"schema":"test","name":"has_fk","insertable":true}
         , {"schema":"test","name":"insertable_view_with_join","insertable":true}
+        , {"schema":"test","name":"insertonly","insertable":true}
         , {"schema":"test","name":"items","insertable":true}
         , {"schema":"test","name":"json","insertable":true}
         , {"schema":"test","name":"materialized_view","insertable":false}

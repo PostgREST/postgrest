@@ -501,6 +501,15 @@ CREATE TABLE nullable_integer (
 
 
 --
+-- Name: insertonly; Type: TABLE; Schema: test; Owner: -
+--
+
+CREATE TABLE insertonly (
+    v text NOT NULL
+);
+
+
+--
 -- Name: projects; Type: TABLE; Schema: test; Owner: -
 --
 
