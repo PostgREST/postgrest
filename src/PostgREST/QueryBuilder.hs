@@ -48,6 +48,8 @@ import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
+import           Text.Regex.TDFA         ((=~))
+import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
