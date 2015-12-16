@@ -65,13 +65,13 @@ SET search_path = test, pg_catalog;
 --
 -- Data for Name: authors_only; Type: TABLE DATA; Schema: test; Owner: -
 --
-
+TRUNCATE TABLE authors_only CASCADE;
 
 
 --
 -- Data for Name: auto_incrementing_pk; Type: TABLE DATA; Schema: test; Owner: -
 --
-
+TRUNCATE TABLE auto_incrementing_pk CASCADE;
 
 
 --
@@ -154,7 +154,7 @@ INSERT INTO complex_items VALUES (3, 'Three', '{"foo":{"int":1,"bar":"baz"}}', '
 --
 -- Data for Name: compound_pk; Type: TABLE DATA; Schema: test; Owner: -
 --
-
+TRUNCATE TABLE compound_pk CASCADE;
 
 
 --
@@ -168,7 +168,7 @@ INSERT INTO simple_pk VALUES ('xYYx', 'v');
 --
 -- Data for Name: has_fk; Type: TABLE DATA; Schema: test; Owner: -
 --
-
+TRUNCATE TABLE has_fk CASCADE;
 
 
 --
@@ -218,7 +218,7 @@ INSERT INTO json VALUES ('{"foo":{"bar":"baz"},"id":1}');
 --
 -- Data for Name: menagerie; Type: TABLE DATA; Schema: test; Owner: -
 --
-
+TRUNCATE TABLE menagerie CASCADE;
 
 
 --
