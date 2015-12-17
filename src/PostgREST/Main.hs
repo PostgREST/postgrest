@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
 
@@ -10,8 +12,6 @@ import           PostgREST.DbStructure
 import           PostgREST.Error                      (PgError, pgErrResponse)
 import           PostgREST.Middleware
 
-import           Control.Concurrent                   (myThreadId)
-import           Control.Exception.Base               (throwTo, AsyncException(..))
 import           Control.Monad                        (unless, void)
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Aeson                           (encode)
@@ -28,8 +28,13 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
-import           System.Posix.Signals
 import           Web.JWT                              (secret)
+
+#ifndef mingw32_HOST_OS
+import           System.Posix.Signals
+import           Control.Concurrent                   (myThreadId)
+import           Control.Exception.Base               (throwTo, AsyncException(..))
+#endif
 
 isServerVersionSupported :: H.Session P.Postgres IO Bool
 isServerVersionSupported = do
@@ -72,11 +77,13 @@ main = do
           <> show minimumPgVersion)
     ) supportedOrError
 
+#ifndef mingw32_HOST_OS
   tid <- myThreadId
   void $ installHandler keyboardSignal (Catch $ do
       H.releasePool pool
       throwTo tid UserInterrupt
     ) Nothing
+#endif
 
   let txSettings = Just (H.ReadCommitted, Just True)
   dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
