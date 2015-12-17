@@ -2,6 +2,7 @@ module Feature.DeleteSpec where
 
 import Test.Hspec
 import Test.Hspec.Wai
+import Text.Heredoc
 
 import Hasql as H
 import Hasql.Postgres as P
@@ -28,7 +29,7 @@ spec struct pool = beforeAll resetDb
         _ <- request methodDelete "/items?id=lt.15" [] ""
         get "/items"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "[{\"id\":15}]"
+            matchBody    = Just [str|[{"id":15}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-0/1"]
           }

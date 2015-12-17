@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TupleSections        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Module      : PostgREST.QueryBuilder
@@ -47,6 +48,8 @@ import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
+import           Text.Regex.TDFA         ((=~))
+import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
@@ -120,20 +123,29 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
       | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
-addRelations schema allRelations parentNode node@(Node n@(query, (table, _)) forest) =
+addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _)) forest) =
   case parentNode of
-    Nothing -> Node (query, (table, Nothing)) <$> updatedForest
-    (Just (Node (_, (parentTable, _)) _)) -> Node <$> (addRel n <$> rel) <*> updatedForest
+    (Just (Node (Select{from=[parentTable]}, (_, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
       where
-        rel = note ("no relation between " <> table <> " and " <> parentTable)
-            $  findRelation schema table parentTable
-           <|> findRelation schema parentTable table
+        rel = note ("no relation between " <> parentTable <> " and " <> name)
+            $  findRelationByTable schema name parentTable
+           <|> findRelationByTable schema parentTable name
+           <|> findRelationByColumn schema parentTable name
         addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
-        addRel (q, (t, _)) r = (q, (t, Just r))
+        addRel (q, (n, _)) r = (q {from=fromRelation}, (n, Just r))
+          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from q)
+
+    _ -> Node (query, (name, Nothing)) <$> updatedForest
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    findRelation s t1 t2 =
-      find (\r -> s == (tableSchema . relTable) r && t1 == (tableName . relTable) r && t2 == (tableName . relFTable) r) allRelations
+    -- Searches through all the relations and returns a match given the parameter conditions.
+    -- Will only find a relation where both schemas are in the PostgREST schema.
+    -- `findRelationByColumn` also does a ducktype check to see if the column name has any variation of `id` or `fk`. If so then the relation is returned as a match.
+    findRelationByTable s t1 t2 =
+      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
+    findRelationByColumn s t c =
+      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
+      where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
@@ -218,11 +230,12 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _))
 requestToQuery :: Schema -> DbRequest -> SqlQuery
 requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
 requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mainTbl, _)) forest)) =
+requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nodeName, maybeRelation)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
     -- of our WITH query part
+    mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
     tblSchema tbl = if tbl == sourceCTEName then "" else schema
     qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
     toQi t = QualifiedIdentifier (tblSchema t) t
@@ -253,28 +266,27 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (mai
       intercalate " AND " ( map (pgFmtCondition qi ) joinConditions )
       where
         joinConditions = filter (filterParentConditions t) conditions
-    filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) =
-      parentTable == t
+    filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) = parentTable == t
     filterParentConditions _ _ = False
     getQueryParts :: Tree ReadNode -> ([(SqlFragment, TableName)], [SqlFragment]) -> ([(SqlFragment,TableName)], [SqlFragment])
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Child}))) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Child,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
-           <> "), '[]') AS " <> table
+           <> "), '[]') AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Parent}))) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Parent,relTable=Table{tableName=table}}))) forst) (j,s) = (joi:j,sel:s)
       where
-        sel = "row_to_json(" <> table <> ".*) AS "<>table --TODO must be singular
+        sel = "row_to_json(" <> table <> ".*) AS "<>pgFmtIdent name --TODO must be singular
         joi = ("( " <> subquery <> " ) AS " <> table, table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (table, Just (Relation {relType=Many}))) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just (Relation {relType=Many,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
            <> "FROM (" <> subquery <> ") " <> table
-           <> "), '[]') AS " <> table
+           <> "), '[]') AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
