@@ -23,7 +23,7 @@ import TestTypes(IncPK(..), CompoundPK(..))
 spec :: DbStructure -> H.Pool P.Postgres -> Spec
 spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) $ do
   describe "Posting new record" $ do
-    after_ (clearTable "menagerie") . context "disparate csv types" $ do
+    context "disparate csv types" $ do
       it "accepts disparate json types" $ do
         p <- post "/menagerie"
           [json| {
@@ -57,7 +57,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
 
 
     context "with no pk supplied" $ do
-      context "into a table with auto-incrementing pk" . after_ (clearTable "auto_incrementing_pk") $
+      context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and link" $ do
           p <- post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
           liftIO $ do
@@ -76,7 +76,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` 400
 
-      context "into a table with no pk" . after_ (clearTable "no_pk") $ do
+      context "into a table with no pk" $ do
         it "succeeds with 201 and a link including all fields" $ do
           p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
@@ -111,7 +111,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
             simpleStatus p `shouldBe` created201
 
-    context "with compound pk supplied" . after_ (clearTable "compound_pk") $
+    context "with compound pk supplied" $
       it "builds response location header appropriately" $
         post "/compound_pk" [json| { "k1":12, "k2":42 } |]
           `shouldRespondWith` ResponseMatcher {
@@ -124,7 +124,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
 
-    context "jsonb" . after_ (clearTable "json") $ do
+    context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
         request methodPost "/json"
@@ -162,7 +162,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
 
   describe "CSV insert" $ do
 
-    after_ (clearTable "menagerie") . context "disparate csv types" $
+    context "disparate csv types" $
       it "succeeds with multipart response" $ do
         pendingWith "Decide on what to do with CSV insert"
         let inserted = [str|integer,double,varchar,boolean,date,money,enum
@@ -185,7 +185,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
         --   simpleBody p `shouldBe` "Content-Type: application/json\nLocation: /menagerie?integer=eq.13\n\n\n--postgrest_boundary\nContent-Type: application/json\nLocation: /menagerie?integer=eq.12\n\n"
         --   simpleStatus p `shouldBe` created201
 
-    after_ (clearTable "no_pk") . context "requesting full representation" $ do
+    context "requesting full representation" $ do
       it "returns full details of inserted record" $
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"),  ("Prefer", "return=representation")]
@@ -220,7 +220,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
           }
 
 
-    after_ (clearTable "no_pk") . context "with wrong number of columns" $
+    context "with wrong number of columns" $
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         liftIO $ simpleStatus p `shouldBe` badRequest400
@@ -255,7 +255,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
               [json| { "k1":12, "k2":42 } |]
                 `shouldRespondWith` 400
 
-        context "specifying every column in the table" . after_ (clearTable "compound_pk") $ do
+        context "specifying every column in the table" $ do
           it "can create a new record" $ do
             pendingWith "Decide on PUT usefullness"
             p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
@@ -287,7 +287,7 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
               let record = head rows
               compoundExtra record `shouldBe` Just 5
 
-      context "with an auto-incrementing primary key" . after_ (clearTable "auto_incrementing_pk") $
+      context "with an auto-incrementing primary key"$
 
         it "succeeds with 204" $ do
           pendingWith "Decide on PUT usefullness"
