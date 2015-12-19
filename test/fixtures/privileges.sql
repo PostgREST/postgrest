@@ -2,6 +2,7 @@
 GRANT USAGE ON SCHEMA
       postgrest
     , test
+    , test_v2
 TO postgrest_test_anonymous;
 
 -- Schema test objects
@@ -32,6 +33,7 @@ GRANT ALL ON TABLE
     , users
     , users_projects
     , users_tasks
+    , test_v2.new_v2
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

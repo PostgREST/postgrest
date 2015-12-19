@@ -136,13 +136,6 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
           , matchHeaders = ["Location" <:> [str|/json?data=eq.{"foo":"bar"}|]]
           }
 
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%7B%22foo%22%3A%22bar%22%7D"
-        --   simpleStatus p `shouldBe` created201
-
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
         request methodPost "/json"
@@ -153,12 +146,6 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> [str|/json?data=eq.[1,2,3]|]]
           }
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%5B1%2C2%2C3%5D"
-        --   simpleStatus p `shouldBe` created201
 
   describe "CSV insert" $ do
 
@@ -176,14 +163,6 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
            , matchStatus  = 201
            , matchHeaders = ["Content-Type" <:> "text/csv"]
            }
-        -- p <- request methodPost "/menagerie" [("Content-Type", "text/csv")]
-        --        [str|integer,double,varchar,boolean,date,money,enum
-        --            |13,3.14159,testing!,false,1900-01-01,$3.99,foo
-        --            |12,0.1,a string,true,1929-10-01,12,bar
-        --            |]
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` "Content-Type: application/json\nLocation: /menagerie?integer=eq.13\n\n\n--postgrest_boundary\nContent-Type: application/json\nLocation: /menagerie?integer=eq.12\n\n"
-        --   simpleStatus p `shouldBe` created201
 
     after_ (clearTable "no_pk") . context "requesting full representation" $ do
       it "returns full details of inserted record" $
@@ -197,17 +176,6 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
-      -- it "can post nulls (old way)" $ do
-      --   pendingWith "changed the response when in csv mode"
-      --   request methodPost "/no_pk"
-      --                [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
-      --                "a,b\nNULL,foo"
-      --     `shouldRespondWith` ResponseMatcher {
-      --       matchBody    = Just [json| { "a":null, "b":"foo" } |]
-      --     , matchStatus  = 201
-      --     , matchHeaders = ["Content-Type" <:> "application/json",
-      --                       "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
-      --     }
       it "can post nulls" $
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
@@ -224,85 +192,6 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         liftIO $ simpleStatus p `shouldBe` badRequest400
-      -- it does not fail because the extra columns are ignored
-      -- it "fails for too many" $ do
-      --   p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz,bat,bad"
-      --   liftIO $ simpleStatus p `shouldBe` badRequest400
-
-  describe "Putting record" $ do
-
-    context "to unkonwn uri" $
-      it "gives a 404" $ do
-        pendingWith "Decide on PUT usefullness"
-        request methodPut "/fake" []
-          [json| { "real": false } |]
-            `shouldRespondWith` 404
-
-    context "to a known uri" $ do
-      context "without a fully-specified primary key" $
-        it "is not an allowed operation" $ do
-          pendingWith "Decide on PUT usefullness"
-          request methodPut "/compound_pk?k1=eq.12" []
-            [json| { "k1":12, "k2":42 } |]
-              `shouldRespondWith` 405
-
-      context "with a fully-specified primary key" $ do
-
-        context "not specifying every column in the table" $
-          it "is rejected for lack of idempotence" $ do
-            pendingWith "Decide on PUT usefullness"
-            request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-              [json| { "k1":12, "k2":42 } |]
-                `shouldRespondWith` 400
-
-        context "specifying every column in the table" . after_ (clearTable "compound_pk") $ do
-          it "can create a new record" $ do
-            pendingWith "Decide on PUT usefullness"
-            p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":3 } |]
-            liftIO $ do
-              simpleBody p `shouldBe` ""
-              simpleStatus p `shouldBe` status204
-
-            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
-            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
-            liftIO $ do
-              length rows `shouldBe` 1
-              let record = head rows
-              compoundK1 record `shouldBe` 12
-              compoundK2 record `shouldBe` 42
-              compoundExtra record `shouldBe` Just 3
-
-          it "can update an existing record" $ do
-            pendingWith "Decide on PUT usefullness"
-            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":4 } |]
-            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":5 } |]
-
-            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
-            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
-            liftIO $ do
-              length rows `shouldBe` 1
-              let record = head rows
-              compoundExtra record `shouldBe` Just 5
-
-      context "with an auto-incrementing primary key" . after_ (clearTable "auto_incrementing_pk") $
-
-        it "succeeds with 204" $ do
-          pendingWith "Decide on PUT usefullness"
-          request methodPut "/auto_incrementing_pk?id=eq.1" []
-               [json| {
-                 "id":1,
-                 "nullable_string":"hi",
-                 "non_nullable_string":"bye",
-                 "inserted_at": "2020-11-11"
-               } |]
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing,
-              matchStatus  = 204,
-              matchHeaders = []
-            }
 
   describe "Patching record" $ do
 

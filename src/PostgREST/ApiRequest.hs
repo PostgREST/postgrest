@@ -17,9 +17,7 @@ import qualified Data.Vector             as V
 import           Network.Wai             (Request (..))
 import           Network.Wai.Parse       (parseHttpAccept)
 import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
-import           PostgREST.Types         (QualifiedIdentifier (..),
-                                          Schema, Payload(..),
-                                          UniformObjects(..))
+import           PostgREST.Types         (Payload(..), UniformObjects(..))
 import           Data.Ranged.Ranges      (singletonRange)
 
 type RequestBody = BL.ByteString
@@ -30,7 +28,7 @@ data Action = ActionCreate | ActionRead
             | ActionInfo   | ActionInvoke
             | ActionUnknown BS.ByteString deriving Eq
 -- | The target db object of a user action
-data Target = TargetIdent QualifiedIdentifier
+data Target = TargetIdent T.Text
             | TargetRoot
             | TargetUnknown [T.Text]
 -- | How to return the inserted data
@@ -75,8 +73,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Request -> RequestBody -> ApiRequest
-userApiRequest schema req reqBody =
+userApiRequest :: Request -> RequestBody -> ApiRequest
+userApiRequest req reqBody =
   let action = case method of
                  "GET"     -> ActionRead
                  "POST"    -> if isTargetingProc
@@ -88,10 +86,8 @@ userApiRequest schema req reqBody =
                  other     -> ActionUnknown other
       target = case path of
                  []            -> TargetRoot
-                 [table]       -> TargetIdent
-                                  $ QualifiedIdentifier schema table
-                 ["rpc", proc] -> TargetIdent
-                                  $ QualifiedIdentifier schema proc
+                 [table]       -> TargetIdent table
+                 ["rpc", proc] -> TargetIdent proc
                  other         -> TargetUnknown other
       payload = case pickContentType (lookupHeader "content-type") of
         Right ApplicationJSON ->

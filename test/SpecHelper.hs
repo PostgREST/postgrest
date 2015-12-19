@@ -35,14 +35,17 @@ import PostgREST.Types
 dbString :: String
 dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
-cfg :: String -> Maybe Int -> AppConfig
-cfg conStr = AppConfig conStr 3000 "postgrest_test_anonymous" "test" (secret "safe") 10
+cfg :: String -> [SqlFragment] -> Maybe Int -> AppConfig
+cfg conStr schema = AppConfig conStr 3000 "postgrest_test_anonymous" schema (secret "safe") 10
 
 cfgDefault :: AppConfig
-cfgDefault = cfg dbString Nothing
+cfgDefault = cfg dbString ["test"] Nothing
 
 cfgLimitRows :: Int -> AppConfig
-cfgLimitRows = cfg dbString . Just
+cfgLimitRows = cfg dbString ["test"] . Just
+
+cfgTestV2Schema :: AppConfig
+cfgTestV2Schema = cfg dbString ["test_v2", "test"] Nothing
 
 testPoolOpts :: PoolSettings
 testPoolOpts = fromMaybe (error "bad settings") $ H.poolSettings 1 30
@@ -53,10 +56,10 @@ pgSettings = P.StringSettings $ cs dbString
 specDbPool :: IO (H.Pool P.Postgres)
 specDbPool = H.acquirePool pgSettings testPoolOpts
 
-specDbStructure :: H.Pool P.Postgres -> IO DbStructure
-specDbStructure pool = do
+specDbStructure :: H.Pool P.Postgres -> Schema -> IO DbStructure
+specDbStructure pool schema = do
   dbOrError <- H.session pool $ H.tx specTxSettings
-    $ getDbStructure "test"
+    $ getDbStructure schema
   either (fail . show) return dbOrError
 
 withApp :: AppConfig -> DbStructure -> H.Pool P.Postgres
@@ -65,8 +68,10 @@ withApp config dbStructure pool perform = do
   perform $ middle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    result <- liftIO $ H.session pool $ H.tx specTxSettings
-      $ runWithClaims config time (app dbStructure config body) req
+    result <- liftIO $ H.session pool $ H.tx specTxSettings $
+      ( setSchemaSearchPath (configSchema config)
+        . runWithClaims config time)
+      (app dbStructure config body) req
     either (resp . pgErrResponse) resp result
 
   where middle = defaultMiddle

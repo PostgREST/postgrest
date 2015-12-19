@@ -71,7 +71,7 @@ app dbStructure conf reqBody req =
 
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
-    (ActionRead, TargetIdent qi, Nothing) ->
+    (ActionRead, TargetIdent tTable, Nothing) ->
       case readSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (q, cq) -> do
@@ -101,19 +101,19 @@ app dbStructure conf reqBody req =
               return $ responseLBS status
                 [contentTypeH, contentRange,
                   ("Content-Location",
-                    "/" <> cs (qiName qi) <>
+                    "/" <> cs tTable <>
                       if Prelude.null canonical then "" else "?" <> cs canonical
                   )
                 ] (fromMaybe "[]" body)
 
-    (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
+    (ActionCreate, TargetIdent table,
      Just payload@(PayloadJSON (UniformObjects rows))) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
-          let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-          let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
+          let pKeys = map pkName $ filter (filterPk table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+          let stm = createWriteStatement table sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, _, location, body) = extractQueryResult row
           return $ responseLBS status201
@@ -123,11 +123,11 @@ app dbStructure conf reqBody req =
             ]
             $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
 
-    (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON _)) ->
+    (ActionUpdate, TargetIdent table, Just payload@(PayloadJSON _)) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
+          let stm = createWriteStatement table sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
           row <- H.maybeEx stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
@@ -137,39 +137,39 @@ app dbStructure conf reqBody req =
           return $ responseLBS s [contentTypeH, r]
             $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
 
-    (ActionDelete, TargetIdent qi, Nothing) ->
+    (ActionDelete, TargetIdent table, Nothing) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let fakeload = PayloadJSON $ UniformObjects V.empty
-          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
+          let stm = createWriteStatement table sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
           row <- H.maybeEx stm
           let (_, queryTotal, _, _) = extractQueryResult row
           return $ if queryTotal == 0
             then notFound
             else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
 
-    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) -> do
-      let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-          pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+    (ActionInfo, TargetIdent tTable, Nothing) -> do
+      let cols = filter (filterCol tTable) $ dbColumns dbStructure
+          pkeys = map pkName $ filter (filterPk tTable) allPrKeys
           body = encode (TableOptions cols pkeys)
-          filterCol :: Schema -> TableName -> Column -> Bool
-          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
-          filterCol _ _ _ =  False
+          filterCol :: TableName -> Column -> Bool
+          filterCol tb (Column{colTable=Table{tableName=t}}) = t==tb
+          filterCol _ _ =  False
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
-    (ActionInvoke, TargetIdent qi,
+    (ActionInvoke, TargetIdent tProc,
      Just (PayloadJSON (UniformObjects payload))) -> do
-      exists <- doesProcExist qi
+      exists <- doesProcExist tProc
       if exists
         then do
           let p = V.head payload
               call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi p)
+                asJson (callProc tProc p)
               jwtSecret = configJwtSecret conf
 
           bodyJson :: Maybe (Identity Value) <- H.maybeEx call
-          returnJWT <- doesProcReturnJWT qi
+          returnJWT <- doesProcReturnJWT tProc
           return $ responseLBS status200 [jsonH]
                  (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
                     if returnJWT
@@ -178,7 +178,7 @@ app dbStructure conf reqBody req =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) (dbTables dbStructure))
+      body <- encode <$> accessibleTables (dbTables dbStructure)
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionUnknown _, _, _) -> return notFound
@@ -193,16 +193,15 @@ app dbStructure conf reqBody req =
 
  where
   notFound = responseLBS status404 [] ""
-  filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
+  filterPk table pk = table == (tableName . pkTable) pk
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-  schema = cs $ configSchema conf
-  apiRequest = userApiRequest schema req reqBody
+  apiRequest = userApiRequest req reqBody
   readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-  selectQuery = requestToQuery schema <$> readDbRequest
-  countQuery = requestToCountQuery schema <$> readDbRequest
-  mutateQuery = requestToQuery schema <$> mutateDbRequest
+  selectQuery = requestToQuery <$> readDbRequest
+  countQuery = requestToCountQuery <$> readDbRequest
+  mutateQuery = requestToQuery <$> mutateDbRequest
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
@@ -244,22 +243,22 @@ formatGeneralError message details = cs $ encode $ object [
   "message" .= message,
   "details" .= details]
 
-augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either Text ReadRequest
-augumentRequestWithJoin schema allRels request =
-  (first formatRelationError . addRelations schema allRels Nothing) request
-  >>= addJoinConditions schema
+augumentRequestWithJoin :: [Relation] ->  ReadRequest -> Either Text ReadRequest
+augumentRequestWithJoin allRels request =
+  (first formatRelationError . addRelations allRels Nothing) request
+  >>= addJoinConditions
 
 buildReadRequest :: [Relation] -> ApiRequest -> Either Text ReadRequest
 buildReadRequest allRels apiRequest  =
-  augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> readRequest <*> ord) <*> flts)
+  augumentRequestWithJoin rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> readRequest <*> ord) <*> flts)
   where
     selStr = iSelect apiRequest
     orderS = iOrder apiRequest
     action = iAction apiRequest
     target = iTarget apiRequest
-    (schema, rootTableName) = fromJust $ -- Make it safe
+    rootTableName = fromJust $ -- Make it safe
       case target of
-        (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
+        TargetIdent t -> Just t
         _ -> Nothing
 
     rootName = if action == ActionRead
@@ -287,7 +286,7 @@ buildMutateRequest apiRequest =
     payload = fromJust $ iPayload apiRequest
     rootTableName = -- TODO: Make it safe
       case target of
-        (TargetIdent (QualifiedIdentifier _ t) ) -> t
+        TargetIdent t -> t
         _ -> undefined
     mutateApiRequest = case action of
       ActionCreate -> Insert rootTableName <$> pure payload

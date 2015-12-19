@@ -4,6 +4,7 @@
 module PostgREST.Middleware where
 
 import           Data.Maybe                    (fromMaybe)
+import           Data.Monoid                   ((<>))
 import           Data.Text
 import           Data.String.Conversions       (cs)
 import           Data.Time.Clock               (NominalDiffTime)
@@ -22,6 +23,7 @@ import           PostgREST.ApiRequest       (pickContentType)
 import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
+import           PostgREST.Types               (SqlFragment)
 
 import           Prelude hiding(concat)
 
@@ -53,6 +55,12 @@ runWithClaims conf time app req = do
     anon = cs $ configAnonRole conf
     setAnon = setRole anon
     invalidJWT = return $ errResponse status400 "Invalid JWT"
+
+setSchemaSearchPath :: [SqlFragment] -> (Request -> H.Tx P.Postgres s Response) ->
+                       Request -> H.Tx P.Postgres s Response
+setSchemaSearchPath schemas app req = do
+  H.unitEx $ B.Stmt ("set local search_path to " <> intercalate "," schemas) V.empty True
+  app req
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond =

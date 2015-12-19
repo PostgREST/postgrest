@@ -86,12 +86,14 @@ main = do
 #endif
 
   let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
+  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (head $ configSchema conf)
   dbStructure <- either hasqlError return dbOrError
 
   runSettings appSettings $ middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
     resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf time (app dbStructure conf body) req
+      ( setSchemaSearchPath (configSchema conf)
+        . runWithClaims conf time)
+      (app dbStructure conf body) req
     either (respond . pgErrResponse) respond resOrError
