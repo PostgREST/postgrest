@@ -50,7 +50,7 @@ and the anonymous user, we will have two aditional roles:
 
 Bellow we have the commands to create all roles that will be used:
 ```sql
-CREATE USER postgrest;
+CREATE USER authenticator NOINHERIT;
 CREATE ROLE anonymous;
 CREATE ROLE admin;
 CREATE ROLE customer;
@@ -95,7 +95,8 @@ class ApiTokensController < ApplicationController
   def claims
     # I'm assuming a boolean field admin in the user model indicating wheter the
     # user has administrative privileges.
-    { role: current_user.role, user_id: current_user.id.to_s }
+    # This token will expire 1 hour after being issued
+    { role: current_user.role, user_id: current_user.id.to_s, exp: (Time.now + 1.hour).to_i }
   end
 end
 ```
@@ -117,20 +118,12 @@ the logged in user.
 ```sql
 ALTER DATABASE mydb SET postgrest.claims.user_id TO '';
 
-CREATE OR REPLACE FUNCTION user_id()
+CREATE OR REPLACE FUNCTION current_user_id()
 RETURNS integer
 STABLE
 LANGUAGE SQL
 AS $$
     SELECT nullif(current_setting('postgrest.claims.user_id'), '')::integer;
-$$;
-
-CREATE OR REPLACE FUNCTION is_owner_or_admin(user_id int)
-RETURNS boolean
-STABLE
-LANGUAGE SQL
-AS $$
-    SELECT current_user = 'admin' OR is_owner_or_admin.user_id = user_id();
 $$;
 
 CREATE SCHEMA private;
@@ -148,7 +141,7 @@ SELECT
 FROM
     private.orders o
 WHERE
-    is_owner_or_admin(o.user_id);
+    current_user = 'admin' OR o.user_id = current_user_id();
 ```
 
 ### Using the JWT
