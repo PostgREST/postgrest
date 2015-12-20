@@ -3,8 +3,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-#Unreleased
+## Unreleased
+
+### Fixed
 - Fix bug in many-many relation detection - @ruslantalpa
+- Inconsistent escaping of table names in read queries - @calebmer
 
 ## [0.3.0.2] - 2015-12-16
 
