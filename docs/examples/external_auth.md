@@ -106,6 +106,16 @@ class ApiTokensController < ApplicationController
 end
 ```
 
+<div class="admonition note">
+    <p class="admonition-title">Token Time to Live</p>
+    <p>
+    In the code above we leverage the HTTP time based cache headers to expire the
+    endpoint cache at the same time as the token. In this example we have a token
+    that will be refresh one hour after its issuing time.
+    That's why both are based on the <code>TOKEN_TTL</code> constant.
+    </p>
+</div>
+
 We also need to create a route in the ```config/routes.rb``` file:
 
 ```ruby
@@ -166,9 +176,18 @@ Now whenever you are authenticated in your Rails application you can use some Ja
  code to get the token and use it:
 ```javascript
 $.getJSON('/api_json').done(function(data){
-        $.ajax('/orders', {'Authorization': 'Bearer ' + data.token})
+    $.ajax('/orders', {'Authorization': 'Bearer ' + data.token}).done(function(data){
+        console.log('Visible Orders: ', data);
     })
-    .fail(function(){
-        console.log('Error fetching API token');
-    })
+}).fail(function(){
+    console.log('Error fetching API token');
+})
 ```
+We could also store the token to avoid having to fetch it again in the same page.
+
+### Conclusion
+
+This section explained the implementation details for building an
+external authentication system working with PostgREST.
+With the previous [User Management](users/) example this should give a clearer
+idea of how to set up authentication for your API.
