@@ -101,7 +101,7 @@ In Postman it will look like this
 
 Notice that the post type is `raw` and that `Content-Type: text/csv` set in the Headers tab.
 
-The server returns HTTP 201 Created. Because we inserted more than one item at once there is no `Location` header in the response. However sometimes you want to learn more about items which you just inserted. To have the server include the full restuls include the header `Prefer: return=representation`.
+The server returns HTTP 201 Created. Because we inserted more than one item at once there is no `Location` header in the response. However sometimes you want to learn more about items which you just inserted. To have the server include the full results, include the header `Prefer: return=representation`.
 
 At this point if you send a GET request to `/festival` it should return
 
