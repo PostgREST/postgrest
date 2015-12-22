@@ -28,6 +28,12 @@ Then, from a python interpreter or script:
     if r.status_code != 200:
         raise Exception()
 
+    # Make a request to get the range header
+    r = requests.get('http://localhost:3000/posts', auth=auth)
+
+    # Extract the size of the resultset from the Content-Range
+    upper_bound = int(r.headers['Content-Range'].split('/')[1])
+
     # Handle pagination using the Range header
     for i in range(0, upper_bound, 20):
         this_range  = '{0}-{1}'.format(i, i+20 if i+20 < upper_bound else upper_bound)
