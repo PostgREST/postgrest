@@ -129,7 +129,6 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
       where
         rel = note ("no relation between " <> parentTable <> " and " <> name)
             $  findRelationByTable schema name parentTable
-           <|> findRelationByTable schema parentTable name
            <|> findRelationByColumn schema parentTable name
         addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
         addRel (q, (n, _)) r = (q {from=fromRelation}, (n, Just r))
