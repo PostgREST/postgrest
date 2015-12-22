@@ -25,13 +25,18 @@ Then, from a python interpreter or script:
     # JWT auth using the token above
     token = json.loads(resp.text)['token']
     auth = requests_jwt.JWTAuth(token)
-    r = requests.get('http://localhost:3000/weight', auth=auth)
     if r.status_code != 200:
         raise Exception()
 
-    for each in r.json():
-        # do as you wish with each row
-        print(each)
+    # Handle pagination using the Range header
+    for i in range(0, upper_bound, 20):
+        this_range  = '{0}-{1}'.format(i, i+20 if i+20 < upper_bound else upper_bound)
+        headers = {"Range": "{}".format(this_range)}
+        r = requests.get('http://localhost:3000/posts', auth=auth, headers=headers)
+        if r.status_code != 200:
+            raise Exception()
+        page = r.json()
+        # put page into pagination control or the like
 
 The preceding HTTP client example should work on Python 3.x. If you're using python < 3.x you may need to change the print functions to statements or use:
 
