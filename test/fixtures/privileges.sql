@@ -32,6 +32,8 @@ GRANT ALL ON TABLE
     , users
     , users_projects
     , users_tasks
+    , "Escap3e;"
+    , "ghostBusters"
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

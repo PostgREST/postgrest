@@ -591,6 +591,15 @@ CREATE TABLE users_tasks (
 );
 
 
+CREATE TABLE "Escap3e;" (
+		"so6meIdColumn" integer primary key
+);
+
+CREATE TABLE "ghostBusters" (
+		"escapeId" integer not null references "Escap3e;"("so6meIdColumn")
+);
+
+
 --
 -- Name: id; Type: DEFAULT; Schema: test; Owner: -
 --

@@ -18,13 +18,15 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
     it "lists views in schema" $
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
-          {"schema":"test","name":"articleStars","insertable":true}
+          {"schema":"test","name":"Escap3e;","insertable":true}
+        , {"schema":"test","name":"articleStars","insertable":true}
         , {"schema":"test","name":"articles","insertable":true}
         , {"schema":"test","name":"auto_incrementing_pk","insertable":true}
         , {"schema":"test","name":"clients","insertable":true}
         , {"schema":"test","name":"comments","insertable":true}
         , {"schema":"test","name":"complex_items","insertable":true}
         , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"ghostBusters","insertable":true}
         , {"schema":"test","name":"has_count_column","insertable":false}
         , {"schema":"test","name":"has_fk","insertable":true}
         , {"schema":"test","name":"insertable_view_with_join","insertable":true}
