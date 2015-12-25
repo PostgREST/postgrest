@@ -3,6 +3,9 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+#Unreleased
+- Fix bug in many-many relation detection - @ruslantalpa
+
 ## [0.3.0.2] - 2015-12-16
 
 ### Fixed
@@ -13,7 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix #396 include records with missing parents - @ruslantalpa
 - `pgFmtIdent` always quotes #388 - @calebmer
 - Default schema, changed from `"1"` to `public` - @calebmer
-- #414 revert to separate count query
+- #414 revert to separate count query - @ruslantalpa
 - Fix #399, allow inserting in tables with no select privileges using "Prefer: representation=minimal" - @ruslantalpa
 
 ### Added
