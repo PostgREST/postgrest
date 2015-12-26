@@ -127,12 +127,14 @@ addParentRelations [] = []
 addParentRelations (rel@(Relation t c ft fc _ _ _ _):rels) = Relation ft fc t c Parent Nothing Nothing Nothing : rel : addParentRelations rels
 
 addManyToManyRelations :: [Relation] -> [Relation]
-addManyToManyRelations rels = rels ++ mapMaybe link2Relation links
+addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation links)
   where
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text
     groupFn (Relation{relTable=Table{tableSchema=s, tableName=t}}) = s<>"_"<>t
     combinations k ns = filter ((k==).length) (subsequences ns)
+    addMirrorRelation [] = []
+    addMirrorRelation (rel@(Relation t c ft fc _ lt lc1 lc2):rels') = Relation ft fc t c Many lt lc2 lc1 : rel : addMirrorRelation rels'
     link2Relation [
       Relation{relTable=lt, relColumns=lc1, relFTable=t,  relFColumns=c},
       Relation{             relColumns=lc2, relFTable=ft, relFColumns=fc}
