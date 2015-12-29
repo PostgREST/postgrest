@@ -271,20 +271,20 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
     getQueryParts (Node n@(_, (name, Just (Relation {relType=Child,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
-           <> "FROM (" <> subquery <> ") " <> table
+           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
+           <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just (Relation {relType=Parent,relTable=Table{tableName=table}}))) forst) (j,s) = (joi:j,sel:s)
       where
-        sel = "row_to_json(" <> table <> ".*) AS "<>pgFmtIdent name --TODO must be singular
-        joi = ("( " <> subquery <> " ) AS " <> table, table)
+        sel = "row_to_json(" <> pgFmtIdent table <> ".*) AS "<>pgFmtIdent name --TODO must be singular
+        joi = ("( " <> subquery <> " ) AS " <> pgFmtIdent table, table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just (Relation {relType=Many,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>table<>"))) "
-           <> "FROM (" <> subquery <> ") " <> table
+           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
+           <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning

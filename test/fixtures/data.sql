@@ -260,6 +260,11 @@ INSERT INTO users_projects VALUES (2, 4);
 INSERT INTO users_projects VALUES (3, 1);
 INSERT INTO users_projects VALUES (3, 3);
 
+TRUNCATE TABLE "Escap3e;" CASCADE;
+INSERT INTO "Escap3e;" VALUES (1), (2), (3), (4), (5);
+
+TRUNCATE TABLE "ghostBusters" CASCADE;
+INSERT INTO "ghostBusters" VALUES (1), (3), (5);
 
 --
 -- PostgreSQL database dump complete

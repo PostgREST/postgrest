@@ -387,3 +387,18 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
+
+  describe "weird requests" $ do
+    it "can query as normal" $ do
+      get "/Escap3e;" `shouldRespondWith`
+        [json| [{"so6meIdColumn":1},{"so6meIdColumn":2},{"so6meIdColumn":3},{"so6meIdColumn":4},{"so6meIdColumn":5}] |]
+      get "/ghostBusters" `shouldRespondWith`
+        [json| [{"escapeId":1},{"escapeId":3},{"escapeId":5}] |]
+
+    it "will embed a collection" $
+      get "/Escap3e;?select=ghostBusters{*}" `shouldRespondWith`
+        [json| [{"ghostBusters":[{"escapeId":1}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":3}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":5}]}] |]
+
+    it "will embed using a column" $
+      get "/ghostBusters?select=escapeId{*}" `shouldRespondWith`
+        [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
