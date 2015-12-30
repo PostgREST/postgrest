@@ -1,49 +1,40 @@
-## Accessing PostgREST API using Python Requests and Requests-JWT
+## Python Client for PostgREST API
 
-This code relies on setting up the PostgreSQL auth functions and grants correctly first. Follow these instructions:
+### Setup PostgreSQL
 
-http://postgrest.com/examples/users/
+This code relies on setting up the PostgreSQL auth functions and grants correctly first. Follow [these instructions](http://postgrest.com/examples/users/).
 
-After completing the configuration, be sure to create a user with email, password, role, and verified flag. We'll use that user to login in the code below.
+After completing the PostgreSQL configuration, be sure to create a user with email, password, role, and verified flag. We'll use that user to login in the code below.
 
-Install the required libraries
+### Setup PostgREST
 
-    pip install requests
-    pip install requests-jwt
+Next, setup PostgREST according to the documentation [http://postgrest.com/install/server/](here).
 
-Then, from a python interpreter or script:
+### Setup Python Client
 
-    import requests
-    import requests_jwt
-    import json
+Finally, we'll install and configure the python client. Follow the instructions in the [README](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/README.md). Be sure to set the [credentials](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/config.in#L3-L5) and [urls](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/config.in#L7-L9) in config.py.
 
-    # email and password auth through postgrest
-    resp = requests.post('http://localhost:3000/rpc/login', json={"email": "you@yours.com", "pass": "dog"})
-    if resp.status_code != 200:
-        raise Exception()
+### Python Client Functions
 
-    # JWT auth using the token above
-    token = json.loads(resp.text)['token']
-    auth = requests_jwt.JWTAuth(token)
-    if r.status_code != 200:
-        raise Exception()
+There are four primary functions to the python client:
 
-    # Make a request to get the range header
-    r = requests.get('http://localhost:3000/posts', auth=auth)
+* login
+* construct_jwt_auth
+* get_result_size
+* get_range
 
-    # Extract the size of the resultset from the Content-Range
-    upper_bound = int(r.headers['Content-Range'].split('/')[1])
+The *login* and *construct_jwt_auth* functions will be required for any REST client using a PostgREST server, since a JWT auth instance is presumed.
 
-    # Handle pagination using the Range header
-    for i in range(0, upper_bound, 20):
-        this_range  = '{0}-{1}'.format(i, i+20 if i+20 < upper_bound else upper_bound)
-        headers = {"Range": "{}".format(this_range)}
-        r = requests.get('http://localhost:3000/posts', auth=auth, headers=headers)
-        if r.status_code != 200:
-            raise Exception()
-        page = r.json()
-        # put page into pagination control or the like
+The *get_result_size* and *get_range* functions are designed specifically for result sets where pagination is required. You can certainly use them for a single page result set that does not require pagination, but that may be overkill.
 
-The preceding HTTP client example should work on Python 3.x. If you're using python < 3.x you may need to change the print functions to statements or use:
+### Login
+The [login function](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L12-L17) takes email and password strings (credentials.email and credentials.password, respectively from the config.py) and return the response.
 
-    from __future__ import print_function
+### Construct JWT Auth
+The [construct_jwt_auth](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L20-L23) function takes the auth response returned by the login function, retrieves the token in the response, and returns a JWT auth instance to the caller. The JWT auth instance can then be used for successive calls to the same PostgREST service.
+
+### Get Result Size
+The [get_result_size](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L26-L30) function takes a JWT auth instance calls the URL at urls.data, extracts the size of the result set from the response object and returns the size.
+
+### Get Range
+The [get_range](https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L26-L30) function takes a beginning range, ending range, page size, and JWT auth instance, gets only that range of the available result set and returns JSON for that result set.
