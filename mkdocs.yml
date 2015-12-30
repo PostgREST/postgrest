@@ -25,3 +25,4 @@ pages:
   - User Management: examples/users.md
   - External Authentication: examples/external_auth.md
   - Multi-Tenant Blog: examples/blog.md
+  - Python Client:  examples/python-requests-jwt.md
