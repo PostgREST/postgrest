@@ -5,6 +5,8 @@
 * [mithril.postgrest](https://github.com/catarse/mithril.postgrest) - Mithril plugin to create and authenticate requests
 * [lewisjared/postgrest-request](https://github.com/lewisjared/postgrest-request) - node interface to postgrest instances
 * [JarvusInnovations/jarvus-postgrest-apikit](https://github.com/JarvusInnovations/jarvus-postgrest-apikit) - Sencha framework package for binding models/stores/proxies to PostgREST tables
+*
+[davidthewatson/postgrest_python_requests_client](https://github.com/davidthewatson/postgrest_python_requests_client) - python client featuring JWT auth and pagination of result sets
 
 ### Extensions
 
