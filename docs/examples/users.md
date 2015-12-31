@@ -475,6 +475,30 @@ Remember that the `login` function set the claims `email` and `role`.
 You can modify `login` to set other claims as well if they are
 useful for your other SQL functions to reference later.
 
+### Permissions
+
+Basic table-level permissions. We'll add an the `authenticator`
+role which can't do anything itself other than switch into other
+roles as directed by JWT.
+
+```sql
+create role anon;
+create role authenticator noinherit;
+grant anon to authenticator;
+
+grant usage on schema public, basic_auth to anon;
+
+-- anon can create new logins
+grant insert on table basic_auth.users, basic_auth.tokens to anon;
+grant select on table pg_authid, basic_auth.users to anon;
+grant execute on function
+  login(text,text),
+  request_password_reset(text),
+  reset_password(text,uuid,text),
+  signup(text, text)
+  to anon;
+```
+
 ### Conclusion
 
 This section explained the implementation details for building a

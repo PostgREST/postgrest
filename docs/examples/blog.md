@@ -48,31 +48,18 @@ comments (
 
 ### Permissions
 
-Basic table-level permissions. We'll add an the `authenticator`
-role which can't do anything itself other than switch into other
-roles as directed by JWT.
+On top of the `authenticator` and `anon` access granted in the
+previous example, blogs have an `author` role with extra permissions.
 
 ```sql
-create role anon;
 create role author;
-create role authenticator noinherit;
-grant anon, author to authenticator;
+grant author to authenticator;
 
-grant usage on schema public, basic_auth to anon, author;
-
--- anon can create new logins and can read comments/posts
-grant insert on table basic_auth.users, basic_auth.tokens to anon;
-grant select on table pg_authid, basic_auth.users, posts, comments to anon;
-grant execute on function
-  login(text,text),
-  request_password_reset(text),
-  reset_password(text,uuid,text),
-  signup(text, text)
-  to anon;
+grant usage on schema public, basic_auth to author;
 
 -- authors can edit comments/posts
 grant select, insert, update, delete
-  on basic_auth.tokens, basic_auth.users to anon, author;
+  on basic_auth.tokens, basic_auth.users to author;
 grant select, insert, update, delete
   on table users, posts, comments to author;
 grant usage, select on sequence posts_id_seq, comments_id_seq to author;
