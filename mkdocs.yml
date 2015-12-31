@@ -23,6 +23,6 @@ pages:
 - Examples:
   - Getting Started: examples/start.md
   - User Management: examples/users.md
-  - External Authentication: examples/external_auth.md
   - Multi-Tenant Blog: examples/blog.md
+  - External Authentication: examples/external_auth.md
   - Python Client:  examples/python-requests-jwt.md

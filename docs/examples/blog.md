@@ -6,10 +6,10 @@ the posts of other authors. Anonymous users cannot edit anything
 but can sign up for author accounts. Authors can also post comments
 on articles.
 
-This example builds off the previous one. We had previously created
-a signup and login system on top of JWT. We'll use this auth system
-for the blog. **Run the SQL in the previous example** first, before
-continuing with this example.
+This example builds off the previous previous [User Management](users/)
+one. We had previously created a signup and login system on top of
+JWT. We'll use this auth system for the blog. **Run the SQL in the
+previous example** first, before continuing with this example.
 
 For your convenience, the complete sql for the blog demo is
 [here](https://github.com/begriffs/postgrest/blob/master/schema-templates/blog.sql).
