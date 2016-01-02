@@ -2,6 +2,7 @@
 
 ### Client-Side Libraries
 
+* [calebmer/postgrest-client](https://github.com/calebmer/postgrest-client) - Advanced JS client for the PostgREST API
 * [mithril.postgrest](https://github.com/catarse/mithril.postgrest) - Mithril plugin to create and authenticate requests
 * [lewisjared/postgrest-request](https://github.com/lewisjared/postgrest-request) - node interface to postgrest instances
 * [JarvusInnovations/jarvus-postgrest-apikit](https://github.com/JarvusInnovations/jarvus-postgrest-apikit) - Sencha framework package for binding models/stores/proxies to PostgREST tables
