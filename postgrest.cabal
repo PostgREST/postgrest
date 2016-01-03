@@ -37,9 +37,7 @@ executable postgrest
                      , cassava
                      , containers
                      , errors
-                     , hasql >= 0.7.3 && < 0.8
-                     , hasql-backend >= 0.4.1 && < 0.5
-                     , hasql-postgres >= 0.10.4 && < 0.11
+                     , hasql >= 0.15.1 && < 0.16
                      , jwt
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
@@ -94,8 +92,6 @@ library
                      , containers
                      , errors
                      , hasql
-                     , hasql-backend
-                     , hasql-postgres
                      , http-types
                      , jwt
                      , optparse-applicative
@@ -170,8 +166,6 @@ Test-Suite spec
                      , containers
                      , errors
                      , hasql
-                     , hasql-backend
-                     , hasql-postgres
                      , heredoc
                      , hlint
                      , hspec == 2.2.*
