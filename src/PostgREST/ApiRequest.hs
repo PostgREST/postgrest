@@ -117,14 +117,14 @@ userApiRequest schema req reqBody =
 
   ApiRequest {
     iAction = action
-  , iRange  = if singular then singletonRange 0 else rangeRequested hdrs
+  , iRange  = if singular then singletonRange 0 else rangeRequested hdrs qParams
   , iTarget = target
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
   , iPreferCount = not $ hasPrefer "count=none"
-  , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
+  , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order", "page", "limit", "offset"], isJust v ]
   , iSelect = if method == "DELETE"
               then "*"
               else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
