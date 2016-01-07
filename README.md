@@ -117,7 +117,7 @@ views. You run an instance of PostgREST per schema and route requests
 among them with a reverse proxy such as [nginx](http://nginx.org).
 Learn more [here](http://postgrest.com/admin/versioning/).
 
-### Self-documention
+### Self-documentation
 
 Rather than writing and maintaining separate docs yourself let the
 API explain its own affordances using HTTP. All PostgREST endpoints
