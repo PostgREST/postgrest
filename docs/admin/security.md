@@ -60,7 +60,7 @@ for anonymous users, one for authors, and another for the authenticator,
 you would set it up like this
 
 ```sql
-CREATE ROLE authenticator NOINHERIT;
+CREATE ROLE authenticator NOINHERIT LOGIN;
 CREATE ROLE anon;
 CREATE ROLE author;
 
