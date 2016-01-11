@@ -178,7 +178,7 @@ app dbStructure conf reqBody req =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- encode <$> accessibleTables (filter ((== cs schema) . tableSchema) (dbTables dbStructure))
+      body <- encode <$> accessibleTables (cs schema)
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionUnknown _, _, _) -> return notFound
