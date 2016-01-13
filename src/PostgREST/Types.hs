@@ -90,6 +90,9 @@ data Relation = Relation {
 newtype UniformObjects = UniformObjects (V.Vector Object)
   deriving (Show, Eq)
 
+unUniformObjects :: UniformObjects -> V.Vector Object
+unUniformObjects (UniformObjects objs) = objs
+
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.

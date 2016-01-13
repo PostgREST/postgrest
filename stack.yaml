@@ -2,6 +2,7 @@ flags: {}
 packages:
 - '.'
 extra-deps:
+  - hasql-0.19.3.1
   - Ranged-sets-0.3.0
   - packdeps-0.4.1
-resolver: nightly-2015-10-27
+resolver: lts-4.1

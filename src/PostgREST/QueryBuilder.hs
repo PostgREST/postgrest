@@ -28,26 +28,29 @@ module PostgREST.QueryBuilder (
   , unquoted
   ) where
 
-import qualified Hasql                   as H
-import qualified Hasql.Backend           as B
-import qualified Hasql.Postgres          as P
+import qualified Hasql.Query             as H
+import qualified Hasql.Encoders          as HE
+import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
+import           Data.Int                (Int64)
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
 import           Control.Error           (note, fromMaybe, mapMaybe)
+import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find, (\\))
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
 import           Data.String.Conversions (cs)
-import           Control.Applicative     (empty, (<|>))
+import           Control.Applicative     ((<|>))
 import           Control.Monad           (join)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
+import           Text.InterpolatedString.Perl6 (qc, q)
 import           Text.Regex.TDFA         ((=~))
 import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
@@ -57,70 +60,94 @@ import           Data.Scientific         ( FPFormat (..)
 import           Prelude hiding          (unwords)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
-type PStmt = H.Stmt P.Postgres
-instance Monoid PStmt where
-  mappend (B.Stmt query params prep) (B.Stmt query' params' prep') =
-    B.Stmt (query <> query') (params <> params') (prep && prep')
-  mempty = B.Stmt "" empty True
-type StatementT = PStmt -> PStmt
 
-createReadStatement :: SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> B.Stmt P.Postgres
+{-| The generic query result format used by API responses -}
+type ResultsWithCount = (Int64, Int64, BS.ByteString, BS.ByteString)
+
+{-| Read and Write api requests use a similar response format which includes
+    various record counts and possible location header. This is the decoder
+    for that common type of query.
+-}
+decodeStandard :: HD.Result ResultsWithCount
+decodeStandard =
+  HD.singleRow standardRow
+ where
+  standardRow = (,,,) <$> HD.value HD.int8 <*> HD.value HD.int8
+                      <*> HD.value HD.bytea <*> HD.value HD.bytea
+
+{-| JSON and CSV payloads from the client are given to us as
+    UniformObjects (objects who all have the same keys),
+    and we turn this into an old fasioned JSON array
+-}
+encodeUniformObjs :: HE.Params UniformObjects
+encodeUniformObjs =
+  contramap (JSON.Array . V.map JSON.Object . unUniformObjects) (HE.value HE.json)
+
+createReadStatement :: SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool ->
+                       H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
-  B.Stmt (
-    "WITH " <> sourceCTEName <> " AS (" <> selectQuery <> ") " <>
-    "SELECT " <> intercalate ", " [
+  H.statement sql HE.unit decodeStandard True
+ where
+  sql = [qc|
+      WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
+      FROM ( SELECT * FROM {sourceCTEName} {limitF range}) t |]
+  countResultF = if countTotal then "("<>countQuery<>")" else "null"
+  cols = intercalate ", " [
       countResultF <> " AS total_result_set",
       "pg_catalog.count(t) AS page_total",
       "null AS header",
       bodyF <> " AS body"
-    ] <>
-    " FROM ( SELECT * FROM " <> sourceCTEName <> " " <> limitF range <> ") t"
-  ) V.empty True
-  where
-    countResultF = if countTotal then "("<>countQuery<>")" else "null"
-    bodyF
-      | asCsv = asCsvF
-      | isSingle = asJsonSingleF
-      | otherwise = asJsonF
+    ]
+  bodyF
+    | asCsv = asCsvF
+    | isSingle = asJsonSingleF
+    | otherwise = asJsonF
 
-createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool -> PreferRepresentation ->
-                        [Text] -> Bool -> Payload -> B.Stmt P.Postgres
+createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
+                        PreferRepresentation -> [Text] -> Bool -> Payload ->
+                        H.Query UniformObjects ResultsWithCount
 createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
 createWriteStatement _ _ mutateQuery _ None
-                     _ _ (PayloadJSON (UniformObjects rows)) =
-  B.Stmt (
-    "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
-    "SELECT null, 0, null, null"
-  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
+                     _ _ (PayloadJSON (UniformObjects _)) =
+  H.statement sql encodeUniformObjs decodeStandard True
+ where
+  sql = [qc|
+      WITH {sourceCTEName} AS ({mutateQuery})
+      SELECT null, 0, null, null |]
+
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON (UniformObjects rows)) =
-  B.Stmt (
-    "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> " RETURNING " <> fromQi qi <> ".*" <> ") " <>
-    "SELECT " <> intercalate ", " [
+                     pKeys _ (PayloadJSON (UniformObjects _)) =
+  H.statement sql encodeUniformObjs decodeStandard True
+ where
+  sql = [qc|
+      WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
+      SELECT {cols}
+      FROM (SELECT 1 FROM {sourceCTEName}) t |]
+  cols = intercalate ", " [
       "null AS total_result_set",
       "pg_catalog.count(t) AS page_total",
       if isSingle then locationF pKeys else "null",
       "null"
-    ] <>
-    " FROM (SELECT 1 FROM " <> sourceCTEName <> ") t"
-  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
+    ]
+
 createWriteStatement qi selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON (UniformObjects rows)) =
-  B.Stmt (
-    "WITH " <> sourceCTEName <> " AS (" <> mutateQuery <> " RETURNING " <> fromQi qi <> ".*" <> ") " <>
-    "SELECT " <> intercalate ", " [
+                     pKeys asCsv (PayloadJSON (UniformObjects _)) =
+  H.statement sql encodeUniformObjs decodeStandard True
+ where
+  sql = [qc|
+      WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
+      SELECT {cols}
+      FROM ({selectQuery}) t |]
+  cols = intercalate ", " [
       "null AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(t) AS page_total",
       if isSingle then locationF pKeys else "null" <> " AS header",
       bodyF <> " AS body"
-    ] <>
-    " FROM ( "<>selectQuery<>") t"
-  ) (V.singleton . B.encodeValue . JSON.Array . V.map JSON.Object $ rows) True
-  where
-    bodyF
-      | asCsv = asCsvF
-      | isSingle = asJsonSingleF
-      | otherwise = asJsonF
+    ]
+  bodyF
+    | asCsv = asCsvF
+    | isSingle = asJsonSingleF
+    | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
 addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _)) forest) =
@@ -131,8 +158,8 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
             $  findRelationByTable schema name parentTable
            <|> findRelationByColumn schema parentTable name
         addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
-        addRel (q, (n, _)) r = (q {from=fromRelation}, (n, Just r))
-          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from q)
+        addRel (query', (n, _)) r = (query' {from=fromRelation}, (n, Just r))
+          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
     _ -> Node (query, (name, Nothing)) <$> updatedForest
   where
@@ -155,8 +182,8 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     Just rel@(Relation{relType=Many, relLTable=(Just linkTable)}) ->
       Node (qq, (n, r)) <$> updatedForest
       where
-         q = addCond updatedQuery (getJoinConditions rel)
-         qq = q{from=tableName linkTable : from q}
+         query' = addCond updatedQuery (getJoinConditions rel)
+         qq = query'{from=tableName linkTable : from query'}
     _ -> Left "unknown relation"
   where
     -- add parentTable and parentJoinConditions to the query
@@ -167,19 +194,20 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
         getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
-    addCond q con = q{flt_=con ++ flt_ q}
+    addCond query' con = query'{flt_=con ++ flt_ query'}
 
-asJson :: StatementT
-asJson s = s {
-  B.stmtTemplate =
-    "array_to_json(coalesce(array_agg(row_to_json(t)), '{}'))::character varying from ("
-    <> B.stmtTemplate s <> ") t" }
+asJson :: BS.ByteString -> BS.ByteString
+asJson _sql =
+  [q| SELECT array_to_json(
+        coalesce(array_agg(row_to_json(t)), '{}')
+      )::character varying
+      from ({_sql}) t |]
 
-callProc :: QualifiedIdentifier -> JSON.Object -> PStmt
+callProc :: QualifiedIdentifier -> JSON.Object -> BS.ByteString
 callProc qi params = do
-  let args = intercalate "," $ map assignment (HM.toList params)
-  B.Stmt ("select * from " <> fromQi qi <> "(" <> args <> ")") empty True
+  [qc| select * from {fromQi qi}({args}) |]
   where
+    args = intercalate "," $ map assignment (HM.toList params)
     assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
 
 operators :: [(Text, SqlFragment)]
