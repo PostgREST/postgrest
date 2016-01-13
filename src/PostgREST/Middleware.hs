@@ -7,8 +7,7 @@ import           Data.Maybe                    (fromMaybe)
 import           Data.Text
 import           Data.String.Conversions       (cs)
 import           Data.Time.Clock               (NominalDiffTime)
-import qualified Hasql                         as H
-import qualified Hasql.Postgres                as P
+import qualified Hasql.Session                 as H
 
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
 import           Network.HTTP.Types.Status     (status415, status400)
@@ -26,12 +25,11 @@ import           PostgREST.Error               (errResponse)
 import           Prelude hiding(concat)
 
 import qualified Data.Vector             as V
-import qualified Hasql.Backend           as B
 import qualified Data.Map.Lazy           as M
 
 runWithClaims :: forall s. AppConfig -> NominalDiffTime ->
-                 (Request -> H.Tx P.Postgres s Response) ->
-                 Request -> H.Tx P.Postgres s Response
+                 (Request -> H.Session Response) ->
+                 Request -> H.Session Response
 runWithClaims conf time app req = do
     _ <- H.unitEx $ stmt setAnon
     case split (== ' ') (cs auth) of

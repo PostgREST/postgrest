@@ -33,9 +33,7 @@ import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
-import qualified Hasql                     as H
-import qualified Hasql.Backend             as B
-import qualified Hasql.Postgres            as P
+import qualified Hasql.Connection          as H
 
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers

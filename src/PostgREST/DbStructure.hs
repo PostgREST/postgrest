@@ -17,15 +17,13 @@ import           Data.List              (elemIndex, find, subsequences, sort, tr
 import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
 import           Data.Monoid
 import           Data.Text              (Text, split)
-import qualified Hasql                  as H
-import qualified Hasql.Postgres         as P
-import qualified Hasql.Backend          as B
+import qualified Hasql.Session          as H
 import           PostgREST.Types
 
 import           GHC.Exts               (groupWith)
 import           Prelude
 
-getDbStructure :: Schema -> H.Tx P.Postgres s DbStructure
+getDbStructure :: Schema -> H.Session DbStructure
 getDbStructure schema = do
   tabs <- allTables
   cols <- allColumns tabs
@@ -50,7 +48,7 @@ doesProc stmt qi = do
   row :: Maybe (Identity Int) <- H.maybeEx $ stmt (qiSchema qi) (qiName qi)
   return $ isJust row
 
-doesProcExist :: QualifiedIdentifier -> H.Tx P.Postgres s Bool
+doesProcExist :: QualifiedIdentifier -> H.Session Bool
 doesProcExist = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
@@ -60,7 +58,7 @@ doesProcExist = doesProc [H.stmt|
       AND    proname = ?
     |]
 
-doesProcReturnJWT :: QualifiedIdentifier -> H.Tx P.Postgres s Bool
+doesProcReturnJWT :: QualifiedIdentifier -> H.Session Bool
 doesProcReturnJWT = doesProc [H.stmt|
       SELECT 1
       FROM   pg_catalog.pg_namespace n
@@ -171,7 +169,7 @@ synonymousPrimaryKeys syns (key:keys) = key : newKeys ++ synonymousPrimaryKeys s
     keySyns = filter ((\c -> colTable c == pkTable key && colName c == pkName key) . fst) syns
     newKeys = map ((\c -> PrimaryKey{pkTable=colTable c,pkName=colName c}) . snd) keySyns
 
-allTables :: H.Tx P.Postgres s [Table]
+allTables :: H.Session [Table]
 allTables = do
     rows <- H.listEx $ [H.stmt|
       SELECT
@@ -196,7 +194,7 @@ allTables = do
 tableFromRow :: (Text, Text, Bool) -> Table
 tableFromRow (s, n, i) = Table s n i
 
-allColumns :: [Table] -> H.Tx P.Postgres s [Column]
+allColumns :: [Table] -> H.Session [Column]
 allColumns tabs = do
   cols <- H.listEx $ [H.stmt|
       SELECT DISTINCT
@@ -347,7 +345,7 @@ columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> tab
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
-allRelations :: [Table] -> [Column] -> H.Tx P.Postgres s [Relation]
+allRelations :: [Table] -> [Column] -> H.Session [Relation]
 allRelations tabs cols = do
   rels <- H.listEx $ [H.stmt|
     SELECT ns1.nspname AS table_schema,
@@ -388,7 +386,7 @@ relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> H.Tx P.Postgres s [PrimaryKey]
+allPrimaryKeys :: [Table] -> H.Session [PrimaryKey]
 allPrimaryKeys tabs = do
   pks <- H.listEx $ [H.stmt|
       /*
@@ -498,7 +496,7 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Tx P.Postgres s [(Column,Column)]
+allSynonyms :: [Column] -> H.Session [(Column,Column)]
 allSynonyms allCols = do
   syns <- H.listEx $ [H.stmt|
     WITH synonyms AS (
