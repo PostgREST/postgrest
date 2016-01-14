@@ -209,7 +209,7 @@ pgFmtLit x =
  let trimmed = trimNullChars x
      escaped = "'" <> replace "'" "''" trimmed <> "'"
      slashed = replace "\\" "\\\\" escaped in
- if "\\\\" `isInfixOf` escaped
+ if "\\" `isInfixOf` escaped
    then "E" <> slashed
    else slashed
 
