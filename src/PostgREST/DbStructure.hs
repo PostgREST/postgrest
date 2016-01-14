@@ -10,9 +10,15 @@ module PostgREST.DbStructure (
 , doesProcReturnJWT
 ) where
 
+import qualified Hasql.Query             as H
+import qualified Hasql.Encoders          as HE
+import qualified Hasql.Decoders          as HD
+
 import           Control.Applicative
 import           Control.Monad          (join)
+import           Data.Functor.Contravariant (contramap)
 import           Data.Functor.Identity
+import           Text.InterpolatedString.Perl6 (q)
 import           Data.List              (elemIndex, find, subsequences, sort, transpose)
 import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
 import           Data.Monoid
@@ -42,24 +48,36 @@ getDbStructure schema = do
     , dbPrimaryKeys = keys'
     }
 
-doesProc :: forall c s. B.CxValue c Int =>
-            (Text -> Text -> B.Stmt c) -> QualifiedIdentifier -> H.Tx c s Bool
-doesProc stmt qi = do
-  row :: Maybe (Identity Int) <- H.maybeEx $ stmt (qiSchema qi) (qiName qi)
-  return $ isJust row
+encodeQi :: HE.Params QualifiedIdentifier
+encodeQi =
+  contramap qiSchema (HE.value HE.text) <>
+  contramap qiName   (HE.value HE.text)
 
-doesProcExist :: QualifiedIdentifier -> H.Session Bool
-doesProcExist = doesProc [H.stmt|
+decodeTable :: HD.Result Table
+decodeTable =
+  HD.singleRow standardRow
+ where
+  standardRow = Table <$> HD.value HD.text <*> HD.value HD.text
+                      <*> HD.value HD.bool
+
+doesProcExist :: H.Query QualifiedIdentifier Bool
+doesProcExist =
+  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+ where
+  sql = [q| SELECT EXISTS (
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
       WHERE  nspname = ?
       AND    proname = ?
-    |]
+    ) |]
 
-doesProcReturnJWT :: QualifiedIdentifier -> H.Session Bool
-doesProcReturnJWT = doesProc [H.stmt|
+doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
+doesProcReturnJWT =
+  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+ where
+  sql = [q| SELECT EXISTS (
       SELECT 1
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
@@ -67,7 +85,7 @@ doesProcReturnJWT = doesProc [H.stmt|
       WHERE  nspname = ?
       AND    proname = ?
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
-    |]
+    ) |]
 
 accessibleTables :: Schema -> H.Tx P.Postgres s [Table]
 accessibleTables schema = do
