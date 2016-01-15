@@ -53,12 +53,12 @@ encodeQi =
   contramap qiSchema (HE.value HE.text) <>
   contramap qiName   (HE.value HE.text)
 
-decodeTable :: HD.Result Table
-decodeTable =
-  HD.singleRow standardRow
+decodeTables :: HD.Result [Table]
+decodeTables =
+  HD.rowsList tblRow
  where
-  standardRow = Table <$> HD.value HD.text <*> HD.value HD.text
-                      <*> HD.value HD.bool
+  tblRow = Table <$> HD.value HD.text <*> HD.value HD.text
+                 <*> HD.value HD.bool
 
 doesProcExist :: H.Query QualifiedIdentifier Bool
 doesProcExist =
@@ -87,33 +87,33 @@ doesProcReturnJWT =
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     ) |]
 
-accessibleTables :: Schema -> H.Tx P.Postgres s [Table]
-accessibleTables schema = do
-  rows <- H.listEx $
-    [H.stmt|
-      select
-        n.nspname as table_schema,
-        relname as table_name,
-        c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
-        or (exists (
-           select 1
-           from pg_trigger
-           where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
-        ) as insertable
-      from
-        pg_class c
-        join pg_namespace n on n.oid = c.relnamespace
-      where
-        c.relkind in ('v', 'r', 'm')
-        and n.nspname = ?
-        and (
-          pg_has_role(c.relowner, 'USAGE'::text)
-          or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
-          or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
-        )
-      order by relname
-    |] schema
-  return $ map tableFromRow rows
+accessibleTables :: H.Query Schema [Table]
+accessibleTables =
+  H.statement sql (HE.value HE.text) (HD.rowsList (HD.value HD.text)) True
+ where
+  sql = [q|
+    select
+      n.nspname as table_schema,
+      relname as table_name,
+      c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+      or (exists (
+         select 1
+         from pg_trigger
+         where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+      ) as insertable
+    from
+      pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+    where
+      c.relkind in ('v', 'r', 'm')
+      and n.nspname = $1
+      and (
+        pg_has_role(c.relowner, 'USAGE'::text)
+        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
+        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+      )
+    order by relname
+  |]
 
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
@@ -187,27 +187,27 @@ synonymousPrimaryKeys syns (key:keys) = key : newKeys ++ synonymousPrimaryKeys s
     keySyns = filter ((\c -> colTable c == pkTable key && colName c == pkName key) . fst) syns
     newKeys = map ((\c -> PrimaryKey{pkTable=colTable c,pkName=colName c}) . snd) keySyns
 
-allTables :: H.Session [Table]
-allTables = do
-    rows <- H.listEx $ [H.stmt|
-      SELECT
-        n.nspname AS table_schema,
-        c.relname AS table_name,
-        c.relkind = 'r' OR (c.relkind IN ('v','f'))
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-        OR (EXISTS
-          ( SELECT 1
-            FROM pg_trigger
-            WHERE pg_trigger.tgrelid = c.oid
-            AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable
-      FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE c.relkind IN ('v','r','m')
-        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-      GROUP BY table_schema, table_name, insertable
-      ORDER BY table_schema, table_name
-    |]
-    return $ map tableFromRow rows
+allTables :: H.Query () [Table]
+allTables =
+  H.statement sql HE.unit decodeTables True
+ where
+  sql = [q|
+    SELECT
+      n.nspname AS table_schema,
+      c.relname AS table_name,
+      c.relkind = 'r' OR (c.relkind IN ('v','f'))
+      AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+      OR (EXISTS
+        ( SELECT 1
+          FROM pg_trigger
+          WHERE pg_trigger.tgrelid = c.oid
+          AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('v','r','m')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+    GROUP BY table_schema, table_name, insertable
+    ORDER BY table_schema, table_name |]
 
 tableFromRow :: (Text, Text, Bool) -> Table
 tableFromRow (s, n, i) = Table s n i
