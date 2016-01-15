@@ -367,6 +367,17 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
 
+      it "can set a json column to escaped value" $ do
+        _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
+        request methodPatch "/json?data->>escaped=eq.bar"
+                     [("Prefer", "return=representation")]
+                     [json| { "data": { "escaped":" \"bar" } } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| [{ "data": { "escaped":" \"bar" } }] |]
+          , matchStatus  = 200
+          , matchHeaders = []
+          }
+
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
       let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
