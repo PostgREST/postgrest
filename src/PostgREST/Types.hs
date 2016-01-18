@@ -5,7 +5,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString      as BS
 import qualified Data.Vector          as V
 import Data.Aeson
-import GHC.Int (Int32)
+import Data.Int (Int32)
 
 data DbStructure = DbStructure {
   dbTables :: [Table]

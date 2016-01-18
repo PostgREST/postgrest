@@ -26,7 +26,7 @@ import qualified Hasql.Session          as H
 import           PostgREST.Types
 
 import           GHC.Exts               (groupWith)
-import           GHC.Int                (Int32)
+import           Data.Int               (Int32)
 import           Prelude
 
 getDbStructure :: Schema -> H.Session DbStructure

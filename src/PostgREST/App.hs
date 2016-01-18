@@ -10,8 +10,6 @@ import           Control.Applicative
 import           Control.Arrow             ((***))
 import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
-import qualified Data.ByteString.Lazy      as BL
-import           Data.Functor.Identity
 import           Data.List                 (find, sortBy, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ord                  (comparing)
@@ -33,7 +31,7 @@ import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
-import qualified Hasql.Connection          as H
+import qualified Hasql.Session             as H
 
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
@@ -47,8 +45,7 @@ import           PostgREST.Types
 import           PostgREST.Auth            (tokenJWT)
 import           PostgREST.Error           (errResponse)
 
-import           PostgREST.QueryBuilder ( asJson
-                                        , callProc
+import           PostgREST.QueryBuilder ( callProc
                                         , addJoinConditions
                                         , sourceCTEName
                                         , requestToQuery
@@ -56,11 +53,12 @@ import           PostgREST.QueryBuilder ( asJson
                                         , addRelations
                                         , createReadStatement
                                         , createWriteStatement
+                                        , ResultsWithCount
                                         )
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Tx P.Postgres s Response
+app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Session Response
 app dbStructure conf reqBody req =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
@@ -80,17 +78,17 @@ app dbStructure conf reqBody req =
           if range == emptyRange
           then return $ errResponse status416 "HTTP Range error"
           else do
-            row <- H.maybeEx stm
-            let (tableTotal, queryTotal, _ , body) = extractQueryResult row
+            row <- H.query () stm
+            let (tableTotal, queryTotal, _ , body) = row
             if singular
             then return $ if queryTotal <= 0
               then responseLBS status404 [] ""
-              else responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
+              else responseLBS status200 [contentTypeH] (cs body)
             else do
-              let frm = rangeOffset range
-                  to = frm+queryTotal-1
-                  contentRange = contentRangeH frm to tableTotal
-                  status = rangeStatus frm to tableTotal
+              let frm = toInteger $ rangeOffset range
+                  to = frm+(toInteger queryTotal)-1
+                  contentRange = contentRangeH frm to (toInteger <$> tableTotal)
+                  status = rangeStatus frm to (toInteger <$> tableTotal)
                   canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
                     . sortBy (comparing fst)
                     . map (join (***) cs)
@@ -102,46 +100,47 @@ app dbStructure conf reqBody req =
                     "/" <> cs (qiName qi) <>
                       if Prelude.null canonical then "" else "?" <> cs canonical
                   )
-                ] (fromMaybe "[]" body)
+                ] (cs body)
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
-     Just payload@(PayloadJSON (UniformObjects rows))) ->
+     Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
-          row <- H.maybeEx stm
+          row <- H.query uniform stm
           let (_, _, location, body) = extractQueryResult row
           return $ responseLBS status201
             [
               contentTypeH,
-              (hLocation, "/" <> cs table <> "?" <> cs (fromMaybe "" location))
+              (hLocation, "/" <> cs table <> "?" <> cs location)
             ]
-            $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
+            $ if iPreferRepresentation apiRequest == Full then cs body else ""
 
-    (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON _)) ->
+    (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
-          row <- H.maybeEx stm
+          row <- H.query uniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 0 (queryTotal-1) (Just queryTotal)
+              r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
           return $ responseLBS s [contentTypeH, r]
-            $ if iPreferRepresentation apiRequest == Full then fromMaybe "[]" body else ""
+            $ if iPreferRepresentation apiRequest == Full then cs body else ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let fakeload = PayloadJSON $ UniformObjects V.empty
+          let emptyUniform = UniformObjects V.empty
+          let fakeload = PayloadJSON $ emptyUniform
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
-          row <- H.maybeEx stm
+          row <- H.query emptyUniform stm
           let (_, queryTotal, _, _) = extractQueryResult row
           return $ if queryTotal == 0
             then notFound
@@ -158,25 +157,23 @@ app dbStructure conf reqBody req =
 
     (ActionInvoke, TargetIdent qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
-      exists <- doesProcExist qi
+      exists <- H.query qi doesProcExist
       if exists
         then do
           let p = V.head payload
-              call = B.Stmt "select " V.empty True <>
-                asJson (callProc qi p)
               jwtSecret = configJwtSecret conf
 
-          bodyJson :: Maybe (Identity Value) <- H.maybeEx call
-          returnJWT <- doesProcReturnJWT qi
+          bodyJson <- H.query () (callProc qi p)
+          returnJWT <- H.query qi doesProcReturnJWT
           return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray $ runIdentity <$> bodyJson in
+                 (let body = fromMaybe emptyArray $ bodyJson in
                     if returnJWT
                     then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                     else cs $ encode body)
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- encode <$> accessibleTables (cs schema)
+      body <- encode <$> H.query schema accessibleTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionUnknown _, _, _) -> return notFound
@@ -204,14 +201,14 @@ app dbStructure conf reqBody req =
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
-rangeStatus :: Int -> Int -> Maybe Int -> Status
+rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200
 rangeStatus frm to (Just total)
   | frm > total            = status416
   | (1 + to - frm) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Int -> Int -> Maybe Int -> Header
+contentRangeH :: Integer -> Integer -> Maybe Integer -> Header
 contentRangeH frm to total =
     ("Content-Range", cs headerValue)
     where
@@ -333,6 +330,5 @@ instance ToJSON TableOptions where
     , "pkey"   .= tblOptpkey t ]
 
 
-extractQueryResult :: Maybe (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
-                         -> (Maybe Int, Int, Maybe BL.ByteString, Maybe BL.ByteString)
-extractQueryResult = fromMaybe (Just 0, 0, Just "", Just "")
+extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
+extractQueryResult = fromMaybe (Nothing, 0, "", "")

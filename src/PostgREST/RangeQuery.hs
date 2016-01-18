@@ -24,7 +24,7 @@ import           Data.Maybe                (fromMaybe, listToMaybe)
 
 import           Prelude
 
-type NonnegRange = Range Int
+type NonnegRange = Range Integer
 
 rangeParse :: BS.ByteString -> NonnegRange
 rangeParse range = do
@@ -41,28 +41,28 @@ rangeParse range = do
 rangeRequested :: RequestHeaders -> NonnegRange
 rangeRequested = rangeParse . fromMaybe "" . lookup hRange
 
-restrictRange :: Maybe Int -> NonnegRange -> NonnegRange
+restrictRange :: Maybe Integer -> NonnegRange -> NonnegRange
 restrictRange Nothing r = r
 restrictRange (Just limit) r =
   rangeIntersection r $
     Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
 
-rangeLimit :: NonnegRange -> Maybe Int
+rangeLimit :: NonnegRange -> Maybe Integer
 rangeLimit range =
   case [rangeLower range, rangeUpper range] of
     [BoundaryBelow from, BoundaryAbove to] -> Just (1 + to - from)
     _ -> Nothing
 
-rangeOffset :: NonnegRange -> Int
+rangeOffset :: NonnegRange -> Integer
 rangeOffset range =
   case rangeLower range of
     BoundaryBelow from -> from
     _ -> error "range without lower bound" -- should never happen
 
-rangeGeq :: Int -> NonnegRange
+rangeGeq :: Integer -> NonnegRange
 rangeGeq n =
   Range (BoundaryBelow n) BoundaryAboveAll
 
-rangeLeq :: Int -> NonnegRange
+rangeLeq :: Integer -> NonnegRange
 rangeLeq n =
   Range BoundaryBelowAll (BoundaryAbove n)

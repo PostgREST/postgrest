@@ -15,7 +15,6 @@ Any function that outputs a SQL fragment should be in this module.
 module PostgREST.QueryBuilder (
     addRelations
   , addJoinConditions
-  , asJson
   , callProc
   , createReadStatement
   , createWriteStatement
@@ -26,6 +25,7 @@ module PostgREST.QueryBuilder (
   , requestToCountQuery
   , sourceCTEName
   , unquoted
+  , ResultsWithCount
   ) where
 
 import qualified Hasql.Query             as H
@@ -62,7 +62,7 @@ import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 
 {-| The generic query result format used by API responses -}
-type ResultsWithCount = (Int64, Int64, BS.ByteString, BS.ByteString)
+type ResultsWithCount = (Maybe Int64, Int64, BS.ByteString, BS.ByteString)
 
 {-| Read and Write api requests use a similar response format which includes
     various record counts and possible location header. This is the decoder
@@ -72,7 +72,14 @@ decodeStandard :: HD.Result ResultsWithCount
 decodeStandard =
   HD.singleRow standardRow
  where
-  standardRow = (,,,) <$> HD.value HD.int8 <*> HD.value HD.int8
+  standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
+                      <*> HD.value HD.bytea <*> HD.value HD.bytea
+
+decodeStandardMay :: HD.Result (Maybe ResultsWithCount)
+decodeStandardMay =
+  HD.maybeRow standardRow
+ where
+  standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                       <*> HD.value HD.bytea <*> HD.value HD.bytea
 
 {-| JSON and CSV payloads from the client are given to us as
@@ -105,11 +112,11 @@ createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
 
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
                         PreferRepresentation -> [Text] -> Bool -> Payload ->
-                        H.Query UniformObjects ResultsWithCount
+                        H.Query UniformObjects (Maybe ResultsWithCount)
 createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
 createWriteStatement _ _ mutateQuery _ None
                      _ _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandard True
+  H.statement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
@@ -117,7 +124,7 @@ createWriteStatement _ _ mutateQuery _ None
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandard True
+  H.statement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
@@ -132,7 +139,7 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
                      pKeys asCsv (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandard True
+  H.statement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
@@ -196,19 +203,18 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-asJson :: BS.ByteString -> BS.ByteString
-asJson _sql =
-  [q| SELECT array_to_json(
-        coalesce(array_agg(row_to_json(t)), '{}')
-      )::character varying
-      from ({_sql}) t |]
-
-callProc :: QualifiedIdentifier -> JSON.Object -> BS.ByteString
-callProc qi params = do
-  [qc| select * from {fromQi qi}({args}) |]
+callProc :: QualifiedIdentifier -> JSON.Object -> H.Query () (Maybe JSON.Value)
+callProc qi params =
+  H.statement sql HE.unit decodeObj True
   where
-    args = intercalate "," $ map assignment (HM.toList params)
-    assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
+    sql = [q| SELECT array_to_json(
+                coalesce(array_agg(row_to_json(t)), '{}')
+              )::character varying
+              from ({_callSql}) t |]
+    _args = intercalate "," $ map _assignment (HM.toList params)
+    _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
+    _callSql = [qc| select * from {fromQi qi}({_args}) |] :: BS.ByteString
+    decodeObj = HD.maybeRow (HD.value HD.json)
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -327,7 +333,7 @@ requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects row
     "INSERT INTO ", fromQi qi,
     " (" <> colsString <> ")" <>
     " SELECT " <> colsString <>
-    " FROM json_populate_recordset(null::" , fromQi qi, ", ?)"
+    " FROM json_populate_recordset(null::" , fromQi qi, ", $1)"
     ]
 requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
@@ -393,8 +399,7 @@ locationF pKeys =
       if null pKeys
       then ""
       else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
-    ) <>
-    ")"
+    ) <> ")"
 
 limitF :: NonnegRange -> SqlFragment
 limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
