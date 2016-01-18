@@ -5,6 +5,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString      as BS
 import qualified Data.Vector          as V
 import Data.Aeson
+import GHC.Int (Int32)
 
 data DbStructure = DbStructure {
   dbTables :: [Table]
@@ -31,12 +32,12 @@ data Column =
     Column {
       colTable     :: Table
     , colName      :: Text
-    , colPosition  :: Int
+    , colPosition  :: Int32
     , colNullable  :: Bool
     , colType      :: Text
     , colUpdatable :: Bool
-    , colMaxLen    :: Maybe Int
-    , colPrecision :: Maybe Int
+    , colMaxLen    :: Maybe Int32
+    , colPrecision :: Maybe Int32
     , colDefault   :: Maybe Text
     , colEnum      :: [Text]
     , colFK        :: Maybe ForeignKey

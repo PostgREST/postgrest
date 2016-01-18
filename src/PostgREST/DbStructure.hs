@@ -15,9 +15,8 @@ import qualified Hasql.Encoders          as HE
 import qualified Hasql.Decoders          as HD
 
 import           Control.Applicative
-import           Control.Monad          (join)
+import           Control.Monad          (join, replicateM)
 import           Data.Functor.Contravariant (contramap)
-import           Data.Functor.Identity
 import           Text.InterpolatedString.Perl6 (q)
 import           Data.List              (elemIndex, find, subsequences, sort, transpose)
 import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
@@ -30,13 +29,13 @@ import           GHC.Exts               (groupWith)
 import           GHC.Int                (Int32)
 import           Prelude
 
-getDbStructure :: Schema -> H.Query () DbStructure
+getDbStructure :: Schema -> H.Session DbStructure
 getDbStructure schema = do
-  tabs <- allTables
-  cols <- allColumns tabs
-  syns <- allSynonyms cols
-  rels <- allRelations tabs cols
-  keys <- allPrimaryKeys tabs
+  tabs <- H.query () $ allTables
+  cols <- H.query () $ allColumns tabs
+  syns <- H.query () $ allSynonyms cols
+  rels <- H.query () $ allRelations tabs cols
+  keys <- H.query () $ allPrimaryKeys tabs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -83,10 +82,10 @@ decodeRelations tables cols =
   relRow = (,,,,,)
     <$> HD.value HD.text
     <*> HD.value HD.text
-    <*> HD.value (HD.array $ HD.arrayValue HD.text)
+    <*> HD.value (HD.array (HD.arrayDimension replicateM (HD.arrayValue HD.text)))
     <*> HD.value HD.text
     <*> HD.value HD.text
-    <*> HD.value (HD.array $ HD.arrayValue HD.text)
+    <*> HD.value (HD.array (HD.arrayDimension replicateM (HD.arrayValue HD.text)))
 
 decodePks :: [Table] -> HD.Result [PrimaryKey]
 decodePks tables =
@@ -132,7 +131,7 @@ doesProcReturnJWT =
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
-  H.statement sql (HE.value HE.text) (HD.rowsList (HD.value HD.text)) True
+  H.statement sql (HE.value HE.text) decodeTables True
  where
   sql = [q|
     select
@@ -155,8 +154,7 @@ accessibleTables =
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
         or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
       )
-    order by relname
-  |]
+    order by relname |]
 
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
