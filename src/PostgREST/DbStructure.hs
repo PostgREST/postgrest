@@ -27,9 +27,10 @@ import qualified Hasql.Session          as H
 import           PostgREST.Types
 
 import           GHC.Exts               (groupWith)
+import           GHC.Int                (Int32)
 import           Prelude
 
-getDbStructure :: Schema -> H.Session DbStructure
+getDbStructure :: Schema -> H.Query () DbStructure
 getDbStructure schema = do
   tabs <- allTables
   cols <- allColumns tabs
@@ -59,6 +60,48 @@ decodeTables =
  where
   tblRow = Table <$> HD.value HD.text <*> HD.value HD.text
                  <*> HD.value HD.bool
+
+decodeColumns :: [Table] -> HD.Result [Column]
+decodeColumns tables =
+  mapMaybe (columnFromRow tables) <$> HD.rowsList colRow
+ where
+  colRow =
+    (,,,,,,,,,,)
+      <$> HD.value HD.text <*> HD.value HD.text
+      <*> HD.value HD.text <*> HD.value HD.int4
+      <*> HD.value HD.bool <*> HD.value HD.text
+      <*> HD.value HD.bool
+      <*> HD.nullableValue HD.int4
+      <*> HD.nullableValue HD.int4
+      <*> HD.nullableValue HD.text
+      <*> HD.nullableValue HD.text
+
+decodeRelations :: [Table] -> [Column] -> HD.Result [Relation]
+decodeRelations tables cols =
+  mapMaybe (relationFromRow tables cols) <$> HD.rowsList relRow
+ where
+  relRow = (,,,,,)
+    <$> HD.value HD.text
+    <*> HD.value HD.text
+    <*> HD.value (HD.array $ HD.arrayValue HD.text)
+    <*> HD.value HD.text
+    <*> HD.value HD.text
+    <*> HD.value (HD.array $ HD.arrayValue HD.text)
+
+decodePks :: [Table] -> HD.Result [PrimaryKey]
+decodePks tables =
+  mapMaybe (pkFromRow tables) <$> HD.rowsList pkRow
+ where
+  pkRow = (,,) <$> HD.value HD.text <*> HD.value HD.text <*> HD.value HD.text
+
+decodeSynonyms :: [Column] -> HD.Result [(Column,Column)]
+decodeSynonyms cols =
+  mapMaybe (synonymFromRow cols) <$> HD.rowsList synRow
+ where
+  synRow = (,,,,,)
+    <$> HD.value HD.text <*> HD.value HD.text
+    <*> HD.value HD.text <*> HD.value HD.text
+    <*> HD.value HD.text <*> HD.value HD.text
 
 doesProcExist :: H.Query QualifiedIdentifier Bool
 doesProcExist =
@@ -209,151 +252,148 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-tableFromRow :: (Text, Text, Bool) -> Table
-tableFromRow (s, n, i) = Table s n i
-
-allColumns :: [Table] -> H.Session [Column]
+allColumns :: [Table] -> H.Query () [Column]
 allColumns tabs = do
-  cols <- H.listEx $ [H.stmt|
-      SELECT DISTINCT
-          info.table_schema AS schema,
-          info.table_name AS table_name,
-          info.column_name AS name,
-          info.ordinal_position AS position,
-          info.is_nullable::boolean AS nullable,
-          info.data_type AS col_type,
-          info.is_updatable::boolean AS updatable,
-          info.character_maximum_length AS max_len,
-          info.numeric_precision AS precision,
-          info.column_default AS default_value,
-          array_to_string(enum_info.vals, ',') AS enum
-      FROM (
-          /*
-          -- CTE based on information_schema.columns to remove the owner filter
-          */
-          WITH columns AS (
-              SELECT current_database()::information_schema.sql_identifier AS table_catalog,
-                  nc.nspname::information_schema.sql_identifier AS table_schema,
-                  c.relname::information_schema.sql_identifier AS table_name,
-                  a.attname::information_schema.sql_identifier AS column_name,
-                  a.attnum::information_schema.cardinal_number AS ordinal_position,
-                  pg_get_expr(ad.adbin, ad.adrelid)::information_schema.character_data AS column_default,
-                      CASE
-                          WHEN a.attnotnull OR t.typtype = 'd'::"char" AND t.typnotnull THEN 'NO'::text
-                          ELSE 'YES'::text
-                      END::information_schema.yes_or_no AS is_nullable,
-                      CASE
-                          WHEN t.typtype = 'd'::"char" THEN
-                          CASE
-                              WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
-                              WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                              ELSE 'USER-DEFINED'::text
-                          END
-                          ELSE
-                          CASE
-                              WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
-                              WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                              ELSE 'USER-DEFINED'::text
-                          END
-                      END::information_schema.character_data AS data_type,
-                  information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
-                  information_schema._pg_char_octet_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_octet_length,
-                  information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision,
-                  information_schema._pg_numeric_precision_radix(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision_radix,
-                  information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_scale,
-                  information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS datetime_precision,
-                  information_schema._pg_interval_type(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.character_data AS interval_type,
-                  NULL::integer::information_schema.cardinal_number AS interval_precision,
-                  NULL::character varying::information_schema.sql_identifier AS character_set_catalog,
-                  NULL::character varying::information_schema.sql_identifier AS character_set_schema,
-                  NULL::character varying::information_schema.sql_identifier AS character_set_name,
-                      CASE
-                          WHEN nco.nspname IS NOT NULL THEN current_database()
-                          ELSE NULL::name
-                      END::information_schema.sql_identifier AS collation_catalog,
-                  nco.nspname::information_schema.sql_identifier AS collation_schema,
-                  co.collname::information_schema.sql_identifier AS collation_name,
-                      CASE
-                          WHEN t.typtype = 'd'::"char" THEN current_database()
-                          ELSE NULL::name
-                      END::information_schema.sql_identifier AS domain_catalog,
-                      CASE
-                          WHEN t.typtype = 'd'::"char" THEN nt.nspname
-                          ELSE NULL::name
-                      END::information_schema.sql_identifier AS domain_schema,
-                      CASE
-                          WHEN t.typtype = 'd'::"char" THEN t.typname
-                          ELSE NULL::name
-                      END::information_schema.sql_identifier AS domain_name,
-                  current_database()::information_schema.sql_identifier AS udt_catalog,
-                  COALESCE(nbt.nspname, nt.nspname)::information_schema.sql_identifier AS udt_schema,
-                  COALESCE(bt.typname, t.typname)::information_schema.sql_identifier AS udt_name,
-                  NULL::character varying::information_schema.sql_identifier AS scope_catalog,
-                  NULL::character varying::information_schema.sql_identifier AS scope_schema,
-                  NULL::character varying::information_schema.sql_identifier AS scope_name,
-                  NULL::integer::information_schema.cardinal_number AS maximum_cardinality,
-                  a.attnum::information_schema.sql_identifier AS dtd_identifier,
-                  'NO'::character varying::information_schema.yes_or_no AS is_self_referencing,
-                  'NO'::character varying::information_schema.yes_or_no AS is_identity,
-                  NULL::character varying::information_schema.character_data AS identity_generation,
-                  NULL::character varying::information_schema.character_data AS identity_start,
-                  NULL::character varying::information_schema.character_data AS identity_increment,
-                  NULL::character varying::information_schema.character_data AS identity_maximum,
-                  NULL::character varying::information_schema.character_data AS identity_minimum,
-                  NULL::character varying::information_schema.yes_or_no AS identity_cycle,
-                  'NEVER'::character varying::information_schema.character_data AS is_generated,
-                  NULL::character varying::information_schema.character_data AS generation_expression,
-                  CASE
-                      WHEN c.relkind = 'r'::"char" OR (c.relkind = ANY (ARRAY['v'::"char", 'f'::"char"])) AND pg_column_is_updatable(c.oid::regclass, a.attnum, false) THEN 'YES'::text
-                      ELSE 'NO'::text
-                  END::information_schema.yes_or_no AS is_updatable
-              FROM pg_attribute a
-                 LEFT JOIN pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
-                 JOIN (pg_class c
-                 JOIN pg_namespace nc ON c.relnamespace = nc.oid) ON a.attrelid = c.oid
-                 JOIN (pg_type t
-                 JOIN pg_namespace nt ON t.typnamespace = nt.oid) ON a.atttypid = t.oid
-                 LEFT JOIN (pg_type bt
-                 JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
-                 LEFT JOIN (pg_collation co
-                 JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
-              WHERE NOT pg_is_other_temp_schema(nc.oid) AND a.attnum > 0 AND NOT a.attisdropped AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
-                /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
-          )
-          SELECT
-              table_schema,
-              table_name,
-              column_name,
-              ordinal_position,
-              is_nullable,
-              data_type,
-              is_updatable,
-              character_maximum_length,
-              numeric_precision,
-              column_default,
-              udt_name
-          /*-- FROM information_schema.columns*/
-          FROM columns
-          WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-      ) AS info
-      LEFT OUTER JOIN (
-          SELECT
-              n.nspname AS s,
-              t.typname AS n,
-              array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
-          FROM pg_type t
-          JOIN pg_enum e ON t.oid = e.enumtypid
-          JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-          GROUP BY s,n
-      ) AS enum_info ON (info.udt_name = enum_info.n)
-      ORDER BY schema, position
-  |]
-  return $ mapMaybe (columnFromRow tabs) cols
+  H.statement sql HE.unit (decodeColumns tabs) True
+ where
+  sql = [q|
+    SELECT DISTINCT
+        info.table_schema AS schema,
+        info.table_name AS table_name,
+        info.column_name AS name,
+        info.ordinal_position AS position,
+        info.is_nullable::boolean AS nullable,
+        info.data_type AS col_type,
+        info.is_updatable::boolean AS updatable,
+        info.character_maximum_length AS max_len,
+        info.numeric_precision AS precision,
+        info.column_default AS default_value,
+        array_to_string(enum_info.vals, ',') AS enum
+    FROM (
+        /*
+        -- CTE based on information_schema.columns to remove the owner filter
+        */
+        WITH columns AS (
+            SELECT current_database()::information_schema.sql_identifier AS table_catalog,
+                nc.nspname::information_schema.sql_identifier AS table_schema,
+                c.relname::information_schema.sql_identifier AS table_name,
+                a.attname::information_schema.sql_identifier AS column_name,
+                a.attnum::information_schema.cardinal_number AS ordinal_position,
+                pg_get_expr(ad.adbin, ad.adrelid)::information_schema.character_data AS column_default,
+                    CASE
+                        WHEN a.attnotnull OR t.typtype = 'd'::"char" AND t.typnotnull THEN 'NO'::text
+                        ELSE 'YES'::text
+                    END::information_schema.yes_or_no AS is_nullable,
+                    CASE
+                        WHEN t.typtype = 'd'::"char" THEN
+                        CASE
+                            WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
+                            WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
+                            ELSE 'USER-DEFINED'::text
+                        END
+                        ELSE
+                        CASE
+                            WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
+                            WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
+                            ELSE 'USER-DEFINED'::text
+                        END
+                    END::information_schema.character_data AS data_type,
+                information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
+                information_schema._pg_char_octet_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_octet_length,
+                information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision,
+                information_schema._pg_numeric_precision_radix(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision_radix,
+                information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_scale,
+                information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS datetime_precision,
+                information_schema._pg_interval_type(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.character_data AS interval_type,
+                NULL::integer::information_schema.cardinal_number AS interval_precision,
+                NULL::character varying::information_schema.sql_identifier AS character_set_catalog,
+                NULL::character varying::information_schema.sql_identifier AS character_set_schema,
+                NULL::character varying::information_schema.sql_identifier AS character_set_name,
+                    CASE
+                        WHEN nco.nspname IS NOT NULL THEN current_database()
+                        ELSE NULL::name
+                    END::information_schema.sql_identifier AS collation_catalog,
+                nco.nspname::information_schema.sql_identifier AS collation_schema,
+                co.collname::information_schema.sql_identifier AS collation_name,
+                    CASE
+                        WHEN t.typtype = 'd'::"char" THEN current_database()
+                        ELSE NULL::name
+                    END::information_schema.sql_identifier AS domain_catalog,
+                    CASE
+                        WHEN t.typtype = 'd'::"char" THEN nt.nspname
+                        ELSE NULL::name
+                    END::information_schema.sql_identifier AS domain_schema,
+                    CASE
+                        WHEN t.typtype = 'd'::"char" THEN t.typname
+                        ELSE NULL::name
+                    END::information_schema.sql_identifier AS domain_name,
+                current_database()::information_schema.sql_identifier AS udt_catalog,
+                COALESCE(nbt.nspname, nt.nspname)::information_schema.sql_identifier AS udt_schema,
+                COALESCE(bt.typname, t.typname)::information_schema.sql_identifier AS udt_name,
+                NULL::character varying::information_schema.sql_identifier AS scope_catalog,
+                NULL::character varying::information_schema.sql_identifier AS scope_schema,
+                NULL::character varying::information_schema.sql_identifier AS scope_name,
+                NULL::integer::information_schema.cardinal_number AS maximum_cardinality,
+                a.attnum::information_schema.sql_identifier AS dtd_identifier,
+                'NO'::character varying::information_schema.yes_or_no AS is_self_referencing,
+                'NO'::character varying::information_schema.yes_or_no AS is_identity,
+                NULL::character varying::information_schema.character_data AS identity_generation,
+                NULL::character varying::information_schema.character_data AS identity_start,
+                NULL::character varying::information_schema.character_data AS identity_increment,
+                NULL::character varying::information_schema.character_data AS identity_maximum,
+                NULL::character varying::information_schema.character_data AS identity_minimum,
+                NULL::character varying::information_schema.yes_or_no AS identity_cycle,
+                'NEVER'::character varying::information_schema.character_data AS is_generated,
+                NULL::character varying::information_schema.character_data AS generation_expression,
+                CASE
+                    WHEN c.relkind = 'r'::"char" OR (c.relkind = ANY (ARRAY['v'::"char", 'f'::"char"])) AND pg_column_is_updatable(c.oid::regclass, a.attnum, false) THEN 'YES'::text
+                    ELSE 'NO'::text
+                END::information_schema.yes_or_no AS is_updatable
+            FROM pg_attribute a
+               LEFT JOIN pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+               JOIN (pg_class c
+               JOIN pg_namespace nc ON c.relnamespace = nc.oid) ON a.attrelid = c.oid
+               JOIN (pg_type t
+               JOIN pg_namespace nt ON t.typnamespace = nt.oid) ON a.atttypid = t.oid
+               LEFT JOIN (pg_type bt
+               JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
+               LEFT JOIN (pg_collation co
+               JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
+            WHERE NOT pg_is_other_temp_schema(nc.oid) AND a.attnum > 0 AND NOT a.attisdropped AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+              /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
+        )
+        SELECT
+            table_schema,
+            table_name,
+            column_name,
+            ordinal_position,
+            is_nullable,
+            data_type,
+            is_updatable,
+            character_maximum_length,
+            numeric_precision,
+            column_default,
+            udt_name
+        /*-- FROM information_schema.columns*/
+        FROM columns
+        WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+    ) AS info
+    LEFT OUTER JOIN (
+        SELECT
+            n.nspname AS s,
+            t.typname AS n,
+            array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+        GROUP BY s,n
+    ) AS enum_info ON (info.udt_name = enum_info.n)
+    ORDER BY schema, position |]
 
 columnFromRow :: [Table] ->
-                 (Text,       Text,      Text,
-                  Int,        Bool,      Text,
-                  Bool,       Maybe Int, Maybe Int,
+                 (Text,       Text,        Text,
+                  Int32,      Bool,        Text,
+                  Bool,       Maybe Int32, Maybe Int32,
                   Maybe Text, Maybe Text)
                  -> Maybe Column
 columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> table
@@ -363,9 +403,11 @@ columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> tab
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
-allRelations :: [Table] -> [Column] -> H.Session [Relation]
+allRelations :: [Table] -> [Column] -> H.Query () [Relation]
 allRelations tabs cols = do
-  rels <- H.listEx $ [H.stmt|
+  H.statement sql HE.unit (decodeRelations tabs cols) True
+ where
+  sql = [q|
     SELECT ns1.nspname AS table_schema,
            tab.relname AS table_name,
            column_info.cols AS columns,
@@ -389,9 +431,7 @@ allRelations tabs cols = do
        LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
        LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
     WHERE confrelid != 0
-    ORDER BY (conrelid, column_info.nums)
-  |]
-  return $ mapMaybe (relationFromRow tabs cols) rels
+    ORDER BY (conrelid, column_info.nums) |]
 
 relationFromRow :: [Table] -> [Column] -> (Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
 relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
@@ -404,119 +444,121 @@ relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> H.Session [PrimaryKey]
+allPrimaryKeys :: [Table] -> H.Query () [PrimaryKey]
 allPrimaryKeys tabs = do
-  pks <- H.listEx $ [H.stmt|
-      /*
-      -- CTE to replace information_schema.table_constraints to remove owner limit
-      */
-      WITH tc AS (
-          SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-              nc.nspname::information_schema.sql_identifier AS constraint_schema,
-              c.conname::information_schema.sql_identifier AS constraint_name,
-              current_database()::information_schema.sql_identifier AS table_catalog,
-              nr.nspname::information_schema.sql_identifier AS table_schema,
-              r.relname::information_schema.sql_identifier AS table_name,
-                  CASE c.contype
-                      WHEN 'c'::"char" THEN 'CHECK'::text
-                      WHEN 'f'::"char" THEN 'FOREIGN KEY'::text
-                      WHEN 'p'::"char" THEN 'PRIMARY KEY'::text
-                      WHEN 'u'::"char" THEN 'UNIQUE'::text
-                      ELSE NULL::text
-                  END::information_schema.character_data AS constraint_type,
-                  CASE
-                      WHEN c.condeferrable THEN 'YES'::text
-                      ELSE 'NO'::text
-                  END::information_schema.yes_or_no AS is_deferrable,
-                  CASE
-                      WHEN c.condeferred THEN 'YES'::text
-                      ELSE 'NO'::text
-                  END::information_schema.yes_or_no AS initially_deferred
-          FROM pg_namespace nc,
-              pg_namespace nr,
-              pg_constraint c,
-              pg_class r
-          WHERE nc.oid = c.connamespace AND nr.oid = r.relnamespace AND c.conrelid = r.oid AND (c.contype <> ALL (ARRAY['t'::"char", 'x'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
-          /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
-          UNION ALL
-          SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-              nr.nspname::information_schema.sql_identifier AS constraint_schema,
-              (((((nr.oid::text || '_'::text) || r.oid::text) || '_'::text) || a.attnum::text) || '_not_null'::text)::information_schema.sql_identifier AS constraint_name,
-              current_database()::information_schema.sql_identifier AS table_catalog,
-              nr.nspname::information_schema.sql_identifier AS table_schema,
-              r.relname::information_schema.sql_identifier AS table_name,
-              'CHECK'::character varying::information_schema.character_data AS constraint_type,
-              'NO'::character varying::information_schema.yes_or_no AS is_deferrable,
-              'NO'::character varying::information_schema.yes_or_no AS initially_deferred
-          FROM pg_namespace nr,
-              pg_class r,
-              pg_attribute a
-          WHERE nr.oid = r.relnamespace AND r.oid = a.attrelid AND a.attnotnull AND a.attnum > 0 AND NOT a.attisdropped AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
-          /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
-      ),
-      /*
-      -- CTE to replace information_schema.key_column_usage to remove owner limit
-      */
-      kc AS (
-          SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-              ss.nc_nspname::information_schema.sql_identifier AS constraint_schema,
-              ss.conname::information_schema.sql_identifier AS constraint_name,
-              current_database()::information_schema.sql_identifier AS table_catalog,
-              ss.nr_nspname::information_schema.sql_identifier AS table_schema,
-              ss.relname::information_schema.sql_identifier AS table_name,
-              a.attname::information_schema.sql_identifier AS column_name,
-              (ss.x).n::information_schema.cardinal_number AS ordinal_position,
-                  CASE
-                      WHEN ss.contype = 'f'::"char" THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
-                      ELSE NULL::integer
-                  END::information_schema.cardinal_number AS position_in_unique_constraint
-          FROM pg_attribute a,
-              ( SELECT r.oid AS roid,
-                  r.relname,
-                  r.relowner,
-                  nc.nspname AS nc_nspname,
-                  nr.nspname AS nr_nspname,
-                  c.oid AS coid,
-                  c.conname,
-                  c.contype,
-                  c.conindid,
-                  c.confkey,
-                  c.confrelid,
-                  information_schema._pg_expandarray(c.conkey) AS x
-                 FROM pg_namespace nr,
-                  pg_class r,
-                  pg_namespace nc,
-                  pg_constraint c
-                WHERE nr.oid = r.relnamespace AND r.oid = c.conrelid AND nc.oid = c.connamespace AND (c.contype = ANY (ARRAY['p'::"char", 'u'::"char", 'f'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)) ss
-          WHERE ss.roid = a.attrelid AND a.attnum = (ss.x).x AND NOT a.attisdropped
-          /*--AND (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
-      )
-      SELECT
-          kc.table_schema,
-          kc.table_name,
-          kc.column_name
-      FROM
-          /*
-          --information_schema.table_constraints tc,
-          --information_schema.key_column_usage kc
-          */
-          tc, kc
-      WHERE
-          tc.constraint_type = 'PRIMARY KEY' AND
-          kc.table_name = tc.table_name AND
-          kc.table_schema = tc.table_schema AND
-          kc.constraint_name = tc.constraint_name AND
-          kc.table_schema NOT IN ('pg_catalog', 'information_schema')
-    |]
-  return $ mapMaybe (pkFromRow tabs) pks
+  H.statement sql HE.unit (decodePks tabs) True
+ where
+  sql = [q|
+    /*
+    -- CTE to replace information_schema.table_constraints to remove owner limit
+    */
+    WITH tc AS (
+        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
+            nc.nspname::information_schema.sql_identifier AS constraint_schema,
+            c.conname::information_schema.sql_identifier AS constraint_name,
+            current_database()::information_schema.sql_identifier AS table_catalog,
+            nr.nspname::information_schema.sql_identifier AS table_schema,
+            r.relname::information_schema.sql_identifier AS table_name,
+                CASE c.contype
+                    WHEN 'c'::"char" THEN 'CHECK'::text
+                    WHEN 'f'::"char" THEN 'FOREIGN KEY'::text
+                    WHEN 'p'::"char" THEN 'PRIMARY KEY'::text
+                    WHEN 'u'::"char" THEN 'UNIQUE'::text
+                    ELSE NULL::text
+                END::information_schema.character_data AS constraint_type,
+                CASE
+                    WHEN c.condeferrable THEN 'YES'::text
+                    ELSE 'NO'::text
+                END::information_schema.yes_or_no AS is_deferrable,
+                CASE
+                    WHEN c.condeferred THEN 'YES'::text
+                    ELSE 'NO'::text
+                END::information_schema.yes_or_no AS initially_deferred
+        FROM pg_namespace nc,
+            pg_namespace nr,
+            pg_constraint c,
+            pg_class r
+        WHERE nc.oid = c.connamespace AND nr.oid = r.relnamespace AND c.conrelid = r.oid AND (c.contype <> ALL (ARRAY['t'::"char", 'x'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
+        /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
+        UNION ALL
+        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
+            nr.nspname::information_schema.sql_identifier AS constraint_schema,
+            (((((nr.oid::text || '_'::text) || r.oid::text) || '_'::text) || a.attnum::text) || '_not_null'::text)::information_schema.sql_identifier AS constraint_name,
+            current_database()::information_schema.sql_identifier AS table_catalog,
+            nr.nspname::information_schema.sql_identifier AS table_schema,
+            r.relname::information_schema.sql_identifier AS table_name,
+            'CHECK'::character varying::information_schema.character_data AS constraint_type,
+            'NO'::character varying::information_schema.yes_or_no AS is_deferrable,
+            'NO'::character varying::information_schema.yes_or_no AS initially_deferred
+        FROM pg_namespace nr,
+            pg_class r,
+            pg_attribute a
+        WHERE nr.oid = r.relnamespace AND r.oid = a.attrelid AND a.attnotnull AND a.attnum > 0 AND NOT a.attisdropped AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
+        /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
+    ),
+    /*
+    -- CTE to replace information_schema.key_column_usage to remove owner limit
+    */
+    kc AS (
+        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
+            ss.nc_nspname::information_schema.sql_identifier AS constraint_schema,
+            ss.conname::information_schema.sql_identifier AS constraint_name,
+            current_database()::information_schema.sql_identifier AS table_catalog,
+            ss.nr_nspname::information_schema.sql_identifier AS table_schema,
+            ss.relname::information_schema.sql_identifier AS table_name,
+            a.attname::information_schema.sql_identifier AS column_name,
+            (ss.x).n::information_schema.cardinal_number AS ordinal_position,
+                CASE
+                    WHEN ss.contype = 'f'::"char" THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
+                    ELSE NULL::integer
+                END::information_schema.cardinal_number AS position_in_unique_constraint
+        FROM pg_attribute a,
+            ( SELECT r.oid AS roid,
+                r.relname,
+                r.relowner,
+                nc.nspname AS nc_nspname,
+                nr.nspname AS nr_nspname,
+                c.oid AS coid,
+                c.conname,
+                c.contype,
+                c.conindid,
+                c.confkey,
+                c.confrelid,
+                information_schema._pg_expandarray(c.conkey) AS x
+               FROM pg_namespace nr,
+                pg_class r,
+                pg_namespace nc,
+                pg_constraint c
+              WHERE nr.oid = r.relnamespace AND r.oid = c.conrelid AND nc.oid = c.connamespace AND (c.contype = ANY (ARRAY['p'::"char", 'u'::"char", 'f'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)) ss
+        WHERE ss.roid = a.attrelid AND a.attnum = (ss.x).x AND NOT a.attisdropped
+        /*--AND (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
+    )
+    SELECT
+        kc.table_schema,
+        kc.table_name,
+        kc.column_name
+    FROM
+        /*
+        --information_schema.table_constraints tc,
+        --information_schema.key_column_usage kc
+        */
+        tc, kc
+    WHERE
+        tc.constraint_type = 'PRIMARY KEY' AND
+        kc.table_name = tc.table_name AND
+        kc.table_schema = tc.table_schema AND
+        kc.constraint_name = tc.constraint_name AND
+        kc.table_schema NOT IN ('pg_catalog', 'information_schema') |]
 
 pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Session [(Column,Column)]
-allSynonyms allCols = do
-  syns <- H.listEx $ [H.stmt|
+allSynonyms :: [Column] -> H.Query () [(Column,Column)]
+allSynonyms cols = do
+  H.statement sql HE.unit (decodeSynonyms cols) True
+ where
+  sql = [q|
     WITH synonyms AS (
       /*
       -- CTE to replace the view from information_schema because the information in it depended on the logged in role
@@ -578,9 +620,7 @@ allSynonyms allCols = do
         syn_table_schema, syn_table_name,
         (regexp_matches(view_definition, CONCAT('\.', src_column_name, '\sAS\s("?)(.+?)\1(,|$)'), 'gn'))[2] AS syn_column_name /* " <- for syntax highlighting */
       FROM synonyms
-    )
-    |]
-  return $ mapMaybe (synonymFromRow allCols) syns
+    ) |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)
 synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
