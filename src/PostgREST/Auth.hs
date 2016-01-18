@@ -21,6 +21,7 @@ module PostgREST.Auth (
 import           Control.Monad           (join)
 import           Data.Aeson              (Value (..), Object)
 import           Data.Aeson.Types        (emptyObject, emptyArray)
+import qualified Data.ByteString         as BS
 import           Data.Vector             as V (null, head)
 import           Data.Map                as M (fromList, toList)
 import           Data.Monoid             ((<>))
@@ -38,12 +39,12 @@ import qualified Data.HashMap.Lazy       as H
   this one is mapped to a SET ROLE statement.
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-claimsToSQL :: JWT.ClaimsMap -> [Text]
+claimsToSQL :: JWT.ClaimsMap -> [BS.ByteString]
 claimsToSQL = map setVar . toList
   where
     setVar ("role", String val) = setRole val
-    setVar (k, val) = "set local postgrest.claims." <> pgFmtIdent k <>
-                      " = " <> valueToVariable val <> ";"
+    setVar (k, val) = "set local postgrest.claims." <> cs (pgFmtIdent k) <>
+                      " = " <> cs (valueToVariable val) <> ";"
     valueToVariable = pgFmtLit . unquoted
 
 {-|
@@ -66,7 +67,7 @@ jwtClaims secret input time =
     customClaims = claim JWT.unregisteredClaims
 
 -- | Receives the name of a role and returns a SET ROLE statement
-setRole :: Text -> Text
+setRole :: Text -> BS.ByteString
 setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
 
 

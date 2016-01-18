@@ -24,27 +24,25 @@ import           PostgREST.Error               (errResponse)
 
 import           Prelude hiding(concat)
 
-import qualified Data.Vector             as V
 import qualified Data.Map.Lazy           as M
 
-runWithClaims :: forall s. AppConfig -> NominalDiffTime ->
+runWithClaims :: AppConfig -> NominalDiffTime ->
                  (Request -> H.Session Response) ->
                  Request -> H.Session Response
 runWithClaims conf time app req = do
-    _ <- H.unitEx $ stmt setAnon
+    H.sql setAnon
     case split (== ' ') (cs auth) of
       ("Bearer" : tokenStr : _) ->
         case jwtClaims jwtSecret tokenStr time of
           Just claims ->
             if M.member "role" claims
             then do
-              mapM_ H.unitEx $ stmt <$> claimsToSQL claims
+              mapM_ H.sql $ claimsToSQL claims
               app req
             else invalidJWT
           _ -> invalidJWT
       _ -> app req
   where
-    stmt c = B.Stmt c V.empty True
     hdrs = requestHeaders req
     jwtSecret = configJwtSecret conf
     auth = fromMaybe "" $ lookup hAuthorization hdrs
