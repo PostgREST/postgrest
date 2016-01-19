@@ -9,19 +9,20 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        prettyVersion,
                                                        readOptions)
 import           PostgREST.DbStructure
-import           PostgREST.Error                      (PgError, pgErrResponse)
+import           PostgREST.Error                      (errResponse, pgErrResponse)
 import           PostgREST.Middleware
 
 import           Control.Monad                        (unless, void)
-import           Control.Monad.IO.Class               (liftIO)
-import           Data.Aeson                           (encode)
-import           Data.Functor.Identity
 import           Data.Monoid                          ((<>))
+import           Data.Pool
 import           Data.String.Conversions              (cs)
-import           Data.Text                            (Text)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
-import qualified Hasql                                as H
-import qualified Hasql.Postgres                       as P
+import qualified Hasql.Query                          as H
+import qualified Hasql.Connection                     as H
+import qualified Hasql.Session                        as H
+import qualified Hasql.Decoders                       as HD
+import qualified Hasql.Encoders                       as HE
+import qualified Network.HTTP.Types.Status            as HT
 import           Network.Wai
 import           Network.Wai.Handler.Warp             hiding (Connection)
 import           Network.Wai.Middleware.RequestLogger (logStdout)
@@ -36,13 +37,14 @@ import           Control.Concurrent                   (myThreadId)
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
-isServerVersionSupported :: H.Session P.Postgres IO Bool
+isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
-  Identity (row :: Text) <- H.tx Nothing $ H.singleEx [H.stmt|SHOW server_version_num|]
-  return $ read (cs row) >= minimumPgVersion
-
-hasqlError :: PgError -> IO a
-hasqlError = error . cs . encode
+  ver <- H.query () pgVersion
+  return $ read (cs ver) >= minimumPgVersion
+ where
+  pgVersion =
+    H.statement "SHOW server_version_num"
+      HE.unit (HD.singleRow $ HD.value HD.text) True
 
 main :: IO ()
 main = do
@@ -58,40 +60,43 @@ main = do
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = P.StringSettings $ cs (configDatabase conf)
+  let pgSettings = cs (configDatabase conf)
       appSettings = setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
       middle = logStdout . defaultMiddle
 
-  poolSettings <- maybe (fail "Improper session settings") return $
-    H.poolSettings (fromIntegral $ configPool conf) 30
-  pool :: H.Pool P.Postgres <- H.acquirePool pgSettings poolSettings
+  pool <- createPool (H.acquire pgSettings)
+            (either (const $ return ()) H.release) 1 1 (configPool conf)
 
-  supportedOrError <- H.session pool isServerVersionSupported
-  either hasqlError
-    (\supported ->
-      unless supported $
-        error (
-          "Cannot run in this PostgreSQL version, PostgREST needs at least "
-          <> show minimumPgVersion)
-    ) supportedOrError
+  dbStructure <- withResource pool $ \case
+    Left err -> error $ show err
+    Right c -> do
+      supported <- H.run isServerVersionSupported c
+      case supported of
+        Left e -> error $ show e
+        Right good -> unless good $
+          error (
+            "Cannot run in this PostgreSQL version, PostgREST needs at least "
+            <> show minimumPgVersion)
+
+      dbOrError <- H.run (getDbStructure (cs $ configSchema conf)) c
+      either (error . show) return dbOrError
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
   void $ installHandler keyboardSignal (Catch $ do
-      H.releasePool pool
+      destroyAllResources pool
       throwTo tid UserInterrupt
     ) Nothing
 #endif
 
-  let txSettings = Just (H.ReadCommitted, Just True)
-  dbOrError <- H.session pool $ H.tx txSettings $ getDbStructure (cs $ configSchema conf)
-  dbStructure <- either hasqlError return dbOrError
-
   runSettings appSettings $ middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    resOrError <- liftIO $ H.session pool $ H.tx txSettings $
-      runWithClaims conf time (app dbStructure conf body) req
-    either (respond . pgErrResponse) respond resOrError
+    let handleReq = H.run (runWithClaims conf time (app dbStructure conf body) req)
+    withResource pool $ \case
+      Left err -> respond $ errResponse HT.status500 (cs . show $ err)
+      Right c -> do
+        resOrError <- handleReq c
+        either (respond . pgErrResponse) respond resOrError

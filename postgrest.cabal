@@ -28,7 +28,7 @@ executable postgrest
     ghc-options:       -Wall -W -O2
 
   main-is:             PostgREST/Main.hs
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, LambdaCase
   default-language:    Haskell2010
   build-depends:       aeson >= 0.8
                      , base >= 4.8 && < 5
@@ -36,13 +36,16 @@ executable postgrest
                      , case-insensitive
                      , cassava
                      , containers
+                     , contravariant
                      , errors
                      , hasql >= 0.19.3.1 && < 0.20
+                     , interpolatedstring-perl6
                      , jwt
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
                      , postgrest
                      , regex-tdfa
+                     , resource-pool
                      , safe >= 0.3 && < 0.4
                      , scientific
                      , string-conversions
@@ -166,6 +169,7 @@ Test-Suite spec
                      , case-insensitive
                      , cassava
                      , containers
+                     , contravariant
                      , errors
                      , hasql
                      , heredoc
@@ -174,6 +178,7 @@ Test-Suite spec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types
+                     , interpolatedstring-perl6
                      , jwt
                      , optparse-applicative
                      , packdeps

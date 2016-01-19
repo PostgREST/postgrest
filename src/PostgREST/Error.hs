@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (PgError, pgErrResponse, errResponse) where
+module PostgREST.Error (pgErrResponse, errResponse) where
 
 
 import           Data.Aeson                ((.=))
@@ -16,16 +16,14 @@ import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 
-type PgError = H.Error
-
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
 
-pgErrResponse :: PgError -> Response
+pgErrResponse :: H.Error -> Response
 pgErrResponse e = responseLBS (httpStatus e)
   [(hContentType, "application/json")] (JSON.encode e)
 
-instance JSON.ToJSON PgError where
+instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
     "code" .= (cs c::T.Text),
     "message" .= (cs m::T.Text),
@@ -53,7 +51,7 @@ instance JSON.ToJSON PgError where
     "message" .= ("Database client error"::String),
     "details" .= (fmap cs d::Maybe T.Text)]
 
-httpStatus :: PgError -> HT.Status
+httpStatus :: H.Error -> HT.Status
 httpStatus (H.ResultError (H.ServerError c _ _ _)) =
   case cs c of
     '0':'8':_ -> HT.status503 -- pg connection err
