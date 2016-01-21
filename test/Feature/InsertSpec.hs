@@ -10,7 +10,6 @@ import PostgREST.Types (DbStructure(..))
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
-import Data.Pool
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
@@ -19,8 +18,8 @@ import qualified Hasql.Connection  as H
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
-spec :: DbStructure -> Pool H.Connection -> Spec
-spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) $ do
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
   describe "Posting new record" $ do
     context "disparate csv types" $ do
       it "accepts disparate json types" $ do

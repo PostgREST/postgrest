@@ -1,6 +1,5 @@
 module Feature.QuerySpec where
 
-import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -12,8 +11,8 @@ import SpecHelper
 import PostgREST.Types (DbStructure(..))
 import Text.Heredoc
 
-spec :: DbStructure -> Pool H.Connection -> Spec
-spec struct pool = around (withApp cfgDefault struct pool) $ do
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = around (withApp cfgDefault struct c) $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $

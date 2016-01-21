@@ -1,7 +1,6 @@
 module Feature.AuthSpec where
 
 -- {{{ Imports
-import Data.Pool
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -12,8 +11,8 @@ import SpecHelper
 import PostgREST.Types (DbStructure(..))
 -- }}}
 
-spec :: DbStructure -> Pool H.Connection -> Spec
-spec struct pool = around (withApp cfgDefault struct pool)
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = around (withApp cfgDefault struct c)
   $ describe "authorization" $ do
 
   it "hides tables that anonymous does not own" $

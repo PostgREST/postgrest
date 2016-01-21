@@ -1,6 +1,5 @@
 module Feature.StructureSpec where
 
-import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -11,8 +10,8 @@ import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
 
-spec :: DbStructure -> Pool H.Connection -> Spec
-spec struct pool = around (withApp cfgDefault struct pool) $ do
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = around (withApp cfgDefault struct c) $ do
   describe "GET /" $ do
     it "lists views in schema" $
       request methodGet "/" [] ""

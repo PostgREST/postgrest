@@ -38,17 +38,16 @@ cfgDefault = cfg dbString Nothing
 cfgLimitRows :: Integer -> AppConfig
 cfgLimitRows = cfg dbString . Just
 
-withApp :: AppConfig -> DbStructure -> Pool H.Connection
+withApp :: AppConfig -> DbStructure -> H.Connection
         -> ActionWith Application -> IO ()
-withApp config dbStructure pool perform = do
+withApp config dbStructure c perform = do
   perform $ defaultMiddle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
     let handleReq = H.run (runWithClaims config time (app dbStructure config body) req)
 
-    withResource pool $ \c -> do
-      resOrError <- handleReq c
-      either (resp . pgErrResponse) resp resOrError
+    resOrError <- handleReq c
+    either (resp . pgErrResponse) resp resOrError
 
 setupDb :: IO ()
 setupDb = do

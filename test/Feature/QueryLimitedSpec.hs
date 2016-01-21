@@ -1,6 +1,5 @@
 module Feature.QueryLimitedSpec where
 
-import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -11,10 +10,10 @@ import qualified Hasql.Connection  as H
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 
-spec :: DbStructure -> Pool H.Connection -> Spec
-spec struct pool =
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c =
   beforeAll resetDb
-   . around (withApp (cfgLimitRows 3) struct pool) $
+   . around (withApp (cfgLimitRows 3) struct c) $
   describe "Requesting many items with server limits enabled" $ do
     it "restricts results" $
       get "/items"
