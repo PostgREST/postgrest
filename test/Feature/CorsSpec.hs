@@ -1,13 +1,12 @@
 module Feature.CorsSpec where
 
 -- {{{ Imports
+import Data.Pool
 import Test.Hspec
 import Test.Hspec.Wai
 import Network.Wai.Test (SResponse(simpleHeaders, simpleBody))
 import qualified Data.ByteString.Lazy as BL
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
@@ -15,7 +14,7 @@ import PostgREST.Types (DbStructure(..))
 import Network.HTTP.Types
 -- }}}
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool = around (withApp cfgDefault struct pool) $ describe "CORS" $ do
     let preflightHeaders = [
           ("Accept", "*/*"),

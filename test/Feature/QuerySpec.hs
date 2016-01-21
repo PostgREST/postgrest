@@ -1,19 +1,18 @@
 module Feature.QuerySpec where
 
+import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders))
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 import Text.Heredoc
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool = around (withApp cfgDefault struct pool) $ do
 
   describe "Querying a table with a column called count" $

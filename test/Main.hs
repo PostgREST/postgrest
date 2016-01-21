@@ -18,7 +18,7 @@ main :: IO ()
 main = do
   setupDb
 
-  pool <- specDbPool
+  pool <- testPool
   dbStructure <- specDbStructure pool
 
   -- Not using hspec-discover because we want to precompute

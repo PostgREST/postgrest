@@ -5,22 +5,21 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
-import Hasql as H
-import Hasql.Postgres as P
-
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
+import Data.Pool
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 import Control.Monad (replicateM_)
+import qualified Hasql.Connection  as H
 
 import TestTypes(IncPK(..), CompoundPK(..))
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) $ do
   describe "Posting new record" $ do
     context "disparate csv types" $ do

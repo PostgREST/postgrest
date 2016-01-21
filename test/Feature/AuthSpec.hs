@@ -1,19 +1,18 @@
 module Feature.AuthSpec where
 
 -- {{{ Imports
+import Data.Pool
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 -- }}}
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool = around (withApp cfgDefault struct pool)
   $ describe "authorization" $ do
 

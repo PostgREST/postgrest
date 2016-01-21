@@ -1,18 +1,17 @@
 module Feature.QueryLimitedSpec where
 
+import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders, simpleStatus))
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool =
   beforeAll resetDb
    . around (withApp (cfgLimitRows 3) struct pool) $

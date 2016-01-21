@@ -1,18 +1,17 @@
 module Feature.StructureSpec where
 
+import Data.Pool
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
+spec :: DbStructure -> Pool H.Connection -> Spec
 spec struct pool = around (withApp cfgDefault struct pool) $ do
   describe "GET /" $ do
     it "lists views in schema" $

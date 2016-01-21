@@ -134,7 +134,7 @@ library
 Test-Suite spec
   Type:                exitcode-stdio-1.0
   Default-Language:    Haskell2010
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, LambdaCase
   Hs-Source-Dirs:      test, src
   if flag(ci)
     ghc-options:       -Wall -W -Werror
@@ -185,6 +185,7 @@ Test-Suite spec
                      , parsec
                      , process
                      , regex-tdfa
+                     , resource-pool
                      , safe
                      , scientific
                      , string-conversions
