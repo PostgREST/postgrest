@@ -320,3 +320,6 @@ spec struct c = around (withApp cfgDefault struct c) $ do
             ]
           }
         |]
+
+    it "errors for non existant tables" $
+      request methodOptions "/dne" [] "" `shouldRespondWith` 404
