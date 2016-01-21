@@ -175,7 +175,7 @@ WHERE
 Now whenever you are authenticated in your Rails application you can use some Javascript
  code to get the token and use it:
 ```javascript
-$.getJSON('/api_json').done(function(data){
+$.getJSON('/api_token').done(function(data){
     $.ajax('/orders', {'Authorization': 'Bearer ' + data.token}).done(function(data){
         console.log('Visible Orders: ', data);
     })
