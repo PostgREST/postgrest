@@ -13,7 +13,7 @@ import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Lazy      as BL
 import           Data.Functor.Identity
 import           Data.List                 (find, sortBy, delete)
-import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
+import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
 import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
@@ -149,14 +149,17 @@ app dbStructure conf reqBody req =
             then notFound
             else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
 
-    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) -> do
-      let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-          pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-          body = encode (TableOptions cols pkeys)
-          filterCol :: Schema -> TableName -> Column -> Bool
-          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
-          filterCol _ _ _ =  False
-      return $ responseLBS status200 [jsonH, allOrigins] $ cs body
+    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
+      if isJust $ find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure)
+        then let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+                 pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+                 body = encode (TableOptions cols pkeys)
+                 filterCol :: Schema -> TableName -> Column -> Bool
+                 filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
+                 filterCol _ _ _ =  False in
+          return $ responseLBS status200 [jsonH, allOrigins] $ cs body
+        else
+          return notFound
 
     (ActionInvoke, TargetIdent qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
