@@ -28,13 +28,11 @@ value.
 ### Storing Users and Passwords
 
 We create a database schema especially for auth information. We'll
-also need the postgres extensions
-[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html) and
-[uuid-ossp](http://www.postgresql.org/docs/current/static/uuid-ossp.html).
+also need the postgres extension
+[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html).
 
 ```sql
 create extension if not exists pgcrypto;
-create extension if not exists "uuid-ossp";
 
 -- We put things inside the basic_auth schema to hide
 -- them from public view. Certain public procs/views will
@@ -150,7 +148,7 @@ begin
    where token_type = 'reset'
      and tokens.email = request_password_reset.email;
 
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'reset', request_password_reset.email);
   perform pg_notify('reset',
