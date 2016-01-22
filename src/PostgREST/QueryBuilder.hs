@@ -102,7 +102,7 @@ createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
       "pg_catalog.count(t) AS page_total",
-      "null AS header",
+      "'' AS header",
       bodyF <> " AS body"
     ]
   bodyF
