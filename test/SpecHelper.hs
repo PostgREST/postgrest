@@ -84,7 +84,3 @@ authHeaderBasic u p =
 authHeaderJWT :: String -> Header
 authHeaderJWT token =
   (hAuthorization, cs $ "Bearer " ++ token)
-
-testPool :: IO (Pool (Either H.ConnectionError H.Connection))
-testPool = createPool (H.acquire . cs $ dbString)
-  (either (const $ return ()) H.release) 1 1 1
