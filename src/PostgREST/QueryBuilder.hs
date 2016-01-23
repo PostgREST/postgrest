@@ -123,7 +123,7 @@ createWriteStatement _ _ mutateQuery _ None
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT null, 0, null, null |]
+      SELECT '', 0, '', '' |]
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
@@ -134,10 +134,10 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
       SELECT {cols}
       FROM (SELECT 1 FROM {sourceCTEName}) t |]
   cols = intercalate ", " [
-      "null AS total_result_set",
+      "'' AS total_result_set",
       "pg_catalog.count(t) AS page_total",
-      if isSingle then locationF pKeys else "null",
-      "null"
+      if isSingle then locationF pKeys else "''",
+      "''"
     ]
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
@@ -149,9 +149,9 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
       SELECT {cols}
       FROM ({selectQuery}) t |]
   cols = intercalate ", " [
-      "null AS total_result_set", -- when updateing it does not make sense
+      "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(t) AS page_total",
-      if isSingle then locationF pKeys else "null" <> " AS header",
+      if isSingle then locationF pKeys else "''" <> " AS header",
       bodyF <> " AS body"
     ]
   bodyF
@@ -387,7 +387,7 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
     asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
 
 asJsonF :: SqlFragment
-asJsonF = "array_to_json(array_agg(row_to_json(t)))::character varying"
+asJsonF = "coalesce(array_to_json(array_agg(row_to_json(t))), '[]')::character varying"
 
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
