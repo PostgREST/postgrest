@@ -25,6 +25,7 @@ import PostgREST.Config (AppConfig(..))
 import PostgREST.Middleware
 import PostgREST.Error(pgErrResponse)
 import PostgREST.Types
+import PostgREST.QueryBuilder (inTransaction, Isolation(..))
 
 dbString :: String
 dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
@@ -44,7 +45,8 @@ withApp config dbStructure c perform = do
   perform $ defaultMiddle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    let handleReq = H.run (runWithClaims config time (app dbStructure config body) req)
+    let handleReq = H.run $ inTransaction ReadCommitted
+          (runWithClaims config time (app dbStructure config body) req)
 
     resOrError <- handleReq c
     either (resp . pgErrResponse) resp resOrError

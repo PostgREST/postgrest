@@ -11,6 +11,7 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.DbStructure
 import           PostgREST.Error                      (errResponse, pgErrResponse)
 import           PostgREST.Middleware
+import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
 import           Control.Monad                        (unless, void)
 import           Data.Monoid                          ((<>))
@@ -94,7 +95,8 @@ main = do
   runSettings appSettings $ middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    let handleReq = H.run (runWithClaims conf time (app dbStructure conf body) req)
+    let handleReq = H.run $ inTransaction ReadCommitted
+          (runWithClaims conf time (app dbStructure conf body) req)
     withResource pool $ \case
       Left err -> respond $ errResponse HT.status500 (cs . show $ err)
       Right c -> do

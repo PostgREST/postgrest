@@ -18,6 +18,7 @@ module PostgREST.QueryBuilder (
   , callProc
   , createReadStatement
   , createWriteStatement
+  , inTransaction
   , operators
   , pgFmtIdent
   , pgFmtLit
@@ -26,9 +27,11 @@ module PostgREST.QueryBuilder (
   , sourceCTEName
   , unquoted
   , ResultsWithCount
+  , Isolation(..)
   ) where
 
 import qualified Hasql.Query             as H
+import qualified Hasql.Session           as H
 import qualified Hasql.Encoders          as HE
 import qualified Hasql.Decoders          as HD
 
@@ -501,3 +504,20 @@ pgFmtAsJsonPath (Just xx) = " AS " <> last xx
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
+
+data Isolation = ReadCommitted | RepeatableRead | Serializable
+
+{- |
+  Wrap a session in a transaction of desired isolation level
+-}
+inTransaction :: Isolation -> H.Session a -> H.Session a
+inTransaction lvl f = do
+  H.sql $ "begin " <> isolate <> ";"
+  r <- f
+  H.sql "end;"
+  return r
+ where
+  isolate = case lvl of
+    ReadCommitted  -> "ISOLATION LEVEL READ COMMITTED"
+    RepeatableRead -> "ISOLATION LEVEL REPEATABLE READ"
+    Serializable   -> "ISOLATION LEVEL SERIALIZABLE"
