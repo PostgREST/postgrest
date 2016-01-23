@@ -111,8 +111,8 @@ doesProcExist =
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
-      WHERE  nspname = ?
-      AND    proname = ?
+      WHERE  nspname = $1
+      AND    proname = $2
     ) |]
 
 doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
@@ -124,8 +124,8 @@ doesProcReturnJWT =
       FROM   pg_catalog.pg_namespace n
       JOIN   pg_catalog.pg_proc p
       ON     pronamespace = n.oid
-      WHERE  nspname = ?
-      AND    proname = ?
+      WHERE  nspname = $1
+      AND    proname = $2
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     ) |]
 

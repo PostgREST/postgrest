@@ -53,7 +53,7 @@ import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
-import           Text.InterpolatedString.Perl6 (qc, q)
+import           Text.InterpolatedString.Perl6 (qc)
 import           Text.Regex.TDFA         ((=~))
 import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
@@ -210,8 +210,8 @@ callProc :: QualifiedIdentifier -> JSON.Object -> H.Query () (Maybe JSON.Value)
 callProc qi params =
   H.statement sql HE.unit decodeObj True
   where
-    sql = [q| SELECT array_to_json(
-                coalesce(array_agg(row_to_json(t)), '{}')
+    sql = [qc| SELECT array_to_json(
+                coalesce(array_agg(row_to_json(t)), '\{}')
               )::character varying
               from ({_callSql}) t |]
     _args = intercalate "," $ map _assignment (HM.toList params)
