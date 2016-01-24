@@ -45,6 +45,7 @@ spec struct pool = around (withApp cfgDefault struct pool) $ do
         , {"schema":"test","name":"users","insertable":true}
         , {"schema":"test","name":"users_projects","insertable":true}
         , {"schema":"test","name":"users_tasks","insertable":true}
+        , {"schema":"test","name":"withUnique","insertable":true}
         ] |]
         {matchStatus = 200}
 

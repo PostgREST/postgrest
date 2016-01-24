@@ -266,6 +266,8 @@ INSERT INTO "Escap3e;" VALUES (1), (2), (3), (4), (5);
 TRUNCATE TABLE "ghostBusters" CASCADE;
 INSERT INTO "ghostBusters" VALUES (1), (3), (5);
 
+TRUNCATE TABLE "withUnique" CASCADE;
+INSERT INTO "withUnique" VALUES ('nodup', 'blah')
 --
 -- PostgreSQL database dump complete
 --

@@ -599,6 +599,11 @@ CREATE TABLE "ghostBusters" (
 		"escapeId" integer not null references "Escap3e;"("so6meIdColumn")
 );
 
+CREATE TABLE "withUnique" (
+    uni text UNIQUE,
+    extra text
+);
+
 
 --
 -- Name: id; Type: DEFAULT; Schema: test; Owner: -

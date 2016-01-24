@@ -54,6 +54,8 @@ httpStatus (H.TxError (P.ErroneousResult codeBS _ _ _)) =
     '0':'9':_ -> HT.status500 -- triggered action exception
     '0':'L':_ -> HT.status403 -- invalid grantor
     '0':'P':_ -> HT.status403 -- invalid role specification
+    "23503" -> HT.status409 -- foreign_key_violation
+    "23505" -> HT.status409 -- unique_violation
     '2':'5':_ -> HT.status500 -- invalid tx state
     '2':'8':_ -> HT.status403 -- invalid auth specification
     '2':'D':_ -> HT.status500 -- invalid tx termination
