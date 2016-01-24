@@ -38,7 +38,7 @@ executable postgrest
                      , containers
                      , contravariant
                      , errors
-                     , hasql >= 0.19.3.2 && < 0.20
+                     , hasql >= 0.19.3.3 && < 0.20
                      , interpolatedstring-perl6
                      , jwt
                      , optparse-applicative >= 0.11 && < 0.13

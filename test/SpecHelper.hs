@@ -11,7 +11,6 @@ import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
                                   hRange, hAuthorization, hAccept)
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
-import Data.Pool
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
