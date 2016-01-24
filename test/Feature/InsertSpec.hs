@@ -124,6 +124,18 @@ spec struct pool = beforeAll_ resetDb $ around (withApp cfgDefault struct pool) 
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
 
+    context "with valid json payload" $
+      it "succeeds and returns 201 created" $
+        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 201
+
+    context "attempting to insert a row with the same primary key" $
+      it "fails returning a 409 Conflict" $
+        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 409
+
+    context "attempting to insert a row with confliting unique constraint" $
+      it "fails returning a 409 Conflict" $
+        post "/withUnique"  [json| { "uni":"nodup", "extra":"e2" } |] `shouldRespondWith` 409
+
     context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
