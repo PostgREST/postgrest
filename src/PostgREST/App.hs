@@ -86,7 +86,7 @@ app dbStructure conf reqBody req =
               else responseLBS status200 [contentTypeH] (cs body)
             else do
               let frm = toInteger $ rangeOffset range
-                  to = frm+(toInteger queryTotal)-1
+                  to = frm + toInteger queryTotal - 1
                   contentRange = contentRangeH frm to (toInteger <$> tableTotal)
                   status = rangeStatus frm to (toInteger <$> tableTotal)
                   canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
@@ -138,7 +138,7 @@ app dbStructure conf reqBody req =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let emptyUniform = UniformObjects V.empty
-          let fakeload = PayloadJSON $ emptyUniform
+          let fakeload = PayloadJSON emptyUniform
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
           row <- H.query emptyUniform stm
           let (_, queryTotal, _, _) = extractQueryResult row
@@ -151,7 +151,7 @@ app dbStructure conf reqBody req =
           pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
           body = encode (TableOptions cols pkeys)
           filterCol :: Schema -> TableName -> Column -> Bool
-          filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
+          filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
           filterCol _ _ _ =  False
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
@@ -166,7 +166,7 @@ app dbStructure conf reqBody req =
           bodyJson <- H.query () (callProc qi p)
           returnJWT <- H.query qi doesProcReturnJWT
           return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray $ bodyJson in
+                 (let body = fromMaybe emptyArray bodyJson in
                     if returnJWT
                     then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                     else cs $ encode body)
@@ -293,7 +293,7 @@ buildMutateRequest apiRequest =
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
 
 addFilter :: (Path, Filter) -> ReadRequest -> ReadRequest
-addFilter ([], flt) (Node (q@(Select {flt_=flts}), i) forest) = Node (q {flt_=flt:flts}, i) forest
+addFilter ([], flt) (Node (q@Select {flt_=flts}, i) forest) = Node (q {flt_=flt:flts}, i) forest
 addFilter (path, flt) (Node rn forest) =
   case targetNode of
     Nothing -> Node rn forest -- the filter is silenty dropped in the Request does not contain the required path

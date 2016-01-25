@@ -187,9 +187,9 @@ addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node (query, (n, r)) forest) =
   case r of
     Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
-    Just rel@(Relation{relType=Child}) -> Node (addCond updatedQuery (getJoinConditions rel),(n,r)) <$> updatedForest
-    Just (Relation{relType=Parent}) -> Node (updatedQuery, (n,r)) <$> updatedForest
-    Just rel@(Relation{relType=Many, relLTable=(Just linkTable)}) ->
+    Just rel@Relation{relType=Child} -> Node (addCond updatedQuery (getJoinConditions rel),(n,r)) <$> updatedForest
+    Just Relation{relType=Parent} -> Node (updatedQuery, (n,r)) <$> updatedForest
+    Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
       Node (qq, (n, r)) <$> updatedForest
       where
          query' = addCond updatedQuery (getJoinConditions rel)
@@ -201,7 +201,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
       where
         parentJoinConditions = map (getJoinConditions . snd) parents
         parents = mapMaybe (getParents . rootLabel) forest
-        getParents (_, (tbl, Just rel@(Relation{relType=Parent}))) = Just (tbl, rel)
+        getParents (_, (tbl, Just rel@Relation{relType=Parent})) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
@@ -259,8 +259,8 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _))
    ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
    ]
  where
-   fn  (Filter{value=VText _}) = True
-   fn  (Filter{value=VForeignKey _ _}) = False
+   fn Filter{value=VText _} = True
+   fn Filter{value=VForeignKey _ _} = False
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> DbRequest -> SqlQuery
@@ -305,19 +305,19 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
     filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) = parentTable == t
     filterParentConditions _ _ = False
     getQueryParts :: Tree ReadNode -> ([(SqlFragment, TableName)], [SqlFragment]) -> ([(SqlFragment,TableName)], [SqlFragment])
-    getQueryParts (Node n@(_, (name, Just (Relation {relType=Child,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}})) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent name
            where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just (Relation {relType=Parent,relTable=Table{tableName=table}}))) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}})) forst) (j,s) = (joi:j,sel:s)
       where
         sel = "row_to_json(" <> pgFmtIdent table <> ".*) AS "<>pgFmtIdent name --TODO must be singular
         joi = ("( " <> subquery <> " ) AS " <> pgFmtIdent table, table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just (Relation {relType=Many,relTable=Table{tableName=table}}))) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}})) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "

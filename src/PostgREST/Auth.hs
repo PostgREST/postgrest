@@ -66,9 +66,9 @@ jwtClaims secret input time =
     claim prop = prop . JWT.claims <$> decoded
     customClaims = claim JWT.unregisteredClaims
 
--- | Receives the name of a role and returns a SET ROLE statement
+{-| Receives the name of a role and returns a SET ROLE statement -}
 setRole :: Text -> BS.ByteString
-setRole role = "set local role " <> cs (pgFmtLit role) <> ";"
+setRole r = "set local role " <> cs (pgFmtLit r) <> ";"
 
 
 {-|

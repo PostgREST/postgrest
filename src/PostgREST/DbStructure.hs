@@ -31,7 +31,7 @@ import           Prelude
 
 getDbStructure :: Schema -> H.Session DbStructure
 getDbStructure schema = do
-  tabs <- H.query () $ allTables
+  tabs <- H.query () allTables
   cols <- H.query () $ allColumns tabs
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
@@ -172,9 +172,9 @@ addForeignKeys rels = map addFk
     addFk col = col { colFK = fk col }
     fk col = join $ relToFk col <$> find (lookupFn col) rels
     lookupFn :: Column -> Relation -> Bool
-    lookupFn c (Relation{relColumns=cs, relType=rty}) = c `elem` cs && rty==Child
+    lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==Child
     -- lookupFn _ _ = False
-    relToFk col (Relation{relColumns=cols, relFColumns=colsF}) = ForeignKey <$> colF
+    relToFk col Relation{relColumns=cols, relFColumns=colsF} = ForeignKey <$> colF
       where
         pos = elemIndex col cols
         colF = (colsF !!) <$> pos
@@ -196,7 +196,7 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
   where
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text
-    groupFn (Relation{relTable=Table{tableSchema=s, tableName=t}}) = s<>"_"<>t
+    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s<>"_"<>t
     combinations k ns = filter ((k==).length) (subsequences ns)
     addMirrorRelation [] = []
     addMirrorRelation (rel@(Relation t c ft fc _ lt lc1 lc2):rels') = Relation ft fc t c Many lt lc2 lc1 : rel : addMirrorRelation rels'
@@ -251,7 +251,7 @@ allTables =
     ORDER BY table_schema, table_name |]
 
 allColumns :: [Table] -> H.Query () [Column]
-allColumns tabs = do
+allColumns tabs =
   H.statement sql HE.unit (decodeColumns tabs) True
  where
   sql = [q|
@@ -402,7 +402,7 @@ columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> tab
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
 allRelations :: [Table] -> [Column] -> H.Query () [Relation]
-allRelations tabs cols = do
+allRelations tabs cols =
   H.statement sql HE.unit (decodeRelations tabs cols) True
  where
   sql = [q|
@@ -443,7 +443,7 @@ relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
     colsF = mapM (findCol frs frt) frcs
 
 allPrimaryKeys :: [Table] -> H.Query () [PrimaryKey]
-allPrimaryKeys tabs = do
+allPrimaryKeys tabs =
   H.statement sql HE.unit (decodePks tabs) True
  where
   sql = [q|
@@ -553,7 +553,7 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 allSynonyms :: [Column] -> H.Query () [(Column,Column)]
-allSynonyms cols = do
+allSynonyms cols =
   H.statement sql HE.unit (decodeSynonyms cols) True
  where
   sql = [q|
