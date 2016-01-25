@@ -514,7 +514,7 @@ inTransaction :: Isolation -> H.Session a -> H.Session a
 inTransaction lvl f = do
   H.sql $ "begin " <> isolate <> ";"
   r <- f
-  H.sql "end;"
+  H.sql "commit;"
   return r
  where
   isolate = case lvl of
