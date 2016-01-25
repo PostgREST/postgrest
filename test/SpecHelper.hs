@@ -47,8 +47,11 @@ withApp config dbStructure c perform = do
     let handleReq = H.run $ inTransaction ReadCommitted
           (runWithClaims config time (app dbStructure config body) req)
 
-    resOrError <- handleReq c
-    either (resp . pgErrResponse) resp resOrError
+    handleReq c >>= \case
+      Left err -> do
+        void $ H.run (H.sql "rollback;") c
+        resp $ pgErrResponse err
+      Right res -> resp res
 
 setupDb :: IO ()
 setupDb = do
