@@ -25,7 +25,7 @@ import qualified Hasql.Decoders                       as HD
 import qualified Hasql.Encoders                       as HE
 import qualified Network.HTTP.Types.Status            as HT
 import           Network.Wai
-import           Network.Wai.Handler.Warp             hiding (Connection)
+import           Network.Wai.Handler.Warp
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,

@@ -58,7 +58,7 @@ executable postgrest
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
-                     , warp >= 3.0.2
+                     , warp >= 3.1.0
                      , HTTP, http-types
                      , MissingH
                      , Ranged-sets
