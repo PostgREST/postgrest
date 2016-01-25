@@ -376,7 +376,7 @@ asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
     asCsvHeaderF =
-      "(SELECT string_agg(a.k, ',')" <>
+      "(SELECT coalesce(string_agg(a.k, ','), '')" <>
       "  FROM (" <>
       "    SELECT json_object_keys(r)::TEXT as k" <>
       "    FROM ( " <>
@@ -390,7 +390,7 @@ asJsonF :: SqlFragment
 asJsonF = "coalesce(array_to_json(array_agg(row_to_json(t))), '[]')::character varying"
 
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "string_agg(row_to_json(t)::text, ',')::character varying "
+asJsonSingleF = "coalesce(string_agg(row_to_json(t)::text, ','), '')::character varying "
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys =
