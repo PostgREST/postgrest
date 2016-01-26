@@ -15,7 +15,7 @@ import           Data.Functor.Identity
 import           Data.List                 (find, sortBy, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ord                  (comparing)
-import           Data.Ranged.Ranges        (emptyRange)
+import           Data.Ranged.Ranges        (rangeIsEmpty)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
@@ -47,7 +47,6 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , userApiRequest)
 import           PostgREST.Types
 import           PostgREST.Auth            (tokenJWT)
-import           PostgREST.Error           (errResponse)
 
 import           PostgREST.QueryBuilder ( asJson
                                         , callProc
@@ -79,32 +78,29 @@ app dbStructure conf reqBody req =
               singular = iPreferSingular apiRequest
               stm = createReadStatement q cq range singular
                     (iPreferCount apiRequest) (contentType == TextCSV)
-          if range == emptyRange
-          then return $ errResponse status416 "HTTP Range error"
+          row <- H.maybeEx stm
+          let (tableTotal, queryTotal, _, body) = extractQueryResult row
+          if singular
+          then return $ if queryTotal <= 0
+            then responseLBS status404 [] ""
+            else responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
           else do
-            row <- H.maybeEx stm
-            let (tableTotal, queryTotal, _ , body) = extractQueryResult row
-            if singular
-            then return $ if queryTotal <= 0
-              then responseLBS status404 [] ""
-              else responseLBS status200 [contentTypeH] (fromMaybe "{}" body)
-            else do
-              let frm = rangeOffset range
-                  to = frm+queryTotal-1
-                  contentRange = contentRangeH frm to tableTotal
-                  status = rangeStatus frm to tableTotal
-                  canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
-                    . sortBy (comparing fst)
-                    . map (join (***) cs)
-                    . parseSimpleQuery
-                    $ rawQueryString req
-              return $ responseLBS status
-                [contentTypeH, contentRange,
-                  ("Content-Location",
-                    "/" <> cs (qiName qi) <>
-                      if Prelude.null canonical then "" else "?" <> cs canonical
-                  )
-                ] (fromMaybe "[]" body)
+            let frm = rangeOffset range
+                to = frm + queryTotal - 1
+                contentRange = contentRangeH frm to tableTotal
+                status = if rangeIsEmpty range then status416 else rangeStatus frm to tableTotal
+                canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
+                  . sortBy (comparing fst)
+                  . map (join (***) cs)
+                  . parseSimpleQuery
+                  $ rawQueryString req
+            return $ responseLBS status
+              [contentTypeH, contentRange,
+                ("Content-Location",
+                  "/" <> cs (qiName qi) <>
+                    if Prelude.null canonical then "" else "?" <> cs canonical
+                )
+              ] (fromMaybe "[]" body)
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
      Just payload@(PayloadJSON (UniformObjects rows))) ->
@@ -211,7 +207,7 @@ rangeStatus _ _ Nothing = status200
 rangeStatus frm to (Just total)
   | frm > total            = status416
   | (1 + to - frm) < total = status206
-  | otherwise               = status200
+  | otherwise              = status200
 
 contentRangeH :: Int -> Int -> Maybe Int -> Header
 contentRangeH frm to total =

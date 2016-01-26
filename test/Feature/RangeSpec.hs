@@ -95,7 +95,11 @@ spec struct pool = beforeAll resetDb
         it "fails with 416 for offside range" $
           request methodGet  "/items"
                   (rangeHdrs $ ByteRangeFromTo 1 0) ""
-            `shouldRespondWith` 416
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = ["Content-Range" <:> "*/15"]
+            }
 
         it "refuses a range with nonzero start when there are no items" $
           request methodGet "/menagerie"
@@ -114,3 +118,88 @@ spec struct pool = beforeAll resetDb
             , matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
+
+    context "with range query parameters" $ do
+      context "limit" $ do
+        it "returns a limited set" $ do
+          r <- get "/items?limit=5"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "0-4/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "can get a single item" $ do
+          r <- get "/items?limit=1"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "0-0/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "will error with a limit of 0" $
+          get "/items?limit=0"
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = ["Content-Range" <:> "*/15"]
+            }
+
+        it "will fetch everything if too large" $ do
+          r <- get "/items?limit=100"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "0-14/15"
+            simpleStatus r `shouldBe` ok200
+
+      context "offset" $ do
+        it "will return results not starting at 0" $ do
+          r <- get "/items?offset=5"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "5-14/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "errors when offset is too large" $
+          get "/items?offset=50"
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = ["Content-Range" <:> "*/15"]
+            }
+
+      context "limit and offset" $ do
+        it "will return a specific range" $ do
+          r <- get "/items?limit=2&offset=5"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "5-6/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "will return everything with a large limit" $ do
+          r <- get "/items?limit=200&offset=5"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "5-14/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "errors when offset is too large" $
+          get "/items?limit=1&offset=50"
+            `shouldRespondWith` ResponseMatcher {
+              matchBody    = Nothing
+            , matchStatus  = 416
+            , matchHeaders = ["Content-Range" <:> "*/15"]
+            }
+
+      context "page" $ do
+        it "will use the limit to get the offset" $ do
+          r <- get "/items?limit=2&page=2"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "4-5/15"
+            simpleStatus r `shouldBe` partialContent206
+
+        it "will be overriden by offset" $ do
+          r <- get "/items?limit=2&offset=5&page=2"
+          liftIO $ do
+            simpleHeaders r `shouldSatisfy`
+              matchHeader "Content-Range" "5-6/15"
+            simpleStatus r `shouldBe` partialContent206

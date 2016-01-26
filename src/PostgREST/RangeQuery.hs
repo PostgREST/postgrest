@@ -8,6 +8,7 @@ module PostgREST.RangeQuery (
 ) where
 
 
+import           Control.Monad             (join)
 import           Control.Applicative
 import           Network.HTTP.Types.Header
 import           PostgREST.Types           ()
@@ -15,31 +16,47 @@ import           PostgREST.Types           ()
 import qualified Data.ByteString.Char8     as BS
 import           Data.Ranged.Boundaries
 import           Data.Ranged.Ranges
-
+import           Data.Maybe                (fromMaybe, listToMaybe, isJust, fromJust)
 import           Data.String.Conversions   (cs)
 import           Text.Read                 (readMaybe)
 import           Text.Regex.TDFA           ((=~))
 
-import           Data.Maybe                (fromMaybe, listToMaybe)
-
 import           Prelude
 
 type NonnegRange = Range Int
+type ByteString = BS.ByteString
+type RequestQuery = [(String, Maybe String)]
 
-rangeParse :: BS.ByteString -> NonnegRange
+rangeRequested :: RequestHeaders -> RequestQuery -> NonnegRange
+rangeRequested headers query = fromMaybe (rangeFromQuery Nothing query) (rangeFromHeaders headers)
+
+rangeParse :: ByteString -> Maybe NonnegRange
 rangeParse range = do
-  let rangeRegex = "^([0-9]+)-([0-9]*)$" :: BS.ByteString
+  let rangeRegex = "^([0-9]+)-([0-9]*)$" :: ByteString
 
-  case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
+  case listToMaybe (range =~ rangeRegex :: [[ByteString]]) of
     Just parsedRange ->
       let [_, from, to] = readMaybe . cs <$> parsedRange
           lower         = fromMaybe emptyRange   (rangeGeq <$> from)
           upper         = fromMaybe (rangeGeq 0) (rangeLeq <$> to) in
-      rangeIntersection lower upper
-    Nothing -> rangeGeq 0
+      Just $ rangeIntersection lower upper
+    Nothing -> Nothing
 
-rangeRequested :: RequestHeaders -> NonnegRange
-rangeRequested = rangeParse . fromMaybe "" . lookup hRange
+rangeFromHeaders :: RequestHeaders -> Maybe NonnegRange
+rangeFromHeaders headers = join $ rangeParse <$> lookup hRange headers
+
+rangeFromQuery :: Maybe String -> RequestQuery -> NonnegRange
+rangeFromQuery name query =
+  if isJust limit
+    then Range (BoundaryBelow offset) (BoundaryAbove (offset + fromJust limit - 1))
+    else rangeGeq offset
+  where
+    intParam :: String -> Maybe Int
+    intParam w = join $ readMaybe <$> join (lookup qw query)
+      where qw = cs $ if isJust name then fromJust name ++ "." ++ w else w
+    page = fromMaybe 0 $ intParam "page"
+    limit = intParam "limit"
+    offset = fromMaybe (maybe 0 (* page) limit) $ intParam "offset"
 
 restrictRange :: Maybe Int -> NonnegRange -> NonnegRange
 restrictRange Nothing r = r
