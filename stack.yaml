@@ -4,5 +4,5 @@ packages:
 extra-deps:
   - hasql-0.19.3.3
   - Ranged-sets-0.3.0
-  - packdeps-0.4.1
-resolver: lts-4.1
+  - packdeps-0.4.2.1
+resolver: lts-5.0
