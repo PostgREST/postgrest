@@ -2,54 +2,58 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (PgError, pgErrResponse, errResponse) where
+module PostgREST.Error (pgErrResponse, errResponse) where
 
 
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
+import           Data.Monoid               ((<>))
 import           Data.String.Conversions   (cs)
-import           Data.String.Utils         (replace)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import qualified Hasql                     as H
-import qualified Hasql.Postgres            as P
+import qualified Hasql.Session             as H
 import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 
-type PgError = H.SessionError P.Postgres
-
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
 
-pgErrResponse :: PgError -> Response
+pgErrResponse :: H.Error -> Response
 pgErrResponse e = responseLBS (httpStatus e)
   [(hContentType, "application/json")] (JSON.encode e)
 
-instance JSON.ToJSON PgError where
-  toJSON (H.TxError (P.ErroneousResult c m d h)) = JSON.object [
+instance JSON.ToJSON H.Error where
+  toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
     "code" .= (cs c::T.Text),
     "message" .= (cs m::T.Text),
     "details" .= (fmap cs d::Maybe T.Text),
     "hint" .= (fmap cs h::Maybe T.Text)]
-  toJSON (H.TxError (P.NoResult d)) = JSON.object [
-    "message" .= ("No response from server"::T.Text),
+  toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
+    "message" .= (cs m::T.Text)]
+  toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
+    "message" .= ("Row error: end of input"::String),
+    "details" .=
+      ("Attempt to parse more columns than there are in the result"::String),
+    "details" .= ("Row number " <> show i)]
+  toJSON (H.ResultError (H.RowError i H.UnexpectedNull)) = JSON.object [
+    "message" .= ("Row error: unexpected null"::String),
+    "details" .= ("Attempt to parse a NULL as some value."::String),
+    "details" .= ("Row number " <> show i)]
+  toJSON (H.ResultError (H.RowError i (H.ValueError d))) = JSON.object [
+    "message" .= ("Row error: Wrong value parser used"::String),
+    "details" .= d,
+    "details" .= ("Row number " <> show i)]
+  toJSON (H.ResultError (H.UnexpectedAmountOfRows i)) = JSON.object [
+    "message" .= ("Unexpected amount of rows"::String),
+    "details" .= i]
+  toJSON (H.ClientError d) = JSON.object [
+    "message" .= ("Database client error"::String),
     "details" .= (fmap cs d::Maybe T.Text)]
-  toJSON (H.TxError (P.UnexpectedResult m)) = JSON.object ["message" .= m]
-  toJSON (H.TxError P.NotInTransaction) = JSON.object [
-    "message" .= ("Not in transaction"::T.Text)]
-  toJSON (H.CxError (P.CantConnect d)) = JSON.object [
-    "message" .= ("Can't connect to the database"::T.Text),
-    "details" .= (fmap cs d::Maybe T.Text)]
-  toJSON (H.CxError (P.UnsupportedVersion v)) = JSON.object [
-    "message" .= ("Postgres version "++version++" is not supported") ]
-      where version = replace "0" "." (show v)
-  toJSON (H.ResultError m) = JSON.object ["message" .= m]
 
-httpStatus :: PgError -> HT.Status
-httpStatus (H.TxError (P.ErroneousResult codeBS _ _ _)) =
-  let code = cs codeBS in
-  case code of
+httpStatus :: H.Error -> HT.Status
+httpStatus (H.ResultError (H.ServerError c _ _ _)) =
+  case cs c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
     '0':'L':_ -> HT.status403 -- invalid grantor
@@ -75,5 +79,5 @@ httpStatus (H.TxError (P.ErroneousResult codeBS _ _ _)) =
     "42P01" -> HT.status404 -- undefined table
     "42501" -> HT.status404 -- insufficient privilege
     _ -> HT.status400
-httpStatus (H.TxError (P.NoResult _)) = HT.status503
-httpStatus _ = HT.status500
+httpStatus (H.ResultError _) = HT.status500
+httpStatus (H.ClientError _) = HT.status503

@@ -5,16 +5,14 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 -- }}}
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
-spec struct pool = around (withApp cfgDefault struct pool)
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = around (withApp cfgDefault struct c)
   $ describe "authorization" $ do
 
   it "hides tables that anonymous does not own" $

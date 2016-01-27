@@ -4,17 +4,15 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
-import Hasql as H
-import Hasql.Postgres as P
-
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
+import qualified Hasql.Connection  as H
 
 import Network.HTTP.Types
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
-spec struct pool = beforeAll resetDb
-  . around (withApp cfgDefault struct pool) $
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c = beforeAll resetDb
+  . around (withApp cfgDefault struct c) $
   describe "Deleting" $ do
     context "existing record" $ do
       it "succeeds with 204 and deletion count" $

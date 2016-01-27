@@ -5,17 +5,15 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders, simpleStatus))
-
-import Hasql as H
-import Hasql.Postgres as P
+import qualified Hasql.Connection  as H
 
 import SpecHelper
 import PostgREST.Types (DbStructure(..))
 
-spec :: DbStructure -> H.Pool P.Postgres -> Spec
-spec struct pool =
+spec :: DbStructure -> H.Connection -> Spec
+spec struct c =
   beforeAll resetDb
-   . around (withApp (cfgLimitRows 3) struct pool) $
+   . around (withApp (cfgLimitRows 3) struct c) $
   describe "Requesting many items with server limits enabled" $ do
     it "restricts results" $
       get "/items"

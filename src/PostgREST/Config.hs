@@ -42,7 +42,7 @@ data AppConfig = AppConfig {
   , configSchema    :: String
   , configJwtSecret :: Secret
   , configPool      :: Int
-  , configMaxRows   :: Maybe Int
+  , configMaxRows   :: Maybe Integer
   }
 
 argParser :: Parser AppConfig

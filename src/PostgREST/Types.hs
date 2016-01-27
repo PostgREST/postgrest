@@ -5,6 +5,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString      as BS
 import qualified Data.Vector          as V
 import Data.Aeson
+import Data.Int (Int32)
 
 data DbStructure = DbStructure {
   dbTables :: [Table]
@@ -31,12 +32,12 @@ data Column =
     Column {
       colTable     :: Table
     , colName      :: Text
-    , colPosition  :: Int
+    , colPosition  :: Int32
     , colNullable  :: Bool
     , colType      :: Text
     , colUpdatable :: Bool
-    , colMaxLen    :: Maybe Int
-    , colPrecision :: Maybe Int
+    , colMaxLen    :: Maybe Int32
+    , colPrecision :: Maybe Int32
     , colDefault   :: Maybe Text
     , colEnum      :: [Text]
     , colFK        :: Maybe ForeignKey
@@ -89,6 +90,9 @@ data Relation = Relation {
 -- the same keys in every object
 newtype UniformObjects = UniformObjects (V.Vector Object)
   deriving (Show, Eq)
+
+unUniformObjects :: UniformObjects -> V.Vector Object
+unUniformObjects (UniformObjects objs) = objs
 
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
