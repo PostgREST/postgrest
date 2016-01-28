@@ -17,5 +17,5 @@ test:
     - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
     - stack exec -- packdeps *.cabal || true
     - stack exec -- cabal check
-    - stack haddock --coverage
+    - stack haddock
     - stack sdist
