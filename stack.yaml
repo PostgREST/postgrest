@@ -1,8 +1,11 @@
-flags: {}
-packages:
-- '.'
+resolver: lts-5.0
 extra-deps:
   - hasql-0.19.3.3
   - Ranged-sets-0.3.0
   - packdeps-0.4.2.1
-resolver: lts-5.0
+# Almost all warnings, plus minimal-imports for packunused
+ghc-options:
+  postgrest: -ddump-minimal-imports -Werror -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates -fwarn-monomorphism-restriction -fwarn-auto-orphans -fwarn-missing-local-sigs -fwarn-missing-exported-sigs -fwarn-missing-import-lists -fwarn-identities
+
+packages:
+- '.'

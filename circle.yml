@@ -1,16 +1,21 @@
-machine:
+dependencies:
+  cache_directories:
+    - "~/.stack"
   pre:
+    - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 575159689BEFB442
+    - echo 'deb http://download.fpcomplete.com/ubuntu precise main'|sudo tee /etc/apt/sources.list.d/fpco.list
+    - sudo apt-get update && sudo apt-get install stack -y
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
-  ghc:
-    version: 7.10.1
-dependencies:
   override:
-    - cabal update
-    - cabal sandbox init
-    - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests --reorder-goals
-    - cabal configure --enable-tests -f ci
+    - stack setup
+    - stack install hlint packdeps cabal-install
+
 test:
-  post:
-    - cabal exec hlint -- -X QuasiQuotes src/**/*.hs test/**/*.hs
-    - cabal exec packdeps postgrest.cabal || true
+  override:
+    - stack test
+    - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
+    - stack exec -- packdeps *.cabal || true
+    - stack exec -- cabal check
+    - stack haddock --coverage
+    - stack sdist
