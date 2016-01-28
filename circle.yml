@@ -1,6 +1,7 @@
 dependencies:
   cache_directories:
     - "~/.stack"
+    - ".stack-work"
   pre:
     - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 575159689BEFB442
     - echo 'deb http://download.fpcomplete.com/ubuntu precise main'|sudo tee /etc/apt/sources.list.d/fpco.list
@@ -10,6 +11,7 @@ dependencies:
   override:
     - stack setup
     - stack install hlint packdeps cabal-install
+    - stack build --test --no-run-tests
 
 test:
   override:
