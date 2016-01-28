@@ -85,7 +85,7 @@ app dbStructure conf reqBody req =
               then responseLBS status404 [] ""
               else responseLBS status200 [contentTypeH] (cs body)
             else do
-              let frm = toInteger $ rangeOffset range
+              let frm = rangeOffset range
                   to = frm + toInteger queryTotal - 1
                   contentRange = contentRangeH frm to (toInteger <$> tableTotal)
                   status = rangeStatus frm to (toInteger <$> tableTotal)
