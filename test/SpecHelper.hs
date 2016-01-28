@@ -40,7 +40,7 @@ cfgLimitRows = cfg dbString . Just
 
 withApp :: AppConfig -> DbStructure -> H.Connection
         -> ActionWith Application -> IO ()
-withApp config dbStructure c perform = do
+withApp config dbStructure c perform =
   perform $ defaultMiddle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
