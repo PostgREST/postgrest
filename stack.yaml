@@ -1,8 +1,10 @@
-flags: {}
-packages:
-- '.'
+resolver: lts-5.0
 extra-deps:
   - hasql-0.19.3.3
   - Ranged-sets-0.3.0
   - packdeps-0.4.2.1
-resolver: lts-5.0
+ghc-options:
+  postgrest: -O2 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
+
+packages:
+- '.'
