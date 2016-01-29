@@ -285,6 +285,11 @@ GET /projects?id=eq.1&select=id, name, client{*}
 
 Would embed in the `client` key the row referenced with `client_id`.
 
+<div class="admonition note">
+    <p class="admonition-title">Design Consideration</p>
+    <p>In order for this feature to work as expected after a schema change, PostgREST currently requires to be restarted.</p>
+</div>
+
 ### Response Format
 
 Query responses default to JSON but you can get them in CSV as well. Just make your request with the header
