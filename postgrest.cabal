@@ -34,6 +34,7 @@ executable postgrest
                      , contravariant
                      , errors
                      , hasql >= 0.19.3.3 && < 0.20
+                     , http-types
                      , interpolatedstring-perl6
                      , jwt
                      , optparse-applicative >= 0.11 && < 0.13
@@ -46,7 +47,6 @@ executable postgrest
                      , string-conversions
                      , text
                      , time
-                     , transformers
                      , unordered-containers
                      , vector
                      , wai >= 3.0.1
@@ -54,8 +54,7 @@ executable postgrest
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
-                     , HTTP, http-types
-                     , MissingH
+                     , HTTP
                      , Ranged-sets
   if !os(windows)
     build-depends:     unix >= 2.7 && < 3
@@ -104,7 +103,6 @@ library
                      , wai-extra
                      , wai-middleware-static
                      , HTTP
-                     , MissingH
                      , Ranged-sets
 
   Other-Modules:       Paths_postgrest
@@ -159,7 +157,6 @@ Test-Suite spec
                      , errors
                      , hasql
                      , heredoc
-                     , hlint
                      , hspec == 2.2.*
                      , hspec-wai
                      , hspec-wai-json
@@ -167,11 +164,9 @@ Test-Suite spec
                      , interpolatedstring-perl6
                      , jwt
                      , optparse-applicative
-                     , packdeps
                      , parsec
                      , process
                      , regex-tdfa
-                     , resource-pool
                      , safe
                      , scientific
                      , string-conversions
@@ -184,5 +179,4 @@ Test-Suite spec
                      , wai-extra
                      , wai-middleware-static
                      , HTTP
-                     , MissingH
                      , Ranged-sets
