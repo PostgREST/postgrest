@@ -125,7 +125,7 @@ respond to the OPTIONS verb and explain what they support as well
 as the data format of their JSON payload. RAML support is an upcoming
 feature.
 
-The project uses HTTP itself to commicate other metadata. For
+The project uses HTTP itself to communicate other metadata. For
 instance the number of rows returned by an endpoint is reported by -
 and limited with - range headers. More about
 [that](http://begriffs.com/posts/2014-03-06-beyond-http-header-links.html).
