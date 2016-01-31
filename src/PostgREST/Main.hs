@@ -13,7 +13,7 @@ import           PostgREST.Error                      (errResponse, pgErrRespons
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
-import           Control.Concurrent                   (forkIO, threadDelay)
+import           Control.Concurrent                   (forkIO, myThreadId, threadDelay)
 import           Control.Concurrent.MVar              (newEmptyMVar, putMVar)
 import           Control.Monad                        (forever, unless, void)
 import           Data.Monoid                          ((<>))
@@ -36,7 +36,6 @@ import           Web.JWT                              (secret)
 
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
-import           Control.Concurrent                   (myThreadId)
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
