@@ -14,7 +14,8 @@ import           PostgREST.Middleware
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
 import           Control.Concurrent                   (forkIO, myThreadId, threadDelay)
-import           Control.Concurrent.MVar              (newEmptyMVar, putMVar)
+import           Control.Concurrent.MVar              (isEmptyMVar, newEmptyMVar,
+                                                       putMVar, swapMVar)
 import           Control.Monad                        (forever, unless, void)
 import           Data.Monoid                          ((<>))
 import           Data.Pool
@@ -91,7 +92,13 @@ main = do
       Right c -> forever $ do
         H.run (getDbStructure (cs $ configSchema conf)) c >>= \case
           Left err -> error $ show err
-          Right s -> putMVar dbStructure s
+          Right s -> do
+            -- should be safe to check emptiness then act on it
+            -- non-atomically since we're the only producer
+            blank <- isEmptyMVar dbStructure
+            if blank
+               then putMVar dbStructure s
+               else void $ swapMVar dbStructure s
         threadDelay (5 * 60 * 1000000)
 
 #ifndef mingw32_HOST_OS
