@@ -8,7 +8,9 @@ module PostgREST.App (
 
 import           Control.Applicative
 import           Control.Arrow             ((***))
+import           Control.Concurrent.MVar   (MVar, readMVar)
 import           Control.Monad             (join)
+import           Control.Monad.IO.Class    (liftIO)
 import           Data.Bifunctor            (first)
 import           Data.List                 (find, sortBy, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
@@ -58,12 +60,21 @@ import           PostgREST.QueryBuilder ( callProc
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Session Response
-app dbStructure conf reqBody req =
+app :: MVar DbStructure -> AppConfig -> RequestBody -> Request -> H.Session Response
+app mDbStructure conf reqBody req = do
+  dbStructure <- liftIO $ readMVar mDbStructure
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts apiRequest)
-      contentTypeH = (hContentType, cs $ show contentType) in
+      contentTypeH = (hContentType, cs $ show contentType)
+      allPrKeys = dbPrimaryKeys dbStructure
+      readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
+      mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
+      selectQuery = requestToQuery schema <$> readDbRequest
+      countQuery = requestToCountQuery schema <$> readDbRequest
+      mutateQuery = requestToQuery schema <$> mutateDbRequest
+      readSqlParts = (,) <$> selectQuery <*> countQuery
+      mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
@@ -189,17 +200,9 @@ app dbStructure conf reqBody req =
  where
   notFound = responseLBS status404 [] ""
   filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
-  allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   apiRequest = userApiRequest schema req reqBody
-  readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
-  mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-  selectQuery = requestToQuery schema <$> readDbRequest
-  countQuery = requestToCountQuery schema <$> readDbRequest
-  mutateQuery = requestToQuery schema <$> mutateDbRequest
-  readSqlParts = (,) <$> selectQuery <*> countQuery
-  mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
 rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200

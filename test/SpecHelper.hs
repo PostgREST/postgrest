@@ -5,6 +5,7 @@ import Test.Hspec
 
 import Data.String.Conversions (cs)
 import Data.Time.Clock.POSIX (getPOSIXTime)
+import Control.Concurrent.MVar (newMVar)
 import Control.Monad (void)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
@@ -40,12 +41,13 @@ cfgLimitRows = cfg dbString . Just
 
 withApp :: AppConfig -> DbStructure -> H.Connection
         -> ActionWith Application -> IO ()
-withApp config dbStructure c perform =
+withApp config dbStructure c perform = do
+  mDbStructure <- newMVar dbStructure
   perform $ defaultMiddle $ \req resp -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
     let handleReq = H.run $ inTransaction ReadCommitted
-          (runWithClaims config time (app dbStructure config body) req)
+          (runWithClaims config time (app mDbStructure config body) req)
 
     handleReq c >>= \case
       Left err -> do

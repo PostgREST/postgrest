@@ -13,7 +13,9 @@ import           PostgREST.Error                      (errResponse, pgErrRespons
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
-import           Control.Monad                        (unless, void)
+import           Control.Concurrent                   (forkIO, threadDelay)
+import           Control.Concurrent.MVar              (newEmptyMVar, putMVar)
+import           Control.Monad                        (forever, unless, void)
 import           Data.Monoid                          ((<>))
 import           Data.Pool
 import           Data.String.Conversions              (cs)
@@ -70,7 +72,7 @@ main = do
   pool <- createPool (H.acquire pgSettings)
             (either (const $ return ()) H.release) 1 1 (configPool conf)
 
-  dbStructure <- withResource pool $ \case
+  withResource pool $ \case
     Left err -> error $ show err
     Right c -> do
       supported <- H.run isServerVersionSupported c
@@ -81,8 +83,17 @@ main = do
             "Cannot run in this PostgreSQL version, PostgREST needs at least "
             <> show minimumPgVersion)
 
-      dbOrError <- H.run (getDbStructure (cs $ configSchema conf)) c
-      either (error . show) return dbOrError
+  dbStructure <- newEmptyMVar
+  -- Fork thread to poll for schema changes
+  -- TODO: convert to NOTIFY/LISTEN and ddl event triggers
+  void . forkIO $
+    withResource pool $ \case
+      Left err -> error $ show err
+      Right c -> forever $ do
+        H.run (getDbStructure (cs $ configSchema conf)) c >>= \case
+          Left err -> error $ show err
+          Right s -> putMVar dbStructure s
+        threadDelay (5 * 60 * 1000000)
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
