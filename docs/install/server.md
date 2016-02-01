@@ -117,6 +117,37 @@ The possible flags are:
     file.</p>
 </div>
 
+When running `postgrest` on the same machine as PostgreSQL, it is also
+possible to connect to the database using the [Unix socket]
+(https://en.wikipedia.org/wiki/Unix_domain_socket) and the
+[Peer Authentication method]
+(http://www.postgresql.org/docs/current/static/auth-methods.html#AUTH-PEER)
+as an alternative to TCP/IP communication and authentication with a password.
+
+The Peer Authentication grants access to the database to any Unix user
+who connects as a user of the same name in the database.
+Since the empty host resolves to the Unix socket]
+(http://www.postgresql.org/docs/current/static/libpq-connect.html#AEN42494)
+and the password can be omitted in this case,
+the command line is reduced to:
+
+```sh
+sudo -u user postgrest postgres://user@/db [flags]
+```
+
+where the `sudo -u user` command runs the following command as given `user`.
+
+If you create a Unix user `postgrest` and a database user `postgrest`
+for example, the command becomes:
+
+```sh
+sudo -u postgrest postgrest postgres://postgrest@/db [flags]
+```
+
+The first `postgrest` is the Unix user name, the second `postgrest`
+is the name of the executable, the third `postgrest` is the name
+of the database user.
+
 ### Install via Homebrew (Mac OS X)
 
 You can use the Homebrew package manager to install PostgREST on Mac
