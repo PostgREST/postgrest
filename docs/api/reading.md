@@ -159,7 +159,7 @@ comma-separated list of columns and directions:
 GET /people?order=age.desc,height.asc
 ```
 
-If no direction is specified it defaults to descending order:
+If no direction is specified it defaults to ascending order:
 
 ```HTTP
 GET /people?order=age
