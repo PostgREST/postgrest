@@ -386,6 +386,9 @@ spec struct c = around (withApp cfgDefault struct c) $ do
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
 
+    it "currently supports POST only" $
+      get "/rpc/fake" `shouldRespondWith` 405 -- method not allowed
+
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`

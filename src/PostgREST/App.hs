@@ -155,7 +155,7 @@ app dbStructure conf reqBody req =
           filterCol _ _ _ =  False
       return $ responseLBS status200 [jsonH, allOrigins] $ cs body
 
-    (ActionInvoke, TargetIdent qi,
+    (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
       exists <- H.query qi doesProcExist
       if exists
@@ -177,6 +177,8 @@ app dbStructure conf reqBody req =
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionUnknown _, _, _) -> return notFound
+
+    (_, TargetProc _, _) -> return $ responseLBS status405 [] ""
 
     (_, TargetUnknown _, _) -> return notFound
 
