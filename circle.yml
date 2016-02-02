@@ -3,9 +3,8 @@ dependencies:
     - "~/.stack"
     - ".stack-work"
   pre:
-    - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 575159689BEFB442
-    - echo 'deb http://download.fpcomplete.com/ubuntu precise main'|sudo tee /etc/apt/sources.list.d/fpco.list
-    - sudo apt-get update && sudo apt-get install stack -y
+    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.2/stack-1.0.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    - sudo mv /tmp/stack-1.0.2-linux-x86_64/stack /usr/bin
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
   override:
