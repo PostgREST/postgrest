@@ -152,7 +152,7 @@ app dbStructure conf reqBody req =
                  pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
                  body = encode (TableOptions cols pkeys)
                  filterCol :: Schema -> TableName -> Column -> Bool
-                 filterCol sc tb (Column{colTable=Table{tableSchema=s, tableName=t}}) = s==sc && t==tb
+                 filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
                  filterCol _ _ _ =  False in
           return $ responseLBS status200 [jsonH, allOrigins] $ cs body
         else
