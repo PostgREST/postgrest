@@ -386,8 +386,22 @@ spec struct c = around (withApp cfgDefault struct c) $ do
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
 
-    it "currently supports POST only" $
-      get "/rpc/fake" `shouldRespondWith` 405 -- method not allowed
+    context "unsupported verbs" $ do
+      it "DELETE fails" $
+        request methodDelete "/rpc/sayhello" [] ""
+          `shouldRespondWith` 405
+      it "PATCH fails" $
+        request methodPatch "/rpc/sayhello" [] ""
+          `shouldRespondWith` 405
+      it "OPTIONS fails" $
+        -- TODO: should return info about the function
+        request methodOptions "/rpc/sayhello" [] ""
+          `shouldRespondWith` 405
+      it "GET fails with 405 on unknown procs" $
+        -- TODO: should this be 404?
+        get "/rpc/fake" `shouldRespondWith` 405
+      it "GET with 405 on known procs" $
+        get "/rpc/sayhello" `shouldRespondWith` 405
 
   describe "weird requests" $ do
     it "can query as normal" $ do
