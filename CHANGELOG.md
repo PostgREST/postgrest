@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Reject non-POSTs to rpc endpoints - @begriffs
+- Throw an error for OPTIONS on nonexistent tables - @calebmer
 
 ## [0.3.0.3] - 2016-01-08
 
