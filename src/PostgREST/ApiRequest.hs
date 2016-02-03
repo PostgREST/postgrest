@@ -31,6 +31,7 @@ data Action = ActionCreate | ActionRead
             | ActionUnknown BS.ByteString deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
+            | TargetProc  QualifiedIdentifier
             | TargetRoot
             | TargetUnknown [T.Text]
 -- | How to return the inserted data
@@ -90,7 +91,7 @@ userApiRequest schema req reqBody =
                  []            -> TargetRoot
                  [table]       -> TargetIdent
                                   $ QualifiedIdentifier schema table
-                 ["rpc", proc] -> TargetIdent
+                 ["rpc", proc] -> TargetProc
                                   $ QualifiedIdentifier schema proc
                  other         -> TargetUnknown other
       payload = case pickContentType (lookupHeader "content-type") of
