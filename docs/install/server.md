@@ -65,7 +65,7 @@ If you want to run the test suite, stack can do that too: `stack test`.
 ### Running the Server
 
 ```bash
-postgrest postgres://user:pass@host:port/db [flags]
+postgrest postgres://user:pass@host:port/db -a anon_user [other flags]
 ```
 
 The user in the connection string is the "authenticator role," i.e.
@@ -73,14 +73,14 @@ a role which is used temporarily to switch into other roles depending
 on the authentication request JWT. For simple API's you can use the
 same role for authenticator and anonymous.
 
-The possible flags are:
+The complete list of options:
 
 <dl>
 <dt>-p, --port</dt>
 <dd>The port on which the server will listen for HTTP requests.
     Defaults to 3000.</dd>
 
-<dt>-a, --anonymous</dt>
+<dt>-a, --anonymous (required)</dt>
 <dd>The database role used to execute commands for those requests
     which provide no JWT authorization.</dd>
 
