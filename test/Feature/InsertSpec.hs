@@ -130,7 +130,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
       it "fails returning a 409 Conflict" $
         post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 409
 
-    context "attempting to insert a row with confliting unique constraint" $
+    context "attempting to insert a row with conflicting unique constraint" $
       it "fails returning a 409 Conflict" $
         post "/withUnique"  [json| { "uni":"nodup", "extra":"e2" } |] `shouldRespondWith` 409
 
