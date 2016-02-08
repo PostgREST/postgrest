@@ -21,7 +21,7 @@ import TestTypes(IncPK(..), CompoundPK(..))
 spec :: DbStructure -> H.Connection -> Spec
 spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
   describe "Posting new record" $ do
-    context "disparate csv types" $ do
+    context "disparate json types" $ do
       it "accepts disparate json types" $ do
         p <- post "/menagerie"
           [json| {
