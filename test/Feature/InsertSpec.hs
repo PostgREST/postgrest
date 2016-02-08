@@ -241,7 +241,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
 
   describe "Putting record" $ do
 
-    context "to unkonwn uri" $
+    context "to unknown uri" $
       it "gives a 404" $ do
         pendingWith "Decide on PUT usefullness"
         request methodPut "/fake" []
@@ -316,7 +316,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
 
   describe "Patching record" $ do
 
-    context "to unkonwn uri" $
+    context "to unknown uri" $
       it "gives a 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
