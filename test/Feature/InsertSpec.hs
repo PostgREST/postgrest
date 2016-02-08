@@ -21,7 +21,7 @@ import TestTypes(IncPK(..), CompoundPK(..))
 spec :: DbStructure -> H.Connection -> Spec
 spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
   describe "Posting new record" $ do
-    context "disparate csv types" $ do
+    context "disparate json types" $ do
       it "accepts disparate json types" $ do
         p <- post "/menagerie"
           [json| {
@@ -130,7 +130,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
       it "fails returning a 409 Conflict" $
         post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 409
 
-    context "attempting to insert a row with confliting unique constraint" $
+    context "attempting to insert a row with conflicting unique constraint" $
       it "fails returning a 409 Conflict" $
         post "/withUnique"  [json| { "uni":"nodup", "extra":"e2" } |] `shouldRespondWith` 409
 
@@ -241,7 +241,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
 
   describe "Putting record" $ do
 
-    context "to unkonwn uri" $
+    context "to unknown uri" $
       it "gives a 404" $ do
         pendingWith "Decide on PUT usefullness"
         request methodPut "/fake" []
@@ -316,7 +316,7 @@ spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
 
   describe "Patching record" $ do
 
-    context "to unkonwn uri" $
+    context "to unknown uri" $
       it "gives a 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
