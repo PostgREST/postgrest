@@ -71,13 +71,10 @@ app dbStructure conf reqBody req =
       case readSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (q, cq) -> do
-          let range = restrictRange (configMaxRows conf) $ iRange apiRequest
-              singular = iPreferSingular apiRequest
+          let singular = iPreferSingular apiRequest
               stm = createReadStatement q cq range singular
                     (iPreferCount apiRequest) (contentType == TextCSV)
-          if range == emptyRange
-          then return $ errResponse status416 "HTTP Range error"
-          else do
+          respondToRange $ do
             row <- H.query () stm
             let (tableTotal, queryTotal, _ , body) = row
             if singular
@@ -165,14 +162,14 @@ app dbStructure conf reqBody req =
         then do
           let p = V.head payload
               jwtSecret = configJwtSecret conf
-
-          bodyJson <- H.query () (callProc qi p)
-          returnJWT <- H.query qi doesProcReturnJWT
-          return $ responseLBS status200 [jsonH]
-                 (let body = fromMaybe emptyArray bodyJson in
-                    if returnJWT
-                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                    else cs $ encode body)
+          respondToRange $ do
+            bodyJson <- H.query () (callProc qi p range)
+            returnJWT <- H.query qi doesProcReturnJWT
+            return $ responseLBS status200 [jsonH]
+                  (let body = fromMaybe emptyArray bodyJson in
+                      if returnJWT
+                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                      else cs $ encode body)
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
@@ -196,6 +193,7 @@ app dbStructure conf reqBody req =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   apiRequest = userApiRequest schema req reqBody
+  range = restrictRange (configMaxRows conf) $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema <$> readDbRequest
@@ -203,6 +201,9 @@ app dbStructure conf reqBody req =
   mutateQuery = requestToQuery schema <$> mutateDbRequest
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
+  respondToRange response = if range == emptyRange
+                            then return $ errResponse status416 "HTTP Range error"
+                            else response
 
 rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200

@@ -203,8 +203,8 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-callProc :: QualifiedIdentifier -> JSON.Object -> H.Query () (Maybe JSON.Value)
-callProc qi params =
+callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> H.Query () (Maybe JSON.Value)
+callProc qi params range =
   H.statement sql HE.unit decodeObj True
   where
     sql = [qc| SELECT array_to_json(
@@ -213,7 +213,7 @@ callProc qi params =
               from ({_callSql}) t |]
     _args = intercalate "," $ map _assignment (HM.toList params)
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| select * from {fromQi qi}({_args}) |] :: BS.ByteString
+    _callSql = [qc| select * from {fromQi qi}({_args}) {limitF range} |] :: BS.ByteString
     decodeObj = HD.maybeRow (HD.value HD.json)
 
 operators :: [(Text, SqlFragment)]
