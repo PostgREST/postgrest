@@ -28,7 +28,8 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
-            | ActionUnknown BS.ByteString deriving Eq
+            | ActionInappropriate
+            deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc  QualifiedIdentifier
@@ -78,15 +79,20 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: Schema -> Request -> RequestBody -> ApiRequest
 userApiRequest schema req reqBody =
-  let action = case method of
-                 "GET"     -> ActionRead
-                 "POST"    -> if isTargetingProc
-                                then ActionInvoke
-                                else ActionCreate
-                 "PATCH"   -> ActionUpdate
-                 "DELETE"  -> ActionDelete
-                 "OPTIONS" -> ActionInfo
-                 other     -> ActionUnknown other
+  let action =
+        if isTargetingProc
+          then
+            if method == "POST"
+               then ActionInvoke
+               else ActionInappropriate
+          else
+            case method of
+               "GET"     -> ActionRead
+               "POST"    -> ActionCreate
+               "PATCH"   -> ActionUpdate
+               "DELETE"  -> ActionDelete
+               "OPTIONS" -> ActionInfo
+               _         -> ActionInappropriate
       target = case path of
                  []            -> TargetRoot
                  [table]       -> TargetIdent
