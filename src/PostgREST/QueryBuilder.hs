@@ -203,18 +203,26 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> H.Query () (Maybe JSON.Value)
-callProc qi params range =
-  H.statement sql HE.unit decodeObj True
+type ProcResults = (Maybe Int64, Int64, JSON.Value)
+callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params range countTotal =
+  H.statement sql HE.unit decodeProc True
   where
-    sql = [qc| SELECT array_to_json(
+    sql = [qc| SELECT
+              {countQuery} as countTotal,
+              {countResult} as countResult,
+              array_to_json(
                 coalesce(array_agg(row_to_json(t)), '\{}')
               )::character varying
-              from ({_callSql}) t |]
+              from (select * {_callSql} {limitF range}) t |]
     _args = intercalate "," $ map _assignment (HM.toList params)
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| select * from {fromQi qi}({_args}) {limitF range} |] :: BS.ByteString
-    decodeObj = HD.maybeRow (HD.value HD.json)
+    _callSql = [qc| from {fromQi qi}({_args}) |] :: BS.ByteString
+    countQuery = if countTotal then [qc| (select pg_catalog.count(1) {_callSql} c) |] else "null::bigint" :: BS.ByteString
+    countResult = "pg_catalog.count(t)" :: BS.ByteString
+    decodeProc = HD.maybeRow procRow
+    procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
+                   <*> HD.value HD.json
 
 operators :: [(Text, SqlFragment)]
 operators = [

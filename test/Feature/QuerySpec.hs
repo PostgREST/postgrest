@@ -372,8 +372,15 @@ spec = do
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       it "returns paginated results" $
-        request methodPost "/rpc/getitemrange" (rangeHdrs (ByteRangeFromTo 0 0))  [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
-          [json| [ {"id": 3} ] |]
+        request methodPost "/rpc/getitemrange"
+                (rangeHdrs (ByteRangeFromTo 0 0))  [json| { "min": 2, "max": 4 } |]
+           `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just [json| [{"id":3}] |]
+            , matchStatus = 206
+            , matchHeaders = ["Content-Range" <:> "0-0/2"]
+            }
+
+
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]

@@ -73,7 +73,7 @@ app dbStructure conf reqBody req =
         Right (q, cq) -> do
           let singular = iPreferSingular apiRequest
               stm = createReadStatement q cq range singular
-                    (iPreferCount apiRequest) (contentType == TextCSV)
+                    shouldCount (contentType == TextCSV)
           respondToRange $ do
             row <- H.query () stm
             let (tableTotal, queryTotal, _ , body) = row
@@ -82,10 +82,7 @@ app dbStructure conf reqBody req =
               then responseLBS status404 [] ""
               else responseLBS status200 [contentTypeH] (cs body)
             else do
-              let frm = rangeOffset range
-                  to = frm + toInteger queryTotal - 1
-                  contentRange = contentRangeH frm to (toInteger <$> tableTotal)
-                  status = rangeStatus frm to (toInteger <$> tableTotal)
+              let (status, contentRange) = rangeHeader queryTotal tableTotal
                   canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
                     . sortBy (comparing fst)
                     . map (join (***) cs)
@@ -163,11 +160,13 @@ app dbStructure conf reqBody req =
           let p = V.head payload
               jwtSecret = configJwtSecret conf
           respondToRange $ do
-            bodyJson <- H.query () (callProc qi p range)
+            row <- H.query () (callProc qi p range shouldCount)
             returnJWT <- H.query qi doesProcReturnJWT
-            return $ responseLBS status200 [jsonH]
-                  (let body = fromMaybe emptyArray bodyJson in
-                      if returnJWT
+            let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
+                (status, contentRange) = rangeHeader queryTotal tableTotal
+              in
+              return $ responseLBS status [jsonH, contentRange]
+                      (if returnJWT
                       then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                       else cs $ encode body)
         else return notFound
@@ -193,6 +192,7 @@ app dbStructure conf reqBody req =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   apiRequest = userApiRequest schema req reqBody
+  shouldCount = iPreferCount apiRequest
   range = restrictRange (configMaxRows conf) $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
@@ -204,6 +204,11 @@ app dbStructure conf reqBody req =
   respondToRange response = if range == emptyRange
                             then return $ errResponse status416 "HTTP Range error"
                             else response
+  rangeHeader queryTotal tableTotal = let frm = rangeOffset range
+                                          to = frm + toInteger queryTotal - 1
+                                          contentRange = contentRangeH frm to (toInteger <$> tableTotal)
+                                          status = rangeStatus frm to (toInteger <$> tableTotal)
+                                      in (status, contentRange)
 
 rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200
