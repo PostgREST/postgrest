@@ -179,15 +179,13 @@ app dbStructure conf reqBody req =
       body <- encode <$> H.query schema accessibleTables
       return $ responseLBS status200 [jsonH] $ cs body
 
-    (ActionUnknown _, _, _) -> return notFound
-
-    (_, TargetProc _, _) -> return $ responseLBS status405 [] ""
-
-    (_, TargetUnknown _, _) -> return notFound
+    (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
 
     (_, _, Just (PayloadParseError e)) ->
       return $ responseLBS status400 [jsonH] $
         cs (formatGeneralError "Cannot parse request payload" (cs e))
+
+    (_, TargetUnknown _, _) -> return notFound
 
     (_, _, _) -> return notFound
 

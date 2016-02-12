@@ -386,6 +386,16 @@ spec struct c = around (withApp cfgDefault struct c) $ do
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
 
+    context "improper input" $ do
+      it "rejects unknown content type even if payload is good" $
+        request methodPost "/rpc/sayhello"
+          (acceptHdrs "audio/mpeg3") [json| { "name": "world" } |]
+            `shouldRespondWith` 415
+      it "rejects malformed json payload" $
+        request methodPost "/rpc/sayhello"
+          (acceptHdrs "application/json") "sdfsdf"
+            `shouldRespondWith` 400
+
     context "unsupported verbs" $ do
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
