@@ -13,7 +13,7 @@ import           PostgREST.Error                      (errResponse, pgErrRespons
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
-import           Control.Monad                        (unless, void)
+import           Control.Monad
 import           Data.Monoid                          ((<>))
 import           Data.Pool
 import           Data.String.Conversions              (cs)
