@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+
+## [0.3.0.4] - 2016-02-12
+
+### Fixed
 - Improved usage screen - @begriffs
 - Reject non-POSTs to rpc endpoints - @begriffs
 - Throw an error for OPTIONS on nonexistent tables - @calebmer
