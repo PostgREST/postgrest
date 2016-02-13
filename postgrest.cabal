@@ -48,6 +48,7 @@ executable postgrest
                      , string-conversions
                      , text
                      , time
+                     , transformers
                      , unordered-containers
                      , vector
                      , wai >= 3.0.1
@@ -97,6 +98,7 @@ library
                      , string-conversions
                      , text
                      , time
+                     , transformers
                      , unordered-containers
                      , vector
                      , wai
@@ -173,6 +175,7 @@ Test-Suite spec
                      , string-conversions
                      , text
                      , time
+                     , transformers
                      , unordered-containers
                      , vector
                      , wai

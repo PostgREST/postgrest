@@ -13,7 +13,10 @@ import           PostgREST.Error                      (errResponse, pgErrRespons
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
-import           Control.Monad                        (unless, void)
+import           Control.Concurrent                   (forkIO, myThreadId, threadDelay)
+import           Control.Concurrent.MVar              (isEmptyMVar, newEmptyMVar,
+                                                       putMVar, swapMVar)
+import           Control.Monad                        (forever, unless, void)
 import           Data.Monoid                          ((<>))
 import           Data.Pool
 import           Data.String.Conversions              (cs)
@@ -34,7 +37,6 @@ import           Web.JWT                              (secret)
 
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
-import           Control.Concurrent                   (myThreadId)
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
@@ -70,7 +72,7 @@ main = do
   pool <- createPool (H.acquire pgSettings)
             (either (const $ return ()) H.release) 1 1 (configPool conf)
 
-  dbStructure <- withResource pool $ \case
+  withResource pool $ \case
     Left err -> error $ show err
     Right c -> do
       supported <- H.run isServerVersionSupported c
@@ -81,8 +83,23 @@ main = do
             "Cannot run in this PostgreSQL version, PostgREST needs at least "
             <> show minimumPgVersion)
 
-      dbOrError <- H.run (getDbStructure (cs $ configSchema conf)) c
-      either (error . show) return dbOrError
+  dbStructure <- newEmptyMVar
+  -- Fork thread to poll for schema changes
+  -- TODO: convert to NOTIFY/LISTEN and ddl event triggers
+  void . forkIO $
+    withResource pool $ \case
+      Left err -> error $ show err
+      Right c -> forever $ do
+        H.run (getDbStructure (cs $ configSchema conf)) c >>= \case
+          Left err -> error $ show err
+          Right s -> do
+            -- should be safe to check emptiness then act on it
+            -- non-atomically since we're the only producer
+            blank <- isEmptyMVar dbStructure
+            if blank
+               then putMVar dbStructure s
+               else void $ swapMVar dbStructure s
+        threadDelay (5 * 60 * 1000000)
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
