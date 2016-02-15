@@ -16,6 +16,8 @@ test:
   override:
     - stack test
     - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
+    - stack exec -- cabal update
+    - stack exec --no-ghc-package-path -- cabal install --only-d --dry-run
     - stack exec -- packdeps *.cabal || true
     - stack exec -- cabal check
     - stack haddock --no-haddock-deps
