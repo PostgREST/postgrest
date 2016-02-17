@@ -97,8 +97,9 @@ main = do
     body <- strictRequestBody req
     let handleReq = H.run $ inTransaction ReadCommitted
           (runWithClaims conf time (app dbStructure conf body) req)
-    withResource pool $ \case
-      Left err -> respond $ errResponse HT.status500 (cs . show $ err)
+    res <- withResource pool $ \case
+      Left err -> return $ errResponse HT.status500 (cs . show $ err)
       Right c -> do
         resOrError <- handleReq c
-        either (respond . pgErrResponse) respond resOrError
+        either (return . pgErrResponse) return resOrError
+    respond res
