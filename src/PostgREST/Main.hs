@@ -101,5 +101,5 @@ main = do
       Left err -> return $ errResponse HT.status500 (cs . show $ err)
       Right c -> do
         resOrError <- handleReq c
-        either (return . pgErrResponse) return resOrError
+        return $ either pgErrResponse id resOrError
     respond res
