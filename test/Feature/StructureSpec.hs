@@ -3,15 +3,15 @@ module Feature.StructureSpec where
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import qualified Hasql.Connection  as H
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
+import Network.Wai (Application)
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = around (withApp cfgDefault struct c) $ do
+spec :: SpecWith Application
+spec = do
+
   describe "GET /" $ do
     it "lists views in schema" $
       request methodGet "/" [] ""

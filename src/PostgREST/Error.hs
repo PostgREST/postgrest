@@ -7,11 +7,13 @@ module PostgREST.Error (pgErrResponse, errResponse) where
 
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
+import           Data.Maybe                (fromMaybe)
 import           Data.Monoid               ((<>))
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import qualified Hasql.Session             as H
+import qualified Hasql.Pool                as P
 import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
@@ -19,9 +21,16 @@ import           Network.Wai               (Response, responseLBS)
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
 
-pgErrResponse :: H.Error -> Response
+pgErrResponse :: P.UsageError -> Response
 pgErrResponse e = responseLBS (httpStatus e)
   [(hContentType, "application/json")] (JSON.encode e)
+
+instance JSON.ToJSON P.UsageError where
+  toJSON (P.ConnectionError e) = JSON.object [
+    "code" .= ("" :: T.Text),
+    "message" .= ("Connection error" :: T.Text),
+    "details" .= (cs (fromMaybe "" e) :: T.Text)]
+  toJSON e = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
@@ -51,15 +60,17 @@ instance JSON.ToJSON H.Error where
     "message" .= ("Database client error"::String),
     "details" .= (fmap cs d::Maybe T.Text)]
 
-httpStatus :: H.Error -> HT.Status
-httpStatus (H.ResultError (H.ServerError c _ _ _)) =
+httpStatus :: P.UsageError -> HT.Status
+httpStatus (P.ConnectionError _) =
+  HT.status500
+httpStatus (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
   case cs c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
     '0':'L':_ -> HT.status403 -- invalid grantor
     '0':'P':_ -> HT.status403 -- invalid role specification
-    "23503" -> HT.status409 -- foreign_key_violation
-    "23505" -> HT.status409 -- unique_violation
+    "23503"   -> HT.status409 -- foreign_key_violation
+    "23505"   -> HT.status409 -- unique_violation
     '2':'5':_ -> HT.status500 -- invalid tx state
     '2':'8':_ -> HT.status403 -- invalid auth specification
     '2':'D':_ -> HT.status500 -- invalid tx termination
@@ -76,8 +87,8 @@ httpStatus (H.ResultError (H.ServerError c _ _ _)) =
     'H':'V':_ -> HT.status500 -- foreign data wrapper error
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
-    "42P01" -> HT.status404 -- undefined table
-    "42501" -> HT.status404 -- insufficient privilege
-    _ -> HT.status400
-httpStatus (H.ResultError _) = HT.status500
-httpStatus (H.ClientError _) = HT.status503
+    "42P01"   -> HT.status404 -- undefined table
+    "42501"   -> HT.status404 -- insufficient privilege
+    _         -> HT.status400
+httpStatus (P.SessionError (H.ResultError _)) = HT.status500
+httpStatus (P.SessionError (H.ClientError _)) = HT.status503

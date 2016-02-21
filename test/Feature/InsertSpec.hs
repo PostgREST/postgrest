@@ -6,7 +6,6 @@ import Test.Hspec.Wai.JSON
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
@@ -14,12 +13,12 @@ import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
 import Control.Monad (replicateM_)
-import qualified Hasql.Connection  as H
 
 import TestTypes(IncPK(..), CompoundPK(..))
+import Network.Wai (Application)
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = beforeAll_ resetDb $ around (withApp cfgDefault struct c) $ do
+spec :: SpecWith Application
+spec = do
   describe "Posting new record" $ do
     context "disparate json types" $ do
       it "accepts disparate json types" $ do

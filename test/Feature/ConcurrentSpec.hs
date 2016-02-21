@@ -13,14 +13,11 @@ import Test.Hspec.Wai.Internal
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.Wai.Test (Session)
-import qualified Hasql.Connection  as H
 
-import SpecHelper
-import PostgREST.Types (DbStructure(..))
+import Network.Wai (Application)
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = around (withApp cfgDefault struct c) $
-
+spec :: SpecWith Application
+spec =
   describe "Queryiny in parallel" $
     it "should not raise 'transaction in progress' error" $
       raceTest 3 $

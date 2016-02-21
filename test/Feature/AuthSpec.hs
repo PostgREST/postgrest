@@ -5,15 +5,13 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-import qualified Hasql.Connection  as H
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
+import Network.Wai (Application)
 -- }}}
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = around (withApp cfgDefault struct c)
-  $ describe "authorization" $ do
+spec :: SpecWith Application
+spec = describe "authorization" $ do
 
   it "hides tables that anonymous does not own" $
     get "/authors_only" `shouldRespondWith` 404

@@ -1,6 +1,7 @@
 resolver: lts-5.0
 extra-deps:
   - hasql-0.19.3.3
+  - hasql-pool-0.4
   - Ranged-sets-0.3.0
   - packdeps-0.4.2.1
 ghc-options:

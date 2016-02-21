@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Main where
+module PostgREST.Main where
 
 
 import           PostgREST.App
@@ -9,21 +9,20 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        prettyVersion,
                                                        readOptions)
 import           PostgREST.DbStructure
-import           PostgREST.Error                      (errResponse, pgErrResponse)
+import           PostgREST.Error                      (pgErrResponse)
 import           PostgREST.Middleware
+import           PostgREST.Types                      (DbStructure)
 import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
 import           Control.Monad
 import           Data.Monoid                          ((<>))
-import           Data.Pool
 import           Data.String.Conversions              (cs)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
-import qualified Hasql.Connection                     as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
 import qualified Hasql.Encoders                       as HE
-import qualified Network.HTTP.Types.Status            as HT
+import qualified Hasql.Pool                           as P
 import           Network.Wai
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Middleware.RequestLogger (logStdout)
@@ -55,51 +54,45 @@ main = do
 
   conf <- readOptions
   let port = configPort conf
+      pgSettings = cs (configDatabase conf)
+      appSettings = setPort port
+                  . setServerName (cs $ "postgrest/" <> prettyVersion)
+                  $ defaultSettings
 
   unless (secret "secret" /= configJwtSecret conf) $
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
 
-  let pgSettings = cs (configDatabase conf)
-      appSettings = setPort port
-                  . setServerName (cs $ "postgrest/" <> prettyVersion)
-                  $ defaultSettings
-      middle = logStdout . defaultMiddle
 
-  pool <- createPool (H.acquire pgSettings)
-            (either (const $ return ()) H.release) 1 1 (configPool conf)
-
-  dbStructure <- withResource pool $ \case
-    Left err -> error $ show err
-    Right c -> do
-      supported <- H.run isServerVersionSupported c
-      case supported of
-        Left e -> error $ show e
-        Right good -> unless good $
-          error (
-            "Cannot run in this PostgreSQL version, PostgREST needs at least "
-            <> show minimumPgVersion)
-
-      dbOrError <- H.run (getDbStructure (cs $ configSchema conf)) c
-      either (error . show) return dbOrError
+  pool <- P.acquire (configPool conf, 10, pgSettings)
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
   void $ installHandler keyboardSignal (Catch $ do
-      destroyAllResources pool
+      P.release pool
       throwTo tid UserInterrupt
     ) Nothing
 #endif
 
-  runSettings appSettings $ middle $ \ req respond -> do
+  result <- P.use pool $ do
+    supported <- isServerVersionSupported
+    unless supported $ error (
+      "Cannot run in this PostgreSQL version, PostgREST needs at least "
+      <> show minimumPgVersion)
+    getDbStructure (cs $ configSchema conf)
+
+  let dbStructure = either (error.show) id result
+  runSettings appSettings $ postgrest conf dbStructure pool
+
+postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
+postgrest conf dbStructure pool =
+  let middle = logStdout . defaultMiddle in
+
+  middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    let handleReq = H.run $ inTransaction ReadCommitted
-          (runWithClaims conf time (app dbStructure conf body) req)
-    res <- withResource pool $ \case
-      Left err -> return $ errResponse HT.status500 (cs . show $ err)
-      Right c -> do
-        resOrError <- handleReq c
-        return $ either pgErrResponse id resOrError
-    respond res
+    let handleReq = inTransaction ReadCommitted $
+          runWithClaims conf time (app dbStructure conf body) req
+    resp <- either pgErrResponse id <$> P.use pool handleReq
+    respond resp

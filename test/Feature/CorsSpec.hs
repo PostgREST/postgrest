@@ -5,16 +5,16 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Network.Wai.Test (SResponse(simpleHeaders, simpleBody))
 import qualified Data.ByteString.Lazy as BL
-import qualified Hasql.Connection  as H
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
 
 import Network.HTTP.Types
+import Network.Wai (Application)
 -- }}}
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = around (withApp cfgDefault struct c) $ describe "CORS" $ do
+spec :: SpecWith Application
+spec =
+  describe "CORS" $ do
     let preflightHeaders = [
           ("Accept", "*/*"),
           ("Origin", "http://example.com"),

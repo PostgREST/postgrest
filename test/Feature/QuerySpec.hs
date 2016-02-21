@@ -5,14 +5,13 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders))
-import qualified Hasql.Connection  as H
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
 import Text.Heredoc
+import Network.Wai (Application)
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = around (withApp cfgDefault struct c) $ do
+spec :: SpecWith Application
+spec = do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $

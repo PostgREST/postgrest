@@ -23,7 +23,7 @@ Flag CI
 
 executable postgrest
   main-is:             PostgREST/Main.hs
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, LambdaCase
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
   build-depends:       aeson >= 0.8 && < 0.10
@@ -35,6 +35,7 @@ executable postgrest
                      , contravariant
                      , errors
                      , hasql >= 0.19.3.3 && < 0.20
+                     , hasql-pool >= 0.4 && < 0.5
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
@@ -42,7 +43,6 @@ executable postgrest
                      , parsec
                      , postgrest
                      , regex-tdfa
-                     , resource-pool
                      , safe >= 0.3 && < 0.4
                      , scientific
                      , string-conversions
@@ -86,6 +86,7 @@ library
                      , contravariant
                      , errors
                      , hasql
+                     , hasql-pool
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
@@ -123,7 +124,7 @@ library
 Test-Suite spec
   Type:                exitcode-stdio-1.0
   Default-Language:    Haskell2010
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, LambdaCase
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   Hs-Source-Dirs:      test, src
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
@@ -139,6 +140,7 @@ Test-Suite spec
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
+                     , PostgREST.Main
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.DbStructure
@@ -159,6 +161,7 @@ Test-Suite spec
                      , contravariant
                      , errors
                      , hasql
+                     , hasql-pool
                      , heredoc
                      , hspec == 2.2.*
                      , hspec-wai
@@ -179,10 +182,12 @@ Test-Suite spec
                      , transformers
                      , transformers-base
                      , unordered-containers
+                     , unix
                      , vector
                      , wai
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
+                     , warp
                      , HTTP
                      , Ranged-sets

@@ -1,10 +1,6 @@
 module SpecHelper where
 
-import Network.Wai
-import Test.Hspec
-
 import Data.String.Conversions (cs)
-import Data.Time.Clock.POSIX (getPOSIXTime)
 import Control.Monad (void)
 
 import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
@@ -16,15 +12,7 @@ import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
 import Web.JWT (secret)
 
-import qualified Hasql.Connection  as H
-import qualified Hasql.Session     as H
-
-import PostgREST.App (app)
 import PostgREST.Config (AppConfig(..))
-import PostgREST.Middleware
-import PostgREST.Error(pgErrResponse)
-import PostgREST.Types
-import PostgREST.QueryBuilder (inTransaction, Isolation(..))
 
 dbString :: String
 dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
@@ -37,21 +25,6 @@ cfgDefault = cfg dbString Nothing
 
 cfgLimitRows :: Integer -> AppConfig
 cfgLimitRows = cfg dbString . Just
-
-withApp :: AppConfig -> DbStructure -> H.Connection
-        -> ActionWith Application -> IO ()
-withApp config dbStructure c perform =
-  perform $ defaultMiddle $ \req resp -> do
-    time <- getPOSIXTime
-    body <- strictRequestBody req
-    let handleReq = H.run $ inTransaction ReadCommitted
-          (runWithClaims config time (app dbStructure config body) req)
-
-    handleReq c >>= \case
-      Left err -> do
-        void $ H.run (H.sql "rollback;") c
-        resp $ pgErrResponse err
-      Right res -> resp res
 
 setupDb :: IO ()
 setupDb = do
