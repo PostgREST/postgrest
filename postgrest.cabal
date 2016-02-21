@@ -127,6 +127,7 @@ Test-Suite spec
   Hs-Source-Dirs:      test, src
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
+                     , Feature.ConcurrentSpec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
@@ -148,6 +149,7 @@ Test-Suite spec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
+                     , async
                      , base
                      , base64-string
                      , bytestring
@@ -164,6 +166,7 @@ Test-Suite spec
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , monad-control
                      , optparse-applicative
                      , parsec
                      , process
@@ -173,6 +176,8 @@ Test-Suite spec
                      , string-conversions
                      , text
                      , time
+                     , transformers
+                     , transformers-base
                      , unordered-containers
                      , vector
                      , wai

@@ -10,6 +10,7 @@ import PostgREST.DbStructure (getDbStructure)
 import Data.String.Conversions (cs)
 
 import qualified Feature.AuthSpec
+import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.InsertSpec
@@ -34,6 +35,7 @@ main = do
  where
   specs conn dbStructure = do
     describe "Feature.AuthSpec" $ Feature.AuthSpec.spec dbStructure conn
+    describe "Feature.ConcurrentSpec" $ Feature.ConcurrentSpec.spec dbStructure conn
     describe "Feature.CorsSpec" $ Feature.CorsSpec.spec dbStructure conn
     describe "Feature.DeleteSpec" $ Feature.DeleteSpec.spec dbStructure conn
     describe "Feature.InsertSpec" $ Feature.InsertSpec.spec dbStructure conn
