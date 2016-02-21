@@ -11,6 +11,7 @@ import Control.Concurrent.Async (mapConcurrently)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai.Internal
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 import Network.Wai.Test (Session)
 import qualified Hasql.Connection  as H
 
@@ -23,7 +24,17 @@ spec struct c = around (withApp cfgDefault struct c) $
   describe "Queryiny in parallel" $
     it "should not raise 'transaction in progress' error" $
       raceTest 3 $
-        get "/fakefake" `shouldRespondWith` 404
+        get "/fakefake"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json|
+              { "hint": null,
+                "details":null,
+                "code":"42P01",
+                "message":"relation \"test.fakefake\" does not exist"
+              } |]
+          , matchStatus  = 404
+          , matchHeaders = []
+          }
 
 raceTest :: Int -> WaiExpectation -> WaiExpectation
 raceTest times = liftBaseDiscard go
