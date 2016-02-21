@@ -5,7 +5,7 @@ extra-deps:
   - Ranged-sets-0.3.0
   - packdeps-0.4.2.1
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
+  postgrest: -O1 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
 
 packages:
 - '.'
