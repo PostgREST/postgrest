@@ -2,8 +2,11 @@ resolver: lts-5.0
 extra-deps:
   - hasql-0.19.3.3
   - hasql-pool-0.4
+  - hasql-transaction-0.4.2
   - Ranged-sets-0.3.0
   - packdeps-0.4.2.1
+  - bytestring-tree-builder-0.2.5
+  - postgresql-error-codes-1
 ghc-options:
   postgrest: -O1 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
 

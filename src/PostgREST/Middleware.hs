@@ -7,7 +7,7 @@ import           Data.Maybe                    (fromMaybe)
 import           Data.Text
 import           Data.String.Conversions       (cs)
 import           Data.Time.Clock               (NominalDiffTime)
-import qualified Hasql.Session                 as H
+import qualified Hasql.Transaction             as H
 
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
 import           Network.HTTP.Types.Status     (status415, status400)
@@ -27,8 +27,8 @@ import           Prelude hiding(concat)
 import qualified Data.Map.Lazy           as M
 
 runWithClaims :: AppConfig -> NominalDiffTime ->
-                 (Request -> H.Session Response) ->
-                 Request -> H.Session Response
+                 (Request -> H.Transaction Response) ->
+                 Request -> H.Transaction Response
 runWithClaims conf time app req = do
     H.sql setAnon
     case split (== ' ') (cs auth) of

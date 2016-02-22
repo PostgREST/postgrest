@@ -36,6 +36,7 @@ executable postgrest
                      , errors
                      , hasql >= 0.19.3.3 && < 0.20
                      , hasql-pool >= 0.4 && < 0.5
+                     , hasql-transaction >= 0.4 && < 0.5
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
@@ -86,6 +87,7 @@ library
                      , contravariant
                      , errors
                      , hasql
+                     , hasql-transaction
                      , hasql-pool
                      , http-types
                      , interpolatedstring-perl6
@@ -162,6 +164,7 @@ Test-Suite spec
                      , errors
                      , hasql
                      , hasql-pool
+                     , hasql-transaction
                      , heredoc
                      , hspec == 2.2.*
                      , hspec-wai

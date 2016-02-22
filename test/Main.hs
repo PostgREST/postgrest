@@ -27,9 +27,9 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   let dbStructure = either (error.show) id result
-      withApp = ($ postgrest cfgDefault dbStructure pool)
+      withApp = return $ postgrest cfgDefault dbStructure pool
 
-  hspec . sequence_ . map (around withApp) $ specs
+  hspec . sequence_ . map (before withApp) $ specs
 
  where
   specs = map (uncurry describe) [

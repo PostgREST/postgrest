@@ -12,7 +12,6 @@ import           PostgREST.DbStructure
 import           PostgREST.Error                      (pgErrResponse)
 import           PostgREST.Middleware
 import           PostgREST.Types                      (DbStructure)
-import           PostgREST.QueryBuilder               (inTransaction, Isolation(..))
 
 import           Control.Monad
 import           Data.Monoid                          ((<>))
@@ -20,6 +19,7 @@ import           Data.String.Conversions              (cs)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
+import qualified Hasql.Transaction                    as HT
 import qualified Hasql.Decoders                       as HD
 import qualified Hasql.Encoders                       as HE
 import qualified Hasql.Pool                           as P
@@ -92,7 +92,8 @@ postgrest conf dbStructure pool =
   middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
-    let handleReq = inTransaction ReadCommitted $
-          runWithClaims conf time (app dbStructure conf body) req
-    resp <- either pgErrResponse id <$> P.use pool handleReq
+
+    let handleReq = runWithClaims conf time (app dbStructure conf body) req
+    resp <- either pgErrResponse id <$> P.use pool
+      (HT.run handleReq HT.ReadCommitted HT.Write)
     respond resp
