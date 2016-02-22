@@ -30,7 +30,7 @@ instance JSON.ToJSON P.UsageError where
     "code" .= ("" :: T.Text),
     "message" .= ("Connection error" :: T.Text),
     "details" .= (cs (fromMaybe "" e) :: T.Text)]
-  toJSON e = JSON.toJSON e -- H.Error
+  toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
