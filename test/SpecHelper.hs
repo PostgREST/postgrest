@@ -21,6 +21,10 @@ testCfg :: AppConfig
 testCfg =
   AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 Nothing True
 
+testLtdRowsCfg :: AppConfig
+testLtdRowsCfg =
+  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 (Just 3) True
+
 setupDb :: IO ()
 setupDb = do
   void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []

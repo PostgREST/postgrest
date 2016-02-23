@@ -28,8 +28,14 @@ main = do
   result <- P.use pool $ getDbStructure "test"
   let dbStructure = either (error.show) id result
       withApp = return $ postgrest testCfg dbStructure pool
+      ltdApp  = return $ postgrest testLtdRowsCfg dbStructure pool
 
-  hspec . mapM_ (beforeAll_ resetDb . before withApp) $ specs
+  hspec $ do
+    mapM_ (beforeAll_ resetDb . before withApp) specs
+
+    -- this test runs with a different server flag
+    beforeAll_ resetDb . before ltdApp $
+      describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
 
  where
   specs = map (uncurry describe) [
@@ -38,7 +44,6 @@ main = do
     , ("Feature.CorsSpec"         , Feature.CorsSpec.spec)
     , ("Feature.DeleteSpec"       , Feature.DeleteSpec.spec)
     , ("Feature.InsertSpec"       , Feature.InsertSpec.spec)
-    , ("Feature.QueryLimitedSpec" , Feature.QueryLimitedSpec.spec)
     , ("Feature.QuerySpec"        , Feature.QuerySpec.spec)
     , ("Feature.RangeSpec"        , Feature.RangeSpec.spec)
     , ("Feature.StructureSpec"    , Feature.StructureSpec.spec)
