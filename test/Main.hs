@@ -23,11 +23,11 @@ main :: IO ()
 main = do
   setupDb
 
-  pool <- P.acquire (10, 10, cs dbString)
+  pool <- P.acquire (10, 10, cs testDbConn)
 
   result <- P.use pool $ getDbStructure "test"
   let dbStructure = either (error.show) id result
-      withApp = return $ postgrest cfgDefault dbStructure pool
+      withApp = return $ postgrest testCfg dbStructure pool
 
   hspec . sequence_ . map (before withApp) $ specs
 

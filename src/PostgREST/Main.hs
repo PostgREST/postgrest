@@ -88,7 +88,7 @@ main = do
 
 postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
 postgrest conf dbStructure pool =
-  let middle = logStdout . defaultMiddle in
+  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
     time <- getPOSIXTime

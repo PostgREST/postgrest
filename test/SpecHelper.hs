@@ -14,17 +14,12 @@ import Web.JWT (secret)
 
 import PostgREST.Config (AppConfig(..))
 
-dbString :: String
-dbString = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
+testDbConn :: String
+testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
-cfg :: String -> Maybe Integer -> AppConfig
-cfg conStr = AppConfig conStr "postgrest_test_anonymous" "test" 3000 (secret "safe") 10
-
-cfgDefault :: AppConfig
-cfgDefault = cfg dbString Nothing
-
-cfgLimitRows :: Integer -> AppConfig
-cfgLimitRows = cfg dbString . Just
+testCfg :: AppConfig
+testCfg =
+  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 Nothing True
 
 setupDb :: IO ()
 setupDb = do
