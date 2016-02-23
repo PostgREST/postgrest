@@ -40,6 +40,7 @@ executable postgrest
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , mtl
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
                      , postgrest
@@ -92,6 +93,7 @@ library
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , mtl
                      , optparse-applicative
                      , parsec
                      , regex-tdfa
@@ -173,6 +175,7 @@ Test-Suite spec
                      , interpolatedstring-perl6
                      , jwt
                      , monad-control
+                     , mtl
                      , optparse-applicative
                      , parsec
                      , process
