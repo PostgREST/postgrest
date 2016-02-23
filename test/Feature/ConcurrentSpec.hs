@@ -20,7 +20,7 @@ spec :: SpecWith Application
 spec =
   describe "Queryiny in parallel" $
     it "should not raise 'transaction in progress' error" $
-      raceTest 3 $
+      raceTest 10 $
         get "/fakefake"
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [json|

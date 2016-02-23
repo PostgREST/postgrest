@@ -23,7 +23,7 @@ main :: IO ()
 main = do
   setupDb
 
-  pool <- P.acquire (10, 10, cs testDbConn)
+  pool <- P.acquire (3, 10, cs testDbConn)
 
   result <- P.use pool $ getDbStructure "test"
   let dbStructure = either (error.show) id result
