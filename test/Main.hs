@@ -29,7 +29,7 @@ main = do
   let dbStructure = either (error.show) id result
       withApp = return $ postgrest testCfg dbStructure pool
 
-  hspec . sequence_ . map (before withApp) $ specs
+  hspec . mapM_ (beforeAll_ resetDb . before withApp) $ specs
 
  where
   specs = map (uncurry describe) [
