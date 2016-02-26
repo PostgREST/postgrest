@@ -30,7 +30,6 @@ import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 import           Web.JWT                              (secret)
-
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 import           Control.Concurrent                   (myThreadId)
@@ -63,7 +62,6 @@ main = do
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
   Prelude.putStrLn $ "Listening on port " ++
     (show $ configPort conf :: String)
-
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
