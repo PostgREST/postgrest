@@ -5,14 +5,13 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
-import qualified Hasql.Connection  as H
 
 import SpecHelper
-import PostgREST.Types (DbStructure(..))
+import Network.Wai (Application)
 
-spec :: DbStructure -> H.Connection -> Spec
-spec struct c = beforeAll resetDb
-  . around (withApp cfgDefault struct c) $
+spec :: SpecWith Application
+spec =
+
   describe "GET /items" $ do
 
     context "without range headers" $ do

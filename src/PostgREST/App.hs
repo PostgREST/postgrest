@@ -31,7 +31,7 @@ import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
-import qualified Hasql.Session             as H
+import qualified Hasql.Transaction         as H
 
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
@@ -58,7 +58,7 @@ import           PostgREST.QueryBuilder ( callProc
 
 import           Prelude
 
-app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Session Response
+app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Transaction Response
 app dbStructure conf reqBody req =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)

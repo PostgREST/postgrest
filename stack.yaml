@@ -1,10 +1,15 @@
 resolver: lts-5.0
 extra-deps:
-  - hasql-0.19.3.3
   - Ranged-sets-0.3.0
+  - bytestring-tree-builder-0.2.5
+  - hasql-0.19.9
+  - hasql-pool-0.4
+  - hasql-transaction-0.4.3
   - packdeps-0.4.2.1
+  - postgresql-error-codes-1
+  - postgresql-binary-0.8.1
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
+  postgrest: -O1 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
 
 packages:
 - '.'
