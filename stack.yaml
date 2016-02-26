@@ -4,7 +4,7 @@ extra-deps:
   - bytestring-tree-builder-0.2.5
   - hasql-0.19.8
   - hasql-pool-0.4
-  - hasql-transaction-0.4.2
+  - hasql-transaction-0.4.3
   - packdeps-0.4.2.1
   - postgresql-error-codes-1
   - postgresql-binary-0.8.1

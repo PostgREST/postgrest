@@ -14,7 +14,6 @@ import           PostgREST.Middleware
 import           PostgREST.Types                      (DbStructure)
 
 import           Control.Monad
-import           Control.Monad.Error.Class            (catchError, throwError)
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
@@ -96,9 +95,5 @@ postgrest conf dbStructure pool =
 
     let handleReq = runWithClaims conf time (app dbStructure conf body) req
     resp <- either pgErrResponse id <$> P.use pool
-      (rollbackOnError $ HT.run handleReq HT.ReadCommitted HT.Write)
+      (HT.run handleReq HT.ReadCommitted HT.Write)
     respond resp
-
- where
-  rollbackOnError :: H.Session a -> H.Session a
-  rollbackOnError = (`catchError` ((H.sql "rollback;" >>) . throwError))
