@@ -6,8 +6,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
-
 - Prevent query error from infecting later connection - @begriffs, @ruslantalpa, @nikita-volkov, @jwiegley
+
+### Added
+- Applies range headers to RPC calls - @diogob
 
 ## [0.3.0.4] - 2016-02-12
 
@@ -16,9 +18,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Reject non-POSTs to rpc endpoints - @begriffs
 - Throw an error for OPTIONS on nonexistent tables - @calebmer
 - Remove deadlock on simultaneous contentious updates - @ruslantalpa, @begriffs
-
-### Added
-- Applies range headers to RPC calls - @diogob
 
 ## [0.3.0.3] - 2016-01-08
 
