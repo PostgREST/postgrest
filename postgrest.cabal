@@ -34,7 +34,7 @@ executable postgrest
                      , containers
                      , contravariant
                      , errors
-                     , hasql >= 0.19.3.3 && < 0.20
+                     , hasql >= 0.19.9 && < 0.20
                      , hasql-pool >= 0.4 && < 0.5
                      , hasql-transaction >= 0.4.3 && < 0.5
                      , http-types
