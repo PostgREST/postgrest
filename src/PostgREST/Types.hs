@@ -1,16 +1,16 @@
 module PostgREST.Types where
-import Data.Text
-import Data.Tree
-import qualified Data.ByteString.Lazy as BL
+import           Data.Aeson
 import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Lazy as BL
+import           Data.Int             (Int32)
+import           Data.Text
+import           Data.Tree
 import qualified Data.Vector          as V
-import Data.Aeson
-import Data.Int (Int32)
 
 data DbStructure = DbStructure {
-  dbTables :: [Table]
-, dbColumns :: [Column]
-, dbRelations :: [Relation]
+  dbTables      :: [Table]
+, dbColumns     :: [Column]
+, dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
 } deriving (Show, Eq)
 

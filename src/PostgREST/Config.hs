@@ -30,9 +30,9 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
+import           Prelude
 import           Safe                        (readMay)
 import           Web.JWT                     (Secret, secret)
-import           Prelude
 
 -- | Data type to store all command line options
 data AppConfig = AppConfig {

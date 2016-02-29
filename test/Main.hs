@@ -1,13 +1,13 @@
 module Main where
 
-import Test.Hspec
-import SpecHelper
+import           SpecHelper
+import           Test.Hspec
 
-import qualified Hasql.Pool as P
+import qualified Hasql.Pool               as P
 
-import PostgREST.DbStructure (getDbStructure)
-import PostgREST.App (handleRequest)
-import Data.String.Conversions (cs)
+import           Data.String.Conversions  (cs)
+import           PostgREST.App            (handleRequest)
+import           PostgREST.DbStructure    (getDbStructure)
 
 import qualified Feature.AuthSpec
 import qualified Feature.ConcurrentSpec

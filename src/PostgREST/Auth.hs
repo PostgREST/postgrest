@@ -19,18 +19,18 @@ module PostgREST.Auth (
   ) where
 
 import           Control.Monad           (join)
-import           Data.Aeson              (Value (..), Object)
-import           Data.Aeson.Types        (emptyObject, emptyArray)
+import           Data.Aeson              (Object, Value (..))
+import           Data.Aeson.Types        (emptyArray, emptyObject)
 import qualified Data.ByteString         as BS
-import           Data.Vector             as V (null, head)
+import qualified Data.HashMap.Lazy       as H
 import           Data.Map                as M (fromList, toList)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
 import           Data.Time.Clock         (NominalDiffTime)
-import           PostgREST.QueryBuilder  (pgFmtLit, pgFmtIdent, unquoted)
+import           Data.Vector             as V (head, null)
+import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
-import qualified Data.HashMap.Lazy       as H
 
 {-|
   Receives a map of JWT claims and returns a list

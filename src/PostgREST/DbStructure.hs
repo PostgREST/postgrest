@@ -10,23 +10,25 @@ module PostgREST.DbStructure (
 , doesProcReturnJWT
 ) where
 
-import qualified Hasql.Query             as H
-import qualified Hasql.Encoders          as HE
-import qualified Hasql.Decoders          as HD
+import qualified Hasql.Decoders                as HD
+import qualified Hasql.Encoders                as HE
+import qualified Hasql.Query                   as H
 
 import           Control.Applicative
-import           Control.Monad          (join, replicateM)
-import           Data.Functor.Contravariant (contramap)
-import           Text.InterpolatedString.Perl6 (q)
-import           Data.List              (elemIndex, find, subsequences, sort, transpose)
-import           Data.Maybe             (fromMaybe, fromJust, isJust, mapMaybe, listToMaybe)
+import           Control.Monad                 (join, replicateM)
+import           Data.Functor.Contravariant    (contramap)
+import           Data.List                     (elemIndex, find, sort,
+                                                subsequences, transpose)
+import           Data.Maybe                    (fromJust, fromMaybe, isJust,
+                                                listToMaybe, mapMaybe)
 import           Data.Monoid
-import           Data.Text              (Text, split)
-import qualified Hasql.Session          as H
+import           Data.Text                     (Text, split)
+import qualified Hasql.Session                 as H
 import           PostgREST.Types
+import           Text.InterpolatedString.Perl6 (q)
 
-import           GHC.Exts               (groupWith)
-import           Data.Int               (Int32)
+import           Data.Int                      (Int32)
+import           GHC.Exts                      (groupWith)
 import           Prelude
 
 getDbStructure :: Schema -> H.Session DbStructure

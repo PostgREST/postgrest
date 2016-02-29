@@ -1,65 +1,65 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
---module PostgREST.App where
+{-# LANGUAGE TupleSections       #-}
 module PostgREST.App (
   handleRequest
 ) where
 
 import           Control.Applicative
-import           Control.Arrow             ((***))
-import           Control.Monad             (join)
-import           Data.Bifunctor            (first)
-import           Data.List                 (find, sortBy, delete)
-import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
-import           Data.Ord                  (comparing)
-import           Data.Ranged.Ranges        (emptyRange)
-import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text, replace, strip)
-import           Data.Tree
+import           Control.Arrow                        ((***))
+import           Control.Monad                        (join)
+import           Data.Bifunctor                       (first)
+import           Data.List                            (delete, find, sortBy)
+import           Data.Maybe                           (fromJust, fromMaybe,
+                                                       isJust, mapMaybe)
+import           Data.Ord                             (comparing)
+import           Data.Ranged.Ranges                   (emptyRange)
+import           Data.String.Conversions              (cs)
+import           Data.Text                            (Text, replace, strip)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
+import           Data.Tree
 
 import           Text.Parsec.Error
-import           Text.ParserCombinators.Parsec (parse)
+import           Text.ParserCombinators.Parsec        (parse)
 
-import           Network.HTTP.Base         (urlEncodeVars)
+import           Network.HTTP.Base                    (urlEncodeVars)
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI    (parseSimpleQuery)
+import           Network.HTTP.Types.URI               (parseSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
 import qualified Hasql.Pool                           as P
 
 import           Data.Aeson
-import           Data.Aeson.Types (emptyArray)
+import           Data.Aeson.Types                     (emptyArray)
 import           Data.Monoid
-import qualified Data.Vector               as V
-import qualified Hasql.Transaction         as H
+import qualified Data.Vector                          as V
+import qualified Hasql.Transaction                    as H
 import qualified Hasql.Transaction                    as HT
-import           PostgREST.Error                      (pgErrResponse, errResponse)
-import           PostgREST.Middleware
-import           PostgREST.Config          (AppConfig (..))
-import           PostgREST.Parsers
+import           PostgREST.ApiRequest                 (Action (..),
+                                                       ApiRequest (..),
+                                                       ContentType (..), PreferRepresentation (..),
+                                                       Target (..),
+                                                       userApiRequest)
+import           PostgREST.Auth                       (tokenJWT)
+import           PostgREST.Config                     (AppConfig (..))
 import           PostgREST.DbStructure
+import           PostgREST.Error                      (errResponse,
+                                                       pgErrResponse)
+import           PostgREST.Middleware
+import           PostgREST.Parsers
 import           PostgREST.RangeQuery
-import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
-                                            , Action(..), Target(..)
-                                            , PreferRepresentation (..)
-                                            , userApiRequest)
 import           PostgREST.Types
-import           PostgREST.Auth            (tokenJWT)
 
-import           PostgREST.QueryBuilder ( callProc
-                                        , addJoinConditions
-                                        , sourceCTEName
-                                        , requestToQuery
-                                        , requestToCountQuery
-                                        , addRelations
-                                        , createReadStatement
-                                        , createWriteStatement
-                                        , ResultsWithCount
-                                        )
+import           PostgREST.QueryBuilder               (ResultsWithCount,
+                                                       addJoinConditions,
+                                                       addRelations, callProc,
+                                                       createReadStatement,
+                                                       createWriteStatement,
+                                                       requestToCountQuery,
+                                                       requestToQuery,
+                                                       sourceCTEName)
 
 import           Prelude
 

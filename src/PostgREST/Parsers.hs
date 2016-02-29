@@ -3,14 +3,14 @@ module PostgREST.Parsers
 -- )
 where
 
-import           Control.Applicative hiding ((<$>))
+import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
 import           Data.Text                     (Text)
 import           Data.Tree
+import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-import           PostgREST.QueryBuilder (operators)
 
 pRequestSelect :: Text -> Parser ReadRequest
 pRequestSelect rootNodeName = do
