@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Prevent query error from infecting later connection - @begriffs, @ruslantalpa, @nikita-volkov, @jwiegley
+- Relation detection fix for views that depend on multiple tables - @ruslantalpa
 
 ### Added
 - Applies range headers to RPC calls - @diogob
