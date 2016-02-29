@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 --module PostgREST.App where
 module PostgREST.App (
-  app
+  handleRequest
 ) where
 
 import           Control.Applicative
@@ -17,6 +17,7 @@ import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
@@ -26,13 +27,18 @@ import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
+import           Network.Wai.Middleware.RequestLogger (logStdout)
+
+import qualified Hasql.Pool                           as P
 
 import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
-
+import qualified Hasql.Transaction                    as HT
+import           PostgREST.Error                      (pgErrResponse)
+import           PostgREST.Middleware
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
 import           PostgREST.DbStructure
@@ -57,6 +63,20 @@ import           PostgREST.QueryBuilder ( callProc
                                         )
 
 import           Prelude
+
+handleRequest :: AppConfig -> DbStructure -> P.Pool -> Application
+handleRequest conf dbStructure pool =
+  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
+
+  middle $ \ req respond -> do
+    time <- getPOSIXTime
+    body <- strictRequestBody req
+
+    let handleReq = runWithClaims conf time (app dbStructure conf body) req
+    resp <- either pgErrResponse id <$> P.use pool
+      (HT.run handleReq HT.ReadCommitted HT.Write)
+    respond resp
+
 
 app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Transaction Response
 app dbStructure conf reqBody req =
