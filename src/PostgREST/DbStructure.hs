@@ -556,69 +556,97 @@ allSynonyms :: [Column] -> H.Query () [(Column,Column)]
 allSynonyms cols =
   H.statement sql HE.unit (decodeSynonyms cols) True
  where
+  -- query explanation at https://gist.github.com/ruslantalpa/2eab8c930a65e8043d8f
   sql = [q|
-    WITH synonyms AS (
-      /*
-      -- CTE to replace the view from information_schema because the information in it depended on the logged in role
-      -- notice the commented line
-      */
-      WITH view_column_usage AS (
-        SELECT DISTINCT
-               CAST(current_database() AS character varying) AS view_catalog,
-               CAST(nv.nspname AS character varying) AS view_schema,
-               CAST(v.relname AS character varying) AS view_name,
-               CAST(current_database() AS character varying) AS table_catalog,
-               CAST(nt.nspname AS character varying) AS table_schema,
-               CAST(t.relname AS character varying) AS table_name,
-               CAST(a.attname AS character varying) AS column_name
-        FROM pg_namespace nv, pg_class v, pg_depend dv,
-             pg_depend dt, pg_class t, pg_namespace nt,
-             pg_attribute a
-        WHERE nv.oid = v.relnamespace
-              AND v.relkind = 'v'
-              AND v.oid = dv.refobjid
-              AND dv.refclassid = 'pg_catalog.pg_class'::regclass
-              AND dv.classid = 'pg_catalog.pg_rewrite'::regclass
-              AND dv.deptype = 'i'
-              AND dv.objid = dt.objid
-              AND dv.refobjid <> dt.refobjid
-              AND dt.classid = 'pg_catalog.pg_rewrite'::regclass
-              AND dt.refclassid = 'pg_catalog.pg_class'::regclass
-              AND dt.refobjid = t.oid
-              AND t.relnamespace = nt.oid
-              AND t.relkind IN ('r', 'v', 'f')
-              AND t.oid = a.attrelid
-              AND dt.refobjsubid = a.attnum
-              /*--AND pg_has_role(t.relowner, 'USAGE')*/
-      )
-      SELECT
-        vcu.table_schema AS src_table_schema,
-        vcu.table_name AS src_table_name,
-        vcu.column_name AS src_column_name,
-        view.schemaname AS syn_table_schema,
-        view.viewname AS syn_table_name,
-        view.definition AS view_definition
-      FROM
-        pg_catalog.pg_views AS view,
-        view_column_usage AS vcu
-      WHERE
-        view.schemaname = vcu.view_schema AND
-        view.viewname = vcu.view_name AND
-        view.schemaname NOT IN ('pg_catalog', 'information_schema')
-        /*--AND (SELECT COUNT(*) FROM information_schema.view_table_usage WHERE view_schema = view.schemaname AND view_name = view.viewname) = 1*/
+    WITH view_columns AS (
+    	SELECT
+    		c.oid AS view_oid,
+    		nc.nspname::information_schema.sql_identifier AS view_schema,
+    		c.relname::information_schema.sql_identifier AS view_name,
+    		a.attname::information_schema.sql_identifier AS column_name
+    	FROM pg_attribute a
+    	JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid) ON a.attrelid = c.oid
+    	WHERE
+    		NOT pg_is_other_temp_schema(nc.oid)
+    		AND a.attnum > 0
+    		AND NOT a.attisdropped
+    		AND (c.relkind = 'v'::"char")
+    		AND nc.nspname NOT IN ('information_schema', 'pg_catalog')
+    ),
+
+    view_column_usage AS (
+    	SELECT DISTINCT
+    		v.oid as view_oid,
+    		nv.nspname::information_schema.sql_identifier AS view_schema,
+    		v.relname::information_schema.sql_identifier AS view_name,
+    		nt.nspname::information_schema.sql_identifier AS table_schema,
+    		t.relname::information_schema.sql_identifier AS table_name,
+    		a.attname::information_schema.sql_identifier AS column_name,
+    		pg_get_viewdef(v.oid)::information_schema.character_data AS view_definition
+    	FROM
+    		pg_namespace nv,
+    		pg_class v,
+    		pg_depend dv,
+    		pg_depend dt,
+    		pg_class t,
+    		pg_namespace nt,
+    		pg_attribute a
+    	WHERE
+    		nv.oid = v.relnamespace
+    		AND nv.nspname not in ('information_schema', 'pg_catalog')
+    		AND v.relkind = 'v'::"char"
+    		AND v.oid = dv.refobjid
+    		AND dv.refclassid = 'pg_class'::regclass::oid
+    		AND dv.classid = 'pg_rewrite'::regclass::oid
+    		AND dv.deptype = 'i'::"char"
+    		AND dv.objid = dt.objid
+    		AND dv.refobjid <> dt.refobjid
+    		AND dt.classid = 'pg_rewrite'::regclass::oid
+    		AND dt.refclassid = 'pg_class'::regclass::oid
+    		AND dt.refobjid = t.oid
+    		AND t.relnamespace = nt.oid
+    		AND (t.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+    		AND t.oid = a.attrelid
+    		AND dt.refobjsubid = a.attnum
+    ),
+
+    candidates AS (
+    	(
+    		SELECT
+    			vcu.*,
+    			(REGEXP_MATCHES(
+    				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
+    				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
+    				'ns'
+    			))[7] AS view_column_name
+    		FROM view_column_usage AS vcu
+    	)
+    	UNION
+    	(
+    		SELECT
+    			vcu.*,
+    			(REGEXP_MATCHES(
+    				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
+    				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
+    				'ns'
+    			))[4] AS view_column_name
+    		FROM view_column_usage AS vcu
+    	)
     )
+
     SELECT
-      src_table_schema, src_table_name, src_column_name,
-      syn_table_schema, syn_table_name,
-      (regexp_matches(view_definition, CONCAT('\.(', src_column_name, ')(?=,|$)'), 'gn'))[1] AS syn_column_name
-    FROM synonyms
-    UNION (
-      SELECT
-        src_table_schema, src_table_name, src_column_name,
-        syn_table_schema, syn_table_name,
-        (regexp_matches(view_definition, CONCAT('\.', src_column_name, '\sAS\s("?)(.+?)\1(,|$)'), 'gn'))[2] AS syn_column_name /* " <- for syntax highlighting */
-      FROM synonyms
-    ) |]
+    	c.table_schema,
+    	c.table_name,
+    	c.column_name AS table_column_name,
+    	c.view_schema,
+    	c.view_name,
+    	c.view_column_name
+    FROM view_columns AS vc, candidates AS c
+    WHERE
+    	vc.view_oid = c.view_oid AND
+    	vc.column_name = c.view_column_name
+    ORDER BY c.view_schema, c.view_name, c.table_name, c.view_column_name
+    |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)
 synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
