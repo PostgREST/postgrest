@@ -138,6 +138,7 @@ Test-Suite spec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
                      , Feature.QuerySpec
+                     , Feature.QueryLimitedSpec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
                      , Paths_postgrest
