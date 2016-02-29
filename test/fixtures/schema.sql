@@ -540,6 +540,15 @@ CREATE TABLE simple_pk (
     extra character varying NOT NULL
 );
 
+--
+-- Name: users_projects; Type: TABLE; Schema: test; Owner: -
+--
+
+CREATE TABLE users_projects (
+    user_id integer NOT NULL,
+    project_id integer NOT NULL
+);
+
 
 --
 -- Name: tasks; Type: TABLE; Schema: test; Owner: -
@@ -549,6 +558,16 @@ CREATE TABLE tasks (
     id integer NOT NULL,
     name text NOT NULL,
     project_id integer
+);
+
+CREATE OR REPLACE VIEW filtered_tasks AS
+SELECT id AS "myId", name, project_id AS "projectID"
+FROM tasks
+WHERE project_id IN (
+	SELECT id FROM projects WHERE id = 1
+) AND
+project_id IN (
+	SELECT project_id FROM users_projects WHERE user_id = 1
 );
 
 
@@ -570,15 +589,6 @@ CREATE TABLE users (
     name text NOT NULL
 );
 
-
---
--- Name: users_projects; Type: TABLE; Schema: test; Owner: -
---
-
-CREATE TABLE users_projects (
-    user_id integer NOT NULL,
-    project_id integer NOT NULL
-);
 
 
 --
