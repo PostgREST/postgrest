@@ -37,7 +37,7 @@ import           Data.Monoid
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 import qualified Hasql.Transaction                    as HT
-import           PostgREST.Error                      (pgErrResponse)
+import           PostgREST.Error                      (pgErrResponse, errResponse)
 import           PostgREST.Middleware
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.Parsers
@@ -49,7 +49,6 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , userApiRequest)
 import           PostgREST.Types
 import           PostgREST.Auth            (tokenJWT)
-import           PostgREST.Error           (errResponse)
 
 import           PostgREST.QueryBuilder ( callProc
                                         , addJoinConditions
