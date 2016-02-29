@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+
+## [0.3.1.0] - 2016-02-28
+
+### Fixed
 - Prevent query error from infecting later connection - @begriffs, @ruslantalpa, @nikita-volkov, @jwiegley
 
 ### Added
