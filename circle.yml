@@ -10,6 +10,8 @@ dependencies:
   override:
     - stack setup
     - stack install hlint packdeps cabal-install
+    - rm -fr $(stack path --dist-dir)
+    - stack build
     - stack build --test --no-run-tests
 
 test:
