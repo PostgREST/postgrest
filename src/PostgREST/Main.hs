@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module PostgREST.Main where
+module Main where
 
 
 import           PostgREST.App
@@ -9,23 +9,16 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        prettyVersion,
                                                        readOptions)
 import           PostgREST.DbStructure
-import           PostgREST.Error                      (pgErrResponse)
-import           PostgREST.Middleware
-import           PostgREST.Types                      (DbStructure)
 
 import           Control.Monad
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
-import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
-import qualified Hasql.Transaction                    as HT
 import qualified Hasql.Decoders                       as HD
 import qualified Hasql.Encoders                       as HE
 import qualified Hasql.Pool                           as P
-import           Network.Wai
 import           Network.Wai.Handler.Warp
-import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
@@ -82,16 +75,3 @@ main = do
 
   let dbStructure = either (error.show) id result
   runSettings appSettings $ postgrest conf dbStructure pool
-
-postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
-postgrest conf dbStructure pool =
-  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
-
-  middle $ \ req respond -> do
-    time <- getPOSIXTime
-    body <- strictRequestBody req
-
-    let handleReq = runWithClaims conf time (app dbStructure conf body) req
-    resp <- either pgErrResponse id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted HT.Write)
-    respond resp

@@ -145,7 +145,6 @@ Test-Suite spec
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
-                     , PostgREST.Main
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.DbStructure
