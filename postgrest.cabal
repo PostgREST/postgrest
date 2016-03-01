@@ -26,7 +26,7 @@ executable postgrest
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-  build-depends:       aeson >= 0.8 && < 0.10
+  build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
                      , base >= 4.8 && < 5
                      , bytestring
                      , case-insensitive
@@ -138,6 +138,7 @@ Test-Suite spec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
                      , Feature.QuerySpec
+                     , Feature.QueryLimitedSpec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
                      , Paths_postgrest
@@ -145,7 +146,6 @@ Test-Suite spec
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.Error
-                     , PostgREST.Main
                      , PostgREST.Middleware
                      , PostgREST.Parsers
                      , PostgREST.DbStructure

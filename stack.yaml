@@ -1,4 +1,4 @@
-resolver: lts-5.0
+resolver: lts-5.5
 extra-deps:
   - Ranged-sets-0.3.0
   - bytestring-tree-builder-0.2.5

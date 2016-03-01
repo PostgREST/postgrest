@@ -6,7 +6,7 @@ import SpecHelper
 import qualified Hasql.Pool as P
 
 import PostgREST.DbStructure (getDbStructure)
-import PostgREST.Main (postgrest)
+import PostgREST.App (postgrest)
 import Data.String.Conversions (cs)
 
 import qualified Feature.AuthSpec
