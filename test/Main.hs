@@ -1,13 +1,13 @@
 module Main where
 
-import           SpecHelper
-import           Test.Hspec
+import Test.Hspec
+import SpecHelper
 
-import qualified Hasql.Pool               as P
+import qualified Hasql.Pool as P
 
-import           Data.String.Conversions  (cs)
-import           PostgREST.App            (handleRequest)
-import           PostgREST.DbStructure    (getDbStructure)
+import PostgREST.DbStructure (getDbStructure)
+import PostgREST.App (postgrest)
+import Data.String.Conversions (cs)
 
 import qualified Feature.AuthSpec
 import qualified Feature.ConcurrentSpec
@@ -27,8 +27,8 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   let dbStructure = either (error.show) id result
-      withApp = return $ handleRequest testCfg dbStructure pool
-      ltdApp  = return $ handleRequest testLtdRowsCfg dbStructure pool
+      withApp = return $ postgrest testCfg dbStructure pool
+      ltdApp  = return $ postgrest testLtdRowsCfg dbStructure pool
 
   hspec $ do
     mapM_ (beforeAll_ resetDb . before withApp) specs

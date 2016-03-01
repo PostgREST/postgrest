@@ -3,29 +3,30 @@
 module Main where
 
 
-import           PostgREST.App            (handleRequest)
-import           PostgREST.Config         (AppConfig (..), minimumPgVersion,
-                                           prettyVersion, readOptions)
+import           PostgREST.App
+import           PostgREST.Config                     (AppConfig (..),
+                                                       minimumPgVersion,
+                                                       prettyVersion,
+                                                       readOptions)
 import           PostgREST.DbStructure
 
 import           Control.Monad
-import           Data.Monoid              ((<>))
-import           Data.String.Conversions  (cs)
-
-import qualified Hasql.Decoders           as HD
-import qualified Hasql.Encoders           as HE
-import qualified Hasql.Pool               as P
-import qualified Hasql.Query              as H
-import qualified Hasql.Session            as H
+import           Data.Monoid                          ((<>))
+import           Data.String.Conversions              (cs)
+import qualified Hasql.Query                          as H
+import qualified Hasql.Session                        as H
+import qualified Hasql.Decoders                       as HD
+import qualified Hasql.Encoders                       as HE
+import qualified Hasql.Pool                           as P
 import           Network.Wai.Handler.Warp
-
-import           System.IO                (BufferMode (..), hSetBuffering,
-                                           stderr, stdin, stdout)
-import           Web.JWT                  (secret)
+import           System.IO                            (BufferMode (..),
+                                                       hSetBuffering, stderr,
+                                                       stdin, stdout)
+import           Web.JWT                              (secret)
 #ifndef mingw32_HOST_OS
-import           Control.Concurrent       (myThreadId)
-import           Control.Exception.Base   (AsyncException (..), throwTo)
 import           System.Posix.Signals
+import           Control.Concurrent                   (myThreadId)
+import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
 isServerVersionSupported :: H.Session Bool
@@ -73,4 +74,4 @@ main = do
     getDbStructure (cs $ configSchema conf)
 
   let dbStructure = either (error.show) id result
-  runSettings appSettings $ handleRequest conf dbStructure pool
+  runSettings appSettings $ postgrest conf dbStructure pool

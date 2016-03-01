@@ -1,70 +1,71 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
+--module PostgREST.App where
 module PostgREST.App (
-  handleRequest
+  postgrest
 ) where
 
 import           Control.Applicative
-import           Control.Arrow                        ((***))
-import           Control.Monad                        (join)
-import           Data.Bifunctor                       (first)
-import           Data.List                            (delete, find, sortBy)
-import           Data.Maybe                           (fromJust, fromMaybe,
-                                                       isJust, mapMaybe)
-import           Data.Ord                             (comparing)
-import           Data.Ranged.Ranges                   (emptyRange)
-import           Data.String.Conversions              (cs)
-import           Data.Text                            (Text, replace, strip)
-import           Data.Time.Clock.POSIX                (getPOSIXTime)
+import           Control.Arrow             ((***))
+import           Control.Monad             (join)
+import           Data.Bifunctor            (first)
+import           Data.List                 (find, sortBy, delete)
+import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
+import           Data.Ord                  (comparing)
+import           Data.Ranged.Ranges        (emptyRange)
+import           Data.String.Conversions   (cs)
+import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
 
-import           Text.Parsec.Error
-import           Text.ParserCombinators.Parsec        (parse)
+import qualified Hasql.Pool                as P
+import qualified Hasql.Transaction         as HT
 
-import           Network.HTTP.Base                    (urlEncodeVars)
+import           Text.Parsec.Error
+import           Text.ParserCombinators.Parsec (parse)
+
+import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI               (parseSimpleQuery)
+import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
-import qualified Hasql.Pool                           as P
-
 import           Data.Aeson
-import           Data.Aeson.Types                     (emptyArray)
+import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
-import qualified Data.Vector                          as V
-import qualified Hasql.Transaction                    as H
-import qualified Hasql.Transaction                    as HT
-import           PostgREST.ApiRequest                 (Action (..),
-                                                       ApiRequest (..),
-                                                       ContentType (..), PreferRepresentation (..),
-                                                       Target (..),
-                                                       userApiRequest)
-import           PostgREST.Auth                       (tokenJWT)
-import           PostgREST.Config                     (AppConfig (..))
+import           Data.Time.Clock.POSIX     (getPOSIXTime)
+import qualified Data.Vector               as V
+import qualified Hasql.Transaction         as H
+
+import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
+                                            , Action(..), Target(..)
+                                            , PreferRepresentation (..)
+                                            , userApiRequest)
+import           PostgREST.Auth            (tokenJWT)
+import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error                      (errResponse,
-                                                       pgErrResponse)
-import           PostgREST.Middleware
+import           PostgREST.Error           (errResponse, pgErrResponse)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery
+import           PostgREST.Middleware
+import           PostgREST.QueryBuilder ( callProc
+                                        , addJoinConditions
+                                        , sourceCTEName
+                                        , requestToQuery
+                                        , requestToCountQuery
+                                        , addRelations
+                                        , createReadStatement
+                                        , createWriteStatement
+                                        , ResultsWithCount
+                                        )
 import           PostgREST.Types
-
-import           PostgREST.QueryBuilder               (ResultsWithCount,
-                                                       addJoinConditions,
-                                                       addRelations, callProc,
-                                                       createReadStatement,
-                                                       createWriteStatement,
-                                                       requestToCountQuery,
-                                                       requestToQuery,
-                                                       sourceCTEName)
 
 import           Prelude
 
-handleRequest :: AppConfig -> DbStructure -> P.Pool -> Application
-handleRequest conf dbStructure pool =
+
+postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
+postgrest conf dbStructure pool =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
@@ -75,7 +76,6 @@ handleRequest conf dbStructure pool =
     resp <- either pgErrResponse id <$> P.use pool
       (HT.run handleReq HT.ReadCommitted HT.Write)
     respond resp
-
 
 app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Transaction Response
 app dbStructure conf reqBody req =
