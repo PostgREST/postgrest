@@ -563,11 +563,10 @@ allSynonyms cols =
     WITH view_columns AS (
     	SELECT
     		c.oid AS view_oid,
-    		nc.nspname::information_schema.sql_identifier AS view_schema,
-    		c.relname::information_schema.sql_identifier AS view_name,
     		a.attname::information_schema.sql_identifier AS column_name
     	FROM pg_attribute a
-    	JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid) ON a.attrelid = c.oid
+    	JOIN pg_class c ON a.attrelid = c.oid
+    	JOIN pg_namespace nc ON c.relnamespace = nc.oid
     	WHERE
     		NOT pg_is_other_temp_schema(nc.oid)
     		AND a.attnum > 0
@@ -575,7 +574,6 @@ allSynonyms cols =
     		AND (c.relkind = 'v'::"char")
     		AND nc.nspname NOT IN ('information_schema', 'pg_catalog')
     ),
-
     view_column_usage AS (
     	SELECT DISTINCT
     		v.oid as view_oid,
@@ -585,57 +583,38 @@ allSynonyms cols =
     		t.relname::information_schema.sql_identifier AS table_name,
     		a.attname::information_schema.sql_identifier AS column_name,
     		pg_get_viewdef(v.oid)::information_schema.character_data AS view_definition
-    	FROM
-    		pg_namespace nv,
-    		pg_class v,
-    		pg_depend dv,
-    		pg_depend dt,
-    		pg_class t,
-    		pg_namespace nt,
-    		pg_attribute a
+    	FROM pg_namespace nv
+    	JOIN pg_class v ON nv.oid = v.relnamespace
+    	JOIN pg_depend dv ON v.oid = dv.refobjid
+    	JOIN pg_depend dt ON dv.objid = dt.objid
+    	JOIN pg_class t ON dt.refobjid = t.oid
+    	JOIN pg_namespace nt ON t.relnamespace = nt.oid
+    	JOIN pg_attribute a ON t.oid = a.attrelid AND dt.refobjsubid = a.attnum
+
     	WHERE
-    		nv.oid = v.relnamespace
-    		AND nv.nspname not in ('information_schema', 'pg_catalog')
+    		nv.nspname not in ('information_schema', 'pg_catalog')
     		AND v.relkind = 'v'::"char"
-    		AND v.oid = dv.refobjid
     		AND dv.refclassid = 'pg_class'::regclass::oid
     		AND dv.classid = 'pg_rewrite'::regclass::oid
     		AND dv.deptype = 'i'::"char"
-    		AND dv.objid = dt.objid
     		AND dv.refobjid <> dt.refobjid
     		AND dt.classid = 'pg_rewrite'::regclass::oid
     		AND dt.refclassid = 'pg_class'::regclass::oid
-    		AND dt.refobjid = t.oid
-    		AND t.relnamespace = nt.oid
     		AND (t.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
-    		AND t.oid = a.attrelid
-    		AND dt.refobjsubid = a.attnum
     ),
-
     candidates AS (
-    	(
-    		SELECT
-    			vcu.*,
-    			(REGEXP_MATCHES(
+    	SELECT
+    		vcu.*,
+    		(
+    			SELECT CASE WHEN match IS NOT NULL THEN coalesce(match[7], match[4]) END
+    			FROM REGEXP_MATCHES(
     				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
     				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
     				'ns'
-    			))[7] AS view_column_name
-    		FROM view_column_usage AS vcu
-    	)
-    	UNION
-    	(
-    		SELECT
-    			vcu.*,
-    			(REGEXP_MATCHES(
-    				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-    				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
-    				'ns'
-    			))[4] AS view_column_name
-    		FROM view_column_usage AS vcu
-    	)
+    			) match
+    		) AS view_column_name
+    	FROM view_column_usage AS vcu
     )
-
     SELECT
     	c.table_schema,
     	c.table_name,
