@@ -133,6 +133,7 @@ Now we want to put our two instances in services so they start on reboot andjust
 
 The setup used here is 2 config files and 2 init scripts, one for each api.
 
+#####Config files#####
 First we look at the config file. That is just a file holding the parameters that we give PostgREST:
 
 First file we name /etc/default/postgrest_v1.conf
@@ -141,41 +142,45 @@ and the second is named:
 
 Examples of the init files: link to init files in example
 
+#####Init scripts#####
 Then we create 2 init scripts.
 
 The only difference between the two is in the top parts where they point to different config files and have their api-name mentioned at 2 places.
 
 Link to init scripts in example repo
 
-Create directory for our log files
+#####Create directory for our log files#####
 
 We put the log files in a postgrest directory, so create the directory and set user postgrest as owner:
+```
 sudo mkdir /var/log/postgrest
 sudo chown postgrest /var/log/postgrest
-
+```
 Enable the services
-
+```
 sudo update-rc.d postgrest_v1 defaults
-and
 sudo update-rc.d postgrest_v2 defaults
-
+```
 Start the services
 
 Now you should be able to start the services
+```
 sudo service postgrest_v1 start 
 sudo service postgrest_v2 start 
-
+```
 and check their status
+```
 sudo service postgrest_v1 status
-
+```
 It has happened to me that it has seems like they are hanging when I start them.
 Then stop them with ctrl-c and try restarting instead
+```
 sudo service postgrest_v2 restart 
+```
+###Great, we now have 2 instances of PostgREST running as services###
 
-Great, we now have 2 instances of PostgREST running as services
 
-
-NGINX
+##NGINX##
 
 As we mentioned earlier we are ow going to put a nginx web server in front of PostgREST. That is for at least 2 reasons:
 1) If we want to use https nginx handles that part
@@ -189,9 +194,10 @@ Then to do a minimal configuration we just add 2 rules to the default configurat
 So open the file
 /etc/nginx/sites_enabled/default
 
-In the server section there is a rule fore how to handle location /
+In the server section there is a rule fore how to handle **location /**
 
 just above that add:
+```
         location /v1/ {
                 proxy_pass http://127.0.0.1:3000/;
         }
@@ -200,11 +206,13 @@ just above that add:
                 proxy_pass http://127.0.0.1:3001/;
 
         }
-
+```
 close the file and reload nginx:
+```
 sudo service nginx reload
-
+```
 Now you should be able to access your plates “table” in the two apis from:
+
 http://localhost/v1/plates
 and
 http://localhost/v2/plates
