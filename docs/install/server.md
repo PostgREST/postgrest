@@ -55,7 +55,8 @@ sudo apt-get install -y libpq-dev
 ```bash
 git clone https://github.com/begriffs/postgrest.git
 cd postgrest
-sudo stack install --install-ghc --local-bin-path /usr/local/bin
+stack build --install-ghc
+sudo stack install --allow-different-user --local-bin-path /usr/local/bin
 ```
 
 * Run the server
