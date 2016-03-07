@@ -60,10 +60,11 @@ main = do
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
-  void $ installHandler keyboardSignal (Catch $ do
-      P.release pool
-      throwTo tid UserInterrupt
-    ) Nothing
+  forM_ [sigINT, sigTERM] $ \sig ->
+    void $ installHandler sig (Catch $ do
+        P.release pool
+        throwTo tid UserInterrupt
+      ) Nothing
 #endif
 
   result <- P.use pool $ do
