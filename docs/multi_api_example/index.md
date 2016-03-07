@@ -1,6 +1,6 @@
 #Multi API example#
 
-How to set up PostgREST  with multiple apis and nginx in front on Debian
+##How to set up PostgREST  with multiple apis and nginx in front on Debian##
 
 This is written for Debian, and tested on Debian 8, Jessie
 
@@ -9,12 +9,14 @@ We will do this with PostgREST. PostgREST handles multiple apis by letting you d
 
 So, first install PostgREST as describe in the doc (link do installation doc here)
 
+###Database Setup###
 For this example, we have the following setup in the database:
 
-First we create a database in PostgreSQL that we call test_db
+Start by creating a database that we call **test_db**
 
-Users and roles:
-/*authenticator user, we use postgrest*/
+```
+/*Users and roles:
+authenticator user, we use postgrest*/
 CREATE ROLE postgrest NOINHERIT LOGIN;
 
 /*For anonymous lgoin*/
@@ -67,13 +69,13 @@ GRANT USAGE ON SCHEMA v2 TO anon;
 
 GRANT SELECT ON v1.plates TO anon;
 GRANT SELECT ON v2.plates TO anon;
-
-Summary of database
+```
+#####Summary of database#####
 As you see we have no keys or constraints on those tables. 
 
 We just have prepared two schema's for two different apis using the same data.
 
-About the unix user running PostgREST
+###About the unix user running PostgREST###
 PostgreSQL have a feature that a local user o the server can connect directly to the database without logging in through unix-socket. That is very convenient since that mean you don't have to deal with passwords in your setup. It is also as secure as your server since it is not usable without access to the server.
 
 To make it secure from any user on the system use the peer authentication method.
@@ -83,35 +85,40 @@ Then we have two things to do
 2) Allow postgrest user to use peer authentication
 
 1)
+```
 sudo adduser --home /dev/null --no-create-home --uid 65533 --disabled-password --gecos "" postgrest
-
+```
 2)
 Open the file pg_hba.conf. On Debian with PG 9.5 it is found at /etc/postgresql/9.5/main/pg_hba.conf
 If you have not edited that file you find a row quite close to the end of the file that look something like:
+```
 local   all             postgres                                peer
-
+```
 add user postgrest as user here so the line looks like:
+```
 local   all             postgres,postgrest                 peer
-
+```
 
 and restart the database server:
-
+```
 sudo service postgresql restart
+```
 
-
-Test what you have got so far:
+####Test what you have got so far:####
 
 Now we can start our iinstances manually to see if it works. As mentioned before the peer authentication method only allows us to connect to the db if we have the same system user name as database user. So we switch to user postgrest and starts.
 Open two terminal windows and start one instance in each.
 
 Terminal 1:
+```
 sudo su postgrest
 /usr/local/bin/postgrest postgres://postgrest@:/test_db --port 3000 --pool 50 --max-rows 1000 --jwt-secret secret --schema v1 --anonymous anon
-
+```
 Terminal 2:
+```
 sudo su postgrest
 /usr/local/bin/postgrest postgres://postgrest@:/test_db --port 3001 --pool 50 --max-rows 1000 --jwt-secret secret --schema v2 --anonymous anon
-
+```
 note the different schema names and port numbers
 
 Now you can use a  web browser to see the output from the two apis using:
@@ -121,7 +128,7 @@ http://localhost:3001/plates
 
 You can stop postgREST with ctrl-c
 
-Make services of this
+###Make services of this###
 Now we want to put our two instances in services so they start on reboot andjust works in the background.
 
 The setup used here is 2 config files and 2 init scripts, one for each api.
