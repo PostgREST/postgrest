@@ -251,7 +251,7 @@ basic_auth.send_validation() returns trigger
 declare
   tok uuid;
 begin
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'validation', new.email);
   perform pg_notify('validate',
