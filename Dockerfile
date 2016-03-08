@@ -16,7 +16,7 @@ RUN wget http://github.com/begriffs/postgrest/releases/download/v${POSTGREST_VER
     mv postgrest /usr/local/bin/postgrest && \
     rm postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz
 
-CMD postgrest postgres://${PG_ENV_POSTGRES_USER}:${PG_ENV_POSTGRES_PASSWORD}@${PG_PORT_5432_TCP_ADDR}:${PG_PORT_5432_TCP_PORT}/${PG_ENV_POSTGRES_DB} \
+CMD exec postgrest postgres://${PG_ENV_POSTGRES_USER}:${PG_ENV_POSTGRES_PASSWORD}@${PG_PORT_5432_TCP_ADDR}:${PG_PORT_5432_TCP_PORT}/${PG_ENV_POSTGRES_DB} \
               --port 3000 \
               --schema ${POSTGREST_SCHEMA} \
               --anonymous ${POSTGREST_ANONYMOUS} \

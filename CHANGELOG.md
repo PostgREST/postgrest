@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+* Terminate gracefully on SIGTERM (for use in Docker) - @recmo
 
 ## [0.3.1.0] - 2016-02-28
 
