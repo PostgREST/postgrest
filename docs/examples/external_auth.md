@@ -43,7 +43,7 @@ ALTER TABLE users ADD role text NOT NULL DEFAULT 'customer';
 ```
 
 Besides the main user that PostgREST uses to connect to PostgreSQL
-and the anonymous user, we will need two aditional roles for our example:
+and the anonymous user, we will need two additional roles for our example:
 
 * admin - to be used by users that access all the system rows.
 * customer - to be used when user has restricted access to database rows.
