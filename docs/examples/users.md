@@ -8,12 +8,12 @@ a username and password system on top of JWT using only plpgsql.
 Future examples such as the multi-tenant blogging platform will use
 the results from this example for their auth. We will build a system
 for users to sign up, log in, manage their accounts, and for admins
-to manange other people's accounts. We will also see how to trigger
+to manage other people's accounts. We will also see how to trigger
 outside events like sending password reset emails.
 
 Before jumping into the code, a little more about how the tokens
 work. Every JWT contains cryptographically signed *claims*. PostgREST
-cares specificaly about a claim called `role`. When a client includes
+cares specifically about a claim called `role`. When a client includes
 a `role` claim PostgREST executes their request using that database
 role.
 
@@ -294,7 +294,7 @@ where actual.role = member_of.rolname;
   -- is equal to email so that user can only see themselves
 ```
 
-Using this view clients can see themeslves and any other users with
+Using this view clients can see themselves and any other users with
 the right db roles. This view does not yet support inserts or updates
 because not all the columns refer directly to underlying columns.
 Nor do we want it to be auto-updatable because it would allow an escalation
