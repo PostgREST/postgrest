@@ -50,6 +50,23 @@ CREATE TYPE jwt_claims AS (
 	id text
 );
 
+--
+-- Name: big_jwt_claims; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE big_jwt_claims AS (
+  iss text,
+  sub text,
+  aud text,
+  exp integer,
+  nbf integer,
+  iat integer,
+  jti text,
+
+  role text,
+  "http://postgrest.com/foo" boolean
+);
+
 
 SET search_path = test, pg_catalog;
 
@@ -180,6 +197,20 @@ CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_claims
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass;
+$$;
+
+
+--
+-- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION jwt_test() RETURNS public.big_jwt_claims
+    LANGUAGE sql SECURITY DEFINER
+    AS $$
+SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
+       1300819380 as exp, 1300819380 as nbf, 1300819380 as iat,
+       'foo'::text as jti, 'postgrest_test'::text as role,
+       true as "http://postgrest.com/foo";
 $$;
 
 

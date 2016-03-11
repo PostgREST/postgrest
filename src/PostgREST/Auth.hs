@@ -19,18 +19,18 @@ module PostgREST.Auth (
   ) where
 
 import           Control.Monad           (join)
-import           Data.Aeson              (Value (..), Object)
-import           Data.Aeson.Types        (emptyObject, emptyArray)
+import           Data.Aeson              (Value (..), parseJSON)
+import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.ByteString         as BS
 import           Data.Vector             as V (null, head)
-import           Data.Map                as M (fromList, toList)
+import           Data.Map                as M (toList)
+import           Data.Maybe              (fromMaybe)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
 import           Data.Time.Clock         (NominalDiffTime)
 import           PostgREST.QueryBuilder  (pgFmtLit, pgFmtIdent, unquoted)
 import qualified Web.JWT                 as JWT
-import qualified Data.HashMap.Lazy       as H
 
 {-|
   Receives a map of JWT claims and returns a list
@@ -76,10 +76,8 @@ setRole r = "set local role " <> cs (pgFmtLit r) <> ";"
   and returns a signed JWT.
 -}
 tokenJWT :: JWT.Secret -> Value -> Text
-tokenJWT secret (Array a) = JWT.encodeSigned JWT.HS256 secret
-                               JWT.def { JWT.unregisteredClaims = fromHashMap o }
-                          where
-                            Object o = if V.null a then emptyObject else V.head a
-                            fromHashMap :: Object -> JWT.ClaimsMap
-                            fromHashMap = M.fromList . H.toList
-tokenJWT secret _          = tokenJWT secret emptyArray
+tokenJWT secret (Array arr) =
+  let obj = if V.null arr then emptyObject else V.head arr
+      jcs = parseMaybe parseJSON obj :: Maybe JWT.JWTClaimsSet in
+  JWT.encodeSigned JWT.HS256 secret $ fromMaybe JWT.def jcs
+tokenJWT secret _ = tokenJWT secret emptyArray

@@ -24,6 +24,14 @@ spec = describe "authorization" $ do
         , matchHeaders = ["Content-Type" <:> "application/json"]
         }
 
+  it "sql functions can encode custom and standard claims" $
+    post "/rpc/jwt_test" "{}"
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6MTMwMDgxOTM4MCwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3QiLCJpYXQiOjEzMDA4MTkzODAsImF1ZCI6ImV2ZXJ5b25lIn0._tQCF79-ZZGMlLktd3csM_bVaiMg7A8YvIb6K2hcu5w"} |]
+        , matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/json"]
+        }
+
   it "allows users with permissions to see their tables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
