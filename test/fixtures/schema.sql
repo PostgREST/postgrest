@@ -215,6 +215,29 @@ $$;
 
 
 --
+-- Name: reveal_big_jwt(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
+      iss text, sub text, aud text, exp bigint,
+      nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
+    )
+    LANGUAGE sql SECURITY DEFINER
+    AS $$
+SELECT current_setting('postgrest.claims.iss') as iss,
+       current_setting('postgrest.claims.sub') as sub,
+       current_setting('postgrest.claims.aud') as aud,
+       current_setting('postgrest.claims.exp')::bigint as exp,
+       current_setting('postgrest.claims.nbf')::bigint as nbf,
+       current_setting('postgrest.claims.iat')::bigint as iat,
+       current_setting('postgrest.claims.jti') as jti,
+       -- role is not included in the claims list
+       current_setting('postgrest.claims.http://postgrest.com/foo')::boolean
+         as "http://postgrest.com/foo";
+$$;
+
+
+--
 -- Name: problem(); Type: FUNCTION; Schema: test; Owner: -
 --
 

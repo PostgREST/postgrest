@@ -18,12 +18,13 @@ module PostgREST.Auth (
   , tokenJWT
   ) where
 
-import           Control.Monad           (join)
-import           Data.Aeson              (Value (..), parseJSON)
+import           Control.Lens
+import           Data.Aeson              (Value (..), parseJSON, toJSON)
+import           Data.Aeson.Lens
 import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.ByteString         as BS
-import           Data.Vector             as V (null, head)
-import           Data.Map                as M (toList)
+import qualified Data.Vector             as V
+import qualified Data.HashMap.Strict     as M
 import           Data.Maybe              (fromMaybe)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
@@ -39,12 +40,12 @@ import qualified Web.JWT                 as JWT
   this one is mapped to a SET ROLE statement.
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-claimsToSQL :: JWT.ClaimsMap -> [BS.ByteString]
-claimsToSQL = map setVar . toList
+claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
+claimsToSQL = map setVar . M.toList
   where
     setVar ("role", String val) = setRole val
-    setVar (k, val) = "set local postgrest.claims." <> cs (pgFmtIdent k) <>
-                      " = " <> cs (valueToVariable val) <> ";"
+    setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
+                      <> " = " <> cs (valueToVariable val) <> ";"
     valueToVariable = pgFmtLit . unquoted
 
 {-|
@@ -52,19 +53,22 @@ claimsToSQL = map setVar . toList
   returns a map of JWT claims
   In case there is any problem decoding the JWT it returns Nothing.
 -}
-jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Maybe JWT.ClaimsMap
+
+
+jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Either Text (M.HashMap Text Value)
 jwtClaims secret input time =
-  case join $ claim JWT.exp of
-    Just expires ->
-      if JWT.secondsSinceEpoch expires > time
-        then customClaims
-        else Nothing
-    _ -> customClaims
-  where
-    decoded = JWT.decodeAndVerifySignature secret input
-    claim :: (JWT.JWTClaimsSet -> a) -> Maybe a
-    claim prop = prop . JWT.claims <$> decoded
-    customClaims = claim JWT.unregisteredClaims
+  case mClaims of
+    Nothing -> Right M.empty
+    Just claims -> do
+      let mExp = claims ^? key "exp" . _Integer
+          expired = fromMaybe False $ (<= time) . fromInteger <$> mExp
+      if expired
+        then Left "JWT expired"
+        else Right (value2map claims)
+ where
+  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret input
+  value2map (Object o) = o
+  value2map _          = M.empty
 
 {-| Receives the name of a role and returns a SET ROLE statement -}
 setRole :: Text -> BS.ByteString
