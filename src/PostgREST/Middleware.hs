@@ -3,6 +3,8 @@
 
 module PostgREST.Middleware where
 
+import           Control.Monad                 (unless)
+import qualified Data.ByteString               as BS
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe                    (fromMaybe)
 import           Data.Text
@@ -40,7 +42,8 @@ runWithClaims conf time app req = do
         if M.null claims && not (null tokenStr)
           then clientErr "Invalid JWT"
           else do
-            mapM_ H.sql $ claimsToSQL claims
+            let cmdBatch = mconcat $ claimsToSQL claims
+            unless (BS.null cmdBatch) (H.sql cmdBatch)
             app req
   where
     hdrs = requestHeaders req
