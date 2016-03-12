@@ -6,8 +6,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
-* Allow SQL functions to generate registered JWT claims - @begriffs
-* Terminate gracefully on SIGTERM (for use in Docker) - @recmo
+- Allow SQL functions to generate registered JWT claims - @begriffs
+- Terminate gracefully on SIGTERM (for use in Docker) - @recmo
+- Relation detection fix for views that depend on multiple tables - @ruslantalpa
 
 ## [0.3.1.0] - 2016-02-28
 

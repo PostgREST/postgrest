@@ -12,8 +12,8 @@ import           Data.Monoid               ((<>))
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import qualified Hasql.Session             as H
 import qualified Hasql.Pool                as P
+import qualified Hasql.Session             as H
 import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)

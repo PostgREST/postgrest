@@ -108,12 +108,13 @@ library
                      , time
                      , unordered-containers
                      , vector
-                     , wai
-                     , wai-cors
-                     , wai-extra
-                     , wai-middleware-static
                      , HTTP
                      , Ranged-sets
+                     , wai >= 3.0.1
+                     , wai-cors
+                     , wai-extra
+                     , wai-middleware-static >= 0.6.0
+                     , warp >= 3.1.0
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App

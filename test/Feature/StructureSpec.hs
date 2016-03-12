@@ -24,6 +24,7 @@ spec = do
         , {"schema":"test","name":"comments","insertable":true}
         , {"schema":"test","name":"complex_items","insertable":true}
         , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"filtered_tasks","insertable":true}
         , {"schema":"test","name":"ghostBusters","insertable":true}
         , {"schema":"test","name":"has_count_column","insertable":false}
         , {"schema":"test","name":"has_fk","insertable":true}
@@ -57,6 +58,61 @@ spec = do
         {matchStatus = 200}
 
   describe "Table info" $ do
+    it "The structure of complex views is correctly detected" $
+      request methodOptions "/filtered_tasks" [] "" `shouldRespondWith`
+      [json|
+      {
+        "pkey": [
+          "myId"
+        ],
+        "columns": [
+          {
+            "references": null,
+            "default": null,
+            "precision": 32,
+            "updatable": true,
+            "schema": "test",
+            "name": "myId",
+            "type": "integer",
+            "maxLen": null,
+            "enum": [],
+            "nullable": true,
+            "position": 1
+          },
+          {
+            "references": null,
+            "default": null,
+            "precision": null,
+            "updatable": true,
+            "schema": "test",
+            "name": "name",
+            "type": "text",
+            "maxLen": null,
+            "enum": [],
+            "nullable": true,
+            "position": 2
+          },
+          {
+            "references": {
+              "schema": "test",
+              "column": "id",
+              "table": "projects"
+            },
+            "default": null,
+            "precision": 32,
+            "updatable": true,
+            "schema": "test",
+            "name": "projectID",
+            "type": "integer",
+            "maxLen": null,
+            "enum": [],
+            "nullable": true,
+            "position": 3
+          }
+        ]
+      }
+      |]
+
     it "is available with OPTIONS verb" $
       request methodOptions "/menagerie" [] "" `shouldRespondWith`
       [json|

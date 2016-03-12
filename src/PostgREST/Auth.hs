@@ -30,7 +30,7 @@ import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
 import           Data.Time.Clock         (NominalDiffTime)
-import           PostgREST.QueryBuilder  (pgFmtLit, pgFmtIdent, unquoted)
+import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
 
 {-|

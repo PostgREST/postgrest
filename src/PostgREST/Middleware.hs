@@ -7,15 +7,15 @@ import           Control.Monad                 (unless)
 import qualified Data.ByteString               as BS
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe                    (fromMaybe)
-import           Data.Text
 import           Data.String.Conversions       (cs)
+import           Data.Text
 import           Data.Time.Clock               (NominalDiffTime)
 import qualified Hasql.Transaction             as H
 
 import           Network.HTTP.Types.Header     (hAccept, hAuthorization)
-import           Network.HTTP.Types.Status     (status415, status400)
-import           Network.Wai                   (Application, Request (..), Response,
-                                                requestHeaders)
+import           Network.HTTP.Types.Status     (status400, status415)
+import           Network.Wai                   (Application, Request (..),
+                                                Response, requestHeaders)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
