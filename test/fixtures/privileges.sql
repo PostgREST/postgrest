@@ -43,6 +43,7 @@ GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
 GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq
     , items_id_seq
+    , callcounter_count
 TO postgrest_test_anonymous;
 
 -- Privileges for non anonymous users
