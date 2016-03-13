@@ -146,13 +146,6 @@ spec = do
           , matchHeaders = ["Location" <:> [str|/json?data=eq.{"foo":"bar"}|]]
           }
 
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%7B%22foo%22%3A%22bar%22%7D"
-        --   simpleStatus p `shouldBe` created201
-
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
         request methodPost "/json"
@@ -163,12 +156,6 @@ spec = do
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> [str|/json?data=eq.[1,2,3]|]]
           }
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%5B1%2C2%2C3%5D"
-        --   simpleStatus p `shouldBe` created201
 
   describe "CSV insert" $ do
 
@@ -186,14 +173,6 @@ spec = do
            , matchStatus  = 201
            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
            }
-        -- p <- request methodPost "/menagerie" [("Content-Type", "text/csv")]
-        --        [str|integer,double,varchar,boolean,date,money,enum
-        --            |13,3.14159,testing!,false,1900-01-01,$3.99,foo
-        --            |12,0.1,a string,true,1929-10-01,12,bar
-        --            |]
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` "Content-Type: application/json\nLocation: /menagerie?integer=eq.13\n\n\n--postgrest_boundary\nContent-Type: application/json\nLocation: /menagerie?integer=eq.12\n\n"
-        --   simpleStatus p `shouldBe` created201
 
     context "requesting full representation" $ do
       it "returns full details of inserted record" $
@@ -207,17 +186,6 @@ spec = do
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
-      -- it "can post nulls (old way)" $ do
-      --   pendingWith "changed the response when in csv mode"
-      --   request methodPost "/no_pk"
-      --                [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
-      --                "a,b\nNULL,foo"
-      --     `shouldRespondWith` ResponseMatcher {
-      --       matchBody    = Just [json| { "a":null, "b":"foo" } |]
-      --     , matchStatus  = 201
-      --     , matchHeaders = ["Content-Type" <:> "application/json",
-      --                       "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
-      --     }
       it "can post nulls" $
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
