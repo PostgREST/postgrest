@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+- Preserve unicode values in insert,update,rpc (regression) - @begriffs
 - Prevent duplicate call to stored procs (regression) - @begriffs
 - Allow SQL functions to generate registered JWT claims - @begriffs
 - Terminate gracefully on SIGTERM (for use in Docker) - @recmo
