@@ -42,7 +42,7 @@ spec = do
           } |] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"integer":14,"varchar":"testing!"}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json"]
+          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
       it "includes related data after insert" $
@@ -50,7 +50,7 @@ spec = do
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json", "Location" <:> "/projects?id=eq.6"]
+          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8", "Location" <:> "/projects?id=eq.6"]
           }
 
 
@@ -184,7 +184,7 @@ spec = do
            `shouldRespondWith` ResponseMatcher {
              matchBody    = Just inserted
            , matchStatus  = 201
-           , matchHeaders = ["Content-Type" <:> "text/csv"]
+           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
            }
         -- p <- request methodPost "/menagerie" [("Content-Type", "text/csv")]
         --        [str|integer,double,varchar,boolean,date,money,enum
@@ -203,7 +203,7 @@ spec = do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "a,b\nbar,baz"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv",
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
@@ -225,7 +225,7 @@ spec = do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "a,b\n,foo"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv",
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 

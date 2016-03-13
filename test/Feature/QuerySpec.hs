@@ -337,7 +337,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "text/csv"]
+        , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
         }
 
   describe "Canonical location" $ do
