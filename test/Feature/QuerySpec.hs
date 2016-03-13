@@ -390,10 +390,14 @@ spec = do
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
           [json| [] |]
 
-    context "a proc that returns plain text" $
+    context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
+
+      it "can handle unicode" $
+        post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
+          [json| [{"sayhello":"Hello, ￥"}] |]
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $

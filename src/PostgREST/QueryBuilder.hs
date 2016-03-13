@@ -93,11 +93,11 @@ encodeUniformObjs =
 createReadStatement :: SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
-  H.statement sql HE.unit decodeStandard True
+  H.statement (cs sql) HE.unit decodeStandard True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
-      FROM ( SELECT * FROM {sourceCTEName} {limitF range}) t |]
+      FROM ( SELECT * FROM {sourceCTEName} {limitF range}) t |] :: Text
   countResultF = if countTotal then "("<>countQuery<>")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
@@ -116,20 +116,20 @@ createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
 createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
 createWriteStatement _ _ mutateQuery _ None
                      _ _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  H.statement (cs sql) encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT '', 0, '', '' |]
+      SELECT '', 0, '', '' |] :: Text
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  H.statement (cs sql) encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM (SELECT 1 FROM {sourceCTEName}) t |]
+      FROM (SELECT 1 FROM {sourceCTEName}) t |] :: Text
   cols = intercalate ", " [
       "'' AS total_result_set",
       "pg_catalog.count(t) AS page_total",
@@ -139,12 +139,12 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
                      pKeys asCsv (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  H.statement (cs sql) encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM ({selectQuery}) t |]
+      FROM ({selectQuery}) t |] :: Text
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(t) AS page_total",
@@ -206,7 +206,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
 callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
 callProc qi params range countTotal =
-  H.statement sql HE.unit decodeProc True
+  H.statement (cs sql) HE.unit decodeProc True
   where
     sql = [qc|
             WITH t AS (select * {_callSql})
@@ -217,13 +217,13 @@ callProc qi params range countTotal =
                 coalesce(array_agg(row_to_json(r)), '\{}')
               )::character varying
             FROM (select * from t {limitF range}) r;
-          |]
+          |] :: Text
     _args = intercalate "," $ map _assignment (HM.toList params)
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| from {fromQi qi}({_args}) |] :: BS.ByteString
+    _callSql = [qc| from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
                    then "(select pg_catalog.count(1) from t)"
-                   else "null::bigint" :: BS.ByteString
+                   else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json

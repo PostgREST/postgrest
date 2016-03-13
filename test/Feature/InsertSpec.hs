@@ -9,10 +9,11 @@ import SpecHelper
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
+import Data.Monoid ((<>))
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
-import Control.Monad (replicateM_)
+import Control.Monad (replicateM_, void)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 import Network.Wai (Application)
@@ -233,10 +234,21 @@ spec = do
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         liftIO $ simpleStatus p `shouldBe` badRequest400
-      -- it does not fail because the extra columns are ignored
-      -- it "fails for too many" $ do
-      --   p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz,bat,bad"
-      --   liftIO $ simpleStatus p `shouldBe` badRequest400
+
+    context "with unicode values" $
+      it "succeeds and returns usable location header" $ do
+        let payload = [json| { "a":"圍棋", "b":"￥" } |]
+        p <- request methodPost "/no_pk"
+                     [("Prefer", "return=representation")]
+                     payload
+        liftIO $ do
+          simpleBody p `shouldBe` payload
+          simpleStatus p `shouldBe` created201
+
+        let Just location = lookup hLocation $ simpleHeaders p
+        r <- get location
+        liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
+
 
   describe "Putting record" $ do
 
@@ -386,6 +398,17 @@ spec = do
           , matchStatus  = 200
           , matchHeaders = []
           }
+
+    context "with unicode values" $
+      it "succeeds and returns values intact" $ do
+        void $ request methodPost "/no_pk" []
+          [json| { "a":"patchme", "b":"patchme" } |]
+        let payload = [json| { "a":"圍棋", "b":"￥" } |]
+        p <- request methodPatch "/no_pk?a=eq.patchme&b=eq.patchme"
+          [("Prefer", "return=representation")] payload
+        liftIO $ do
+          simpleBody p `shouldBe` "["<>payload<>"]"
+          simpleStatus p `shouldBe` ok200
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
