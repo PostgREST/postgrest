@@ -262,6 +262,18 @@ $_$;
 
 
 --
+-- Name: callcounter(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE SEQUENCE callcounter_count START 1;
+
+CREATE FUNCTION callcounter() RETURNS bigint
+    LANGUAGE sql
+    AS $_$
+    SELECT nextval('test.callcounter_count');
+$_$;
+
+--
 -- Name: test_empty_rowset(); Type: FUNCTION; Schema: test; Owner: -
 --
 

@@ -422,6 +422,12 @@ spec = do
       it "GET with 405 on known procs" $
         get "/rpc/sayhello" `shouldRespondWith` 405
 
+    it "executes the proc exactly once per request" $ do
+      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
+        [json| [{"callcounter":1}] |]
+      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
+        [json| [{"callcounter":2}] |]
+
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`

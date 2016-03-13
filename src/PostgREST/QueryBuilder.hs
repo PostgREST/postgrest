@@ -208,18 +208,22 @@ callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query
 callProc qi params range countTotal =
   H.statement sql HE.unit decodeProc True
   where
-    sql = [qc| SELECT
-              {countQuery} as countTotal,
-              {countResult} as countResult,
+    sql = [qc|
+            WITH t AS (select * {_callSql})
+            SELECT
+              {_countExpr} as countTotal,
+              pg_catalog.count(1) as countResult,
               array_to_json(
-                coalesce(array_agg(row_to_json(t)), '\{}')
+                coalesce(array_agg(row_to_json(r)), '\{}')
               )::character varying
-              from (select * {_callSql} {limitF range}) t |]
+            FROM (select * from t {limitF range}) r;
+          |]
     _args = intercalate "," $ map _assignment (HM.toList params)
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc| from {fromQi qi}({_args}) |] :: BS.ByteString
-    countQuery = if countTotal then [qc| (select pg_catalog.count(1) {_callSql} c) |] else "null::bigint" :: BS.ByteString
-    countResult = "pg_catalog.count(t)" :: BS.ByteString
+    _countExpr = if countTotal
+                   then "(select pg_catalog.count(1) from t)"
+                   else "null::bigint" :: BS.ByteString
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json
