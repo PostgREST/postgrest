@@ -11,7 +11,6 @@ create role authenticator noinherit;
 grant anon, author to authenticator;
 
 create extension if not exists pgcrypto;
-create extension if not exists "uuid-ossp";
 
 -- We put things inside the basic_auth schema to hide
 -- them from public view. Certain public procs/views will
