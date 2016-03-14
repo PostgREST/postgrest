@@ -11,7 +11,6 @@ create role authenticator noinherit;
 grant anon, author to authenticator;
 
 create extension if not exists pgcrypto;
-create extension if not exists "uuid-ossp";
 
 -- We put things inside the basic_auth schema to hide
 -- them from public view. Certain public procs/views will
@@ -97,7 +96,7 @@ basic_auth.send_validation() returns trigger
 declare
   tok uuid;
 begin
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'validation', new.email);
   perform pg_notify('validate',
@@ -175,7 +174,7 @@ begin
    where token_type = 'reset'
      and tokens.email = request_password_reset.email;
 
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'reset', request_password_reset.email);
   perform pg_notify('reset',
@@ -215,7 +214,7 @@ begin
    where token_type = 'reset'
      and tokens.email = reset_password.email;
 
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'reset', reset_password.email);
   perform pg_notify('reset',
