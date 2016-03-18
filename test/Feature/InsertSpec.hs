@@ -9,10 +9,11 @@ import SpecHelper
 
 import qualified Data.Aeson as JSON
 import Data.Maybe (fromJust)
+import Data.Monoid ((<>))
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
-import Control.Monad (replicateM_)
+import Control.Monad (replicateM_, void)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 import Network.Wai (Application)
@@ -41,7 +42,7 @@ spec = do
           } |] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"integer":14,"varchar":"testing!"}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json"]
+          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
       it "includes related data after insert" $
@@ -49,7 +50,7 @@ spec = do
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json", "Location" <:> "/projects?id=eq.6"]
+          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8", "Location" <:> "/projects?id=eq.6"]
           }
 
 
@@ -145,13 +146,6 @@ spec = do
           , matchHeaders = ["Location" <:> [str|/json?data=eq.{"foo":"bar"}|]]
           }
 
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%7B%22foo%22%3A%22bar%22%7D"
-        --   simpleStatus p `shouldBe` created201
-
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
         request methodPost "/json"
@@ -162,12 +156,6 @@ spec = do
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> [str|/json?data=eq.[1,2,3]|]]
           }
-        -- TODO! the test above seems right, why was the one below working before and not now
-        -- p <- request methodPost "/json" [("Prefer", "return=representation")] inserted
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` inserted
-        --   simpleHeaders p `shouldSatisfy` matchHeader hLocation "/json\\?data=eq\\.%5B1%2C2%2C3%5D"
-        --   simpleStatus p `shouldBe` created201
 
   describe "CSV insert" $ do
 
@@ -183,16 +171,8 @@ spec = do
            `shouldRespondWith` ResponseMatcher {
              matchBody    = Just inserted
            , matchStatus  = 201
-           , matchHeaders = ["Content-Type" <:> "text/csv"]
+           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
            }
-        -- p <- request methodPost "/menagerie" [("Content-Type", "text/csv")]
-        --        [str|integer,double,varchar,boolean,date,money,enum
-        --            |13,3.14159,testing!,false,1900-01-01,$3.99,foo
-        --            |12,0.1,a string,true,1929-10-01,12,bar
-        --            |]
-        -- liftIO $ do
-        --   simpleBody p `shouldBe` "Content-Type: application/json\nLocation: /menagerie?integer=eq.13\n\n\n--postgrest_boundary\nContent-Type: application/json\nLocation: /menagerie?integer=eq.12\n\n"
-        --   simpleStatus p `shouldBe` created201
 
     context "requesting full representation" $ do
       it "returns full details of inserted record" $
@@ -202,21 +182,10 @@ spec = do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "a,b\nbar,baz"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv",
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
 
-      -- it "can post nulls (old way)" $ do
-      --   pendingWith "changed the response when in csv mode"
-      --   request methodPost "/no_pk"
-      --                [("Content-Type", "text/csv"), ("Prefer", "return=representation")]
-      --                "a,b\nNULL,foo"
-      --     `shouldRespondWith` ResponseMatcher {
-      --       matchBody    = Just [json| { "a":null, "b":"foo" } |]
-      --     , matchStatus  = 201
-      --     , matchHeaders = ["Content-Type" <:> "application/json",
-      --                       "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
-      --     }
       it "can post nulls" $
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
@@ -224,7 +193,7 @@ spec = do
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "a,b\n,foo"
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv",
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
@@ -233,10 +202,21 @@ spec = do
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         liftIO $ simpleStatus p `shouldBe` badRequest400
-      -- it does not fail because the extra columns are ignored
-      -- it "fails for too many" $ do
-      --   p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz,bat,bad"
-      --   liftIO $ simpleStatus p `shouldBe` badRequest400
+
+    context "with unicode values" $
+      it "succeeds and returns usable location header" $ do
+        let payload = [json| { "a":"圍棋", "b":"￥" } |]
+        p <- request methodPost "/no_pk"
+                     [("Prefer", "return=representation")]
+                     payload
+        liftIO $ do
+          simpleBody p `shouldBe` payload
+          simpleStatus p `shouldBe` created201
+
+        let Just location = lookup hLocation $ simpleHeaders p
+        r <- get location
+        liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
+
 
   describe "Putting record" $ do
 
@@ -386,6 +366,17 @@ spec = do
           , matchStatus  = 200
           , matchHeaders = []
           }
+
+    context "with unicode values" $
+      it "succeeds and returns values intact" $ do
+        void $ request methodPost "/no_pk" []
+          [json| { "a":"patchme", "b":"patchme" } |]
+        let payload = [json| { "a":"圍棋", "b":"￥" } |]
+        p <- request methodPatch "/no_pk?a=eq.patchme&b=eq.patchme"
+          [("Prefer", "return=representation")] payload
+        liftIO $ do
+          simpleBody p `shouldBe` "["<>payload<>"]"
+          simpleStatus p `shouldBe` ok200
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
