@@ -41,8 +41,8 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -- route responses and upload payloads
 data ContentType = ApplicationJSON | TextCSV deriving Eq
 instance Show ContentType where
-  show ApplicationJSON = "application/json"
-  show TextCSV         = "text/csv"
+  show ApplicationJSON = "application/json; charset=utf-8"
+  show TextCSV         = "text/csv; charset=utf-8"
 
 {-|
   Describes what the user wants to do. This data type is a

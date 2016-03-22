@@ -6,12 +6,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+- Preserve unicode values in insert,update,rpc (regression) - @begriffs
+- Prevent duplicate call to stored procs (regression) - @begriffs
+- Allow SQL functions to generate registered JWT claims - @begriffs
+- Terminate gracefully on SIGTERM (for use in Docker) - @recmo
+- Relation detection fix for views that depend on multiple tables - @ruslantalpa
 
 ## [0.3.1.0] - 2016-02-28
 
 ### Fixed
 - Prevent query error from infecting later connection - @begriffs, @ruslantalpa, @nikita-volkov, @jwiegley
-- Relation detection fix for views that depend on multiple tables - @ruslantalpa
 
 ### Added
 - Applies range headers to RPC calls - @diogob

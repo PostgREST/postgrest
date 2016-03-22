@@ -249,7 +249,7 @@ contentRangeH frm to total =
       fromInRange   = frm <= to
 
 jsonH :: Header
-jsonH = (hContentType, "application/json")
+jsonH = (hContentType, "application/json; charset=utf-8")
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError

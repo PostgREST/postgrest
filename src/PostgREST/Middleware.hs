@@ -3,6 +3,9 @@
 
 module PostgREST.Middleware where
 
+import           Control.Monad                 (unless)
+import qualified Data.ByteString               as BS
+import qualified Data.HashMap.Strict           as M
 import           Data.Maybe                    (fromMaybe)
 import           Data.String.Conversions       (cs)
 import           Data.Text
@@ -18,37 +21,37 @@ import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
 import           PostgREST.ApiRequest          (pickContentType)
-import           PostgREST.Auth                (claimsToSQL, jwtClaims, setRole)
+import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
 
-import           Prelude                       hiding (concat)
-
-import qualified Data.Map.Lazy                 as M
+import           Prelude                       hiding (concat, null)
 
 runWithClaims :: AppConfig -> NominalDiffTime ->
                  (Request -> H.Transaction Response) ->
                  Request -> H.Transaction Response
 runWithClaims conf time app req = do
     H.sql setAnon
-    case split (== ' ') (cs auth) of
-      ("Bearer" : tokenStr : _) ->
-        case jwtClaims jwtSecret tokenStr time of
-          Just claims ->
-            if M.member "role" claims
-            then do
-              mapM_ H.sql $ claimsToSQL claims
-              app req
-            else invalidJWT
-          _ -> invalidJWT
-      _ -> app req
+    let tokenStr = case split (== ' ') (cs auth) of
+          ("Bearer" : t : _) -> t
+          _                  -> ""
+        eClaims = jwtClaims jwtSecret tokenStr time
+    case eClaims of
+      Left e -> clientErr e
+      Right claims ->
+        if M.null claims && not (null tokenStr)
+          then clientErr "Invalid JWT"
+          else do
+            let cmdBatch = mconcat $ claimsToSQL claims
+            unless (BS.null cmdBatch) (H.sql cmdBatch)
+            app req
   where
     hdrs = requestHeaders req
     jwtSecret = configJwtSecret conf
     auth = fromMaybe "" $ lookup hAuthorization hdrs
     anon = cs $ configAnonRole conf
     setAnon = setRole anon
-    invalidJWT = return $ errResponse status400 "Invalid JWT"
+    clientErr = return . errResponse status400
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond =

@@ -50,6 +50,23 @@ CREATE TYPE jwt_claims AS (
 	id text
 );
 
+--
+-- Name: big_jwt_claims; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE big_jwt_claims AS (
+  iss text,
+  sub text,
+  aud text,
+  exp integer,
+  nbf integer,
+  iat integer,
+  jti text,
+
+  role text,
+  "http://postgrest.com/foo" boolean
+);
+
 
 SET search_path = test, pg_catalog;
 
@@ -184,6 +201,43 @@ $$;
 
 
 --
+-- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION jwt_test() RETURNS public.big_jwt_claims
+    LANGUAGE sql SECURITY DEFINER
+    AS $$
+SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
+       1300819380 as exp, 1300819380 as nbf, 1300819380 as iat,
+       'foo'::text as jti, 'postgrest_test'::text as role,
+       true as "http://postgrest.com/foo";
+$$;
+
+
+--
+-- Name: reveal_big_jwt(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
+      iss text, sub text, aud text, exp bigint,
+      nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
+    )
+    LANGUAGE sql SECURITY DEFINER
+    AS $$
+SELECT current_setting('postgrest.claims.iss') as iss,
+       current_setting('postgrest.claims.sub') as sub,
+       current_setting('postgrest.claims.aud') as aud,
+       current_setting('postgrest.claims.exp')::bigint as exp,
+       current_setting('postgrest.claims.nbf')::bigint as nbf,
+       current_setting('postgrest.claims.iat')::bigint as iat,
+       current_setting('postgrest.claims.jti') as jti,
+       -- role is not included in the claims list
+       current_setting('postgrest.claims.http://postgrest.com/foo')::boolean
+         as "http://postgrest.com/foo";
+$$;
+
+
+--
 -- Name: problem(); Type: FUNCTION; Schema: test; Owner: -
 --
 
@@ -206,6 +260,18 @@ CREATE FUNCTION sayhello(name text) RETURNS text
     SELECT 'Hello, ' || $1;
 $_$;
 
+
+--
+-- Name: callcounter(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE SEQUENCE callcounter_count START 1;
+
+CREATE FUNCTION callcounter() RETURNS bigint
+    LANGUAGE sql
+    AS $_$
+    SELECT nextval('test.callcounter_count');
+$_$;
 
 --
 -- Name: test_empty_rowset(); Type: FUNCTION; Schema: test; Owner: -

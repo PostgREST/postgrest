@@ -153,7 +153,7 @@ similar way to our ```POST``` example.
 
     <p>It's advisable to create a separate trigger for <code>UPDATE</code> and <code>INSERT</code>
     avoiding conditionals that decide which is the trigger current operation.
-    This makes it easier to change code for (or even disable) one operation without intefering with others while
+    This makes it easier to change code for (or even disable) one operation without interfering with others while
     improving readability.
     </p>
 </div>
@@ -186,7 +186,7 @@ basic field replacements, and not at all "incorrect."
 * ❌ Cannot be cached or prefetched
 * ✅ Idempotent
 
-Simply use the `DELETE` verb. All recors that match your filter
+Simply use the `DELETE` verb. All records that match your filter
 will be removed. For instance deleting inactive users:
 
 ```HTTP

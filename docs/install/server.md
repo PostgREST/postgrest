@@ -55,7 +55,8 @@ sudo apt-get install -y libpq-dev
 ```bash
 git clone https://github.com/begriffs/postgrest.git
 cd postgrest
-sudo stack install --install-ghc --local-bin-path /usr/local/bin
+stack build --install-ghc
+sudo stack install --allow-different-user --local-bin-path /usr/local/bin
 ```
 
 * Run the server
@@ -94,7 +95,7 @@ The complete list of options:
     <code>secret</code> but do not use the default in production!
     Load-balanced PostgREST servers should share the same secret.</dd>
 
-<dt>-p, --pool</dt>
+<dt>-o, --pool</dt>
 <dd>Max connections to use in db pool. Defaults to to 10, but you
     should find an optimal value for your db by running the SQL
     command <code>show max_connections;</code></dd>

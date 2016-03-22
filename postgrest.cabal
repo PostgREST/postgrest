@@ -40,6 +40,8 @@ executable postgrest
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , lens >=3.8 && < 5.0
+                     , lens-aeson >= 1.0.0.0 && < 1.1.0.0
                      , mtl
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
@@ -93,6 +95,8 @@ library
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , lens
+                     , lens-aeson
                      , mtl
                      , optparse-applicative
                      , parsec
@@ -176,6 +180,8 @@ Test-Suite spec
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
+                     , lens
+                     , lens-aeson
                      , monad-control
                      , mtl
                      , optparse-applicative

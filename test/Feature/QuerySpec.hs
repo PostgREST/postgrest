@@ -345,7 +345,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "text/csv"]
+        , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
         }
 
   describe "Canonical location" $ do
@@ -398,10 +398,14 @@ spec = do
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
           [json| [] |]
 
-    context "a proc that returns plain text" $
+    context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
+
+      it "can handle unicode" $
+        post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
+          [json| [{"sayhello":"Hello, ￥"}] |]
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $
@@ -429,6 +433,12 @@ spec = do
         get "/rpc/fake" `shouldRespondWith` 405
       it "GET with 405 on known procs" $
         get "/rpc/sayhello" `shouldRespondWith` 405
+
+    it "executes the proc exactly once per request" $ do
+      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
+        [json| [{"callcounter":1}] |]
+      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
+        [json| [{"callcounter":2}] |]
 
   describe "weird requests" $ do
     it "can query as normal" $ do

@@ -43,6 +43,7 @@ import           Data.List               (find, (\\))
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
+import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
 import           Control.Applicative     ((<|>))
 import           Control.Monad           (join)
@@ -93,7 +94,7 @@ encodeUniformObjs =
 createReadStatement :: SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
-  H.statement sql HE.unit decodeStandard True
+  unicodeStatement sql HE.unit decodeStandard True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
@@ -116,7 +117,7 @@ createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
 createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
 createWriteStatement _ _ mutateQuery _ None
                      _ _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
@@ -124,7 +125,7 @@ createWriteStatement _ _ mutateQuery _ None
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
@@ -139,7 +140,7 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
                      pKeys asCsv (PayloadJSON (UniformObjects _)) =
-  H.statement sql encodeUniformObjs decodeStandardMay True
+  unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
@@ -206,20 +207,24 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
 callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
 callProc qi params range countTotal =
-  H.statement sql HE.unit decodeProc True
+  unicodeStatement sql HE.unit decodeProc True
   where
-    sql = [qc| SELECT
-              {countQuery} as countTotal,
-              {countResult} as countResult,
+    sql = [qc|
+            WITH t AS (select * {_callSql})
+            SELECT
+              {_countExpr} as countTotal,
+              pg_catalog.count(1) as countResult,
               array_to_json(
-                coalesce(array_agg(row_to_json(t)), '\{}')
+                coalesce(array_agg(row_to_json(r)), '\{}')
               )::character varying
-              from (select * {_callSql} {limitF range}) t |]
+            FROM (select * from t {limitF range}) r;
+          |]
     _args = intercalate "," $ map _assignment (HM.toList params)
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| from {fromQi qi}({_args}) |] :: BS.ByteString
-    countQuery = if countTotal then [qc| (select pg_catalog.count(1) {_callSql} c) |] else "null::bigint" :: BS.ByteString
-    countResult = "pg_catalog.count(t)" :: BS.ByteString
+    _callSql = [qc| from {fromQi qi}({_args}) |] :: Text
+    _countExpr = if countTotal
+                   then "(select pg_catalog.count(1) from t)"
+                   else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json
@@ -434,6 +439,9 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
     ltN = fromMaybe "" (tableName <$> lt)
     toFilter :: Text -> Text -> Column -> Column -> Filter
     toFilter tb ftb c fc = Filter (colName c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}}))
+
+unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
+unicodeStatement = H.statement . T.encodeUtf8
 
 emptyOnNull :: Text -> [a] -> Text
 emptyOnNull val x = if null x then "" else val
