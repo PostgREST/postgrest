@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Allow SQL functions to generate registered JWT claims - @begriffs
 - Terminate gracefully on SIGTERM (for use in Docker) - @recmo
 - Relation detection fix for views that depend on multiple tables - @ruslantalpa
+- Avoid count on plurality=singular and allow multiple Prefer values - @ruslantalpa
 
 ## [0.3.1.0] - 2016-02-28
 
