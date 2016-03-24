@@ -246,6 +246,14 @@ spec = do
         , matchHeaders = []
         }
 
+    it "can combine multiple prefer values" $
+      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular ; future=new; count=none")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"id":5} |]
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
     it "works in the presence of a range header" $
       let headers = ("Prefer","plurality=singular") :
             rangeHdrs (ByteRangeFromTo 0 9) in
