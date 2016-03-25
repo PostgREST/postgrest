@@ -34,6 +34,13 @@ CREATE SCHEMA test;
 
 
 --
+-- Name: تست; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA تست;
+
+
+--
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -160,6 +167,14 @@ CREATE FUNCTION always_true(test.items) RETURNS boolean
 CREATE FUNCTION anti_id(test.items) RETURNS bigint
     LANGUAGE sql STABLE
     AS $_$ SELECT $1.id * -1 $_$;
+
+
+
+SET search_path = تست, pg_catalog;
+
+CREATE TABLE موارد (
+    هویت bigint NOT NULL
+);
 
 
 SET search_path = test, pg_catalog;
@@ -984,7 +999,6 @@ ALTER TABLE ONLY users_tasks
 
 ALTER TABLE ONLY users_tasks
     ADD CONSTRAINT users_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
-
 
 --
 -- PostgreSQL database dump complete

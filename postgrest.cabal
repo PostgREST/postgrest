@@ -146,6 +146,7 @@ Test-Suite spec
                      , Feature.QueryLimitedSpec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
+                     , Feature.UnicodeSpec
                      , Paths_postgrest
                      , PostgREST.App
                      , PostgREST.Auth
