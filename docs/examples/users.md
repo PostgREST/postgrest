@@ -456,15 +456,16 @@ Here's a function to get the email of the currently authenticated
 user.
 
 ```sql
+-- Prevent current_setting('postgrest.claims.email') from raising
+-- an exception if the setting is not present. Default it to ''.
+ALTER DATABASE :database_name SET postgrest.claims.email TO '';
+
 create or replace function
 basic_auth.current_email() returns text
   language plpgsql
   as $$
 begin
   return current_setting('postgrest.claims.email');
-exception
-  -- handle unrecognized configuration parameter error
-  when undefined_object then return '';
 end;
 $$;
 ```
