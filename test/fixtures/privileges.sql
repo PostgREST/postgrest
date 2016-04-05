@@ -2,10 +2,11 @@
 GRANT USAGE ON SCHEMA
       postgrest
     , test
+    , "تست"
 TO postgrest_test_anonymous;
 
 -- Schema test objects
-SET search_path = test, pg_catalog;
+SET search_path = test, "تست", pg_catalog;
 
 GRANT ALL ON TABLE
     items
@@ -36,6 +37,7 @@ GRANT ALL ON TABLE
     , "Escap3e;"
     , "ghostBusters"
     , "withUnique"
+    , "موارد"
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

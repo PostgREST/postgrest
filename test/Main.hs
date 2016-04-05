@@ -18,6 +18,7 @@ import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
 import qualified Feature.StructureSpec
+import qualified Feature.UnicodeSpec
 
 main :: IO ()
 main = do
@@ -29,6 +30,7 @@ main = do
   let dbStructure = either (error.show) id result
       withApp = return $ postgrest testCfg dbStructure pool
       ltdApp  = return $ postgrest testLtdRowsCfg dbStructure pool
+      unicodeApp = return $ postgrest testUnicodeCfg dbStructure pool
 
   hspec $ do
     mapM_ (beforeAll_ resetDb . before withApp) specs
@@ -36,6 +38,10 @@ main = do
     -- this test runs with a different server flag
     beforeAll_ resetDb . before ltdApp $
       describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
+
+    -- this test runs with a different schema
+    beforeAll_ resetDb . before unicodeApp $
+      describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
 
  where
   specs = map (uncurry describe) [
