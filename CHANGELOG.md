@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+- Set transaction mode to READ when possible to support connecting to read replicas - @ruslantalpa
 
 ## [0.3.1.1] - 2016-03-28
 
