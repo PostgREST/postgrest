@@ -6,7 +6,7 @@ where
 import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
-import           Data.Text                     (Text)
+import           Data.Text                     (Text, intercalate)
 import           Data.Tree
 import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
@@ -57,9 +57,21 @@ pFieldTree = try (Node <$> pSelect <*> between (char '{') (char '}') pFieldFores
 pStar :: Parser Text
 pStar = cs <$> (string "*" *> pure ("*"::String))
 
+
+
 pFieldName :: Parser Text
-pFieldName =  cs <$> (many1 (letter <|> digit <|> oneOf "_")
-          <?> "field name (* or [a..z0..9_])")
+pFieldName = do
+  matches <- (many1 (letter <|> digit <|> oneOf "_") `sepBy1` dash) <?> "field name (* or [a..z0..9_])"
+  return $ intercalate "-" $ map cs matches
+  where
+    isDash :: GenParser Char st ()
+    isDash = try (do{
+                   _ <- char '-'
+                   ; notFollowedBy (char '>')
+                   })
+    dash :: Parser Char
+    dash = isDash *> pure '-'
+
 
 pJsonPathStep :: Parser Text
 pJsonPathStep = cs <$> try (string "->" *> pFieldName)

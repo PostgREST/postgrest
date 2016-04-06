@@ -7,10 +7,12 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow             ((***))
+import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
-import           Data.IORef                (IORef, readIORef)
-import           Data.List                 (find, delete)
+import           Data.List                 (find, sortBy, delete)
 import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
+import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
@@ -22,8 +24,10 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
+import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
+import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
@@ -60,31 +64,29 @@ import           PostgREST.Types
 import           Prelude
 
 
-postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
-postgrest conf refDbStructure pool =
-  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
-
-  middle $ \ req respond -> do
-    time <- getPOSIXTime
-    body <- strictRequestBody req
-    dbStructure <- readIORef refDbStructure
-
-    let schema = cs $ configSchema conf
-        apiRequest = userApiRequest schema req body
-        handleReq = runWithClaims conf time (app dbStructure conf) apiRequest
-        txMode = transactionMode $ iAction apiRequest
-
-    resp <- either pgErrResponse id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted txMode)
-    respond resp
-
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
 transactionMode ActionInfo = HT.Read
 transactionMode _ = HT.Write
 
-app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
-app dbStructure conf apiRequest =
+postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
+postgrest conf dbStructure pool =
+  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
+
+  middle $ \ req respond -> do
+    time <- getPOSIXTime
+    body <- strictRequestBody req
+
+    let schema = cs $ configSchema conf
+        apiRequest = userApiRequest schema req body
+        handleReq = runWithClaims conf time (app dbStructure conf apiRequest) req
+
+    resp <- either pgErrResponse id <$> P.use pool
+      (HT.run handleReq HT.ReadCommitted (transactionMode $ iAction apiRequest))
+    respond resp
+
+app :: DbStructure -> AppConfig -> ApiRequest -> Request -> H.Transaction Response
+app dbStructure conf apiRequest req =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts apiRequest)
@@ -108,7 +110,11 @@ app dbStructure conf apiRequest =
               else responseLBS status200 [contentTypeH] (cs body)
             else do
               let (status, contentRange) = rangeHeader queryTotal tableTotal
-                  canonical = iCanonicalQS apiRequest
+                  canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
+                    . sortBy (comparing fst)
+                    . map (join (***) cs)
+                    . parseSimpleQuery
+                    $ rawQueryString req
               return $ responseLBS status
                 [contentTypeH, contentRange,
                   ("Content-Location",
@@ -127,14 +133,12 @@ app dbStructure conf apiRequest =
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.query uniform stm
           let (_, _, location, body) = extractQueryResult row
-
-          return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS status201 [
-                  contentTypeH,
-                  (hLocation, "/" <> cs table <> "?" <> cs location)
-                ] (cs body)
-            else responseLBS status201
-              [(hLocation, "/" <> cs table <> "?" <> cs location)] ""
+          return $ responseLBS status201
+            [
+              contentTypeH,
+              (hLocation, "/" <> cs table <> "?" <> cs location)
+            ]
+            $ if iPreferRepresentation apiRequest == Full then cs body else ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       case mutateSqlParts of
@@ -147,9 +151,8 @@ app dbStructure conf apiRequest =
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
-          return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS s [contentTypeH, r] (cs body)
-            else responseLBS s [r] ""
+          return $ responseLBS s [contentTypeH, r]
+            $ if iPreferRepresentation apiRequest == Full then cs body else ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
       case mutateSqlParts of
@@ -333,11 +336,16 @@ addFilter (path, flt) (Node rn forest) =
   where
     targetNodeName:remainingPath = path
     (targetNode,restForest) = splitForest targetNodeName forest
+    splitForest :: NodeName -> Forest ReadNode -> (Maybe ReadRequest, Forest ReadNode)
     splitForest name forst =
       case maybeNode of
         Nothing -> (Nothing,forest)
         Just node -> (Just node, delete node forest)
-      where maybeNode = find ((name==).fst.snd.rootLabel) forst
+      where
+        maybeNode :: Maybe ReadRequest
+        maybeNode = find fnd forst
+          where
+            fnd :: ReadRequest -> Bool
 
 -- in a relation where one of the tables mathces "TableName"
 -- replace the name to that table with pg_source

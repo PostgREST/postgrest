@@ -8,8 +8,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Reload database schema on SIGHUP - @begriffs
+- Support "-" in column names - @ruslantalpa
 
 ### Fixed
+- Set transaction mode to READ when possible to support connecting to read replicas - @ruslantalpa
 
 - Omit Content-Type header for empty body - @begriffs
 - Prevent role from being changed twice - @begriffs

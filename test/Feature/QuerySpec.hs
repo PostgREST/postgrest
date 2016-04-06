@@ -143,7 +143,11 @@ spec = do
 
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
-        [str|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3]}]|]
+        [str|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}]|]
+
+    it "dash `-` in column names is accepted" $
+      get "/complex_items?id=eq.3&select=id,field-with_sep" `shouldRespondWith`
+        [str|[{"id":3,"field-with_sep":1}]|]  
 
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
