@@ -28,11 +28,10 @@ value.
 ### Storing Users and Passwords
 
 We create a database schema especially for auth information. We'll
-also need the postgres extensions
-[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html) and [uuid-oosp](http://www.postgresql.org/docs/current/static/uuid-ossp.html).
+also need the postgres extension
+[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html.
 
 ```sql
-create extension if not exists "uuid-ossp";
 create extension if not exists pgcrypto;
 
 -- We put things inside the basic_auth schema to hide
