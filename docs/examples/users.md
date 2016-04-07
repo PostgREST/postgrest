@@ -29,7 +29,7 @@ value.
 
 We create a database schema especially for auth information. We'll
 also need the postgres extension
-[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html.
+[pgcrypto](http://www.postgresql.org/docs/current/static/pgcrypto.html).
 
 ```sql
 create extension if not exists pgcrypto;
