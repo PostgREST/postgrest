@@ -246,6 +246,14 @@ spec = do
         , matchHeaders = []
         }
 
+    it "can combine multiple prefer values" $
+      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular ; future=new; count=none")] ""
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"id":5} |]
+        , matchStatus  = 200
+        , matchHeaders = []
+        }
+
     it "works in the presence of a range header" $
       let headers = ("Prefer","plurality=singular") :
             rangeHdrs (ByteRangeFromTo 0 9) in
@@ -337,7 +345,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "text/csv"]
+        , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
         }
 
   describe "Canonical location" $ do
@@ -390,10 +398,14 @@ spec = do
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
           [json| [] |]
 
-    context "a proc that returns plain text" $
+    context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json| [{"sayhello":"Hello, world"}] |]
+
+      it "can handle unicode" $
+        post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
+          [json| [{"sayhello":"Hello, ￥"}] |]
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $

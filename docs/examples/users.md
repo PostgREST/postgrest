@@ -225,7 +225,7 @@ begin
    where token_type = 'reset'
      and tokens.email = reset_password.email;
 
-  select uuid_generate_v4() into tok;
+  select gen_random_uuid() into tok;
   insert into basic_auth.tokens (token, token_type, email)
          values (tok, 'reset', reset_password.email);
   perform pg_notify('reset',

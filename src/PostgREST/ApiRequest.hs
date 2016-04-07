@@ -41,8 +41,8 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -- route responses and upload payloads
 data ContentType = ApplicationJSON | TextCSV deriving Eq
 instance Show ContentType where
-  show ApplicationJSON = "application/json"
-  show TextCSV         = "text/csv"
+  show ApplicationJSON = "application/json; charset=utf-8"
+  show TextCSV         = "text/csv; charset=utf-8"
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -130,7 +130,7 @@ userApiRequest schema req reqBody =
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
-  , iPreferCount = not $ hasPrefer "count=none"
+  , iPreferCount = not $ singular || hasPrefer "count=none"
   , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
   , iSelect = if method == "DELETE"
               then "*"
@@ -145,7 +145,11 @@ userApiRequest schema req reqBody =
   hdrs            = requestHeaders req
   qParams         = [(cs k, cs <$> v)|(k,v) <- queryString req]
   lookupHeader    = flip lookup hdrs
-  hasPrefer val   = any (\(h,v) -> h == "Prefer" && v == val) hdrs
+  hasPrefer :: T.Text -> Bool
+  hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
+    where
+        split :: BS.ByteString -> [T.Text]
+        split = map T.strip . T.split (==';') . cs
   singular        = hasPrefer "plurality=singular"
   representation
     | hasPrefer "return=representation" = Full
