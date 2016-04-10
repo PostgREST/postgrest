@@ -3,8 +3,7 @@
 
 module PostgREST.Middleware where
 
-import           Control.Monad                 (unless)
-import qualified Data.ByteString               as BS
+import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe                    (fromMaybe)
 import           Data.String.Conversions       (cs)
@@ -31,7 +30,6 @@ runWithClaims :: AppConfig -> NominalDiffTime ->
                  (Request -> H.Transaction Response) ->
                  Request -> H.Transaction Response
 runWithClaims conf time app req = do
-    H.sql setAnon
     let tokenStr = case split (== ' ') (cs auth) of
           ("Bearer" : t : _) -> t
           _                  -> ""
@@ -42,15 +40,16 @@ runWithClaims conf time app req = do
         if M.null claims && not (null tokenStr)
           then clientErr "Invalid JWT"
           else do
-            let cmdBatch = mconcat $ claimsToSQL claims
-            unless (BS.null cmdBatch) (H.sql cmdBatch)
+            H.sql . mconcat $
+              setRole (
+                fromMaybe anon (M.lookup "role" claims)
+              ) : claimsToSQL (M.delete "role" claims)
             app req
   where
     hdrs = requestHeaders req
     jwtSecret = configJwtSecret conf
     auth = fromMaybe "" $ lookup hAuthorization hdrs
-    anon = cs $ configAnonRole conf
-    setAnon = setRole anon
+    anon = String . cs $ configAnonRole conf
     clientErr = return . errResponse status400
 
 unsupportedAccept :: Application -> Application

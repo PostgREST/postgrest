@@ -42,11 +42,10 @@ import qualified Web.JWT                 as JWT
 -}
 claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
 claimsToSQL = map setVar . M.toList
-  where
-    setVar ("role", String val) = setRole val
-    setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
-                      <> " = " <> cs (valueToVariable val) <> ";"
-    valueToVariable = pgFmtLit . unquoted
+ where
+  setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
+                    <> " = " <> cs (valueToVariable val) <> ";"
+  valueToVariable = pgFmtLit . unquoted
 
 {-|
   Receives the JWT secret (from config) and a JWT and
@@ -71,8 +70,8 @@ jwtClaims secret input time =
   value2map _          = M.empty
 
 {-| Receives the name of a role and returns a SET ROLE statement -}
-setRole :: Text -> BS.ByteString
-setRole r = "set local role " <> cs (pgFmtLit r) <> ";"
+setRole :: Value -> BS.ByteString
+setRole r = "set local role " <> (cs . pgFmtLit $ unquoted r) <> ";"
 
 
 {-|
