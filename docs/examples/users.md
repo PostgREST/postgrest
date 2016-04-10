@@ -458,7 +458,7 @@ user.
 ```sql
 -- Prevent current_setting('postgrest.claims.email') from raising
 -- an exception if the setting is not present. Default it to ''.
-ALTER DATABASE :database_name SET postgrest.claims.email TO '';
+ALTER DATABASE your_db_name SET postgrest.claims.email TO '';
 
 create or replace function
 basic_auth.current_email() returns text
