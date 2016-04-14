@@ -7,12 +7,9 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow             ((***))
-import           Control.Monad             (join)
 import           Data.Bifunctor            (first)
-import           Data.List                 (find, sortBy, delete)
+import           Data.List                 (find, delete)
 import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
-import           Data.Ord                  (comparing)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
@@ -24,10 +21,8 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
-import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
@@ -72,13 +67,16 @@ postgrest conf dbStructure pool =
     time <- getPOSIXTime
     body <- strictRequestBody req
 
-    let handleReq = runWithClaims conf time (app dbStructure conf body) req
+    let schema = cs $ configSchema conf
+        apiRequest = userApiRequest schema req body
+        handleReq = runWithClaims conf time (app dbStructure conf) apiRequest
+
     resp <- either pgErrResponse id <$> P.use pool
       (HT.run handleReq HT.ReadCommitted HT.Write)
     respond resp
 
-app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Transaction Response
-app dbStructure conf reqBody req =
+app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
+app dbStructure conf apiRequest =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts apiRequest)
@@ -102,11 +100,7 @@ app dbStructure conf reqBody req =
               else responseLBS status200 [contentTypeH] (cs body)
             else do
               let (status, contentRange) = rangeHeader queryTotal tableTotal
-                  canonical = urlEncodeVars -- should this be moved to the dbStructure (location)?
-                    . sortBy (comparing fst)
-                    . map (join (***) cs)
-                    . parseSimpleQuery
-                    $ rawQueryString req
+                  canonical = iCanonicalQS apiRequest
               return $ responseLBS status
                 [contentTypeH, contentRange,
                   ("Content-Location",
@@ -210,7 +204,6 @@ app dbStructure conf reqBody req =
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
-  apiRequest = userApiRequest schema req reqBody
   shouldCount = iPreferCount apiRequest
   range = restrictRange (configMaxRows conf) $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
