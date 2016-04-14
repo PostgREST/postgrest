@@ -12,8 +12,7 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 module PostgREST.Auth (
-    setRole
-  , claimsToSQL
+    claimsToSQL
   , jwtClaims
   , tokenJWT
   ) where
@@ -25,7 +24,7 @@ import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.ByteString         as BS
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
-import           Data.Maybe              (fromMaybe)
+import           Data.Maybe              (fromMaybe, maybeToList)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
@@ -34,15 +33,17 @@ import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
 
 {-|
-  Receives a map of JWT claims and returns a list
-  of PostgreSQL statements to set the claims as user defined GUCs.
-  Except if we have a claim called role,
-  this one is mapped to a SET ROLE statement.
-  In case there is any problem decoding the JWT it returns Nothing.
+  Receives a map of JWT claims and returns a list of PostgreSQL
+  statements to set the claims as user defined GUCs.  Except if we
+  have a claim called role, this one is mapped to a SET ROLE
+  statement.
 -}
 claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
-claimsToSQL = map setVar . M.toList
+claimsToSQL claims = roleStmts <> varStmts
  where
+  roleStmts = maybeToList $
+    (\r -> "set local role " <> r <> ";") . cs . valueToVariable <$> M.lookup "role" claims
+  varStmts = map setVar $ M.toList (M.delete "role" claims)
   setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
                     <> " = " <> cs (valueToVariable val) <> ";"
   valueToVariable = pgFmtLit . unquoted
@@ -68,11 +69,6 @@ jwtClaims secret input time =
   mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret input
   value2map (Object o) = o
   value2map _          = M.empty
-
-{-| Receives the name of a role and returns a SET ROLE statement -}
-setRole :: Value -> BS.ByteString
-setRole r = "set local role " <> (cs . pgFmtLit $ unquoted r) <> ";"
-
 
 {-|
   Receives the JWT secret (from config) and a JWT and a JSON value

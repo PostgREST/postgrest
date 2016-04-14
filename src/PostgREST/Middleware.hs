@@ -20,7 +20,7 @@ import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
 import           PostgREST.ApiRequest          (pickContentType)
-import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
+import           PostgREST.Auth                (jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
 
@@ -40,10 +40,8 @@ runWithClaims conf time app req = do
         if M.null claims && not (null tokenStr)
           then clientErr "Invalid JWT"
           else do
-            H.sql . mconcat $
-              setRole (
-                fromMaybe anon (M.lookup "role" claims)
-              ) : claimsToSQL (M.delete "role" claims)
+            -- role claim defaults to anon if not specified in jwt
+            H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
             app req
   where
     hdrs = requestHeaders req
