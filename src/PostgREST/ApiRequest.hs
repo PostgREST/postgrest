@@ -57,11 +57,11 @@ instance Show ContentType where
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-  -- | Set to Nothing for unknown HTTP verbs
+  -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
     iAction :: Action
-  -- | Set to Nothing for malformed range
+  -- | Requested range of rows within response
   , iRange  :: NonnegRange
-  -- | Set to Nothing for strangely nested urls
+  -- | The target, be it calling a proc or accessing a table
   , iTarget :: Target
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
