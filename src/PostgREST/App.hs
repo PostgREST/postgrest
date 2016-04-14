@@ -70,10 +70,16 @@ postgrest conf dbStructure pool =
     let schema = cs $ configSchema conf
         apiRequest = userApiRequest schema req body
         handleReq = runWithClaims conf time (app dbStructure conf) apiRequest
+        txMode = transactionMode $ iAction apiRequest
 
     resp <- either pgErrResponse id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted HT.Write)
+      (HT.run handleReq HT.ReadCommitted txMode)
     respond resp
+
+transactionMode :: Action -> H.Mode
+transactionMode ActionRead = HT.Read
+transactionMode ActionInfo = HT.Read
+transactionMode _ = HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
