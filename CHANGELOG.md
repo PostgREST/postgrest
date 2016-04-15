@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Fixed
+- Set transaction mode to READ when possible to support connecting to read replicas - @ruslantalpa
 
 - Prevent role from being changed twice - @begriffs
 

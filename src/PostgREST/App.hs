@@ -64,6 +64,11 @@ import           PostgREST.Types
 import           Prelude
 
 
+transactionMode :: Action -> H.Mode
+transactionMode ActionRead = HT.Read
+transactionMode ActionInfo = HT.Read
+transactionMode _ = HT.Write
+
 postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
 postgrest conf dbStructure pool =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
@@ -72,13 +77,16 @@ postgrest conf dbStructure pool =
     time <- getPOSIXTime
     body <- strictRequestBody req
 
-    let handleReq = runWithClaims conf time (app dbStructure conf body) req
+    let schema = cs $ configSchema conf
+        apiRequest = userApiRequest schema req body
+        handleReq = runWithClaims conf time (app dbStructure conf apiRequest) req
+
     resp <- either pgErrResponse id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted HT.Write)
+      (HT.run handleReq HT.ReadCommitted (transactionMode $ iAction apiRequest))
     respond resp
 
-app :: DbStructure -> AppConfig -> RequestBody -> Request -> H.Transaction Response
-app dbStructure conf reqBody req =
+app :: DbStructure -> AppConfig -> ApiRequest -> Request -> H.Transaction Response
+app dbStructure conf apiRequest req =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts apiRequest)
@@ -210,7 +218,6 @@ app dbStructure conf reqBody req =
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
-  apiRequest = userApiRequest schema req reqBody
   shouldCount = iPreferCount apiRequest
   range = restrictRange (configMaxRows conf) $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
