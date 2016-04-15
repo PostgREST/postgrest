@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Prevent role from being changed twice - @begriffs
+- Use read-only transaction for read requests - @ruslantalpa
 
 ## [0.3.1.1] - 2016-03-28
 

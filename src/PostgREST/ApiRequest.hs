@@ -1,26 +1,31 @@
 module PostgREST.ApiRequest where
 
-import qualified Data.Aeson              as JSON
-import qualified Data.ByteString         as BS
-import qualified Data.ByteString.Lazy    as BL
-import qualified Data.Csv                as CSV
-import           Data.List               (find)
-import qualified Data.HashMap.Strict     as M
-import qualified Data.Set                as S
-import           Data.Maybe              (fromMaybe, isJust, isNothing,
-                                          listToMaybe, fromJust)
-import           Control.Monad           (join)
-import           Data.Monoid             ((<>))
-import           Data.String.Conversions (cs)
-import qualified Data.Text               as T
-import qualified Data.Vector             as V
-import           Network.Wai             (Request (..))
-import           Network.Wai.Parse       (parseHttpAccept)
-import           PostgREST.RangeQuery    (NonnegRange, rangeRequested)
-import           PostgREST.Types         (QualifiedIdentifier (..),
-                                          Schema, Payload(..),
-                                          UniformObjects(..))
-import           Data.Ranged.Ranges      (singletonRange)
+import qualified Data.Aeson                as JSON
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Lazy      as BL
+import qualified Data.Csv                  as CSV
+import           Data.List                 (find, sortBy)
+import qualified Data.HashMap.Strict       as M
+import qualified Data.Set                  as S
+import           Data.Maybe                (fromMaybe, isJust, isNothing,
+                                            listToMaybe, fromJust)
+import           Control.Arrow             ((***))
+import           Control.Monad             (join)
+import           Data.Monoid               ((<>))
+import           Data.Ord                  (comparing)
+import           Data.String.Conversions   (cs)
+import qualified Data.Text                 as T
+import qualified Data.Vector               as V
+import           Network.HTTP.Base         (urlEncodeVars)
+import           Network.HTTP.Types.Header (hAuthorization)
+import           Network.HTTP.Types.URI    (parseSimpleQuery)
+import           Network.Wai               (Request (..))
+import           Network.Wai.Parse         (parseHttpAccept)
+import           PostgREST.RangeQuery      (NonnegRange, rangeRequested)
+import           PostgREST.Types           (QualifiedIdentifier (..),
+                                            Schema, Payload(..),
+                                            UniformObjects(..))
+import           Data.Ranged.Ranges        (singletonRange)
 
 type RequestBody = BL.ByteString
 
@@ -52,11 +57,11 @@ instance Show ContentType where
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-  -- | Set to Nothing for unknown HTTP verbs
+  -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
     iAction :: Action
-  -- | Set to Nothing for malformed range
+  -- | Requested range of rows within response
   , iRange  :: NonnegRange
-  -- | Set to Nothing for strangely nested urls
+  -- | The target, be it calling a proc or accessing a table
   , iTarget :: Target
   -- | The content type the client most desires (or JSON if undecided)
   , iAccepts :: Either BS.ByteString ContentType
@@ -74,6 +79,10 @@ data ApiRequest = ApiRequest {
   , iSelect :: String
   -- | &order parameter
   , iOrder :: Maybe String
+  -- | Alphabetized (canonical) request query string for response URLs
+  , iCanonicalQS :: String
+  -- | JSON Web Token
+  , iJWT :: T.Text
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -136,6 +145,12 @@ userApiRequest schema req reqBody =
               then "*"
               else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
   , iOrder = join $ lookup "order" qParams
+  , iCanonicalQS = urlEncodeVars
+     . sortBy (comparing fst)
+     . map (join (***) cs)
+     . parseSimpleQuery
+     $ rawQueryString req
+  , iJWT = tokenStr
   }
 
  where
@@ -155,6 +170,10 @@ userApiRequest schema req reqBody =
     | hasPrefer "return=representation" = Full
     | hasPrefer "return=minimal" = None
     | otherwise = HeadersOnly
+  auth = fromMaybe "" $ lookupHeader hAuthorization
+  tokenStr = case T.split (== ' ') (cs auth) of
+    ("Bearer" : t : _) -> t
+    _                  -> ""
 
 -- PRIVATE ---------------------------------------------------------------
 
