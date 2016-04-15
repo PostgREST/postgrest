@@ -3,8 +3,7 @@
 
 module PostgREST.Middleware where
 
-import           Control.Monad                 (unless)
-import qualified Data.ByteString               as BS
+import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe                    (fromMaybe)
 import           Data.String.Conversions       (cs)
@@ -21,7 +20,7 @@ import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
 import           PostgREST.ApiRequest          (pickContentType)
-import           PostgREST.Auth                (setRole, jwtClaims, claimsToSQL)
+import           PostgREST.Auth                (jwtClaims, claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
 
@@ -31,7 +30,6 @@ runWithClaims :: AppConfig -> NominalDiffTime ->
                  (Request -> H.Transaction Response) ->
                  Request -> H.Transaction Response
 runWithClaims conf time app req = do
-    H.sql setAnon
     let tokenStr = case split (== ' ') (cs auth) of
           ("Bearer" : t : _) -> t
           _                  -> ""
@@ -42,15 +40,14 @@ runWithClaims conf time app req = do
         if M.null claims && not (null tokenStr)
           then clientErr "Invalid JWT"
           else do
-            let cmdBatch = mconcat $ claimsToSQL claims
-            unless (BS.null cmdBatch) (H.sql cmdBatch)
+            -- role claim defaults to anon if not specified in jwt
+            H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
             app req
   where
     hdrs = requestHeaders req
     jwtSecret = configJwtSecret conf
     auth = fromMaybe "" $ lookup hAuthorization hdrs
-    anon = cs $ configAnonRole conf
-    setAnon = setRole anon
+    anon = String . cs $ configAnonRole conf
     clientErr = return . errResponse status400
 
 unsupportedAccept :: Application -> Application
