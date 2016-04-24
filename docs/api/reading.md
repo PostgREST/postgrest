@@ -328,14 +328,14 @@ OPTIONS /my_view
 This will include the row names, their types, primary key
 information, and foreign keys for the given table or view.
 
-<div class="admonition danger">
-    <p class="admonition-title">Deprecation Warning</p>
+<div class="admonition warning">
+    <p class="admonition-title">Schema Changes</p>
 
-    <p>Although we currently use the OPTIONS verb for this, some
-    people <a
-    href="https://www.mnot.net/blog/2012/10/29/NO_OPTIONS">argue</a> that
-    this is inappropriate. We are considering a <code>describedby</code>
-    header link instead.</p>
+    <p>Note that when the schema of your database changes PostgREST will not reflect
+    the change. You have to either restart PostgREST or send its running process
+    a HUP signal:
+
+    <pre><code>killall -HUP postgrest</code></pre>
 </div>
 
 ### CORS
