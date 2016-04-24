@@ -67,7 +67,7 @@ main = do
       <> show minimumPgVersion)
     getDbStructure (cs $ configSchema conf)
 
-  dbStructure <- newIORef $ either (error.show) id result
+  refDbStructure <- newIORef $ either (error.show) id result
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
@@ -80,8 +80,8 @@ main = do
   void $ installHandler sigHUP (
       Catch . void . P.use pool $ do
         s <- getDbStructure (cs $ configSchema conf)
-        liftIO $ atomicWriteIORef dbStructure s
+        liftIO $ atomicWriteIORef refDbStructure s
    ) Nothing
 #endif
 
-  runSettings appSettings $ postgrest conf dbStructure pool
+  runSettings appSettings $ postgrest conf refDbStructure pool
