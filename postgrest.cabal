@@ -52,6 +52,7 @@ executable postgrest
                      , string-conversions
                      , text
                      , time
+                     , transformers
                      , unordered-containers
                      , vector
                      , wai >= 3.0.1

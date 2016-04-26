@@ -7,6 +7,7 @@ import qualified Hasql.Pool as P
 
 import PostgREST.DbStructure (getDbStructure)
 import PostgREST.App (postgrest)
+import Data.IORef
 import Data.String.Conversions (cs)
 
 import qualified Feature.AuthSpec
@@ -27,10 +28,10 @@ main = do
   pool <- P.acquire (3, 10, cs testDbConn)
 
   result <- P.use pool $ getDbStructure "test"
-  let dbStructure = either (error.show) id result
-      withApp = return $ postgrest testCfg dbStructure pool
-      ltdApp  = return $ postgrest testLtdRowsCfg dbStructure pool
-      unicodeApp = return $ postgrest testUnicodeCfg dbStructure pool
+  refDbStructure <- newIORef $ either (error.show) id result
+  let withApp = return $ postgrest testCfg refDbStructure pool
+      ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool
+      unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool
 
   hspec $ do
     mapM_ (beforeAll_ resetDb . before withApp) specs

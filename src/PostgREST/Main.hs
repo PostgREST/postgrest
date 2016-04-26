@@ -11,6 +11,7 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.DbStructure
 
 import           Control.Monad
+import           Control.Monad.IO.Class               (liftIO)
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import qualified Hasql.Query                          as H
@@ -26,6 +27,7 @@ import           Web.JWT                              (secret)
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 import           Control.Concurrent                   (myThreadId)
+import           Data.IORef
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
@@ -58,15 +60,6 @@ main = do
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
-#ifndef mingw32_HOST_OS
-  tid <- myThreadId
-  forM_ [sigINT, sigTERM] $ \sig ->
-    void $ installHandler sig (Catch $ do
-        P.release pool
-        throwTo tid UserInterrupt
-      ) Nothing
-#endif
-
   result <- P.use pool $ do
     supported <- isServerVersionSupported
     unless supported $ error (
@@ -74,5 +67,21 @@ main = do
       <> show minimumPgVersion)
     getDbStructure (cs $ configSchema conf)
 
-  let dbStructure = either (error.show) id result
-  runSettings appSettings $ postgrest conf dbStructure pool
+  refDbStructure <- newIORef $ either (error.show) id result
+
+#ifndef mingw32_HOST_OS
+  tid <- myThreadId
+  forM_ [sigINT, sigTERM] $ \sig ->
+    void $ installHandler sig (Catch $ do
+        P.release pool
+        throwTo tid UserInterrupt
+      ) Nothing
+
+  void $ installHandler sigHUP (
+      Catch . void . P.use pool $ do
+        s <- getDbStructure (cs $ configSchema conf)
+        liftIO $ atomicWriteIORef refDbStructure s
+   ) Nothing
+#endif
+
+  runSettings appSettings $ postgrest conf refDbStructure pool

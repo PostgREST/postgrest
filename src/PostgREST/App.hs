@@ -8,6 +8,7 @@ module PostgREST.App (
 
 import           Control.Applicative
 import           Data.Bifunctor            (first)
+import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (find, delete)
 import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
 import           Data.Ranged.Ranges        (emptyRange)
@@ -59,13 +60,14 @@ import           PostgREST.Types
 import           Prelude
 
 
-postgrest :: AppConfig -> DbStructure -> P.Pool -> Application
-postgrest conf dbStructure pool =
+postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
+postgrest conf refDbStructure pool =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
     time <- getPOSIXTime
     body <- strictRequestBody req
+    dbStructure <- readIORef refDbStructure
 
     let schema = cs $ configSchema conf
         apiRequest = userApiRequest schema req body

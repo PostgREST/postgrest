@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Reload database schema on SIGHUP - @begriffs
+
 ### Fixed
 
 - Prevent role from being changed twice - @begriffs
