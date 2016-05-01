@@ -74,7 +74,7 @@ Note that it requires PostgreSQL 9.5 or later.
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 drop policy if exists authors_eigenedit on posts;
 create policy authors_eigenedit on posts
-  using (true)
+  using (author = basic_auth.current_email())
   with check (
     author = basic_auth.current_email()
   );
@@ -82,7 +82,7 @@ create policy authors_eigenedit on posts
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 drop policy if exists authors_eigenedit on comments;
 create policy authors_eigenedit on comments
-  using (true)
+  using (author = basic_auth.current_email())
   with check (
     author = basic_auth.current_email()
   );
