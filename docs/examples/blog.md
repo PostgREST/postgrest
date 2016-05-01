@@ -71,21 +71,40 @@ security](http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html).
 Note that it requires PostgreSQL 9.5 or later.
 
 ```sql
+grant select on posts, comments to anon;
+
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+
+drop policy if exists posts_select_unsecure on posts;
+create policy posts_select_unsecure on posts for select
+  using (true);
+
+drop policy if exists comments_select_unsecure on comments;
+create policy comments_select_unsecure on comments for select
+  using (true);
+
 drop policy if exists authors_eigenedit on posts;
-create policy authors_eigenedit on posts
+create policy authors_eigenedit on posts for update
   using (author = basic_auth.current_email())
   with check (
     author = basic_auth.current_email()
   );
 
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 drop policy if exists authors_eigenedit on comments;
-create policy authors_eigenedit on comments
+create policy authors_eigenedit on comments for update
   using (author = basic_auth.current_email())
   with check (
     author = basic_auth.current_email()
   );
+
+drop policy if exists authors_eigendelete on posts;
+create policy authors_eigendelete on posts for delete
+  using (author = basic_auth.current_email());
+
+drop policy if exists authors_eigendelete on comments;
+create policy authors_eigendelete on comments for delete
+  using (author = basic_auth.current_email());
 ```
 
 Finally we need to modify the `users` view from the previous example.
