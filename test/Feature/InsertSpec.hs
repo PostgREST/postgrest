@@ -32,6 +32,8 @@ spec = do
         liftIO $ do
           simpleBody p `shouldBe` ""
           simpleStatus p `shouldBe` created201
+          -- should not have content type set when body is empty
+          (lookup hContentType $ simpleHeaders p) `shouldBe` Nothing
 
       it "filters columns in result using &select" $
         request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
@@ -312,13 +314,15 @@ spec = do
         g <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
-        request methodPatch "/items?id=eq.2" []
-          [json| { "id":42 } |]
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing,
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "0-0/1"]
-            }
+        p <- request methodPatch "/items?id=eq.2" [] [json| { "id":42 } |]
+        (pure p) `shouldRespondWith` ResponseMatcher {
+            matchBody    = Nothing,
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "0-0/1"]
+          }
+        liftIO $
+          (lookup hContentType $ simpleHeaders p) `shouldBe` Nothing
+
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
