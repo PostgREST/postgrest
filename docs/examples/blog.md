@@ -84,6 +84,18 @@ drop policy if exists comments_select_unsecure on comments;
 create policy comments_select_unsecure on comments for select
   using (true);
 
+drop policy if exists authors_eigencreate on posts;
+create policy authors_eigencreate on posts for insert
+  with check (
+    author = basic_auth.current_email()
+  );
+
+drop policy if exists authors_eigencreate on comments;
+create policy authors_eigencreate on comments for insert
+  with check (
+      author = basic_auth.current_email()
+  );
+
 drop policy if exists authors_eigenedit on posts;
 create policy authors_eigenedit on posts for update
   using (author = basic_auth.current_email())
