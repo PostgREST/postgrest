@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Omit Content-Type header for empty body - @begriffs
 - Prevent role from being changed twice - @begriffs
 - Use read-only transaction for read requests - @ruslantalpa
 
