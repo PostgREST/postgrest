@@ -127,12 +127,14 @@ app dbStructure conf apiRequest =
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.query uniform stm
           let (_, _, location, body) = extractQueryResult row
-          return $ responseLBS status201
-            [
-              contentTypeH,
-              (hLocation, "/" <> cs table <> "?" <> cs location)
-            ]
-            $ if iPreferRepresentation apiRequest == Full then cs body else ""
+
+          return $ if iPreferRepresentation apiRequest == Full
+            then responseLBS status201 [
+                  contentTypeH,
+                  (hLocation, "/" <> cs table <> "?" <> cs location)
+                ] (cs body)
+            else responseLBS status201
+              [(hLocation, "/" <> cs table <> "?" <> cs location)] ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       case mutateSqlParts of
@@ -145,8 +147,9 @@ app dbStructure conf apiRequest =
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
-          return $ responseLBS s [contentTypeH, r]
-            $ if iPreferRepresentation apiRequest == Full then cs body else ""
+          return $ if iPreferRepresentation apiRequest == Full
+            then responseLBS s [contentTypeH, r] (cs body)
+            else responseLBS s [r] ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
       case mutateSqlParts of
