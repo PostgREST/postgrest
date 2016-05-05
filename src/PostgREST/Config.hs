@@ -32,7 +32,7 @@ import           Options.Applicative
 import           Paths_postgrest             (version)
 import           Prelude
 import           Safe                        (readMay)
-import           Web.JWT                     (Secret, secret)
+import           Web.JWT                     (Secret, binarySecret)
 
 -- | Data type to store all command line options
 data AppConfig = AppConfig {
@@ -52,7 +52,7 @@ argParser = AppConfig
   <*> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE")
   <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault)
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (secret . cs <$>
+  <*> (binarySecret . cs <$>
       strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
   <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
