@@ -14,6 +14,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
+import           GHC.Conc
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -26,9 +27,8 @@ import           System.IO                            (BufferMode (..),
 import           Web.JWT                              (secret)
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
-import           Control.Concurrent                   (myThreadId)
 import           Data.IORef
-import           Control.Exception.Base               (throwTo, AsyncException(..))
+import           Control.Exception.Base               (AsyncException(..))
 #endif
 
 isServerVersionSupported :: H.Session Bool
@@ -45,6 +45,9 @@ main = do
   hSetBuffering stdout LineBuffering
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
+
+  tid <- myThreadId
+  labelThread tid "main"
 
   conf <- readOptions
   let port = configPort conf
@@ -70,7 +73,6 @@ main = do
   refDbStructure <- newIORef $ either (error.show) id result
 
 #ifndef mingw32_HOST_OS
-  tid <- myThreadId
   forM_ [sigINT, sigTERM] $ \sig ->
     void $ installHandler sig (Catch $ do
         P.release pool

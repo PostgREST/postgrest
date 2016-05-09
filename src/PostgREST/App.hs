@@ -15,6 +15,7 @@ import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
 import           Data.Tree
+import           GHC.Conc
 
 import qualified Hasql.Pool                as P
 import qualified Hasql.Transaction         as HT
@@ -56,6 +57,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , ResultsWithCount
                                         )
 import           PostgREST.Types
+import           Debug.Trace
 
 import           Prelude
 
@@ -65,6 +67,10 @@ postgrest conf refDbStructure pool =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
+    tid <- myThreadId
+    labelThread tid "handler"
+    traceEventIO "START webrequest"
+
     time <- getPOSIXTime
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
@@ -74,9 +80,13 @@ postgrest conf refDbStructure pool =
         handleReq = runWithClaims conf time (app dbStructure conf) apiRequest
         txMode = transactionMode $ iAction apiRequest
 
+
     resp <- either pgErrResponse id <$> P.use pool
       (HT.run handleReq HT.ReadCommitted txMode)
-    respond resp
+
+    y <- respond resp
+    traceEventIO "STOP webrequest"
+    return y
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read

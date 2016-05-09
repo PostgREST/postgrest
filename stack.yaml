@@ -9,7 +9,7 @@ extra-deps:
   - postgresql-error-codes-1
   - postgresql-binary-0.8.1
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
+  postgrest: -O2 -eventlog -rtsopts -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
 
 packages:
 - '.'
