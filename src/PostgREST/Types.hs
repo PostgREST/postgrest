@@ -106,16 +106,17 @@ data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
+type Alias = Text
 type Cast = Text
 type NodeName = Text
-type SelectItem = (Field, Maybe Cast)
+type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type Path = [Text]
 data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm] } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::Payload }
                  | Delete { in_::TableName, where_::[Filter] }
                  | Update { in_::TableName, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest

@@ -12,16 +12,21 @@ import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 
+
 pRequestSelect :: Text -> Parser ReadRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (Select [] [rootNodeName] [] Nothing, (rootNodeName, Nothing)) []) fieldTree
+  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
   where
+    readQuery = Select [] [rootNodeName] [] Nothing
     treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry (Node fld@((fn, _),_) fldForest) (Node (q, i) rForest) =
+    treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) (foldr treeEntry (Node (Select [] [fn] [] Nothing, (fn, Nothing)) []) fldForest:rForest)
+        _  -> Node (q, i) newForest
+          where
+            newForest =
+              foldr treeEntry (Node (Select [] [fn] [] Nothing, (fn, Nothing, alias)) []) fldForest:rForest
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -51,12 +56,11 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree = try (Node <$> pSelect <*> between (char '{') (char '}') pFieldForest)
+pFieldTree = try (Node <$> pSimpleSelect <*> between (char '{') (char '}') pFieldForest)
           <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser Text
 pStar = cs <$> (string "*" *> pure ("*"::String))
-
 
 
 pFieldName :: Parser Text
@@ -65,10 +69,7 @@ pFieldName = do
   return $ intercalate "-" $ map cs matches
   where
     isDash :: GenParser Char st ()
-    isDash = try (do{
-                   _ <- char '-'
-                   ; notFollowedBy (char '>')
-                   })
+    isDash = try ( char '-' >> notFollowedBy (char '>') )
     dash :: Parser Char
     dash = isDash *> pure '-'
 
@@ -82,12 +83,27 @@ pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldN
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 
+aliasSeparator = char ':' >> notFollowedBy (char ':')
+
+pSimpleSelect :: Parser SelectItem
+pSimpleSelect = lexeme $ try ( do
+    alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+    fld <- pField
+    return (fld, Nothing, alias)
+  )
+
 pSelect :: Parser SelectItem
 pSelect = lexeme $
-  try ((,) <$> pField <*>((cs <$>) <$> optionMaybe (string "::" *> many letter)) )
+  try (
+    do
+      alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+      fld <- pField
+      cast <- optionMaybe (string "::" *> many letter)
+      return (fld, cs <$> cast, alias)
+  )
   <|> do
     s <- pStar
-    return ((s, Nothing), Nothing)
+    return ((s, Nothing), Nothing, Nothing)
 
 pOperator :: Parser Operator
 pOperator = cs <$> (pOp <?> "operator (eq, gt, ...)")

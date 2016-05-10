@@ -147,15 +147,24 @@ spec = do
 
     it "dash `-` in column names is accepted" $
       get "/complex_items?id=eq.3&select=id,field-with_sep" `shouldRespondWith`
-        [str|[{"id":3,"field-with_sep":1}]|]  
+        [str|[{"id":3,"field-with_sep":1}]|]
 
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3}] |]
 
+    it "rename simple column" $
+      get "/complex_items?id=eq.1&select=myId:id" `shouldRespondWith`
+        [json| [{"myId":1}] |]
+
+
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
         [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
+
+    it "rename simple column with casting" $
+      get "/complex_items?id=eq.1&select=myId:id::text" `shouldRespondWith`
+        [json| [{"myId":"1"}] |]
 
     it "json column" $
       get "/complex_items?id=eq.1&select=settings" `shouldRespondWith`
@@ -164,6 +173,10 @@ spec = do
     it "json subfield one level with casting (json)" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
         [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
+
+    it "rename json subfield one level with casting (json)" $
+      get "/complex_items?id=eq.1&select=myFoo:settings->>foo::json" `shouldRespondWith`
+        [json| [{"myFoo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
@@ -186,14 +199,27 @@ spec = do
       get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
         [json| [{"bar":"baz"}] |]
 
+    it "rename json subfield two levels (string)" $
+      get "/complex_items?id=eq.1&select=myBar:settings->foo->>bar" `shouldRespondWith`
+        [json| [{"myBar":"baz"}] |]
+
 
     it "json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
 
+    it "rename json subfield two levels with casting (int)" $
+      get "/complex_items?id=eq.1&select=myInt:settings->foo->>int::integer" `shouldRespondWith`
+        [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
+
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
+    it "requesting parents and children while renaming them" $
+      get "/projects?id=eq.1&select=myId:id, name, project_client:client_id{*}, project_tasks:tasks{id, name}" `shouldRespondWith`
+        [str|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
@@ -214,6 +240,10 @@ spec = do
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
         [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+
+    it "requesting many<->many relation with rename" $
+      get "/tasks?id=eq.1&select=id,theUsers:users{id}" `shouldRespondWith`
+        [str|[{"id":1,"theUsers":[{"id":1},{"id":3}]}]|]
 
 
     it "requesting many<->many relation reverse" $
