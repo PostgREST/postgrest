@@ -258,7 +258,8 @@ but the the select query is recursive. You could for instance specify
 GET /foo?select=x, y, bar{z, w, baz{*}}
 ```
 
-You can select not only using table names, but also column names!
+You can select not only using table names, but also foreign key column names!
+This is especially needed when you have a table with two foreign keys pointing to the same table, for example billing_address_id and shipping_address_id.
 To embed the same foreign key row from our client example earlier
 you could do the following:
 
@@ -270,8 +271,7 @@ In the response there will be a `client_id` object containing all
 the data for that row.
 
 However, a `client_id` object doesn't make a lot of sense, so you
-could do one of two things. Create a view which renames `client_id`
-to just `client` (this is the hard way), or just try `client{*}`
+could do one of two things. Tell PostgREST that you want the key renamed by using the `alias` feature like so `client:client_id{*}`, or just try `client{*}`
 in the select parameter! PostgREST supports smart ducktype checking
 for common foreign key names, so if your column name ends with
 `_id`, `_fk`, or any variation of the two (including camelcase)
@@ -284,6 +284,25 @@ GET /projects?id=eq.1&select=id, name, client{*}
 ```
 
 Would embed in the `client` key the row referenced with `client_id`.
+
+The `alias` feature works for embedded entities and also for regular columns. This is useful in situations where for example you use different naming conventions in the database and frontend. 
+
+The following request will produce the output below:
+```HTTP
+GET /orders?id=eq.1&select=orderId:id, customer:customer_id{customerId:id, customerName:name}
+```
+
+```json
+[
+  {
+    "orderId": 1,
+    "customer": {
+      "customerId": 1,
+      "customerName": "John Smith"
+    }
+  }
+]
+```
 
 <div class="admonition note">
     <p class="admonition-title">Design Consideration</p>

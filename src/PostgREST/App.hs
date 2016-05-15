@@ -333,11 +333,17 @@ addFilter (path, flt) (Node rn forest) =
   where
     targetNodeName:remainingPath = path
     (targetNode,restForest) = splitForest targetNodeName forest
+    splitForest :: NodeName -> Forest ReadNode -> (Maybe ReadRequest, Forest ReadNode)
     splitForest name forst =
       case maybeNode of
         Nothing -> (Nothing,forest)
         Just node -> (Just node, delete node forest)
-      where maybeNode = find ((name==).fst.snd.rootLabel) forst
+      where
+        maybeNode :: Maybe ReadRequest
+        maybeNode = find fnd forst
+          where
+            fnd :: ReadRequest -> Bool
+            fnd (Node (_,(n,_,_)) _) = n == name
 
 -- in a relation where one of the tables mathces "TableName"
 -- replace the name to that table with pg_source

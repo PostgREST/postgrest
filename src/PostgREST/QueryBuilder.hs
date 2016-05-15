@@ -158,18 +158,18 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
     | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
-addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _)) forest) =
+addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _, alias)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentTable]}, (_, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
+    (Just (Node (Select{from=[parentTable]}, (_, _, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
       where
         rel = note ("no relation between " <> parentTable <> " and " <> name)
             $  findRelationByTable schema name parentTable
            <|> findRelationByColumn schema parentTable name
-        addRel :: (ReadQuery, (NodeName, Maybe Relation)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation))
-        addRel (query', (n, _)) r = (query' {from=fromRelation}, (n, Just r))
+        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
+        addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
-    _ -> Node (query, (name, Nothing)) <$> updatedForest
+    _ -> Node (query, (name, Nothing, alias)) <$> updatedForest
   where
     updatedForest = mapM (addRelations schema allRelations (Just node)) forest
     -- Searches through all the relations and returns a match given the parameter conditions.
@@ -182,13 +182,13 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
       where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
-addJoinConditions schema (Node (query, (n, r)) forest) =
+addJoinConditions schema (Node (query, (n, r, a)) forest) =
   case r of
-    Nothing -> Node (updatedQuery, (n,r))  <$> updatedForest -- this is the root node
-    Just rel@Relation{relType=Child} -> Node (addCond updatedQuery (getJoinConditions rel),(n,r)) <$> updatedForest
-    Just Relation{relType=Parent} -> Node (updatedQuery, (n,r)) <$> updatedForest
+    Nothing -> Node (updatedQuery, (n,r,a))  <$> updatedForest -- this is the root node
+    Just rel@Relation{relType=Child} -> Node (addCond updatedQuery (getJoinConditions rel),(n,r,a)) <$> updatedForest
+    Just Relation{relType=Parent} -> Node (updatedQuery, (n,r,a)) <$> updatedForest
     Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
-      Node (qq, (n, r)) <$> updatedForest
+      Node (qq, (n, r, a)) <$> updatedForest
       where
          query' = addCond updatedQuery (getJoinConditions rel)
          qq = query'{from=tableName linkTable : from query'}
@@ -199,7 +199,7 @@ addJoinConditions schema (Node (query, (n, r)) forest) =
       where
         parentJoinConditions = map (getJoinConditions . snd) parents
         parents = mapMaybe (getParents . rootLabel) forest
-        getParents (_, (tbl, Just rel@Relation{relType=Parent})) = Just (tbl, rel)
+        getParents (_, (tbl, Just rel@Relation{relType=Parent}, _)) = Just (tbl, rel)
         getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
@@ -262,7 +262,7 @@ pgFmtLit x =
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
-requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _)) _)) =
+requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(1)",
    "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
@@ -276,7 +276,7 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _))
 requestToQuery :: Schema -> DbRequest -> SqlQuery
 requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
 requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nodeName, maybeRelation)) forest)) =
+requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -315,29 +315,29 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
     filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) = parentTable == t
     filterParentConditions _ _ = False
     getQueryParts :: Tree ReadNode -> ([(SqlFragment, TableName)], [SqlFragment]) -> ([(SqlFragment,TableName)], [SqlFragment])
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}})) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
-           <> "), '[]') AS " <> pgFmtIdent name
+           <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}})) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
-        sel = "row_to_json(" <> pgFmtIdent table <> ".*) AS "<>pgFmtIdent name --TODO must be singular
+        sel = "row_to_json(" <> pgFmtIdent table <> ".*) AS " <> pgFmtIdent (fromMaybe name alias)
         joi = ("( " <> subquery <> " ) AS " <> pgFmtIdent table, table)
           where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}})) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
-           <> "), '[]') AS " <> pgFmtIdent name
+           <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
-    getQueryParts (Node (_,(_,Nothing)) _) _ = undefined
+    getQueryParts (Node (_,(_,Nothing,_)) _) _ = undefined
 requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
@@ -463,8 +463,8 @@ pgFmtField :: QualifiedIdentifier -> Field -> SqlFragment
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
-pgFmtSelectItem table (f@(_, jp), Nothing) = pgFmtField table f <> pgFmtAsJsonPath jp
-pgFmtSelectItem table (f@(_, jp), Just cast ) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAsJsonPath jp
+pgFmtSelectItem table (f@(_, jp), Nothing, alias) = pgFmtField table f <> pgFmtAs jp alias
+pgFmtSelectItem table (f@(_, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
 pgFmtCondition :: QualifiedIdentifier -> Filter -> SqlFragment
 pgFmtCondition table (Filter (col,jp) ops val) =
@@ -511,9 +511,10 @@ pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
 pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
 pgFmtJsonPath _ = ""
 
-pgFmtAsJsonPath :: Maybe JsonPath -> SqlFragment
-pgFmtAsJsonPath Nothing = ""
-pgFmtAsJsonPath (Just xx) = " AS " <> last xx
+pgFmtAs :: Maybe JsonPath -> Maybe Alias -> SqlFragment
+pgFmtAs Nothing Nothing = ""
+pgFmtAs (Just xx) Nothing = " AS " <> pgFmtIdent (last xx)
+pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
