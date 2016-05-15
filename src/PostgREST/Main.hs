@@ -11,7 +11,6 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.DbStructure
 
 import           Control.Monad
-import           Control.Monad.IO.Class               (liftIO)
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import qualified Hasql.Query                          as H
@@ -27,9 +26,9 @@ import           Web.JWT                              (secret)
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 import           Control.Concurrent                   (myThreadId)
-import           Data.IORef
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
+import           Data.IORef
 
 isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
