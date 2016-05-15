@@ -13,8 +13,29 @@ import Network.Wai (Application)
 spec :: SpecWith Application
 spec = describe "authorization" $ do
 
-  it "hides tables that anonymous does not own" $
-    get "/authors_only" `shouldRespondWith` 404
+  it "denies access to tables that anonymous does not own" $
+    get "/authors_only" `shouldRespondWith` ResponseMatcher {
+        matchBody = Just [json| {
+          "hint":null,
+          "details":null,
+          "code":"42501",
+          "message":"permission denied for relation authors_only"} |]
+      , matchStatus = 401
+      , matchHeaders = ["WWW-Authenticate" <:> "Bearer"]
+      }
+
+  it "denies access to tables that postgrest_test_author does not own" $
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0" in
+    request methodGet "/private_table" [auth] ""
+      `shouldRespondWith` ResponseMatcher {
+        matchBody = Just [json| {
+          "hint":null,
+          "details":null,
+          "code":"42501",
+          "message":"permission denied for relation private_table"} |]
+      , matchStatus = 403
+      , matchHeaders = []
+      }
 
   it "returns jwt functions as jwt tokens" $
     post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]

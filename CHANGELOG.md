@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Support column/node renaming `alias:column` - @ruslantalpa
 
 ### Fixed
+- Return 401 or 403 for access denied rather than 404 - @begriffs
 - Omit Content-Type header for empty body - @begriffs
 - Prevent role from being changed twice - @begriffs
 - Use read-only transaction for read requests - @ruslantalpa

@@ -459,6 +459,13 @@ CREATE TABLE empty_table (
 
 
 --
+-- Name: private_table; Type: TABLE; Schema: test; Owner: -
+--
+
+CREATE TABLE private_table ();
+
+
+--
 -- Name: has_count_column; Type: VIEW; Schema: test; Owner: -
 --
 

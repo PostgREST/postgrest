@@ -17,6 +17,7 @@ GRANT ALL ON TABLE
     , comments
     , complex_items
     , compound_pk
+    , empty_table
     , has_count_column
     , has_fk
     , insertable_view_with_join
