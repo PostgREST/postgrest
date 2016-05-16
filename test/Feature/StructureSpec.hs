@@ -17,6 +17,7 @@ spec = do
       request methodGet "/" [] ""
         `shouldRespondWith` [json| [
           {"schema":"test","name":"Escap3e;","insertable":true}
+        , {"schema":"test","name":"addresses","insertable":true}
         , {"schema":"test","name":"articleStars","insertable":true}
         , {"schema":"test","name":"articles","insertable":true}
         , {"schema":"test","name":"auto_incrementing_pk","insertable":true}
@@ -36,6 +37,7 @@ spec = do
         , {"schema":"test","name":"menagerie","insertable":true}
         , {"schema":"test","name":"no_pk","insertable":true}
         , {"schema":"test","name":"nullable_integer","insertable":true}
+        , {"schema":"test","name":"orders","insertable":true}
         , {"schema":"test","name":"projects","insertable":true}
         , {"schema":"test","name":"projects_view","insertable":true}
         , {"schema":"test","name":"simple_pk","insertable":true}

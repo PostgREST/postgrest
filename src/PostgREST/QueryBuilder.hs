@@ -36,17 +36,17 @@ import qualified Data.Aeson              as JSON
 import           Data.Int                (Int64)
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
-import           Control.Error           (note, fromMaybe, mapMaybe)
+import           Control.Error           (note, fromMaybe)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
-import           Data.List               (find, (\\))
+import           Data.List               (find)
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile)
 import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
 import           Control.Applicative     ((<|>))
-import           Control.Monad           (join)
+-- import           Control.Monad           (join)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
@@ -182,25 +182,18 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
       where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
-addJoinConditions schema (Node (query, (n, r, a)) forest) =
+addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
   case r of
-    Nothing -> Node (updatedQuery, (n,r,a))  <$> updatedForest -- this is the root node
-    Just rel@Relation{relType=Child} -> Node (addCond updatedQuery (getJoinConditions rel),(n,r,a)) <$> updatedForest
-    Just Relation{relType=Parent} -> Node (updatedQuery, (n,r,a)) <$> updatedForest
+    Nothing -> Node nn  <$> updatedForest -- this is the root node
+    Just rel@Relation{relType=Child} -> Node (addCond query (getJoinConditions rel),(n,r,a)) <$> updatedForest
+    Just Relation{relType=Parent} -> Node nn <$> updatedForest
     Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
       Node (qq, (n, r, a)) <$> updatedForest
       where
-         query' = addCond updatedQuery (getJoinConditions rel)
+         query' = addCond query (getJoinConditions rel)
          qq = query'{from=tableName linkTable : from query'}
     _ -> Left "unknown relation"
   where
-    -- add parentTable and parentJoinConditions to the query
-    updatedQuery = foldr (flip addCond) query parentJoinConditions
-      where
-        parentJoinConditions = map (getJoinConditions . snd) parents
-        parents = mapMaybe (getParents . rootLabel) forest
-        getParents (_, (tbl, Just rel@Relation{relType=Parent}, _)) = Just (tbl, rel)
-        getParents _ = Nothing
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
@@ -288,8 +281,8 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
     query = unwords [
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
-      unwords (map joinStr joins),
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) localConditions )) `emptyOnNull` localConditions,
+      unwords joins,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord)
       ]
     orderF ts =
@@ -304,17 +297,8 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
                 <> (cs.show) (otDirection t) <> " "
                 <> maybe "" (cs.show) (otNullOrder t) <> " "
     (joins, selects) = foldr getQueryParts ([],[]) forest
-    parentTables = map snd joins
-    parentConditions = join $ map (( `filter` conditions ) . filterParentConditions) parentTables
-    localConditions = conditions \\ parentConditions
-    joinStr :: (SqlFragment, TableName) -> SqlFragment
-    joinStr (sql, t) = "LEFT OUTER JOIN " <> sql <> " ON " <>
-      intercalate " AND " ( map (pgFmtCondition qi ) joinConditions )
-      where
-        joinConditions = filter (filterParentConditions t) conditions
-    filterParentConditions parentTable (Filter _ _ (VForeignKey (QualifiedIdentifier "" t) _)) = parentTable == t
-    filterParentConditions _ _ = False
-    getQueryParts :: Tree ReadNode -> ([(SqlFragment, TableName)], [SqlFragment]) -> ([(SqlFragment,TableName)], [SqlFragment])
+
+    getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
     getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
@@ -322,10 +306,15 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
-        sel = "row_to_json(" <> pgFmtIdent table <> ".*) AS " <> pgFmtIdent (fromMaybe name alias)
-        joi = ("( " <> subquery <> " ) AS " <> pgFmtIdent table, table)
+        node_name = fromMaybe name alias
+        local_table_name = table <> "_" <> node_name
+        replaceTableName localTableName (Filter a b (VForeignKey (QualifiedIdentifier "" _) c)) = Filter a b (VForeignKey (QualifiedIdentifier "" localTableName) c)
+        replaceTableName _ x = x
+        sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
+        joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
+              " ON " <> intercalate " AND " ( map (pgFmtCondition qi . replaceTableName local_table_name) (getJoinConditions r) )
           where subquery = requestToQuery schema (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
@@ -361,7 +350,6 @@ requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects row
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-
 requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
   query
   where

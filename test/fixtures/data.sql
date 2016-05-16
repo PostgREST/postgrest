@@ -267,7 +267,20 @@ TRUNCATE TABLE "ghostBusters" CASCADE;
 INSERT INTO "ghostBusters" VALUES (1), (3), (5);
 
 TRUNCATE TABLE "withUnique" CASCADE;
-INSERT INTO "withUnique" VALUES ('nodup', 'blah')
+INSERT INTO "withUnique" VALUES ('nodup', 'blah');
+
+
+
+TRUNCATE TABLE addresses CASCADE;
+INSERT INTO addresses VALUES (1, 'address 1');
+INSERT INTO addresses VALUES (2, 'address 2');
+INSERT INTO addresses VALUES (3, 'address 3');
+INSERT INTO addresses VALUES (4, 'address 4');
+
+TRUNCATE TABLE orders CASCADE;
+INSERT INTO orders VALUES (1, 'order 1', 1, 2);
+INSERT INTO orders VALUES (2, 'order 2', 3, 4);
+
 --
 -- PostgreSQL database dump complete
 --

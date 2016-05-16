@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Omit Content-Type header for empty body - @begriffs
 - Prevent role from being changed twice - @begriffs
 - Use read-only transaction for read requests - @ruslantalpa
+- Include entities from the same parent table using two different foreign keys - @ruslantalpa
 
 ## [0.3.1.1] - 2016-03-28
 
