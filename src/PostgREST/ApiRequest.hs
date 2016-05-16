@@ -122,6 +122,10 @@ userApiRequest schema req reqBody =
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
+        Left "application/x-www-form-urlencoded" ->
+          PayloadJSON . UniformObjects . V.singleton . M.fromList
+                      . map (cs *** JSON.String . cs) . parseSimpleQuery
+                      $ cs reqBody
         Left accept ->
           PayloadParseError $
             "Content-type not acceptable: " <> accept

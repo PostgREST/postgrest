@@ -55,6 +55,15 @@ spec = do
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8", "Location" <:> "/projects?id=eq.6"]
           }
 
+    context "from an html form" $
+      it "accepts disparate json types" $ do
+        p <- request methodPost "/menagerie"
+               [("Content-Type", "application/x-www-form-urlencoded")]
+               ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
+                "boolean=false&date=1900-01-01&money=$3.99&enum=foo")
+        liftIO $ do
+          simpleBody p `shouldBe` ""
+          simpleStatus p `shouldBe` created201
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
