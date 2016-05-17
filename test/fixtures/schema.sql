@@ -432,7 +432,8 @@ CREATE TABLE complex_items (
     id bigint NOT NULL,
     name text,
     settings pg_catalog.json,
-    arr_data integer[]
+    arr_data integer[],
+		"field-with_sep" integer default 1 not null
 );
 
 
