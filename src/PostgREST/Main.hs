@@ -23,12 +23,13 @@ import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 import           Web.JWT                              (secret)
+import           Data.IORef
 #ifndef mingw32_HOST_OS
+import           Control.Monad.IO.Class               (liftIO)
 import           System.Posix.Signals
 import           Control.Concurrent                   (myThreadId)
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
-import           Data.IORef
 
 isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
