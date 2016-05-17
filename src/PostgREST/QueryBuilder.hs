@@ -46,7 +46,7 @@ import qualified Data.Text as T          (map, takeWhile)
 import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
 import           Control.Applicative     ((<|>))
--- import           Control.Monad           (join)
+import           Control.Monad           (replicateM)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
@@ -61,9 +61,22 @@ import           Data.Scientific         ( FPFormat (..)
 import           Prelude hiding          (unwords)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
+{-| The generic query result format used by API responses. The location header
+    is represented as a list of strings containing variable bindings like
+    @"k1=eq.42"@. If unused, it's null/Nothing rather than the empty list
+    because 'PostgreSQL.Binary.Decoder.arrayDimension' cannot decode an empty
+    array!
+-}
+type ResultsWithCount = (Maybe Int64, Int64, Maybe [BS.ByteString], BS.ByteString)
 
-{-| The generic query result format used by API responses -}
-type ResultsWithCount = (Maybe Int64, Int64, BS.ByteString, BS.ByteString)
+standardRow :: HD.Row ResultsWithCount
+standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
+                    <*> HD.nullableValue header <*> HD.value HD.bytea
+  where
+    header = HD.array $ HD.arrayDimension replicateM $ HD.arrayValue HD.bytea
+
+noLocationF :: Text
+noLocationF = "NULL::text[]"
 
 {-| Read and Write api requests use a similar response format which includes
     various record counts and possible location header. This is the decoder
@@ -72,16 +85,10 @@ type ResultsWithCount = (Maybe Int64, Int64, BS.ByteString, BS.ByteString)
 decodeStandard :: HD.Result ResultsWithCount
 decodeStandard =
   HD.singleRow standardRow
- where
-  standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                      <*> HD.value HD.bytea <*> HD.value HD.bytea
 
 decodeStandardMay :: HD.Result (Maybe ResultsWithCount)
 decodeStandardMay =
   HD.maybeRow standardRow
- where
-  standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                      <*> HD.value HD.bytea <*> HD.value HD.bytea
 
 {-| JSON and CSV payloads from the client are given to us as
     UniformObjects (objects who all have the same keys),
@@ -103,7 +110,7 @@ createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
       "pg_catalog.count(t) AS page_total",
-      "'' AS header",
+      noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
   bodyF
@@ -121,7 +128,7 @@ createWriteStatement _ _ mutateQuery _ None
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT '', 0, '', '' |]
+      SELECT '', 0, {noLocationF}, '' |]
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
@@ -134,7 +141,7 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
   cols = intercalate ", " [
       "'' AS total_result_set",
       "pg_catalog.count(t) AS page_total",
-      if isSingle then locationF pKeys else "''",
+      if isSingle then locationF pKeys else noLocationF,
       "''"
     ]
 
@@ -149,7 +156,7 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(t) AS page_total",
-      if isSingle then locationF pKeys else "''" <> " AS header",
+      if isSingle then locationF pKeys else noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
   bodyF
@@ -394,7 +401,7 @@ locationF :: [Text] -> SqlFragment
 locationF pKeys =
     "(" <>
     " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceCTEName <> " as ss  limit 1)" <>
-    " SELECT string_agg(json_data.key || '=' || coalesce( 'eq.' || json_data.value, 'is.null'), '&')" <>
+    " SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))" <>
     " FROM s, json_each_text(s.r) AS json_data" <>
     (
       if null pKeys

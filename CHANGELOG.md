@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Prevent role from being changed twice - @begriffs
 - Use read-only transaction for read requests - @ruslantalpa
 - Include entities from the same parent table using two different foreign keys - @ruslantalpa
+- Ensure that Location header in 201 response is URL-encoded - @league
 
 ## [0.3.1.1] - 2016-03-28
 

@@ -121,13 +121,22 @@ spec = do
             simpleStatus p `shouldBe` created201
 
     context "with compound pk supplied" $
-      it "builds response location header appropriately" $
-        post "/compound_pk" [json| { "k1":12, "k2":42 } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Nothing,
-            matchStatus  = 201,
-            matchHeaders = ["Location" <:> "/compound_pk?k1=eq.12&k2=eq.42"]
-          }
+      it "builds response location header appropriately" $ do
+        let inserted    = [json| { "k1":12, "k2":"Rock & R+ll" } |]
+            expectedObj = CompoundPK 12 "Rock & R+ll" Nothing
+            expectedLoc = "/compound_pk?k1=eq.12&k2=eq.Rock%20%26%20R%2Bll"
+        p <- request methodPost "/compound_pk"
+                     [("Prefer", "return=representation")]
+                     inserted
+        liftIO $ do
+          JSON.decode (simpleBody p) `shouldBe` Just expectedObj
+          simpleStatus p `shouldBe` created201
+          lookup hLocation (simpleHeaders p) `shouldBe` Just expectedLoc
+
+        r <- get expectedLoc
+        liftIO $ do
+          JSON.decode (simpleBody r) `shouldBe` Just [expectedObj]
+          simpleStatus r `shouldBe` ok200
 
     context "with invalid json payload" $
       it "fails with 400 and error" $
@@ -148,24 +157,26 @@ spec = do
     context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
+            location = "/json?data=eq.%7B%22foo%22%3A%22bar%22%7D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just inserted
           , matchStatus  = 201
-          , matchHeaders = ["Location" <:> [str|/json?data=eq.{"foo":"bar"}|]]
+          , matchHeaders = ["Location" <:> location]
           }
 
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
+            location = "/json?data=eq.%5B1%2C2%2C3%5D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just inserted
           , matchStatus  = 201
-          , matchHeaders = ["Location" <:> [str|/json?data=eq.[1,2,3]|]]
+          , matchHeaders = ["Location" <:> location]
           }
 
   describe "CSV insert" $ do
@@ -270,7 +281,7 @@ spec = do
               length rows `shouldBe` 1
               let record = head rows
               compoundK1 record `shouldBe` 12
-              compoundK2 record `shouldBe` 42
+              compoundK2 record `shouldBe` "42"
               compoundExtra record `shouldBe` Just 3
 
           it "can update an existing record" $ do

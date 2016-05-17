@@ -443,7 +443,7 @@ CREATE TABLE complex_items (
 
 CREATE TABLE compound_pk (
     k1 integer NOT NULL,
-    k2 integer NOT NULL,
+    k2 text NOT NULL,
     extra integer
 );
 
