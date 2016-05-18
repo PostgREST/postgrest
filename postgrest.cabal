@@ -22,7 +22,7 @@ Flag CI
   Default:     False
 
 executable postgrest
-  main-is:             PostgREST/Main.hs
+  main-is:             Main.hs
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
@@ -65,19 +65,7 @@ executable postgrest
   if !os(windows)
     build-depends:     unix >= 2.7 && < 3
 
-  hs-source-dirs:      src
-  other-modules:       Paths_postgrest
-                     , PostgREST.App
-                     , PostgREST.Auth
-                     , PostgREST.Config
-                     , PostgREST.Error
-                     , PostgREST.Middleware
-                     , PostgREST.Parsers
-                     , PostgREST.DbStructure
-                     , PostgREST.QueryBuilder
-                     , PostgREST.RangeQuery
-                     , PostgREST.ApiRequest
-                     , PostgREST.Types
+  hs-source-dirs:      main
 
 library
   default-language:    Haskell2010
@@ -136,7 +124,7 @@ Test-Suite spec
   Default-Language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  Hs-Source-Dirs:      test, src
+  Hs-Source-Dirs:      test
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
                      , Feature.ConcurrentSpec
@@ -148,18 +136,6 @@ Test-Suite spec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
-                     , Paths_postgrest
-                     , PostgREST.App
-                     , PostgREST.Auth
-                     , PostgREST.Config
-                     , PostgREST.Error
-                     , PostgREST.Middleware
-                     , PostgREST.Parsers
-                     , PostgREST.DbStructure
-                     , PostgREST.QueryBuilder
-                     , PostgREST.RangeQuery
-                     , PostgREST.ApiRequest
-                     , PostgREST.Types
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
@@ -188,6 +164,7 @@ Test-Suite spec
                      , mtl
                      , optparse-applicative
                      , parsec
+                     , postgrest
                      , process
                      , regex-tdfa
                      , safe
