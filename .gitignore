@@ -10,3 +10,6 @@ codex.tags
 tags
 site
 postgrest.eventlog*
+postgrest.timed.svg
+postgrest.timed.txt
+postgrest.totals.txt
