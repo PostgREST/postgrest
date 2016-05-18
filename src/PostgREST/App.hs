@@ -38,7 +38,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
                                             , userApiRequest)
-import           PostgREST.Auth            (tokenJWT)
+import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -71,10 +71,12 @@ postgrest conf refDbStructure pool =
 
     let schema = cs $ configSchema conf
         apiRequest = userApiRequest schema req body
-        handleReq = runWithClaims conf time (app dbStructure conf) apiRequest
+        eClaims = jwtClaims (configJwtSecret conf) (iJWT apiRequest) time
+        authed = containsRole eClaims
+        handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
         txMode = transactionMode $ iAction apiRequest
 
-    resp <- either pgErrResponse id <$> P.use pool
+    resp <- either (pgErrResponse authed) id <$> P.use pool
       (HT.run handleReq HT.ReadCommitted txMode)
     respond resp
 

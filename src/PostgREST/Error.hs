@@ -21,9 +21,15 @@ import           Network.Wai               (Response, responseLBS)
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
 
-pgErrResponse :: P.UsageError -> Response
-pgErrResponse e = responseLBS (httpStatus e)
-  [(hContentType, "application/json")] (JSON.encode e)
+pgErrResponse :: Bool -> P.UsageError -> Response
+pgErrResponse authed e =
+  let status = httpStatus authed e
+      jsonType = (hContentType, "application/json")
+      wwwAuth = ("WWW-Authenticate", "Bearer")
+      hdrs = if status == HT.status401
+                then [jsonType, wwwAuth]
+                else [jsonType] in
+  responseLBS status hdrs (JSON.encode e)
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
@@ -60,10 +66,9 @@ instance JSON.ToJSON H.Error where
     "message" .= ("Database client error"::String),
     "details" .= (fmap cs d::Maybe T.Text)]
 
-httpStatus :: P.UsageError -> HT.Status
-httpStatus (P.ConnectionError _) =
-  HT.status500
-httpStatus (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
+httpStatus :: Bool -> P.UsageError -> HT.Status
+httpStatus _ (P.ConnectionError _) = HT.status500
+httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
   case cs c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
@@ -88,7 +93,7 @@ httpStatus (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
     "42P01"   -> HT.status404 -- undefined table
-    "42501"   -> HT.status404 -- insufficient privilege
+    "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
     _         -> HT.status400
-httpStatus (P.SessionError (H.ResultError _)) = HT.status500
-httpStatus (P.SessionError (H.ClientError _)) = HT.status503
+httpStatus _ (P.SessionError (H.ResultError _)) = HT.status500
+httpStatus _ (P.SessionError (H.ClientError _)) = HT.status503

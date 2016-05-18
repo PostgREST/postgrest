@@ -13,6 +13,7 @@ very simple authentication system inside the PostgreSQL database.
 -}
 module PostgREST.Auth (
     claimsToSQL
+  , containsRole
   , jwtClaims
   , tokenJWT
   ) where
@@ -80,3 +81,10 @@ tokenJWT secret (Array arr) =
       jcs = parseMaybe parseJSON obj :: Maybe JWT.JWTClaimsSet in
   JWT.encodeSigned JWT.HS256 secret $ fromMaybe JWT.def jcs
 tokenJWT secret _ = tokenJWT secret emptyArray
+
+{-|
+  Whether a response from jwtClaims contains a role claim
+-}
+containsRole :: Either Text (M.HashMap Text Value) -> Bool
+containsRole (Left _) = False
+containsRole (Right claims) = M.member "role" claims

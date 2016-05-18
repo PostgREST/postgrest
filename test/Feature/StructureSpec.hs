@@ -25,6 +25,7 @@ spec = do
         , {"schema":"test","name":"comments","insertable":true}
         , {"schema":"test","name":"complex_items","insertable":true}
         , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"empty_table","insertable":true}
         , {"schema":"test","name":"filtered_tasks","insertable":true}
         , {"schema":"test","name":"ghostBusters","insertable":true}
         , {"schema":"test","name":"has_count_column","insertable":false}
