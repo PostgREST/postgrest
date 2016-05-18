@@ -11,7 +11,6 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.DbStructure
 
 import           Control.Monad
-import           Control.Monad.IO.Class               (liftIO)
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
 import qualified Hasql.Query                          as H
@@ -24,10 +23,11 @@ import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
 import           Web.JWT                              (secret)
+import           Data.IORef
 #ifndef mingw32_HOST_OS
+import           Control.Monad.IO.Class               (liftIO)
 import           System.Posix.Signals
 import           Control.Concurrent                   (myThreadId)
-import           Data.IORef
 import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
