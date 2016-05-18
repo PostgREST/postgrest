@@ -122,6 +122,9 @@ userApiRequest schema req reqBody =
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
+        -- This is a Left value because form-urlencoded is not a content
+        -- type which we ever use for responses, only something we handle
+        -- just this once for requests
         Left "application/x-www-form-urlencoded" ->
           PayloadJSON . UniformObjects . V.singleton . M.fromList
                       . map (cs *** JSON.String . cs) . parseSimpleQuery
