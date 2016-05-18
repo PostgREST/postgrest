@@ -38,6 +38,8 @@ GRANT ALL ON TABLE
     , "ghostBusters"
     , "withUnique"
     , "موارد"
+    , addresses
+    , orders
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

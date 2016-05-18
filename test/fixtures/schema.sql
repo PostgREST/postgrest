@@ -1001,6 +1001,19 @@ ALTER TABLE ONLY users_tasks
 ALTER TABLE ONLY users_tasks
     ADD CONSTRAINT users_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
 
+
+create table addresses (
+	id                   int not null unique,
+	address              text not null
+);
+
+create table orders (
+	id                   int not null unique,
+	name                 text not null,
+	billing_address_id   int references addresses(id),
+	shipping_address_id  int references addresses(id)
+);
+
 --
 -- PostgreSQL database dump complete
 --
