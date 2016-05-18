@@ -9,3 +9,7 @@ codex.tags
 .stack-work
 tags
 site
+postgrest.eventlog*
+postgrest.timed.svg
+postgrest.timed.txt
+postgrest.totals.txt
