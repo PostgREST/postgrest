@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Reload database schema on SIGHUP - @begriffs
 - Support "-" in column names - @ruslantalpa
 - Support column/node renaming `alias:column` - @ruslantalpa
+- Accept posts from HTML forms - @begriffs
 
 ### Fixed
 - Return 401 or 403 for access denied rather than 404 - @begriffs
