@@ -280,10 +280,10 @@ augumentRequestWithJoin schema allRels request =
 
 buildReadRequest :: [Relation] -> ApiRequest -> Either Text ReadRequest
 buildReadRequest allRels apiRequest  =
-  augumentRequestWithJoin schema rels =<< first formatParserError (foldr addFilter <$> (addOrder <$> readRequest <*> ord) <*> flts)
+  augumentRequestWithJoin schema rels =<<
+  first formatParserError (foldr addFilter <$> (foldr addOrder <$> readRequest <*> ords) <*> flts)
   where
     selStr = iSelect apiRequest
-    orderS = iOrder apiRequest
     action = iAction apiRequest
     target = iTarget apiRequest
     (schema, rootTableName) = fromJust $ -- Make it safe
@@ -303,9 +303,9 @@ buildReadRequest allRels apiRequest  =
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
     readRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++selStr++">>") selStr
-    addOrder (Node (q,i) f) o = Node (q{order=o}, i) f
     flts = mapM pRequestFilter filters
-    ord = traverse (parse pOrder ("failed to parse order parameter <<"++fromMaybe "" orderS++">>")) orderS
+    orders = iOrder apiRequest
+    ords = mapM pRequestOrder orders
 
 buildMutateRequest :: ApiRequest -> Either Text MutateRequest
 buildMutateRequest apiRequest =
@@ -326,12 +326,24 @@ buildMutateRequest apiRequest =
     mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
     cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
 
+addFilterToNode :: Filter -> ReadRequest -> ReadRequest
+addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f
+
 addFilter :: (Path, Filter) -> ReadRequest -> ReadRequest
-addFilter ([], flt) (Node (q@Select {flt_=flts}, i) forest) = Node (q {flt_=flt:flts}, i) forest
-addFilter (path, flt) (Node rn forest) =
+addFilter = addProperty addFilterToNode
+
+addOrderToNode :: [OrderTerm] -> ReadRequest -> ReadRequest
+addOrderToNode o (Node (q,i) f) = Node (q{order=Just o}, i) f
+
+addOrder :: (Path, [OrderTerm]) -> ReadRequest -> ReadRequest
+addOrder = addProperty addOrderToNode
+
+addProperty :: (a -> ReadRequest -> ReadRequest) -> (Path, a) -> ReadRequest -> ReadRequest
+addProperty f ([], a) n = f a n
+addProperty f (path, a) (Node rn forest) =
   case targetNode of
-    Nothing -> Node rn forest -- the filter is silenty dropped in the Request does not contain the required path
-    Just tn -> Node rn (addFilter (remainingPath, flt) tn:restForest)
+    Nothing -> Node rn forest -- the property is silenty dropped in the Request does not contain the required path
+    Just tn -> Node rn (addProperty f (remainingPath, a) tn:restForest)
   where
     targetNodeName:remainingPath = path
     (targetNode,restForest) = splitForest targetNodeName forest

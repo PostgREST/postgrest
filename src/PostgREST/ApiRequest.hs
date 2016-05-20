@@ -77,8 +77,8 @@ data ApiRequest = ApiRequest {
   , iFilters :: [(String, String)]
   -- | &select parameter used to shape the response
   , iSelect :: String
-  -- | &order parameter
-  , iOrder :: Maybe String
+  -- | &order parameters for each level
+  , iOrder :: [(String,String)]
   -- | Alphabetized (canonical) request query string for response URLs
   , iCanonicalQS :: String
   -- | JSON Web Token
@@ -147,11 +147,11 @@ userApiRequest schema req reqBody =
   , iPreferRepresentation = representation
   , iPreferSingular = singular
   , iPreferCount = not $ singular || hasPrefer "count=none"
-  , iFilters = [ (k, fromJust v) | (k,v) <- qParams, k `notElem` ["select", "order"], isJust v ]
+  , iFilters = [ (cs k, fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn "order" k) ]
   , iSelect = if method == "DELETE"
               then "*"
               else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
-  , iOrder = join $ lookup "order" qParams
+  , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn "order" k ]
   , iCanonicalQS = urlEncodeVars
      . sortBy (comparing fst)
      . map (join (***) cs)
@@ -181,6 +181,9 @@ userApiRequest schema req reqBody =
   tokenStr = case T.split (== ' ') (cs auth) of
     ("Bearer" : t : _) -> t
     _                  -> ""
+  endingIn:: T.Text -> T.Text -> Bool
+  endingIn word key = word == lastWord
+    where lastWord = last $ T.split (=='.') key
 
 -- PRIVATE ---------------------------------------------------------------
 

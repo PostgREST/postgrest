@@ -38,6 +38,13 @@ pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
     op = fst <$> opVal
     val = snd <$> opVal
 
+pRequestOrder :: (String, String) -> Either ParseError (Path, [OrderTerm])
+pRequestOrder (k, v) = (,) <$> path <*> ord
+  where
+    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
+    path = fst <$> treePath
+    ord = parse pOrder ("failed to parse order (" ++ v ++ ")") v
+
 ws :: Parser Text
 ws = cs <$> many (oneOf " \t")
 
