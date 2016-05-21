@@ -24,7 +24,10 @@ Flag CI
 executable postgrest
   main-is:             Main.hs
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
-  ghc-options:         -threaded -rtsopts -with-rtsopts="-N -I2"
+  ghc-options:
+    -threaded
+    -rtsopts
+    "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
                      , base >= 4.8 && < 5
