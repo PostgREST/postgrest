@@ -39,7 +39,7 @@ executable postgrest
                      , hasql-transaction >= 0.4.3 && < 0.5
                      , http-types
                      , interpolatedstring-perl6
-                     , jwt
+                     , jwt >= 0.7.1 && < 8
                      , lens >=3.8 && < 5.0
                      , lens-aeson >= 1.0.0.0 && < 1.1.0.0
                      , mtl
