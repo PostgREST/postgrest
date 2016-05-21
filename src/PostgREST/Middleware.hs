@@ -30,10 +30,7 @@ runWithClaims :: AppConfig -> Either Text (M.HashMap Text Value) ->
 runWithClaims conf eClaims app req =
   case eClaims of
     Left e -> clientErr e
-    Right claims ->
-      if M.null claims && not (null $ iJWT req)
-        then clientErr "Invalid JWT"
-        else do
+    Right claims -> do
           -- role claim defaults to anon if not specified in jwt
           H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
           app req

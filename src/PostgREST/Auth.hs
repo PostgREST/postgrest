@@ -25,7 +25,7 @@ import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.ByteString         as BS
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
-import           Data.Maybe              (fromMaybe, maybeToList)
+import           Data.Maybe              (fromMaybe, maybeToList, fromJust)
 import           Data.Monoid             ((<>))
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
@@ -52,22 +52,20 @@ claimsToSQL claims = roleStmts <> varStmts
 {-|
   Receives the JWT secret (from config) and a JWT and
   returns a map of JWT claims
-  In case there is any problem decoding the JWT it returns Nothing.
+  In case there is any problem decoding the JWT it returns an error Text
 -}
-
-
 jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Either Text (M.HashMap Text Value)
-jwtClaims secret input time =
-  case mClaims of
-    Nothing -> Right M.empty
-    Just claims -> do
-      let mExp = claims ^? key "exp" . _Integer
-          expired = fromMaybe False $ (<= time) . fromInteger <$> mExp
-      if expired
-        then Left "JWT expired"
-        else Right (value2map claims)
+jwtClaims _ "" _ = Right M.empty
+jwtClaims secret jwt time =
+  case isExpired <$> mClaims of
+    Just True -> Left "JWT expired"
+    Nothing -> Left "Invalid JWT"
+    Just False -> Right $ value2map $ fromJust mClaims
  where
-  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret input
+  isExpired claims =
+    let mExp = claims ^? key "exp" . _Integer
+    in fromMaybe False $ (<= time) . fromInteger <$> mExp
+  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret jwt
   value2map (Object o) = o
   value2map _          = M.empty
 
