@@ -172,6 +172,12 @@ GET /people?order=age.nullsfirst
 GET /people?order=age.desc.nullslast
 ```
 
+To filter the embedded items, you need to specify the tree path for the order param like so. 
+```HTTP
+GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.ask
+```
+
+
 You can also use [computed
 columns](http://www.postgresql.org/docs/current/interactive/xfunc-sql.html#XFUNC-SQL-COMPOSITE-FUNCTIONS)
 to order the results, even though the computed
@@ -285,7 +291,7 @@ GET /projects?id=eq.1&select=id, name, client{*}
 
 Would embed in the `client` key the row referenced with `client_id`.
 
-The `alias` feature works for embedded entities and also for regular columns. This is useful in situations where for example you use different naming conventions in the database and frontend. 
+The `alias` feature works for embedded entities and also for regular columns. This is useful in situations where for example you use different naming conventions in the database and frontend.
 
 The following request will produce the output below:
 ```HTTP

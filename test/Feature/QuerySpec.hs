@@ -362,6 +362,28 @@ spec = do
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
 
+    it "ordering embeded entities" $
+      get "/projects?id=eq.1&select=id, name, tasks{id, name}&tasks.order=name.asc" `shouldRespondWith`
+        [str|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+
+    it "ordering embeded entities with alias" $
+      get "/projects?id=eq.1&select=id, name, the_tasks:tasks{id, name}&tasks.order=name.asc" `shouldRespondWith`
+        [str|[{"id":1,"name":"Windows 7","the_tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+
+    it "ordering embeded entities, two levels" $
+      get "/projects?id=eq.1&select=id, name, tasks{id, name, users{id, name}}&tasks.order=name.asc&tasks.users.order=name.desc" `shouldRespondWith`
+        [str|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7","users":[{"id":1,"name":"Angela Martin"}]},{"id":1,"name":"Design w7","users":[{"id":3,"name":"Dwight Schrute"},{"id":1,"name":"Angela Martin"}]}]}]|]
+
+    it "ordering embeded parents does not break things" $
+      get "/projects?id=eq.1&select=id, name, clients{id, name}&clients.order=name.asc" `shouldRespondWith`
+        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"}}]|]
+
+    it "ordering embeded parents does not break things when using ducktape names" $
+      get "/projects?id=eq.1&select=id, name, client{id, name}&client.order=name.asc" `shouldRespondWith`
+        [str|[{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}]|]
+
+
+
   describe "Accept headers" $ do
     it "should respond an unknown accept type with 415" $
       request methodGet "/simple_pk"

@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Support "-" in column names - @ruslantalpa
 - Support column/node renaming `alias:column` - @ruslantalpa
 - Accept posts from HTML forms - @begriffs
+- Ability to order embedded entities - @ruslantalpa
 
 ### Fixed
 - Return 401 or 403 for access denied rather than 404 - @begriffs
