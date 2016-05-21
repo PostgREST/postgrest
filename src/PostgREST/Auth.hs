@@ -18,9 +18,9 @@ module PostgREST.Auth (
   , tokenJWT
   ) where
 
-import           Control.Lens
+import           Lens.Micro
+import           Lens.Micro.Aeson
 import           Data.Aeson              (Value (..), parseJSON, toJSON)
-import           Data.Aeson.Lens
 import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.ByteString         as BS
 import qualified Data.Vector             as V
