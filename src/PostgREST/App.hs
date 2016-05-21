@@ -8,6 +8,7 @@ module PostgREST.App (
 
 import           Control.Applicative
 import           Data.Bifunctor            (first)
+import qualified Data.ByteString.Char8   as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (find, delete)
 import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
@@ -24,6 +25,7 @@ import           Text.ParserCombinators.Parsec (parse)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
+import           Network.HTTP.Types.URI (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
@@ -128,15 +130,13 @@ app dbStructure conf apiRequest =
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.query uniform stm
-          let (_, _, location, body) = extractQueryResult row
+          let (_, _, locationFieldsOpt, body) = extractQueryResult row
+              mkHeader fs = [(hLocation, "/" <> cs table <> renderLocationFields fs)]
+              header = maybe [] mkHeader locationFieldsOpt
 
           return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS status201 [
-                  contentTypeH,
-                  (hLocation, "/" <> cs table <> "?" <> cs location)
-                ] (cs body)
-            else responseLBS status201
-              [(hLocation, "/" <> cs table <> "?" <> cs location)] ""
+            then responseLBS status201 (contentTypeH : header) (cs body)
+            else responseLBS status201 header ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       case mutateSqlParts of
@@ -234,6 +234,14 @@ app dbStructure conf apiRequest =
                                           contentRange = contentRangeH frm to (toInteger <$> tableTotal)
                                           status = rangeStatus frm to (toInteger <$> tableTotal)
                                       in (status, contentRange)
+
+splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
+splitKeyValue kv = (k, BS.tail v)
+  where (k, v) = BS.break (== '=') kv
+
+renderLocationFields :: [BS.ByteString] -> BS.ByteString
+renderLocationFields fields =
+  renderSimpleQuery True $ map splitKeyValue fields
 
 rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200
@@ -371,4 +379,4 @@ instance ToJSON TableOptions where
 
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
-extractQueryResult = fromMaybe (Nothing, 0, "", "")
+extractQueryResult = fromMaybe (Nothing, 0, Nothing, "")

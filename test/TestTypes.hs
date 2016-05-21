@@ -37,9 +37,9 @@ instance JSON.FromJSON IncPK where
 
 data CompoundPK = CompoundPK {
   compoundK1 :: Int
-, compoundK2 :: Int
+, compoundK2 :: String
 , compoundExtra :: Maybe Int
-}
+} deriving (Eq, Show)
 
 instance JSON.FromJSON CompoundPK where
   parseJSON (JSON.Object r) = CompoundPK <$>
