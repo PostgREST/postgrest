@@ -130,9 +130,10 @@ app dbStructure conf apiRequest =
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.query uniform stm
-          let (_, _, locationFieldsOpt, body) = extractQueryResult row
-              mkHeader fs = [(hLocation, "/" <> cs table <> renderLocationFields fs)]
-              header = maybe [] mkHeader locationFieldsOpt
+          let (_, _, fs, body) = extractQueryResult row
+              header =
+                if null fs then []
+                else [(hLocation, "/" <> cs table <> renderLocationFields fs)]
 
           return $ if iPreferRepresentation apiRequest == Full
             then responseLBS status201 (contentTypeH : header) (cs body)
@@ -391,4 +392,4 @@ instance ToJSON TableOptions where
 
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
-extractQueryResult = fromMaybe (Nothing, 0, Nothing, "")
+extractQueryResult = fromMaybe (Nothing, 0, [], "")
