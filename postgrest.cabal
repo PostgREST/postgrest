@@ -34,9 +34,9 @@ executable postgrest
                      , containers
                      , contravariant
                      , errors
-                     , hasql >= 0.19.9 && < 0.20
-                     , hasql-pool >= 0.4 && < 0.5
-                     , hasql-transaction >= 0.4.3 && < 0.5
+                     , hasql == 0.19.12
+                     , hasql-pool == 0.4.1
+                     , hasql-transaction == 0.4.4.1
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
