@@ -9,6 +9,7 @@ import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
 import qualified Data.ByteString.Lazy         as BL
 
 import SpecHelper
+import Text.Heredoc
 import Network.Wai (Application)
 
 defaultRange :: BL.ByteString
@@ -141,6 +142,50 @@ spec = do
             , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
+
+    context "with limit/offset parameters" $ do
+      it "no parameters return everything" $
+        get "/items?select=id&order=id.asc"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
+          , matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "0-14/15"]
+          }
+      it "top level limit with parameter" $
+        get "/items?select=id&order=id.asc&limit=3"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":1},{"id":2},{"id":3}]|]
+          , matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-2/15"]
+          }
+      it "headers override get parameters" $
+        request methodGet  "/items?select=id&order=id.asc&limit=3"
+                     (rangeHdrs $ ByteRangeFromTo 0 1) ""
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":1},{"id":2}]|]
+          , matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-1/15"]
+          }
+
+      it "limit works on all levels" $
+        get "/clients?select=id,projects{id,tasks{id}}&order=id.asc&limit=1&projects.order=id.asc&projects.limit=1&projects.tasks.order=id.asc&projects.tasks.limit=2"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]}]}]|]
+          , matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-0/2"]
+          }
+
+      it "fails on offset specified below level 1" $
+        get "/clients?select=id,projects{id,tasks{id}}&projects.offset=2&projects.limit=1"
+          `shouldRespondWith` 400
+
+      it "limit and offset works on first level" $
+        get "/items?select=id&order=id.asc&limit=3&offset=2"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":3},{"id":4},{"id":5}]|]
+          , matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "2-4/15"]
+          }
 
     context "with range headers" $ do
 

@@ -27,7 +27,7 @@ testUnicodeCfg =
 
 testLtdRowsCfg :: AppConfig
 testLtdRowsCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 (Just 3) True
+  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 (Just 2) True
 
 setupDb :: IO ()
 setupDb = do

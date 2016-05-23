@@ -36,6 +36,8 @@ import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
+import qualified Data.HashMap.Strict       as M
+
 import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
@@ -101,7 +103,7 @@ app dbStructure conf apiRequest =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (q, cq) -> do
           let singular = iPreferSingular apiRequest
-              stm = createReadStatement q cq range singular
+              stm = createReadStatement q cq singular
                     shouldCount (contentType == TextCSV)
           respondToRange $ do
             row <- H.query () stm
@@ -187,7 +189,7 @@ app dbStructure conf apiRequest =
           let p = V.head payload
               jwtSecret = configJwtSecret conf
           respondToRange $ do
-            row <- H.query () (callProc qi p range shouldCount)
+            row <- H.query () (callProc qi p topLevelRange shouldCount)
             returnJWT <- H.query qi doesProcReturnJWT
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -219,18 +221,18 @@ app dbStructure conf apiRequest =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   shouldCount = iPreferCount apiRequest
-  range = restrictRange (configMaxRows conf) $ iRange apiRequest
-  readDbRequest = DbRead <$> buildReadRequest (dbRelations dbStructure) apiRequest
+  topLevelRange = fromMaybe (rangeGeq 0) $ M.lookup "limit" $ iRange apiRequest
+  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema <$> readDbRequest
   countQuery = requestToCountQuery schema <$> readDbRequest
   mutateQuery = requestToQuery schema <$> mutateDbRequest
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
-  respondToRange response = if range == emptyRange
+  respondToRange response = if topLevelRange == emptyRange
                             then return $ errResponse status416 "HTTP Range error"
                             else response
-  rangeHeader queryTotal tableTotal = let frm = rangeOffset range
+  rangeHeader queryTotal tableTotal = let frm = rangeOffset topLevelRange
                                           to = frm + toInteger queryTotal - 1
                                           contentRange = contentRangeH frm to (toInteger <$> tableTotal)
                                           status = rangeStatus frm to (toInteger <$> tableTotal)
@@ -287,53 +289,82 @@ augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
 
-buildReadRequest :: [Relation] -> ApiRequest -> Either Text ReadRequest
-buildReadRequest allRels apiRequest  =
-  augumentRequestWithJoin schema rels =<<
-  first formatParserError (foldr addFilter <$> (foldr addOrder <$> readRequest <*> ords) <*> flts)
+addFiltersOrdersRanges :: ApiRequest -> Either ParseError (ReadRequest -> ReadRequest)
+addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
+    flip (foldr addFilter) <$> filters,
+    flip (foldr addOrder) <$> orders,
+    flip (foldr addRange) <$> ranges
+  ]
+  {-
+  The esence of what is going on above is that we are composing tree functions
+  of type (ReadRequest->ReadRequest) that are in (Either ParseError a) context
+  -}
   where
-    selStr = iSelect apiRequest
-    action = iAction apiRequest
-    target = iTarget apiRequest
+    filters :: Either ParseError [(Path, Filter)]
+    filters = mapM pRequestFilter flts
+      where
+        action = iAction apiRequest
+        flts = if action == ActionRead
+          then iFilters apiRequest
+          else filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
+    orders :: Either ParseError [(Path, [OrderTerm])]
+    orders = mapM pRequestOrder $ iOrder apiRequest
+    ranges :: Either ParseError [(Path, NonnegRange)]
+    ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
+
+treeRestrictRange :: Maybe Integer -> ReadRequest -> Either Text ReadRequest
+treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` request
+  where
+    nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
+    nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
+
+buildReadRequest :: Maybe Integer -> [Relation] -> ApiRequest -> Either Text ReadRequest
+buildReadRequest maxRows allRels apiRequest  =
+  treeRestrictRange maxRows =<<
+  augumentRequestWithJoin schema relations =<<
+  first formatParserError readRequest
+  where
     (schema, rootTableName) = fromJust $ -- Make it safe
+      let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
         _ -> Nothing
 
-    rootName = if action == ActionRead
-      then rootTableName
-      else sourceCTEName
-    filters = if action == ActionRead
-      then iFilters apiRequest
-      else filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
-    rels = case action of
+    action :: Action
+    action = iAction apiRequest
+
+    readRequest :: Either ParseError ReadRequest
+    readRequest = addFiltersOrdersRanges apiRequest <*>
+      parse (pRequestSelect rootName) ("failed to parse select parameter <<"++selStr++">>") selStr
+      where
+        selStr = iSelect apiRequest
+        rootName = if action == ActionRead
+          then rootTableName
+          else sourceCTEName
+
+    relations :: [Relation]
+    relations = case action of
       ActionCreate -> fakeSourceRelations ++ allRels
       ActionUpdate -> fakeSourceRelations ++ allRels
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
-    readRequest = parse (pRequestSelect rootName) ("failed to parse select parameter <<"++selStr++">>") selStr
-    flts = mapM pRequestFilter filters
-    orders = iOrder apiRequest
-    ords = mapM pRequestOrder orders
 
 buildMutateRequest :: ApiRequest -> Either Text MutateRequest
-buildMutateRequest apiRequest =
-  mutateApiRequest
+buildMutateRequest apiRequest = case action of
+  ActionCreate -> Insert rootTableName <$> pure payload
+  ActionUpdate -> Update rootTableName <$> pure payload <*> filters
+  ActionDelete -> Delete rootTableName <$> filters
+  _        -> Left "Unsupported HTTP verb"
   where
     action = iAction apiRequest
-    target = iTarget apiRequest
     payload = fromJust $ iPayload apiRequest
     rootTableName = -- TODO: Make it safe
+      let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier _ t) ) -> t
         _ -> undefined
-    mutateApiRequest = case action of
-      ActionCreate -> Insert rootTableName <$> pure payload
-      ActionUpdate -> Update rootTableName <$> pure payload <*> cond
-      ActionDelete -> Delete rootTableName <$> cond
-      _        -> Left "Unsupported HTTP verb"
-    mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
-    cond = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+    filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+      where mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
 addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f
@@ -346,6 +377,12 @@ addOrderToNode o (Node (q,i) f) = Node (q{order=Just o}, i) f
 
 addOrder :: (Path, [OrderTerm]) -> ReadRequest -> ReadRequest
 addOrder = addProperty addOrderToNode
+
+addRangeToNode :: NonnegRange -> ReadRequest -> ReadRequest
+addRangeToNode r (Node (q,i) f) = Node (q{range_=Just r}, i) f
+
+addRange :: (Path, NonnegRange) -> ReadRequest -> ReadRequest
+addRange = addProperty addRangeToNode
 
 addProperty :: (a -> ReadRequest -> ReadRequest) -> (Path, a) -> ReadRequest -> ReadRequest
 addProperty f ([], a) n = f a n

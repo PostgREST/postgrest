@@ -21,7 +21,7 @@ import           Network.HTTP.Types.Header (hAuthorization)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.RangeQuery      (NonnegRange, rangeRequested)
+import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, limitToRange, toRange )
 import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema, Payload(..),
                                             UniformObjects(..))
@@ -60,7 +60,7 @@ data ApiRequest = ApiRequest {
   -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
     iAction :: Action
   -- | Requested range of rows within response
-  , iRange  :: NonnegRange
+  , iRange  :: M.HashMap String NonnegRange
   -- | The target, be it calling a proc or accessing a table
   , iTarget :: Target
   -- | The content type the client most desires (or JSON if undecided)
@@ -140,18 +140,20 @@ userApiRequest schema req reqBody =
 
   ApiRequest {
     iAction = action
-  , iRange  = if singular then singletonRange 0 else rangeRequested hdrs
   , iTarget = target
+  , iRange = setTopLevelRange headerRange $
+             setTopLevelRange urlRange $
+             M.fromList [(cs k, limitToRange $ cs $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
   , iPreferCount = not $ singular || hasPrefer "count=none"
-  , iFilters = [ (cs k, fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn "order" k) ]
+  , iFilters = [ (cs k, fromJust v) | (k,v) <- qParams, isJust v, k /= "select", k /= "offset", not (endingIn ["order", "limit"] k) ]
   , iSelect = if method == "DELETE"
               then "*"
               else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
-  , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn "order" k ]
+  , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
   , iCanonicalQS = urlEncodeVars
      . sortBy (comparing fst)
      . map (join (***) cs)
@@ -181,9 +183,17 @@ userApiRequest schema req reqBody =
   tokenStr = case T.split (== ' ') (cs auth) of
     ("Bearer" : t : _) -> t
     _                  -> ""
-  endingIn:: T.Text -> T.Text -> Bool
-  endingIn word key = word == lastWord
+  endingIn:: [T.Text] -> T.Text -> Bool
+  endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key
+
+  headerRange = if singular then Just (singletonRange 0) else rangeRequested hdrs
+  urlRange = toRange (join $ lookup "limit" qParams) (join $ lookup "offset" qParams)
+
+  setTopLevelRange :: Maybe NonnegRange -> M.HashMap String NonnegRange -> M.HashMap String NonnegRange
+  setTopLevelRange Nothing ranges = ranges
+  setTopLevelRange (Just r) ranges = M.insert "limit" r ranges
+
 
 -- PRIVATE ---------------------------------------------------------------
 

@@ -96,14 +96,14 @@ encodeUniformObjs :: HE.Params UniformObjects
 encodeUniformObjs =
   contramap (JSON.Array . V.map JSON.Object . unUniformObjects) (HE.value HE.json)
 
-createReadStatement :: SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool ->
+createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
-createReadStatement selectQuery countQuery range isSingle countTotal asCsv =
+createReadStatement selectQuery countQuery isSingle countTotal asCsv =
   unicodeStatement sql HE.unit decodeStandard True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
-      FROM ( SELECT * FROM {sourceCTEName} {limitF range}) t |]
+      FROM ( SELECT * FROM {sourceCTEName}) t |]
   countResultF = if countTotal then "("<>countQuery<>")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
@@ -260,7 +260,7 @@ pgFmtLit x =
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
-requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _, _)) _)) =
+requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(1)",
    "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
@@ -274,7 +274,7 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _, (mainTbl, _, 
 requestToQuery :: Schema -> DbRequest -> SqlQuery
 requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
 requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -288,7 +288,8 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord, (nod
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
       unwords joins,
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-      orderF (fromMaybe [] ord)
+      orderF (fromMaybe [] ord),
+      fromMaybe "" $ limitF <$> range
       ]
     orderF ts =
         if null ts

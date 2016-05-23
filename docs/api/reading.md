@@ -172,9 +172,9 @@ GET /people?order=age.nullsfirst
 GET /people?order=age.desc.nullslast
 ```
 
-To filter the embedded items, you need to specify the tree path for the order param like so. 
+To order the embedded items, you need to specify the tree path for the order param like so.
 ```HTTP
-GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.ask
+GET /projects?select=id,name,tasks{id,name}&order=id.ask&tasks.order=name.ask
 ```
 
 
@@ -213,6 +213,15 @@ Range: 0-4
 
 You can also use open-ended ranges for an offset with no limit:
 `Range: 10-`.
+
+In addition to the `Range` header, you can use `&limit` and `&offset` parameters
+to achieve the same result.
+
+You can also set a limit (but not offset) for the embedded items like so
+```HTTP
+/posts?select=id,title,body,comments{id,email,body}&limit=10&comments.limit=3
+```
+The above request will return the first 10 posts and for each of the posts, 3 comments at most
 
 #### Suppressing Counts
 
@@ -309,6 +318,13 @@ GET /orders?id=eq.1&select=orderId:id, customer:customer_id{customerId:id, custo
   }
 ]
 ```
+
+If you want to apply filters to the embedded items, you can do that like so:
+```HTTP
+GET /clients?id=eq.42&select=id,name,projects{id,name,is_active}&projects.is_active=eq.true
+```
+The above request will return the client with id=42 and all the projects for that client that are still active
+
 
 <div class="admonition note">
     <p class="admonition-title">Design Consideration</p>
