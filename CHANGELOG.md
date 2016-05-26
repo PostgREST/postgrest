@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Use read-only transaction for read requests - @ruslantalpa
 - Include entities from the same parent table using two different foreign keys - @ruslantalpa
 - Ensure that Location header in 201 response is URL-encoded - @league
+- Fix garbage collector CPU leak - @ruslantalpa et al.
 
 ## [0.3.1.1] - 2016-03-28
 
