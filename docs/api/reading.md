@@ -312,7 +312,8 @@ GET /orders?id=eq.1&select=orderId:id, customer:customer_id{customerId:id, custo
 
 <div class="admonition note">
     <p class="admonition-title">Design Consideration</p>
-    <p>In order for this feature to work as expected after a schema change, PostgREST currently requires to be restarted.</p>
+    <p>In order for this feature to work as expected after a schema change, PostgREST currently requires a restart.</p>
+    <p>Additionally, in versions >=0.3.1.1 views containing sub-select statements as columns will not have foreign key relations matched. Sub-select statements may occur in a WHERE clause following a JOIN condition. In previous versions, foreign key relations in views with columns defined with sub-selects were sometimes incidentally recognized.  </p>
 </div>
 
 ### Response Format
