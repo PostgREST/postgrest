@@ -188,9 +188,10 @@ app dbStructure conf apiRequest =
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
             jwtSecret = configJwtSecret conf
+            returnJWT = qiName qi `elem` dbProcsReturningJWT dbStructure
         respondToRange $ do
           row <- H.query () (callProc qi p topLevelRange shouldCount)
-          returnJWT <- H.query qi doesProcReturnJWT
+          --returnJWT <- H.query qi doesProcReturnJWT
           let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
               (status, contentRange) = rangeHeader queryTotal tableTotal
             in
