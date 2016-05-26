@@ -63,20 +63,18 @@ import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
-    @"k1=eq.42"@. If unused, it's null/Nothing rather than the empty list
-    because 'PostgreSQL.Binary.Decoder.arrayDimension' cannot decode an empty
-    array!
+    @"k1=eq.42"@, or the empty list if there is no location header.
 -}
-type ResultsWithCount = (Maybe Int64, Int64, Maybe [BS.ByteString], BS.ByteString)
+type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString)
 
 standardRow :: HD.Row ResultsWithCount
 standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                    <*> HD.nullableValue header <*> HD.value HD.bytea
+                    <*> HD.value header <*> HD.value HD.bytea
   where
     header = HD.array $ HD.arrayDimension replicateM $ HD.arrayValue HD.bytea
 
 noLocationF :: Text
-noLocationF = "NULL::text[]"
+noLocationF = "array[]::text[]"
 
 {-| Read and Write api requests use a similar response format which includes
     various record counts and possible location header. This is the decoder

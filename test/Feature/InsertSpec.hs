@@ -138,6 +138,16 @@ spec = do
           JSON.decode (simpleBody r) `shouldBe` Just [expectedObj]
           simpleStatus r `shouldBe` ok200
 
+    context "with bulk insert" $
+      it "returns 201 but no location header" $ do
+        let bulkData = [json| [ {"k1":21, "k2":"hello world"}
+                              , {"k1":22, "k2":"bye for now"}]
+                            |]
+        p <- request methodPost "/compound_pk" [] bulkData
+        liftIO $ do
+          simpleStatus p `shouldBe` created201
+          lookup hLocation (simpleHeaders p) `shouldBe` Nothing
+
     context "with invalid json payload" $
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
