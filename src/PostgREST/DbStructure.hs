@@ -6,7 +6,6 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
-, doesProcReturnJWT
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -15,7 +14,6 @@ import qualified Hasql.Query                   as H
 
 import           Control.Applicative
 import           Control.Monad                 (join, replicateM)
-import           Data.Functor.Contravariant    (contramap)
 import           Data.List                     (elemIndex, find, sort,
                                                 subsequences, transpose)
 import           Data.Maybe                    (fromJust, fromMaybe, isJust,
@@ -37,6 +35,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
+  retJwt <- H.query schema procsReturningJWT
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -47,12 +46,8 @@ getDbStructure schema = do
     , dbColumns = cols'
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
+    , dbProcsReturningJWT = retJwt
     }
-
-encodeQi :: HE.Params QualifiedIdentifier
-encodeQi =
-  contramap qiSchema (HE.value HE.text) <>
-  contramap qiName   (HE.value HE.text)
 
 decodeTables :: HD.Result [Table]
 decodeTables =
@@ -103,19 +98,16 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
-doesProcReturnJWT =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+procsReturningJWT :: H.Query Schema [Text]
+procsReturningJWT =
+  H.statement sql (HE.value HE.text) (HD.rowsList (HD.value HD.text)) True
  where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-      AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
-    ) |]
+  sql = [q|
+    SELECT p.proname
+    FROM   pg_namespace n
+    JOIN   pg_proc p
+    ON     pronamespace = n.oid
+    WHERE  n.nspname = $1 AND pg_get_function_result(p.oid) like '%jwt_claims'|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
