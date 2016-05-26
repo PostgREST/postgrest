@@ -186,22 +186,18 @@ app dbStructure conf apiRequest =
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
-      exists <- H.query qi doesProcExist
-      if exists
-        then do
-          let p = V.head payload
-              jwtSecret = configJwtSecret conf
-          respondToRange $ do
-            row <- H.query () (callProc qi p topLevelRange shouldCount)
-            returnJWT <- H.query qi doesProcReturnJWT
-            let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
-                (status, contentRange) = rangeHeader queryTotal tableTotal
-              in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnJWT
-                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else cs $ encode body)
-        else return notFound
+        let p = V.head payload
+            jwtSecret = configJwtSecret conf
+        respondToRange $ do
+          row <- H.query () (callProc qi p topLevelRange shouldCount)
+          returnJWT <- H.query qi doesProcReturnJWT
+          let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
+              (status, contentRange) = rangeHeader queryTotal tableTotal
+            in
+            return $ responseLBS status [jsonH, contentRange]
+                    (if returnJWT
+                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                    else cs $ encode body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti host port
