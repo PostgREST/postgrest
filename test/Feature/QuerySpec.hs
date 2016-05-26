@@ -477,6 +477,11 @@ spec = do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"
             `shouldRespondWith` 400
+      -- it used to be 404 and it makes sense but in another part we decided that it's good to return
+      -- PostgreSQL errors (and have the proxy handle them) and this saves us an aditional query on each rpc request
+      it "responds with 400 on an unexisting proc" $
+        post "/rpc/fake" [json| {} |] `shouldRespondWith` 400
+
 
     context "unsupported verbs" $ do
       it "DELETE fails" $

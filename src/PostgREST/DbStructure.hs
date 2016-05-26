@@ -6,7 +6,6 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
-, doesProcExist
 , doesProcReturnJWT
 ) where
 
@@ -103,19 +102,6 @@ decodeSynonyms cols =
     <$> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
-
-doesProcExist :: H.Query QualifiedIdentifier Bool
-doesProcExist =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
- where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-    ) |]
 
 doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
 doesProcReturnJWT =
