@@ -409,14 +409,22 @@ login(email text, pass text) returns basic_auth.jwt_claims
   as $$
 declare
   _role name;
+  _verified boolean;
+  _email text;
   result basic_auth.jwt_claims;
 begin
+  -- check email and password
   select basic_auth.user_role(email, pass) into _role;
   if _role is null then
     raise invalid_password using message = 'invalid user or password';
   end if;
-  -- TODO; check verified flag if you care whether users
+  -- check verified flag whether users
   -- have validated their emails
+  _email := email;
+  select verified from basic_auth.users as u where u.email=_email limit 1 into _verified;
+  if not _verified then
+    raise invalid_authorization_specification using message = 'user is not verified';
+  end if;
   select _role as role, login.email as email into result;
   return result;
 end;
