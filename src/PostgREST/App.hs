@@ -187,18 +187,21 @@ app dbStructure conf apiRequest =
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
+            singular = iPreferSingular apiRequest
             jwtSecret = configJwtSecret conf
             returnJWT = qiName qi `elem` dbProcsReturningJWT dbStructure
-        respondToRange $ do
-          row <- H.query () (callProc qi p topLevelRange shouldCount)
-          --returnJWT <- H.query qi doesProcReturnJWT
-          let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
-              (status, contentRange) = rangeHeader queryTotal tableTotal
-            in
-            return $ responseLBS status [jsonH, contentRange]
-                    (if returnJWT
-                    then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                    else cs $ encode body)
+        case readSqlParts of
+          Left e -> return $ responseLBS status400 [jsonH] $ cs e
+          Right (q,cq) -> respondToRange $ do
+            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+            --returnJWT <- H.query qi doesProcReturnJWT
+            let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
+                (status, contentRange) = rangeHeader queryTotal tableTotal
+              in
+              return $ responseLBS status [jsonH, contentRange]
+                      (if returnJWT
+                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                      else cs $ encode body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti host port
@@ -323,9 +326,10 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     filters = mapM pRequestFilter flts
       where
         action = iAction apiRequest
-        flts = if action == ActionRead
-          then iFilters apiRequest
-          else filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
+        flts
+          | action == ActionRead = iFilters apiRequest
+          | action == ActionInvoke = iFilters apiRequest
+          | otherwise = filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
     orders :: Either ParseError [(Path, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
     ranges :: Either ParseError [(Path, NonnegRange)]
@@ -347,6 +351,8 @@ buildReadRequest maxRows allRels apiRequest  =
       let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
+        (TargetProc  (QualifiedIdentifier s p) ) -> Just (s, p)
+
         _ -> Nothing
 
     action :: Action

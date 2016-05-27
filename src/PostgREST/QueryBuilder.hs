@@ -203,29 +203,41 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
-callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params range countTotal =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
-            WITH t AS (select * {_callSql})
+            WITH {sourceCTEName} AS ({_callSql})
             SELECT
-              {_countExpr} as countTotal,
-              pg_catalog.count(1) as countResult,
-              array_to_json(
-                coalesce(array_agg(row_to_json(r)), '\{}')
-              )::character varying
-            FROM (select * from t {limitF range}) r;
+              {countResultF} AS total_result_set,
+              pg_catalog.count(t) AS page_total,
+              case when pg_catalog.count(1) > 1
+            		then {bodyF}
+            	    else (
+            	    	select case when ((array_agg(row_to_json(t)))[1]->{_procName}) is not null
+            		    	then ((array_agg(row_to_json(t)))[1]->{_procName})::character varying
+            		    	else {bodyF}
+            		    end
+            	    )
+            	end as body
+            FROM ({selectQuery}) t;
           |]
+          -- FROM (select * from {sourceCTEName} {limitF range}) t;
+    countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
     _args = intercalate "," $ map _assignment (HM.toList params)
+    _procName = pgFmtLit $ qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| from {fromQi qi}({_args}) |] :: Text
+    _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
-                   then "(select pg_catalog.count(1) from t)"
+                   then [qc|(select pg_catalog.count(1) from {sourceCTEName})|]
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json
+    bodyF
+     | isSingle = asJsonSingleF
+     | otherwise = asJsonF
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -263,10 +275,13 @@ requestToCountQuery _ (DbMutate _) = undefined
 requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(1)",
-   "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
-   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
+   "FROM ", fromQi qi,
+   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
    ]
  where
+   qi = if mainTbl == sourceCTEName
+     then QualifiedIdentifier "" mainTbl
+     else QualifiedIdentifier schema mainTbl
    fn Filter{value=VText _} = True
    fn Filter{value=VForeignKey _ _} = False
    localConditions = filter fn conditions
