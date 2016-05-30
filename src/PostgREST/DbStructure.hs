@@ -35,7 +35,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
-  retJwt <- H.query schema procsReturningJWT
+  procs <- H.query schema accessibleProcs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -46,7 +46,7 @@ getDbStructure schema = do
     , dbColumns = cols'
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
-    , dbProcsReturningJWT = retJwt
+    , dbProcs = procs
     }
 
 decodeTables :: HD.Result [Table]
@@ -98,16 +98,16 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-procsReturningJWT :: H.Query Schema [Text]
-procsReturningJWT =
-  H.statement sql (HE.value HE.text) (HD.rowsList (HD.value HD.text)) True
+accessibleProcs :: H.Query Schema [(Text, Text)]
+accessibleProcs =
+  H.statement sql (HE.value HE.text) (HD.rowsList ((,) <$> HD.value HD.text <*> HD.value HD.text)) True
  where
   sql = [q|
-    SELECT p.proname
+    SELECT p.proname as "proc_name", pg_get_function_result(p.oid) as "return_type"
     FROM   pg_namespace n
     JOIN   pg_proc p
     ON     pronamespace = n.oid
-    WHERE  n.nspname = $1 AND pg_get_function_result(p.oid) like '%jwt_claims'|]
+    WHERE  n.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
