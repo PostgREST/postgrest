@@ -5,15 +5,13 @@ module PostgREST.RangeQuery (
 , rangeOffset
 , restrictRange
 , rangeGeq
+, allRange
 , NonnegRange
-, limitToRange
-, toRange
 ) where
 
 
 import           Control.Applicative
 import           Network.HTTP.Types.Header
-import           Data.Monoid               ((<>))
 
 import qualified Data.ByteString.Char8     as BS
 import           Data.Ranged.Boundaries
@@ -37,19 +35,19 @@ rangeParse range = do
     Just parsedRange ->
       let [_, from, to] = readMaybe . cs <$> parsedRange
           lower         = fromMaybe emptyRange   (rangeGeq <$> from)
-          upper         = fromMaybe (rangeGeq 0) (rangeLeq <$> to) in
+          upper         = fromMaybe allRange (rangeLeq <$> to) in
       rangeIntersection lower upper
-    Nothing -> rangeGeq 0
+    Nothing -> allRange
 
-rangeRequested :: RequestHeaders -> Maybe NonnegRange
-rangeRequested headers = rangeParse <$> lookup hRange headers
+rangeRequested :: RequestHeaders -> NonnegRange
+rangeRequested headers = fromMaybe allRange $
+  rangeParse <$> lookup hRange headers
 
-restrictRange :: Maybe Integer -> Maybe NonnegRange -> Maybe NonnegRange
+restrictRange :: Maybe Integer -> NonnegRange -> NonnegRange
 restrictRange Nothing r = r
-restrictRange (Just limit) Nothing = Just $ rangeIntersection (rangeGeq 0) (rangeLeq (limit - 1))
-restrictRange (Just limit) (Just r) = Just $
-  rangeIntersection r $
-    Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
+restrictRange (Just limit) r =
+   rangeIntersection r $
+     Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
 
 rangeLimit :: NonnegRange -> Maybe Integer
 rangeLimit range =
@@ -67,20 +65,9 @@ rangeGeq :: Integer -> NonnegRange
 rangeGeq n =
   Range (BoundaryBelow n) BoundaryAboveAll
 
+allRange :: NonnegRange
+allRange = rangeGeq 0
+
 rangeLeq :: Integer -> NonnegRange
 rangeLeq n =
   Range BoundaryBelowAll (BoundaryAbove n)
-
-limitToRange :: BS.ByteString -> NonnegRange
-limitToRange l = rangeParse ("0-" <> cs (show (l' - 1)))
-  where l' = fromMaybe 0 (readMaybe $ cs l)::Integer
-
-toRange :: Maybe String -> Maybe String -> Maybe NonnegRange
-toRange Nothing Nothing = Nothing
-toRange Nothing (Just o) = Just $ rangeParse $ cs $ show o' <> "-"
-  where o' = fromMaybe 0 (readMaybe $ cs o)::Integer
-toRange (Just l) Nothing = Just $ limitToRange $ cs l
-toRange (Just l) (Just o) = Just $ rangeParse $ cs $ show o' <> "-" <> show (o' + l' - 1)
-  where
-    l' = fromMaybe 0 (readMaybe $ cs l)::Integer
-    o' = fromMaybe 0 (readMaybe $ cs o)::Integer

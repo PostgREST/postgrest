@@ -47,7 +47,7 @@ import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
 import           PostgREST.Parsers
-import           PostgREST.RangeQuery
+import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder ( callProc
                                         , addJoinConditions
@@ -221,7 +221,7 @@ app dbStructure conf apiRequest =
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
   shouldCount = iPreferCount apiRequest
-  topLevelRange = fromMaybe (rangeGeq 0) $ M.lookup "limit" $ iRange apiRequest
+  topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema <$> readDbRequest
@@ -379,7 +379,7 @@ addOrder :: (Path, [OrderTerm]) -> ReadRequest -> ReadRequest
 addOrder = addProperty addOrderToNode
 
 addRangeToNode :: NonnegRange -> ReadRequest -> ReadRequest
-addRangeToNode r (Node (q,i) f) = Node (q{range_=Just r}, i) f
+addRangeToNode r (Node (q,i) f) = Node (q{range_=r}, i) f
 
 addRange :: (Path, NonnegRange) -> ReadRequest -> ReadRequest
 addRange = addProperty addRangeToNode

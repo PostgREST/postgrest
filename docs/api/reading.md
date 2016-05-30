@@ -174,7 +174,7 @@ GET /people?order=age.desc.nullslast
 
 To order the embedded items, you need to specify the tree path for the order param like so.
 ```HTTP
-GET /projects?select=id,name,tasks{id,name}&order=id.ask&tasks.order=name.ask
+GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.asc
 ```
 
 

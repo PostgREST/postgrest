@@ -35,7 +35,7 @@ import qualified Hasql.Decoders          as HD
 import qualified Data.Aeson              as JSON
 import           Data.Int                (Int64)
 
-import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset)
+import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
 import           Control.Error           (note, fromMaybe)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
@@ -289,7 +289,7 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
       unwords joins,
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord),
-      fromMaybe "" $ limitF <$> range
+      limitF range
       ]
     orderF ts =
         if null ts
@@ -409,7 +409,9 @@ locationF pKeys =
     ) <> ")"
 
 limitF :: NonnegRange -> SqlFragment
-limitF r  = "LIMIT " <> limit <> " OFFSET " <> offset
+limitF r  = if r == allRange
+  then ""
+  else "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit  = maybe "ALL" (cs . show) $ rangeLimit r
     offset = cs . show $ rangeOffset r

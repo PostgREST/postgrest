@@ -15,17 +15,18 @@ import           Data.Monoid               ((<>))
 import           Data.Ord                  (comparing)
 import           Data.String.Conversions   (cs)
 import qualified Data.Text                 as T
+import           Text.Read                 (readMaybe)
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header (hAuthorization)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, limitToRange, toRange )
+import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange)
 import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema, Payload(..),
                                             UniformObjects(..))
-import           Data.Ranged.Ranges        (singletonRange)
+import           Data.Ranged.Ranges        (singletonRange, rangeIntersection)
 
 type RequestBody = BL.ByteString
 
@@ -141,9 +142,8 @@ userApiRequest schema req reqBody =
   ApiRequest {
     iAction = action
   , iTarget = target
-  , iRange = setTopLevelRange headerRange $
-             setTopLevelRange urlRange $
-             M.fromList [(cs k, limitToRange $ cs $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
+  , iRange = M.insert "limit" (rangeIntersection headerRange urlRange) $
+      M.fromList [ (cs k, restrictRange (readMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
   , iAccepts = pickContentType $ lookupHeader "accept"
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
@@ -187,13 +187,12 @@ userApiRequest schema req reqBody =
   endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key
 
-  headerRange = if singular then Just (singletonRange 0) else rangeRequested hdrs
-  urlRange = toRange (join $ lookup "limit" qParams) (join $ lookup "offset" qParams)
-
-  setTopLevelRange :: Maybe NonnegRange -> M.HashMap String NonnegRange -> M.HashMap String NonnegRange
-  setTopLevelRange Nothing ranges = ranges
-  setTopLevelRange (Just r) ranges = M.insert "limit" r ranges
-
+  headerRange = if singular then singletonRange 0 else rangeRequested hdrs
+  urlOffsetRange = rangeGeq . fromMaybe (0::Integer) $
+    readMaybe =<< join (lookup "offset" qParams)
+  urlRange = restrictRange
+    (readMaybe =<< join (lookup "limit" qParams))
+    urlOffsetRange
 
 -- PRIVATE ---------------------------------------------------------------
 

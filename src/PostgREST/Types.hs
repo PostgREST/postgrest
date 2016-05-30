@@ -112,7 +112,7 @@ type Cast = Text
 type NodeName = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type Path = [Text]
-data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::Maybe NonnegRange } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::Payload }
                  | Delete { in_::TableName, where_::[Filter] }
                  | Update { in_::TableName, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
