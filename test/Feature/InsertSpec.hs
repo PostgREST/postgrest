@@ -189,6 +189,14 @@ spec = do
           , matchHeaders = ["Location" <:> location]
           }
 
+    context "empty object" $
+      it "successfully populates table with all-default columns" $
+        post "/items" "{}" `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just ""
+          , matchStatus  = 201
+          , matchHeaders = []
+          }
+
   describe "CSV insert" $ do
 
     context "disparate csv types" $

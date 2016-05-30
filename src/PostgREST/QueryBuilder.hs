@@ -42,7 +42,7 @@ import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
 import           Data.Monoid             ((<>))
 import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
-import qualified Data.Text as T          (map, takeWhile)
+import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
 import           Control.Applicative     ((<|>))
@@ -336,13 +336,17 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
 requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
-      colsString = intercalate ", " cols in
-  unwords [
-    "INSERT INTO ", fromQi qi,
-    " (" <> colsString <> ")" <>
-    " SELECT " <> colsString <>
-    " FROM json_populate_recordset(null::" , fromQi qi, ", $1)"
-    ]
+      colsString = intercalate ", " cols
+      insInto = unwords [ "INSERT INTO" , fromQi qi,
+          if T.null colsString then "" else "(" <> colsString <> ")"
+        ]
+      vals = if T.null colsString
+                then "DEFAULT VALUES"
+                else unwords [
+                    "SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"
+                  ] in
+  insInto <> vals
+
 requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
     Just obj ->
