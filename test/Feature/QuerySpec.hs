@@ -484,7 +484,7 @@ spec = do
 
       it "can embed foreign entities to the items returned by a proc" $
         post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client":{"id":2},"tasks":[{"id":1}]}]|]
+          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
 
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $
