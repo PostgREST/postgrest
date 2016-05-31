@@ -11,14 +11,14 @@ import           Data.Tree
 import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-
+import           PostgREST.RangeQuery      (NonnegRange,allRange)
 
 pRequestSelect :: Text -> Parser ReadRequest
 pRequestSelect rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
   where
-    readQuery = Select [] [rootNodeName] [] Nothing
+    readQuery = Select [] [rootNodeName] [] Nothing allRange
     treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
       case fldForest of
@@ -26,7 +26,7 @@ pRequestSelect rootNodeName = do
         _  -> Node (q, i) newForest
           where
             newForest =
-              foldr treeEntry (Node (Select [] [fn] [] Nothing, (fn, Nothing, alias)) []) fldForest:rForest
+              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
 
 pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -44,6 +44,12 @@ pRequestOrder (k, v) = (,) <$> path <*> ord
     treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
     path = fst <$> treePath
     ord = parse pOrder ("failed to parse order (" ++ v ++ ")") v
+
+pRequestRange :: (String, NonnegRange) -> Either ParseError (Path, NonnegRange)
+pRequestRange (k, v) = (,) <$> path <*> pure v
+  where
+    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
+    path = fst <$> treePath
 
 ws :: Parser Text
 ws = cs <$> many (oneOf " \t")

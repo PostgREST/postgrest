@@ -4,13 +4,14 @@ module PostgREST.RangeQuery (
 , rangeLimit
 , rangeOffset
 , restrictRange
+, rangeGeq
+, allRange
 , NonnegRange
 ) where
 
 
 import           Control.Applicative
 import           Network.HTTP.Types.Header
-import           PostgREST.Types           ()
 
 import qualified Data.ByteString.Char8     as BS
 import           Data.Ranged.Boundaries
@@ -34,18 +35,19 @@ rangeParse range = do
     Just parsedRange ->
       let [_, from, to] = readMaybe . cs <$> parsedRange
           lower         = fromMaybe emptyRange   (rangeGeq <$> from)
-          upper         = fromMaybe (rangeGeq 0) (rangeLeq <$> to) in
+          upper         = fromMaybe allRange (rangeLeq <$> to) in
       rangeIntersection lower upper
-    Nothing -> rangeGeq 0
+    Nothing -> allRange
 
 rangeRequested :: RequestHeaders -> NonnegRange
-rangeRequested = rangeParse . fromMaybe "" . lookup hRange
+rangeRequested headers = fromMaybe allRange $
+  rangeParse <$> lookup hRange headers
 
 restrictRange :: Maybe Integer -> NonnegRange -> NonnegRange
 restrictRange Nothing r = r
 restrictRange (Just limit) r =
-  rangeIntersection r $
-    Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
+   rangeIntersection r $
+     Range BoundaryBelowAll (BoundaryAbove $ rangeOffset r + limit - 1)
 
 rangeLimit :: NonnegRange -> Maybe Integer
 rangeLimit range =
@@ -62,6 +64,9 @@ rangeOffset range =
 rangeGeq :: Integer -> NonnegRange
 rangeGeq n =
   Range (BoundaryBelow n) BoundaryAboveAll
+
+allRange :: NonnegRange
+allRange = rangeGeq 0
 
 rangeLeq :: Integer -> NonnegRange
 rangeLeq n =

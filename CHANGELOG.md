@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Support column/node renaming `alias:column` - @ruslantalpa
 - Accept posts from HTML forms - @begriffs
 - Ability to order embedded entities - @ruslantalpa
+- Ability to paginate using &limit and &offset parameters - @ruslantalpa
+- Ability to apply limits to embedded entities and enforce --max-rows on all levels - @ruslantalpa, @begriffs 
 
 ### Fixed
 - Return 401 or 403 for access denied rather than 404 - @begriffs
