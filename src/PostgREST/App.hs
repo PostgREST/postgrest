@@ -161,13 +161,16 @@ app dbStructure conf apiRequest =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let emptyUniform = UniformObjects V.empty
-          let fakeload = PayloadJSON emptyUniform
-          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
+              fakeload = PayloadJSON emptyUniform
+              stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
           row <- H.query emptyUniform stm
-          let (_, queryTotal, _, _) = extractQueryResult row
+          let (_, queryTotal, _, body) = extractQueryResult row
+              r = contentRangeH 1 0 (toInteger <$> Just queryTotal)
           return $ if queryTotal == 0
             then notFound
-            else responseLBS status204 [("Content-Range", "*/"<> cs (show queryTotal))] ""
+            else if iPreferRepresentation apiRequest == Full
+              then responseLBS status200 [contentTypeH, r] (cs body)
+              else responseLBS status204 [r] ""
 
     (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
       if isJust $ find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure)
@@ -346,6 +349,7 @@ buildReadRequest maxRows allRels apiRequest  =
     relations = case action of
       ActionCreate -> fakeSourceRelations ++ allRels
       ActionUpdate -> fakeSourceRelations ++ allRels
+      ActionDelete -> fakeSourceRelations ++ allRels
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 

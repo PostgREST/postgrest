@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Accept posts from HTML forms - @begriffs
 - Ability to order embedded entities - @ruslantalpa
 - Ability to paginate using &limit and &offset parameters - @ruslantalpa
-- Ability to apply limits to embedded entities and enforce --max-rows on all levels - @ruslantalpa, @begriffs 
+- Ability to apply limits to embedded entities and enforce --max-rows on all levels - @ruslantalpa, @begriffs
 
 ### Fixed
 - Return 401 or 403 for access denied rather than 404 - @begriffs
@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Include entities from the same parent table using two different foreign keys - @ruslantalpa
 - Ensure that Location header in 201 response is URL-encoded - @league
 - Fix garbage collector CPU leak - @ruslantalpa et al.
+- Return deleted items when return=representation header is sent - @ruslantalpa
 
 ## [0.3.1.1] - 2016-03-28
 
