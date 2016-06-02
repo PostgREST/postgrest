@@ -150,9 +150,7 @@ userApiRequest schema req reqBody =
   , iPreferSingular = singular
   , iPreferCount = not $ singular || hasPrefer "count=none"
   , iFilters = [ (cs k, fromJust v) | (k,v) <- qParams, isJust v, k /= "select", k /= "offset", not (endingIn ["order", "limit"] k) ]
-  , iSelect = if method == "DELETE"
-              then "*"
-              else fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+  , iSelect = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
   , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
   , iCanonicalQS = urlEncodeVars
      . sortBy (comparing fst)
