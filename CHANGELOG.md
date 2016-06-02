@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Ensure that Location header in 201 response is URL-encoded - @league
 - Fix garbage collector CPU leak - @ruslantalpa et al.
 - Return deleted items when return=representation header is sent - @ruslantalpa
+- Use table default values for empty object inserts - @begriffs
 
 ## [0.3.1.1] - 2016-03-28
 

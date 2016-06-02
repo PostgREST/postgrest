@@ -204,7 +204,7 @@ INSERT INTO items VALUES (15);
 -- Name: items_id_seq; Type: SEQUENCE SET; Schema: test; Owner: -
 --
 
-SELECT pg_catalog.setval('items_id_seq', 1, true);
+SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
