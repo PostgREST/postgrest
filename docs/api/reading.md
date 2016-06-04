@@ -91,15 +91,20 @@ These operators are available:
 abbreviation | meaning
 ------------ | -------
 eq           | equals
-gt           | greater than
-lt           | less than
 gte          | greater than or equal
+gt           | greater than
 lte          | less than or equal
+lt           | less than
+neq          | not equal
 like         | LIKE operator (use * in place of %)
 ilike        | ILIKE operator (use * in place of %)
-@@           | full-text search using to_tsquery
-is           | checking for exact equality (null,true,false)
 in           | one of a list of values e.g. `?a=in.1,2,3`
+notin        | not one of a list of values e.g. `?a=notin.1,2,3`
+is           | checking for exact equality (null,true,false)
+isnot        | checking for exact inequality (null,true,false)
+@@           | full-text search using to_tsquery
+@>           | contains e.g. `?tags=@>.{example, new}`
+<@           | contained in e.g. `values=<@{1,2,3}`
 not          | negates another operator, see below
 
 To negate any operator, prefix it with `not` like `?a=not.eq.2`.
