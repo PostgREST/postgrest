@@ -1,15 +1,25 @@
-resolver: lts-5.17
+resolver: nightly-2016-06-05
 extra-deps:
   - Ranged-sets-0.3.0
   - bytestring-tree-builder-0.2.7
   - hasql-0.19.12
   - hasql-pool-0.4.1
   - hasql-transaction-0.4.5
-  - packdeps-0.4.2.1
-  - postgresql-error-codes-1
+  - jwt-0.7.2
   - postgresql-binary-0.9.0.1
+  - binary-parser-0.5.2
+  - contravariant-extras-0.3.2
+  - placeholders-0.1
+  - postgresql-error-codes-1
+  - success-0.2.6
+  - tuple-th-0.2.5
+
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-monomorphism-restriction -fwarn-missing-exported-sigs -fwarn-identities
+  postgrest: -O2 -Werror -Wall -Wmissing-exported-signatures -fwarn-identities
 
 packages:
-- '.'
+- .
+- location:
+    git: https://github.com/larskuhtz/wai-cors
+    commit: 1d1e48359a92f5136f112e51ac124052c1e46c55
+  extra-dep: true

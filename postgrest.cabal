@@ -30,7 +30,7 @@ executable postgrest
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
-                     , base >= 4.8 && < 5
+                     , base >= 4.8 && < 6
                      , bytestring
                      , bytestring-tree-builder == 0.2.7
                      , case-insensitive
@@ -76,7 +76,7 @@ library
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   build-depends:       aeson
-                     , base >=4.6 && <5
+                     , base
                      , bytestring
                      , case-insensitive
                      , cassava
@@ -157,7 +157,7 @@ Test-Suite spec
                      , hasql-pool
                      , hasql-transaction
                      , heredoc
-                     , hspec == 2.2.*
+                     , hspec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types
