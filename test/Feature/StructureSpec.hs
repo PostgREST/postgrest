@@ -8,6 +8,7 @@ import SpecHelper
 
 import Network.HTTP.Types
 import Network.Wai (Application)
+import Network.Wai.Test (SResponse(simpleHeaders))
 
 spec :: SpecWith Application
 spec = do
@@ -382,3 +383,17 @@ spec = do
 
     it "errors for non existant tables" $
       request methodOptions "/dne" [] "" `shouldRespondWith` 404
+
+  describe "Allow header" $ do
+
+    it "includes read/write verbs for writeable table" $ do
+      r <- request methodOptions "/items" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "GET,POST,PUT,PATCH,DELETE"
+
+    it "includes read verbs for read-only table" $ do
+      r <- request methodOptions "/has_count_column" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "GET"
