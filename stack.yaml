@@ -13,13 +13,10 @@ extra-deps:
   - postgresql-error-codes-1
   - success-0.2.6
   - tuple-th-0.2.5
+  - wai-cors-0.2.5
 
 ghc-options:
   postgrest: -O2 -Werror -Wall -Wmissing-exported-signatures -fwarn-identities
 
 packages:
 - .
-- location:
-    git: https://github.com/larskuhtz/wai-cors
-    commit: 1d1e48359a92f5136f112e51ac124052c1e46c55
-  extra-dep: true
