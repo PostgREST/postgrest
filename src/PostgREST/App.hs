@@ -183,7 +183,7 @@ app dbStructure conf apiRequest =
               filterCol :: Schema -> TableName -> Column -> Bool
               filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
               filterCol _ _ _ =  False
-              acceptH = (hAllow, if tableInsertable table then "GET,POST,PUT,PATCH,DELETE" else "GET") in
+              acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
           return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ cs body
 
     (ActionInvoke, TargetProc qi,

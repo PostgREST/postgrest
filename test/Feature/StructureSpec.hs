@@ -390,7 +390,7 @@ spec = do
       r <- request methodOptions "/items" [] ""
       liftIO $
         simpleHeaders r `shouldSatisfy`
-          matchHeader "Allow" "GET,POST,PUT,PATCH,DELETE"
+          matchHeader "Allow" "GET,POST,PATCH,DELETE"
 
     it "includes read verbs for read-only table" $ do
       r <- request methodOptions "/has_count_column" [] ""
