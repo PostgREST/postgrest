@@ -11,7 +11,7 @@ import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8   as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (find, delete)
-import           Data.Maybe                (isJust, fromMaybe, fromJust, mapMaybe)
+import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text, replace, strip)
@@ -173,16 +173,18 @@ app dbStructure conf apiRequest =
               else responseLBS status204 [r] ""
 
     (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
-      if isJust $ find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure)
-        then let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-                 pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-                 body = encode (TableOptions cols pkeys)
-                 filterCol :: Schema -> TableName -> Column -> Bool
-                 filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
-                 filterCol _ _ _ =  False in
-          return $ responseLBS status200 [jsonH, allOrigins] $ cs body
-        else
-          return notFound
+      let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
+      case mTable of
+        Nothing -> return notFound
+        Just table ->
+          let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+              pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+              body = encode (TableOptions cols pkeys)
+              filterCol :: Schema -> TableName -> Column -> Bool
+              filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
+              filterCol _ _ _ =  False
+              acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
+          return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ cs body
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
