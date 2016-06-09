@@ -398,6 +398,23 @@ spec = do
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
 
+    context "in a table" $ do
+      it "can provide a singular representation when updating one entity" $ do
+        _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
+        p <- request methodPatch
+          "/addresses?id=eq.97"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| { address: "B Street" } |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
+      it "can provide a singular representation when updating multiple entities" $ do
+        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
+        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
+        p <- request methodPatch
+          "/addresses?id=gte.98"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| { address: "zzz" } |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":98,"address":"zzz"}|]
+
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
         request methodPatch "/json?data->>escaped=eq.bar"
