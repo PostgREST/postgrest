@@ -145,7 +145,9 @@ app dbStructure conf apiRequest =
       case mutateSqlParts of
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
-          let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
+          let singular = iPreferSingular apiRequest
+          let representation = iPreferRepresentation apiRequest
+          let stm = createWriteStatement qi sq mq singular representation [] (contentType == TextCSV) payload
           row <- H.query uniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
