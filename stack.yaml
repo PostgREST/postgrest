@@ -14,6 +14,8 @@ extra-deps:
   - success-0.2.6
   - tuple-th-0.2.5
   - wai-cors-0.2.5
+  - cryptohash-sha256-0.11.100.0
+  - hackage-security-0.5.2.1
 
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
