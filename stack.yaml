@@ -1,4 +1,4 @@
-resolver: nightly-2016-06-05
+resolver: lts-6.2
 extra-deps:
   - Ranged-sets-0.3.0
   - bytestring-tree-builder-0.2.7
@@ -16,7 +16,7 @@ extra-deps:
   - wai-cors-0.2.5
 
 ghc-options:
-  postgrest: -O2 -Werror -Wall -Wmissing-exported-signatures -fwarn-identities
+  postgrest: -O2 -Werror -Wall -fwarn-identities
 
 packages:
 - .
