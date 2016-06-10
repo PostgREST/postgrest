@@ -180,7 +180,6 @@ Test-Suite spec
                      , transformers
                      , transformers-base
                      , unordered-containers
-                     , unix
                      , vector
                      , wai
                      , wai-cors
