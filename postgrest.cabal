@@ -30,8 +30,9 @@ executable postgrest
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
-                     , base >= 4.8 && < 5
+                     , base >= 4.8 && < 6
                      , bytestring
+                     , bytestring-tree-builder == 0.2.7
                      , case-insensitive
                      , cassava
                      , containers
@@ -39,7 +40,7 @@ executable postgrest
                      , errors
                      , hasql == 0.19.12
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.4.1
+                     , hasql-transaction == 0.4.5
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
@@ -48,6 +49,7 @@ executable postgrest
                      , mtl
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
+                     , postgresql-binary == 0.9.0.1
                      , postgrest
                      , regex-tdfa
                      , safe >= 0.3 && < 0.4
@@ -74,7 +76,7 @@ library
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
   build-depends:       aeson
-                     , base >=4.6 && <5
+                     , base
                      , bytestring
                      , case-insensitive
                      , cassava
@@ -155,7 +157,7 @@ Test-Suite spec
                      , hasql-pool
                      , hasql-transaction
                      , heredoc
-                     , hspec == 2.2.*
+                     , hspec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types

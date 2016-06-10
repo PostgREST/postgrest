@@ -3,8 +3,9 @@ dependencies:
     - "~/.stack"
     - ".stack-work"
   pre:
-    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.2/stack-1.0.2-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-1.0.2-linux-x86_64/stack /usr/bin
+    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+    - sudo apt-get update; sudo apt-get install --only-upgrade binutils
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
   override:

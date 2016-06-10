@@ -96,6 +96,7 @@ pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldN
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 
+aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
 
 pSimpleSelect :: Parser SelectItem
