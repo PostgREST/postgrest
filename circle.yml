@@ -11,7 +11,7 @@ dependencies:
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack install hlint packdeps cabal-install-1.24.0.0
+    - stack install hlint packdeps cabal-install
     - stack build
     - stack build --test --no-run-tests
 
