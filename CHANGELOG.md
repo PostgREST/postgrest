@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+
+### Fixed
+
+## [0.3.2.0] - 2016-06-10
+
+### Added
 - Reload database schema on SIGHUP - @begriffs
 - Support "-" in column names - @ruslantalpa
 - Support column/node renaming `alias:column` - @ruslantalpa
