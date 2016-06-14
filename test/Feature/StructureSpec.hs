@@ -204,7 +204,7 @@ spec = do
             "updatable": true,
             "schema": "test",
             "name": "enum",
-            "type": "USER-DEFINED",
+            "type": "test.enum_menagerie_type",
             "maxLen": null,
             "enum": [
               "foo",
@@ -310,7 +310,7 @@ spec = do
             "updatable": true,
             "schema": "test",
             "name": "simple_fk",
-            "type": "character varying",
+            "type": "character varying(255)",
             "maxLen": 255,
             "nullable": true,
             "position": 3,

@@ -285,18 +285,8 @@ allColumns tabs =
                         ELSE 'YES'::text
                     END::information_schema.yes_or_no AS is_nullable,
                     CASE
-                        WHEN t.typtype = 'd'::"char" THEN
-                        CASE
-                            WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
-                            WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
-                        END
-                        ELSE
-                        CASE
-                            WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
-                            WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
-                        END
+                        WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
+                        ELSE format_type(a.atttypid, a.atttypmod)
                     END::information_schema.character_data AS data_type,
                 information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
                 information_schema._pg_char_octet_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_octet_length,
