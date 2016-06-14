@@ -19,15 +19,15 @@ testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_t
 
 testCfg :: AppConfig
 testCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" "test" "localhost" 3000 (secret "safe") 10 Nothing True
 
 testUnicodeCfg :: AppConfig
 testUnicodeCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "تست" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" "تست" "localhost" 3000 (secret "safe") 10 Nothing True
 
 testLtdRowsCfg :: AppConfig
 testLtdRowsCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "test" 3000 (secret "safe") 10 (Just 2) True
+  AppConfig testDbConn "postgrest_test_anonymous" "test" "localhost" 3000 (secret "safe") 10 (Just 2) True
 
 setupDb :: IO ()
 setupDb = do
