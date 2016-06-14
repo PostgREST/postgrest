@@ -9,6 +9,7 @@ module PostgREST.App (
 import           Control.Applicative
 import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8   as BS
+import qualified Data.ByteString.Lazy      as BL
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (find, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
@@ -60,6 +61,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , ResultsWithCount
                                         )
 import           PostgREST.Types
+import           PostgREST.ApiSpec
 
 import           Prelude
 
@@ -180,9 +182,6 @@ app dbStructure conf apiRequest =
           let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
               pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
               body = encode (TableOptions cols pkeys)
-              filterCol :: Schema -> TableName -> Column -> Bool
-              filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
-              filterCol _ _ _ =  False
               acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
           return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ cs body
 
@@ -206,7 +205,7 @@ app dbStructure conf apiRequest =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- encode <$> H.query schema accessibleTables
+      body <- (encodeApi . toTableInfo) <$> H.query schema accessibleTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
@@ -220,8 +219,23 @@ app dbStructure conf apiRequest =
     (_, _, _) -> return notFound
 
  where
+  toTableInfo :: [Table] -> [(Table, [Column], [Text])]
+  toTableInfo ts = map (\t ->
+    let tSchema = tableSchema t
+        tTable = tableName t
+        cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+        pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+     in
+        (t, cols, pkeys)) ts
+  encodeApi :: [(Table, [Column], [Text])] -> BL.ByteString
+  encodeApi ti = encode $ apiSpec ti host port
+  host = configHost conf
+  port = toInteger $ configPort conf
   notFound = responseLBS status404 [] ""
   filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
+  filterCol :: Schema -> TableName -> Column -> Bool
+  filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
+  filterCol _ _ _ =  False
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
