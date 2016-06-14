@@ -49,7 +49,7 @@ main = do
 
   conf' <- readOptions
   host  <- getHostName
-  conf  <- return conf' { configHost = host }
+  let conf = conf'{configHost = host}
   let port = configPort conf
       pgSettings = cs (configDatabase conf)
       appSettings = setPort port
