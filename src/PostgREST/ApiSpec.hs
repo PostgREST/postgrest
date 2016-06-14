@@ -186,8 +186,18 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
     rs = makeRowFilters cs
     tn = tableName t
 
+makeRootPathItem :: (FilePath, PathItem)
+makeRootPathItem = ("/", p)
+  where
+    getOp = (mempty :: Operation)
+      & tags .~ Set.fromList ["/"]
+      & produces ?~ MimeList [(fromString . show) ApplicationJSON]
+      & at 200 ?~ "OK"
+    pr = (mempty :: PathItem) & get ?~ getOp
+    p = pr
+
 makePathItems :: [(Table, [Column], [Text])] -> InsOrdHashMap FilePath PathItem
-makePathItems ti = fromList (map makePathItem ti)
+makePathItems ti = fromList $ makeRootPathItem : map makePathItem ti
 
 apiSpec :: [(Table, [Column], [Text])] -> String -> Integer -> Swagger
 apiSpec ti h p = (mempty :: Swagger)
