@@ -220,13 +220,13 @@ app dbStructure conf apiRequest =
 
  where
   toTableInfo :: [Table] -> [(Table, [Column], [Text])]
-  toTableInfo ts = map (\t ->
+  toTableInfo = map (\t ->
     let tSchema = tableSchema t
         tTable = tableName t
         cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
         pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
      in
-        (t, cols, pkeys)) ts
+        (t, cols, pkeys))
   encodeApi :: [(Table, [Column], [Text])] -> BL.ByteString
   encodeApi ti = encode $ apiSpec ti host port
   host = configHost conf
