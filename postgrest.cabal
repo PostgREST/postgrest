@@ -44,8 +44,8 @@ executable postgrest
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens >= 0.4.2 && < 0.5
-                     , microlens-aeson >= 2.1.1 && < 2.2
+                     , lens >=3.8 && < 5.0
+                     , lens-aeson >= 1.0.0.0 && < 1.1.0.0
                      , mtl
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
@@ -65,6 +65,10 @@ executable postgrest
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
+                     , insert-ordered-containers >= 0.1.0.1
+                     , http-media >= 0.6.3
+                     , swagger2 >= 2.1
+                     , network >= 2.6.2.1
                      , HTTP
                      , Ranged-sets
   if !os(windows)
@@ -89,8 +93,8 @@ library
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens
-                     , microlens-aeson
+                     , lens
+                     , lens-aeson
                      , mtl
                      , optparse-applicative
                      , parsec
@@ -109,6 +113,10 @@ library
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
+                     , insert-ordered-containers >= 0.1.0.1
+                     , http-media >= 0.6.3
+                     , swagger2 >= 2.1
+                     , network >= 2.6.2.1
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
@@ -122,6 +130,7 @@ library
                      , PostgREST.RangeQuery
                      , PostgREST.ApiRequest
                      , PostgREST.Types
+                     , PostgREST.ApiSpec
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -163,8 +172,8 @@ Test-Suite spec
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens
-                     , microlens-aeson
+                     , lens
+                     , lens-aeson
                      , monad-control
                      , mtl
                      , optparse-applicative
@@ -186,5 +195,9 @@ Test-Suite spec
                      , wai-extra
                      , wai-middleware-static
                      , warp
+                     , insert-ordered-containers
+                     , http-media
+                     , swagger2
+                     , network
                      , HTTP
                      , Ranged-sets
