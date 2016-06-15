@@ -13,6 +13,54 @@ import Network.Wai.Test (SResponse(simpleHeaders))
 spec :: SpecWith Application
 spec = do
 
+  describe "GET /" $ do
+    it "lists views in schema" $
+      request methodGet "/" [] ""
+        `shouldRespondWith` [json| [
+          {"schema":"test","name":"Escap3e;","insertable":true}
+        , {"schema":"test","name":"addresses","insertable":true}
+        , {"schema":"test","name":"articleStars","insertable":true}
+        , {"schema":"test","name":"articles","insertable":true}
+        , {"schema":"test","name":"auto_incrementing_pk","insertable":true}
+        , {"schema":"test","name":"clients","insertable":true}
+        , {"schema":"test","name":"comments","insertable":true}
+        , {"schema":"test","name":"complex_items","insertable":true}
+        , {"schema":"test","name":"compound_pk","insertable":true}
+        , {"schema":"test","name":"empty_table","insertable":true}
+        , {"schema":"test","name":"filtered_tasks","insertable":true}
+        , {"schema":"test","name":"ghostBusters","insertable":true}
+        , {"schema":"test","name":"has_count_column","insertable":false}
+        , {"schema":"test","name":"has_fk","insertable":true}
+        , {"schema":"test","name":"insertable_view_with_join","insertable":true}
+        , {"schema":"test","name":"insertonly","insertable":true}
+        , {"schema":"test","name":"items","insertable":true}
+        , {"schema":"test","name":"json","insertable":true}
+        , {"schema":"test","name":"materialized_view","insertable":false}
+        , {"schema":"test","name":"menagerie","insertable":true}
+        , {"schema":"test","name":"no_pk","insertable":true}
+        , {"schema":"test","name":"nullable_integer","insertable":true}
+        , {"schema":"test","name":"orders","insertable":true}
+        , {"schema":"test","name":"projects","insertable":true}
+        , {"schema":"test","name":"projects_view","insertable":true}
+        , {"schema":"test","name":"simple_pk","insertable":true}
+        , {"schema":"test","name":"tasks","insertable":true}
+        , {"schema":"test","name":"tsearch","insertable":true}
+        , {"schema":"test","name":"users","insertable":true}
+        , {"schema":"test","name":"users_projects","insertable":true}
+        , {"schema":"test","name":"users_tasks","insertable":true}
+        , {"schema":"test","name":"withUnique","insertable":true}
+        ] |]
+        {matchStatus = 200}
+
+    it "lists only views user has permission to see" $ do
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
+
+      request methodGet "/" [auth] ""
+        `shouldRespondWith` [json| [
+            {"schema":"test","name":"authors_only","insertable":true}
+        ] |]
+        {matchStatus = 200}
+
   describe "Table info" $ do
     it "The structure of complex views is correctly detected" $
       request methodOptions "/filtered_tasks" [] "" `shouldRespondWith`

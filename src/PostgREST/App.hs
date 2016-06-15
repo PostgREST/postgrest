@@ -204,7 +204,9 @@ app dbStructure conf apiRequest =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- (encodeApi . toTableInfo) <$> H.query schema accessibleTables
+      body <- if contentType == OpenAPI
+                 then (encodeApi . toTableInfo) <$> H.query schema accessibleTables
+                 else encode <$> H.query schema accessibleTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
