@@ -19,7 +19,6 @@ import qualified Hasql.Decoders                       as HD
 import qualified Hasql.Encoders                       as HE
 import qualified Hasql.Pool                           as P
 import           Network.Wai.Handler.Warp
-import           Network.BSD                          (getHostName)
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, stderr,
                                                        stdin, stdout)
@@ -47,9 +46,7 @@ main = do
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
 
-  conf' <- readOptions
-  host  <- getHostName
-  let conf = conf'{configHost = host}
+  conf <- readOptions
   let port = configPort conf
       pgSettings = cs (configDatabase conf)
       appSettings = setPort port

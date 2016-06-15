@@ -20,7 +20,6 @@ extra-deps:
   - insert-ordered-containers-0.1.0.1
   - swagger2-2.1
   - http-media-0.6.3
-  - network-2.6.2.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
 
