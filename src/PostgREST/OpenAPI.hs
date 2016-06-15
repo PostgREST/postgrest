@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module PostgREST.ApiSpec (
-  apiSpec
+module PostgREST.OpenAPI (
+  encodeOpenAPI
   ) where
 
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
+import           Data.ByteString.Lazy        (ByteString)
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.String                 (IsString (..))
 import           Data.Text                   (Text, unpack, pack, concat, intercalate)
@@ -199,8 +200,8 @@ makeRootPathItem = ("/", p)
 makePathItems :: [(Table, [Column], [Text])] -> InsOrdHashMap FilePath PathItem
 makePathItems ti = fromList $ makeRootPathItem : map makePathItem ti
 
-apiSpec :: [(Table, [Column], [Text])] -> String -> Integer -> Swagger
-apiSpec ti h p = (mempty :: Swagger)
+postgrestSpec:: [(Table, [Column], [Text])] -> String -> Integer -> Swagger
+postgrestSpec ti h p = (mempty :: Swagger)
   & basePath ?~ "/"
   & schemes ?~ [Http]
   & info .~ ((mempty :: Info)
@@ -212,3 +213,6 @@ apiSpec ti h p = (mempty :: Swagger)
   & paths .~ makePathItems ti
     where
       h' = Just $ Host h (Just (fromInteger p))
+
+encodeOpenAPI :: [(Table, [Column], [Text])] -> String -> Integer -> ByteString
+encodeOpenAPI ti h p = encode $ postgrestSpec ti h p
