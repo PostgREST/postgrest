@@ -9,7 +9,6 @@ module PostgREST.App (
 import           Control.Applicative
 import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8   as BS
-import qualified Data.ByteString.Lazy      as BL
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (find, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
@@ -61,7 +60,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , ResultsWithCount
                                         )
 import           PostgREST.Types
-import           PostgREST.ApiSpec
+import           PostgREST.OpenAPI
 
 import           Prelude
 
@@ -227,8 +226,7 @@ app dbStructure conf apiRequest =
         pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
      in
         (t, cols, pkeys))
-  encodeApi :: [(Table, [Column], [Text])] -> BL.ByteString
-  encodeApi ti = encode $ apiSpec ti host port
+  encodeApi ti = encodeOpenAPI ti host port
   host = configHost conf
   port = toInteger $ configPort conf
   notFound = responseLBS status404 [] ""

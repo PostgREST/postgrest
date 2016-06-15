@@ -128,7 +128,7 @@ library
                      , PostgREST.RangeQuery
                      , PostgREST.ApiRequest
                      , PostgREST.Types
-                     , PostgREST.ApiSpec
+                     , PostgREST.OpenAPI
   hs-source-dirs:      src
 
 Test-Suite spec
