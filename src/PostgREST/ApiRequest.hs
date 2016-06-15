@@ -125,7 +125,7 @@ userApiRequest schema req reqBody =
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
         Right OpenAPI ->
-          PayloadParseError "Content-type not acceptable"
+          PayloadParseError "Content-type not acceptable: application/openapi+json; charset=utf-8"
         -- This is a Left value because form-urlencoded is not a content
         -- type which we ever use for responses, only something we handle
         -- just this once for requests
