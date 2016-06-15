@@ -10,7 +10,6 @@ import           Data.ByteString.Lazy        (ByteString)
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.String                 (IsString (..))
 import           Data.Text                   (Text, unpack, pack, concat, intercalate)
-import           Network.HTTP.Media          (MediaType)
 import qualified Data.Set                    as Set
 
 import           Prelude hiding              (concat)
@@ -22,8 +21,8 @@ import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..))
 
-makeMimeList :: [MediaType]
-makeMimeList = map (fromString . show) [ApplicationJSON, TextCSV]
+makeMimeList :: [ContentType] -> MimeList
+makeMimeList cs = MimeList $ map (fromString . show) cs
 
 toSwaggerType :: Text -> SwaggerType t
 toSwaggerType "text"      = SwaggerString
@@ -168,15 +167,15 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
   where
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
-      & produces ?~ MimeList makeMimeList
+      & produces ?~ makeMimeList [ApplicationJSON, TextCSV]
       & at 200 ?~ "OK"
     getOp = tOp
       & parameters .~ map Inline (makeGetParams cs ++ rs)
     postOp = tOp
-      & consumes ?~ MimeList makeMimeList
+      & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
       & parameters .~ map Inline (makePostParams tn)
     patchOp = tOp
-      & consumes ?~ MimeList makeMimeList
+      & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
       & parameters .~ map Inline (makePostParams tn ++ rs)
     deletOp = tOp
       & parameters .~ map Inline (makeDeleteParams ++ rs)
@@ -192,7 +191,8 @@ makeRootPathItem = ("/", p)
   where
     getOp = (mempty :: Operation)
       & tags .~ Set.fromList ["/"]
-      & produces ?~ MimeList [(fromString . show) ApplicationJSON]
+      & produces ?~ makeMimeList [ApplicationJSON, OpenAPI]
+      & consumes ?~ makeMimeList [ApplicationJSON, OpenAPI]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr

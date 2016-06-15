@@ -66,7 +66,6 @@ executable postgrest
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
                      , insert-ordered-containers >= 0.1.0.1
-                     , http-media >= 0.6.3
                      , swagger2 >= 2.1
                      , HTTP
                      , Ranged-sets
@@ -113,7 +112,6 @@ library
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
                      , insert-ordered-containers >= 0.1.0.1
-                     , http-media >= 0.6.3
                      , swagger2 >= 2.1
 
   Other-Modules:       Paths_postgrest
@@ -194,7 +192,6 @@ Test-Suite spec
                      , wai-middleware-static
                      , warp
                      , insert-ordered-containers
-                     , http-media
                      , swagger2
                      , HTTP
                      , Ranged-sets
