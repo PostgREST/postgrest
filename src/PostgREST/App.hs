@@ -204,9 +204,11 @@ app dbStructure conf apiRequest =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- if contentType == OpenAPI
-                 then (encodeApi . toTableInfo) <$> H.query schema accessibleTables
-                 else encode <$> H.query schema accessibleTables
+      let encodeApi ti = encodeOpenAPI ti host port
+          host = configHost conf
+          port = toInteger $ configPort conf
+          encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
+      body <- encodeFn <$> H.query schema accessibleTables
       return $ responseLBS status200 [jsonH] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
@@ -228,9 +230,6 @@ app dbStructure conf apiRequest =
         pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
      in
         (t, cols, pkeys))
-  encodeApi ti = encodeOpenAPI ti host port
-  host = configHost conf
-  port = toInteger $ configPort conf
   notFound = responseLBS status404 [] ""
   filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
   filterCol :: Schema -> TableName -> Column -> Bool
