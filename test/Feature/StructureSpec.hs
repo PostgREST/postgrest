@@ -8,7 +8,7 @@ import SpecHelper
 
 import Network.HTTP.Types
 import Network.Wai (Application)
-import Network.Wai.Test (SResponse(simpleHeaders))
+import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
 
 spec :: SpecWith Application
 spec = do
@@ -60,6 +60,21 @@ spec = do
             {"schema":"test","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
+
+    it "returns a valid swagger spec" $ do
+      r <- request methodGet "/" [("Accept", "application/openapi+json")] ""
+      liftIO $
+        let respStatus = simpleStatus r in
+        respStatus `shouldSatisfy`
+          \s -> s == Status { statusCode = 200, statusMessage="OK" }
+      liftIO $
+        let respHeaders = simpleHeaders r in
+        respHeaders `shouldSatisfy`
+          \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
+      liftIO $
+        let respBody = simpleBody r in
+        respBody `shouldSatisfy`
+          \b -> b == b
 
   describe "Table info" $ do
     it "The structure of complex views is correctly detected" $
