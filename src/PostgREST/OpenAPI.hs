@@ -175,12 +175,15 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & at 200 ?~ "OK"
     getOp = tOp
       & parameters .~ map Inline (makeGetParams cs ++ rs)
+      & at 206 ?~ "Partial Content"
     postOp = tOp
       & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
       & parameters .~ map Inline (makePostParams tn)
+      & at 201 ?~ "Created"
     patchOp = tOp
       & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
       & parameters .~ map Inline (makePostParams tn ++ rs)
+      & at 204 ?~ "No Content"
     deletOp = tOp
       & parameters .~ map Inline (makeDeleteParams ++ rs)
     pr = (mempty :: PathItem) & get ?~ getOp
