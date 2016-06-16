@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Ability to generate an OpenAPI spec - @hudayou, @ruslantalpa, @begriffs
 
 - Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
 
