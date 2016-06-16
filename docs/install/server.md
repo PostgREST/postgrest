@@ -1,5 +1,37 @@
 ## Installation
 
+### Install pre-built packages
+
+Some linux packages are availables on http://packagecloud.io
+
++ **debian**
++ **ubuntu**
++ **fedora**
++ **enterprise linux** (`centos`, `rhel`, `scientific linux`)
+
+:warning: Package are built for `amd64` architecture :warning:
+
+#### debian / ubuntu
+
+```sh
+curl -s https://packagecloud.io/install/repositories/waghanza/plunder/script.deb.sh | sudo bash
+apt-get install postgrest
+```
+
+#### enterprise linux
+
+```sh
+curl -s https://packagecloud.io/install/repositories/waghanza/plunder/script.rpm.sh | sudo bash
+yum install postgrest
+```
+
+#### fedora
+
+```sh
+curl -s https://packagecloud.io/install/repositories/waghanza/plunder/script.rpm.sh | sudo bash
+dnf install postgrest
+```
+
 ### Installing from Pre-Built Release
 
 The [release page](https://github.com/begriffs/postgrest/releases/latest)
