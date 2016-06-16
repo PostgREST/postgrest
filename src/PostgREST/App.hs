@@ -208,8 +208,9 @@ app dbStructure conf apiRequest =
           host = configHost conf
           port = toInteger $ configPort conf
           encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
+          header = if contentType == OpenAPI then openapiH else jsonH
       body <- encodeFn <$> H.query schema accessibleTables
-      return $ responseLBS status200 [jsonH] $ cs body
+      return $ responseLBS status200 [header] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
 
@@ -285,6 +286,9 @@ contentRangeH frm to total =
 
 jsonH :: Header
 jsonH = (hContentType, "application/json; charset=utf-8")
+
+openapiH :: Header
+openapiH = (hContentType, "application/openapi+json; charset=utf-8")
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError
