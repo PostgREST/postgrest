@@ -6,6 +6,7 @@ module PostgREST.Middleware where
 import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import           Data.String.Conversions       (cs)
+import           Data.Maybe                    (fromMaybe, listToMaybe)
 import           Data.Text
 import qualified Hasql.Transaction             as H
 
@@ -17,7 +18,7 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..), pickContentType)
+import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..), pickContentType)
 import           PostgREST.Auth                (claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
@@ -40,10 +41,14 @@ runWithClaims conf eClaims app req =
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond =
-  case accept of
-    Left _ -> respond $ errResponse status415 "Unsupported Accept header, try: application/json"
-    Right _ -> app req respond
+  case (isTargetRoot, accept) of
+    (_, Left _) -> unsupportedAcceptRespond
+    (False, Right OpenAPI) -> unsupportedAcceptRespond
+    (_, Right _) -> app req respond
   where accept = pickContentType $ lookup hAccept $ requestHeaders req
+        path = pathInfo req
+        isTargetRoot = fromMaybe True $ (== "") <$> listToMaybe path
+        unsupportedAcceptRespond = respond $ errResponse status415 "Unsupported Accept header, try: application/json"
 
 defaultMiddle :: Application -> Application
 defaultMiddle =
