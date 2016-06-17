@@ -87,6 +87,11 @@ spec = do
            in
            D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
 
+    it "should respond to openapi request on none root path with 415" $
+      request methodGet "/none_root_path"
+              (acceptHdrs "application/openapi+json") ""
+        `shouldRespondWith` 415
+
   describe "Table info" $ do
     it "The structure of complex views is correctly detected" $
       request methodOptions "/filtered_tasks" [] "" `shouldRespondWith`
