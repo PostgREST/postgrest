@@ -310,7 +310,7 @@ spec = do
             "updatable": true,
             "schema": "test",
             "name": "simple_fk",
-            "type": "character varying(255)",
+            "type": "character varying",
             "maxLen": 255,
             "nullable": true,
             "position": 3,
