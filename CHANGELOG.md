@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 ### Fixed
+- Do not apply limit to parent items - @ruslantalpa
 
 ## [0.3.2.0] - 2016-06-10
 
