@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
-- Ability to generate an OpenAPI spec - @hudayou, @ruslantalpa, @begriffs
+- Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
