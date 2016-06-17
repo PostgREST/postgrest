@@ -229,9 +229,9 @@ app dbStructure conf apiRequest =
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-  selectQuery = requestToQuery schema <$> readDbRequest
+  selectQuery = requestToQuery schema False <$> readDbRequest
   countQuery = requestToCountQuery schema <$> readDbRequest
-  mutateQuery = requestToQuery schema <$> mutateDbRequest
+  mutateQuery = requestToQuery schema False <$> mutateDbRequest
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
   respondToRange response = if topLevelRange == emptyRange
