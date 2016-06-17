@@ -27,6 +27,6 @@ ghc-options:
 packages:
 - .
 - location:
-    git: https://github.com/hudayou/hjsonschema.git
-    commit: 2dccf1b738920e4b1bea50804d2f1d546ab1b210
+    git: https://github.com/seagreen/hjsonschema
+    commit: 075da33626d9d5cf20645a998b86518222d6b2d6
   extra-dep: true
