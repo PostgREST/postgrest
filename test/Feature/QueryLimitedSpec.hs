@@ -35,3 +35,12 @@ spec =
         , matchStatus  = 206
         , matchHeaders = ["Content-Range" <:> "0-1/3"]
         }
+
+    it "limit is not applied to parent embeds" $
+      get "/tasks?select=id,project{id}&id=gt.5"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [str|[{"id":6,"project":{"id":3}},{"id":7,"project":{"id":4}}]|]
+        , matchStatus  = 206
+        , matchHeaders = ["Content-Range" <:> "0-1/3"]
+        }
+
