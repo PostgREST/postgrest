@@ -19,8 +19,14 @@ extra-deps:
   - unordered-containers-0.2.7.1
   - insert-ordered-containers-0.1.0.1
   - swagger2-2.1
+  # - hjsonschema-0.10.0.2
+  - hjsonpointer-0.3.0.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
 
 packages:
 - .
+- location:
+    git: https://github.com/hudayou/hjsonschema.git
+    commit: 2dccf1b738920e4b1bea50804d2f1d546ab1b210
+  extra-dep: true

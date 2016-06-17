@@ -192,6 +192,8 @@ Test-Suite spec
                      , wai-middleware-static
                      , warp
                      , insert-ordered-containers
+                     , hjsonpointer
+                     , hjsonschema
                      , swagger2
                      , HTTP
                      , Ranged-sets
