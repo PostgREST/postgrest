@@ -10,6 +10,10 @@ import Network.HTTP.Types
 import Network.Wai (Application)
 import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
 
+import Data.Maybe (fromJust)
+import Data.Aeson (decode)
+import qualified Data.JsonSchema.Draft4 as D4
+
 spec :: SpecWith Application
 spec = do
 
@@ -61,7 +65,7 @@ spec = do
         ] |]
         {matchStatus = 200}
 
-    it "returns a valid swagger spec" $ do
+    it "returns a valid openapi spec" $ do
       r <- request methodGet "/" [("Accept", "application/openapi+json")] ""
       liftIO $
         let respStatus = simpleStatus r in
@@ -72,9 +76,16 @@ spec = do
         respHeaders `shouldSatisfy`
           \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
       liftIO $
-        let respBody = simpleBody r in
-        respBody `shouldSatisfy`
-          \b -> b == b
+        let respBody = simpleBody r
+            schema :: D4.Schema
+            schema = D4.emptySchema { D4._schemaRef = Just "openapi.json" }
+            schemaContext :: D4.SchemaWithURI D4.Schema
+            schemaContext = D4.SchemaWithURI
+              { D4._swSchema = schema
+              , D4._swURI    = Just "test/fixtures/openapi.json"
+              }
+           in
+           D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
 
   describe "Table info" $ do
     it "The structure of complex views is correctly detected" $
