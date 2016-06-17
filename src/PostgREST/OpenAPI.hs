@@ -127,16 +127,25 @@ makePreferParam ts =
     & type_ .~ SwaggerString
     & enum_ .~ decode (encode ts))
 
-makeGetParams :: [Column] -> [Param]
-makeGetParams cs =
-  makeRangeParams ++
-  [ (mempty :: Param)
+makeSelectParam :: Param
+makeSelectParam =
+  (mempty :: Param)
     & name        .~ "select"
     & description ?~ "Filtering Columns"
     & required    ?~ False
     & schema .~ ParamOther ((mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
       & type_ .~ SwaggerString)
+
+makeGetParams :: [Column] -> [Param]
+makeGetParams [] =
+  makeRangeParams ++
+  [ makeSelectParam
+  , makePreferParam ["plurality=singular", "count=none"]
+  ]
+makeGetParams cs =
+  makeRangeParams ++
+  [ makeSelectParam
   , (mempty :: Param)
     & name        .~ "order"
     & description ?~ "Ordering"
