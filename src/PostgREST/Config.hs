@@ -52,7 +52,7 @@ argParser = AppConfig
   <$> argument str (help "(REQUIRED) database connection string, e.g. postgres://user:pass@host:port/db" <> metavar "DB_URL")
   <*> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE")
   <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault)
-  <*> strOption    (long "hostname"   <> short 'n' <> help "hostname on which the HTTP server is running" <> metavar "HOSTNAME" <> value "localhost" <> showDefault)
+  <*> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault)
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
   <*> (secret . cs <$>
       strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))

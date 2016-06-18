@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
+- Ability to set addresses to listen on - @hudayou
 
 - Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
 
