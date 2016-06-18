@@ -13,6 +13,7 @@ import           PostgREST.DbStructure
 import           Control.Monad
 import           Data.Monoid                          ((<>))
 import           Data.String.Conversions              (cs)
+import           Data.String                          (IsString (..))
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -47,9 +48,11 @@ main = do
   hSetBuffering stderr NoBuffering
 
   conf <- readOptions
-  let port = configPort conf
+  let host = configHost conf
+      port = configPort conf
       pgSettings = cs (configDatabase conf)
-      appSettings = setPort port
+      appSettings = setHost (fromString host)
+                  . setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
 

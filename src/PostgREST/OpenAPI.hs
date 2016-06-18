@@ -215,6 +215,14 @@ makeRootPathItem = ("/", p)
 makePathItems :: [(Table, [Column], [Text])] -> InsOrdHashMap FilePath PathItem
 makePathItems ti = fromList $ makeRootPathItem : map makePathItem ti
 
+escapeHostName :: String -> String
+escapeHostName "*"  = "0.0.0.0"
+escapeHostName "*4" = "0.0.0.0"
+escapeHostName "!4" = "0.0.0.0"
+escapeHostName "*6" = "0.0.0.0"
+escapeHostName "!6" = "0.0.0.0"
+escapeHostName h    = h
+
 postgrestSpec:: [(Table, [Column], [Text])] -> String -> Integer -> Swagger
 postgrestSpec ti h p = (mempty :: Swagger)
   & basePath ?~ "/"
@@ -227,7 +235,7 @@ postgrestSpec ti h p = (mempty :: Swagger)
   & definitions .~ makeDefinitions ti
   & paths .~ makePathItems ti
     where
-      h' = Just $ Host h (Just (fromInteger p))
+      h' = Just $ Host (escapeHostName h) (Just (fromInteger p))
 
 encodeOpenAPI :: [(Table, [Column], [Text])] -> String -> Integer -> ByteString
 encodeOpenAPI ti h p = encode $ postgrestSpec ti h p
