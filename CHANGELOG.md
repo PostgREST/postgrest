@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
+
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
 
