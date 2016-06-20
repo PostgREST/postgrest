@@ -18,7 +18,7 @@ dependencies:
 test:
   override:
     - stack test
-    - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
+    - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
     - stack exec -- cabal update
     - stack exec --no-ghc-package-path -- cabal install --only-d --dry-run
     - stack exec -- packdeps *.cabal || true

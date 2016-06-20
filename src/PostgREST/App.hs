@@ -60,6 +60,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , ResultsWithCount
                                         )
 import           PostgREST.Types
+import           PostgREST.OpenAPI
 
 import           Prelude
 
@@ -180,9 +181,6 @@ app dbStructure conf apiRequest =
           let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
               pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
               body = encode (TableOptions cols pkeys)
-              filterCol :: Schema -> TableName -> Column -> Bool
-              filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
-              filterCol _ _ _ =  False
               acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
           return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ cs body
 
@@ -206,8 +204,13 @@ app dbStructure conf apiRequest =
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
-      body <- encode <$> H.query schema accessibleTables
-      return $ responseLBS status200 [jsonH] $ cs body
+      let encodeApi ti = encodeOpenAPI ti host port
+          host = configHost conf
+          port = toInteger $ configPort conf
+          encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
+          header = if contentType == OpenAPI then openapiH else jsonH
+      body <- encodeFn <$> H.query schema accessibleTables
+      return $ responseLBS status200 [header] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
 
@@ -220,8 +223,19 @@ app dbStructure conf apiRequest =
     (_, _, _) -> return notFound
 
  where
+  toTableInfo :: [Table] -> [(Table, [Column], [Text])]
+  toTableInfo = map (\t ->
+    let tSchema = tableSchema t
+        tTable = tableName t
+        cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+        pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+     in
+        (t, cols, pkeys))
   notFound = responseLBS status404 [] ""
   filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
+  filterCol :: Schema -> TableName -> Column -> Bool
+  filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
+  filterCol _ _ _ =  False
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
   schema = cs $ configSchema conf
@@ -272,6 +286,9 @@ contentRangeH frm to total =
 
 jsonH :: Header
 jsonH = (hContentType, "application/json; charset=utf-8")
+
+openapiH :: Header
+openapiH = (hContentType, "application/openapi+json; charset=utf-8")
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError
