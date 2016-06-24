@@ -2,24 +2,30 @@
 
 module PostgREST.OpenAPI (
   encodeOpenAPI
+  , isMalformedProxyUri
+  , pickProxy
   ) where
 
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
 import           Data.ByteString.Lazy        (ByteString)
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
+import           Data.Maybe                  (isJust, isNothing, fromJust)
 import           Data.String                 (IsString (..))
-import           Data.Text                   (Text, unpack, pack, concat, intercalate)
+import           Data.Text                   (Text, unpack, pack, concat, intercalate, init, tail, toLower)
 import qualified Data.Set                    as Set
+import           Network.URI                 (parseURI, isAbsoluteURI,
+                                              URI (..), URIAuth (..))
 
-import           Prelude hiding              (concat)
+import           Prelude hiding              (concat, init, tail)
 
 import           Data.Swagger
 
 import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
-import           PostgREST.Types             (Table(..), Column(..))
+import           PostgREST.Types             (Table(..), Column(..),
+                                              Proxy(..))
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . show) cs
@@ -215,7 +221,7 @@ makeRootPathItem = ("/", p)
 makePathItems :: [(Table, [Column], [Text])] -> InsOrdHashMap FilePath PathItem
 makePathItems ti = fromList $ makeRootPathItem : map makePathItem ti
 
-escapeHostName :: String -> String
+escapeHostName :: Text -> Text
 escapeHostName "*"  = "0.0.0.0"
 escapeHostName "*4" = "0.0.0.0"
 escapeHostName "!4" = "0.0.0.0"
@@ -223,10 +229,10 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec:: [(Table, [Column], [Text])] -> String -> Integer -> Swagger
-postgrestSpec ti h p = (mempty :: Swagger)
-  & basePath ?~ "/"
-  & schemes ?~ [Http]
+postgrestSpec:: [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Swagger
+postgrestSpec ti (s, h, p, b) = (mempty :: Swagger)
+  & basePath ?~ unpack b
+  & schemes ?~ [s']
   & info .~ ((mempty :: Info)
       & version .~ pack prettyVersion
       & title .~ "PostgREST API"
@@ -235,7 +241,90 @@ postgrestSpec ti h p = (mempty :: Swagger)
   & definitions .~ makeDefinitions ti
   & paths .~ makePathItems ti
     where
-      h' = Just $ Host (escapeHostName h) (Just (fromInteger p))
+      s' = if s == "http" then Http else Https
+      h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
 
-encodeOpenAPI :: [(Table, [Column], [Text])] -> String -> Integer -> ByteString
-encodeOpenAPI ti h p = encode $ postgrestSpec ti h p
+encodeOpenAPI :: [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> ByteString
+encodeOpenAPI ti uri = encode $ postgrestSpec ti uri
+
+{-|
+  Test whether a proxy uri is malformed or not.
+  A valid proxy uri should be an absolute uri without query and user info,
+  only http(s) schemes are valid, port number range is 1-65535.
+
+  For example
+  http://postgrest.com/openapi.json
+  https://postgrest.com:8080/openapi.json
+-}
+isMalformedProxyUri :: Maybe String -> Bool
+isMalformedProxyUri Nothing =  False
+isMalformedProxyUri (Just uri)
+  | isAbsoluteURI uri = not $ isUriValid $ toURI uri
+  | otherwise = True
+
+toURI :: String -> URI
+toURI uri = fromJust $ parseURI uri
+
+pickProxy :: Maybe String -> Maybe Proxy
+pickProxy proxy
+  | isNothing proxy = Nothing
+  -- should never happen
+  -- since the request would have been rejected by the middleware if proxy uri
+  -- is malformed
+  | isMalformedProxyUri proxy = Nothing
+  | otherwise = Just Proxy {
+    proxyScheme = scheme
+  , proxyHost = host'
+  , proxyPort = port''
+  , proxyPath = path'
+  }
+ where
+   uri = toURI $ fromJust proxy
+   scheme = init $ toLower $ pack $ uriScheme uri
+   path URI {uriPath = ""} =  "/"
+   path URI {uriPath = p} = p
+   path' = pack $ path uri
+   authority = fromJust $ uriAuthority uri
+   host' = pack $ uriRegName authority
+   port' = uriPort authority
+   port'' :: Integer
+   port'' = case (port', scheme) of
+             ("", "http") -> 80
+             ("", "https") -> 443
+             _ -> read $ unpack $ tail $ pack port'
+
+isUriValid:: URI -> Bool
+isUriValid = fAnd [isSchemeValid, isQueryValid, isAuthorityValid]
+
+fAnd :: [a -> Bool] -> a -> Bool
+fAnd fs x = all ($x) fs
+
+isSchemeValid :: URI -> Bool
+isSchemeValid URI {uriScheme = s}
+  | toLower (pack s) == "https:" = True
+  | toLower (pack s) == "http:" = True
+  | otherwise = False
+
+isQueryValid :: URI -> Bool
+isQueryValid URI {uriQuery = ""} = True
+isQueryValid _ = False
+
+isAuthorityValid :: URI -> Bool
+isAuthorityValid URI {uriAuthority = a}
+  | isJust a = fAnd [isUserInfoValid, isHostValid, isPortValid] $ fromJust a
+  | otherwise = False
+
+isUserInfoValid :: URIAuth -> Bool
+isUserInfoValid URIAuth {uriUserInfo = ""} = True
+isUserInfoValid _ = False
+
+isHostValid :: URIAuth -> Bool
+isHostValid URIAuth {uriRegName = ""} = False
+isHostValid _ = True
+
+isPortValid :: URIAuth -> Bool
+isPortValid URIAuth {uriPort = ""} = True
+isPortValid URIAuth {uriPort = (':':p)} =
+  let i :: Integer = read p in
+      i > 0 && i < 65536
+isPortValid _ = False

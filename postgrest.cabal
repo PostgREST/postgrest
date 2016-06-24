@@ -67,6 +67,7 @@ executable postgrest
                      , warp >= 3.1.0
                      , insert-ordered-containers >= 0.1.0.1
                      , swagger2 >= 2.1
+                     , network-uri >= 2.6.1.0
                      , HTTP
                      , Ranged-sets
                      , protolude >= 0.1.5 && < 0.2.0
@@ -115,6 +116,7 @@ library
                      , insert-ordered-containers >= 0.1.0.1
                      , swagger2 >= 2.1
                      , protolude >= 0.1.5 && < 0.2.0
+                     , network-uri >= 2.6.1.0
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
@@ -197,5 +199,6 @@ Test-Suite spec
                      , hjsonpointer
                      , hjsonschema
                      , swagger2
+                     , network-uri
                      , HTTP
                      , Ranged-sets

@@ -103,6 +103,13 @@ data Payload = PayloadJSON UniformObjects
              | PayloadParseError BS.ByteString
              deriving (Show, Eq)
 
+data Proxy = Proxy {
+  proxyScheme     :: Text
+, proxyHost       :: Text
+, proxyPort       :: Integer
+, proxyPath       :: Text
+} deriving (Show, Eq)
+
 type Operator = Text
 data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 type FieldName = Text
