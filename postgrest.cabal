@@ -41,7 +41,7 @@ executable postgrest
                      , hasql == 0.19.12
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
-                     , http-types
+                     , http-types >= 0.9 && < 0.10
                      , interpolatedstring-perl6
                      , jwt
                      , lens >=3.8 && < 5.0
