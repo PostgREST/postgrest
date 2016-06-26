@@ -4,7 +4,7 @@ extra-deps:
   - bytestring-tree-builder-0.2.7
   - hasql-0.19.12
   - hasql-pool-0.4.1
-  - hasql-transaction-0.4.5
+  - hasql-transaction-0.4.5.1
   - jwt-0.7.2
   - postgresql-binary-0.9.0.1
   - binary-parser-0.5.2
@@ -16,10 +16,7 @@ extra-deps:
   - wai-cors-0.2.5
   - cryptohash-sha256-0.11.100.0
   - hackage-security-0.5.2.1
-  - unordered-containers-0.2.7.1
-  - insert-ordered-containers-0.1.0.1
   - swagger2-2.1
-  # - hjsonschema-0.10.0.2
   - hjsonpointer-0.3.0.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities

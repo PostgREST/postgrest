@@ -40,7 +40,7 @@ executable postgrest
                      , errors
                      , hasql == 0.19.12
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.5
+                     , hasql-transaction == 0.4.5.1
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
