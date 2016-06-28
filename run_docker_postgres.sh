@@ -2,11 +2,11 @@
 
 #This helper script lets you quickly and easily run one or more PostgREST containers connected to any Postgres DB and schema.
 
-#If you execute `run_standalone_postgrest.sh` with no options, it will map port 3000 to localhost and try to connect to the public schema of the postgres database on a docker container named 'db'.
+#If you execute the script with no options, it will map port 3000 to localhost and try to connect to the public schema of the postgres database on a docker container named 'db'.
 
 #To change the configuration, either export any of the environment variables used by the script, or set them when you run like this:
 
-`SKIP_LINK_CONTAINER="" PG_PORT_5432_TCP_ADDR=someserver.example.com ./run_standalone_postgrest.sh`
+#`SKIP_LINK_CONTAINER="" PG_PORT_5432_TCP_ADDR=someserver.example.com ./run_docker_postgres.sh`
 
 export PG_PORT_5432_TCP_ADDR=${PG_PORT_5432_TCP_ADDR:-db}
 export PG_PORT_5432_TCP_PORT=${PG_PORT_5432_TCP_PORT:-5432}
