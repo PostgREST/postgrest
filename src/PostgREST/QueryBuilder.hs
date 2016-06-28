@@ -212,15 +212,13 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
             SELECT
               {countResultF} AS total_result_set,
               pg_catalog.count(t) AS page_total,
-              case when pg_catalog.count(1) > 1
-            		then {bodyF}
-            	    else (
-            	    	select case when ((array_agg(row_to_json(t)))[1]->{_procName}) is not null
-            		    	then ((array_agg(row_to_json(t)))[1]->{_procName})::character varying
-            		    	else {bodyF}
-            		    end
-            	    )
-            	end as body
+              case 
+                when pg_catalog.count(1) > 1 then 
+                  {bodyF}
+                else
+                  coalesce(((array_agg(row_to_json(t)))[1]->{_procName})::character varying, {bodyF})
+
+              end as body
             FROM ({selectQuery}) t;
           |]
           -- FROM (select * from {sourceCTEName} {limitF range}) t;
