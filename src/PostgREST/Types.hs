@@ -1,9 +1,9 @@
 module PostgREST.Types where
+import           Protolude
+import qualified GHC.Show as S
 import           Data.Aeson
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
-import           Data.Int             (Int32)
-import           Data.Text
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
@@ -54,12 +54,12 @@ data PrimaryKey = PrimaryKey {
 } deriving (Show, Eq)
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
-instance Show OrderDirection where
+instance S.Show OrderDirection where
   show OrderAsc  = "asc"
   show OrderDesc = "desc"
 
 data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
-instance Show OrderNulls where
+instance S.Show OrderNulls where
   show OrderNullsFirst = "nulls first"
   show OrderNullsLast  = "nulls last"
 
