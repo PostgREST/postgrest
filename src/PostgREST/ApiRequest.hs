@@ -1,5 +1,8 @@
 module PostgREST.ApiRequest where
 
+import           Protolude
+import qualified GHC.Show as S
+
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Lazy      as BL
