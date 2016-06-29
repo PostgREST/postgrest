@@ -2,7 +2,7 @@
 
 module Main where
 
-
+import           Prelude
 import           PostgREST.App
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
