@@ -1,7 +1,6 @@
 module PostgREST.ApiRequest where
 
-import           Protolude
-import qualified GHC.Show as S
+import           Prelude
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
