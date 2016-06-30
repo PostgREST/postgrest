@@ -1,6 +1,6 @@
 module PostgREST.Types where
 import           Protolude
-import qualified GHC.Show as S
+import qualified GHC.Show
 import           Data.Aeson
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
@@ -54,12 +54,12 @@ data PrimaryKey = PrimaryKey {
 } deriving (Show, Eq)
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
-instance S.Show OrderDirection where
+instance Show OrderDirection where
   show OrderAsc  = "asc"
   show OrderDesc = "desc"
 
 data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
-instance S.Show OrderNulls where
+instance Show OrderNulls where
   show OrderNullsFirst = "nulls first"
   show OrderNullsLast  = "nulls last"
 
