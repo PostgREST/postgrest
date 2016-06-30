@@ -3,6 +3,7 @@ module PostgREST.Parsers
 -- )
 where
 
+import           Prelude
 import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)

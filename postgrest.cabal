@@ -23,7 +23,7 @@ Flag CI
 
 executable postgrest
   main-is:             Main.hs
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, NoImplicitPrelude
   ghc-options:
     -threaded
     -rtsopts
@@ -69,6 +69,7 @@ executable postgrest
                      , swagger2 >= 2.1
                      , HTTP
                      , Ranged-sets
+                     , protolude >= 0.1.5 && < 0.2.0
   if !os(windows)
     build-depends:     unix >= 2.7 && < 3
 
@@ -76,7 +77,7 @@ executable postgrest
 
 library
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, NoImplicitPrelude
   build-depends:       aeson
                      , base
                      , bytestring
@@ -113,6 +114,7 @@ library
                      , warp >= 3.1.0
                      , insert-ordered-containers >= 0.1.0.1
                      , swagger2 >= 2.1
+                     , protolude >= 0.1.5 && < 0.2.0
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App

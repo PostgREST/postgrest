@@ -4,13 +4,9 @@
 
 module PostgREST.Error (pgErrResponse, errResponse) where
 
-
+import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import           Data.Maybe                (fromMaybe)
-import           Data.Monoid               ((<>))
-import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
@@ -19,7 +15,7 @@ import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 
 errResponse :: HT.Status -> Text -> Response
-errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
+errResponse status message = responseLBS status [(hContentType, "application/json")] (toS $ T.concat ["{\"message\":\"",message,"\"}"])
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
@@ -35,41 +31,41 @@ instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
     "code" .= ("" :: T.Text),
     "message" .= ("Connection error" :: T.Text),
-    "details" .= (cs (fromMaybe "" e) :: T.Text)]
+    "details" .= (toS $ fromMaybe "" e :: T.Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
-    "code" .= (cs c::T.Text),
-    "message" .= (cs m::T.Text),
-    "details" .= (fmap cs d::Maybe T.Text),
-    "hint" .= (fmap cs h::Maybe T.Text)]
+    "code" .= (toS c::T.Text),
+    "message" .= (toS m::T.Text),
+    "details" .= (fmap toS d::Maybe T.Text),
+    "hint" .= (fmap toS h::Maybe T.Text)]
   toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
-    "message" .= (cs m::T.Text)]
+    "message" .= (m::T.Text)]
   toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
-    "message" .= ("Row error: end of input"::String),
+    "message" .= ("Row error: end of input"::T.Text),
     "details" .=
-      ("Attempt to parse more columns than there are in the result"::String),
-    "details" .= ("Row number " <> show i)]
+      ("Attempt to parse more columns than there are in the result"::Text),
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.RowError i H.UnexpectedNull)) = JSON.object [
-    "message" .= ("Row error: unexpected null"::String),
-    "details" .= ("Attempt to parse a NULL as some value."::String),
-    "details" .= ("Row number " <> show i)]
+    "message" .= ("Row error: unexpected null"::Text),
+    "details" .= ("Attempt to parse a NULL as some value."::Text),
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.RowError i (H.ValueError d))) = JSON.object [
-    "message" .= ("Row error: Wrong value parser used"::String),
+    "message" .= ("Row error: Wrong value parser used"::Text),
     "details" .= d,
-    "details" .= ("Row number " <> show i)]
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.UnexpectedAmountOfRows i)) = JSON.object [
-    "message" .= ("Unexpected amount of rows"::String),
+    "message" .= ("Unexpected amount of rows"::Text),
     "details" .= i]
   toJSON (H.ClientError d) = JSON.object [
-    "message" .= ("Database client error"::String),
-    "details" .= (fmap cs d::Maybe T.Text)]
+    "message" .= ("Database client error"::Text),
+    "details" .= (fmap toS d::Maybe T.Text)]
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
 httpStatus _ (P.ConnectionError _) = HT.status500
 httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
-  case cs c of
+  case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
     '0':'L':_ -> HT.status403 -- invalid grantor

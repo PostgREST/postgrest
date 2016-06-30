@@ -1,9 +1,9 @@
 module PostgREST.Types where
+import           Protolude
+import qualified GHC.Show
 import           Data.Aeson
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
-import           Data.Int             (Int32)
-import           Data.Text
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
