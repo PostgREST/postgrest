@@ -40,11 +40,16 @@ import qualified Web.JWT                 as JWT
   statement.
 -}
 claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
-claimsToSQL claims = roleStmts <> varStmts
+claimsToSQL claims = varStmts <> [validateStmt] <> roleStmts
  where
+  validateStmt = "do $$declare begin \
+    \if exists(select 1 from pg_catalog.pg_proc where proname = 'validate_jwt_claims') then \
+      \perform validate_jwt_claims(); \
+    \end if; \
+  \end$$;"
   roleStmts = maybeToList $
     (\r -> "set local role " <> r <> ";") . cs . valueToVariable <$> M.lookup "role" claims
-  varStmts = map setVar $ M.toList (M.delete "role" claims)
+  varStmts = map setVar $ M.toList claims
   setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
                     <> " = " <> cs (valueToVariable val) <> ";"
   valueToVariable = pgFmtLit . unquoted
