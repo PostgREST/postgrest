@@ -61,9 +61,7 @@ pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe pJsonPath
-  let pp = map cs p
-      jpp = map cs <$> jp
-  return (init pp, (last pp, jpp))
+  return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
