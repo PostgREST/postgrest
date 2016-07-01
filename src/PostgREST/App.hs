@@ -107,7 +107,7 @@ app dbStructure conf apiRequest =
               stm = createReadStatement q cq singular
                     shouldCount (contentType == TextCSV)
           respondToRange $ do
-            row <- H.query () stm
+            row <- HT.query () stm
             let (tableTotal, queryTotal, _ , body) = row
             if singular
             then return $ if queryTotal <= 0
@@ -132,7 +132,7 @@ app dbStructure conf apiRequest =
           let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
-          row <- H.query uniform stm
+          row <- HT.query uniform stm
           let (_, _, fs, body) = extractQueryResult row
               header =
                 if null fs then []
@@ -147,7 +147,7 @@ app dbStructure conf apiRequest =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
-          row <- H.query uniform stm
+          row <- HT.query uniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
@@ -164,7 +164,7 @@ app dbStructure conf apiRequest =
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
               stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
-          row <- H.query emptyUniform stm
+          row <- HT.query emptyUniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 1 0 (toInteger <$> Just queryTotal)
           return $ if queryTotal == 0
@@ -186,14 +186,14 @@ app dbStructure conf apiRequest =
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
-      exists <- H.query qi doesProcExist
+      exists <- HT.query qi doesProcExist
       if exists
         then do
           let p = V.head payload
               jwtSecret = configJwtSecret conf
           respondToRange $ do
-            row <- H.query () (callProc qi p topLevelRange shouldCount)
-            returnJWT <- H.query qi doesProcReturnJWT
+            row <- HT.query () (callProc qi p topLevelRange shouldCount)
+            returnJWT <- HT.query qi doesProcReturnJWT
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
               in
@@ -209,7 +209,7 @@ app dbStructure conf apiRequest =
           port = toInteger $ configPort conf
           encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
           header = if contentType == OpenAPI then openapiH else jsonH
-      body <- encodeFn <$> H.query schema accessibleTables
+      body <- encodeFn <$> HT.query schema accessibleTables
       return $ responseLBS status200 [header] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
