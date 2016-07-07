@@ -8,6 +8,9 @@ module PostgREST.DbStructure (
 , accessibleTables
 , doesProcExist
 , doesProcReturnJWT
+, doesProcContainJWT
+, nameOfReturnArgs
+, returnTypeOfFunction
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -130,6 +133,55 @@ doesProcReturnJWT =
       AND    proname = $2
       AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
     ) |]
+
+doesProcContainJWT :: H.Query QualifiedIdentifier Bool
+doesProcContainJWT =
+  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+ where
+  sql = [q| SELECT EXISTS(
+                SELECT 1
+                FROM pg_catalog.pg_namespace n
+                  JOIN pg_catalog.pg_proc p
+                    ON pronamespace = n.oid
+                WHERE nspname = $1
+                      AND proname = $2
+                      AND pg_catalog.pg_get_function_result(p.oid) LIKE '%mixed_claims'
+            ) |]
+
+
+-- obtain return type of a function
+returnTypeOfFunction :: H.Query QualifiedIdentifier (Text, Text)
+returnTypeOfFunction =
+  H.statement sql encodeQi (HD.singleRow relRow) True
+ where
+  sql = [q| SELECT
+              nt.nspname,
+              t.typname
+            FROM pg_proc p
+              JOIN pg_namespace n ON pronamespace = n.oid
+              JOIN (pg_namespace nt
+                JOIN pg_type t ON t.typnamespace = nt.oid) ON p.prorettype = t.oid
+            WHERE n.nspname = $1
+                  AND p.proname = $2
+           |]
+  relRow = (,)
+    <$> HD.value HD.text
+    <*> HD.value HD.text
+
+-- function that returns the parameter name
+nameOfReturnArgs :: H.Query QualifiedIdentifier [Text]
+nameOfReturnArgs =
+  H.statement sql encodeQi (HD.rowsList relRow) True
+ where
+  sql = [q| SELECT attname
+            FROM pg_attribute a
+              JOIN pg_class c  ON a.attrelid = c.oid
+              JOIN (pg_type t
+                JOIN pg_namespace nt ON t.typnamespace = nt.oid) ON a.atttypid = t.oid
+            WHERE nt.nspname = $1
+                  AND c.relname = $2
+           |]
+  relRow = (HD.value HD.text)
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =

@@ -75,6 +75,18 @@ CREATE TYPE big_jwt_claims AS (
 );
 
 
+--
+-- Name: mixed_claims; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE mixed_claims AS (
+  id         INTEGER,
+  some_field NAME,
+  jwt        jwt_claims,
+  big_jwt    big_jwt_claims
+);
+
+
 SET search_path = test, pg_catalog;
 
 --
@@ -249,6 +261,36 @@ SELECT current_setting('postgrest.claims.iss') as iss,
        -- role is not included in the claims list
        current_setting('postgrest.claims.http://postgrest.com/foo')::boolean
          as "http://postgrest.com/foo";
+$$;
+
+
+--
+-- Name: mixed_jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION mixed_jwt_test() RETURNS public.big_jwt_claims
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  _jwt public.jwt_claims;
+  _big_jwt public.big_jwt_claims;
+  result mixed_claims;
+BEGIN
+  SELECT jwt_test() INTO _big_jwt;
+  SELECT
+    'saved_by_jesus' as role,
+    1 as id
+  into _jwt;
+
+  SELECT
+    1 as id,
+    'test' as some_field,
+    _jwt as jwt,
+    _big_jwt as big_jwt
+  into result;
+
+  return result;
+END
 $$;
 
 

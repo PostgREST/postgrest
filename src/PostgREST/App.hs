@@ -200,7 +200,28 @@ app dbStructure conf apiRequest =
               return $ responseLBS status [jsonH, contentRange]
                       (if returnJWT
                       then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else cs $ encode body)
+                      else do
+                        containsJWT <- HT.query qi doesProcContainJWT
+                        (if containsJWT
+                        then do
+                            returnType <- HT.query qi returnTypeOfFunction
+                            case returnType of {
+                                Left _ -> return $ responseLBS status500;
+                                Right t -> do
+                                    let qiType = QualifiedIdentifier { qiSchema = cs (fst t),  qiName = cs (snd t) }
+                                    fields <- HT.query qiSchema nameOfReturnArgs -- pass in returnType as qiSchema
+                                    case fields of {
+                        		        Left _ -> return $ responseLBS status500;
+					                    Right f -> do
+						                let hashmap = body :: Object
+                                        -- TODO: encrypt each response
+
+
+                                    }
+                                    "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"   -- TODO: encode each argument which returns jwt,
+                                                                                               -- i.e. extract those infos out of body;
+                            }
+                        else cs $ encode body))
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
