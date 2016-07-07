@@ -13,6 +13,7 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
+, dbProcs       :: [(Text,Text)]
 } deriving (Show, Eq)
 
 type Schema = Text

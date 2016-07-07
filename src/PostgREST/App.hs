@@ -14,7 +14,7 @@ import           Data.List                 (find, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text, replace, strip)
+import           Data.Text                 (Text, replace, strip, isInfixOf, dropWhile, drop)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -62,7 +62,7 @@ import           PostgREST.QueryBuilder ( callProc
 import           PostgREST.Types
 import           PostgREST.OpenAPI
 
-import           Prelude
+import           Prelude                hiding (dropWhile, drop)
 
 
 postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
@@ -186,22 +186,22 @@ app dbStructure conf apiRequest =
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
-      exists <- H.query qi doesProcExist
-      if exists
-        then do
-          let p = V.head payload
-              jwtSecret = configJwtSecret conf
-          respondToRange $ do
-            row <- H.query () (callProc qi p topLevelRange shouldCount)
-            returnJWT <- H.query qi doesProcReturnJWT
+        let p = V.head payload
+            singular = iPreferSingular apiRequest
+            jwtSecret = configJwtSecret conf
+            returnType = lookup (qiName qi) $ dbProcs dbStructure
+            returnsJWT = fromMaybe False $ isInfixOf "jwt_claims" <$> returnType
+        case readSqlParts of
+          Left e -> return $ responseLBS status400 [jsonH] $ cs e
+          Right (q,cq) -> respondToRange $ do
+            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
               in
               return $ responseLBS status [jsonH, contentRange]
-                      (if returnJWT
+                      (if returnsJWT
                       then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                       else cs $ encode body)
-        else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti host port
@@ -241,7 +241,7 @@ app dbStructure conf apiRequest =
   schema = cs $ configSchema conf
   shouldCount = iPreferCount apiRequest
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
-  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) apiRequest
+  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema False <$> readDbRequest
   countQuery = requestToCountQuery schema <$> readDbRequest
@@ -326,9 +326,10 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     filters = mapM pRequestFilter flts
       where
         action = iAction apiRequest
-        flts = if action == ActionRead
-          then iFilters apiRequest
-          else filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
+        flts
+          | action == ActionRead = iFilters apiRequest
+          | action == ActionInvoke = iFilters apiRequest
+          | otherwise = filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
     orders :: Either ParseError [(Path, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
     ranges :: Either ParseError [(Path, NonnegRange)]
@@ -340,8 +341,8 @@ treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` re
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-buildReadRequest :: Maybe Integer -> [Relation] -> ApiRequest -> Either Text ReadRequest
-buildReadRequest maxRows allRels apiRequest  =
+buildReadRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Text ReadRequest
+buildReadRequest maxRows allRels allProcs apiRequest  =
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
   first formatParserError readRequest
@@ -350,6 +351,14 @@ buildReadRequest maxRows allRels apiRequest  =
       let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
+        (TargetProc  (QualifiedIdentifier s p) ) -> Just (s, t)
+          where
+            returnType = fromMaybe "" $ lookup p allProcs
+            -- we are looking for results looking like "SETOF schema.tablename" and want to extract tablename
+            t = if "SETOF " `isInfixOf` returnType
+              then drop 1 $ dropWhile (/= '.') returnType
+              else p
+
         _ -> Nothing
 
     action :: Action
@@ -369,6 +378,7 @@ buildReadRequest maxRows allRels apiRequest  =
       ActionCreate -> fakeSourceRelations ++ allRels
       ActionUpdate -> fakeSourceRelations ++ allRels
       ActionDelete -> fakeSourceRelations ++ allRels
+      ActionInvoke -> fakeSourceRelations ++ allRels
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
