@@ -8,6 +8,7 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
+import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
 import           Control.Monad
@@ -50,11 +51,15 @@ main = do
   conf <- readOptions
   let host = configHost conf
       port = configPort conf
+      proxy = configProxyUri conf
       pgSettings = cs (configDatabase conf)
       appSettings = setHost (fromString host)
                   . setPort port
                   . setServerName (cs $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
+
+  when (isMalformedProxyUri proxy) $ error
+    "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
   unless (secret "secret" /= configJwtSecret conf) $
     putStrLn "WARNING, running in insecure mode, JWT secret is the default value"

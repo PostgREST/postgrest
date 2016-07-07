@@ -14,7 +14,7 @@ import           Data.List                 (find, delete)
 import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text, replace, strip, isInfixOf, dropWhile, drop)
+import           Data.Text                 (Text, replace, strip, pack, isInfixOf, dropWhile, drop)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -204,9 +204,13 @@ app dbStructure conf apiRequest =
                       else cs $ encode body)
 
     (ActionRead, TargetRoot, Nothing) -> do
-      let encodeApi ti = encodeOpenAPI ti host port
+      let encodeApi ti = encodeOpenAPI ti uri'
           host = configHost conf
           port = toInteger $ configPort conf
+          proxy = pickProxy $ configProxyUri conf
+          uri Nothing = ("http", pack host, port, "/")
+          uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
+          uri' = uri proxy
           encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
           header = if contentType == OpenAPI then openapiH else jsonH
       body <- encodeFn <$> H.query schema accessibleTables
