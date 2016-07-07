@@ -42,7 +42,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
                                             , userApiRequest)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
+import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole, mixedClaimsTokenToJWT)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -196,32 +196,26 @@ app dbStructure conf apiRequest =
             returnJWT <- HT.query qi doesProcReturnJWT
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
+                returnJson = (\x -> return $ responseLBS status [jsonH, contentRange] $ x)
               in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnJWT
-                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else do
-                        containsJWT <- HT.query qi doesProcContainJWT
-                        (if containsJWT
-                        then do
-                            returnType <- HT.query qi returnTypeOfFunction
-                            case returnType of {
-                                Left _ -> return $ responseLBS status500;
-                                Right t -> do
-                                    let qiType = QualifiedIdentifier { qiSchema = cs (fst t),  qiName = cs (snd t) }
-                                    fields <- HT.query qiSchema nameOfReturnArgs -- pass in returnType as qiSchema
-                                    case fields of {
-                        		        Left _ -> return $ responseLBS status500;
-					                    Right f -> do
-						                let hashmap = body :: Object
-                                        -- TODO: encrypt each response
+              (if returnJWT
+              then do
+                returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+              else do
+                containJWT <- HT.query qi doesProcContainJWT
+                (if containJWT
+                then do
+                    returnType <- HT.query qi returnTypeOfFunction
 
-
-                                    }
-                                    "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"   -- TODO: encode each argument which returns jwt,
-                                                                                               -- i.e. extract those infos out of body;
-                            }
-                        else cs $ encode body))
+                    let qiType = QualifiedIdentifier { qiSchema = cs (fst returnType),  qiName = cs (snd returnType) }
+                    fields <- HT.query qiType nameOfReturnArgs
+                    (if length fields > 0
+                      then returnJson $ cs $ encode $ mixedClaimsTokenToJWT fields body jwtSecret
+                      else return $ responseLBS status500 [] "")
+                else do
+                    return $ responseLBS status [jsonH, contentRange] $ "{\"token\":\"\"}"
+                 )
+               )
         else return notFound
 
     (ActionRead, TargetRoot, Nothing) -> do
