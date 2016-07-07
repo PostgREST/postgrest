@@ -512,7 +512,9 @@ spec = do
       -- it used to be 404 and it makes sense but in another part we decided that it's good to return
       -- PostgreSQL errors (and have the proxy handle them) and this saves us an aditional query on each rpc request
       it "responds with 400 on an unexisting proc" $
-        post "/rpc/fake" [json| {} |] `shouldRespondWith` 400
+        post "/rpc/fake" "{}" `shouldRespondWith` 400
+      it "treats simple plpgsql raise as invalid input" $
+        post "/rpc/problem" "{}" `shouldRespondWith` 400
 
 
     context "unsupported verbs" $ do

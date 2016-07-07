@@ -86,6 +86,7 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     '5':'8':_ -> HT.status500 -- system error
     'F':'0':_ -> HT.status500 -- conf file error
     'H':'V':_ -> HT.status500 -- foreign data wrapper error
+    "P0001"   -> HT.status400 -- default code for "raise"
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
     "42P01"   -> HT.status404 -- undefined table

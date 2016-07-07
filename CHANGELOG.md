@@ -14,6 +14,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
 
+### Changed
+- Use HTTP 400 for raise\_exception - @begriffs
+
 ## [0.3.2.0] - 2016-06-10
 
 ### Added
