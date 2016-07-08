@@ -197,24 +197,27 @@ app dbStructure conf apiRequest =
             row <- HT.query () (callProc qi p q cq topLevelRange shouldCount singular)
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
-                returnJson = (\x -> return $ responseLBS status [jsonH, contentRange] $ x)
-            (if returnsJWT
-            then returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-            else do
-              let containsJWT = fromMaybe False $ isInfixOf "mixed_claims" <$> returnType
-              (if containsJWT
-              then do
-                  rt <- HT.query qi returnTypeOfFunction
+                returnJson = (\x -> return $ responseLBS status [jsonH, contentRange] x)
+                in
+                (if returnsJWT
+                then returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                else do
+                  let containsJWT = fromMaybe False $ isInfixOf "mixed_claims" <$> returnType
+                      in
+                      (if containsJWT
+                      then do
+                          rt <- HT.query qi returnTypeOfFunction
 
-                  let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
-                  fields <- HT.query qiType nameOfReturnArgs
-                  (if length fields > 0
-                    then returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
-                    else return $ responseLBS status500 [] "") -- maybe something else would make more sense?
-              else do
-                  return $ responseLBS status [jsonH, contentRange] $ "{\"token\":\"\"}"
-               )
-             )
+                          let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
+                          fields <- HT.query qiType nameOfReturnArgs
+                          (if length fields > 0
+                            then returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
+                            else return $ responseLBS status500 [] "") -- maybe something else would make more sense?
+                      else do
+                          return $ responseLBS status [jsonH, contentRange] $ cs $ encode body
+                       )
+                 )
+
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti uri'

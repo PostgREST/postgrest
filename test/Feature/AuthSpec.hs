@@ -45,6 +45,14 @@ spec = describe "authorization" $ do
         , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }
 
+--  it "returns mixed jwt functions as mixed jwt claim which includes tokens" $
+--      post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]
+--        `shouldRespondWith` ResponseMatcher {
+--            matchBody = Just [json| {"id":"jdoe", "some_field": "test", "jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0", "big_jwt" : ""} |]
+--          , matchStatus = 200
+--          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+--          }
+
   it "sql functions can encode custom and standard claims" $
     post "/rpc/jwt_test" "{}"
       `shouldRespondWith` ResponseMatcher {

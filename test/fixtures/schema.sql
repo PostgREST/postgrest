@@ -80,7 +80,7 @@ CREATE TYPE big_jwt_claims AS (
 --
 
 CREATE TYPE mixed_claims AS (
-  id         INTEGER,
+  id         NAME,
   some_field NAME,
   jwt        jwt_claims,
   big_jwt    big_jwt_claims
@@ -283,7 +283,7 @@ BEGIN
   into _jwt;
 
   SELECT
-    1 as id,
+    'jdoe' as id,
     'test' as some_field,
     _jwt as jwt,
     _big_jwt as big_jwt
