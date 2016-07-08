@@ -6,9 +6,7 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
-, doesProcExist
-, doesProcReturnJWT
-, doesProcContainJWT
+--, doesProcContainJWT
 , nameOfReturnArgs
 , returnTypeOfFunction
 ) where
@@ -41,6 +39,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
+  procs <- H.query schema accessibleProcs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -51,6 +50,7 @@ getDbStructure schema = do
     , dbColumns = cols'
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
+    , dbProcs = procs
     }
 
 encodeQi :: HE.Params QualifiedIdentifier
@@ -107,46 +107,30 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-doesProcExist :: H.Query QualifiedIdentifier Bool
-doesProcExist =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+accessibleProcs :: H.Query Schema [(Text, Text)]
+accessibleProcs =
+  H.statement sql (HE.value HE.text) (HD.rowsList ((,) <$> HD.value HD.text <*> HD.value HD.text)) True
  where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-    ) |]
+  sql = [q|
+    SELECT p.proname as "proc_name", pg_get_function_result(p.oid) as "return_type"
+    FROM   pg_namespace n
+    JOIN   pg_proc p
+    ON     pronamespace = n.oid
+    WHERE  n.nspname = $1|]
 
-doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
-doesProcReturnJWT =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
- where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-      AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
-    ) |]
-
-doesProcContainJWT :: H.Query QualifiedIdentifier Bool
-doesProcContainJWT =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
- where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-      AND    pg_catalog.pg_get_function_result(p.oid) like '%mixed_claims'
-            ) |]
+--doesProcContainJWT :: H.Query QualifiedIdentifier Bool
+--doesProcContainJWT =
+--  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+-- where
+--  sql = [q| SELECT EXISTS (
+--      SELECT 1
+--      FROM   pg_catalog.pg_namespace n
+--      JOIN   pg_catalog.pg_proc p
+--      ON     pronamespace = n.oid
+--      WHERE  nspname = $1
+--      AND    proname = $2
+--      AND    pg_catalog.pg_get_function_result(p.oid) like '%mixed_claims'
+--            ) |]
 
 
 -- obtain return type of a function

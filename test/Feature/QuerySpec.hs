@@ -454,6 +454,38 @@ spec = do
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
 
+    context "shaping the response returned by a proc" $ do
+      it "returns a project" $
+        post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","client_id":1}]|]
+
+      it "can filter proc results" $
+        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
+          [json|[{"id":2},{"id":3},{"id":4}]|]
+
+      it "can limit proc results" $
+        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
+          `shouldRespondWith` ResponseMatcher {
+               matchBody    = Just [json|[{"id":3},{"id":4}]|]
+             , matchStatus = 206
+             , matchHeaders = ["Content-Range" <:> "1-2/3"]
+             }
+
+
+
+      it "prefer singular" $
+        request methodPost "/rpc/getproject"
+          [("Prefer","plurality=singular")] [json| { "id": 1} |] `shouldRespondWith`
+          [json|{"id":1,"name":"Windows 7","client_id":1}|]
+
+      it "select works on the first level" $
+        post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7"}]|]
+
+      it "can embed foreign entities to the items returned by a proc" $
+        post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
@@ -462,11 +494,11 @@ spec = do
     context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
-          [json| [{"sayhello":"Hello, world"}] |]
+          [json|"Hello, world"|]
 
       it "can handle unicode" $
         post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
-          [json| [{"sayhello":"Hello, ￥"}] |]
+          [json|"Hello, ￥"|]
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $
@@ -477,6 +509,13 @@ spec = do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"
             `shouldRespondWith` 400
+      -- it used to be 404 and it makes sense but in another part we decided that it's good to return
+      -- PostgreSQL errors (and have the proxy handle them) and this saves us an aditional query on each rpc request
+      it "responds with 400 on an unexisting proc" $
+        post "/rpc/fake" "{}" `shouldRespondWith` 400
+      it "treats simple plpgsql raise as invalid input" $
+        post "/rpc/problem" "{}" `shouldRespondWith` 400
+
 
     context "unsupported verbs" $ do
       it "DELETE fails" $
@@ -497,9 +536,9 @@ spec = do
 
     it "executes the proc exactly once per request" $ do
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
-        [json| [{"callcounter":1}] |]
+        [json|1|]
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
-        [json| [{"callcounter":2}] |]
+        [json|2|]
 
   describe "weird requests" $ do
     it "can query as normal" $ do

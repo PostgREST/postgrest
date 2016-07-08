@@ -1063,6 +1063,18 @@ create table orders (
 	shipping_address_id  int references addresses(id)
 );
 
+CREATE FUNCTION getproject(id int) RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects WHERE id = $1;
+$_$;
+
+CREATE FUNCTION getallprojects() RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects;
+$_$;
+
 --
 -- PostgreSQL database dump complete
 --

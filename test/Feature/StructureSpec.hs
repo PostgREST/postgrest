@@ -3,16 +3,12 @@ module Feature.StructureSpec where
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Network.HTTP.Types
 
 import SpecHelper
 
-import Network.HTTP.Types
 import Network.Wai (Application)
-import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
-
-import Data.Maybe (fromJust)
-import Data.Aeson (decode)
-import qualified Data.JsonSchema.Draft4 as D4
+import Network.Wai.Test (SResponse(simpleHeaders))
 
 spec :: SpecWith Application
 spec = do
@@ -65,27 +61,8 @@ spec = do
         ] |]
         {matchStatus = 200}
 
-    it "returns a valid openapi spec" $ do
-      r <- request methodGet "/" [("Accept", "application/openapi+json")] ""
-      liftIO $
-        let respStatus = simpleStatus r in
-        respStatus `shouldSatisfy`
-          \s -> s == Status { statusCode = 200, statusMessage="OK" }
-      liftIO $
-        let respHeaders = simpleHeaders r in
-        respHeaders `shouldSatisfy`
-          \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
-      liftIO $
-        let respBody = simpleBody r
-            schema :: D4.Schema
-            schema = D4.emptySchema { D4._schemaRef = Just "openapi.json" }
-            schemaContext :: D4.SchemaWithURI D4.Schema
-            schemaContext = D4.SchemaWithURI
-              { D4._swSchema = schema
-              , D4._swURI    = Just "test/fixtures/openapi.json"
-              }
-           in
-           D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
+    it "returns a valid openapi spec" $
+      validateOpenApiResponse [("Accept", "application/openapi+json")]
 
     it "should respond to openapi request on none root path with 415" $
       request methodGet "/none_root_path"

@@ -3,8 +3,6 @@ module SpecHelper where
 import Data.String.Conversions (cs)
 import Control.Monad (void)
 
-import Network.HTTP.Types.Header (Header, ByteRange, renderByteRange,
-                                  hRange, hAuthorization, hAccept)
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Text.Regex.TDFA ((=~))
@@ -14,20 +12,57 @@ import Web.JWT (secret)
 
 import PostgREST.Config (AppConfig(..))
 
+import Test.Hspec hiding (pendingWith)
+import Test.Hspec.Wai
+
+import Network.HTTP.Types
+import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
+
+import Data.Maybe (fromJust)
+import Data.Aeson (decode)
+import qualified Data.JsonSchema.Draft4 as D4
+
+validateOpenApiResponse :: [Header] -> WaiSession ()
+validateOpenApiResponse headers = do
+  r <- request methodGet "/" headers ""
+  liftIO $
+    let respStatus = simpleStatus r in
+    respStatus `shouldSatisfy`
+      \s -> s == Status { statusCode = 200, statusMessage="OK" }
+  liftIO $
+    let respHeaders = simpleHeaders r in
+    respHeaders `shouldSatisfy`
+      \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
+  liftIO $
+    let respBody = simpleBody r
+        schema :: D4.Schema
+        schema = D4.emptySchema { D4._schemaRef = Just "openapi.json" }
+        schemaContext :: D4.SchemaWithURI D4.Schema
+        schemaContext = D4.SchemaWithURI
+          { D4._swSchema = schema
+          , D4._swURI    = Just "test/fixtures/openapi.json"
+          }
+       in
+       D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
+
 testDbConn :: String
 testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
 testCfg :: AppConfig
 testCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "test" "localhost" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (secret "safe") 10 Nothing True
 
 testUnicodeCfg :: AppConfig
 testUnicodeCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "تست" "localhost" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (secret "safe") 10 Nothing True
 
 testLtdRowsCfg :: AppConfig
 testLtdRowsCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" "test" "localhost" 3000 (secret "safe") 10 (Just 2) True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (secret "safe") 10 (Just 2) True
+
+testProxyCfg :: AppConfig
+testProxyCfg =
+  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (secret "safe") 10 Nothing True
 
 setupDb :: IO ()
 setupDb = do

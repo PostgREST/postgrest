@@ -13,6 +13,7 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
+, dbProcs       :: [(Text,Text)]
 } deriving (Show, Eq)
 
 type Schema = Text
@@ -101,6 +102,13 @@ unUniformObjects (UniformObjects objs) = objs
 data Payload = PayloadJSON UniformObjects
              | PayloadParseError BS.ByteString
              deriving (Show, Eq)
+
+data Proxy = Proxy {
+  proxyScheme     :: Text
+, proxyHost       :: Text
+, proxyPort       :: Integer
+, proxyPath       :: Text
+} deriving (Show, Eq)
 
 type Operator = Text
 data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)

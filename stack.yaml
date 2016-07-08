@@ -18,6 +18,7 @@ extra-deps:
   - hackage-security-0.5.2.1
   - swagger2-2.1
   - hjsonpointer-0.3.0.1
+  - network-uri-2.6.1.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
 
