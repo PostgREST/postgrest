@@ -118,22 +118,7 @@ accessibleProcs =
     ON     pronamespace = n.oid
     WHERE  n.nspname = $1|]
 
---doesProcContainJWT :: H.Query QualifiedIdentifier Bool
---doesProcContainJWT =
---  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
--- where
---  sql = [q| SELECT EXISTS (
---      SELECT 1
---      FROM   pg_catalog.pg_namespace n
---      JOIN   pg_catalog.pg_proc p
---      ON     pronamespace = n.oid
---      WHERE  nspname = $1
---      AND    proname = $2
---      AND    pg_catalog.pg_get_function_result(p.oid) like '%mixed_claims'
---            ) |]
-
-
--- obtain return type of a function
+-- obtain return type and schema of a function
 returnTypeOfFunction :: H.Query QualifiedIdentifier (Text, Text)
 returnTypeOfFunction =
   H.statement sql encodeQi (HD.singleRow relRow) True
