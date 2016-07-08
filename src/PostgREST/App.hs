@@ -203,17 +203,17 @@ app dbStructure conf apiRequest =
                 then returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
                 else do
                   let containsJWT = fromMaybe False $ isInfixOf "mixed_claims" <$> returnType
-                      in
-                      (if containsJWT
-                      then do
-                          rt <- HT.query qi returnTypeOfFunction
+                    in
+                    (if containsJWT
+                    then do
+                      rt <- HT.query qi returnTypeOfFunction
 
-                          let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
-                          fields <- HT.query qiType nameOfReturnArgs
-                          returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
-                      else do
-                          return $ responseLBS status [jsonH, contentRange] $ cs $ encode body
-                       )
+                      let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
+                      fields <- HT.query qiType nameOfReturnArgs
+                      returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
+                    else do
+                      return $ responseLBS status [jsonH, contentRange] $ cs $ encode body
+                    )
                  )
 
 

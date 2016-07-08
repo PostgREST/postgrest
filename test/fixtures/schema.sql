@@ -80,8 +80,8 @@ CREATE TYPE big_jwt_claims AS (
 --
 
 CREATE TYPE mixed_claims AS (
-  id         NAME,
-  some_field NAME,
+  id         text,
+  some_field text,
   jwt        jwt_claims,
   big_jwt    big_jwt_claims
 );
@@ -265,28 +265,60 @@ $$;
 
 
 --
--- Name: mixed_jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+-- Name: login(text, text); Type: FUNCTION; Schema: test; Owner: -
 --
 
-CREATE FUNCTION mixed_jwt_test() RETURNS public.big_jwt_claims
+CREATE FUNCTION login_mixed(id text, pass text) RETURNS public.mixed_claims
 LANGUAGE plpgsql SECURITY DEFINER
 AS $$
 DECLARE
-  _jwt public.jwt_claims;
-  _big_jwt public.big_jwt_claims;
+  _jwt jwt_claims;
+  _big_jwt big_jwt_claims;
+  _role TEXT;
   result mixed_claims;
 BEGIN
-  SELECT jwt_test() INTO _big_jwt;
+  SELECT rolname::text FROM postgrest.auth a WHERE a.id = login_mixed.id AND a.pass = login_mixed.pass into _role;
+
+  SELECT login_mixed.id::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
+         1300819380 as exp, 1300819380 as nbf, 1300819380 as iat,
+         'foo'::text as jti, _role::text as role,
+         true as "http://postgrest.com/foo" into _big_jwt;
+
+  SELECT _role as role, login_mixed.id as id into _jwt;
+
   SELECT
-    'saved_by_jesus' as role,
-    1 as id
+    login_mixed.id::text as id,
+    'test' as some_field,
+    _jwt as jwt,
+    _big_jwt as big_jwt
+  into result;
+
+  return result;
+END;
+$$;
+
+
+--
+-- Name: mixed_jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION mixed_jwt_test() RETURNS public.mixed_claims
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  _jwt jwt_claims;
+  result mixed_claims;
+BEGIN
+  SELECT
+    'jdoe' as id,
+    'saved_by_jesus' as role
   into _jwt;
 
   SELECT
     'jdoe' as id,
     'test' as some_field,
     _jwt as jwt,
-    _big_jwt as big_jwt
+    test.jwt_test() as big_jwt
   into result;
 
   return result;
