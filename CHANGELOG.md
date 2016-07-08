@@ -11,9 +11,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Ability to set addresses to listen on - @hudayou
 - Filtering, shaping and embedding with &select for the /rpc path - @ruslantalpa
 - Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
+- Request cookies available as claims under postgrest.claims.cookie.cookie_name - @ruslantalpa
+- RPC functions that return session_claims type can send 'Set-Cookie' header - @ruslantalpa
+- new --function command line parameter, the name of the function to run after all the claims are set and before the main query - @ruslantalpa
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
+- Fix bug in relation detection when selecting parents two levels up by using the name of the FK - @ruslantalpa
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs

@@ -225,6 +225,14 @@ spec = do
       get "/projects?id=eq.1&select=myId:id, name, project_client:client_id{*}, project_tasks:tasks{id, name}" `shouldRespondWith`
         [str|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
+    it "requesting parents two levels up while using FK to specify the link" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
+    it "requesting parents two levels up while using FK to specify the link (with rename)" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`

@@ -7,9 +7,10 @@ import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import           Data.String.Conversions       (cs)
 import           Data.Maybe                    (fromMaybe, listToMaybe)
-import           Data.Text
+import           Data.Text                     hiding (head, map)
+import           Data.Monoid                   ((<>))
+import           Data.Foldable                 (forM_)
 import qualified Hasql.Transaction             as H
-
 import           Network.HTTP.Types.Header     (hAccept)
 import           Network.HTTP.Types.Status     (status400, status415)
 import           Network.Wai                   (Application, Request (..),
@@ -24,6 +25,7 @@ import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
 
 import           Prelude                       hiding (concat, null)
+import           Control.Arrow                (second, first)
 
 runWithClaims :: AppConfig -> Either Text (M.HashMap Text Value) ->
                  (ApiRequest -> H.Transaction Response) ->
@@ -33,11 +35,17 @@ runWithClaims conf eClaims app req =
     Left e -> clientErr e
     Right claims -> do
           -- role claim defaults to anon if not specified in jwt
-          H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
+          H.sql . mconcat . claimsToSQL $ M.union jwtClaims cookieClaims
+          forM_ sqlFnCall (H.sql . cs)
           app req
+          where
+            jwtClaims = M.union claims (M.singleton "role" anon)
+            cookieClaims = fromMaybe M.empty $
+              (M.fromList . map (first ("cookie." <>) . second String) ) <$> iCookies req
   where
     anon = String . cs $ configAnonRole conf
     clientErr = return . errResponse status400
+    sqlFnCall = (\f -> "select " <> f <> "();") <$> configSqlFn conf
 
 unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond =
