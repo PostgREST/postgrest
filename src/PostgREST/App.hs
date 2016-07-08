@@ -210,9 +210,7 @@ app dbStructure conf apiRequest =
 
                           let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
                           fields <- HT.query qiType nameOfReturnArgs
-                          (if length fields > 0
-                            then returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
-                            else return $ responseLBS status500 [] "") -- maybe something else would make more sense?
+                          returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
                       else do
                           return $ responseLBS status [jsonH, contentRange] $ cs $ encode body
                        )
