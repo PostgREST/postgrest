@@ -16,7 +16,7 @@ module PostgREST.Auth (
   , containsRole
   , jwtClaims
   , tokenJWT
-  , mixedClaimsTokenToJWT
+  , mixedClaimsTokenJWT
   ) where
 
 import           Protolude
@@ -95,16 +95,16 @@ containsRole (Right claims) = M.member "role" claims
 {-|
   for mixed claimes
 -}
-encryptJsonValueFunc :: JWT.Secret -> (Value -> Value)
-encryptJsonValueFunc x = \y -> String (tokenJWT x y)
+tokenJWTJsonFunc :: JWT.Secret -> (Value -> Value)
+tokenJWTJsonFunc x = \y -> String (tokenJWT x y)
 
 
-mixedClaimsTokenToJWT :: [Text] -> Value -> JWT.Secret -> Value
-mixedClaimsTokenToJWT t (Array arr) s    =
+mixedClaimsTokenJWT :: [Text] -> Value -> JWT.Secret -> Value
+mixedClaimsTokenJWT t (Array arr) s    =
   let obj = if V.null arr then emptyObject else V.head arr in
-    mixedClaimsTokenToJWT t obj s
-mixedClaimsTokenToJWT [] (Object o) _    = Object o
-mixedClaimsTokenToJWT (x:xs) (Object o) s     = mixedClaimsTokenToJWT xs
-                                                (Object $ M.adjust (encryptJsonValueFunc s) x o)
+    mixedClaimsTokenJWT t obj s
+mixedClaimsTokenJWT [] (Object o) _    = Object o
+mixedClaimsTokenJWT (x:xs) (Object o) s     = mixedClaimsTokenJWT xs
+                                                (Object $ M.adjust (tokenJWTJsonFunc s) x o)
                                                  s
-mixedClaimsTokenToJWT _ v _ = v
+mixedClaimsTokenJWT _ v _ = v

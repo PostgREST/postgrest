@@ -42,7 +42,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
                                             , userApiRequest)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole, mixedClaimsTokenToJWT)
+import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole, mixedClaimsTokenJWT)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -209,7 +209,7 @@ app dbStructure conf apiRequest =
                   let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
                   fields <- HT.query qiType nameOfReturnArgs
                   (if length fields > 0
-                    then returnJson $ cs $ encode $ mixedClaimsTokenToJWT fields body jwtSecret
+                    then returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
                     else return $ responseLBS status500 [] "") -- maybe something else would make more sense?
               else do
                   return $ responseLBS status [jsonH, contentRange] $ "{\"token\":\"\"}"
