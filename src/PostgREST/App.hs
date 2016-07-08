@@ -201,7 +201,7 @@ app dbStructure conf apiRequest =
             (if returnsJWT
             then returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
             else do
-              let containsJWT = fromMaybe False $ isInfixOf "jwt_claims" <$> returnType
+              let containsJWT = fromMaybe False $ isInfixOf "mixed_claims" <$> returnType
               (if containsJWT
               then do
                   rt <- HT.query qi returnTypeOfFunction
