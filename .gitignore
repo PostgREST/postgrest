@@ -9,3 +9,7 @@ codex.tags
 .stack-work
 tags
 site
+
+# intellij
+.idea
+.iml

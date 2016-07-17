@@ -6,6 +6,9 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
+--, doesProcContainJWT
+, nameOfReturnArgs
+, returnTypeOfFunction
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -14,6 +17,7 @@ import qualified Hasql.Query                   as H
 
 import           Control.Applicative
 import           Control.Monad                 (join, replicateM)
+import           Data.Functor.Contravariant    (contramap)
 import           Data.List                     (elemIndex, find, sort,
                                                 subsequences, transpose)
 import           Data.Maybe                    (fromJust, fromMaybe, isJust,
@@ -48,6 +52,11 @@ getDbStructure schema = do
     , dbPrimaryKeys = keys'
     , dbProcs = procs
     }
+
+encodeQi :: HE.Params QualifiedIdentifier
+encodeQi =
+  contramap qiSchema (HE.value HE.text) <>
+  contramap qiName   (HE.value HE.text)
 
 decodeTables :: HD.Result [Table]
 decodeTables =
@@ -108,6 +117,40 @@ accessibleProcs =
     JOIN   pg_proc p
     ON     pronamespace = n.oid
     WHERE  n.nspname = $1|]
+
+-- obtain return type and schema of a function
+returnTypeOfFunction :: H.Query QualifiedIdentifier (Text, Text)
+returnTypeOfFunction =
+  H.statement sql encodeQi (HD.singleRow relRow) True
+ where
+  sql = [q| SELECT
+              nt.nspname,
+              t.typname
+            FROM pg_proc p
+              JOIN pg_namespace n ON pronamespace = n.oid
+              JOIN (pg_namespace nt
+                JOIN pg_type t ON t.typnamespace = nt.oid) ON p.prorettype = t.oid
+            WHERE n.nspname = $1
+                  AND p.proname = $2
+           |]
+  relRow = (,)
+    <$> HD.value HD.text
+    <*> HD.value HD.text
+
+-- function that returns the parameter name
+nameOfReturnArgs :: H.Query QualifiedIdentifier [Text]
+nameOfReturnArgs =
+  H.statement sql encodeQi (HD.rowsList relRow) True
+ where
+  sql = [q| SELECT attname
+            FROM pg_attribute a
+              JOIN pg_class c  ON a.attrelid = c.oid
+              JOIN (pg_type t
+                JOIN pg_namespace nt ON t.typnamespace = nt.oid) ON a.atttypid = t.oid
+            WHERE nt.nspname = $1
+                  AND c.relname = $2
+           |]
+  relRow = (HD.value HD.text)
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =

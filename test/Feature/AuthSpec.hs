@@ -61,6 +61,27 @@ spec = describe "authorization" $ do
           "http://postgrest.com/foo":true, "iss":"joe", "iat":1300819380,
           "aud":"everyone"}] |]
 
+  it "sql functions can encode mixed claims" $
+    post "/rpc/mixed_jwt_test" "{}"
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Just [json| {"jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImlkIjoic2F2ZWRfYnlfamVzdXMifQ.mGJt9fX28i5uMOZGe7rlnqZYB70mmOpFx212_Q9uZAM",
+                                  "big_jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6MTMwMDgxOTM4MCwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3QiLCJpYXQiOjEzMDA4MTkzODAsImF1ZCI6ImV2ZXJ5b25lIn0._tQCF79-ZZGMlLktd3csM_bVaiMg7A8YvIb6K2hcu5w",
+                                  "id":"jdoe","some_field":"test"} |]
+        , matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
+
+  it "returns mixed jwt functions as mixed jwt claim which includes tokens" $
+      post "/rpc/login_mixed" [json| { "id": "jdoe", "pass": "1234" } |]
+        `shouldRespondWith` ResponseMatcher {
+            matchBody = Just [json| {"jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0",
+                                    "big_jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6MTMwMDgxOTM4MCwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqZG9lIiwicm9sZSI6InBvc3RncmVzdF90ZXN0X2F1dGhvciIsImlhdCI6MTMwMDgxOTM4MCwiYXVkIjoiZXZlcnlvbmUifQ.Wggar1AALEgFWjtvJEb29L079CBOrl82r4dwjaUXWwM",
+                                    "id":"jdoe",
+                                    "some_field":"test"} |]
+          , matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          }
+
   it "allows users with permissions to see their tables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""

@@ -34,7 +34,7 @@ import           Data.Aeson.Types (emptyArray)
 import           Data.Monoid
 import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import qualified Data.Vector               as V
-import qualified Hasql.Transaction         as H
+--import qualified Hasql.Transaction         as H
 
 import qualified Data.HashMap.Strict       as M
 
@@ -42,7 +42,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
                                             , userApiRequest)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
+import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole, mixedClaimsTokenJWT)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -85,12 +85,12 @@ postgrest conf refDbStructure pool =
       (HT.run handleReq HT.ReadCommitted txMode)
     respond resp
 
-transactionMode :: Action -> H.Mode
+transactionMode :: Action -> HT.Mode
 transactionMode ActionRead = HT.Read
 transactionMode ActionInfo = HT.Read
 transactionMode _ = HT.Write
 
-app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
+app :: DbStructure -> AppConfig -> ApiRequest -> HT.Transaction Response
 app dbStructure conf apiRequest =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
@@ -107,7 +107,7 @@ app dbStructure conf apiRequest =
               stm = createReadStatement q cq singular
                     shouldCount (contentType == TextCSV)
           respondToRange $ do
-            row <- H.query () stm
+            row <- HT.query () stm
             let (tableTotal, queryTotal, _ , body) = row
             if singular
             then return $ if queryTotal <= 0
@@ -132,7 +132,7 @@ app dbStructure conf apiRequest =
           let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
-          row <- H.query uniform stm
+          row <- HT.query uniform stm
           let (_, _, fs, body) = extractQueryResult row
               header =
                 if null fs then []
@@ -147,7 +147,7 @@ app dbStructure conf apiRequest =
         Left e -> return $ responseLBS status400 [jsonH] $ cs e
         Right (sq,mq) -> do
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
-          row <- H.query uniform stm
+          row <- HT.query uniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
@@ -164,7 +164,7 @@ app dbStructure conf apiRequest =
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
               stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) fakeload
-          row <- H.query emptyUniform stm
+          row <- HT.query emptyUniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
               r = contentRangeH 1 0 (toInteger <$> Just queryTotal)
           return $ if queryTotal == 0
@@ -194,14 +194,28 @@ app dbStructure conf apiRequest =
         case readSqlParts of
           Left e -> return $ responseLBS status400 [jsonH] $ cs e
           Right (q,cq) -> respondToRange $ do
-            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+            row <- HT.query () (callProc qi p q cq topLevelRange shouldCount singular)
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
-              in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnsJWT
-                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else cs $ encode body)
+                returnJson = (\x -> return $ responseLBS status [jsonH, contentRange] x)
+                in
+                (if returnsJWT
+                then returnJson $ "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                else do
+                  let containsJWT = fromMaybe False $ isInfixOf "mixed_claims" <$> returnType
+                    in
+                    (if containsJWT
+                    then do
+                      rt <- HT.query qi returnTypeOfFunction
+
+                      let qiType = QualifiedIdentifier { qiSchema = cs (fst rt),  qiName = cs (snd rt) }
+                      fields <- HT.query qiType nameOfReturnArgs
+                      returnJson $ cs $ encode $ mixedClaimsTokenJWT fields body jwtSecret
+                    else do
+                      return $ responseLBS status [jsonH, contentRange] $ cs $ encode body
+                    )
+                 )
+
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti uri'
@@ -213,7 +227,7 @@ app dbStructure conf apiRequest =
           uri' = uri proxy
           encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
           header = if contentType == OpenAPI then openapiH else jsonH
-      body <- encodeFn <$> H.query schema accessibleTables
+      body <- encodeFn <$> HT.query schema accessibleTables
       return $ responseLBS status200 [header] $ cs body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""

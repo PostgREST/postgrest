@@ -75,6 +75,18 @@ CREATE TYPE big_jwt_claims AS (
 );
 
 
+--
+-- Name: mixed_claims; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE mixed_claims AS (
+  id         text,
+  some_field text,
+  jwt        jwt_claims,
+  big_jwt    big_jwt_claims
+);
+
+
 SET search_path = test, pg_catalog;
 
 --
@@ -249,6 +261,68 @@ SELECT current_setting('postgrest.claims.iss') as iss,
        -- role is not included in the claims list
        current_setting('postgrest.claims.http://postgrest.com/foo')::boolean
          as "http://postgrest.com/foo";
+$$;
+
+
+--
+-- Name: login(text, text); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION login_mixed(id text, pass text) RETURNS public.mixed_claims
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  _jwt jwt_claims;
+  _big_jwt big_jwt_claims;
+  _role TEXT;
+  result mixed_claims;
+BEGIN
+  SELECT rolname::text FROM postgrest.auth a WHERE a.id = login_mixed.id AND a.pass = login_mixed.pass into _role;
+
+  SELECT login_mixed.id::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
+         1300819380 as exp, 1300819380 as nbf, 1300819380 as iat,
+         'foo'::text as jti, _role::text as role,
+         true as "http://postgrest.com/foo" into _big_jwt;
+
+  SELECT _role as role, login_mixed.id as id into _jwt;
+
+  SELECT
+    login_mixed.id::text as id,
+    'test' as some_field,
+    _jwt as jwt,
+    _big_jwt as big_jwt
+  into result;
+
+  return result;
+END;
+$$;
+
+
+--
+-- Name: mixed_jwt_test(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION mixed_jwt_test() RETURNS public.mixed_claims
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  _jwt jwt_claims;
+  result mixed_claims;
+BEGIN
+  SELECT
+    'jdoe' as id,
+    'saved_by_jesus' as role
+  into _jwt;
+
+  SELECT
+    'jdoe' as id,
+    'test' as some_field,
+    _jwt as jwt,
+    test.jwt_test() as big_jwt
+  into result;
+
+  return result;
+END
 $$;
 
 

@@ -16,13 +16,14 @@ module PostgREST.Auth (
   , containsRole
   , jwtClaims
   , tokenJWT
+  , mixedClaimsTokenJWT
   ) where
 
 import           Protolude
 import           Control.Lens
 import           Data.Aeson              (Value (..), parseJSON, toJSON)
 import           Data.Aeson.Lens
-import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
+import           Data.Aeson.Types        (parseMaybe, emptyObject)
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
 import           Data.Maybe              (fromJust)
@@ -73,10 +74,14 @@ jwtClaims secret jwt time =
 -}
 tokenJWT :: JWT.Secret -> Value -> Text
 tokenJWT secret (Array arr) =
-  let obj = if V.null arr then emptyObject else V.head arr
-      jcs = parseMaybe parseJSON obj :: Maybe JWT.JWTClaimsSet in
-  JWT.encodeSigned JWT.HS256 secret $ fromMaybe JWT.def jcs
-tokenJWT secret _ = tokenJWT secret emptyArray
+  let obj = if V.null arr then emptyObject else V.head arr in
+    tokenJWT secret obj
+tokenJWT secret (Object o) =
+  let
+    jcs = parseMaybe parseJSON (Object o) :: Maybe JWT.JWTClaimsSet in
+    JWT.encodeSigned JWT.HS256 secret $ fromMaybe JWT.def jcs
+tokenJWT secret _ = tokenJWT secret emptyObject
+
 
 {-|
   Whether a response from jwtClaims contains a role claim
@@ -84,3 +89,22 @@ tokenJWT secret _ = tokenJWT secret emptyArray
 containsRole :: Either Text (M.HashMap Text Value) -> Bool
 containsRole (Left _) = False
 containsRole (Right claims) = M.member "role" claims
+
+
+
+{-|
+  for mixed claimes
+-}
+tokenJWTJsonFunc :: JWT.Secret -> (Value -> Value)
+tokenJWTJsonFunc x = \y -> String (tokenJWT x y)
+
+
+mixedClaimsTokenJWT :: [Text] -> Value -> JWT.Secret -> Value
+mixedClaimsTokenJWT t (Array arr) s    =
+  let obj = if V.null arr then emptyObject else V.head arr in
+    mixedClaimsTokenJWT t obj s
+mixedClaimsTokenJWT [] (Object o) _    = Object o
+mixedClaimsTokenJWT (x:xs) (Object o) s     = mixedClaimsTokenJWT xs
+                                                (Object $ M.adjust (tokenJWTJsonFunc s) x o)
+                                                 s
+mixedClaimsTokenJWT _ v _ = v
