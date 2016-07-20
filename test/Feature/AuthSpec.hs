@@ -5,7 +5,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-
+import Text.Heredoc
 import SpecHelper
 import Network.Wai (Application)
 -- }}}
@@ -103,3 +103,29 @@ spec = describe "authorization" $ do
     _ <- request methodPost "/rpc/problem" [auth] ""
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
+
+  it "sesssion type login works and the session cookie is set" $
+    post "/rpc/login_session" [json| {} |]
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Just [json| {"secure":true,"path":"/","max_age":10,"expires":1000,"domain":"mydomain.com","value":"xxxxxxxxxxx","http_only":true,"name":"PGSESSID"} |]
+        , matchStatus = 200
+        , matchHeaders = ["Set-Cookie" <:> "PGSESSID=xxxxxxxxxxx; Path=/; Expires=Thu, 01-Jan-1970 00:16:40 GMT; Max-Age=10; Domain=mydomain.com; HttpOnly; Secure"]
+        }
+
+  it "single cookie ends up as claims" $
+    request methodPost "/rpc/get_claim_value" [("Cookie","acookie=cookievalue")]
+      [json| {"name":"cookie.acookie"} |]
+       `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [str|"cookievalue"|]
+        , matchStatus = 200
+        , matchHeaders = []
+        }
+
+  it "multiple cookies ends up as claims" $
+    request methodPost "/rpc/get_claim_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
+      [json| {"name":"cookie.secondcookie"} |]
+       `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [str|"anothervalue"|]
+        , matchStatus = 200
+        , matchHeaders = []
+        }

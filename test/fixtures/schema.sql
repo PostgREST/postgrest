@@ -48,6 +48,26 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 SET search_path = public, pg_catalog;
 
+CREATE OR REPLACE FUNCTION switch_role() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+declare
+	user_id text;
+begin
+  user_id = current_setting('postgrest.claims.id')::text;
+  if user_id = '1'::text then
+		execute 'set local role postgrest_test_author';
+	elseif user_id = '2'::text then
+		execute 'set local role postgrest_test_default_role';
+	elseif user_id = '4'::text then
+		RAISE EXCEPTION 'Disabled ID --> %', user_id USING HINT = 'Please contact administrator';
+	else
+		execute 'set local role postgrest_test_anonymous';
+	end if;
+end
+$$;
+
+
 --
 -- Name: jwt_claims; Type: TYPE; Schema: public; Owner: -
 --
@@ -55,6 +75,17 @@ SET search_path = public, pg_catalog;
 CREATE TYPE jwt_claims AS (
 	role text,
 	id text
+);
+
+CREATE TYPE session_claims AS (
+  name text,
+  value text,
+  "path" text,
+  expires integer,
+  max_age integer,
+  domain text,
+  http_only boolean,
+  secure boolean
 );
 
 --
@@ -214,6 +245,18 @@ CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_claims
 SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass;
 $$;
 
+CREATE FUNCTION get_current_user() RETURNS text
+    LANGUAGE sql
+    AS $$
+SELECT current_user::text;
+$$;
+
+CREATE FUNCTION get_claim_value(name text) RETURNS text
+    LANGUAGE sql
+    AS $$
+select nullif(current_setting('postgrest.claims.' || name), '')::text;
+$$;
+
 
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
@@ -229,6 +272,20 @@ SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
 $$;
 
 
+CREATE FUNCTION login_session() RETURNS public.session_claims
+LANGUAGE sql
+AS $$
+  -- use NULL::type as column_name to have Postgrest use the default value
+  SELECT
+    'PGSESSID'::text as name,
+    'xxxxxxxxxxx'::text as value,
+    '/'::text as "path",
+    1000::integer as expires,
+    10::integer as max_age,
+    'mydomain.com'::text as domain,
+    true as http_only,
+    true as secure
+$$;
 --
 -- Name: reveal_big_jwt(); Type: FUNCTION; Schema: test; Owner: -
 --

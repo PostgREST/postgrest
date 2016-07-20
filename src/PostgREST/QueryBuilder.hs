@@ -36,7 +36,7 @@ import qualified Data.Aeson              as JSON
 import           Data.Int                (Int64)
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note, fromMaybe)
+import           Control.Error           (note, fromMaybe, hush)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.List               (find)
@@ -45,7 +45,7 @@ import           Data.Text               (Text, intercalate, unwords, replace, i
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
-import           Control.Applicative     ((<|>))
+--import           Control.Applicative     ((<|>))
 import           Control.Monad           (replicateM)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
@@ -165,26 +165,62 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
 addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _, alias)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentTable]}, (_, _, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
+    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _)) _)) ->
+      Node <$> readNode' <*> forest'
       where
-        rel = note ("no relation between " <> parentTable <> " and " <> name)
-            $  findRelationByTable schema name parentTable
-           <|> findRelationByColumn schema parentTable name
+        forest' = updateForest $ hush node'
+        node' = Node <$> readNode' <*> pure forest
+        readNode' = addRel readNode <$> rel
+        rel :: Either Text Relation
+        rel = note ("no relation between " <> parentNodeTable <> " and " <> name)
+            $  findRelation schema name parentNodeTable
+            where
+              findRelation s nodeTableName parentNodeTableName =
+                find (\r ->
+                  s == tableSchema (relTable r) && -- match schema for relation table
+                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
+                  (
+
+                    -- (request)        => projects { ..., clients{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    (
+                      nodeTableName == tableName (relTable r) && -- match relation table name
+                      parentNodeTableName == tableName (relFTable r) -- match relation foreign table name
+                    ) ||
+
+
+                    -- (request)        => projects { ..., client_id{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    (
+                      parentNodeTableName == tableName (relFTable r) &&
+                      length (relFColumns r) == 1 &&
+                      nodeTableName `colMatches` (colName . head . relFColumns) r
+                    )
+
+                    -- (request)        => project_id { ..., client_id{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    -- this case works becasue before reaching this place
+                    -- addRelation will turn project_id to project so the above condition will match
+                  )
+                  ) allRelations
+                where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
         addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
         addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
-    _ -> Node (query, (name, Nothing, alias)) <$> updatedForest
+    _ -> Node (query, (name, Nothing, alias)) <$> updateForest (Just node)
   where
-    updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    -- Searches through all the relations and returns a match given the parameter conditions.
-    -- Will only find a relation where both schemas are in the PostgREST schema.
-    -- `findRelationByColumn` also does a ducktype check to see if the column name has any variation of `id` or `fk`. If so then the relation is returned as a match.
-    findRelationByTable s t1 t2 =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
-    findRelationByColumn s t c =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
-      where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
+    updateForest :: Maybe ReadRequest -> Either Text [ReadRequest]
+    updateForest n = mapM (addRelations schema allRelations n) forest
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
@@ -212,13 +248,12 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
             SELECT
               {countResultF} AS total_result_set,
               pg_catalog.count(t) AS page_total,
-              case 
-                when pg_catalog.count(1) > 1 then 
+              case
+                when pg_catalog.count(1) > 1 then
                   {bodyF}
                 else
                   coalesce(((array_agg(row_to_json(t)))[1]->{_procName})::character varying, {bodyF})
-
-              end as body
+            	end as body
             FROM ({selectQuery}) t;
           |]
           -- FROM (select * from {sourceCTEName} {limitF range}) t;

@@ -20,6 +20,7 @@ import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
 import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
+import qualified Feature.SwitchingFnSpec
 import qualified Feature.ProxySpec
 
 main :: IO ()
@@ -33,6 +34,7 @@ main = do
   let withApp = return $ postgrest testCfg refDbStructure pool
       ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool
       unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool
+      switchingFnApp = return $ postgrest testSwitchingFnCfg refDbStructure pool
       proxyApp = return $ postgrest testProxyCfg refDbStructure pool
 
   hspec $ do
@@ -45,6 +47,10 @@ main = do
     -- this test runs with a different schema
     beforeAll_ resetDb . before unicodeApp $
       describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
+
+    -- this test runs with a different schema
+    beforeAll_ resetDb . before switchingFnApp $
+      describe "Feature.UnicodeSpec" Feature.SwitchingFnSpec.spec
 
     -- this test runs with a proxy
     beforeAll_ resetDb . before proxyApp $

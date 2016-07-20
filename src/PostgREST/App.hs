@@ -7,6 +7,7 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
+import           Control.Lens              ((^?))
 import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8   as BS
 import           Data.IORef                (IORef, readIORef)
@@ -31,8 +32,9 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 
 import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
+import           Data.Aeson.Lens
 import           Data.Monoid
-import           Data.Time.Clock.POSIX     (getPOSIXTime)
+import           Data.Time.Clock.POSIX     (getPOSIXTime,posixSecondsToUTCTime)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -63,6 +65,9 @@ import           PostgREST.Types
 import           PostgREST.OpenAPI
 
 import           Prelude                hiding (dropWhile, drop)
+import           Web.Cookie
+import           Data.ByteString.Builder  (toLazyByteString)
+import           Data.Time.Clock
 
 
 postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
@@ -191,17 +196,34 @@ app dbStructure conf apiRequest =
             jwtSecret = configJwtSecret conf
             returnType = lookup (qiName qi) $ dbProcs dbStructure
             returnsJWT = fromMaybe False $ isInfixOf "jwt_claims" <$> returnType
+            returnsSession = fromMaybe False $ isInfixOf "session_claims" <$> returnType
         case readSqlParts of
           Left e -> return $ responseLBS status400 [jsonH] $ cs e
           Right (q,cq) -> respondToRange $ do
-            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+            row <- H.query () (callProc qi p q cq topLevelRange shouldCount (singular || returnsSession) )
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
+                responseBody = if returnsJWT
+                  then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
+                  else cs $ encode body
+                headers = if returnsSession
+                  then [jsonH, contentRange, setCookieH]
+                  else [jsonH, contentRange]
+                  where
+                    setCookieH = ("Set-Cookie", cookieValue)
+                    cookieValue = cs.toLazyByteString.renderSetCookie $ def {
+                        setCookieName     = fromMaybe "name"  $ cs <$> body ^? key "name" . _String
+                      , setCookieValue    = fromMaybe "value" $ cs <$> body ^? key "value" . _String
+                      , setCookiePath     = cs <$> body ^? key "path" . _String
+                      , setCookieExpires  = (posixSecondsToUTCTime.fromIntegral) <$> body ^? key "expires" . _Integer
+                      , setCookieMaxAge   = secondsToDiffTime <$> body ^? key "max_age" . _Integer
+                      , setCookieDomain   = cs <$> body ^? key "domain" . _String
+                      , setCookieHttpOnly = fromMaybe False $ body ^? key "http_only" . _Bool
+                      , setCookieSecure   = fromMaybe False $ body ^? key "secure" . _Bool
+                      -- , setCookieSameSite
+                    }
               in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnsJWT
-                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else cs $ encode body)
+              return $ responseLBS status headers responseBody
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti uri'

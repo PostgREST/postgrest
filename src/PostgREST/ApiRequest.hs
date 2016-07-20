@@ -29,6 +29,7 @@ import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema, Payload(..),
                                             UniformObjects(..))
 import           Data.Ranged.Ranges        (singletonRange, rangeIntersection)
+import           Web.Cookie                (parseCookiesText)
 
 type RequestBody = BL.ByteString
 
@@ -87,6 +88,8 @@ data ApiRequest = ApiRequest {
   , iCanonicalQS :: String
   -- | JSON Web Token
   , iJWT :: T.Text
+  -- | Request Cookies
+  , iCookies :: Maybe [(T.Text, T.Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -163,6 +166,7 @@ userApiRequest schema req reqBody =
      . parseSimpleQuery
      $ rawQueryString req
   , iJWT = tokenStr
+  , iCookies = parseCookiesText <$> lookupHeader "Cookie"
   }
 
  where

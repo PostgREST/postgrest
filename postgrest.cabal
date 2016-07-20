@@ -71,6 +71,7 @@ executable postgrest
                      , HTTP
                      , Ranged-sets
                      , protolude >= 0.1.5 && < 0.2.0
+                     , cookie
   if !os(windows)
     build-depends:     unix >= 2.7 && < 3
 
@@ -116,6 +117,7 @@ library
                      , insert-ordered-containers >= 0.1.0.1
                      , swagger2 >= 2.1
                      , protolude >= 0.1.5 && < 0.2.0
+                     , cookie
                      , network-uri >= 2.6.1.0
 
   Other-Modules:       Paths_postgrest
@@ -150,6 +152,7 @@ Test-Suite spec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
+                     , Feature.SwitchingFnSpec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
@@ -202,3 +205,4 @@ Test-Suite spec
                      , network-uri
                      , HTTP
                      , Ranged-sets
+                     , cookie
