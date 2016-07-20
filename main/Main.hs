@@ -2,7 +2,7 @@
 
 module Main where
 
-import           Prelude
+import           Protolude
 import           PostgREST.App
 import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
@@ -11,10 +11,8 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
-import           Control.Monad
-import           Data.Monoid                          ((<>))
-import           Data.String.Conversions              (cs)
 import           Data.String                          (IsString (..))
+import           Data.Function                        (id)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -22,25 +20,21 @@ import qualified Hasql.Encoders                       as HE
 import qualified Hasql.Pool                           as P
 import           Network.Wai.Handler.Warp
 import           System.IO                            (BufferMode (..),
-                                                       hSetBuffering, stderr,
-                                                       stdin, stdout)
+                                                       hSetBuffering)
 import           Web.JWT                              (secret)
 import           Data.IORef
 #ifndef mingw32_HOST_OS
-import           Control.Monad.IO.Class               (liftIO)
 import           System.Posix.Signals
-import           Control.Concurrent                   (myThreadId)
-import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
 isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
   ver <- H.query () pgVersion
-  return $ read (cs ver) >= minimumPgVersion
+  return $ toInteger ver >= minimumPgVersion
  where
   pgVersion =
     H.statement "SHOW server_version_num"
-      HE.unit (HD.singleRow $ HD.value HD.text) True
+      HE.unit (HD.singleRow $ HD.value HD.int4) True
 
 main :: IO ()
 main = do
@@ -52,30 +46,29 @@ main = do
   let host = configHost conf
       port = configPort conf
       proxy = configProxyUri conf
-      pgSettings = cs (configDatabase conf)
+      pgSettings = toS (configDatabase conf)
       appSettings = setHost (fromString host)
                   . setPort port
-                  . setServerName (cs $ "postgrest/" <> prettyVersion)
+                  . setServerName (toS $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
 
-  when (isMalformedProxyUri proxy) $ error
+  when (isMalformedProxyUri proxy) $ panic
     "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
   unless (secret "secret" /= configJwtSecret conf) $
-    putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
-  Prelude.putStrLn $ "Listening on port " ++
-    (show $ configPort conf :: String)
+    putStrLn ("WARNING, running in insecure mode, JWT secret is the default value" :: Text)
+  putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
   result <- P.use pool $ do
     supported <- isServerVersionSupported
-    unless supported $ error (
+    unless supported $ panic (
       "Cannot run in this PostgreSQL version, PostgREST needs at least "
       <> show minimumPgVersion)
-    getDbStructure (cs $ configSchema conf)
+    getDbStructure (toS $ configSchema conf)
 
-  refDbStructure <- newIORef $ either (error.show) id result
+  refDbStructure <- newIORef $ either (panic . show) id result
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
@@ -87,7 +80,7 @@ main = do
 
   void $ installHandler sigHUP (
       Catch . void . P.use pool $ do
-        s <- getDbStructure (cs $ configSchema conf)
+        s <- getDbStructure (toS $ configSchema conf)
         liftIO $ atomicWriteIORef refDbStructure s
    ) Nothing
 #endif
