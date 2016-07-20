@@ -206,7 +206,7 @@ app dbStructure conf apiRequest =
       let encodeApi ti = encodeOpenAPI ti uri'
           host = configHost conf
           port = toInteger $ configPort conf
-          proxy = pickProxy $ configProxyUri conf
+          proxy = pickProxy $ toS <$> configProxyUri conf
           uri Nothing = ("http", pack host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy

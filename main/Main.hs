@@ -52,7 +52,7 @@ main = do
                   . setServerName (toS $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
 
-  when (isMalformedProxyUri proxy) $ panic
+  when (isMalformedProxyUri $ toS <$> proxy) $ panic
     "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
   unless (secret "secret" /= configJwtSecret conf) $
