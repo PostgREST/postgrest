@@ -29,21 +29,21 @@ pgErrResponse authed e =
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
-    "code" .= ("" :: T.Text),
-    "message" .= ("Connection error" :: T.Text),
-    "details" .= (toS $ fromMaybe "" e :: T.Text)]
+    "code" .= ("" :: Text),
+    "message" .= ("Connection error" :: Text),
+    "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
-    "code" .= (toS c::T.Text),
-    "message" .= (toS m::T.Text),
-    "details" .= (fmap toS d::Maybe T.Text),
-    "hint" .= (fmap toS h::Maybe T.Text)]
+    "code" .= (toS c::Text),
+    "message" .= (toS m::Text),
+    "details" .= (fmap toS d::Maybe Text),
+    "hint" .= (fmap toS h::Maybe Text)]
   toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
-    "message" .= (m::T.Text)]
+    "message" .= (m::Text)]
   toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
-    "message" .= ("Row error: end of input"::T.Text),
+    "message" .= ("Row error: end of input"::Text),
     "details" .=
       ("Attempt to parse more columns than there are in the result"::Text),
     "details" .= (("Row number " <> show i)::Text)]
@@ -60,7 +60,7 @@ instance JSON.ToJSON H.Error where
     "details" .= i]
   toJSON (H.ClientError d) = JSON.object [
     "message" .= ("Database client error"::Text),
-    "details" .= (fmap toS d::Maybe T.Text)]
+    "details" .= (fmap toS d::Maybe Text)]
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
 httpStatus _ (P.ConnectionError _) = HT.status500

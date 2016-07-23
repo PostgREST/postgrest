@@ -8,16 +8,15 @@ module PostgREST.OpenAPI (
 
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
-import           Data.ByteString.Lazy        (ByteString)
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
-import           Data.Maybe                  (isJust, isNothing, fromJust)
+import           Data.Maybe                  (fromJust)
 import           Data.String                 (IsString (..))
-import           Data.Text                   (Text, unpack, pack, concat, intercalate, init, tail, toLower)
+import           Data.Text                   (unpack, pack, concat, intercalate, init, tail, toLower)
 import qualified Data.Set                    as Set
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
-import           Prelude hiding              (concat, init, tail)
+import           Protolude hiding              (concat, (&), Proxy, get, intercalate)
 
 import           Data.Swagger
 
@@ -244,7 +243,7 @@ postgrestSpec ti (s, h, p, b) = (mempty :: Swagger)
       s' = if s == "http" then Http else Https
       h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
 
-encodeOpenAPI :: [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> ByteString
+encodeOpenAPI :: [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> LByteString
 encodeOpenAPI ti uri = encode $ postgrestSpec ti uri
 
 {-|
@@ -256,16 +255,16 @@ encodeOpenAPI ti uri = encode $ postgrestSpec ti uri
   http://postgrest.com/openapi.json
   https://postgrest.com:8080/openapi.json
 -}
-isMalformedProxyUri :: Maybe String -> Bool
+isMalformedProxyUri :: Maybe Text -> Bool
 isMalformedProxyUri Nothing =  False
 isMalformedProxyUri (Just uri)
-  | isAbsoluteURI uri = not $ isUriValid $ toURI uri
+  | isAbsoluteURI (toS uri) = not $ isUriValid $ toURI uri
   | otherwise = True
 
-toURI :: String -> URI
-toURI uri = fromJust $ parseURI uri
+toURI :: Text -> URI
+toURI uri = fromJust $ parseURI (toS uri)
 
-pickProxy :: Maybe String -> Maybe Proxy
+pickProxy :: Maybe Text -> Maybe Proxy
 pickProxy proxy
   | isNothing proxy = Nothing
   -- should never happen
@@ -287,11 +286,12 @@ pickProxy proxy
    authority = fromJust $ uriAuthority uri
    host' = pack $ uriRegName authority
    port' = uriPort authority
+   readPort = fromMaybe 80 . readMaybe
    port'' :: Integer
    port'' = case (port', scheme) of
              ("", "http") -> 80
              ("", "https") -> 443
-             _ -> read $ unpack $ tail $ pack port'
+             _ -> readPort $ unpack $ tail $ pack port'
 
 isUriValid:: URI -> Bool
 isUriValid = fAnd [isSchemeValid, isQueryValid, isAuthorityValid]
@@ -325,6 +325,7 @@ isHostValid _ = True
 isPortValid :: URIAuth -> Bool
 isPortValid URIAuth {uriPort = ""} = True
 isPortValid URIAuth {uriPort = (':':p)} =
-  let i :: Integer = read p in
-      i > 0 && i < 65536
+  case readMaybe p of
+    Just i -> i > (0 :: Integer) && i < 65536
+    Nothing -> False
 isPortValid _ = False
