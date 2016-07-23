@@ -6,8 +6,6 @@ module PostgREST.Middleware where
 import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import           Data.String.Conversions       (cs)
-import           Data.Maybe                    (fromMaybe, listToMaybe)
-import           Data.Text
 import qualified Hasql.Transaction             as H
 
 import           Network.HTTP.Types.Header     (hAccept)
@@ -22,8 +20,10 @@ import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
 import           PostgREST.Auth                (claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
+import           Data.Text
+import           Data.List (lookup)
 
-import           Prelude                       hiding (concat, null)
+import           Protolude                     hiding (concat, null)
 
 runWithClaims :: AppConfig -> Either Text (M.HashMap Text Value) ->
                  (ApiRequest -> H.Transaction Response) ->

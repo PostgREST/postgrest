@@ -7,14 +7,12 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Data.Bifunctor            (first)
 import qualified Data.ByteString.Char8   as BS
 import           Data.IORef                (IORef, readIORef)
-import           Data.List                 (find, delete)
-import           Data.Maybe                (fromMaybe, fromJust, mapMaybe)
+import           Data.List                 (delete, lookup)
+import           Data.Maybe                (fromJust)
 import           Data.Ranged.Ranges        (emptyRange)
-import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text, replace, strip, pack, isInfixOf, dropWhile, drop)
+import           Data.Text                 (replace, strip, pack, isInfixOf, dropWhile, drop)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -62,8 +60,9 @@ import           PostgREST.QueryBuilder ( callProc
 import           PostgREST.Types
 import           PostgREST.OpenAPI
 
-import           Prelude                hiding (dropWhile, drop)
-
+import           Data.Foldable (foldr1)
+import           Data.Function (id)
+import           Protolude                hiding (dropWhile, drop, Proxy)
 
 postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
 postgrest conf refDbStructure pool =
@@ -74,7 +73,7 @@ postgrest conf refDbStructure pool =
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
-    let schema = cs $ configSchema conf
+    let schema = toS $ configSchema conf
         apiRequest = userApiRequest schema req body
         eClaims = jwtClaims (configJwtSecret conf) (iJWT apiRequest) time
         authed = containsRole eClaims
@@ -95,13 +94,13 @@ app dbStructure conf apiRequest =
   let
       -- TODO: blow up for Left values (there is a middleware that checks the headers)
       contentType = either (const ApplicationJSON) id (iAccepts apiRequest)
-      contentTypeH = (hContentType, cs $ show contentType) in
+      contentTypeH = (hContentType, show contentType) in
 
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
       case readSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Left e -> return $ responseLBS status400 [jsonH] $ toS e
         Right (q, cq) -> do
           let singular = iPreferSingular apiRequest
               stm = createReadStatement q cq singular
@@ -112,22 +111,22 @@ app dbStructure conf apiRequest =
             if singular
             then return $ if queryTotal <= 0
               then responseLBS status404 [] ""
-              else responseLBS status200 [contentTypeH] (cs body)
+              else responseLBS status200 [contentTypeH] (toS body)
             else do
               let (status, contentRange) = rangeHeader queryTotal tableTotal
                   canonical = iCanonicalQS apiRequest
               return $ responseLBS status
                 [contentTypeH, contentRange,
                   ("Content-Location",
-                    "/" <> cs (qiName qi) <>
-                      if Prelude.null canonical then "" else "?" <> cs canonical
+                    "/" <> toS (qiName qi) <>
+                      if Protolude.null canonical then "" else "?" <> toS canonical
                   )
-                ] (cs body)
+                ] (toS body)
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
      Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
       case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Left e -> return $ responseLBS status400 [jsonH] $ toS e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
@@ -136,15 +135,15 @@ app dbStructure conf apiRequest =
           let (_, _, fs, body) = extractQueryResult row
               header =
                 if null fs then []
-                else [(hLocation, "/" <> cs table <> renderLocationFields fs)]
+                else [(hLocation, "/" <> toS table <> renderLocationFields fs)]
 
           return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS status201 (contentTypeH : header) (cs body)
+            then responseLBS status201 (contentTypeH : header) (toS body)
             else responseLBS status201 header ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Left e -> return $ responseLBS status400 [jsonH] $ toS e
         Right (sq,mq) -> do
           let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == TextCSV) payload
           row <- H.query uniform stm
@@ -154,12 +153,12 @@ app dbStructure conf apiRequest =
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
           return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS s [contentTypeH, r] (cs body)
+            then responseLBS s [contentTypeH, r] (toS body)
             else responseLBS s [r] ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
       case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ cs e
+        Left e -> return $ responseLBS status400 [jsonH] $ toS e
         Right (sq,mq) -> do
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
@@ -170,7 +169,7 @@ app dbStructure conf apiRequest =
           return $ if queryTotal == 0
             then notFound
             else if iPreferRepresentation apiRequest == Full
-              then responseLBS status200 [contentTypeH, r] (cs body)
+              then responseLBS status200 [contentTypeH, r] (toS body)
               else responseLBS status204 [r] ""
 
     (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
@@ -182,7 +181,7 @@ app dbStructure conf apiRequest =
               pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
               body = encode (TableOptions cols pkeys)
               acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
-          return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ cs body
+          return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ toS body
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
@@ -192,7 +191,7 @@ app dbStructure conf apiRequest =
             returnType = lookup (qiName qi) $ dbProcs dbStructure
             returnsJWT = fromMaybe False $ isInfixOf "jwt_claims" <$> returnType
         case readSqlParts of
-          Left e -> return $ responseLBS status400 [jsonH] $ cs e
+          Left e -> return $ responseLBS status400 [jsonH] $ toS e
           Right (q,cq) -> respondToRange $ do
             row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
             let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
@@ -200,27 +199,27 @@ app dbStructure conf apiRequest =
               in
               return $ responseLBS status [jsonH, contentRange]
                       (if returnsJWT
-                      then "{\"token\":\"" <> cs (tokenJWT jwtSecret body) <> "\"}"
-                      else cs $ encode body)
+                      then "{\"token\":\"" <> toS (tokenJWT jwtSecret body) <> "\"}"
+                      else toS $ encode body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let encodeApi ti = encodeOpenAPI ti uri'
           host = configHost conf
           port = toInteger $ configPort conf
-          proxy = pickProxy $ configProxyUri conf
+          proxy = pickProxy $ toS <$> configProxyUri conf
           uri Nothing = ("http", pack host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy
           encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
           header = if contentType == OpenAPI then openapiH else jsonH
       body <- encodeFn <$> H.query schema accessibleTables
-      return $ responseLBS status200 [header] $ cs body
+      return $ responseLBS status200 [header] $ toS body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
 
     (_, _, Just (PayloadParseError e)) ->
       return $ responseLBS status400 [jsonH] $
-        cs (formatGeneralError "Cannot parse request payload" (cs e))
+        toS (formatGeneralError "Cannot parse request payload" (toS e))
 
     (_, TargetUnknown _, _) -> return notFound
 
@@ -242,7 +241,7 @@ app dbStructure conf apiRequest =
   filterCol _ _ _ =  False
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-  schema = cs $ configSchema conf
+  schema = toS $ configSchema conf
   shouldCount = iPreferCount apiRequest
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
@@ -255,10 +254,10 @@ app dbStructure conf apiRequest =
   respondToRange response = if topLevelRange == emptyRange
                             then return $ errResponse status416 "HTTP Range error"
                             else response
-  rangeHeader queryTotal tableTotal = let frm = rangeOffset topLevelRange
-                                          to = frm + toInteger queryTotal - 1
-                                          contentRange = contentRangeH frm to (toInteger <$> tableTotal)
-                                          status = rangeStatus frm to (toInteger <$> tableTotal)
+  rangeHeader queryTotal tableTotal = let lower = rangeOffset topLevelRange
+                                          upper = lower + toInteger queryTotal - 1
+                                          contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
+                                          status = rangeStatus lower upper (toInteger <$> tableTotal)
                                       in (status, contentRange)
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
@@ -271,22 +270,22 @@ renderLocationFields fields =
 
 rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
 rangeStatus _ _ Nothing = status200
-rangeStatus frm to (Just total)
-  | frm > total            = status416
-  | (1 + to - frm) < total = status206
+rangeStatus lower upper (Just total)
+  | lower > total            = status416
+  | (1 + upper - lower) < total = status206
   | otherwise               = status200
 
 contentRangeH :: Integer -> Integer -> Maybe Integer -> Header
-contentRangeH frm to total =
-    ("Content-Range", cs headerValue)
+contentRangeH lower upper total =
+    ("Content-Range", headerValue)
     where
       headerValue   = rangeString <> "/" <> totalString
       rangeString
-        | totalNotZero && fromInRange = show frm <> "-" <> cs (show to)
+        | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
-      fromInRange   = frm <= to
+      fromInRange   = lower <= upper
 
 jsonH :: Header
 jsonH = (hContentType, "application/json; charset=utf-8")
@@ -301,12 +300,12 @@ formatRelationError = formatGeneralError
 formatParserError :: ParseError -> Text
 formatParserError e = formatGeneralError message details
   where
-     message = cs $ show (errorPos e)
-     details = strip $ replace "\n" " " $ cs
+     message = show $ errorPos e
+     details = strip $ replace "\n" " " $ toS
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
 formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = cs $ encode $ object [
+formatGeneralError message details = toS $ encode $ object [
   "message" .= message,
   "details" .= details]
 
