@@ -21,6 +21,8 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
+import qualified Text.InterpolatedString.Perl6 as P6
+
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI (renderSimpleQuery)
@@ -150,7 +152,14 @@ app dbStructure conf apiRequest =
           let stm = createWriteStatement qi sq mq singular representation [] (contentType == TextCSV) payload
           row <- H.query uniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
+          when (singular && queryTotal > 1) $
+            HT.sql [P6.q| DO $$
+                       BEGIN RAISE EXCEPTION cardinality_violation
+                       USING MESSAGE =
+                         'plurality=singular specified, but more than one object would be updated';
+                       END $$;
+                     |]
+          let r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
