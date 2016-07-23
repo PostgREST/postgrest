@@ -406,14 +406,14 @@ spec = do
           [("Prefer", "return=representation;plurality=singular")]
           [json| { address: "B Street" } |]
         liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
-      it "can provide a singular representation when updating multiple entities" $ do
+      it "raises an error when attempting to update multiple entities with plurality=singular" $ do
         _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
         _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
         p <- request methodPatch
-          "/addresses?id=gte.98"
+          "/addresses?id=gt.0"
           [("Prefer", "return=representation;plurality=singular")]
           [json| { address: "zzz" } |]
-        liftIO $ simpleBody p `shouldBe` [str|{"id":98,"address":"zzz"}|]
+        liftIO $ simpleStatus p `shouldBe` status400
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
