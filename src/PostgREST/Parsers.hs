@@ -3,6 +3,7 @@ module PostgREST.Parsers
 -- )
 where
 
+import           Prelude
 import           Control.Applicative           hiding ((<$>))
 import           Data.Monoid
 import           Data.String.Conversions       (cs)
@@ -61,9 +62,7 @@ pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe pJsonPath
-  let pp = map cs p
-      jpp = map cs <$> jp
-  return (init pp, (last pp, jpp))
+  return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
@@ -96,6 +95,7 @@ pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldN
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 
+aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
 
 pSimpleSelect :: Parser SelectItem

@@ -1,9 +1,9 @@
 module PostgREST.Types where
+import           Protolude
+import qualified GHC.Show
 import           Data.Aeson
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
-import           Data.Int             (Int32)
-import           Data.Text
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
@@ -13,6 +13,7 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
+, dbProcs       :: [(Text,Text)]
 } deriving (Show, Eq)
 
 type Schema = Text
@@ -101,6 +102,13 @@ unUniformObjects (UniformObjects objs) = objs
 data Payload = PayloadJSON UniformObjects
              | PayloadParseError BS.ByteString
              deriving (Show, Eq)
+
+data Proxy = Proxy {
+  proxyScheme     :: Text
+, proxyHost       :: Text
+, proxyPort       :: Integer
+, proxyPath       :: Text
+} deriving (Show, Eq)
 
 type Operator = Text
 data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)

@@ -203,29 +203,39 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
-callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params range countTotal =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
-            WITH t AS (select * {_callSql})
+            WITH {sourceCTEName} AS ({_callSql})
             SELECT
-              {_countExpr} as countTotal,
-              pg_catalog.count(1) as countResult,
-              array_to_json(
-                coalesce(array_agg(row_to_json(r)), '\{}')
-              )::character varying
-            FROM (select * from t {limitF range}) r;
+              {countResultF} AS total_result_set,
+              pg_catalog.count(t) AS page_total,
+              case 
+                when pg_catalog.count(1) > 1 then 
+                  {bodyF}
+                else
+                  coalesce(((array_agg(row_to_json(t)))[1]->{_procName})::character varying, {bodyF})
+
+              end as body
+            FROM ({selectQuery}) t;
           |]
+          -- FROM (select * from {sourceCTEName} {limitF range}) t;
+    countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
     _args = intercalate "," $ map _assignment (HM.toList params)
+    _procName = pgFmtLit $ qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| from {fromQi qi}({_args}) |] :: Text
+    _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
-                   then "(select pg_catalog.count(1) from t)"
+                   then [qc|(select pg_catalog.count(1) from {sourceCTEName})|]
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json
+    bodyF
+     | isSingle = asJsonSingleF
+     | otherwise = asJsonF
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -263,18 +273,21 @@ requestToCountQuery _ (DbMutate _) = undefined
 requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(1)",
-   "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
-   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
+   "FROM ", fromQi qi,
+   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
    ]
  where
+   qi = if mainTbl == sourceCTEName
+     then QualifiedIdentifier "" mainTbl
+     else QualifiedIdentifier schema mainTbl
    fn Filter{value=VText _} = True
    fn Filter{value=VForeignKey _ _} = False
    localConditions = filter fn conditions
 
-requestToQuery :: Schema -> DbRequest -> SqlQuery
-requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
+requestToQuery _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
+requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -289,7 +302,7 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
       unwords joins,
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord),
-      limitF range
+      if isParent then "" else limitF range
       ]
     orderF ts =
         if null ts
@@ -311,7 +324,7 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema (DbRead (Node n forst))
+           where subquery = requestToQuery schema False (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias
@@ -321,19 +334,19 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
               " ON " <> intercalate " AND " ( map (pgFmtCondition qi . replaceTableName local_table_name) (getJoinConditions r) )
-          where subquery = requestToQuery schema (DbRead (Node n forst))
+          where subquery = requestToQuery schema True (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema (DbRead (Node n forst))
+           where subquery = requestToQuery schema False (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing,_)) _) _ = undefined
-requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
       colsString = intercalate ", " cols
@@ -345,7 +358,7 @@ requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects row
                 else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
   insInto <> vals
 
-requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -358,7 +371,7 @@ requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects row
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
+requestToQuery schema _ (DbMutate (Delete mainTbl conditions)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl

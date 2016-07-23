@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.3.1.1
+version:               0.3.2.0
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
@@ -23,15 +23,16 @@ Flag CI
 
 executable postgrest
   main-is:             Main.hs
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, NoImplicitPrelude
   ghc-options:
     -threaded
     -rtsopts
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
-                     , base >= 4.8 && < 5
+                     , base >= 4.8 && < 6
                      , bytestring
+                     , bytestring-tree-builder == 0.2.7
                      , case-insensitive
                      , cassava
                      , containers
@@ -39,15 +40,16 @@ executable postgrest
                      , errors
                      , hasql == 0.19.12
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.4.1
-                     , http-types
+                     , hasql-transaction == 0.4.5.1
+                     , http-types >= 0.9 && < 0.10
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens >= 0.4.2 && < 0.5
-                     , microlens-aeson >= 2.1.1 && < 2.2
+                     , lens >=3.8 && < 5.0
+                     , lens-aeson >= 1.0.0.0 && < 1.1.0.0
                      , mtl
                      , optparse-applicative >= 0.11 && < 0.13
                      , parsec
+                     , postgresql-binary == 0.9.0.1
                      , postgrest
                      , regex-tdfa
                      , safe >= 0.3 && < 0.4
@@ -63,8 +65,12 @@ executable postgrest
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
+                     , insert-ordered-containers >= 0.1.0.1
+                     , swagger2 >= 2.1
+                     , network-uri >= 2.6.1.0
                      , HTTP
                      , Ranged-sets
+                     , protolude >= 0.1.5 && < 0.2.0
   if !os(windows)
     build-depends:     unix >= 2.7 && < 3
 
@@ -72,9 +78,9 @@ executable postgrest
 
 library
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes
+  default-extensions:  OverloadedStrings, ScopedTypeVariables, QuasiQuotes, NoImplicitPrelude
   build-depends:       aeson
-                     , base >=4.6 && <5
+                     , base
                      , bytestring
                      , case-insensitive
                      , cassava
@@ -87,8 +93,8 @@ library
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens
-                     , microlens-aeson
+                     , lens
+                     , lens-aeson
                      , mtl
                      , optparse-applicative
                      , parsec
@@ -107,6 +113,10 @@ library
                      , wai-extra
                      , wai-middleware-static >= 0.6.0
                      , warp >= 3.1.0
+                     , insert-ordered-containers >= 0.1.0.1
+                     , swagger2 >= 2.1
+                     , protolude >= 0.1.5 && < 0.2.0
+                     , network-uri >= 2.6.1.0
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
@@ -120,6 +130,7 @@ library
                      , PostgREST.RangeQuery
                      , PostgREST.ApiRequest
                      , PostgREST.Types
+                     , PostgREST.OpenAPI
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -155,14 +166,14 @@ Test-Suite spec
                      , hasql-pool
                      , hasql-transaction
                      , heredoc
-                     , hspec == 2.2.*
+                     , hspec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , microlens
-                     , microlens-aeson
+                     , lens
+                     , lens-aeson
                      , monad-control
                      , mtl
                      , optparse-applicative
@@ -178,12 +189,16 @@ Test-Suite spec
                      , transformers
                      , transformers-base
                      , unordered-containers
-                     , unix
                      , vector
                      , wai
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
                      , warp
+                     , insert-ordered-containers
+                     , hjsonpointer
+                     , hjsonschema
+                     , swagger2
+                     , network-uri
                      , HTTP
                      , Ranged-sets

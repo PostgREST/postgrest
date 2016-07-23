@@ -18,17 +18,15 @@ module PostgREST.Auth (
   , tokenJWT
   ) where
 
-import           Lens.Micro
-import           Lens.Micro.Aeson
+import           Protolude
+import           Control.Lens
 import           Data.Aeson              (Value (..), parseJSON, toJSON)
+import           Data.Aeson.Lens
 import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
-import qualified Data.ByteString         as BS
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
-import           Data.Maybe              (fromMaybe, maybeToList, fromJust)
-import           Data.Monoid             ((<>))
+import           Data.Maybe              (fromJust)
 import           Data.String.Conversions (cs)
-import           Data.Text               (Text)
 import           Data.Time.Clock         (NominalDiffTime)
 import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
@@ -39,7 +37,7 @@ import qualified Web.JWT                 as JWT
   have a claim called role, this one is mapped to a SET ROLE
   statement.
 -}
-claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
+claimsToSQL :: M.HashMap Text Value -> [ByteString]
 claimsToSQL claims = roleStmts <> varStmts
  where
   roleStmts = maybeToList $

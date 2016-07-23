@@ -1,5 +1,7 @@
 module PostgREST.ApiRequest where
 
+import           Prelude
+
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Lazy      as BL
@@ -45,10 +47,11 @@ data Target = TargetIdent QualifiedIdentifier
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -- | Enumeration of currently supported content types for
 -- route responses and upload payloads
-data ContentType = ApplicationJSON | TextCSV deriving Eq
+data ContentType = ApplicationJSON | TextCSV | OpenAPI deriving Eq
 instance Show ContentType where
   show ApplicationJSON = "application/json; charset=utf-8"
   show TextCSV         = "text/csv; charset=utf-8"
+  show OpenAPI         = "application/openapi+json; charset=utf-8"
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -123,6 +126,8 @@ userApiRequest schema req reqBody =
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
+        Right oa@OpenAPI ->
+          PayloadParseError $ "Content-type not acceptable: " <> cs (show oa)
         -- This is a Left value because form-urlencoded is not a content
         -- type which we ever use for responses, only something we handle
         -- just this once for requests
@@ -208,11 +213,13 @@ pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
 pickContentType accept
   | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
   | has ctCsv = Right TextCSV
+  | has ctOpenAPI = Right OpenAPI
   | otherwise = Left accept'
  where
   ctAll  = "*/*"
   ctCsv  = "text/csv"
   ctJson = "application/json"
+  ctOpenAPI = "application/openapi+json"
   Just accept' = accept
   findInAccept = flip find $ parseHttpAccept accept'
   has          = isJust . findInAccept . BS.isPrefixOf

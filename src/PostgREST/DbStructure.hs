@@ -6,8 +6,6 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
-, doesProcExist
-, doesProcReturnJWT
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -16,7 +14,6 @@ import qualified Hasql.Query                   as H
 
 import           Control.Applicative
 import           Control.Monad                 (join, replicateM)
-import           Data.Functor.Contravariant    (contramap)
 import           Data.List                     (elemIndex, find, sort,
                                                 subsequences, transpose)
 import           Data.Maybe                    (fromJust, fromMaybe, isJust,
@@ -38,6 +35,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
+  procs <- H.query schema accessibleProcs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -48,12 +46,8 @@ getDbStructure schema = do
     , dbColumns = cols'
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
+    , dbProcs = procs
     }
-
-encodeQi :: HE.Params QualifiedIdentifier
-encodeQi =
-  contramap qiSchema (HE.value HE.text) <>
-  contramap qiName   (HE.value HE.text)
 
 decodeTables :: HD.Result [Table]
 decodeTables =
@@ -104,32 +98,16 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-doesProcExist :: H.Query QualifiedIdentifier Bool
-doesProcExist =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+accessibleProcs :: H.Query Schema [(Text, Text)]
+accessibleProcs =
+  H.statement sql (HE.value HE.text) (HD.rowsList ((,) <$> HD.value HD.text <*> HD.value HD.text)) True
  where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-    ) |]
-
-doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
-doesProcReturnJWT =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
- where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-      AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
-    ) |]
+  sql = [q|
+    SELECT p.proname as "proc_name", pg_get_function_result(p.oid) as "return_type"
+    FROM   pg_namespace n
+    JOIN   pg_proc p
+    ON     pronamespace = n.oid
+    WHERE  n.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
@@ -289,13 +267,13 @@ allColumns tabs =
                         CASE
                             WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
+                            ELSE format_type(a.atttypid, a.atttypmod)
                         END
                         ELSE
                         CASE
                             WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
+                            ELSE format_type(a.atttypid, a.atttypmod)
                         END
                     END::information_schema.character_data AS data_type,
                 information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,

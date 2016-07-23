@@ -6,6 +6,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
+- Ability to generate an OpenAPI spec behind a proxy- @hudayou
+- Ability to set addresses to listen on - @hudayou
+- Filtering, shaping and embedding with &select for the /rpc path - @ruslantalpa
+- Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
+
+### Fixed
+- Do not apply limit to parent items - @ruslantalpa
+
+### Changed
+- Use HTTP 400 for raise\_exception - @begriffs
+
+## [0.3.2.0] - 2016-06-10
+
+### Added
 - Reload database schema on SIGHUP - @begriffs
 - Support "-" in column names - @ruslantalpa
 - Support column/node renaming `alias:column` - @ruslantalpa

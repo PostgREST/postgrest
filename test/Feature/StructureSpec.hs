@@ -3,10 +3,10 @@ module Feature.StructureSpec where
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Network.HTTP.Types
 
 import SpecHelper
 
-import Network.HTTP.Types
 import Network.Wai (Application)
 import Network.Wai.Test (SResponse(simpleHeaders))
 
@@ -60,6 +60,14 @@ spec = do
             {"schema":"test","name":"authors_only","insertable":true}
         ] |]
         {matchStatus = 200}
+
+    it "returns a valid openapi spec" $
+      validateOpenApiResponse [("Accept", "application/openapi+json")]
+
+    it "should respond to openapi request on none root path with 415" $
+      request methodGet "/none_root_path"
+              (acceptHdrs "application/openapi+json") ""
+        `shouldRespondWith` 415
 
   describe "Table info" $ do
     it "The structure of complex views is correctly detected" $
@@ -204,7 +212,7 @@ spec = do
             "updatable": true,
             "schema": "test",
             "name": "enum",
-            "type": "USER-DEFINED",
+            "type": "test.enum_menagerie_type",
             "maxLen": null,
             "enum": [
               "foo",
