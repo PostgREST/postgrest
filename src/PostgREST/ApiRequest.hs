@@ -190,7 +190,7 @@ userApiRequest schema req reqBody =
   endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key
 
-  headerRange = if singular then singletonRange 0 else rangeRequested hdrs
+  headerRange = if singular && method == "GET" then singletonRange 0 else rangeRequested hdrs
   urlOffsetRange = rangeGeq . fromMaybe (0::Integer) $
     readMaybe =<< join (lookup "offset" qParams)
   urlRange = restrictRange
