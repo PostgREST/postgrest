@@ -131,6 +131,13 @@ app dbStructure conf apiRequest =
         Left e -> return $ responseLBS status400 [jsonH] $ toS e
         Right (sq,mq) -> do
           let isSingle = (==1) $ V.length rows
+          when (not isSingle && iPreferSingular apiRequest) $
+            HT.sql [P6.q| DO $$
+                       BEGIN RAISE EXCEPTION cardinality_violation
+                       USING MESSAGE =
+                         'plurality=singular specified, but more than one object would be inserted';
+                       END $$;
+                     |]
           let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == TextCSV) payload
           row <- H.query uniform stm

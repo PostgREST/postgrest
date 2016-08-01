@@ -414,6 +414,18 @@ spec = do
           [("Prefer", "return=representation;plurality=singular")]
           [json| { address: "zzz" } |]
         liftIO $ simpleStatus p `shouldBe` status400
+      it "can provide a singular representation when creating one entity" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| [ { id: 100, address: "xxx" } ] |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
+      it "raises an error when attempting to create multiple entities with plurality=singular" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
+        liftIO $ simpleStatus p `shouldBe` status400
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
