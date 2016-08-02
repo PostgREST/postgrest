@@ -29,7 +29,6 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 
 import           Data.Aeson
 import           Data.Aeson.Types (emptyArray)
-import           Data.Monoid
 import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
