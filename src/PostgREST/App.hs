@@ -21,7 +21,7 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
-import qualified Text.InterpolatedString.Perl6 as P6
+import qualified Text.InterpolatedString.Perl6 as P6 (q)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
