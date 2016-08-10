@@ -1,23 +1,18 @@
 module TestTypes (
   IncPK(..)
 , CompoundPK(..)
--- , incFromList
--- , compoundFromList
 ) where
 
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.:))
--- import Data.Maybe (fromJust)
-import Control.Applicative
-import Control.Monad (mzero)
 
-import Prelude
+import Protolude
 
 data IncPK = IncPK {
   incId :: Int
-, incNullableStr :: Maybe String
-, incStr :: String
-, incInsert :: String
+, incNullableStr :: Maybe Text
+, incStr :: Text
+, incInsert :: Text
 } deriving (Eq, Show)
 
 instance JSON.FromJSON IncPK where
@@ -37,7 +32,7 @@ instance JSON.FromJSON IncPK where
 
 data CompoundPK = CompoundPK {
   compoundK1 :: Int
-, compoundK2 :: String
+, compoundK2 :: Text
 , compoundExtra :: Maybe Int
 } deriving (Eq, Show)
 

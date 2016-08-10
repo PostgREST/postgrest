@@ -155,6 +155,7 @@ Test-Suite spec
   Build-Depends:       aeson
                      , async
                      , base
+                     , protolude
                      , base64-string
                      , bytestring
                      , case-insensitive
