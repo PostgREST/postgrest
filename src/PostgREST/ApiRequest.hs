@@ -6,10 +6,10 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
-import           Data.List                 (find, sortBy)
+import           Data.List                 (sortBy)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
-import           Data.Maybe                (fromMaybe, isJust, isNothing,
+import           Data.Maybe                (fromMaybe, isJust,
                                             listToMaybe, fromJust)
 import           Control.Arrow             ((***))
 import           Control.Monad             (join)
@@ -45,13 +45,15 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetUnknown [T.Text]
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
--- | Enumeration of currently supported content types for
--- route responses and upload payloads
-data ContentType = ApplicationJSON | TextCSV | OpenAPI deriving Eq
+-- | Enumeration of currently supported response content types
+data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
+                 | CTAny | CTUnknown BS.ByteString deriving Eq
 instance Show ContentType where
-  show ApplicationJSON = "application/json; charset=utf-8"
-  show TextCSV         = "text/csv; charset=utf-8"
-  show OpenAPI         = "application/openapi+json; charset=utf-8"
+  show CTApplicationJSON = "application/json; charset=utf-8"
+  show CTTextCSV         = "text/csv; charset=utf-8"
+  show CTOpenAPI         = "application/openapi+json; charset=utf-8"
+  show CTAny             = "*/*; charset=utf-8"
+  show (CTUnknown ct)    = show ct
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -67,8 +69,8 @@ data ApiRequest = ApiRequest {
   , iRange  :: M.HashMap String NonnegRange
   -- | The target, be it calling a proc or accessing a table
   , iTarget :: Target
-  -- | The content type the client most desires (or JSON if undecided)
-  , iAccepts :: Either BS.ByteString ContentType
+  -- | Content types the client will accept, [CTAny] if no Accept header
+  , iAccepts :: [ContentType]
   -- | Data sent by client and used for mutation actions
   , iPayload :: Maybe Payload
   -- | If client wants created items echoed back
@@ -113,32 +115,27 @@ userApiRequest schema req reqBody =
                  ["rpc", proc] -> TargetProc
                                   $ QualifiedIdentifier schema proc
                  other         -> TargetUnknown other
-      payload = case pickContentType (lookupHeader "content-type") of
-        Right ApplicationJSON ->
+      payload = case lookupHeader "content-type" of
+        Just "application/json" ->
           either (PayloadParseError . cs)
             (\val -> case ensureUniform (pluralize val) of
               Nothing -> PayloadParseError "All object keys must match"
               Just json -> PayloadJSON json)
             (JSON.eitherDecode reqBody)
-        Right TextCSV ->
+        Just "text/csv" ->
           either (PayloadParseError . cs)
             (\val -> case ensureUniform (csvToJson val) of
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
-        -- This is a Left value because form-urlencoded is not a content
-        -- type which we ever use for responses, only something we handle
-        -- just this once for requests
-        Left "application/x-www-form-urlencoded" ->
+        Just "application/x-www-form-urlencoded" ->
           PayloadJSON . UniformObjects . V.singleton . M.fromList
                       . map (cs *** JSON.String . cs) . parseSimpleQuery
                       $ cs reqBody
-        Right ct ->
-          PayloadParseError $
-            "Content-type not acceptable: " <> cs (show ct)
-        Left accept ->
-          PayloadParseError $
-            "Content-type not acceptable: " <> accept
+        Just ct ->
+          PayloadParseError $ "Content-type not acceptable: " <> ct
+        Nothing ->
+          PayloadParseError $ "Content-type request header required"
       relevantPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
@@ -150,7 +147,8 @@ userApiRequest schema req reqBody =
   , iTarget = target
   , iRange = M.insert "limit" (rangeIntersection headerRange urlRange) $
       M.fromList [ (cs k, restrictRange (readMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
-  , iAccepts = pickContentType $ lookupHeader "accept"
+  , iAccepts = fromMaybe [CTAny] $
+      map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
@@ -200,30 +198,12 @@ userApiRequest schema req reqBody =
 
 -- PRIVATE ---------------------------------------------------------------
 
-{-|
-  Picks a preferred content type from an Accept header (or from
-  Content-Type as a degenerate case).
-
-  For example
-  text/csv -> TextCSV
-  */*      -> ApplicationJSON
-  text/csv, application/json -> TextCSV
-  application/json, text/csv -> ApplicationJSON
--}
-pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
-pickContentType accept
-  | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
-  | has ctCsv = Right TextCSV
-  | has ctOpenAPI = Right OpenAPI
-  | otherwise = Left accept'
- where
-  ctAll  = "*/*"
-  ctCsv  = "text/csv"
-  ctJson = "application/json"
-  ctOpenAPI = "application/openapi+json"
-  Just accept' = accept
-  findInAccept = flip find $ parseHttpAccept accept'
-  has          = isJust . findInAccept . BS.isPrefixOf
+decodeContentType :: BS.ByteString -> ContentType
+decodeContentType "application/json"         = CTApplicationJSON
+decodeContentType "text/csv"                 = CTTextCSV
+decodeContentType "application/openapi+json" = CTOpenAPI
+decodeContentType "*/*"                      = CTAny
+decodeContentType accept                     = CTUnknown accept
 
 type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
 
