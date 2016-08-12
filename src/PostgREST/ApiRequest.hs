@@ -126,8 +126,6 @@ userApiRequest schema req reqBody =
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
-        Right oa@OpenAPI ->
-          PayloadParseError $ "Content-type not acceptable: " <> cs (show oa)
         -- This is a Left value because form-urlencoded is not a content
         -- type which we ever use for responses, only something we handle
         -- just this once for requests
@@ -135,6 +133,9 @@ userApiRequest schema req reqBody =
           PayloadJSON . UniformObjects . V.singleton . M.fromList
                       . map (cs *** JSON.String . cs) . parseSimpleQuery
                       $ cs reqBody
+        Right ct ->
+          PayloadParseError $
+            "Content-type not acceptable: " <> cs (show ct)
         Left accept ->
           PayloadParseError $
             "Content-type not acceptable: " <> accept

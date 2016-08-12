@@ -221,17 +221,15 @@ app dbStructure conf apiRequest =
                       else toS $ encode body)
 
     (ActionRead, TargetRoot, Nothing) -> do
-      let encodeApi ti = encodeOpenAPI ti uri'
-          host = configHost conf
+      let host = configHost conf
           port = toInteger $ configPort conf
           proxy = pickProxy $ toS <$> configProxyUri conf
           uri Nothing = ("http", pack host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy
-          encodeFn = if contentType == OpenAPI then encodeApi . toTableInfo else encode
-          header = if contentType == OpenAPI then openapiH else jsonH
-      body <- encodeFn <$> H.query schema accessibleTables
-      return $ responseLBS status200 [header] $ toS body
+          encodeApi ti = encodeOpenAPI ti uri'
+      body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
+      return $ responseLBS status200 [openapiH] $ toS body
 
     (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
 

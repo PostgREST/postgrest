@@ -16,7 +16,7 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..), pickContentType)
+import           PostgREST.ApiRequest          (ApiRequest(..), pickContentType)
 import           PostgREST.Auth                (claimsToSQL)
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
@@ -43,7 +43,6 @@ unsupportedAccept :: Application -> Application
 unsupportedAccept app req respond =
   case (isTargetRoot, accept) of
     (_, Left _) -> unsupportedAcceptRespond
-    (False, Right OpenAPI) -> unsupportedAcceptRespond
     (_, Right _) -> app req respond
   where accept = pickContentType $ lookup hAccept $ requestHeaders req
         path = pathInfo req
