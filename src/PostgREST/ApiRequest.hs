@@ -206,8 +206,7 @@ userApiRequest schema req reqBody =
 -}
 mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
 mutuallyAgreeable sProduces cAccepts =
-  --find (\x -> x == CTAny || x `elem` sProduces) cAccepts
-  listToMaybe $ [p | p <- sProduces, a <- cAccepts, p==a || a==CTAny]
+  listToMaybe [p | p <- sProduces, a <- cAccepts, p==a || a==CTAny]
 
 ctToHeader :: ContentType -> Header
 ctToHeader ct = (hContentType, cs $ show ct)
