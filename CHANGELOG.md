@@ -15,9 +15,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
+- Customize content negotiation per route - @begriffs
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs
+- OpenAPI only for root path - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 
