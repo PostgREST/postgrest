@@ -258,6 +258,8 @@ app dbStructure conf apiRequest =
   filterCol _ _ _ =  False
   allPrKeys = dbPrimaryKeys dbStructure
   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+  jsonH = ctToHeader CTApplicationJSON
+  openapiH = ctToHeader CTOpenAPI
   schema = toS $ configSchema conf
   shouldCount = iPreferCount apiRequest
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
@@ -314,12 +316,6 @@ contentRangeH lower upper total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = lower <= upper
-
-jsonH :: Header
-jsonH = (hContentType, "application/json; charset=utf-8")
-
-openapiH :: Header
-openapiH = (hContentType, "application/openapi+json; charset=utf-8")
 
 formatRelationError :: Text -> Text
 formatRelationError = formatGeneralError

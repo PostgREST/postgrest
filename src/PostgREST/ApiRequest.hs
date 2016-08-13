@@ -50,11 +50,14 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 instance Show ContentType where
-  show CTApplicationJSON = "application/json; charset=utf-8"
-  show CTTextCSV         = "text/csv; charset=utf-8"
-  show CTOpenAPI         = "application/openapi+json; charset=utf-8"
-  show CTAny             = "*/*; charset=utf-8"
+  show CTApplicationJSON = "application/json"
+  show CTTextCSV         = "text/csv"
+  show CTOpenAPI         = "application/openapi+json"
+  show CTAny             = "*/*"
   show (CTOther ct)      = cs ct
+
+ctToHeader :: ContentType -> Header
+ctToHeader ct = (hContentType, cs (show ct) <> "; charset=utf-8")
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -207,9 +210,6 @@ userApiRequest schema req reqBody =
 mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
 mutuallyAgreeable sProduces cAccepts =
   listToMaybe [p | p <- sProduces, a <- cAccepts, p==a || a==CTAny]
-
-ctToHeader :: ContentType -> Header
-ctToHeader ct = (hContentType, cs $ show ct)
 
 -- PRIVATE ---------------------------------------------------------------
 
