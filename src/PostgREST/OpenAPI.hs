@@ -209,7 +209,7 @@ makeRootPathItem = ("/", p)
   where
     getOp = (mempty :: Operation)
       & tags .~ Set.fromList ["/"]
-      & produces ?~ MimeList ["application/openapi+json; charset=utf-8"]
+      & produces ?~ makeMimeList [CTOpenAPI]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
