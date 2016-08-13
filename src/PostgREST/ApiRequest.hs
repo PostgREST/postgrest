@@ -4,6 +4,7 @@ import           Prelude
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
 import           Data.List                 (sortBy)
@@ -20,7 +21,7 @@ import qualified Data.Text                 as T
 import           Text.Read                 (readMaybe)
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization)
+import           Network.HTTP.Types.Header (hAuthorization, hContentType, Header)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
@@ -47,13 +48,13 @@ data Target = TargetIdent QualifiedIdentifier
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
-                 | CTAny | CTUnknown BS.ByteString deriving Eq
+                 | CTAny | CTOther BS.ByteString deriving Eq
 instance Show ContentType where
   show CTApplicationJSON = "application/json; charset=utf-8"
   show CTTextCSV         = "text/csv; charset=utf-8"
   show CTOpenAPI         = "application/openapi+json; charset=utf-8"
   show CTAny             = "*/*; charset=utf-8"
-  show (CTUnknown ct)    = show ct
+  show (CTOther ct)      = cs ct
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -115,27 +116,27 @@ userApiRequest schema req reqBody =
                  ["rpc", proc] -> TargetProc
                                   $ QualifiedIdentifier schema proc
                  other         -> TargetUnknown other
-      payload = case lookupHeader "content-type" of
-        Just "application/json" ->
+      payload = case decodeContentType
+                     . fromMaybe "application/json"
+                     $ lookupHeader "content-type" of
+        CTApplicationJSON ->
           either (PayloadParseError . cs)
             (\val -> case ensureUniform (pluralize val) of
               Nothing -> PayloadParseError "All object keys must match"
               Just json -> PayloadJSON json)
             (JSON.eitherDecode reqBody)
-        Just "text/csv" ->
+        CTTextCSV ->
           either (PayloadParseError . cs)
             (\val -> case ensureUniform (csvToJson val) of
               Nothing -> PayloadParseError "All lines must have same number of fields"
               Just json -> PayloadJSON json)
             (CSV.decodeByName reqBody)
-        Just "application/x-www-form-urlencoded" ->
+        CTOther "application/x-www-form-urlencoded" ->
           PayloadJSON . UniformObjects . V.singleton . M.fromList
                       . map (cs *** JSON.String . cs) . parseSimpleQuery
                       $ cs reqBody
-        Just ct ->
-          PayloadParseError $ "Content-type not acceptable: " <> ct
-        Nothing ->
-          PayloadParseError $ "Content-type request header required"
+        ct ->
+          PayloadParseError $ "Content-Type not acceptable: " <> cs (show ct)
       relevantPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
@@ -196,14 +197,34 @@ userApiRequest schema req reqBody =
     (readMaybe =<< join (lookup "limit" qParams))
     urlOffsetRange
 
+{-|
+  From a list of content types producible by the server in order of
+  decreasing preference and a list of types accepted by the client,
+  this function finds the best match. If the client accepts */*
+  then we return the top server pick, otherwise look for the first
+  element in the server preferences acceptable to the client.
+-}
+mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
+mutuallyAgreeable sProduces cAccepts =
+  --find (\x -> x == CTAny || x `elem` sProduces) cAccepts
+  listToMaybe $ [p | p <- sProduces, a <- cAccepts, p==a || a==CTAny]
+
+ctToHeader :: ContentType -> Header
+ctToHeader ct = (hContentType, cs $ show ct)
+
 -- PRIVATE ---------------------------------------------------------------
 
+{-|
+  Warning: discards MIME parameters
+-}
 decodeContentType :: BS.ByteString -> ContentType
-decodeContentType "application/json"         = CTApplicationJSON
-decodeContentType "text/csv"                 = CTTextCSV
-decodeContentType "application/openapi+json" = CTOpenAPI
-decodeContentType "*/*"                      = CTAny
-decodeContentType accept                     = CTUnknown accept
+decodeContentType ct =
+  case BS.takeWhile (/= BS.c2w ';') ct of
+    "application/json"         -> CTApplicationJSON
+    "text/csv"                 -> CTTextCSV
+    "application/openapi+json" -> CTOpenAPI
+    "*/*"                      -> CTAny
+    ct'                        -> CTOther ct'
 
 type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
 
