@@ -19,7 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs
-- OpenAPI only for root path - @begriffs
+- Remove non-OpenAPI schema description - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 

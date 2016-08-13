@@ -69,4 +69,4 @@ spec =
         liftIO $ do
           simpleHeaders r `shouldSatisfy` matchHeader
             "Access-Control-Allow-Origin" "\\*"
-          simpleBody r `shouldSatisfy` not . BL.null
+          simpleBody r `shouldSatisfy` BL.null

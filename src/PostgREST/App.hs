@@ -191,15 +191,11 @@ app dbStructure conf apiRequest =
 
     (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
       let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
-      serves [CTApplicationJSON] (iAccepts apiRequest) $ \_ ->
       case mTable of
         Nothing -> return notFound
         Just table ->
-          let cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-              pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-              body = encode (TableOptions cols pkeys)
-              acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
-          return $ responseLBS status200 [jsonH, allOrigins, acceptH] $ toS body
+          let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
+          return $ responseLBS status200 [allOrigins, acceptH] ""
 
     (ActionInvoke, TargetProc qi,
      Just (PayloadJSON (UniformObjects payload))) -> do
@@ -476,17 +472,6 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
   | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
   | otherwise = Nothing
-
-data TableOptions = TableOptions {
-  tblOptcolumns :: [Column]
-, tblOptpkey    :: [Text]
-}
-
-instance ToJSON TableOptions where
-  toJSON t = object [
-      "columns" .= tblOptcolumns t
-    , "pkey"   .= tblOptpkey t ]
-
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
 extractQueryResult = fromMaybe (Nothing, 0, [], "")
