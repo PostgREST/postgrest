@@ -7,10 +7,10 @@ import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
-import           Data.List                 (sortBy)
+import qualified Data.List                 as L
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
-import           Data.Maybe                (fromMaybe, isJust,
+import           Data.Maybe                (fromMaybe, isJust, isNothing,
                                             listToMaybe, fromJust)
 import           Control.Arrow             ((***))
 import           Control.Monad             (join)
@@ -161,7 +161,7 @@ userApiRequest schema req reqBody =
   , iSelect = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
   , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
   , iCanonicalQS = urlEncodeVars
-     . sortBy (comparing fst)
+     . L.sortBy (comparing fst)
      . map (join (***) cs)
      . parseSimpleQuery
      $ rawQueryString req
@@ -201,15 +201,17 @@ userApiRequest schema req reqBody =
     urlOffsetRange
 
 {-|
-  From a list of content types producible by the server in order of
-  decreasing preference and a list of types accepted by the client,
-  this function finds the best match. If the client accepts */*
-  then we return the top server pick, otherwise look for the first
-  element in the server preferences acceptable to the client.
+  Find the best match from a list of content types accepted by the
+  client in order of decreasing preference and a list of types
+  producible by the server.  If there is no match but the client
+  accepts */* then return the top server pick.
 -}
 mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
 mutuallyAgreeable sProduces cAccepts =
-  listToMaybe [p | p <- sProduces, a <- cAccepts, p==a || a==CTAny]
+  let exact = listToMaybe $ L.intersect cAccepts sProduces in
+  if isNothing exact && CTAny `elem` cAccepts
+     then listToMaybe sProduces
+     else exact
 
 -- PRIVATE ---------------------------------------------------------------
 
