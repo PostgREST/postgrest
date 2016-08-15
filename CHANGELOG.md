@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Ability to set addresses to listen on - @hudayou
 - Filtering, shaping and embedding with &select for the /rpc path - @ruslantalpa
 - Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
+- Implement support for singular representation responses for POST/PATCH requests - @ehamberg
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
