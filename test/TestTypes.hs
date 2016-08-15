@@ -23,13 +23,6 @@ instance JSON.FromJSON IncPK where
     r .: "inserted_at"
   parseJSON _ = mzero
 
--- incFromList :: [(String, SqlValue)] -> IncPK
--- incFromList row = IncPK
---   (fromSql . fromJust $ lookup "id" row)
---   (fromSql . fromJust $ lookup "nullable_string" row)
---   (fromSql . fromJust $ lookup "non_nullable_string" row)
---   (fromSql . fromJust $ lookup "inserted_at" row)
-
 data CompoundPK = CompoundPK {
   compoundK1 :: Int
 , compoundK2 :: Text
@@ -42,9 +35,3 @@ instance JSON.FromJSON CompoundPK where
     r .: "k2" <*>
     r .: "extra"
   parseJSON _ = mzero
-
--- compoundFromList :: [(String, SqlValue)] -> CompoundPK
--- compoundFromList row = CompoundPK
---   (fromSql . fromJust $ lookup "k1" row)
---   (fromSql . fromJust $ lookup "k2" row)
---   (fromSql . fromJust $ lookup "extra" row)
