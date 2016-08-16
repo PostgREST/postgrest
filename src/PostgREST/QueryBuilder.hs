@@ -33,20 +33,15 @@ import qualified Hasql.Encoders          as HE
 import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
-import           Data.Int                (Int64)
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note, fromMaybe)
+import           Control.Error           (note)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
-import           Data.List               (find)
-import           Data.Monoid             ((<>))
-import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
+import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
 import           Data.String.Conversions (cs)
-import           Control.Applicative     ((<|>))
-import           Control.Monad           (replicateM)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
@@ -58,7 +53,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
-import           Prelude hiding          (unwords)
+import           Protolude hiding        (from, intercalate, ord, cast)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
@@ -183,7 +178,7 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
     findRelationByTable s t1 t2 =
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
     findRelationByColumn s t c =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
+      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` fromMaybe "" (colName <$> (head . relFColumns) r)) allRelations
       where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
@@ -212,8 +207,8 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
             SELECT
               {countResultF} AS total_result_set,
               pg_catalog.count(t) AS page_total,
-              case 
-                when pg_catalog.count(1) > 1 then 
+              case
+                when pg_catalog.count(1) > 1 then
                   {bodyF}
                 else
                   coalesce(((array_agg(row_to_json(t)))[1]->{_procName})::character varying, {bodyF})
@@ -312,9 +307,9 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
             clause = intercalate "," (map queryTerm ts)
             queryTerm :: OrderTerm -> Text
             queryTerm t = " "
-                <> cs (pgFmtColumn qi $ otTerm t) <> " "
-                <> (cs.show) (otDirection t) <> " "
-                <> maybe "" (cs.show) (otNullOrder t) <> " "
+                <> toS (pgFmtColumn qi $ otTerm t) <> " "
+                <> show (otDirection t) <> " "
+                <> maybe "" show (otNullOrder t) <> " "
     (joins, selects) = foldr getQueryParts ([],[]) forest
 
     getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
@@ -387,7 +382,7 @@ unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = cs . show $ b
+unquoted (JSON.Bool b) = show $ b
 unquoted v = cs $ JSON.encode v
 
 -- private functions
@@ -428,8 +423,8 @@ limitF r  = if r == allRange
   then ""
   else "LIMIT " <> limit <> " OFFSET " <> offset
   where
-    limit  = maybe "ALL" (cs . show) $ rangeLimit r
-    offset = cs . show $ rangeOffset r
+    limit  = maybe "ALL" show $ rangeLimit r
+    offset = show $ rangeOffset r
 
 fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
@@ -484,7 +479,7 @@ pgFmtCondition table (Filter (col,jp) ops val) =
   where
     headPredicate:rest = split (=='.') ops
     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
-    opCode      = hasNot (head rest) headPredicate
+    opCode      = hasNot (headDef "eq" rest) headPredicate
     notOp       = hasNot headPredicate ""
     sqlCol = case val of
       VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
@@ -524,7 +519,9 @@ pgFmtJsonPath _ = ""
 
 pgFmtAs :: Maybe JsonPath -> Maybe Alias -> SqlFragment
 pgFmtAs Nothing Nothing = ""
-pgFmtAs (Just xx) Nothing = " AS " <> pgFmtIdent (last xx)
+pgFmtAs (Just xx) Nothing = case lastMay xx of
+  Just alias -> " AS " <> pgFmtIdent alias
+  Nothing -> ""
 pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias
 
 trimNullChars :: Text -> Text
