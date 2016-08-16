@@ -22,25 +22,24 @@ module PostgREST.Config ( prettyVersion
 import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
-import           Data.List                   (intercalate)
-import           Data.String.Conversions     (cs)
-import           Data.Text                   (strip)
+import           Data.List                   (lookup)
+import           Data.Text                   (strip, intercalate)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
-import           Prelude
+import           Protolude hiding            (intercalate)
 import           Safe                        (readMay)
 import           Web.JWT                     (Secret, secret)
 
 -- | Data type to store all command line options
 data AppConfig = AppConfig {
-    configDatabase  :: String
-  , configAnonRole  :: String
-  , configProxyUri  :: Maybe String
-  , configSchema    :: String
-  , configHost      :: String
+    configDatabase  :: Text
+  , configAnonRole  :: Text
+  , configProxyUri  :: Maybe Text
+  , configSchema    :: Text
+  , configHost      :: Text
   , configPort      :: Int
   , configJwtSecret :: Secret
   , configPool      :: Int
@@ -50,13 +49,13 @@ data AppConfig = AppConfig {
 
 argParser :: Parser AppConfig
 argParser = AppConfig
-  <$> argument str (help "(REQUIRED) database connection string, e.g. postgres://user:pass@host:port/db" <> metavar "DB_URL")
-  <*> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE")
-  <*> (optional . strOption) (long "proxy-uri"  <> short 'x' <> help "proxy uri of the HTTP server" <> metavar "PROXY")
-  <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault)
-  <*> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault)
+  <$> (toS <$> argument str (help "(REQUIRED) database connection string, e.g. postgres://user:pass@host:port/db" <> metavar "DB_URL"))
+  <*> (toS <$> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE"))
+  <*> (optional . map toS . strOption) (long "proxy-uri"  <> short 'x' <> help "proxy uri of the HTTP server" <> metavar "PROXY")
+  <*> (toS <$> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault))
+  <*> (toS <$> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault))
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (secret . cs <$>
+  <*> (secret . toS <$>
       strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
   <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
@@ -82,11 +81,11 @@ corsPolicy req = case lookup "origin" headers of
   where
     headers = requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
+      Just hdrs -> map (CI.mk . toS . strip . toS) $ BS.split ',' hdrs
       Nothing -> []
 
 -- | User friendly version number
-prettyVersion :: String
+prettyVersion :: Text
 prettyVersion = intercalate "." $ map show $ versionBranch version
 
 -- | Function to read and parse options from the command line
@@ -97,7 +96,7 @@ readOptions = customExecParser parserPrefs opts
                     fullDesc
                     <> progDesc (
                     "PostgREST "
-                    <> prettyVersion
+                    <> toS prettyVersion
                     <> " / create a REST API to an existing Postgres database"
                     )
     parserPrefs = prefs showHelpOnError

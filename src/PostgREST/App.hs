@@ -12,7 +12,7 @@ import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
 import           Data.Ranged.Ranges        (emptyRange)
-import           Data.Text                 (replace, strip, pack, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -221,7 +221,7 @@ app dbStructure conf apiRequest =
       let host = configHost conf
           port = toInteger $ configPort conf
           proxy = pickProxy $ toS <$> configProxyUri conf
-          uri Nothing = ("http", pack host, port, "/")
+          uri Nothing = ("http", host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy
           encodeApi ti = encodeOpenAPI ti uri'
