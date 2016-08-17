@@ -5,7 +5,6 @@ module PostgREST.Middleware where
 
 import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
-import           Data.String.Conversions       (cs)
 import qualified Hasql.Transaction             as H
 
 import           Network.HTTP.Types.Status     (status400)
@@ -33,7 +32,7 @@ runWithClaims conf eClaims app req =
           H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
           app req
   where
-    anon = String . cs $ configAnonRole conf
+    anon = String . toS $ configAnonRole conf
     clientErr = return . errResponse status400
 
 defaultMiddle :: Application -> Application

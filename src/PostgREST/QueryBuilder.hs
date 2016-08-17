@@ -41,7 +41,6 @@ import qualified Data.HashMap.Strict     as HM
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
-import           Data.String.Conversions (cs)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
@@ -179,7 +178,7 @@ addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
     findRelationByColumn s t c =
       find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` fromMaybe "" (colName <$> (head . relFColumns) r)) allRelations
-      where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
+      where n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
@@ -252,7 +251,7 @@ operators = [
   ]
 
 pgFmtIdent :: SqlFragment -> SqlFragment
-pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ cs x) <> "\""
+pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
 
 pgFmtLit :: SqlFragment -> SqlFragment
 pgFmtLit x =
@@ -381,9 +380,9 @@ sourceCTEName = "pg_source"
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
-  cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = show $ b
-unquoted v = cs $ JSON.encode v
+unquoted v = toS $ JSON.encode v
 
 -- private functions
 asCsvF :: SqlFragment
@@ -458,7 +457,7 @@ insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
 whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe
-  (cs (pgFmtLit val) <> "::unknown ")
+  (toS (pgFmtLit val) <> "::unknown ")
   (find ((==) . toLower $ val) ["null","true","false"])
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment

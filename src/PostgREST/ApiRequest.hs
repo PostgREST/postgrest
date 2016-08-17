@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import           Data.Maybe                (fromJust)
 import           Control.Arrow             ((***))
-import           Data.String.Conversions   (cs)
 import qualified Data.Text                 as T
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
@@ -148,7 +147,7 @@ userApiRequest schema req reqBody =
     iAction = action
   , iTarget = target
   , iRange = M.insert "limit" (rangeIntersection headerRange urlRange) $
-      M.fromList [ (cs k, restrictRange (readBSMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
+      M.fromList [ (toS k, restrictRange (readBSMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
   , iAccepts = fromMaybe [CTAny] $
       map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
   , iPayload = relevantPayload
@@ -177,14 +176,14 @@ userApiRequest schema req reqBody =
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
     where
         split :: BS.ByteString -> [Text]
-        split = map T.strip . T.split (==';') . cs
+        split = map T.strip . T.split (==';') . toS
   singular        = hasPrefer "plurality=singular"
   representation
     | hasPrefer "return=representation" = Full
     | hasPrefer "return=minimal" = None
     | otherwise = HeadersOnly
   auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (cs auth) of
+  tokenStr = case T.split (== ' ') (toS auth) of
     ("Bearer" : t : _) -> t
     _                  -> ""
   endingIn:: [Text] -> Text -> Bool
@@ -247,7 +246,7 @@ csvToJson (_, vals) =
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
-          else JSON.String $ cs str
+          else JSON.String $ toS str
       )
 
 -- | Convert {foo} to [{foo}], leave arrays unchanged
