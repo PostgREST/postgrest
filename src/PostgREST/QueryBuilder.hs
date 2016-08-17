@@ -381,7 +381,7 @@ unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = show $ b
+unquoted (JSON.Bool b) = show b
 unquoted v = toS $ JSON.encode v
 
 -- private functions
