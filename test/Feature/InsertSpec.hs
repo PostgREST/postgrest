@@ -398,6 +398,35 @@ spec = do
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
 
+    context "in a table" $ do
+      it "can provide a singular representation when updating one entity" $ do
+        _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
+        p <- request methodPatch
+          "/addresses?id=eq.97"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| { address: "B Street" } |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
+      it "raises an error when attempting to update multiple entities with plurality=singular" $ do
+        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
+        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
+        p <- request methodPatch
+          "/addresses?id=gt.0"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| { address: "zzz" } |]
+        liftIO $ simpleStatus p `shouldBe` status400
+      it "can provide a singular representation when creating one entity" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| [ { id: 100, address: "xxx" } ] |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
+      it "raises an error when attempting to create multiple entities with plurality=singular" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation;plurality=singular")]
+          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
+        liftIO $ simpleStatus p `shouldBe` status400
+
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
         request methodPatch "/json?data->>escaped=eq.bar"

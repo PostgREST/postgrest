@@ -162,13 +162,10 @@ makeGetParams cs =
   , makePreferParam ["plurality=singular", "count=none"]
   ]
 
-makeReturnPreferenceParam :: Param
-makeReturnPreferenceParam =
-  makePreferParam ["return=representation", "return=minimal", "return=none"]
-
 makePostParams :: Text -> [Param]
 makePostParams tn =
-  [ makeReturnPreferenceParam
+  [ makePreferParam ["return=representation", "return=representation;plurality=singular",
+                     "return=minimal", "return=none"]
   , (mempty :: Param)
     & name        .~ "body"
     & description ?~ tn
@@ -178,7 +175,7 @@ makePostParams tn =
 
 makeDeleteParams :: [Param]
 makeDeleteParams =
-  [ makeReturnPreferenceParam ]
+  [ makePreferParam ["return=representation", "return=minimal", "return=none"] ]
 
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
 makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
