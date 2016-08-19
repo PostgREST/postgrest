@@ -286,7 +286,7 @@ spec = do
         }
 
     it "can combine multiple prefer values" $
-      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular ; future=new; count=none")] ""
+      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular , future=new, count=none")] ""
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| {"id":5} |]
         , matchStatus  = 200
