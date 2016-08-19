@@ -182,17 +182,17 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
   where
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
-      & produces ?~ makeMimeList [ApplicationJSON, TextCSV]
+      & produces ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
       & at 200 ?~ "OK"
     getOp = tOp
       & parameters .~ map Inline (makeGetParams cs ++ rs)
       & at 206 ?~ "Partial Content"
     postOp = tOp
-      & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
+      & consumes ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
       & parameters .~ map Inline (makePostParams tn)
       & at 201 ?~ "Created"
     patchOp = tOp
-      & consumes ?~ makeMimeList [ApplicationJSON, TextCSV]
+      & consumes ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
       & parameters .~ map Inline (makePostParams tn ++ rs)
       & at 204 ?~ "No Content"
     deletOp = tOp
@@ -209,7 +209,7 @@ makeRootPathItem = ("/", p)
   where
     getOp = (mempty :: Operation)
       & tags .~ Set.fromList ["/"]
-      & produces ?~ makeMimeList [ApplicationJSON, OpenAPI]
+      & produces ?~ makeMimeList [CTOpenAPI]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
