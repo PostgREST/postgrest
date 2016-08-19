@@ -395,6 +395,27 @@ spec = do
               (acceptHdrs "*/*") ""
         `shouldRespondWith` 200
 
+    it "*/* should rescue an unknown type" $
+      request methodGet "/simple_pk"
+              (acceptHdrs "text/unknowntype, */*") ""
+        `shouldRespondWith` 200
+
+    it "specific available preference should override */*" $ do
+      r <- request methodGet "/simple_pk"
+              (acceptHdrs "text/csv, */*") ""
+      liftIO $ do
+        let respHeaders = simpleHeaders r
+        respHeaders `shouldSatisfy` matchHeader
+          "Content-Type" "text/csv; charset=utf-8"
+
+    it "honors client preference even when opposite of server preference" $ do
+      r <- request methodGet "/simple_pk"
+              (acceptHdrs "text/csv, application/json") ""
+      liftIO $ do
+        let respHeaders = simpleHeaders r
+        respHeaders `shouldSatisfy` matchHeader
+          "Content-Type" "text/csv; charset=utf-8"
+
     it "should respond correctly to multiple types in accept header" $
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype, text/csv") ""

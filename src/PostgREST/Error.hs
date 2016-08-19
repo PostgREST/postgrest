@@ -10,17 +10,19 @@ import qualified Data.Aeson                as JSON
 import qualified Data.Text                 as T
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
-import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
+import           PostgREST.ApiRequest      (ctToHeader, ContentType(..))
 
 errResponse :: HT.Status -> Text -> Response
-errResponse status message = responseLBS status [(hContentType, "application/json")] (toS $ T.concat ["{\"message\":\"",message,"\"}"])
+errResponse status message = responseLBS status
+  [ctToHeader CTApplicationJSON]
+  (toS $ T.concat ["{\"message\":\"",message,"\"}"])
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
   let status = httpStatus authed e
-      jsonType = (hContentType, "application/json")
+      jsonType = ctToHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]
