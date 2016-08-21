@@ -13,20 +13,17 @@ import qualified Hasql.Encoders                as HE
 import qualified Hasql.Query                   as H
 
 import           Control.Applicative
-import           Control.Monad                 (join, replicateM)
-import           Data.List                     (elemIndex, find, sort,
-                                                subsequences, transpose)
-import           Data.Maybe                    (fromJust, fromMaybe, isJust,
-                                                listToMaybe, mapMaybe)
+import           Data.List                     (elemIndex)
+import           Data.Maybe                    (fromJust)
 import           Data.Monoid
-import           Data.Text                     (Text, split)
+import           Data.Text                     (split)
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
 
-import           Data.Int                      (Int32)
 import           GHC.Exts                      (groupWith)
-import           Prelude
+import           Protolude
+import           Unsafe (unsafeHead)
 
 getDbStructure :: Schema -> H.Session DbStructure
 getDbStructure schema = do
@@ -139,7 +136,9 @@ accessibleTables =
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
   where
-    syns = sort $ filter ((== colTable (head cols)) . colTable . fst) allSyns
+    syns = case headMay cols of
+            Just firstCol -> sort $ filter ((== colTable firstCol) . colTable . fst) allSyns
+            Nothing -> []
     synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
     synCols' = (filter sameTable . filter matchLength) synCols
     matchLength cs = length cols == length cs
@@ -153,11 +152,10 @@ addForeignKeys rels = map addFk
     fk col = join $ relToFk col <$> find (lookupFn col) rels
     lookupFn :: Column -> Relation -> Bool
     lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==Child
-    -- lookupFn _ _ = False
-    relToFk col Relation{relColumns=cols, relFColumns=colsF} = ForeignKey <$> colF
-      where
-        pos = elemIndex col cols
-        colF = (colsF !!) <$> pos
+    relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
+      pos <- elemIndex col cols
+      colF <- atMay colsF pos
+      return $ ForeignKey colF
 
 addSynonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
 addSynonymousRelations _ [] = []
@@ -165,7 +163,7 @@ addSynonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ addSynony
   where
     synRelsP = synRels (relColumns rel) (\t cs -> rel{relTable=t,relColumns=cs})
     synRelsF = synRels (relFColumns rel) (\t cs -> rel{relFTable=t,relFColumns=cs})
-    synRels cols mapFn = map (\cs -> mapFn (colTable $ head cs) cs) $ synonymousColumns syns cols
+    synRels cols mapFn = map (\cs -> mapFn (colTable $ unsafeHead cs) cs) $ synonymousColumns syns cols
 
 addParentRelations :: [Relation] -> [Relation]
 addParentRelations [] = []
@@ -198,8 +196,8 @@ raiseRelations schema syns = map raiseRel
       where
         cols = relFColumns rel
         table = relFTable rel
-        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . head) (synonymousColumns syns cols)
-        newTable = (colTable . head) <$> newCols
+        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . unsafeHead) (synonymousColumns syns cols)
+        newTable = (colTable . unsafeHead) <$> newCols
 
 synonymousPrimaryKeys :: [(Column,Column)] -> [PrimaryKey] -> [PrimaryKey]
 synonymousPrimaryKeys _ [] = []

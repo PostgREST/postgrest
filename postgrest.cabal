@@ -54,7 +54,6 @@ executable postgrest
                      , regex-tdfa
                      , safe >= 0.3 && < 0.4
                      , scientific
-                     , string-conversions
                      , text
                      , time
                      , transformers
@@ -101,7 +100,6 @@ library
                      , regex-tdfa
                      , safe
                      , scientific
-                     , string-conversions
                      , text
                      , time
                      , unordered-containers
@@ -155,6 +153,7 @@ Test-Suite spec
   Build-Depends:       aeson
                      , async
                      , base
+                     , protolude
                      , base64-string
                      , bytestring
                      , case-insensitive
