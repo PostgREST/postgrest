@@ -47,7 +47,7 @@ main = do
       port = configPort conf
       proxy = configProxyUri conf
       pgSettings = toS (configDatabase conf)
-      appSettings = setHost (fromString host)
+      appSettings = setHost ((fromString . toS) host)
                   . setPort port
                   . setServerName (toS $ "postgrest/" <> prettyVersion)
                   $ defaultSettings

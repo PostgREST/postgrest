@@ -12,7 +12,7 @@ import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
 import           Data.Ranged.Ranges        (emptyRange)
-import           Data.Text                 (replace, strip, pack, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -41,7 +41,9 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , Action(..), Target(..)
                                             , PreferRepresentation (..)
                                             , userApiRequest, mutuallyAgreeable
-                                            , ctToHeader)
+                                            , ctToHeader
+                                            , userApiRequest
+                                            , toHeader)
 import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
@@ -117,7 +119,7 @@ app dbStructure conf apiRequest =
                 [ctToHeader contentType, contentRange,
                   ("Content-Location",
                     "/" <> toS (qiName qi) <>
-                      if Protolude.null canonical then "" else "?" <> toS canonical
+                      if BS.null canonical then "" else "?" <> toS canonical
                   )
                 ] (toS body)
 
@@ -219,7 +221,7 @@ app dbStructure conf apiRequest =
       let host = configHost conf
           port = toInteger $ configPort conf
           proxy = pickProxy $ toS <$> configProxyUri conf
-          uri Nothing = ("http", pack host, port, "/")
+          uri Nothing = ("http", host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy
           encodeApi ti = encodeOpenAPI ti uri'
@@ -280,7 +282,7 @@ serves :: Monad m => [ContentType] -> [ContentType] ->
 serves sProduces cAccepts resp =
   case mutuallyAgreeable sProduces cAccepts of
     Nothing -> do
-      let failed = intercalate ", " $ map show cAccepts
+      let failed = intercalate ", " $ map (toS . toHeader) cAccepts
       return $ errResponse status415 $
         "None of these Content-Types are available: " <> failed
     Just ct -> resp ct
@@ -351,7 +353,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
         flts
           | action == ActionRead = iFilters apiRequest
           | action == ActionInvoke = iFilters apiRequest
-          | otherwise = filter (( '.' `elem` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
+          | otherwise = filter (( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
     orders :: Either ParseError [(Path, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
     ranges :: Either ParseError [(Path, NonnegRange)]
@@ -388,7 +390,7 @@ buildReadRequest maxRows allRels allProcs apiRequest  =
 
     readRequest :: Either ParseError ReadRequest
     readRequest = addFiltersOrdersRanges apiRequest <*>
-      parse (pRequestSelect rootName) ("failed to parse select parameter <<"++selStr++">>") selStr
+      parse (pRequestSelect rootName) ("failed to parse select parameter <<" <> toS selStr <> ">>") (toS selStr)
       where
         selStr = iSelect apiRequest
         rootName = if action == ActionRead
@@ -419,7 +421,7 @@ buildMutateRequest apiRequest = case action of
         (TargetIdent (QualifiedIdentifier _ t) ) -> t
         _ -> undefined
     filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-      where mutateFilters = filter (not . ( '.' `elem` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
+      where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
 addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f

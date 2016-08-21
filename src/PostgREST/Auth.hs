@@ -26,7 +26,6 @@ import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
 import           Data.Maybe              (fromJust)
-import           Data.String.Conversions (cs)
 import           Data.Time.Clock         (NominalDiffTime)
 import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
@@ -41,10 +40,10 @@ claimsToSQL :: M.HashMap Text Value -> [ByteString]
 claimsToSQL claims = roleStmts <> varStmts
  where
   roleStmts = maybeToList $
-    (\r -> "set local role " <> r <> ";") . cs . valueToVariable <$> M.lookup "role" claims
+    (\r -> "set local role " <> r <> ";") . toS . valueToVariable <$> M.lookup "role" claims
   varStmts = map setVar $ M.toList (M.delete "role" claims)
-  setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
-                    <> " = " <> cs (valueToVariable val) <> ";"
+  setVar (k, val) = "set local " <> toS (pgFmtIdent $ "postgrest.claims." <> k)
+                    <> " = " <> toS (valueToVariable val) <> ";"
   valueToVariable = pgFmtLit . unquoted
 
 {-|

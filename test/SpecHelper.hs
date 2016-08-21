@@ -22,6 +22,8 @@ import Data.Maybe (fromJust)
 import Data.Aeson (decode)
 import qualified Data.JsonSchema.Draft4 as D4
 
+import Data.Text
+
 validateOpenApiResponse :: [Header] -> WaiSession ()
 validateOpenApiResponse headers = do
   r <- request methodGet "/" headers ""
@@ -45,7 +47,7 @@ validateOpenApiResponse headers = do
        in
        D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
 
-testDbConn :: String
+testDbConn :: Text
 testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
 
 testCfg :: AppConfig
