@@ -164,7 +164,7 @@ makeGetParams cs =
 
 makePostParams :: Text -> [Param]
 makePostParams tn =
-  [ makePreferParam ["return=representation", "return=representation;plurality=singular",
+  [ makePreferParam ["return=representation", "return=representation,plurality=singular",
                      "return=minimal", "return=none"]
   , (mempty :: Param)
     & name        .~ "body"
