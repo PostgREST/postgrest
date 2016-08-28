@@ -351,7 +351,7 @@ spec = do
       it "can update a single item" $ do
         g <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
+          `shouldSatisfy` matchHeader "Content-Range" "\\*/\\*"
         p <- request methodPatch "/items?id=eq.2" [] [json| { "id":42 } |]
         pure p `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
@@ -363,7 +363,7 @@ spec = do
 
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
-          `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
+          `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
 
       it "can update multiple items" $ do
         replicateM_ 10 $ post "/auto_incrementing_pk"
@@ -375,7 +375,7 @@ spec = do
           [json| { non_nullable_string: "c" } |]
         g <- get "/auto_incrementing_pk?non_nullable_string=eq.c"
         liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "0-9/10"
+          `shouldSatisfy` matchHeader "Content-Range" "0-9/\\*"
 
       it "can set a column to NULL" $ do
         _ <- post "/no_pk" [json| { a: "keepme", b: "nullme" } |]

@@ -47,7 +47,7 @@ spec =
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|[{"id":15}]|]
           , matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-0/1"]
+          , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
     context "known route, unknown record" $
