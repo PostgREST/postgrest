@@ -92,20 +92,20 @@ spec = do
 
         it "refuses a range with nonzero start when there are no items" $
           request methodPost "/rpc/getitemrange"
-                  (rangeHdrs $ ByteRangeFromTo 1 2) emptyRange
+                  (rangeHdrsWithCount $ ByteRangeFromTo 1 2) emptyRange
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = ["Content-Range" <:> "*/0"]
             }
 
         it "refuses a range requesting start past last item" $
           request methodPost "/rpc/getitemrange"
-                  (rangeHdrs $ ByteRangeFromTo 100 199) defaultRange
+                  (rangeHdrsWithCount $ ByteRangeFromTo 100 199) defaultRange
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = ["Content-Range" <:> "*/15"]
             }
 
   describe "GET /items" $ do
@@ -235,18 +235,18 @@ spec = do
 
         it "refuses a range with nonzero start when there are no items" $
           request methodGet "/menagerie"
-                  (rangeHdrs $ ByteRangeFromTo 1 2) ""
+                  (rangeHdrsWithCount $ ByteRangeFromTo 1 2) ""
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = ["Content-Range" <:> "*/0"]
             }
 
         it "refuses a range requesting start past last item" $
           request methodGet "/items"
-                  (rangeHdrs $ ByteRangeFromTo 100 199) ""
+                  (rangeHdrsWithCount $ ByteRangeFromTo 100 199) ""
             `shouldRespondWith` ResponseMatcher {
               matchBody    = Nothing
             , matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = ["Content-Range" <:> "*/15"]
             }
