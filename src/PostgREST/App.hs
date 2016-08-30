@@ -165,7 +165,8 @@ app dbStructure conf apiRequest =
                          'plurality=singular specified, but more than one object would be updated';
                        END $$;
                      |]
-          let r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
+          let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                    (toInteger <$> if shouldCount then Just queryTotal else Nothing)
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204

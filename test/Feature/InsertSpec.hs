@@ -281,7 +281,7 @@ spec = do
         pure p `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
             matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "0-0/1"]
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
         liftIO $
           lookup hContentType (simpleHeaders p) `shouldBe` Nothing
