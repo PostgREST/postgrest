@@ -184,7 +184,8 @@ app dbStructure conf apiRequest =
               stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
           row <- H.query emptyUniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 1 0 (toInteger <$> Just queryTotal)
+              r = contentRangeH 1 0 $
+                    toInteger <$> if shouldCount then Just queryTotal else Nothing
           return $ if queryTotal == 0
             then notFound
             else if iPreferRepresentation apiRequest == Full
