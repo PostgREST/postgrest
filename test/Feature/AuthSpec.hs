@@ -80,7 +80,7 @@ spec = describe "authorization" $ do
   it "fails with an expired token" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.enk_qZ_u6gZsXY4R8bREKB_HNExRpM0lIWSLktk9JJQ"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` 401
 
   it "hides tables from users with invalid JWT" $ do
     let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
@@ -88,16 +88,16 @@ spec = describe "authorization" $ do
       `shouldRespondWith` 400
 
   it "should fail when jwt contains no claims" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.MKYc_lOECtB0LJOiykilAdlHodB-I0_id2qHKq35dmc"
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.lu-rG8aSCiw-aOlN0IxpRGz5r7Jwq7K9r3tuMPUpytI"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` 401
 
   it "hides tables from users with JWT that contain no claims about role" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Impkb2UifQ.zyohGMnrDy4_8eJTl6I2AUXO3MeCCiwR24aGWRkTE9o"
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Impkb2UifQ.Jneso9X519Vh0z7i9PbXIu7W1HEoq9RRw9BBbyQKFCQ"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` 401
 
-  it "recovers after 400 error with logged in user" $ do
+  it "recovers after 401 error with logged in user" $ do
     _ <- post "/authors_only" [json| { "owner": "jdoe", "secret": "test content" } |]
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     _ <- request methodPost "/rpc/problem" [auth] ""
