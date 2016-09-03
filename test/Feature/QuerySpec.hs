@@ -470,6 +470,16 @@ spec = do
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
 
+      it "includes total count if requested" $
+        request methodPost "/rpc/getitemrange"
+                (rangeHdrsWithCount (ByteRangeFromTo 0 0))
+                [json| { "min": 2, "max": 4 } |]
+           `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just [json| [{"id":3}] |]
+            , matchStatus = 206 -- it now knows the response is partial
+            , matchHeaders = ["Content-Range" <:> "0-0/2"]
+            }
+
 
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`

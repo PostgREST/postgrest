@@ -48,11 +48,14 @@ spec = do
           }
 
       it "includes related data after insert" $
-        request methodPost "/projects?select=id,name,clients{id,name}" [("Prefer", "return=representation")]
+        request methodPost "/projects?select=id,name,clients{id,name}"
+                [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8", "Location" <:> "/projects?id=eq.6"]
+          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                           , "Location" <:> "/projects?id=eq.6"
+                           , "Content-Range" <:> "*/1" ]
           }
 
     context "from an html form" $

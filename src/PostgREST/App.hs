@@ -141,13 +141,20 @@ app dbStructure conf apiRequest =
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
           row <- H.query uniform stm
           let (_, _, fs, body) = extractQueryResult row
-              header =
-                if null fs then []
-                else [(hLocation, "/" <> toS table <> renderLocationFields fs)]
+              headers = catMaybes [
+                  if null fs
+                    then Nothing
+                    else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
+                , if iPreferRepresentation apiRequest == Full
+                    then Just $ ctToHeader contentType
+                    else Nothing
+                , Just . contentRangeH 1 0 $
+                    toInteger <$> if shouldCount then Just (V.length rows) else Nothing
+                ]
 
-          return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS status201 (ctToHeader contentType : header) (toS body)
-            else responseLBS status201 header ""
+          return . responseLBS status201 headers $
+            if iPreferRepresentation apiRequest == Full
+               then toS body else ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
