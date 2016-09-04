@@ -80,7 +80,8 @@ postgrest conf refDbStructure pool =
 
     let schema = toS $ configSchema conf
         apiRequest = userApiRequest schema req body
-        eClaims = jwtClaims (secret $ configJwtSecret conf) (iJWT apiRequest) time
+        eClaims = jwtClaims
+          (secret <$> configJwtSecret conf) (iJWT apiRequest) time
         authed = containsRole eClaims
         handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
         txMode = transactionMode $ iAction apiRequest
@@ -212,7 +213,7 @@ app dbStructure conf apiRequest =
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
             singular = iPreferSingular apiRequest
-            jwtSecret = secret $ configJwtSecret conf
+            jwtSecret = secret <$> configJwtSecret conf
             returnType = lookup (qiName qi) $ dbProcs dbStructure
             returnsJWT = fromMaybe False $
               isInfixOf "jwt_claims" . pdReturnType <$> returnType
@@ -220,13 +221,17 @@ app dbStructure conf apiRequest =
           Left e -> return $ responseLBS status400 [jsonH] $ toS e
           Right (q,cq) -> respondToRange $ do
             row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
-            let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
+            let (tableTotal, queryTotal, body) =
+                  fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
-              in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnsJWT
-                      then "{\"token\":\"" <> toS (tokenJWT jwtSecret body) <> "\"}"
-                      else toS $ encode body)
+            return $ case (returnsJWT, jwtSecret) of
+              (True, Nothing) ->
+                errResponse status500 "Server lacks JWT secret"
+              (True, Just s) ->
+                responseLBS status [jsonH, contentRange] $
+                  "{\"token\":\"" <> toS (tokenJWT s body) <> "\"}"
+              (False, _) ->
+                responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let host = configHost conf

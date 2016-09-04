@@ -7,7 +7,7 @@ import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import qualified Hasql.Transaction             as H
 
-import           Network.HTTP.Types.Status     (unauthorized401)
+import           Network.HTTP.Types.Status     (unauthorized401, status500)
 import           Network.Wai                   (Application, Response,
                                                 responseLBS)
 import           Network.Wai.Middleware.Cors   (cors)
@@ -18,6 +18,7 @@ import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
                                                 ctToHeader)
 import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
+import           PostgREST.Error               (errResponse)
 
 import           Protolude                     hiding (concat, null)
 
@@ -28,6 +29,7 @@ runWithClaims conf eClaims app req =
   case eClaims of
     JWTExpired -> return $ unauthed "JWT expired"
     JWTInvalid -> return $ unauthed "JWT invalid"
+    JWTMissingSecret -> return $ errResponse status500 "Server lacks JWT secret"
     JWTClaims claims -> do
       -- role claim defaults to anon if not specified in jwt
       H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)

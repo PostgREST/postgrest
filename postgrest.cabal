@@ -143,6 +143,7 @@ Test-Suite spec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
+                     , Feature.NoJwtSpec
                      , Feature.QuerySpec
                      , Feature.QueryLimitedSpec
                      , Feature.RangeSpec

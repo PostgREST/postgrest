@@ -88,7 +88,7 @@ main = do
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = do
   let s = configJwtSecret conf
-  real <- case stripPrefix "@" s of
+  real <- case join (stripPrefix "@" <$> s) of
             Nothing -> return s -- the string is the secret, not a filename
-            Just filename -> readFile (toS filename)
+            Just filename -> sequence . Just $ readFile (toS filename)
   return conf { configJwtSecret = real }
