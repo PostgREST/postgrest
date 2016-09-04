@@ -141,13 +141,20 @@ app dbStructure conf apiRequest =
           let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
           row <- H.query uniform stm
           let (_, _, fs, body) = extractQueryResult row
-              header =
-                if null fs then []
-                else [(hLocation, "/" <> toS table <> renderLocationFields fs)]
+              headers = catMaybes [
+                  if null fs
+                    then Nothing
+                    else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
+                , if iPreferRepresentation apiRequest == Full
+                    then Just $ ctToHeader contentType
+                    else Nothing
+                , Just . contentRangeH 1 0 $
+                    toInteger <$> if shouldCount then Just (V.length rows) else Nothing
+                ]
 
-          return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS status201 (ctToHeader contentType : header) (toS body)
-            else responseLBS status201 header ""
+          return . responseLBS status201 headers $
+            if iPreferRepresentation apiRequest == Full
+               then toS body else ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
@@ -165,7 +172,8 @@ app dbStructure conf apiRequest =
                          'plurality=singular specified, but more than one object would be updated';
                        END $$;
                      |]
-          let r = contentRangeH 0 (toInteger $ queryTotal-1) (toInteger <$> Just queryTotal)
+          let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                    (toInteger <$> if shouldCount then Just queryTotal else Nothing)
               s = case () of _ | queryTotal == 0 -> status404
                                | iPreferRepresentation apiRequest == Full -> status200
                                | otherwise -> status204
@@ -183,7 +191,8 @@ app dbStructure conf apiRequest =
               stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
           row <- H.query emptyUniform stm
           let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 1 0 (toInteger <$> Just queryTotal)
+              r = contentRangeH 1 0 $
+                    toInteger <$> if shouldCount then Just queryTotal else Nothing
           return $ if queryTotal == 0
             then notFound
             else if iPreferRepresentation apiRequest == Full

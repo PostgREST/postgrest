@@ -84,6 +84,9 @@ loadFixture name =
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
 
+rangeHdrsWithCount :: ByteRange -> [Header]
+rangeHdrsWithCount r = ("Prefer", "count=exact") : rangeHdrs r
+
 acceptHdrs :: BS.ByteString -> [Header]
 acceptHdrs mime = [(hAccept, mime)]
 
