@@ -25,12 +25,13 @@ import qualified Text.InterpolatedString.Perl6 as P6 (q)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI (renderSimpleQuery)
+import           Network.HTTP.Types.URI    (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
+import           Web.JWT                   (secret)
 
 import           Data.Aeson
-import           Data.Aeson.Types (emptyArray)
+import           Data.Aeson.Types          (emptyArray)
 import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
@@ -79,7 +80,7 @@ postgrest conf refDbStructure pool =
 
     let schema = toS $ configSchema conf
         apiRequest = userApiRequest schema req body
-        eClaims = jwtClaims (configJwtSecret conf) (iJWT apiRequest) time
+        eClaims = jwtClaims (secret $ configJwtSecret conf) (iJWT apiRequest) time
         authed = containsRole eClaims
         handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
         txMode = transactionMode $ iAction apiRequest
@@ -211,7 +212,7 @@ app dbStructure conf apiRequest =
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
             singular = iPreferSingular apiRequest
-            jwtSecret = configJwtSecret conf
+            jwtSecret = secret $ configJwtSecret conf
             returnType = lookup (qiName qi) $ dbProcs dbStructure
             returnsJWT = fromMaybe False $
               isInfixOf "jwt_claims" . pdReturnType <$> returnType
