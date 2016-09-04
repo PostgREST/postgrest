@@ -80,12 +80,26 @@ spec = describe "authorization" $ do
   it "fails with an expired token" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.enk_qZ_u6gZsXY4R8bREKB_HNExRpM0lIWSLktk9JJQ"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 401
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Nothing
+        , matchStatus = 401
+        , matchHeaders = [
+            "WWW-Authenticate" <:>
+            "Bearer error=\"invalid_token\", error_description=\"JWT expired\""
+          ]
+        }
 
   it "hides tables from users with invalid JWT" $ do
     let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Nothing
+        , matchStatus = 401
+        , matchHeaders = [
+            "WWW-Authenticate" <:>
+            "Bearer error=\"invalid_token\", error_description=\"JWT invalid\""
+          ]
+        }
 
   it "should fail when jwt contains no claims" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.lu-rG8aSCiw-aOlN0IxpRGz5r7Jwq7K9r3tuMPUpytI"
