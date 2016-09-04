@@ -52,6 +52,7 @@ claimsToSQL claims = roleStmts <> varStmts
 -}
 data JWTAttempt = JWTExpired
                 | JWTInvalid
+                | JWTMissingSecret
                 | JWTClaims (M.HashMap Text Value)
                 deriving Eq
 
@@ -59,18 +60,21 @@ data JWTAttempt = JWTExpired
   Receives the JWT secret (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> JWTAttempt
+jwtClaims :: Maybe JWT.Secret -> Text -> NominalDiffTime -> JWTAttempt
 jwtClaims _ "" _ = JWTClaims M.empty
 jwtClaims secret jwt time =
-  case isExpired <$> mClaims of
-    Just True -> JWTExpired
-    Nothing -> JWTInvalid
-    Just False -> JWTClaims $ value2map $ fromJust mClaims
+  case secret of
+    Nothing -> JWTMissingSecret
+    Just s ->
+      let mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature s jwt in
+      case isExpired <$> mClaims of
+        Just True -> JWTExpired
+        Nothing -> JWTInvalid
+        Just False -> JWTClaims $ value2map $ fromJust mClaims
  where
   isExpired claims =
     let mExp = claims ^? key "exp" . _Integer
     in fromMaybe False $ (<= time) . fromInteger <$> mExp
-  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret jwt
   value2map (Object o) = o
   value2map _          = M.empty
 

@@ -51,19 +51,23 @@ testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_t
 
 testCfg :: AppConfig
 testCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 "safe" 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing True
+
+testCfgNoJWT :: AppConfig
+testCfgNoJWT =
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 Nothing 10 Nothing True
 
 testUnicodeCfg :: AppConfig
 testUnicodeCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 "safe" 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (Just "safe") 10 Nothing True
 
 testLtdRowsCfg :: AppConfig
 testLtdRowsCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 "safe" 10 (Just 2) True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 (Just 2) True
 
 testProxyCfg :: AppConfig
 testProxyCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 "safe" 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing True
 
 setupDb :: IO ()
 setupDb = do

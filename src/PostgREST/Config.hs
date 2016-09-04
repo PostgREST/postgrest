@@ -40,7 +40,7 @@ data AppConfig = AppConfig {
   , configSchema    :: Text
   , configHost      :: Text
   , configPort      :: Int
-  , configJwtSecret :: Text
+  , configJwtSecret :: Maybe Text
   , configPool      :: Int
   , configMaxRows   :: Maybe Integer
   , configQuiet     :: Bool
@@ -54,7 +54,7 @@ argParser = AppConfig
   <*> (toS <$> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault))
   <*> (toS <$> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault))
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (toS <$> strOption (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET"))
+  <*> (optional . map toS <$> strOption) (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET")
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
   <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
   <*> pure False
