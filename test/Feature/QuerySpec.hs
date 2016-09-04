@@ -27,7 +27,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":5}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-0/1"]
+        , matchHeaders = ["Content-Range" <:> "0-0/*"]
         }
 
     it "matches with equality using not operator" $
@@ -35,7 +35,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-13/14"]
+        , matchHeaders = ["Content-Range" <:> "0-13/*"]
         }
 
     it "matches with more than one condition using not operator" $
@@ -46,13 +46,13 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":14},{"id":15}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
       get "/items?id=not.gt.2&order=id.asc"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":2}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
     it "matches items IN" $
@@ -60,7 +60,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "matches items NOT IN" $
@@ -68,7 +68,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "matches items NOT IN using not operator" $
@@ -76,7 +76,7 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "matches nulls using not operator" $
@@ -319,14 +319,14 @@ spec = do
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":1},{"id":2}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` ResponseMatcher {
           matchBody    = Just [json| [{"id":2},{"id":1}] |]
         , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
     it "by a column asc with nulls last" $
@@ -336,7 +336,7 @@ spec = do
                               {"a":"2","b":"0"},
                               {"a":null,"b":null}] |]
         , matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a column desc with nulls first" $
@@ -346,7 +346,7 @@ spec = do
                               {"a":"2","b":"0"},
                               {"a":"1","b":"0"}] |]
         , matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a column desc with nulls last" $
@@ -356,7 +356,7 @@ spec = do
                               {"a":"1","b":"0"},
                               {"a":null,"b":null}] |]
         , matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/3"]
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "without other constraints" $
@@ -466,7 +466,17 @@ spec = do
                 (rangeHdrs (ByteRangeFromTo 0 0))  [json| { "min": 2, "max": 4 } |]
            `shouldRespondWith` ResponseMatcher {
               matchBody    = Just [json| [{"id":3}] |]
-            , matchStatus = 206
+            , matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            }
+
+      it "includes total count if requested" $
+        request methodPost "/rpc/getitemrange"
+                (rangeHdrsWithCount (ByteRangeFromTo 0 0))
+                [json| { "min": 2, "max": 4 } |]
+           `shouldRespondWith` ResponseMatcher {
+              matchBody    = Just [json| [{"id":3}] |]
+            , matchStatus = 206 -- it now knows the response is partial
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
 
@@ -488,8 +498,8 @@ spec = do
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
           `shouldRespondWith` ResponseMatcher {
                matchBody    = Just [json|[{"id":3},{"id":4}]|]
-             , matchStatus = 206
-             , matchHeaders = ["Content-Range" <:> "1-2/3"]
+             , matchStatus = 200
+             , matchHeaders = ["Content-Range" <:> "1-2/*"]
              }
 
 

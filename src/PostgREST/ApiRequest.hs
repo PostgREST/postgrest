@@ -153,7 +153,7 @@ userApiRequest schema req reqBody =
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
-  , iPreferCount = not $ singular || hasPrefer "count=none"
+  , iPreferCount = not singular && hasPrefer "count=exact"
   , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", k /= "offset", not (endingIn ["order", "limit"] k) ]
   , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
   , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
