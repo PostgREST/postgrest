@@ -18,6 +18,6 @@ spec = describe "server started without JWT secret" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 500
 
-  it "behaves normally when user does not attempt auth" $ do
+  it "behaves normally when user does not attempt auth" $
     request methodGet "/items" [] ""
       `shouldRespondWith` 200

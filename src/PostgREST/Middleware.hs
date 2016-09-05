@@ -47,7 +47,7 @@ runWithClaims conf eClaims app req =
       (toS $ "{\"message\":\""<>message<>"\"}")
 
 exposeSecretToSQL :: Maybe Text -> H.Transaction ()
-exposeSecretToSQL mS = do
+exposeSecretToSQL mS =
   for_ mS $ \s ->
     H.sql $ "set local postgrest.jwt_secret = " <> toS (pgFmtLit s) <> ";"
 
