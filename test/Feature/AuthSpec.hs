@@ -12,6 +12,7 @@ import Network.Wai (Application)
 
 spec :: SpecWith Application
 spec = describe "authorization" $ do
+  let single = ("Prefer","plurality=singular")
 
   it "denies access to tables that anonymous does not own" $
     get "/authors_only" `shouldRespondWith` ResponseMatcher {
@@ -38,17 +39,18 @@ spec = describe "authorization" $ do
       }
 
   it "returns jwt functions as jwt tokens" $
-    post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]
+    request methodPost "/rpc/login" [single]
+      [json| { "id": "jdoe", "pass": "1234" } |]
       `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"} |]
+          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xuYW1lIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.P2G9EVSVI22MWxXWFuhEYd9BZerLS1WDlqzdqplM15s"} |]
         , matchStatus = 200
         , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }
 
   it "sql functions can encode custom and standard claims" $
-    post "/rpc/jwt_test" "{}"
+    request methodPost  "/rpc/jwt_test" [single] "{}"
       `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6MTMwMDgxOTM4MCwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3QiLCJpYXQiOjEzMDA4MTkzODAsImF1ZCI6ImV2ZXJ5b25lIn0._tQCF79-ZZGMlLktd3csM_bVaiMg7A8YvIb6K2hcu5w"} |]
+          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJqb2UiLCJzdWIiOiJmdW4iLCJhdWQiOiJldmVyeW9uZSIsImV4cCI6MTMwMDgxOTM4MCwibmJmIjoxMzAwODE5MzgwLCJpYXQiOjEzMDA4MTkzODAsImp0aSI6ImZvbyIsInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdCIsImh0dHA6Ly9wb3N0Z3Jlc3QuY29tL2ZvbyI6dHJ1ZX0.IHF16ZSU6XTbOnUWO8CCpUn2fJwt8P00rlYVyXQjpWc"} |]
         , matchStatus = 200
         , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }

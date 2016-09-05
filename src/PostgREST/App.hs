@@ -7,7 +7,8 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import qualified Data.ByteString.Char8   as BS
+import           Control.Monad             ((>>))
+import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
@@ -45,7 +46,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , ctToHeader
                                             , userApiRequest
                                             , toHeader)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
+import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -97,6 +98,8 @@ transactionMode _ = HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
+  exposeSecretToSQL (configJwtSecret conf) >>
+
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
@@ -213,10 +216,6 @@ app dbStructure conf apiRequest =
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
             singular = iPreferSingular apiRequest
-            jwtSecret = secret <$> configJwtSecret conf
-            returnType = lookup (qiName qi) $ dbProcs dbStructure
-            returnsJWT = fromMaybe False $
-              isInfixOf "jwt_claims" . pdReturnType <$> returnType
         serves [CTApplicationJSON] (iAccepts apiRequest) $ \_ -> case readSqlParts of
           Left e -> return $ responseLBS status400 [jsonH] $ toS e
           Right (q,cq) -> respondToRange $ do
@@ -224,14 +223,7 @@ app dbStructure conf apiRequest =
             let (tableTotal, queryTotal, body) =
                   fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
-            return $ case (returnsJWT, jwtSecret) of
-              (True, Nothing) ->
-                errResponse status500 "Server lacks JWT secret"
-              (True, Just s) ->
-                responseLBS status [jsonH, contentRange] $
-                  "{\"token\":\"" <> toS (tokenJWT s body) <> "\"}"
-              (False, _) ->
-                responseLBS status [jsonH, contentRange] (toS . encode $ body)
+            return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let host = configHost conf

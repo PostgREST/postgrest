@@ -72,8 +72,10 @@ testProxyCfg =
 setupDb :: IO ()
 setupDb = do
   void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []
+  void $ readProcess "psql" ["-d", "postgrest_test", "-a", "-c", "CREATE EXTENSION IF NOT EXISTS pgcrypto;"] []
   loadFixture "roles"
   loadFixture "schema"
+  loadFixture "jwt"
   loadFixture "privileges"
   resetDb
 

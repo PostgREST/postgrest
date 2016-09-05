@@ -49,29 +49,11 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 SET search_path = public, pg_catalog;
 
 --
--- Name: jwt_claims; Type: TYPE; Schema: public; Owner: -
+-- Name: jwt_token; Type: TYPE; Schema: public; Owner: -
 --
 
-CREATE TYPE jwt_claims AS (
-	role text,
-	id text
-);
-
---
--- Name: big_jwt_claims; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE big_jwt_claims AS (
-  iss text,
-  sub text,
-  aud text,
-  exp integer,
-  nbf integer,
-  iat integer,
-  jti text,
-
-  role text,
-  "http://postgrest.com/foo" boolean
+CREATE TYPE jwt_token AS (
+	token text
 );
 
 
@@ -208,10 +190,17 @@ $$;
 -- Name: login(text, text); Type: FUNCTION; Schema: test; Owner: -
 --
 
-CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_claims
+CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
-SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass;
+SELECT jwt.sign(
+    row_to_json(r), current_setting('postgrest.jwt_secret')
+  ) as token
+  FROM (
+    SELECT rolname::text, id::text
+      FROM postgrest.auth
+     WHERE id = id AND pass = pass
+  ) r;
 $$;
 
 
@@ -234,13 +223,18 @@ $_$;
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
 --
 
-CREATE FUNCTION jwt_test() RETURNS public.big_jwt_claims
+CREATE FUNCTION jwt_test() RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
-SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
+SELECT jwt.sign(
+    row_to_json(r), current_setting('postgrest.jwt_secret')
+  ) as token
+  FROM (
+    SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
        1300819380 as exp, 1300819380 as nbf, 1300819380 as iat,
        'foo'::text as jti, 'postgrest_test'::text as role,
-       true as "http://postgrest.com/foo";
+       true as "http://postgrest.com/foo"
+  ) r;
 $$;
 
 

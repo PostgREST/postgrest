@@ -2,6 +2,7 @@
 GRANT USAGE ON SCHEMA
       postgrest
     , test
+    , jwt
     , "تست"
 TO postgrest_test_anonymous;
 

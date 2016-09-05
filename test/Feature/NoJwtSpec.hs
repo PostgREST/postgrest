@@ -3,7 +3,6 @@ module Feature.NoJwtSpec where
 -- {{{ Imports
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 
 import SpecHelper
@@ -19,6 +18,6 @@ spec = describe "server started without JWT secret" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 500
 
-  it "responds with error when attempting to generate JWT token" $
-    post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]
-      `shouldRespondWith` 500
+  it "behaves normally when user does not attempt auth" $ do
+    request methodGet "/items" [] ""
+      `shouldRespondWith` 200
