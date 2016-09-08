@@ -703,6 +703,10 @@ CREATE TABLE "withUnique" (
     extra text
 );
 
+CREATE TABLE clashing_column (
+    t text
+);
+
 
 --
 -- Name: id; Type: DEFAULT; Schema: test; Owner: -
