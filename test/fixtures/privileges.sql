@@ -38,6 +38,7 @@ GRANT ALL ON TABLE
     , "Escap3e;"
     , "ghostBusters"
     , "withUnique"
+    , "clashing_column"
     , "موارد"
     , addresses
     , orders

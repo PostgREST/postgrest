@@ -17,6 +17,10 @@ spec = do
     it "should not confuse count column with pg_catalog.count aggregate" $
       get "/has_count_column" `shouldRespondWith` 200
 
+  describe "Querying a table with a column called t" $
+    it "should not conflict with internal postgrest table alias" $
+      get "/clashing_column?select=t" `shouldRespondWith` 200
+
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable" `shouldRespondWith` 404

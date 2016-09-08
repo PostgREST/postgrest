@@ -97,11 +97,11 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
-      FROM ( SELECT * FROM {sourceCTEName}) t |]
+      FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
   countResultF = if countTotal then "("<>countQuery<>")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
@@ -129,10 +129,10 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM (SELECT 1 FROM {sourceCTEName}) t |]
+      FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
   cols = intercalate ", " [
       "'' AS total_result_set",
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       if isSingle then locationF pKeys else noLocationF,
       "''"
     ]
@@ -144,10 +144,10 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM ({selectQuery}) t |]
+      FROM ({selectQuery}) _postgrest_t |]
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       if isSingle then locationF pKeys else noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
@@ -205,15 +205,15 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
             WITH {sourceCTEName} AS ({_callSql})
             SELECT
               {countResultF} AS total_result_set,
-              pg_catalog.count(t) AS page_total,
+              pg_catalog.count(_postgrest_t) AS page_total,
               case
                 when pg_catalog.count(1) > 1 then
                   {bodyF}
                 else
-                  coalesce(((array_agg(row_to_json(t)))[1]->{_procName})::character varying, {bodyF})
+                  coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
 
               end as body
-            FROM ({selectQuery}) t;
+            FROM ({selectQuery}) _postgrest_t;
           |]
           -- FROM (select * from {sourceCTEName} {limitF range}) t;
     countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
@@ -397,13 +397,13 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       "    ) s" <>
       "  ) a" <>
       ")"
-    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
+    asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
 asJsonF :: SqlFragment
-asJsonF = "coalesce(array_to_json(array_agg(row_to_json(t))), '[]')::character varying"
+asJsonF = "coalesce(array_to_json(array_agg(row_to_json(_postgrest_t))), '[]')::character varying"
 
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "coalesce(string_agg(row_to_json(t)::text, ','), '')::character varying "
+asJsonSingleF = "coalesce(string_agg(row_to_json(_postgrest_t)::text, ','), '')::character varying "
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys =
