@@ -213,7 +213,8 @@ app dbStructure conf apiRequest =
             singular = iPreferSingular apiRequest
             jwtSecret = configJwtSecret conf
             returnType = lookup (qiName qi) $ dbProcs dbStructure
-            returnsJWT = fromMaybe False $ isInfixOf "jwt_claims" <$> returnType
+            returnsJWT = fromMaybe False $
+              isInfixOf "jwt_claims" . pdReturnType <$> returnType
         serves [CTApplicationJSON] (iAccepts apiRequest) $ \_ -> case readSqlParts of
           Left e -> return $ responseLBS status400 [jsonH] $ toS e
           Right (q,cq) -> respondToRange $ do
@@ -233,7 +234,7 @@ app dbStructure conf apiRequest =
           uri Nothing = ("http", host, port, "/")
           uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
           uri' = uri proxy
-          encodeApi ti = encodeOpenAPI ti uri'
+          encodeApi ti = encodeOpenAPI (map snd $ dbProcs dbStructure) ti uri'
       serves [CTOpenAPI] (iAccepts apiRequest) $ \_ -> do
         body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
         return $ responseLBS status200 [openapiH] $ toS body
@@ -269,7 +270,8 @@ app dbStructure conf apiRequest =
   schema = toS $ configSchema conf
   shouldCount = iPreferCount apiRequest
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
-  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
+  mapSnd f (a, b) = (a, f b)
+  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema False <$> readDbRequest
   countQuery = requestToCountQuery schema <$> readDbRequest
