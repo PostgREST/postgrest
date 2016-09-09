@@ -24,7 +24,8 @@ import           PostgREST.ApiRequest        (ContentType(..), toHeader)
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..),
-                                              Proxy(..), ProcDescription(..))
+                                              Proxy(..), ProcDescription(..),
+                                              PgArgName, PgArgType)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toHeader) cs
@@ -173,6 +174,20 @@ makePostParams tn =
     & schema .~ ParamBody (Ref (Reference tn))
   ]
 
+makeProcParams :: ProcDescription -> [Param]
+makeProcParams pd =
+  map (makeProcParam $ pdName pd) (pdArgs pd)
+
+makeProcParam :: Text -> (PgArgName, PgArgType) -> Param
+makeProcParam refName (n, t) =
+  (mempty :: Param)
+    & name        .~ n
+    & required    ?~ True
+    -- & schema .~ ParamBody ((Ref (Reference refName))
+    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+      -- & in_ .~ ParamQuery
+      & type_ .~ toSwaggerType t)
+
 makeDeleteParams :: [Param]
 makeDeleteParams =
   [ makePreferParam ["return=representation", "return=minimal", "return=none"] ]
@@ -208,7 +223,7 @@ makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     postOp = (mempty :: Operation)
-      & parameters .~ []
+      & parameters .~ map Inline (makeProcParams pd)
       & tags .~ Set.fromList ["/rpc/" <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON]
       & at 200 ?~ "OK"
