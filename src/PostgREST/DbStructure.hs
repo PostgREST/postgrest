@@ -106,9 +106,7 @@ accessibleProcs =
   addName pd = (pdName pd, pd)
 
   parseArgs :: Text -> [PgArg]
-  parseArgs = mapMaybe toks2arg
-                . map (split (==' ') . strip)
-                . split (==',')
+  parseArgs = mapMaybe (toks2arg . split (==' ') . strip) . split (==',')
 
   toks2arg :: [Text] -> Maybe PgArg
   toks2arg (x:y:"DEFAULT":_) = Just (PgArg x y False)
