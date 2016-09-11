@@ -105,14 +105,15 @@ accessibleProcs =
   addName :: ProcDescription -> (Text, ProcDescription)
   addName pd = (pdName pd, pd)
 
-  parseArgs :: Text -> [(PgArgName, PgArgType)]
-  parseArgs = mapMaybe list2pair
+  parseArgs :: Text -> [PgArg]
+  parseArgs = mapMaybe toks2arg
                 . map (split (==' ') . strip)
                 . split (==',')
 
-  list2pair :: [a] -> Maybe (a,a)
-  list2pair (x:y:_) = Just (x,y)
-  list2pair _       = Nothing
+  toks2arg :: [Text] -> Maybe PgArg
+  toks2arg (x:y:"DEFAULT":_) = Just (PgArg x y False)
+  toks2arg (x:y:_)           = Just (PgArg x y True)
+  toks2arg _                 = Nothing
 
   sql = [q|
     SELECT p.proname as "proc_name",

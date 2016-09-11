@@ -23,9 +23,8 @@ import           Data.Swagger
 import           PostgREST.ApiRequest        (ContentType(..), toHeader)
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
-import           PostgREST.Types             (Table(..), Column(..),
-                                              Proxy(..), ProcDescription(..),
-                                              PgArgName, PgArgType)
+import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
+                                              Proxy(..), ProcDescription(..))
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toHeader) cs
@@ -55,13 +54,15 @@ makeProperty c = (colName c, Inline u)
     u = t & format ?~ colType c
 
 makeProcDef :: ProcDescription -> (Text, Schema)
-makeProcDef pd =
-  ("(rpc) " <> pdName pd, (mempty :: Schema)
-    & type_ .~ SwaggerObject
-    & properties .~ (fromList $ map makeProcProperty (pdArgs pd)))
+makeProcDef pd = ("(rpc) " <> pdName pd, s)
+  where
+    s = (mempty :: Schema)
+          & type_ .~ SwaggerObject
+          & properties .~ (fromList $ map makeProcProperty (pdArgs pd))
+          & required .~ (map pgaName $ filter pgaReq (pdArgs pd))
 
-makeProcProperty :: (PgArgName, PgArgType) -> (Text, Referenced Schema)
-makeProcProperty (n, t) = (n, Inline s)
+makeProcProperty :: PgArg -> (Text, Referenced Schema)
+makeProcProperty (PgArg n t _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t

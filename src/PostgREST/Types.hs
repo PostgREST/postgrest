@@ -16,12 +16,15 @@ data DbStructure = DbStructure {
 , dbProcs       :: [(Text,ProcDescription)]
 } deriving (Show, Eq)
 
-type PgArgName = Text
-type PgArgType = Text
+data PgArg = PgArg {
+  pgaName :: Text
+, pgaType :: Text
+, pgaReq  :: Bool
+} deriving (Show, Eq)
 
 data ProcDescription = ProcDescription {
   pdName       :: Text
-, pdArgs       :: [(PgArgName, PgArgType)]
+, pdArgs       :: [PgArg]
 , pdReturnType :: Text
 } deriving (Show, Eq)
 
