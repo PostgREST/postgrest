@@ -29,14 +29,14 @@ spec = do
 
       it "includes a representative function with parameters" $ do
         r <- simpleBody <$> get "/"
-        let ref = r ^? key "paths" . key "/rpc/login"
+        let ref = r ^? key "paths" . key "/rpc/varied_arguments"
                      . key "post"  . key "parameters"
                      . nth 0       . key "schema"
                      . key "$ref"  . _String
-            login = r ^? key "definitions" . key "(rpc) login"
+            login = r ^? key "definitions" . key "(rpc) varied_arguments"
 
         liftIO $ do
-          ref `shouldBe` Just "#/definitions/(rpc) login"
+          ref `shouldBe` Just "#/definitions/(rpc) varied_arguments"
           login `shouldBe` Just
             [aesonQQ|
               {
