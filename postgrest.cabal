@@ -151,6 +151,7 @@ Test-Suite spec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
+                     , aeson-qq
                      , async
                      , base
                      , protolude
