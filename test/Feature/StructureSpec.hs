@@ -4,10 +4,14 @@ import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Network.HTTP.Types
 
+import Control.Lens ((^?))
+import Data.Aeson.Lens
+import Data.Aeson.QQ
+
 import SpecHelper
 
 import Network.Wai (Application)
-import Network.Wai.Test (SResponse(simpleHeaders))
+import Network.Wai.Test (SResponse(..))
 
 spec :: SpecWith Application
 spec = do
@@ -20,6 +24,39 @@ spec = do
       request methodGet "/items"
               (acceptHdrs "application/openapi+json") ""
         `shouldRespondWith` 415
+
+    describe "RPC" $
+
+      it "includes a representative function with parameters" $ do
+        r <- simpleBody <$> get "/"
+        let ref = r ^? key "paths" . key "/rpc/login"
+                     . key "post"  . key "parameters"
+                     . nth 0       . key "schema"
+                     . key "$ref"  . _String
+            login = r ^? key "definitions" . key "(rpc) login"
+
+        liftIO $ do
+          ref `shouldBe` Just "#/definitions/(rpc) login"
+          login `shouldBe` Just
+            [aesonQQ|
+              {
+                "required": [
+                  "id",
+                  "pass"
+                ],
+                "properties": {
+                  "id": {
+                    "format": "text",
+                    "type": "string"
+                  },
+                  "pass": {
+                    "format": "text",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            |]
 
   describe "Allow header" $ do
 
