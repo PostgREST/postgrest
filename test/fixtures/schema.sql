@@ -215,6 +215,21 @@ SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass
 $$;
 
 
+CREATE FUNCTION varied_arguments(
+  double double precision,
+  "varchar" character varying,
+  "boolean" boolean,
+  date date,
+  money money,
+  enum enum_menagerie_type,
+  "integer" integer default 42
+) RETURNS text
+    LANGUAGE sql
+AS $_$
+    SELECT 'Hi';
+$_$;
+
+
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
 --
