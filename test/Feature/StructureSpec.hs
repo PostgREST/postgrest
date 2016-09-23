@@ -33,25 +33,49 @@ spec = do
                      . key "post"  . key "parameters"
                      . nth 0       . key "schema"
                      . key "$ref"  . _String
-            login = r ^? key "definitions" . key "(rpc) varied_arguments"
+            args = r ^? key "definitions" . key "(rpc) varied_arguments"
 
         liftIO $ do
           ref `shouldBe` Just "#/definitions/(rpc) varied_arguments"
-          login `shouldBe` Just
+          args `shouldBe` Just
             [aesonQQ|
               {
                 "required": [
-                  "id",
-                  "pass"
+                  "double",
+                  "varchar",
+                  "boolean",
+                  "date",
+                  "money",
+                  "enum"
                 ],
                 "properties": {
-                  "id": {
-                    "format": "text",
+                  "double": {
+                    "format": "double precision",
                     "type": "string"
                   },
-                  "pass": {
-                    "format": "text",
+                  "varchar": {
+                    "format": "character varying",
                     "type": "string"
+                  },
+                  "boolean": {
+                    "format": "boolean",
+                    "type": "boolean"
+                  },
+                  "date": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "money": {
+                    "format": "money",
+                    "type": "string"
+                  },
+                  "enum": {
+                    "format": "test.enum_menagerie_type",
+                    "type": "string"
+                  },
+                  "integer": {
+                    "format": "integer",
+                    "type": "integer"
                   }
                 },
                 "type": "object"
