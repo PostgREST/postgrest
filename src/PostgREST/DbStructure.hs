@@ -16,7 +16,9 @@ import           Control.Applicative
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Monoid
-import           Data.Text                     (split, strip)
+import           Data.Text                     (split, strip,
+                                                breakOn, dropAround)
+import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
@@ -106,12 +108,16 @@ accessibleProcs =
   addName pd = (pdName pd, pd)
 
   parseArgs :: Text -> [PgArg]
-  parseArgs = mapMaybe (toks2arg . split (==' ') . strip) . split (==',')
+  parseArgs = mapMaybe (parseArg . strip) . split (==',')
 
-  toks2arg :: [Text] -> Maybe PgArg
-  toks2arg (x:y:"DEFAULT":_) = Just (PgArg x y False)
-  toks2arg (x:y:_)           = Just (PgArg x y True)
-  toks2arg _                 = Nothing
+  parseArg :: Text -> Maybe PgArg
+  parseArg a =
+    let (body, def) = breakOn " DEFAULT " a
+        (name, typ) = breakOn " " body in
+    if T.null typ
+       then Nothing
+       else Just $
+         PgArg (dropAround (== '"') name) (strip typ) (T.null def)
 
   sql = [q|
     SELECT p.proname as "proc_name",

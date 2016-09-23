@@ -226,7 +226,7 @@ CREATE FUNCTION varied_arguments(
 ) RETURNS text
     LANGUAGE sql
 AS $_$
-    SELECT 'Hi';
+  SELECT 'Hi'::text;
 $_$;
 
 
