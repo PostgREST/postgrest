@@ -16,7 +16,9 @@ import           Control.Applicative
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Monoid
-import           Data.Text                     (split)
+import           Data.Text                     (split, strip,
+                                                breakOn, dropAround)
+import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
@@ -95,12 +97,32 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-accessibleProcs :: H.Query Schema [(Text, Text)]
+accessibleProcs :: H.Query Schema [(Text, ProcDescription)]
 accessibleProcs =
-  H.statement sql (HE.value HE.text) (HD.rowsList ((,) <$> HD.value HD.text <*> HD.value HD.text)) True
+  H.statement sql (HE.value HE.text)
+    (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
+                                <*> (parseArgs <$> HD.value HD.text)
+                                <*> HD.value HD.text)) True
  where
+  addName :: ProcDescription -> (Text, ProcDescription)
+  addName pd = (pdName pd, pd)
+
+  parseArgs :: Text -> [PgArg]
+  parseArgs = mapMaybe (parseArg . strip) . split (==',')
+
+  parseArg :: Text -> Maybe PgArg
+  parseArg a =
+    let (body, def) = breakOn " DEFAULT " a
+        (name, typ) = breakOn " " body in
+    if T.null typ
+       then Nothing
+       else Just $
+         PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+
   sql = [q|
-    SELECT p.proname as "proc_name", pg_get_function_result(p.oid) as "return_type"
+    SELECT p.proname as "proc_name",
+           pg_get_function_arguments(p.oid) as "args",
+           pg_get_function_result(p.oid) as "return_type"
     FROM   pg_namespace n
     JOIN   pg_proc p
     ON     pronamespace = n.oid

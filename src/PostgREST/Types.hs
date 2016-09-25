@@ -13,7 +13,19 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
-, dbProcs       :: [(Text,Text)]
+, dbProcs       :: [(Text,ProcDescription)]
+} deriving (Show, Eq)
+
+data PgArg = PgArg {
+  pgaName :: Text
+, pgaType :: Text
+, pgaReq  :: Bool
+} deriving (Show, Eq)
+
+data ProcDescription = ProcDescription {
+  pdName       :: Text
+, pdArgs       :: [PgArg]
+, pdReturnType :: Text
 } deriving (Show, Eq)
 
 type Schema = Text
