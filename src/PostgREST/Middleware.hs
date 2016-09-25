@@ -19,7 +19,6 @@ import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
 import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
-import           PostgREST.QueryBuilder        (pgFmtLit)
 
 import           Protolude                     hiding (concat, null)
 
@@ -45,11 +44,6 @@ runWithClaims conf eClaims app req =
         )
       ]
       (toS $ "{\"message\":\""<>message<>"\"}")
-
-exposeSecretToSQL :: Maybe Text -> H.Transaction ()
-exposeSecretToSQL mS =
-  for_ mS $ \s ->
-    H.sql $ "set local postgrest.jwt_secret = " <> toS (pgFmtLit s) <> ";"
 
 defaultMiddle :: Application -> Application
 defaultMiddle =

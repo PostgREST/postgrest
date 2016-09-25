@@ -194,7 +194,7 @@ CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT jwt.sign(
-    row_to_json(r), current_setting('postgrest.jwt_secret')
+    row_to_json(r), 'safe'
   ) as token
   FROM (
     SELECT rolname::text, id::text
@@ -227,7 +227,7 @@ CREATE FUNCTION jwt_test() RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT jwt.sign(
-    row_to_json(r), current_setting('postgrest.jwt_secret')
+    row_to_json(r), 'safe'
   ) as token
   FROM (
     SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,

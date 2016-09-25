@@ -7,7 +7,6 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Control.Monad             ((>>))
 import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
@@ -98,8 +97,6 @@ transactionMode _ = HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
-  exposeSecretToSQL (configJwtSecret conf) >>
-
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
