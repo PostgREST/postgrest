@@ -103,6 +103,11 @@ spec = describe "authorization" $ do
           ]
         }
 
+  it "runs a custom request validation proc" $ do
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYmFkX3JvbGUifQ.ENAiheEOlskpfoT5byj-gKJkOhHKTvETQu1Zso3c4Ts"
+    request methodGet "/items" [auth] ""
+      `shouldRespondWith` 400
+
   it "should fail when jwt contains no claims" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.lu-rG8aSCiw-aOlN0IxpRGz5r7Jwq7K9r3tuMPUpytI"
     request methodGet "/authors_only" [auth] ""

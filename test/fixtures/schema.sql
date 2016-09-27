@@ -237,6 +237,14 @@ SELECT jwt.sign(
   ) r;
 $$;
 
+create function block_bad_role() returns void
+language plpgsql as $$
+begin
+  if current_role = 'bad_role' then
+    raise invalid_password using message = 'role is not allowed';
+  end if;
+end
+$$;
 
 --
 -- Name: reveal_big_jwt(); Type: FUNCTION; Schema: test; Owner: -

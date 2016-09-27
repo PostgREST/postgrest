@@ -4,7 +4,7 @@ GRANT USAGE ON SCHEMA
     , test
     , jwt
     , "تست"
-TO postgrest_test_anonymous;
+TO postgrest_test_anonymous, bad_role;
 
 -- Schema test objects
 SET search_path = test, "تست", pg_catalog;

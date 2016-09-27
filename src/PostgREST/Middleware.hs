@@ -32,10 +32,13 @@ runWithClaims conf eClaims app req =
     JWTMissingSecret -> return $ errResponse status500 "Server lacks JWT secret"
     JWTClaims claims -> do
       -- role claim defaults to anon if not specified in jwt
-      H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
+      let setClaims = claimsToSQL (M.union claims (M.singleton "role" anon))
+      H.sql (mconcat $ setClaims ++ customReqCheck)
       app req
   where
     anon = String . toS $ configAnonRole conf
+    customReqCheck = maybeToList $ (\f -> "select " <> toS f <> "();")
+                                 <$> configReqCheck conf
     unauthed message = responseLBS unauthorized401
       [ ctToHeader CTApplicationJSON
       , ( "WWW-Authenticate"
