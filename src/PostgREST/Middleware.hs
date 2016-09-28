@@ -33,12 +33,12 @@ runWithClaims conf eClaims app req =
     JWTClaims claims -> do
       -- role claim defaults to anon if not specified in jwt
       let setClaims = claimsToSQL (M.union claims (M.singleton "role" anon))
-      H.sql (mconcat $ setClaims ++ customReqCheck)
+      H.sql $ mconcat setClaims
+      mapM_ H.sql customReqCheck
       app req
   where
     anon = String . toS $ configAnonRole conf
-    customReqCheck = maybeToList $ (\f -> "select " <> toS f <> "();")
-                                 <$> configReqCheck conf
+    customReqCheck = (\f -> "select " <> toS f <> "();") <$> configReqCheck conf
     unauthed message = responseLBS unauthorized401
       [ ctToHeader CTApplicationJSON
       , ( "WWW-Authenticate"

@@ -1,6 +1,7 @@
 module Feature.AuthSpec where
 
 -- {{{ Imports
+import Text.Heredoc
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -103,11 +104,6 @@ spec = describe "authorization" $ do
           ]
         }
 
-  it "runs a custom request validation proc" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYmFkX3JvbGUifQ.ENAiheEOlskpfoT5byj-gKJkOhHKTvETQu1Zso3c4Ts"
-    request methodGet "/items" [auth] ""
-      `shouldRespondWith` 400
-
   it "should fail when jwt contains no claims" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.lu-rG8aSCiw-aOlN0IxpRGz5r7Jwq7K9r3tuMPUpytI"
     request methodGet "/authors_only" [auth] ""
@@ -124,3 +120,35 @@ spec = describe "authorization" $ do
     _ <- request methodPost "/rpc/problem" [auth] ""
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
+
+  describe "custom pre-request proc acting on id claim" $ do
+
+    it "able to switch to postgrest_test_author role (id=1)" $
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MX0.mI2HNoOum6xM3sc4oHLxU4yLv-_WV5W1kqBfY_wEvLw" in
+      request methodPost "/rpc/get_current_user" [auth]
+        [json| {} |]
+         `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|"postgrest_test_author"|]
+          , matchStatus = 200
+          , matchHeaders = []
+          }
+
+    it "able to switch to postgrest_test_default_role (id=2)" $
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mn0.W7jLsG-zswM91AJkCvZeIMHrnz7_6ceY2jnscVl3Yhk" in
+      request methodPost "/rpc/get_current_user" [auth]
+        [json| {} |]
+         `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|"postgrest_test_default_role"|]
+          , matchStatus = 200
+          , matchHeaders = []
+          }
+
+    it "raises error (id=3)" $
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6M30.15Gy8PezQhJIaHYDJVLa-Gmz9T3sJnW66EKAYIsXc7c" in
+      request methodPost "/rpc/get_current_user" [auth]
+        [json| {} |]
+         `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"hint":"Please contact administrator","details":null,"code":"P0001","message":"Disabled ID --> 3"}|]
+          , matchStatus = 400
+          , matchHeaders = []
+          }

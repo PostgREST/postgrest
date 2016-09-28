@@ -237,13 +237,30 @@ SELECT jwt.sign(
   ) r;
 $$;
 
-create function block_bad_role() returns void
-language plpgsql as $$
+
+CREATE OR REPLACE FUNCTION switch_role() RETURNS void
+  LANGUAGE plpgsql
+  AS $$
+declare
+  user_id text;
 begin
-  if current_role = 'bad_role' then
-    raise invalid_password using message = 'role is not allowed';
+  user_id = current_setting('postgrest.claims.id')::text;
+  if user_id = '1'::text then
+    execute 'set local role postgrest_test_author';
+  elseif user_id = '2'::text then
+    execute 'set local role postgrest_test_default_role';
+  elseif user_id = '3'::text then
+    RAISE EXCEPTION 'Disabled ID --> %', user_id USING HINT = 'Please contact administrator';
+  /* else */
+  /*   execute 'set local role postgrest_test_anonymous'; */
   end if;
 end
+$$;
+
+CREATE FUNCTION get_current_user() RETURNS text
+  LANGUAGE sql
+  AS $$
+SELECT current_user::text;
 $$;
 
 --

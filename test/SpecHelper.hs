@@ -51,7 +51,7 @@ testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_t
 
 testCfg :: AppConfig
 testCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.block_bad_role") True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.switch_role") True
 
 testCfgNoJWT :: AppConfig
 testCfgNoJWT =
