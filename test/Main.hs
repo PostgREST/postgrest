@@ -7,8 +7,10 @@ import qualified Hasql.Pool as P
 
 import PostgREST.DbStructure (getDbStructure)
 import PostgREST.App (postgrest)
+import Control.AutoUpdate
 import Data.IORef
 import Data.String.Conversions (cs)
+import Data.Time.Clock.POSIX   (getPOSIXTime)
 
 import qualified Feature.AuthSpec
 import qualified Feature.ConcurrentSpec
@@ -28,14 +30,18 @@ main = do
   setupDb
 
   pool <- P.acquire (3, 10, cs testDbConn)
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate
+    defaultUpdateSettings { updateAction = getPOSIXTime }
+
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ either (error.show) id result
-  let withApp = return $ postgrest testCfg refDbStructure pool
-      ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool
-      unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool
-      proxyApp = return $ postgrest testProxyCfg refDbStructure pool
-      noJwtApp = return $ postgrest testCfgNoJWT refDbStructure pool
+  let withApp = return $ postgrest testCfg refDbStructure pool getTime
+      ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool getTime
+      unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool getTime
+      proxyApp = return $ postgrest testProxyCfg refDbStructure pool getTime
+      noJwtApp = return $ postgrest testCfgNoJWT refDbStructure pool getTime
 
   hspec $ do
     mapM_ (beforeAll_ resetDb . before withApp) specs
