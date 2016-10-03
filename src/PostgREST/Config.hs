@@ -31,7 +31,6 @@ import           Options.Applicative
 import           Paths_postgrest             (version)
 import           Protolude hiding            (intercalate)
 import           Safe                        (readMay)
-import           Web.JWT                     (Secret, secret)
 
 -- | Data type to store all command line options
 data AppConfig = AppConfig {
@@ -41,9 +40,10 @@ data AppConfig = AppConfig {
   , configSchema    :: Text
   , configHost      :: Text
   , configPort      :: Int
-  , configJwtSecret :: Secret
+  , configJwtSecret :: Maybe Text
   , configPool      :: Int
   , configMaxRows   :: Maybe Integer
+  , configReqCheck  :: Maybe Text
   , configQuiet     :: Bool
   }
 
@@ -55,10 +55,10 @@ argParser = AppConfig
   <*> (toS <$> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault))
   <*> (toS <$> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault))
   <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (secret . toS <$>
-      strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
+  <*> (optional . map toS <$> strOption) (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET")
   <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
   <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
+  <*> (optional . map toS . strOption) (long "pre-request"  <> help "schema-qualified name of proc to call to validate requests" <> metavar "FUNCTION")
   <*> pure False
 
 defaultCorsPolicy :: CorsResourcePolicy

@@ -7,12 +7,13 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import qualified Data.ByteString.Char8   as BS
+import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -25,13 +26,13 @@ import qualified Text.InterpolatedString.Perl6 as P6 (q)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI (renderSimpleQuery)
+import           Network.HTTP.Types.URI    (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
+import           Web.JWT                   (secret)
 
 import           Data.Aeson
-import           Data.Aeson.Types (emptyArray)
-import           Data.Time.Clock.POSIX     (getPOSIXTime)
+import           Data.Aeson.Types          (emptyArray)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -44,7 +45,7 @@ import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
                                             , ctToHeader
                                             , userApiRequest
                                             , toHeader)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
+import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -68,18 +69,20 @@ import           Data.Foldable (foldr1)
 import           Data.Function (id)
 import           Protolude                hiding (dropWhile, drop, intercalate, Proxy)
 
-postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
-postgrest conf refDbStructure pool =
+postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> IO POSIXTime ->
+             Application
+postgrest conf refDbStructure pool getTime =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
-    time <- getPOSIXTime
+    time <- getTime
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
     let schema = toS $ configSchema conf
         apiRequest = userApiRequest schema req body
-        eClaims = jwtClaims (configJwtSecret conf) (iJWT apiRequest) time
+        eClaims = jwtClaims
+          (secret <$> configJwtSecret conf) (iJWT apiRequest) time
         authed = containsRole eClaims
         handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
         txMode = transactionMode $ iAction apiRequest
@@ -211,21 +214,14 @@ app dbStructure conf apiRequest =
      Just (PayloadJSON (UniformObjects payload))) -> do
         let p = V.head payload
             singular = iPreferSingular apiRequest
-            jwtSecret = configJwtSecret conf
-            returnType = lookup (qiName qi) $ dbProcs dbStructure
-            returnsJWT = fromMaybe False $
-              isInfixOf "jwt_claims" . pdReturnType <$> returnType
         serves [CTApplicationJSON] (iAccepts apiRequest) $ \_ -> case readSqlParts of
           Left e -> return $ responseLBS status400 [jsonH] $ toS e
           Right (q,cq) -> respondToRange $ do
             row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
-            let (tableTotal, queryTotal, body) = fromMaybe (Just 0, 0, emptyArray) row
+            let (tableTotal, queryTotal, body) =
+                  fromMaybe (Just 0, 0, emptyArray) row
                 (status, contentRange) = rangeHeader queryTotal tableTotal
-              in
-              return $ responseLBS status [jsonH, contentRange]
-                      (if returnsJWT
-                      then "{\"token\":\"" <> toS (tokenJWT jwtSecret body) <> "\"}"
-                      else toS $ encode body)
+            return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
     (ActionRead, TargetRoot, Nothing) -> do
       let host = configHost conf

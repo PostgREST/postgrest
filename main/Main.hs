@@ -11,8 +11,11 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
+import           Control.AutoUpdate
 import           Data.String                          (IsString (..))
+import           Data.Text                            (stripPrefix)
 import           Data.Function                        (id)
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -21,7 +24,6 @@ import qualified Hasql.Pool                           as P
 import           Network.Wai.Handler.Warp
 import           System.IO                            (BufferMode (..),
                                                        hSetBuffering)
-import           Web.JWT                              (secret)
 import           Data.IORef
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
@@ -42,7 +44,7 @@ main = do
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
 
-  conf <- readOptions
+  conf <- loadSecretFile =<< readOptions
   let host = configHost conf
       port = configPort conf
       proxy = configProxyUri conf
@@ -55,8 +57,6 @@ main = do
   when (isMalformedProxyUri $ toS <$> proxy) $ panic
     "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
-  unless (secret "secret" /= configJwtSecret conf) $
-    putStrLn ("WARNING, running in insecure mode, JWT secret is the default value" :: Text)
   putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
@@ -85,4 +85,16 @@ main = do
    ) Nothing
 #endif
 
-  runSettings appSettings $ postgrest conf refDbStructure pool
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate
+    defaultUpdateSettings { updateAction = getPOSIXTime }
+
+  runSettings appSettings $ postgrest conf refDbStructure pool getTime
+
+loadSecretFile :: AppConfig -> IO AppConfig
+loadSecretFile conf = do
+  let s = configJwtSecret conf
+  real <- case join (stripPrefix "@" <$> s) of
+            Nothing -> return s -- the string is the secret, not a filename
+            Just filename -> sequence . Just $ readFile (toS filename)
+  return conf { configJwtSecret = real }

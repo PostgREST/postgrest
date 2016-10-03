@@ -7,33 +7,46 @@ import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import qualified Hasql.Transaction             as H
 
-import           Network.HTTP.Types.Status     (status400)
-import           Network.Wai                   (Application, Response)
+import           Network.HTTP.Types.Status     (unauthorized401, status500)
+import           Network.Wai                   (Application, Response,
+                                                responseLBS)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..))
-import           PostgREST.Auth                (claimsToSQL)
+import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
+                                                ctToHeader)
+import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
-import           Data.Text
 
 import           Protolude                     hiding (concat, null)
 
-runWithClaims :: AppConfig -> Either Text (M.HashMap Text Value) ->
+runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->
                  ApiRequest -> H.Transaction Response
 runWithClaims conf eClaims app req =
   case eClaims of
-    Left e -> clientErr e
-    Right claims -> do
-          -- role claim defaults to anon if not specified in jwt
-          H.sql . mconcat . claimsToSQL $ M.union claims (M.singleton "role" anon)
-          app req
+    JWTExpired -> return $ unauthed "JWT expired"
+    JWTInvalid -> return $ unauthed "JWT invalid"
+    JWTMissingSecret -> return $ errResponse status500 "Server lacks JWT secret"
+    JWTClaims claims -> do
+      -- role claim defaults to anon if not specified in jwt
+      let setClaims = claimsToSQL (M.union claims (M.singleton "role" anon))
+      H.sql $ mconcat setClaims
+      mapM_ H.sql customReqCheck
+      app req
   where
     anon = String . toS $ configAnonRole conf
-    clientErr = return . errResponse status400
+    customReqCheck = (\f -> "select " <> toS f <> "();") <$> configReqCheck conf
+    unauthed message = responseLBS unauthorized401
+      [ ctToHeader CTApplicationJSON
+      , ( "WWW-Authenticate"
+        , "Bearer error=\"invalid_token\", " <>
+          "error_description=\"" <> message <> "\""
+        )
+      ]
+      (toS $ "{\"message\":\""<>message<>"\"}")
 
 defaultMiddle :: Application -> Application
 defaultMiddle =

@@ -16,6 +16,7 @@ module PostgREST.Auth (
   , containsRole
   , jwtClaims
   , tokenJWT
+  , JWTAttempt(..)
   ) where
 
 import           Protolude
@@ -47,22 +48,33 @@ claimsToSQL claims = roleStmts <> varStmts
   valueToVariable = pgFmtLit . unquoted
 
 {-|
-  Receives the JWT secret (from config) and a JWT and
-  returns a map of JWT claims
-  In case there is any problem decoding the JWT it returns an error Text
+  Possible situations encountered with client JWTs
 -}
-jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Either Text (M.HashMap Text Value)
-jwtClaims _ "" _ = Right M.empty
+data JWTAttempt = JWTExpired
+                | JWTInvalid
+                | JWTMissingSecret
+                | JWTClaims (M.HashMap Text Value)
+                deriving Eq
+
+{-|
+  Receives the JWT secret (from config) and a JWT and returns a map
+  of JWT claims.
+-}
+jwtClaims :: Maybe JWT.Secret -> Text -> NominalDiffTime -> JWTAttempt
+jwtClaims _ "" _ = JWTClaims M.empty
 jwtClaims secret jwt time =
-  case isExpired <$> mClaims of
-    Just True -> Left "JWT expired"
-    Nothing -> Left "Invalid JWT"
-    Just False -> Right $ value2map $ fromJust mClaims
+  case secret of
+    Nothing -> JWTMissingSecret
+    Just s ->
+      let mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature s jwt in
+      case isExpired <$> mClaims of
+        Just True -> JWTExpired
+        Nothing -> JWTInvalid
+        Just False -> JWTClaims $ value2map $ fromJust mClaims
  where
   isExpired claims =
     let mExp = claims ^? key "exp" . _Integer
     in fromMaybe False $ (<= time) . fromInteger <$> mExp
-  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret jwt
   value2map (Object o) = o
   value2map _          = M.empty
 
@@ -80,6 +92,6 @@ tokenJWT secret _ = tokenJWT secret emptyArray
 {-|
   Whether a response from jwtClaims contains a role claim
 -}
-containsRole :: Either Text (M.HashMap Text Value) -> Bool
-containsRole (Left _) = False
-containsRole (Right claims) = M.member "role" claims
+containsRole :: JWTAttempt -> Bool
+containsRole (JWTClaims claims) = M.member "role" claims
+containsRole _ = False

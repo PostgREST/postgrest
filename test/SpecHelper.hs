@@ -8,7 +8,6 @@ import Data.CaseInsensitive (CI(..))
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
-import Web.JWT (secret)
 
 import PostgREST.Config (AppConfig(..))
 
@@ -52,25 +51,31 @@ testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_t
 
 testCfg :: AppConfig
 testCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.switch_role") True
+
+testCfgNoJWT :: AppConfig
+testCfgNoJWT =
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 Nothing 10 Nothing Nothing True
 
 testUnicodeCfg :: AppConfig
 testUnicodeCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
 testLtdRowsCfg :: AppConfig
 testLtdRowsCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (secret "safe") 10 (Just 2) True
+  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 (Just 2) Nothing True
 
 testProxyCfg :: AppConfig
 testProxyCfg =
-  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (secret "safe") 10 Nothing True
+  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
 setupDb :: IO ()
 setupDb = do
   void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []
+  void $ readProcess "psql" ["-d", "postgrest_test", "-a", "-c", "CREATE EXTENSION IF NOT EXISTS pgcrypto;"] []
   loadFixture "roles"
   loadFixture "schema"
+  loadFixture "jwt"
   loadFixture "privileges"
   resetDb
 
