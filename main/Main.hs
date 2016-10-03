@@ -11,9 +11,11 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
+import           Control.AutoUpdate
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix)
 import           Data.Function                        (id)
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -83,7 +85,11 @@ main = do
    ) Nothing
 #endif
 
-  runSettings appSettings $ postgrest conf refDbStructure pool
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate
+    defaultUpdateSettings { updateAction = getPOSIXTime }
+
+  runSettings appSettings $ postgrest conf refDbStructure pool getTime
 
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = do

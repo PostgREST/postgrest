@@ -13,6 +13,7 @@ import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
 import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 
 import qualified Hasql.Pool                as P
@@ -32,7 +33,6 @@ import           Web.JWT                   (secret)
 
 import           Data.Aeson
 import           Data.Aeson.Types          (emptyArray)
-import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -69,12 +69,13 @@ import           Data.Foldable (foldr1)
 import           Data.Function (id)
 import           Protolude                hiding (dropWhile, drop, intercalate, Proxy)
 
-postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> Application
-postgrest conf refDbStructure pool =
+postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> IO POSIXTime ->
+             Application
+postgrest conf refDbStructure pool getTime =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
-    time <- getPOSIXTime
+    time <- getTime
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
