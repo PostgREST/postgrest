@@ -7,12 +7,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
-- Ability to generate an OpenAPI spec behind a proxy- @hudayou
+- Ability to generate an OpenAPI spec behind a proxy - @hudayou
 - Ability to set addresses to listen on - @hudayou
 - Filtering, shaping and embedding with &select for the /rpc path - @ruslantalpa
 - Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
 - Implement support for singular representation responses for POST/PATCH requests - @ehamberg
 - Include RPC endpoints in OpenAPI output - @begriffs, @LogvinovLeon
+- Custom request validation with `--pre-request` argument - @begriffs
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
@@ -23,6 +24,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Remove non-OpenAPI schema description - @begriffs
 - Use comma rather than semicolon to separate Prefer header values - @begriffs
 - Omit total query count by default - @begriffs
+- No more reserved `jwt_claims` return type - @begriffs
+- HTTP 401 rather than 400 for expired JWT - @begriffs
+- Remove default JWT secret - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 
