@@ -333,6 +333,17 @@ spec = do
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
+    it "by a column with nulls first" $
+      get "/no_pk?order=a.nullsfirst"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody = Just [json| [{"a":null,"b":null},
+                              {"a":"1","b":"0"},
+                              {"a":"2","b":"0"}
+                              ] |]
+        , matchStatus = 200
+        , matchHeaders = ["Content-Range" <:> "0-2/*"]
+        }
+
     it "by a column asc with nulls last" $
       get "/no_pk?order=a.asc.nullslast"
         `shouldRespondWith` ResponseMatcher {

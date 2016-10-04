@@ -307,7 +307,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
             queryTerm :: OrderTerm -> Text
             queryTerm t = " "
                 <> toS (pgFmtColumn qi $ otTerm t) <> " "
-                <> show (otDirection t) <> " "
+                <> maybe "" show (otDirection t) <> " "
                 <> maybe "" show (otNullOrder t) <> " "
     (joins, selects) = foldr getQueryParts ([],[]) forest
 

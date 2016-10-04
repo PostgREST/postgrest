@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
 - Customize content negotiation per route - @begriffs
+- Allow using nulls order without explicit order direction - @steve-chavez
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs
