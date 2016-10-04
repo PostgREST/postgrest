@@ -78,7 +78,7 @@ instance Show OrderNulls where
 
 data OrderTerm = OrderTerm {
   otTerm      :: Text
-, otDirection :: OrderDirection
+, otDirection :: Maybe OrderDirection
 , otNullOrder :: Maybe OrderNulls
 } deriving (Show, Eq)
 
