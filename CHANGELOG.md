@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Implement support for singular representation responses for POST/PATCH requests - @ehamberg
 - Include RPC endpoints in OpenAPI output - @begriffs, @LogvinovLeon
 - Ability to specify offset for a deeper level - @ruslantalpa
+- Ability to order by jsonb keys - @steve-chavez
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
