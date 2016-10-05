@@ -88,7 +88,7 @@ data QualifiedIdentifier = QualifiedIdentifier {
 } deriving (Show, Eq)
 
 
-data RelationType = Child | Parent | Many deriving (Show, Eq)
+data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
 data Relation = Relation {
   relTable    :: Table
 , relColumns  :: [Column]
