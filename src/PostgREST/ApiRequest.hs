@@ -20,11 +20,12 @@ import           Network.HTTP.Types.Header (hAuthorization, hContentType, Header
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange)
+import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
+import           Data.Ranged.Boundaries
 import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema, Payload(..),
                                             UniformObjects(..))
-import           Data.Ranged.Ranges        (singletonRange, rangeIntersection)
+import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection)
 
 type RequestBody = BL.ByteString
 
@@ -146,15 +147,14 @@ userApiRequest schema req reqBody =
   ApiRequest {
     iAction = action
   , iTarget = target
-  , iRange = M.insert "limit" (rangeIntersection headerRange urlRange) $
-      M.fromList [ (toS k, restrictRange (readBSMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
+  , iRange = ranges
   , iAccepts = fromMaybe [CTAny] $
       map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
   , iPreferCount = not singular && hasPrefer "count=exact"
-  , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", k /= "offset", not (endingIn ["order", "limit"] k) ]
+  , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
   , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
   , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
   , iCanonicalQS = toS $ urlEncodeVars
@@ -191,11 +191,19 @@ userApiRequest schema req reqBody =
     where lastWord = last $ T.split (=='.') key
 
   headerRange = if singular && method == "GET" then singletonRange 0 else rangeRequested hdrs
-  urlOffsetRange = rangeGeq . fromMaybe (0::Integer) $
-    readBSMaybe =<< join (lookup "offset" qParams)
-  urlRange = restrictRange
-    (readBSMaybe =<< join (lookup "limit" qParams))
-    urlOffsetRange
+  replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
+  limitParams :: M.HashMap ByteString NonnegRange
+  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
+  offsetParams :: M.HashMap ByteString NonnegRange
+  offsetParams = M.fromList [(toS (replaceLast "limit" k), fromMaybe allRange (rangeGeq <$> (readMaybe =<< (toS <$> v)))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
+
+  urlRange = M.unionWith f limitParams offsetParams
+    where
+      f rl ro = Range (BoundaryBelow o) (BoundaryAbove $ o + l - 1)
+        where
+          l = fromMaybe 0 $ rangeLimit rl
+          o = rangeOffset ro
+  ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" urlRange))) urlRange
 
 {-|
   Find the best match from a list of content types accepted by the

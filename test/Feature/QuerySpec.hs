@@ -229,6 +229,14 @@ spec = do
       get "/projects?id=eq.1&select=myId:id, name, project_client:client_id{*}, project_tasks:tasks{id, name}" `shouldRespondWith`
         [str|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
+    it "requesting parents two levels up while using FK to specify the link" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
+    it "requesting parents two levels up while using FK to specify the link (with rename)" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
@@ -262,6 +270,11 @@ spec = do
     it "requesting parents and children on views" $
       get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
+    it "requesting parents and children on views with renamed keys" $
+      get "/projects_view_alt?t_id=eq.1&select=t_id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
+        [str|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
