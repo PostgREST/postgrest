@@ -137,13 +137,14 @@ pOrderTerm :: Parser OrderTerm
 pOrderTerm =
   try ( do
     c <- pFieldName
-    _ <- pDelimiter
-    d <- (string "asc" *> pure OrderAsc)
-         <|> (string "desc" *> pure OrderDesc)
+    d <- optionMaybe (try $ pDelimiter *> (
+               try(string "asc" *> pure OrderAsc)
+           <|> try(string "desc" *> pure OrderDesc)
+         ))
     nls <- optionMaybe (pDelimiter *> (
                  try(string "nullslast" *> pure OrderNullsLast)
              <|> try(string "nullsfirst" *> pure OrderNullsFirst)
            ))
     return $ OrderTerm c d nls
   )
-  <|> OrderTerm <$> (toS <$> pFieldName) <*> pure OrderAsc <*> pure Nothing
+  <|> OrderTerm <$> (toS <$> pFieldName) <*> pure Nothing <*> pure Nothing
