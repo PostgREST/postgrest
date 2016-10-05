@@ -136,7 +136,7 @@ pOrder = lexeme pOrderTerm `sepBy` char ','
 pOrderTerm :: Parser OrderTerm
 pOrderTerm =
   try ( do
-    c <- pFieldName
+    c <- pField
     d <- optionMaybe (try $ pDelimiter *> (
                try(string "asc" *> pure OrderAsc)
            <|> try(string "desc" *> pure OrderDesc)
@@ -147,4 +147,4 @@ pOrderTerm =
            ))
     return $ OrderTerm c d nls
   )
-  <|> OrderTerm <$> (toS <$> pFieldName) <*> pure Nothing <*> pure Nothing
+  <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing

@@ -77,7 +77,7 @@ instance Show OrderNulls where
   show OrderNullsLast  = "nulls last"
 
 data OrderTerm = OrderTerm {
-  otTerm      :: Text
+  otTerm      :: Field
 , otDirection :: Maybe OrderDirection
 , otNullOrder :: Maybe OrderNulls
 } deriving (Show, Eq)

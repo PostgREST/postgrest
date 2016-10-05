@@ -374,6 +374,14 @@ spec = do
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
+    it "by a json column property asc" $
+      get "/json?order=data->>id.asc" `shouldRespondWith`
+        [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
+
+    it "by a json column with two level property nulls first" $
+      get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
+        [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
+
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
 
