@@ -21,6 +21,7 @@ module PostgREST.Config ( prettyVersion
 
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
+import qualified Data.Configurator           as C
 import           Data.List                   (lookup)
 import           Data.Text                   (strip, intercalate)
 import           Data.Version                (versionBranch)
@@ -30,9 +31,9 @@ import           Options.Applicative
 import           Paths_postgrest             (version)
 import           Protolude hiding            (intercalate
                                              , (<>))
-import           Safe                        (readMay)
+import           System.Environment.XDG.BaseDir
 
--- | Data type to store all command line options
+-- | Config file settings for the server
 data AppConfig = AppConfig {
     configDatabase  :: Text
   , configAnonRole  :: Text
@@ -46,20 +47,6 @@ data AppConfig = AppConfig {
   , configReqCheck  :: Maybe Text
   , configQuiet     :: Bool
   }
-
-argParser :: Parser AppConfig
-argParser = AppConfig
-  <$> (toS <$> argument str (help "(REQUIRED) database connection string, e.g. postgres://user:pass@host:port/db" <> metavar "DB_URL"))
-  <*> (toS <$> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE"))
-  <*> (optional . map toS . strOption) (long "proxy-uri"  <> short 'x' <> help "proxy uri of the HTTP server" <> metavar "PROXY")
-  <*> (toS <$> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault))
-  <*> (toS <$> strOption    (long "host"       <> short 'l' <> help "hostname or ip on which to run HTTP server" <> metavar "HOST" <> value "*4" <> showDefault))
-  <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (optional . map toS <$> strOption) (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET")
-  <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
-  <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
-  <*> (optional . map toS . strOption) (long "pre-request"  <> help "schema-qualified name of proc to call to validate requests" <> metavar "FUNCTION")
-  <*> pure False
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
@@ -90,16 +77,44 @@ prettyVersion = intercalate "." $ map show $ versionBranch version
 
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
-readOptions = customExecParser parserPrefs opts
-  where
-    opts = info (helper <*> argParser) $
-                    fullDesc
-                    <> progDesc (
-                    "PostgREST "
-                    <> toS prettyVersion
-                    <> " / create a REST API to an existing Postgres database"
-                    )
-    parserPrefs = prefs showHelpOnError
+readOptions = do
+  confArg <- customExecParser parserPrefs opts
+  defConf <- getUserConfigFile "postgrest" "config"
+
+  conf <- C.load [C.Required $ fromMaybe defConf confArg]
+  -- db ----------------
+  cDbUri    <- C.require conf "db.uri"
+  cDbSchema <- C.require conf "db.schema"
+  cDbAnon   <- C.require conf "db.anon-role"
+  cPool     <- C.lookupDefault 10 conf "db.pool"
+  -- server ------------
+  cHost     <- C.lookupDefault "*4" conf "server.host"
+  cPort     <- C.lookupDefault 3000 conf "server.port"
+  cProxy    <- C.lookup conf "server.proxy-uri"
+  -- jwt ---------------
+  cJwtSec   <- C.lookup conf "jwt.secret"
+  -- safety ------------
+  cMaxRows  <- C.lookup conf "safety.max-rows"
+  cReqCheck <- C.lookup conf "safety.pre-request"
+
+  return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
+        cJwtSec cPool cMaxRows cReqCheck False
+
+ where
+  opts = info (helper <*> argParser) $
+                  fullDesc
+                  <> progDesc (
+                  "PostgREST "
+                  <> toS prettyVersion
+                  <> " / create a REST API to an existing Postgres database"
+                  )
+  parserPrefs = prefs showHelpOnError
+
+  argParser :: Parser (Maybe FilePath)
+  argParser =
+    (optional . map toS <$> strOption)
+      (short 'c' <> metavar "filename" <>
+       help "Configuration file instead of default")
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: Integer

@@ -51,6 +51,7 @@ library
                      , bytestring
                      , case-insensitive
                      , cassava
+                     , configurator
                      , containers
                      , contravariant
                      , hasql
@@ -80,6 +81,7 @@ library
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
+                     , xdg-basedir
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.ApiRequest
