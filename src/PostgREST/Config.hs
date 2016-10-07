@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
@@ -31,7 +33,6 @@ import           Options.Applicative
 import           Paths_postgrest             (version)
 import           Protolude hiding            (intercalate
                                              , (<>))
-import           System.Environment.XDG.BaseDir
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -75,13 +76,21 @@ corsPolicy req = case lookup "origin" headers of
 prettyVersion :: Text
 prettyVersion = intercalate "." $ map show $ versionBranch version
 
+-- | Default OS-specific path to config file
+defConf :: FilePath
+defConf =
+#ifdef mingw32_HOST_OS
+  "%PROGRAMDATA%\\postgrest\\postgrest.conf"
+#else
+  "/etc/postgrest.conf"
+#endif
+
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = do
   confArg <- customExecParser parserPrefs opts
-  defConf <- getUserConfigFile "postgrest" "config"
 
-  conf <- C.load [C.Required $ fromMaybe defConf confArg]
+  conf <- C.load [C.Required confArg]
   -- db ----------------
   cDbUri    <- C.require conf "db.uri"
   cDbSchema <- C.require conf "db.schema"
@@ -110,11 +119,12 @@ readOptions = do
                   )
   parserPrefs = prefs showHelpOnError
 
-  argParser :: Parser (Maybe FilePath)
+  argParser :: Parser FilePath
   argParser =
-    (optional . map toS <$> strOption)
+    toS <$> strOption
       (short 'c' <> metavar "filename" <>
-       help "Configuration file instead of default")
+        help "Path to configuration file" <>
+        value defConf <> showDefault)
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: Integer
