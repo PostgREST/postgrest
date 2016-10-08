@@ -29,8 +29,10 @@ import           Data.Text                   (strip, intercalate)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import           Options.Applicative
+import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
+import           Text.Heredoc
+
 import           Protolude hiding            (intercalate
                                              , (<>))
 
@@ -88,9 +90,35 @@ defConf =
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = do
-  confArg <- customExecParser parserPrefs opts
+  args <- customExecParser parserPrefs opts
 
-  conf <- C.load [C.Required confArg]
+  when (caExample args) $ do
+    putStrLn (
+      [str|db {
+          |  uri = "postgres://user:pass@localhost:5432/dbname"
+          |  schema = "public"
+          |  anon-role = "postgres"
+          |  pool = 10
+          |}
+          |
+          |server {
+          |  host = "*4"
+          |  port = 3000
+          |  # proxy-uri = ""
+          |}
+          |
+          |jwt {
+          |  # secret = "foo"
+          |}
+          |
+          |safety {
+          |  # max-rows = 1000
+          |  # pre-request = "stored_proc_name"
+          |}
+          |]::Text)
+    exitSuccess
+
+  conf <- C.load [C.Required $ caConfig args]
   -- db ----------------
   cDbUri    <- C.require conf "db.uri"
   cDbSchema <- C.require conf "db.schema"
@@ -119,12 +147,18 @@ readOptions = do
                   )
   parserPrefs = prefs showHelpOnError
 
-  argParser :: Parser FilePath
-  argParser =
-    toS <$> strOption
-      (short 'c' <> metavar "filename" <>
-        help "Path to configuration file" <>
-        value defConf <> showDefault)
+data CmdArgs = CmdArgs {
+    caConfig :: FilePath
+  , caExample :: Bool
+  }
+
+argParser :: Parser CmdArgs
+argParser = CmdArgs <$>
+  (toS <$> strOption
+    (short 'c' <> metavar "filename" <>
+      help "Path to configuration file" <>
+      value defConf <> showDefault)) <*>
+  switch (long "example-config" <> help "output an example")
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: Integer
