@@ -21,11 +21,14 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
+import           System.IO.Error             (IOError)
+import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
 import           Data.List                   (lookup)
 import           Data.Text                   (strip, intercalate)
+import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
@@ -104,21 +107,30 @@ readOptions = do
           |server {
           |  host = "*4"
           |  port = 3000
+          |
+          |  ## base url for swagger output
           |  # proxy-uri = ""
           |}
           |
           |jwt {
+          |  ## choose a secret to enable JWT auth
           |  # secret = "foo"
           |}
           |
           |safety {
+          |  ## limit rows in response
           |  # max-rows = 1000
+          |
+          |  ## stored proc to exec immediately after auth
           |  # pre-request = "stored_proc_name"
           |}
           |]::Text)
     exitSuccess
 
-  conf <- C.load [C.Required $ caConfig args]
+  conf <- catch
+    (C.load [C.Required $ caConfig args])
+    configNotfoundHint
+
   -- db ----------------
   cDbUri    <- C.require conf "db.uri"
   cDbSchema <- C.require conf "db.schema"
@@ -147,6 +159,14 @@ readOptions = do
                   )
   parserPrefs = prefs showHelpOnError
 
+  configNotfoundHint :: IOError -> IO a
+  configNotfoundHint e = do
+    hPutStrLn stderr $ intercalate "\n" [
+      "Cannot open config file:",
+      "\t" <> show e,
+      "\nUse the --help flag to learn how to fix this."]
+    exitFailure
+
 data CmdArgs = CmdArgs {
     caConfig :: FilePath
   , caExample :: Bool
@@ -158,7 +178,7 @@ argParser = CmdArgs <$>
     (short 'c' <> metavar "filename" <>
       help "Path to configuration file" <>
       value defConf <> showDefault)) <*>
-  switch (long "example-config" <> help "output an example")
+  switch (long "example-config" <> help "output an example config file")
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: Integer
