@@ -115,8 +115,56 @@ You can also use :ref:`computed_cols` to order the results, even though the comp
 Limits and Pagination
 ---------------------
 
-Counting
---------
+PostgREST uses HTTP range headers to describe the size of results. Every response contains the current range and, if requested, the total number of results:
+
+.. code-block:: http
+
+  Range-Unit: items
+  Content-Range: 0-14/*
+
+Here items zero through fourteen are returned. This information is available in every response and can help you render pagination controls on the client. This is an RFC7233-compliant solution that keeps the response JSON cleaner.
+
+There are two ways to apply a limit and offset rows: through request headers or query params. When using headers you specify the range of rows desired. This request gets the first twenty people.
+
+.. code-block:: http
+
+  GET /people
+  Range-Unit: items
+  Range: 0-19
+
+Note that the server may respond with fewer if unable to meet your request:
+
+.. code-block:: http
+
+  Range-Unit: items
+  Content-Range: 0-17/*
+
+You may also request open-ended ranges for an offset with no limit, e.g. :code:`Range: 10-`.
+
+The other way to request a limit or offset is with query pamameters. For example
+
+.. code-block:: http
+
+  GET /people?limit=15&offset=30
+
+This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
+
+In order to obtain the total size of the table or view (such as when rendering the last page link in a pagination control), specify your preference in a request header:
+
+
+.. code-block:: http
+
+  GET /bigtable
+  Range-Unit: items
+  Range: 0-24
+  Prefer: count=exact
+
+Note that the larger the table the slower this query runs in the database. The server will respond with the selected range and total
+
+.. code-block:: http
+
+  Range-Unit: items
+  Content-Range: 0-24/3573458
 
 Response Format
 ---------------
