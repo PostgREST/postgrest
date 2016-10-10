@@ -13,26 +13,11 @@
 
    install.rst
 
-.. Installation
-..   Binary Release
-..   Build from Source
-..   Docker
-.. API
-..   Tables and Views
-..     Filtering
-..     Ordering
-..     Limits and Pagination
-..     Counting
-..     Response Format
-..     Singular or Plural
-..   OpenAPI Support
-..   Resource Embedding
-..   Query Limitations
-..   Stored Procedures
-..   Insertions / Updates
-..     Getting Results
-..     Bulk Insert
-..   Deletions
+.. toctree::
+   :caption: API
+
+   api.rst
+
 .. Authentication
 ..   Overview of Role System
 ..   JSON Web Tokens
