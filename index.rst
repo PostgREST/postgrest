@@ -8,6 +8,11 @@
 
    intro.rst
 
+.. toctree::
+   :caption: Installation
+
+   install.rst
+
 .. Installation
 ..   Binary Release
 ..   Build from Source
