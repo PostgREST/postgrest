@@ -654,6 +654,12 @@ CREATE VIEW projects_view AS
    FROM projects;
 
 
+CREATE VIEW projects_view_alt AS
+ SELECT projects.id as t_id,
+    projects.name,
+    projects.client_id as t_client_id
+   FROM projects;
+
 --
 -- Name: simple_pk; Type: TABLE; Schema: test; Owner: -
 --

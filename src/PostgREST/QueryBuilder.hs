@@ -35,7 +35,7 @@ import qualified Hasql.Decoders          as HD
 import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note)
+import           Control.Error           (note, hush)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
@@ -53,6 +53,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , isInteger
                                          )
 import           Protolude hiding        (from, intercalate, ord, cast)
+import           Unsafe                  (unsafeHead)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
@@ -157,33 +158,74 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
     | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
-addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _, alias)) forest) =
+addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentTable]}, (_, _, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
+    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _)) _)) ->
+      Node <$> readNode' <*> forest'
       where
-        rel = note ("no relation between " <> parentTable <> " and " <> name)
-            $  findRelationByTable schema name parentTable
-           <|> findRelationByColumn schema parentTable name
+        forest' = updateForest $ hush node'
+        node' = Node <$> readNode' <*> pure forest
+        readNode' = addRel readNode <$> rel
+        rel :: Either Text Relation
+        rel = note ("no relation between " <> parentNodeTable <> " and " <> name)
+            $ findRelation schema name parentNodeTable
+
+            where
+              findRelation s nodeTableName parentNodeTableName =
+                find (\r ->
+                  s == tableSchema (relTable r) && -- match schema for relation table
+                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
+                  (
+
+                    -- (request)        => projects { ..., clients{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    (
+                      nodeTableName == tableName (relTable r) && -- match relation table name
+                      parentNodeTableName == tableName (relFTable r) -- match relation foreign table name
+                    ) ||
+
+
+                    -- (request)        => projects { ..., client_id{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    (
+                      parentNodeTableName == tableName (relFTable r) &&
+                      length (relFColumns r) == 1 &&
+                      nodeTableName `colMatches` (colName . unsafeHead . relFColumns) r
+                    )
+
+                    -- (request)        => project_id { ..., client_id{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    -- this case works becasue before reaching this place
+                    -- addRelation will turn project_id to project so the above condition will match
+                  )
+                ) allRelations
+                where n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
         addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
         addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
-    _ -> Node (query, (name, Nothing, alias)) <$> updatedForest
+    _ -> n' <$> updateForest (Just (n' forest))
+      where
+        n' = Node (query, (name, Just r, alias))
+        t = Table schema name True -- !!! TODO find another way to get the table from the query
+        r = Relation t [] t [] Root Nothing Nothing Nothing
   where
-    updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    -- Searches through all the relations and returns a match given the parameter conditions.
-    -- Will only find a relation where both schemas are in the PostgREST schema.
-    -- `findRelationByColumn` also does a ducktype check to see if the column name has any variation of `id` or `fk`. If so then the relation is returned as a match.
-    findRelationByTable s t1 t2 =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
-    findRelationByColumn s t c =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` fromMaybe "" (colName <$> (head . relFColumns) r)) allRelations
-      where n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
+    updateForest :: Maybe ReadRequest -> Either Text [ReadRequest]
+    updateForest n = mapM (addRelations schema allRelations n) forest
 
 addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
 addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
   case r of
-    Nothing -> Node nn  <$> updatedForest -- this is the root node
+    Just Relation{relType=Root} -> Node nn  <$> updatedForest -- this is the root node
     Just rel@Relation{relType=Child} -> Node (addCond query (getJoinConditions rel),(n,r,a)) <$> updatedForest
     Just Relation{relType=Parent} -> Node nn <$> updatedForest
     Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
@@ -284,7 +326,7 @@ requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
-    -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
+    -- TODO! the following helper functions are just to remove the "schema" part when the table is "source" which is the name
     -- of our WITH query part
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
     tblSchema tbl = if tbl == sourceCTEName then "" else schema
@@ -319,6 +361,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
+        
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias
@@ -339,7 +382,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
-    getQueryParts (Node (_,(_,Nothing,_)) _) _ = undefined
+    getQueryParts _ _ = undefined --error "undefined getQueryParts"
 requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
@@ -437,6 +480,7 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
     Child  -> zipWith (toFilter tN ftN) cols fcs
     Parent -> zipWith (toFilter tN ftN) cols fcs
     Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
+    Root   -> undefined --error "undefined getJoinConditions"
   where
     s = if typ == Parent then "" else tableSchema t
     tN = tableName t

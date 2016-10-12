@@ -29,6 +29,7 @@ GRANT ALL ON TABLE
     , nullable_integer
     , projects
     , projects_view
+    , projects_view_alt
     , simple_pk
     , tasks
     , filtered_tasks

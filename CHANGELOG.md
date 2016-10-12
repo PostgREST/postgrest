@@ -14,9 +14,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Implement support for singular representation responses for POST/PATCH requests - @ehamberg
 - Include RPC endpoints in OpenAPI output - @begriffs, @LogvinovLeon
 - Custom request validation with `--pre-request` argument - @begriffs
+- Ability to specify offset for a deeper level - @ruslantalpa
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
+- Fix bug in relation detection when selecting parents two levels up by using the name of the FK - @ruslantalpa
 - Customize content negotiation per route - @begriffs
 - Allow using nulls order without explicit order direction - @steve-chavez
 
