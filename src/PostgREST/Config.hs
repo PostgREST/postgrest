@@ -26,6 +26,7 @@ import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
+import qualified Data.Configurator.Types     as C
 import           Data.List                   (lookup)
 import           Data.Text                   (strip, intercalate)
 import           Data.Text.IO                (hPutStrLn)
@@ -124,23 +125,24 @@ readOptions = do
     (C.load [C.Required $ caConfig args])
     configNotfoundHint
 
-  -- db ----------------
-  cDbUri    <- C.require conf "db-uri"
-  cDbSchema <- C.require conf "db-schema"
-  cDbAnon   <- C.require conf "db-anon-role"
-  cPool     <- C.lookupDefault 10 conf "db-pool"
-  -- server ------------
-  cHost     <- C.lookupDefault "*4" conf "server-host"
-  cPort     <- C.lookupDefault 3000 conf "server-port"
-  cProxy    <- C.lookup conf "server-proxy-uri"
-  -- jwt ---------------
-  cJwtSec   <- C.lookup conf "jwt-secret"
-  -- safety ------------
-  cMaxRows  <- C.lookup conf "max-rows"
-  cReqCheck <- C.lookup conf "pre-request"
+  handle missingKeyHint $ do
+    -- db ----------------
+    cDbUri    <- C.require conf "db-uri"
+    cDbSchema <- C.require conf "db-schema"
+    cDbAnon   <- C.require conf "db-anon-role"
+    cPool     <- C.lookupDefault 10 conf "db-pool"
+    -- server ------------
+    cHost     <- C.lookupDefault "*4" conf "server-host"
+    cPort     <- C.lookupDefault 3000 conf "server-port"
+    cProxy    <- C.lookup conf "server-proxy-uri"
+    -- jwt ---------------
+    cJwtSec   <- C.lookup conf "jwt-secret"
+    -- safety ------------
+    cMaxRows  <- C.lookup conf "max-rows"
+    cReqCheck <- C.lookup conf "pre-request"
 
-  return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-        cJwtSec cPool cMaxRows cReqCheck False
+    return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
+          cJwtSec cPool cMaxRows cReqCheck False
 
  where
   opts = info (helper <*> argParser) $
@@ -158,6 +160,13 @@ readOptions = do
       "Cannot open config file:",
       "\t" <> show e,
       "\nUse the --help flag to learn how to fix this."]
+    exitFailure
+
+  missingKeyHint :: C.KeyError -> IO a
+  missingKeyHint (C.KeyError n) = do
+    hPutStrLn stderr $
+      "Required config parameter \"" <> n <> "\" is missing or of wrong type.\n" <>
+      "Try the --example-config option to see how to configure PostgREST."
     exitFailure
 
 data CmdArgs = CmdArgs {
