@@ -32,6 +32,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - HTTP 401 rather than 400 for expired JWT - @begriffs
 - Remove default JWT secret - @begriffs
 - Use GUC request.jwt.claim.foo rather than postgrest.claims.foo - @begriffs
+- Use config file rather than command line arguments - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 
