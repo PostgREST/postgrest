@@ -97,33 +97,26 @@ readOptions = do
 
   when (caExample args) $ do
     putStrLn (
-      [str|db {
-          |  uri = "postgres://user:pass@localhost:5432/dbname"
-          |  schema = "public"
-          |  anon-role = "postgres"
-          |  pool = 10
-          |}
+      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+          |db-schema = "public"
+          |db-anon-role = "postgres"
+          |db-pool = 10
           |
-          |server {
-          |  host = "*4"
-          |  port = 3000
+          |server-host = "*4"
+          |server-port = 3000
           |
-          |  ## base url for swagger output
-          |  # proxy-uri = ""
-          |}
+          |## base url for swagger output
+          |# server-proxy-uri = ""
           |
-          |jwt {
-          |  ## choose a secret to enable JWT auth
-          |  # secret = "foo"
-          |}
+          |## choose a secret to enable JWT auth
+          |## (use "@filename" to load from separate file)
+          |# jwt-secret = "foo"
           |
-          |safety {
-          |  ## limit rows in response
-          |  # max-rows = 1000
+          |## limit rows in response
+          |# max-rows = 1000
           |
-          |  ## stored proc to exec immediately after auth
-          |  # pre-request = "stored_proc_name"
-          |}
+          |## stored proc to exec immediately after auth
+          |# pre-request = "stored_proc_name"
           |]::Text)
     exitSuccess
 
@@ -132,19 +125,19 @@ readOptions = do
     configNotfoundHint
 
   -- db ----------------
-  cDbUri    <- C.require conf "db.uri"
-  cDbSchema <- C.require conf "db.schema"
-  cDbAnon   <- C.require conf "db.anon-role"
-  cPool     <- C.lookupDefault 10 conf "db.pool"
+  cDbUri    <- C.require conf "db-uri"
+  cDbSchema <- C.require conf "db-schema"
+  cDbAnon   <- C.require conf "db-anon-role"
+  cPool     <- C.lookupDefault 10 conf "db-pool"
   -- server ------------
-  cHost     <- C.lookupDefault "*4" conf "server.host"
-  cPort     <- C.lookupDefault 3000 conf "server.port"
-  cProxy    <- C.lookup conf "server.proxy-uri"
+  cHost     <- C.lookupDefault "*4" conf "server-host"
+  cPort     <- C.lookupDefault 3000 conf "server-port"
+  cProxy    <- C.lookup conf "server-proxy-uri"
   -- jwt ---------------
-  cJwtSec   <- C.lookup conf "jwt.secret"
+  cJwtSec   <- C.lookup conf "jwt-secret"
   -- safety ------------
-  cMaxRows  <- C.lookup conf "safety.max-rows"
-  cReqCheck <- C.lookup conf "safety.pre-request"
+  cMaxRows  <- C.lookup conf "max-rows"
+  cReqCheck <- C.lookup conf "pre-request"
 
   return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
         cJwtSec cPool cMaxRows cReqCheck False
