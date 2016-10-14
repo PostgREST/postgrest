@@ -4,12 +4,13 @@
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
 
-This module provides a helper function to read the command line arguments using the optparse-applicative
-and the AppConfig type to store them.
-It also can be used to define other middleware configuration that may be delegated to some sort of
-external configuration.
+This module provides a helper function to read the command line
+arguments using the optparse-applicative and the AppConfig type to store
+them.  It also can be used to define other middleware configuration that
+may be delegated to some sort of external configuration.
 
-It currently includes a hardcoded CORS policy but this could easly be turned in configurable behaviour if needed.
+It currently includes a hardcoded CORS policy but this could easly be
+turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
@@ -146,12 +147,12 @@ readOptions = do
 
  where
   opts = info (helper <*> argParser) $
-                  fullDesc
-                  <> progDesc (
-                  "PostgREST "
-                  <> toS prettyVersion
-                  <> " / create a REST API to an existing Postgres database"
-                  )
+           fullDesc
+           <> progDesc (
+             "PostgREST "
+             <> toS prettyVersion
+             <> " / create a REST API to an existing Postgres database"
+           )
   parserPrefs = prefs showHelpOnError
 
   configNotfoundHint :: IOError -> IO a
