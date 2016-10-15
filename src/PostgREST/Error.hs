@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (pgErrResponse, errResponse) where
+module PostgREST.Error (pgErrResponse, errResponse, prettyUsageError) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
@@ -28,6 +28,11 @@ pgErrResponse authed e =
                 then [jsonType, wwwAuth]
                 else [jsonType] in
   responseLBS status hdrs (JSON.encode e)
+
+prettyUsageError :: P.UsageError -> Text
+prettyUsageError (P.ConnectionError e) =
+  "Database connection error:\n" <> toS (fromMaybe "" e)
+prettyUsageError e = show $ JSON.encode e
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
