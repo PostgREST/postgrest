@@ -18,6 +18,11 @@
 
    api.rst
 
+.. toctree::
+   :caption: Authentication
+
+   auth.rst
+
 .. Authentication
 ..   Overview of Role System
 ..   JSON Web Tokens
