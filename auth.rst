@@ -72,13 +72,44 @@ To make an authenticated request the client must include an `Authorization` HTTP
 JWT Generation
 ==============
 
+You can create a valid JWT either from inside your database or via an external service. Each token is cryptographically signed with a secret passphrase -- the signer and verifier share the secret. Hence any service that shares a passphrase with a PostgREST server can create valid JWT. (PostgREST currently supports only the HMAC-SHA256 signing algorithm.)
 
+From SQL
+--------
 
-External Generation
--------------------
+You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/michelp/pgjwt>`_. It's simple and requires only pgcrypto. If you're on an environment like Amazon RDS which doesn't support installing new extensions, you can still manually run the SQL inside pgjwt which creates the functions you will need.
 
-Internal Generation
--------------------
+Next write a stored procedure that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
+
+.. code:: sql
+
+  CREATE TYPE jwt_token AS (
+    token text
+  );
+
+  CREATE FUNCTION jwt_test() RETURNS public.jwt_token
+      LANGUAGE sql
+      AS $$
+    SELECT jwt.sign(
+      row_to_json(r), 'mysecret'
+    ) AS token
+    FROM (
+      SELECT
+        'my_role'::text as role,
+        extract(epoch from now())::integer + 300 AS exp
+    ) r;
+  $$;
+
+PostgREST exposes this function to clients via a POST request to `/rpc/jwt_token`.
+
+Using Auth0
+-----------
+
+An external service like `Auth0 <https://auth0.com/>`_ can do the hard work transforming Github, Twitter, Google etc OAuth into a JWT suitable for PostgREST. Auth0 can also handle email signup and password reset flows.
+
+To adapt Auth0 to our uses we need to save the database role in `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_ and include the metadata in `private claims <https://auth0.com/docs/jwt#payload>`_ of the generated JWT.
+
+**TODO: add details**
 
 SSL
 ===
