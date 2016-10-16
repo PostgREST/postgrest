@@ -114,8 +114,7 @@ To adapt Auth0 to our uses we need to save the database role in `user metadata <
 SSL
 ===
 
-Custom Validation
-=================
+PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL database. To keep the code small and focused we do not implement SSL. Use a reverse proxy such as NGINX to add this, `here's how <https://nginx.org/en/docs/http/configuring_https_servers.html>`_. Note that some Platforms as a Service like Heroku also add SSL automatically in their load balancer.
 
 Schema Isolation
 ================
