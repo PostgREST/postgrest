@@ -31,6 +31,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - No more reserved `jwt_claims` return type - @begriffs
 - HTTP 401 rather than 400 for expired JWT - @begriffs
 - Remove default JWT secret - @begriffs
+- Use GUC request.jwt.claim.foo rather than postgrest.claims.foo - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 

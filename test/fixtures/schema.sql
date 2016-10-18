@@ -96,7 +96,7 @@ CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.owner = current_setting('postgrest.claims.id');
+  NEW.owner = current_setting('request.jwt.claim.id');
   RETURN NEW;
 end
 $$;
@@ -243,8 +243,8 @@ CREATE OR REPLACE FUNCTION switch_role() RETURNS void
   AS $$
 declare
   user_id text;
-begin
-  user_id = current_setting('postgrest.claims.id')::text;
+Begin
+  user_id = current_setting('request.jwt.claim.id')::text;
   if user_id = '1'::text then
     execute 'set local role postgrest_test_author';
   elseif user_id = '2'::text then
@@ -273,15 +273,15 @@ CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
     )
     LANGUAGE sql SECURITY DEFINER
     AS $$
-SELECT current_setting('postgrest.claims.iss') as iss,
-       current_setting('postgrest.claims.sub') as sub,
-       current_setting('postgrest.claims.aud') as aud,
-       current_setting('postgrest.claims.exp')::bigint as exp,
-       current_setting('postgrest.claims.nbf')::bigint as nbf,
-       current_setting('postgrest.claims.iat')::bigint as iat,
-       current_setting('postgrest.claims.jti') as jti,
+SELECT current_setting('request.jwt.claim.iss') as iss,
+       current_setting('request.jwt.claim.sub') as sub,
+       current_setting('request.jwt.claim.aud') as aud,
+       current_setting('request.jwt.claim.exp')::bigint as exp,
+       current_setting('request.jwt.claim.nbf')::bigint as nbf,
+       current_setting('request.jwt.claim.iat')::bigint as iat,
+       current_setting('request.jwt.claim.jti') as jti,
        -- role is not included in the claims list
-       current_setting('postgrest.claims.http://postgrest.com/foo')::boolean
+       current_setting('request.jwt.claim.http://postgrest.com/foo')::boolean
          as "http://postgrest.com/foo";
 $$;
 
