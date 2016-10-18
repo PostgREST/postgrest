@@ -83,15 +83,6 @@ corsPolicy req = case lookup "origin" headers of
 prettyVersion :: Text
 prettyVersion = intercalate "." $ map show $ versionBranch version
 
--- | Default OS-specific path to config file
-defConf :: FilePath
-defConf =
-#ifdef mingw32_HOST_OS
-  "%PROGRAMDATA%\\postgrest\\postgrest.conf"
-#else
-  "/etc/postgrest.conf"
-#endif
-
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = do
@@ -179,8 +170,7 @@ argParser :: Parser CmdArgs
 argParser = CmdArgs <$>
   (toS <$> strOption
     (short 'c' <> metavar "filename" <>
-      help "Path to configuration file" <>
-      value defConf <> showDefault)) <*>
+      help "Path to configuration file")) <*>
   switch (long "example-config" <> help "output an example config file")
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
