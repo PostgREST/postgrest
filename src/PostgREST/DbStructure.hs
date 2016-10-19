@@ -15,7 +15,6 @@ import qualified Hasql.Query                   as H
 import           Control.Applicative
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
-import           Data.Monoid
 import           Data.Text                     (split, strip,
                                                 breakOn, dropAround)
 import qualified Data.Text                     as T

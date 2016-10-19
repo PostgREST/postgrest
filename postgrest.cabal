@@ -29,17 +29,17 @@ executable postgrest
     -rtsopts
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
-  build-depends:       aeson (>= 0.8 && < 0.10) || (>= 0.11 && < 0.12)
+  build-depends:       aeson (>= 0.11 && < 0.12) || (>= 1.0 && < 1.1)
                      , auto-update
                      , base >= 4.8 && < 6
                      , bytestring
-                     , bytestring-tree-builder == 0.2.7
+                     , bytestring-tree-builder == 0.2.7.1
                      , case-insensitive
                      , cassava
                      , containers
                      , contravariant
                      , errors
-                     , hasql == 0.19.12
+                     , hasql == 0.19.15.2
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
                      , http-types >= 0.9 && < 0.10
@@ -48,9 +48,9 @@ executable postgrest
                      , lens >=3.8 && < 5.0
                      , lens-aeson >= 1.0.0.0 && < 1.1.0.0
                      , mtl
-                     , optparse-applicative >= 0.11 && < 0.13
+                     , optparse-applicative >= 0.11 && < 0.14
                      , parsec
-                     , postgresql-binary == 0.9.0.1
+                     , postgresql-binary == 0.9.1.1
                      , postgrest
                      , regex-tdfa
                      , safe >= 0.3 && < 0.4

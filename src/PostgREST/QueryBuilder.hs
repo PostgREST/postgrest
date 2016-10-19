@@ -35,7 +35,6 @@ import qualified Hasql.Decoders          as HD
 import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note, hush)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
@@ -361,7 +360,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
-        
+
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias

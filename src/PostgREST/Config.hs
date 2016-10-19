@@ -19,7 +19,6 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import           Control.Applicative
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import           Data.List                   (lookup)
@@ -29,7 +28,8 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative
 import           Paths_postgrest             (version)
-import           Protolude hiding            (intercalate)
+import           Protolude hiding            (intercalate
+                                             , (<>))
 import           Safe                        (readMay)
 
 -- | Data type to store all command line options
