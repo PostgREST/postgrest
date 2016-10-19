@@ -42,19 +42,25 @@ executable postgrest
                      , hasql
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
+                     , HTTP
                      , http-types
+                     , insert-ordered-containers
                      , interpolatedstring-perl6
                      , jwt
                      , lens
                      , lens-aeson
                      , mtl
+                     , network-uri
                      , optparse-applicative
                      , parsec
                      , postgresql-binary
                      , postgrest
+                     , protolude
+                     , Ranged-sets == 0.3.0
                      , regex-tdfa
                      , safe
                      , scientific
+                     , swagger2
                      , text
                      , time
                      , transformers
@@ -65,12 +71,6 @@ executable postgrest
                      , wai-extra
                      , wai-middleware-static
                      , warp
-                     , insert-ordered-containers
-                     , swagger2
-                     , network-uri
-                     , HTTP
-                     , Ranged-sets == 0.3.0
-                     , protolude
   if !os(windows)
     build-depends:     unix
 
@@ -88,48 +88,48 @@ library
                      , contravariant
                      , errors
                      , hasql
-                     , hasql-transaction
                      , hasql-pool
+                     , hasql-transaction
+                     , HTTP
                      , http-types
+                     , insert-ordered-containers
                      , interpolatedstring-perl6
                      , jwt
                      , lens
                      , lens-aeson
                      , mtl
+                     , network-uri
                      , optparse-applicative
                      , parsec
+                     , protolude
+                     , Ranged-sets
                      , regex-tdfa
                      , safe
                      , scientific
+                     , swagger2
                      , text
                      , time
                      , unordered-containers
                      , vector
-                     , HTTP
-                     , Ranged-sets
                      , wai
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
                      , warp
-                     , insert-ordered-containers
-                     , swagger2
-                     , protolude
-                     , network-uri
 
   Other-Modules:       Paths_postgrest
-  Exposed-Modules:     PostgREST.App
+  Exposed-Modules:     PostgREST.ApiRequest
+                     , PostgREST.App
                      , PostgREST.Auth
                      , PostgREST.Config
+                     , PostgREST.DbStructure
                      , PostgREST.Error
                      , PostgREST.Middleware
+                     , PostgREST.OpenAPI
                      , PostgREST.Parsers
-                     , PostgREST.DbStructure
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
-                     , PostgREST.ApiRequest
                      , PostgREST.Types
-                     , PostgREST.OpenAPI
   hs-source-dirs:      src
 
 Test-Suite spec
@@ -145,19 +145,19 @@ Test-Suite spec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
                      , Feature.NoJwtSpec
-                     , Feature.QuerySpec
+                     , Feature.ProxySpec
                      , Feature.QueryLimitedSpec
+                     , Feature.QuerySpec
                      , Feature.RangeSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
-                     , auto-update
                      , aeson-qq
                      , async
+                     , auto-update
                      , base
-                     , protolude
                      , base64-string
                      , bytestring
                      , case-insensitive
@@ -169,24 +169,31 @@ Test-Suite spec
                      , hasql-pool
                      , hasql-transaction
                      , heredoc
+                     , hjsonpointer
+                     , hjsonschema
                      , hspec
                      , hspec-wai
                      , hspec-wai-json
+                     , HTTP
                      , http-types
+                     , insert-ordered-containers
                      , interpolatedstring-perl6
                      , jwt
                      , lens
                      , lens-aeson
                      , monad-control
                      , mtl
+                     , network-uri
                      , optparse-applicative
                      , parsec
                      , postgrest
                      , process
+                     , protolude
+                     , Ranged-sets
                      , regex-tdfa
                      , safe
                      , scientific
-                     , string-conversions
+                     , swagger2
                      , text
                      , time
                      , transformers
@@ -198,10 +205,3 @@ Test-Suite spec
                      , wai-extra
                      , wai-middleware-static
                      , warp
-                     , insert-ordered-containers
-                     , hjsonpointer
-                     , hjsonschema
-                     , swagger2
-                     , network-uri
-                     , HTTP
-                     , Ranged-sets
