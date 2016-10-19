@@ -47,7 +47,7 @@ library
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
   build-depends:       aeson
-                     , base
+                     , base >= 4.8 && < 6
                      , bytestring
                      , case-insensitive
                      , cassava
