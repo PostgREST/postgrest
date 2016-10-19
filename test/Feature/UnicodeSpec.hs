@@ -6,6 +6,8 @@ import Test.Hspec.Wai.JSON
 import Network.Wai (Application)
 import Control.Monad (void)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec =
   describe "Reading and writing to unicode schema and table names" $

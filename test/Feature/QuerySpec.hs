@@ -10,6 +10,8 @@ import SpecHelper
 import Text.Heredoc
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec = do
 

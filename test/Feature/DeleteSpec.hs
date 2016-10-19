@@ -7,6 +7,8 @@ import Text.Heredoc
 import Network.HTTP.Types
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec =
   describe "Deleting" $ do

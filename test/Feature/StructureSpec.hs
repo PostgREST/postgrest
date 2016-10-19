@@ -13,6 +13,8 @@ import SpecHelper
 import Network.Wai (Application)
 import Network.Wai.Test (SResponse(..))
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec = do
 
