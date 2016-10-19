@@ -1,24 +1,7 @@
 resolver: lts-7.4
 extra-deps:
   - Ranged-sets-0.3.0
-  - bytestring-tree-builder-0.2.7.1
-  - hasql-0.19.15.2
   - hasql-pool-0.4.1
   - hasql-transaction-0.4.5.1
-  - jwt-0.7.2
-  - postgresql-binary-0.9.1.1
-  - binary-parser-0.5.2
-  - contravariant-extras-0.3.2
-  - placeholders-0.1
-  - postgresql-error-codes-1
-  - success-0.2.6
-  - tuple-th-0.2.5
-  - wai-cors-0.2.5
-  - cryptohash-sha256-0.11.100.0
-  - hackage-security-0.5.2.1
-  - swagger2-2.1
-  - hjsonpointer-0.3.0.1
-  - hjsonschema-1.0.0.0
-  - network-uri-2.6.1.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities

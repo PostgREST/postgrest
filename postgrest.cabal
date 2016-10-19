@@ -29,50 +29,50 @@ executable postgrest
     -rtsopts
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
-  build-depends:       aeson (>= 0.11 && < 0.12) || (>= 1.0 && < 1.1)
+  build-depends:       aeson
                      , auto-update
-                     , base >= 4.8 && < 6
+                     , base
                      , bytestring
-                     , bytestring-tree-builder == 0.2.7.1
+                     , bytestring-tree-builder
                      , case-insensitive
                      , cassava
                      , containers
                      , contravariant
                      , errors
-                     , hasql == 0.19.15.2
+                     , hasql
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
-                     , http-types >= 0.9 && < 0.10
+                     , http-types
                      , interpolatedstring-perl6
                      , jwt
-                     , lens >=3.8 && < 5.0
-                     , lens-aeson >= 1.0.0.0 && < 1.1.0.0
+                     , lens
+                     , lens-aeson
                      , mtl
-                     , optparse-applicative >= 0.11 && < 0.14
+                     , optparse-applicative
                      , parsec
-                     , postgresql-binary == 0.9.1.1
+                     , postgresql-binary
                      , postgrest
                      , regex-tdfa
-                     , safe >= 0.3 && < 0.4
+                     , safe
                      , scientific
                      , text
                      , time
                      , transformers
                      , unordered-containers
                      , vector
-                     , wai >= 3.0.1
+                     , wai
                      , wai-cors
                      , wai-extra
-                     , wai-middleware-static >= 0.6.0
-                     , warp >= 3.1.0
-                     , insert-ordered-containers >= 0.1.0.1
-                     , swagger2 >= 2.1
-                     , network-uri >= 2.6.1.0
+                     , wai-middleware-static
+                     , warp
+                     , insert-ordered-containers
+                     , swagger2
+                     , network-uri
                      , HTTP
-                     , Ranged-sets
-                     , protolude >= 0.1.5 && < 0.2.0
+                     , Ranged-sets == 0.3.0
+                     , protolude
   if !os(windows)
-    build-depends:     unix >= 2.7 && < 3
+    build-depends:     unix
 
   hs-source-dirs:      main
 
@@ -107,15 +107,15 @@ library
                      , vector
                      , HTTP
                      , Ranged-sets
-                     , wai >= 3.0.1
+                     , wai
                      , wai-cors
                      , wai-extra
-                     , wai-middleware-static >= 0.6.0
-                     , warp >= 3.1.0
-                     , insert-ordered-containers >= 0.1.0.1
-                     , swagger2 >= 2.1
-                     , protolude >= 0.1.5 && < 0.2.0
-                     , network-uri >= 2.6.1.0
+                     , wai-middleware-static
+                     , warp
+                     , insert-ordered-containers
+                     , swagger2
+                     , protolude
+                     , network-uri
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.App
