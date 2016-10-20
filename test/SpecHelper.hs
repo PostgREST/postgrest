@@ -1,10 +1,10 @@
 module SpecHelper where
 
-import Data.String.Conversions (cs)
 import Control.Monad (void)
 
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
+import Data.List (lookup)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import System.Process (readProcess)
@@ -21,7 +21,7 @@ import Data.Maybe (fromJust)
 import Data.Aeson (decode)
 import qualified Data.JsonSchema.Draft4 as D4
 
-import Data.Text
+import Protolude
 
 validateOpenApiResponse :: [Header] -> WaiSession ()
 validateOpenApiResponse headers = do
@@ -96,14 +96,14 @@ acceptHdrs mime = [(hAccept, mime)]
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")
 
-matchHeader :: CI BS.ByteString -> String -> [Header] -> Bool
+matchHeader :: CI BS.ByteString -> BS.ByteString -> [Header] -> Bool
 matchHeader name valRegex headers =
   maybe False (=~ valRegex) $ lookup name headers
 
-authHeaderBasic :: String -> String -> Header
+authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
-  (hAuthorization, cs $ "Basic " ++ encode (u ++ ":" ++ p))
+  (hAuthorization, "Basic " <> (toS . encode . toS $ u <> ":" <> p))
 
-authHeaderJWT :: String -> Header
+authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
-  (hAuthorization, cs $ "Bearer " ++ token)
+  (hAuthorization, "Bearer " <> token)

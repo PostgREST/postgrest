@@ -12,6 +12,8 @@ import SpecHelper
 import Text.Heredoc
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 defaultRange :: BL.ByteString
 defaultRange = [json| { "min": 0, "max": 15 } |]
 
