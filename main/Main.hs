@@ -8,12 +8,14 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
+import           PostgREST.Error                      (prettyUsageError)
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
 import           Control.AutoUpdate
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix)
+import           Data.Text.IO                         (hPutStrLn)
 import           Data.Function                        (id)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
@@ -67,6 +69,10 @@ main = do
       "Cannot run in this PostgreSQL version, PostgREST needs at least "
       <> show minimumPgVersion)
     getDbStructure (toS $ configSchema conf)
+
+  forM_ (lefts [result]) $ \e -> do
+    hPutStrLn stderr (prettyUsageError e)
+    exitFailure
 
   refDbStructure <- newIORef $ either (panic . show) id result
 

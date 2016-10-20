@@ -51,11 +51,13 @@ library
                      , bytestring
                      , case-insensitive
                      , cassava
+                     , configurator
                      , containers
                      , contravariant
                      , hasql
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
+                     , heredoc
                      , HTTP
                      , http-types
                      , insert-ordered-containers

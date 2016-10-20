@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Remove non-OpenAPI schema description - @begriffs
 - Use comma rather than semicolon to separate Prefer header values - @begriffs
 - Omit total query count by default - @begriffs
+- Use config file rather than command line arguments - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 
