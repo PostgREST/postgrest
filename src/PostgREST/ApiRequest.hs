@@ -1,4 +1,12 @@
-module PostgREST.ApiRequest where
+module PostgREST.ApiRequest ( ApiRequest(..)
+                            , ContentType(..)
+                            , Action(..), Target(..)
+                            , PreferRepresentation (..)
+                            , mutuallyAgreeable
+                            , ctToHeader
+                            , userApiRequest
+                            , toHeader
+                            ) where
 
 import           Protolude
 
@@ -281,6 +289,3 @@ ensureUniform arr =
   if (V.length objs == V.length arr) && areKeysUniform
     then Just (UniformObjects objs)
     else Nothing
-
-readBSMaybe :: Read a => ByteString -> Maybe a
-readBSMaybe = readMaybe . toS
