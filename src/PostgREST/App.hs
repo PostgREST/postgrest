@@ -38,13 +38,14 @@ import qualified Hasql.Transaction         as H
 
 import qualified Data.HashMap.Strict       as M
 
-import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
-                                            , Action(..), Target(..)
-                                            , PreferRepresentation (..)
-                                            , userApiRequest, mutuallyAgreeable
-                                            , ctToHeader
-                                            , userApiRequest
-                                            , toHeader)
+import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
+                                        , Action(..), Target(..)
+                                        , PreferRepresentation (..)
+                                        , mutuallyAgreeable
+                                        , ctToHeader
+                                        , userApiRequest
+                                        , toHeader
+                                        )
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
