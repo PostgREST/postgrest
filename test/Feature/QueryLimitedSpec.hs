@@ -9,6 +9,8 @@ import Text.Heredoc
 import SpecHelper
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec =
   describe "Requesting many items with server limits enabled" $ do

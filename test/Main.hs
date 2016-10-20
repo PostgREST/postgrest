@@ -8,8 +8,8 @@ import qualified Hasql.Pool as P
 import PostgREST.DbStructure (getDbStructure)
 import PostgREST.App (postgrest)
 import Control.AutoUpdate
+import Data.Function (id)
 import Data.IORef
-import Data.String.Conversions (cs)
 import Data.Time.Clock.POSIX   (getPOSIXTime)
 
 import qualified Feature.AuthSpec
@@ -25,18 +25,20 @@ import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.ProxySpec
 
+import Protolude
+
 main :: IO ()
 main = do
   setupDb
 
-  pool <- P.acquire (3, 10, cs testDbConn)
+  pool <- P.acquire (3, 10, toS testDbConn)
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate
     defaultUpdateSettings { updateAction = getPOSIXTime }
 
 
   result <- P.use pool $ getDbStructure "test"
-  refDbStructure <- newIORef $ either (error.show) id result
+  refDbStructure <- newIORef $ either (panic.show) id result
   let withApp = return $ postgrest testCfg refDbStructure pool getTime
       ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool getTime
       unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool getTime
