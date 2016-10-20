@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 {-|
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
