@@ -127,17 +127,6 @@ See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
 and the [guide to routing](http://postgrest.com/api/reading/).
 
-### Future Features
-
-* Watching endpoint changes with sockets and Postgres pubsub
-* Specifying per-view HTTP caching
-* Inferring good default caching policies from the Postgres stats collector
-* Generating mock data for test clients
-* Maintaining separate connection pools per role to avoid "set/reset
-  role" performance penalty
-* Describe more relationships with Link headers
-* ... the other [issues](https://github.com/begriffs/postgrest/issues)
-
 ### Thanks
 
 I'm grateful to the generous project
