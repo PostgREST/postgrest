@@ -59,7 +59,6 @@ Finally it uses the database efficiently with the
 [Hasql](https://nikita-volkov.github.io/hasql-benchmarks/) library
 by
 
-* Reusing prepared statements
 * Keeping a pool of db connections
 * Using the PostgreSQL binary protocol
 * Being stateless to allow horizontal scaling
