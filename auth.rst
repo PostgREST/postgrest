@@ -119,8 +119,7 @@ PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL datab
 Schema Isolation
 ================
 
-A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. Objects
-
+A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. This means private data or implementation details can go inside a private schema and be invisible to HTTP clients. You can then expose views and stored procedures which insulate the internal details from the outside world. It keeps you code easier to refactor, and provides a natural way to do API `versioning`_. For an example of wrapping a private table with a public view see the `Editing User Info`_ section below.
 
 SQL User Management
 ===================
@@ -304,7 +303,7 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
 Editing User Info
 ~~~~~~~~~~~~~~~~~
 
-Here is a redacted view for users. It hides passwords and shows only those users whose roles the currently logged in user has database permission to access.
+By creating a public wrapper around the internal users table we can allow people to safely edit it through the same auto-generated API that apply to other tables and views. The following view redacts sensitive information. It hides passwords and shows only those users whose roles the currently logged in user has database permission to access.
 
 .. code:: sql
 
@@ -399,7 +398,7 @@ External actions like sending an email or calling 3rd-party services are possibl
 
 One way to do this is using a table to implement a job queue for external programs. However this approach is `dangerous <https://brandur.org/postgres-queues>`_ because of its potential interactions with unrelated long-running queries. However things are improving with PostgreSQL 9.5 which introduces SKIP LOCKED to build reliable work queues, see `this article <http://blog.2ndquadrant.com/what-is-select-skip-locked-for-in-postgresql-9-5/>`_.
 
-Another way to queue and tasks for external processing is by bridging PostgreSQL's `LISTEN <https://www.postgresql.org/docs/9.6/static/sql-listen.html>`_/`NOTIFY <https://www.postgresql.org/docs/9.6/static/sql-notify.html>`_ pubsub with a dedicated external queue system. Two programs to listen for database events and queue them are
+Another way to queue tasks for external processing is by bridging PostgreSQL's `LISTEN <https://www.postgresql.org/docs/9.6/static/sql-listen.html>`_/`NOTIFY <https://www.postgresql.org/docs/9.6/static/sql-notify.html>`_ pubsub with a dedicated external queue system. Two programs to listen for database events and queue them are
 
 * `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ for RabbitMQ
 * `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ for ZeroMQ
