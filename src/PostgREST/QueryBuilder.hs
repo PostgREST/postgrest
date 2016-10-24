@@ -248,7 +248,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
               {countResultF} AS total_result_set,
               pg_catalog.count(_postgrest_t) AS page_total,
               case
-                when pg_catalog.count(1) > 1 then
+                when pg_catalog.count(*) > 1 then
                   {bodyF}
                 else
                   coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
@@ -263,7 +263,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
-                   then [qc|(select pg_catalog.count(1) from {sourceCTEName})|]
+                   then [qc|(select pg_catalog.count(*) from {sourceCTEName})|]
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
@@ -307,7 +307,7 @@ requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
 requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
-   "SELECT pg_catalog.count(1)",
+   "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
    ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
    ]
