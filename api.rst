@@ -3,9 +3,9 @@ Tables and Views
 
 All views and tables in the active schema and accessible by the active database role for a request are available for querying. They are exposed in one-level deep routes. For instance the full contents of a table `people` is returned at
 
-.. code-block:: HTTP
+.. code-block:: http
 
-  GET /people
+  GET /people HTTP/1.1
 
 There are no deeply/nested/routes. Each route provides OPTIONS, GET, POST, PATCH, and DELETE verbs depending entirely on database permissions.
 
@@ -20,13 +20,13 @@ You can filter result rows by adding conditions on columns, each condition a que
 
 .. code-block:: http
 
-  GET /people?age=lt.13
+  GET /people?age=lt.13 HTTP/1.1
 
 Adding multiple parameters conjoins the conditions:
 
 .. code-block:: http
 
-  GET /people?age=gte.18&student=is.true
+  GET /people?age=gte.18&student=is.true HTTP/1.1
 
 These operators are available:
 
@@ -61,7 +61,7 @@ Computed Columns
 
 Filters may be applied to computed columns as well as actual table/view columns, even though the computed columns will not appear in the output. For example, to search first and last names at once we can create a computed column that will not appear in the output but can be used in a filter:
 
-.. code-block:: sql
+.. code-block:: postgres
 
   CREATE TABLE people (
     fname text,
@@ -72,7 +72,7 @@ Filters may be applied to computed columns as well as actual table/view columns,
     SELECT $1.fname || ' ' || $1.lname;
   $$ LANGUAGE SQL;
 
-  # (optional) add an index to speed up anticipated query
+  -- (optional) add an index to speed up anticipated query
   CREATE INDEX people_full_name_idx ON people
     USING GIN (to_tsvector('english', fname || ' ' || lname));
 
@@ -80,7 +80,7 @@ A full-text search on the computed column:
 
 .. code-block:: http
 
-  GET /people?full_name=@@.Beckett
+  GET /people?full_name=@@.Beckett HTTP/1.1
 
 Ordering
 --------
@@ -89,26 +89,29 @@ The reserved word :code:`order` reorders the response rows. It uses a comma-sepa
 
 .. code-block:: http
 
-  GET /people?order=age.desc,height.asc
+  GET /people?order=age.desc,height.asc HTTP/1.1
 
 If no direction is specified it defaults to ascending order:
 
 .. code-block:: http
 
-  GET /people?order=age
+  GET /people?order=age HTTP/1.1
 
 If you care where nulls are sorted, add nullsfirst or nullslast:
 
 .. code-block:: http
 
-  GET /people?order=age.nullsfirst
-  GET /people?order=age.desc.nullslast
+  GET /people?order=age.nullsfirst HTTP/1.1
+
+.. code-block:: http
+
+  GET /people?order=age.desc.nullslast HTTP/1.1
 
 To order the embedded items, you need to specify the tree path for the order param like so.
 
 .. code-block:: http
 
-  GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.asc
+  GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.asc HTTP/1.1
 
 You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output.
 
@@ -119,6 +122,7 @@ PostgREST uses HTTP range headers to describe the size of results. Every respons
 
 .. code-block:: http
 
+  HTTP/1.1 200 OK
   Range-Unit: items
   Content-Range: 0-14/*
 
@@ -128,7 +132,7 @@ There are two ways to apply a limit and offset rows: through request headers or 
 
 .. code-block:: http
 
-  GET /people
+  GET /people HTTP/1.1
   Range-Unit: items
   Range: 0-19
 
@@ -136,6 +140,7 @@ Note that the server may respond with fewer if unable to meet your request:
 
 .. code-block:: http
 
+  HTTP/1.1 200 OK
   Range-Unit: items
   Content-Range: 0-17/*
 
@@ -145,7 +150,7 @@ The other way to request a limit or offset is with query pamameters. For example
 
 .. code-block:: http
 
-  GET /people?limit=15&offset=30
+  GET /people?limit=15&offset=30 HTTP/1.1
 
 This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
 
@@ -154,7 +159,7 @@ In order to obtain the total size of the table or view (such as when rendering t
 
 .. code-block:: http
 
-  GET /bigtable
+  GET /bigtable HTTP/1.1
   Range-Unit: items
   Range: 0-24
   Prefer: count=exact
@@ -163,6 +168,7 @@ Note that the larger the table the slower this query runs in the database. The s
 
 .. code-block:: http
 
+  HTTP/1.1 206 Partial Content
   Range-Unit: items
   Content-Range: 0-24/3573458
 

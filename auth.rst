@@ -21,13 +21,13 @@ Here are the technical details. We use `JSON Web Tokens <http://jwt.io/>`_ to au
 
 When a request contains a valid JWT with a role claim PostgREST will switch to the database role with that name for the duration of the HTTP request.
 
-.. code:: sql
+.. code:: postgres
 
   SET LOCAL ROLE user123;
 
 Note that the database administrator must allow the authenticator role to switch into this user by previously executing
 
-.. code:: sql
+.. code:: postgres
 
   GRANT user123 TO authenticator;
 
@@ -40,13 +40,13 @@ PostgREST honors the `exp` claim for token expiration, rejecting expired tokens.
 
 Here's an example. In the config file specify a stored procedure:
 
-.. code::
+.. code:: ini
 
   pre-request = "public.check_user"
 
 In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
 
-.. code:: sql
+.. code:: postgres
 
   CREATE OR REPLACE FUNCTION check_user() RETURNS void
     LANGUAGE plpgsql
@@ -81,7 +81,7 @@ You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/
 
 Next write a stored procedure that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
 
-.. code:: sql
+.. code:: postgres
 
   CREATE TYPE jwt_token AS (
     token text
@@ -133,7 +133,7 @@ The following table, functions, and triggers will live in a `basic_auth` schema 
 
 First we'll need a table to keep track of our users:
 
-.. code:: sql
+.. code:: postgres
 
   -- We put things inside the basic_auth schema to hide
   -- them from public view. Certain public procs/views will
@@ -151,7 +151,7 @@ First we'll need a table to keep track of our users:
 
 We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the `pg_roles` table. We'll use a trigger to manually enforce it.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   basic_auth.check_role_exists() returns trigger
@@ -175,7 +175,7 @@ We would like the role to be a foreign key to actual database roles, however Pos
 
 Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the `users` table.
 
-.. code:: sql
+.. code:: postgres
 
   create extension if not exists pgcrypto;
 
@@ -199,7 +199,7 @@ Next we'll use the pgcrypto extension and a trigger to keep passwords safe in th
 
 With the table in place we can make a helper to check a password against the encrypted column. It returns the database role for a user if the email and password are correct.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   basic_auth.user_role(email text, pass text) returns name
@@ -216,7 +216,7 @@ With the table in place we can make a helper to check a password against the enc
 
 Finally we want a helper function to check whether the database user for the current API request has access to see or change a given role. This will become useful in the next section.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   basic_auth.clearance_for_role(u name) returns void as
@@ -247,7 +247,7 @@ Logins and Signup
 
 As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hardcoded in this example to a secure secret of your choosing.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   login(email text, pass text) returns basic_auth.jwt_token
@@ -305,7 +305,7 @@ Editing User Info
 
 By creating a public wrapper around the internal users table we can allow people to safely edit it through the same auto-generated API that apply to other tables and views. The following view redacts sensitive information. It hides passwords and shows only those users whose roles the currently logged in user has database permission to access.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace view users as
   select actual.role as role,
@@ -323,7 +323,7 @@ By creating a public wrapper around the internal users table we can allow people
 
 Using this view a client can see their role and any other users to whose roles the client belongs. This view does not yet support inserts or updates because not all the columns refer directly to underlying columns. Nor do we want it to be auto-updatable because it would allow an escalation of privileges. Someone could update their own row and change their role to become more powerful. We'll handle updates with a trigger:
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   update_users() returns trigger
@@ -371,7 +371,7 @@ Permissions
 
 Your database roles need access to the schema, tables, views and functions in order to service HTTP requests. Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
 
-.. code:: sql
+.. code:: postgres
 
   -- the names "anon" and "authenticator" are configurable and not
   -- sacred, we simply choose them for clarity
@@ -425,7 +425,7 @@ For experimentation purposes you can also have external programs LISTEN directly
 
 To use this LISTEN/NOTIFY approach (with or without a real queue hooked up) we can make our SQL functions issue a NOTIFY to perform external actions. Two such such functions are those to confirm an email address or send a password reset token. Both will use nonces and need a place to store them, so we'll start there.
 
-.. code:: sql
+.. code:: postgres
 
   create type token_type_enum as enum ('validation', 'reset');
 
@@ -440,7 +440,7 @@ To use this LISTEN/NOTIFY approach (with or without a real queue hooked up) we c
 
 Here is a password reset function to make public for API requests. The function takes a user email address.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   request_password_reset(email text) returns void
@@ -470,7 +470,7 @@ Notice the use of `pg_notify` above. It notifies a channel called `reset` with a
 
 Similar to the password reset request, an email validation function creates a token and then defers to external processing. This one won't be publicly accessible, but rather can be triggered on user account creation.
 
-.. code:: sql
+.. code:: postgres
 
   create or replace function
   basic_auth.send_validation() returns trigger
