@@ -83,7 +83,7 @@ In Production
 Commercial PaaS
 ---------------
 
-* `Sub0 <http://graphqlapi.com/>`_ - Automated GraphQL & REST API with built-in caching (powered by PostgREST)
+* `Sub0 <http://graphqlapi.com/>`_ - Automated GraphQL & REST API with built-in caching (powered by PostgREST, not affiliated)
 
 
 Getting Support
