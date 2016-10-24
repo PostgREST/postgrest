@@ -108,8 +108,8 @@ generate up-to-date documentation for APIs. You can use a tool like
 interactive documentation for demo requests against the live API server.
 
 This project uses HTTP to communicate other metadata as well.  For
-instance the number of rows returned by an endpoint is reported by
-- and limited with - range headers. More about
+instance the number of rows returned by an endpoint is reported by -
+and limited with - range headers. More about
 [that](http://begriffs.com/posts/2014-03-06-beyond-http-header-links.html).
 
 ### Data Integrity
