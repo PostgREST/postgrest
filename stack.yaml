@@ -5,3 +5,5 @@ extra-deps:
   - hasql-transaction-0.4.5.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
+nix:
+  packages: [postgresql, zlib]
