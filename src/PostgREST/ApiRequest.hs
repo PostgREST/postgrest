@@ -55,9 +55,11 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 
+-- | Convert from ContentType to a full HTTP Header
 ctToHeader :: ContentType -> Header
 ctToHeader ct = (hContentType, toHeader ct <> "; charset=utf-8")
 
+-- | Convert from ContentType to a ByteString representing the mime type
 toHeader :: ContentType -> ByteString
 toHeader CTApplicationJSON = "application/json"
 toHeader CTTextCSV         = "text/csv"
