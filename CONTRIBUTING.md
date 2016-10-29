@@ -48,7 +48,7 @@ your contributions.
   pull request.
 
 * For help building the Haskell code on your computer check out the [building from
-source](https://github.com/begriffs/postgrest/wiki/Building-from-source)
+source](http://postgrest.com/install/server/#building-from-source)
 wiki page.
 
 ## Maintenance
