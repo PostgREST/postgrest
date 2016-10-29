@@ -5,6 +5,7 @@ module Main where
 import           Protolude
 import           PostgREST.App
 import           PostgREST.Config                     (AppConfig (..),
+                                                       PgVersion (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
@@ -34,11 +35,11 @@ import           System.Posix.Signals
 isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
   ver <- H.query () pgVersion
-  return $ toInteger ver >= minimumPgVersion
+  return $ ver >= pgvNum minimumPgVersion
  where
   pgVersion =
-    H.statement "SHOW server_version_num"
-      HE.unit (HD.singleRow $ HD.value HD.int4) True
+    H.statement "SELECT current_setting('server_version_num')::integer"
+      HE.unit (HD.singleRow $ HD.value HD.int4) False
 
 main :: IO ()
 main = do
@@ -67,7 +68,7 @@ main = do
     supported <- isServerVersionSupported
     unless supported $ panic (
       "Cannot run in this PostgreSQL version, PostgREST needs at least "
-      <> show minimumPgVersion)
+      <> pgvName minimumPgVersion)
     getDbStructure (toS $ configSchema conf)
 
   forM_ (lefts [result]) $ \e -> do

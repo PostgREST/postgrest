@@ -16,6 +16,7 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
+                        , PgVersion (..)
                         , AppConfig (..)
                         )
        where
@@ -170,6 +171,12 @@ argParser = CmdArgs <$>
       help "Path to configuration file")) <*>
   switch (long "example-config" <> help "output an example config file")
 
+
+data PgVersion = PgVersion {
+  pgvNum  :: Int32
+, pgvName :: Text
+}
+
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
-minimumPgVersion :: Integer
-minimumPgVersion = 90300
+minimumPgVersion :: PgVersion
+minimumPgVersion = PgVersion 90300 "9.3"
