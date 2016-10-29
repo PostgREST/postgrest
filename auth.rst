@@ -1,7 +1,10 @@
 Overview of Role System
 =======================
 
-PostgREST is designed to keep the database at the center of API security. All authorization happens through database roles and permissions. It is PostgREST's job to authenticate requests -- i.e. verify that a client is who they say they are -- and then let the database authorize client actions.
+PostgREST is designed to keep the database at the center of API security. All authorization happens through database roles and permissions. It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
+
+Authentication Sequence
+-----------------------
 
 There are three types of roles used by PostgREST, the **authenticator**, **anonymous** and **user** roles. The database administrator creates these roles and configures PostgREST to use them.
 
@@ -32,6 +35,89 @@ Note that the database administrator must allow the authenticator role to switch
   GRANT user123 TO authenticator;
 
 If the client included no JWT (or one without a role claim) then PostgREST switches into the anonymous role whose actual database-specific name, like that of with the authenticator role, is specified in the PostgREST server configuration file. The database administrator must set anonymous role permissions correctly to prevent anonymous users from seeing or changing things they shouldn't.
+
+Users and Groups
+----------------
+
+PostgreSQL manages database access permissions using the concept of roles. A role can be thought of as either a database user, or a group of database users, depending on how the role is set up.
+
+Roles for Each Web User
+~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgREST can accommodate either viewpoint. If you treat a role as a single user then the the JWT-based role switching described above does most of what you need. When an authenticated user makes a request PostgREST will switch into the role for that user, which in addition to restricting queries, is available to SQL through the `current_user` variable.
+
+You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
+
+.. code:: postgres
+
+  CREATE TABLE chat (
+    message_uuid    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    message_time    TIMESTAMP NOT NULL DEFAULT now(),
+    message_from    NAME      NOT NULL DEFAULT current_user,
+    message_to      NAME      NOT NULL,
+    message_subject VARCHAR(64) NOT NULL,
+    message_body    TEXT
+  );
+
+We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with anyone else's name.
+
+PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
+
+.. code:: postgres
+
+  CREATE POLICY chat_policy ON chat
+    USING ((message_to = current_user) OR (message_from = current_user))
+    WITH CHECK (message_from = current_user)
+
+Anyone accessing the generated API endpoint for the chat table will see exactly the rows they should, without our needing custom imperative server-side coding.
+
+Web Users Sharing Role
+~~~~~~~~~~~~~~~~~~~~~~
+
+Alternately database roles can represent groups instead of (or in addition to) individual users. You may choose that all signed-in users for a web app share the role webuser. You can distinguish individual users by including extra claims in the JWT such as email.
+
+.. code:: json
+
+  {
+    "role": "webuser",
+    "email": "john@doe.com"
+  }
+
+SQL code can access claims through GUC variables set by PostgREST per request. For instance to get the email claim, call this function:
+
+.. code:: postgres
+
+  current_setting('request.jwt.claim.email')
+
+This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user.
+
+.. note::
+
+  The current_setting function raises an exception if the setting in question is not present, as when a claim is missing from the JWT. Your SQL functions can either catch the exception, or you can set a default value for the database like this.
+
+  .. code:: postgres
+
+    -- Prevent current_setting('postgrest.claims.email') from raising
+    -- an exception if the setting is not present. Default it to ''.
+    ALTER DATABASE your_db_name SET request.claim.email TO '';
+
+Hybrid User-Group Roles
+~~~~~~~~~~~~~~~~~~~~~~~
+
+There is no performance penalty for having many database roles, although roles are namespaced per-cluster rather than per-database so may be prone to collision within the database. You are free to assign a new role for every user in a web application if desired. You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
+
+.. code:: postgres
+
+  CREATE ROLE webuser NOLOGIN;
+  -- grant this role access to certain tables etc
+
+  CREATE ROLE user000 NOLOGIN;
+  GRANT webuser TO user000;
+  -- now user000 can do whatever webuser can
+
+  GRANT user000 TO authenticator;
+  -- allow authenticator to switch into user000 role
+  -- (the role itself has nologin)
 
 Custom Validation
 -----------------
