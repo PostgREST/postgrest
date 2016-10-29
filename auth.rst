@@ -132,13 +132,13 @@ Here's an example. In the config file specify a stored procedure:
 
 In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
 
-.. code:: plpgsql
+.. code:: postgres
 
   CREATE OR REPLACE FUNCTION check_user() RETURNS void
     LANGUAGE plpgsql
     AS $$
   BEGIN
-    IF current_role = 'evil_user' THEN
+    IF current_user = 'evil_user' THEN
       RAISE EXCEPTION 'No, you are evil'
         USING HINT = 'Stop being so evil and maybe you can log in';
     END IF;
@@ -152,7 +152,7 @@ To make an authenticated request the client must include an `Authorization` HTTP
 
 .. code:: http
 
-  GET /foo
+  GET /foo HTTP/1.1
   Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImV4cCI6MTQ3NTUxNjI1MH0.GYDZV3yM0gqvuEtJmfpplLBXSGYnke_Pvnl0tbKAjB4
 
 JWT Generation
@@ -374,7 +374,7 @@ An API request to call this function would look like:
 
 .. code:: http
 
-  POST /rpc/login
+  POST /rpc/login HTTP/1.1
 
   { "email": "foo@bar.com", "pass": "foobar" }
 
