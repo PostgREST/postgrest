@@ -11,8 +11,6 @@ RUN wget http://github.com/begriffs/postgrest/releases/download/v${POSTGREST_VER
     mv postgrest /usr/local/bin/postgrest && \
     rm postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz
 
-# PostgREST reads /etc/postgrest.conf so map the configuration
-# file in when you run this container
 CMD exec postgrest
 
 EXPOSE 3000
