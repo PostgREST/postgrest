@@ -251,8 +251,6 @@ app dbStructure conf apiRequest =
   jsonH = toHeader CTApplicationJSON
   shouldCount = iPreferCount apiRequest
   schema = toS $ configSchema conf
-  servesMutateRequest' = servesMutateRequest dbStructure conf apiRequest
-  servesReadRequest' = servesReadRequest dbStructure conf apiRequest
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
   rangeHeader queryTotal tableTotal = let lower = rangeOffset topLevelRange
                                           upper = lower + toInteger queryTotal - 1
@@ -260,38 +258,28 @@ app dbStructure conf apiRequest =
                                           status = rangeStatus lower upper (toInteger <$> tableTotal)
                                       in (status, contentRange)
 
-servesReadRequest :: Monad m => DbStructure -> AppConfig -> ApiRequest -> (SqlQuery -> SqlQuery -> m Response) -> m Response
-servesReadRequest dbStructure conf apiRequest resp =
-  case readSqlParts of
-    Left e -> return $ responseLBS status400 [jsonH] $ toS e
+  mapSnd f (a, b) = (a, f b)
+  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+  mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
+  selectQuery = requestToQuery schema False <$> readDbRequest
+  servesMutateRequest' = servesMutateRequest selectQuery $ requestToQuery schema False <$> mutateDbRequest
+  servesReadRequest' = servesReadRequest topLevelRange selectQuery $ requestToCountQuery schema <$> readDbRequest
+
+servesReadRequest :: Monad m => NonnegRange -> Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
+servesReadRequest topLevelRange selectQuery countQuery resp =
+  case (,) <$> selectQuery <*> countQuery of
+    Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
     Right (q, cq) -> respondToRange $ resp q cq
   where
-    schema = toS $ configSchema conf
-    jsonH = toHeader CTApplicationJSON
-    mapSnd f (a, b) = (a, f b)
-    readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-    selectQuery = requestToQuery schema False <$> readDbRequest
-    countQuery = requestToCountQuery schema <$> readDbRequest
-    readSqlParts = (,) <$> selectQuery <*> countQuery
-    topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
     respondToRange response = if topLevelRange == emptyRange
                               then return $ errResponse status416 "HTTP Range error"
                               else response
 
-servesMutateRequest :: Monad m => DbStructure -> AppConfig -> ApiRequest -> (SqlQuery -> SqlQuery -> m Response) -> m Response
-servesMutateRequest dbStructure conf apiRequest resp =
-  case mutateSqlParts of
-    Left e -> return $ responseLBS status400 [jsonH] $ toS e
+servesMutateRequest :: Monad m => Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
+servesMutateRequest selectQuery mutateQuery resp =
+  case (,) <$> selectQuery <*> mutateQuery of
+    Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
     Right (sq,mq) -> resp sq mq
-  where
-    schema = toS $ configSchema conf
-    jsonH = toHeader CTApplicationJSON
-    mapSnd f (a, b) = (a, f b)
-    readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-    mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-    selectQuery = requestToQuery schema False <$> readDbRequest
-    mutateQuery = requestToQuery schema False <$> mutateDbRequest
-    mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
 
 servesMatchingContentTypes :: Monad m => ApiRequest -> (ContentType -> m Response) -> m Response
 servesMatchingContentTypes apiRequest = serves contentTypesForRequest (iAccepts apiRequest)
