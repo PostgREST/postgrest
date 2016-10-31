@@ -1,11 +1,16 @@
+{-|
+Module      : PostgREST.ApiRequest
+Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
+-}
 module PostgREST.ApiRequest ( ApiRequest(..)
                             , ContentType(..)
-                            , Action(..), Target(..)
+                            , Action(..)
+                            , Target(..)
                             , PreferRepresentation (..)
                             , mutuallyAgreeable
-                            , ctToHeader
-                            , userApiRequest
                             , toHeader
+                            , userApiRequest
+                            , toMime
                             ) where
 
 import           Protolude
@@ -41,6 +46,7 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
+            | ActionInspect
             | ActionInappropriate
             deriving Eq
 -- | The target db object of a user action
@@ -56,16 +62,16 @@ data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 
 -- | Convert from ContentType to a full HTTP Header
-ctToHeader :: ContentType -> Header
-ctToHeader ct = (hContentType, toHeader ct <> "; charset=utf-8")
+toHeader :: ContentType -> Header
+toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
 
 -- | Convert from ContentType to a ByteString representing the mime type
-toHeader :: ContentType -> ByteString
-toHeader CTApplicationJSON = "application/json"
-toHeader CTTextCSV         = "text/csv"
-toHeader CTOpenAPI         = "application/openapi+json"
-toHeader CTAny             = "*/*"
-toHeader (CTOther ct)      = ct
+toMime :: ContentType -> ByteString
+toMime CTApplicationJSON = "application/json"
+toMime CTTextCSV         = "text/csv"
+toMime CTOpenAPI         = "application/openapi+json"
+toMime CTAny             = "*/*"
+toMime (CTOther ct)      = ct
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -114,7 +120,9 @@ userApiRequest schema req reqBody =
                else ActionInappropriate
           else
             case method of
-               "GET"     -> ActionRead
+               "GET"     -> case target of
+                                       TargetRoot -> ActionInspect
+                                       _ -> ActionRead
                "POST"    -> ActionCreate
                "PATCH"   -> ActionUpdate
                "DELETE"  -> ActionDelete
@@ -147,7 +155,7 @@ userApiRequest schema req reqBody =
                       . map (toS *** JSON.String . toS) . parseSimpleQuery
                       $ toS reqBody
         ct ->
-          PayloadParseError $ "Content-Type not acceptable: " <> toHeader ct
+          PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
       relevantPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
