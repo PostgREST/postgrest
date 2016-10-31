@@ -201,7 +201,7 @@ app dbStructure conf apiRequest =
           let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
           return $ responseLBS status200 [allOrigins, acceptH] ""
 
-    (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) -> do
+    (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
         servesMatchingContentTypes' $ \_ ->
           servesReadRequest' $ \q cq -> do
             let p = V.head payload
@@ -212,7 +212,7 @@ app dbStructure conf apiRequest =
                 (status, contentRange) = rangeHeader queryTotal tableTotal
             return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
-    (ActionInspect, TargetRoot, Nothing) -> do
+    (ActionInspect, TargetRoot, Nothing) ->
       servesMatchingContentTypes' $ \_ -> do
         let host = configHost conf
             port = toInteger $ configPort conf
