@@ -102,7 +102,7 @@ app dbStructure conf apiRequest =
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
-      servesMatchingContentTypes apiRequest $ \contentType ->
+      servesMatchingContentTypes' $ \contentType ->
         servesReadRequest' $ \q cq -> do
             let singular = iPreferSingular apiRequest
                 stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
@@ -125,7 +125,7 @@ app dbStructure conf apiRequest =
                 ] (toS body)
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
-      servesMatchingContentTypes apiRequest $ \contentType ->
+      servesMatchingContentTypes' $ \contentType ->
         servesMutateRequest' $ \sq mq -> do
           let isSingle = (==1) $ V.length rows
           when (not isSingle && iPreferSingular apiRequest) $
@@ -155,7 +155,7 @@ app dbStructure conf apiRequest =
                then toS body else ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
-      servesMatchingContentTypes apiRequest $ \contentType ->
+      servesMatchingContentTypes' $ \contentType ->
         servesMutateRequest' $ \sq mq -> do
           let singular = iPreferSingular apiRequest
               stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
@@ -178,7 +178,7 @@ app dbStructure conf apiRequest =
             else responseLBS s [r] ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
-      servesMatchingContentTypes apiRequest $ \contentType ->
+      servesMatchingContentTypes' $ \contentType ->
         servesMutateRequest' $ \sq mq -> do
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
@@ -202,7 +202,7 @@ app dbStructure conf apiRequest =
           return $ responseLBS status200 [allOrigins, acceptH] ""
 
     (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) -> do
-        servesMatchingContentTypes apiRequest $ \_ ->
+        servesMatchingContentTypes' $ \_ ->
           servesReadRequest' $ \q cq -> do
             let p = V.head payload
                 singular = iPreferSingular apiRequest
@@ -213,7 +213,7 @@ app dbStructure conf apiRequest =
             return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
     (ActionInspect, TargetRoot, Nothing) -> do
-      servesMatchingContentTypes apiRequest $ \_ -> do
+      servesMatchingContentTypes' $ \_ -> do
         let host = configHost conf
             port = toInteger $ configPort conf
             proxy = pickProxy $ toS <$> configProxyUri conf
@@ -264,6 +264,7 @@ app dbStructure conf apiRequest =
   selectQuery = requestToQuery schema False <$> readDbRequest
   servesMutateRequest' = servesMutateRequest selectQuery $ requestToQuery schema False <$> mutateDbRequest
   servesReadRequest' = servesReadRequest topLevelRange selectQuery $ requestToCountQuery schema <$> readDbRequest
+  servesMatchingContentTypes' = servesMatchingContentTypes (iAccepts apiRequest) (iAction apiRequest)
 
 servesReadRequest :: Monad m => NonnegRange -> Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
 servesReadRequest topLevelRange selectQuery countQuery resp =
@@ -281,11 +282,11 @@ servesMutateRequest selectQuery mutateQuery resp =
     Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
     Right (sq,mq) -> resp sq mq
 
-servesMatchingContentTypes :: Monad m => ApiRequest -> (ContentType -> m Response) -> m Response
-servesMatchingContentTypes apiRequest = serves contentTypesForRequest (iAccepts apiRequest)
+servesMatchingContentTypes :: Monad m => [ContentType] -> Action -> (ContentType -> m Response) -> m Response
+servesMatchingContentTypes accepts action = serves contentTypesForRequest accepts
   where
     contentTypesForRequest =
-      case iAction apiRequest of
+      case action of
         ActionRead   -> [CTApplicationJSON, CTTextCSV]
         ActionCreate -> [CTApplicationJSON, CTTextCSV]
         ActionUpdate -> [CTApplicationJSON, CTTextCSV]
