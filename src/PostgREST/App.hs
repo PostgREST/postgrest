@@ -126,7 +126,7 @@ app dbStructure conf apiRequest =
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
       servesMatchingContentTypes' $ \contentType ->
-        servesMutateRequest' $ \sq mq -> do
+        servesMutateRequest $ \sq mq -> do
           let isSingle = (==1) $ V.length rows
           when (not isSingle && iPreferSingular apiRequest) $
             HT.sql [P6.q| DO $$
@@ -156,7 +156,7 @@ app dbStructure conf apiRequest =
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
       servesMatchingContentTypes' $ \contentType ->
-        servesMutateRequest' $ \sq mq -> do
+        servesMutateRequest $ \sq mq -> do
           let singular = iPreferSingular apiRequest
               stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
           row <- H.query uniform stm
@@ -179,7 +179,7 @@ app dbStructure conf apiRequest =
 
     (ActionDelete, TargetIdent qi, Nothing) ->
       servesMatchingContentTypes' $ \contentType ->
-        servesMutateRequest' $ \sq mq -> do
+        servesMutateRequest $ \sq mq -> do
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
               stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
@@ -262,25 +262,21 @@ app dbStructure conf apiRequest =
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema False <$> readDbRequest
-  servesMutateRequest' = servesMutateRequest selectQuery $ requestToQuery schema False <$> mutateDbRequest
+  servesMutateRequest = servesDbRequest selectQuery $ requestToQuery schema False <$> mutateDbRequest
   servesReadRequest' = servesReadRequest topLevelRange selectQuery $ requestToCountQuery schema <$> readDbRequest
   servesMatchingContentTypes' = servesMatchingContentTypes (iAccepts apiRequest) (iAction apiRequest)
 
 servesReadRequest :: Monad m => NonnegRange -> Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
 servesReadRequest topLevelRange selectQuery countQuery resp =
-  case (,) <$> selectQuery <*> countQuery of
-    Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
-    Right (q, cq) -> respondToRange $ resp q cq
-  where
-    respondToRange response = if topLevelRange == emptyRange
-                              then return $ errResponse status416 "HTTP Range error"
-                              else response
+  if topLevelRange == emptyRange
+  then return $ errResponse status416 "HTTP Range error"
+  else servesDbRequest selectQuery countQuery resp
 
-servesMutateRequest :: Monad m => Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
-servesMutateRequest selectQuery mutateQuery resp =
-  case (,) <$> selectQuery <*> mutateQuery of
+servesDbRequest :: Monad m => Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
+servesDbRequest selectQuery query resp =
+  case (,) <$> selectQuery <*> query of
     Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
-    Right (sq,mq) -> resp sq mq
+    Right (sq,q) -> resp sq q
 
 servesMatchingContentTypes :: Monad m => [ContentType] -> Action -> (ContentType -> m Response) -> m Response
 servesMatchingContentTypes accepts action = serves contentTypesForRequest accepts
