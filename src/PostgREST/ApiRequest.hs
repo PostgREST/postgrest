@@ -54,6 +54,7 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetProc  QualifiedIdentifier
             | TargetRoot
             | TargetUnknown [Text]
+            deriving Eq
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
@@ -120,9 +121,9 @@ userApiRequest schema req reqBody =
                else ActionInappropriate
           else
             case method of
-               "GET"     -> case target of
-                              TargetRoot -> ActionInspect
-                              _ -> ActionRead
+               "GET"     -> if target == TargetRoot
+                              then ActionInspect
+                              else ActionRead
                "POST"    -> ActionCreate
                "PATCH"   -> ActionUpdate
                "DELETE"  -> ActionDelete
