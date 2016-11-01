@@ -121,8 +121,8 @@ userApiRequest schema req reqBody =
           else
             case method of
                "GET"     -> case target of
-                                       TargetRoot -> ActionInspect
-                                       _ -> ActionRead
+                              TargetRoot -> ActionInspect
+                              _ -> ActionRead
                "POST"    -> ActionCreate
                "PATCH"   -> ActionUpdate
                "DELETE"  -> ActionDelete

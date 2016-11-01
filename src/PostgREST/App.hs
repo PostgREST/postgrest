@@ -102,30 +102,30 @@ app dbStructure conf apiRequest =
   case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
     (ActionRead, TargetIdent qi, Nothing) ->
-      servesMatchingContentTypes' $ \contentType ->
-        servesReadRequest' $ \q cq -> do
-            let singular = iPreferSingular apiRequest
-                stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
-            row <- H.query () stm
-            let (tableTotal, queryTotal, _ , body) = row
-            if singular
-            then return $ if queryTotal <= 0
-              then responseLBS status404 [] ""
-              else responseLBS status200 [toHeader contentType] (toS body)
-            else do
-              let (status, contentRange) = rangeHeader queryTotal tableTotal
-                  canonical = iCanonicalQS apiRequest
-                  --TargetIdent qi = iTarget apiRequest
-              return $ responseLBS status
-                [toHeader contentType, contentRange,
-                  ("Content-Location",
-                    "/" <> toS (qiName qi) <>
-                      if BS.null canonical then "" else "?" <> toS canonical
-                  )
-                ] (toS body)
+      servesContentTypesForRequest $ \contentType ->
+        servesReadRequest $ \q cq -> do
+          let singular = iPreferSingular apiRequest
+              stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
+          row <- H.query () stm
+          let (tableTotal, queryTotal, _ , body) = row
+          if singular
+          then return $ if queryTotal <= 0
+            then responseLBS status404 [] ""
+            else responseLBS status200 [toHeader contentType] (toS body)
+          else do
+            let (status, contentRange) = rangeHeader queryTotal tableTotal
+                canonical = iCanonicalQS apiRequest
+                --TargetIdent qi = iTarget apiRequest
+            return $ responseLBS status
+              [toHeader contentType, contentRange,
+                ("Content-Location",
+                  "/" <> toS (qiName qi) <>
+                    if BS.null canonical then "" else "?" <> toS canonical
+                )
+              ] (toS body)
 
     (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
-      servesMatchingContentTypes' $ \contentType ->
+      servesContentTypesForRequest $ \contentType ->
         servesMutateRequest $ \sq mq -> do
           let isSingle = (==1) $ V.length rows
           when (not isSingle && iPreferSingular apiRequest) $
@@ -155,7 +155,7 @@ app dbStructure conf apiRequest =
                then toS body else ""
 
     (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
-      servesMatchingContentTypes' $ \contentType ->
+      servesContentTypesForRequest $ \contentType ->
         servesMutateRequest $ \sq mq -> do
           let singular = iPreferSingular apiRequest
               stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
@@ -178,7 +178,7 @@ app dbStructure conf apiRequest =
             else responseLBS s [r] ""
 
     (ActionDelete, TargetIdent qi, Nothing) ->
-      servesMatchingContentTypes' $ \contentType ->
+      servesContentTypesForRequest $ \contentType ->
         servesMutateRequest $ \sq mq -> do
           let emptyUniform = UniformObjects V.empty
               fakeload = PayloadJSON emptyUniform
@@ -202,18 +202,18 @@ app dbStructure conf apiRequest =
           return $ responseLBS status200 [allOrigins, acceptH] ""
 
     (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
-        servesMatchingContentTypes' $ \_ ->
-          servesReadRequest' $ \q cq -> do
-            let p = V.head payload
-                singular = iPreferSingular apiRequest
-            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
-            let (tableTotal, queryTotal, body) =
-                  fromMaybe (Just 0, 0, emptyArray) row
-                (status, contentRange) = rangeHeader queryTotal tableTotal
-            return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
+      servesContentTypesForRequest $ \_ ->
+        servesReadRequest $ \q cq -> do
+          let p = V.head payload
+              singular = iPreferSingular apiRequest
+          row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+          let (tableTotal, queryTotal, body) =
+                fromMaybe (Just 0, 0, emptyArray) row
+              (status, contentRange) = rangeHeader queryTotal tableTotal
+          return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
 
     (ActionInspect, TargetRoot, Nothing) ->
-      servesMatchingContentTypes' $ \_ -> do
+      servesContentTypesForRequest $ \_ -> do
         let host = configHost conf
             port = toInteger $ configPort conf
             proxy = pickProxy $ toS <$> configProxyUri conf
@@ -239,8 +239,7 @@ app dbStructure conf apiRequest =
         tTable = tableName t
         cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
         pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-     in
-        (t, cols, pkeys))
+     in (t, cols, pkeys))
   notFound = responseLBS status404 [] ""
   filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
   filterCol :: Schema -> TableName -> Column -> Bool
@@ -252,29 +251,27 @@ app dbStructure conf apiRequest =
   shouldCount = iPreferCount apiRequest
   schema = toS $ configSchema conf
   topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
-  rangeHeader queryTotal tableTotal = let lower = rangeOffset topLevelRange
-                                          upper = lower + toInteger queryTotal - 1
-                                          contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
-                                          status = rangeStatus lower upper (toInteger <$> tableTotal)
-                                      in (status, contentRange)
+  rangeHeader queryTotal tableTotal =
+    let lower = rangeOffset topLevelRange
+        upper = lower + toInteger queryTotal - 1
+        contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
+        status = rangeStatus lower upper (toInteger <$> tableTotal)
+    in (status, contentRange)
 
   mapSnd f (a, b) = (a, f b)
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
   selectQuery = requestToQuery schema False <$> readDbRequest
   servesMutateRequest = servesDbRequest selectQuery $ requestToQuery schema False <$> mutateDbRequest
-  servesReadRequest' = servesReadRequest topLevelRange selectQuery $ requestToCountQuery schema <$> readDbRequest
-  servesMatchingContentTypes' = servesMatchingContentTypes (iAccepts apiRequest) (iAction apiRequest)
-
-servesReadRequest :: Monad m => NonnegRange -> Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
-servesReadRequest topLevelRange selectQuery countQuery resp =
-  if topLevelRange == emptyRange
-  then return $ errResponse status416 "HTTP Range error"
-  else servesDbRequest selectQuery countQuery resp
+  servesReadRequest resp =
+    if topLevelRange == emptyRange
+      then return $ errResponse status416 "HTTP Range error"
+      else servesDbRequest selectQuery (requestToCountQuery schema <$> readDbRequest) resp
+  servesContentTypesForRequest = servesMatchingContentTypes (iAccepts apiRequest) (iAction apiRequest)
 
 servesDbRequest :: Monad m => Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
-servesDbRequest selectQuery query resp =
-  case (,) <$> selectQuery <*> query of
+servesDbRequest selectQuery countQuery resp =
+  case (,) <$> selectQuery <*> countQuery of
     Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
     Right (sq,q) -> resp sq q
 
