@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix bug in relation detection when selecting parents two levels up by using the name of the FK - @ruslantalpa
 - Customize content negotiation per route - @begriffs
 - Allow using nulls order without explicit order direction - @steve-chavez
+- Fatal error on postgres unsupported version, format supported version in error message - @steve-chavez
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs
