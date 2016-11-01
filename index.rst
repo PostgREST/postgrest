@@ -23,22 +23,16 @@
 
    auth.rst
 
-.. Authentication
-..   Overview of Role System
-..   JSON Web Tokens
-..     Internal Generation
-..     External Generation
-..   SSL
-..   Custom Validation
-..   Schema Isolation
-..   User Management
-..     Logins
-..     Password Reset
 .. Administration
-..   Block full-table operations
+..   Hardening PostgREST
+..     Block full-table operation
+..     Count header DoS
+..     HTTPS
+..     Rate limiting
 ..   Alternate URL structure
 ..   API Versioning
+..   Schema Reloading
 ..   HTTP Caching
-..   Database Caching
+..   Upgrading
 ..   Debugging
 ..     (viewing db logs)
