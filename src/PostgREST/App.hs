@@ -100,7 +100,7 @@ transactionMode _ = HT.Write
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
   case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) of
-    Left r -> return r
+    Left errorResponse -> return errorResponse
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
