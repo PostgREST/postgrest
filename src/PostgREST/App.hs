@@ -284,14 +284,14 @@ responseContentTypeOrError accepts action =
   where
     contentTypesForRequest =
       case action of
-        ActionRead   -> [CTApplicationJSON, CTTextCSV]
+        ActionRead -> [CTApplicationJSON, CTTextCSV]
         ActionCreate -> [CTApplicationJSON, CTTextCSV]
         ActionUpdate -> [CTApplicationJSON, CTTextCSV]
         ActionDelete -> [CTApplicationJSON, CTTextCSV]
         ActionInvoke -> [CTApplicationJSON]
         ActionInspect -> [CTOpenAPI]
-        ActionInfo   -> [CTTextCSV]
-        _ -> []
+        ActionInfo -> [CTTextCSV]
+        ActionInappropriate -> []
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
