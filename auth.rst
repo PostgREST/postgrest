@@ -1,3 +1,5 @@
+.. _roles:
+
 Overview of Role System
 =======================
 
@@ -196,6 +198,8 @@ An external service like `Auth0 <https://auth0.com/>`_ can do the hard work tran
 To adapt Auth0 to our uses we need to save the database role in `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_ and include the metadata in `private claims <https://auth0.com/docs/jwt#payload>`_ of the generated JWT.
 
 **TODO: add details**
+
+.. _ssl:
 
 SSL
 ---

@@ -23,16 +23,7 @@
 
    auth.rst
 
-.. Administration
-..   Hardening PostgREST
-..     Block full-table operation
-..     Count header DoS
-..     HTTPS
-..     Rate limiting
-..   Alternate URL structure
-..   API Versioning
-..   Schema Reloading
-..   HTTP Caching
-..   Upgrading
-..   Debugging
-..     (viewing db logs)
+.. toctree::
+   :caption: Administration
+
+   admin.rst
