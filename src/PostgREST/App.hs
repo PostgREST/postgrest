@@ -265,7 +265,7 @@ app dbStructure conf apiRequest =
 
       mapSnd f (a, b) = (a, f b)
       readDbRequest = DbRead <$> readRequestOrError (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-      mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
+      mutateDbRequest = DbMutate <$> mutateRequestOrError apiRequest
       selectQuery = requestToQuery schema False <$> readDbRequest
       mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
@@ -424,8 +424,8 @@ readRequestOrError maxRows allRels allProcs apiRequest  =
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
-buildMutateRequest :: ApiRequest -> Either Response MutateRequest
-buildMutateRequest apiRequest = mapLeft (errResponse status400) $
+mutateRequestOrError :: ApiRequest -> Either Response MutateRequest
+mutateRequestOrError apiRequest = mapLeft (errResponse status400) $
   case action of
     ActionCreate -> Insert rootTableName <$> pure payload
     ActionUpdate -> Update rootTableName <$> pure payload <*> filters
