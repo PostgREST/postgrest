@@ -112,7 +112,7 @@ app dbStructure conf apiRequest =
             let (tableTotal, queryTotal, _ , body) = row
             if singular
             then return $ if queryTotal <= 0
-              then responseLBS status404 [] ""
+              then notFound
               else responseLBS status200 [toHeader contentType] (toS body)
             else do
               let (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -222,7 +222,7 @@ app dbStructure conf apiRequest =
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
         (_, _, Just (PayloadParseError e)) ->
-          return $ responseLBS status400 [jsonH] $
+          return $ errResponse status400 $
             toS (formatGeneralError "Cannot parse request payload" (toS e))
 
         _ -> return notFound
@@ -266,13 +266,13 @@ app dbStructure conf apiRequest =
 servesDbRequest :: Monad m => Either Text SqlQuery -> Either Text SqlQuery -> (SqlQuery -> SqlQuery -> m Response) -> m Response
 servesDbRequest selectQuery countQuery resp =
   case (,) <$> selectQuery <*> countQuery of
-    Left e -> return $ responseLBS status400 [toHeader CTApplicationJSON] $ toS e
+    Left e -> return $ errResponse status400 $ toS e
     Right (sq,q) -> resp sq q
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
 responseContentTypeOrError accepts action =
   case action of
-    ActionInappropriate -> Left $ responseLBS status405 [] ""
+    ActionInappropriate -> Left $ errResponse status405 "Unsupported HTTP verb"
     _ -> serves contentTypesForRequest accepts
   where
     contentTypesForRequest =
