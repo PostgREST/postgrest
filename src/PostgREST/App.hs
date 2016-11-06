@@ -264,8 +264,8 @@ app dbStructure conf apiRequest =
         in (status, contentRange)
 
       mapSnd f (a, b) = (a, f b)
-      readDbRequest = DbRead <$> readRequestOrError (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-      mutateDbRequest = DbMutate <$> mutateRequestOrError apiRequest
+      readDbRequest = DbRead <$> readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+      mutateDbRequest = DbMutate <$> mutateRequest apiRequest
       selectQuery = requestToQuery schema False <$> readDbRequest
       mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
@@ -382,12 +382,12 @@ mapLeft :: (a -> b) -> Either a c -> Either b c
 mapLeft f (Left x) = Left $ f x
 mapLeft _ (Right x) = Right x
 
-readRequestOrError :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
-readRequestOrError maxRows allRels allProcs apiRequest  =
+readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
+readRequest maxRows allRels allProcs apiRequest  =
   mapLeft (errResponse status400) $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
-  first formatParserError readRequest
+  first formatParserError parseReadRequest
   where
     (schema, rootTableName) = fromJust $ -- Make it safe
       let target = iTarget apiRequest in
@@ -406,8 +406,8 @@ readRequestOrError maxRows allRels allProcs apiRequest  =
     action :: Action
     action = iAction apiRequest
 
-    readRequest :: Either ParseError ReadRequest
-    readRequest = addFiltersOrdersRanges apiRequest <*>
+    parseReadRequest :: Either ParseError ReadRequest
+    parseReadRequest = addFiltersOrdersRanges apiRequest <*>
       parse (pRequestSelect rootName) ("failed to parse select parameter <<" <> toS selStr <> ">>") (toS selStr)
       where
         selStr = iSelect apiRequest
@@ -424,8 +424,8 @@ readRequestOrError maxRows allRels allProcs apiRequest  =
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
-mutateRequestOrError :: ApiRequest -> Either Response MutateRequest
-mutateRequestOrError apiRequest = mapLeft (errResponse status400) $
+mutateRequest :: ApiRequest -> Either Response MutateRequest
+mutateRequest apiRequest = mapLeft (errResponse status400) $
   case action of
     ActionCreate -> Insert rootTableName <$> pure payload
     ActionUpdate -> Update rootTableName <$> pure payload <*> filters
