@@ -30,8 +30,8 @@ dependencies:
     - mkdir -p .release
     - mkdir -p ~/.docker
 
-    # - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
-    # - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
 
     - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
     - stack install hlint packdeps cabal-install
@@ -43,7 +43,7 @@ dependencies:
     # - apt-get update
     # - apt-get install -y libpq-dev
 
-    # - stack setup
+    - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
     - stack build --fast
     - stack build --fast --test --no-run-tests
