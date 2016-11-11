@@ -14,11 +14,13 @@ machine:
     POSTGREST_SRC: ${POSTGREST_SRC:-${HOME}/postgrest}
     RELEASE_DIR: ${POSTGREST_SRC}/.release
     DB_HOST: ${HOSTNAME}
-
   pre:
     # Update Docker & Docker-Compose
     - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- 1.10.0
     - pip install docker-compose
+    # install stack
+    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
 
 dependencies:
   cache_directories:
@@ -34,9 +36,6 @@ dependencies:
 
     - mkdir -p .release
     - mkdir -p ~/.docker
-
-    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
 
     - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
     - stack install hlint packdeps #cabal-install #we already have cabal installed?
