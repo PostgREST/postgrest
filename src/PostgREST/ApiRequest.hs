@@ -1,4 +1,17 @@
-module PostgREST.ApiRequest where
+{-|
+Module      : PostgREST.ApiRequest
+Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
+-}
+module PostgREST.ApiRequest ( ApiRequest(..)
+                            , ContentType(..)
+                            , Action(..)
+                            , Target(..)
+                            , PreferRepresentation (..)
+                            , mutuallyAgreeable
+                            , toHeader
+                            , userApiRequest
+                            , toMime
+                            ) where
 
 import           Protolude
 
@@ -33,6 +46,7 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
+            | ActionInspect
             | ActionInappropriate
             deriving Eq
 -- | The target db object of a user action
@@ -40,6 +54,7 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetProc  QualifiedIdentifier
             | TargetRoot
             | TargetUnknown [Text]
+            deriving Eq
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
@@ -47,15 +62,17 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 
-ctToHeader :: ContentType -> Header
-ctToHeader ct = (hContentType, toHeader ct <> "; charset=utf-8")
+-- | Convert from ContentType to a full HTTP Header
+toHeader :: ContentType -> Header
+toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
 
-toHeader :: ContentType -> ByteString
-toHeader CTApplicationJSON = "application/json"
-toHeader CTTextCSV         = "text/csv"
-toHeader CTOpenAPI         = "application/openapi+json"
-toHeader CTAny             = "*/*"
-toHeader (CTOther ct)      = ct
+-- | Convert from ContentType to a ByteString representing the mime type
+toMime :: ContentType -> ByteString
+toMime CTApplicationJSON = "application/json"
+toMime CTTextCSV         = "text/csv"
+toMime CTOpenAPI         = "application/openapi+json"
+toMime CTAny             = "*/*"
+toMime (CTOther ct)      = ct
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -104,7 +121,9 @@ userApiRequest schema req reqBody =
                else ActionInappropriate
           else
             case method of
-               "GET"     -> ActionRead
+               "GET"     -> if target == TargetRoot
+                              then ActionInspect
+                              else ActionRead
                "POST"    -> ActionCreate
                "PATCH"   -> ActionUpdate
                "DELETE"  -> ActionDelete
@@ -137,7 +156,7 @@ userApiRequest schema req reqBody =
                       . map (toS *** JSON.String . toS) . parseSimpleQuery
                       $ toS reqBody
         ct ->
-          PayloadParseError $ "Content-Type not acceptable: " <> toHeader ct
+          PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
       relevantPayload = case action of
         ActionCreate -> Just payload
         ActionUpdate -> Just payload
@@ -281,6 +300,3 @@ ensureUniform arr =
   if (V.length objs == V.length arr) && areKeysUniform
     then Just (UniformObjects objs)
     else Nothing
-
-readBSMaybe :: Read a => ByteString -> Maybe a
-readBSMaybe = readMaybe . toS

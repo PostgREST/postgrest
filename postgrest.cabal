@@ -54,6 +54,7 @@ library
                      , configurator
                      , containers
                      , contravariant
+                     , either
                      , hasql
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.4.5.1
