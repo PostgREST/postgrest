@@ -1,26 +1,32 @@
+---
 general:
   artifacts:
     - ".release/postgrest"
 
+
 machine:
   ghc:
     version: 7.4.2
+
   services:
     - docker
+
   environment:
     DOCKER_REPO: ${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
     # Assumes an empty tag means master branch, e.g. latest release
     DOCKER_IMAGE_TAG: ${CIRCLE_TAG:-latest}
     POSTGREST_SRC: ${POSTGREST_SRC:-${HOME}/postgrest}
     RELEASE_DIR: ${POSTGREST_SRC}/.release
-    DB_HOST: ${HOSTNAME}
+
   pre:
     # Update Docker & Docker-Compose
     - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- 1.10.0
     - pip install docker-compose
-    # install stack
+
+    # Install stack
     - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+
 
 dependencies:
   cache_directories:
@@ -28,6 +34,7 @@ dependencies:
     - "~/.docker"
     - "~/.cabal"
     - ".stack-work"
+
   pre:
     - docker info
     - cabal --version
@@ -50,6 +57,7 @@ dependencies:
     - stack build --fast
     - stack build --fast --test --no-run-tests
 
+
 test:
   override:
     - stack test --test-arguments "--skip \"returns a valid openapi\""
@@ -60,9 +68,11 @@ test:
     - stack exec -- cabal check
     - stack haddock --no-haddock-deps
     - stack sdist
+
   post:
     - stack install --allow-different-user --local-bin-path $RELEASE_DIR
     - if [[ -e ${RELEASE_DIR}/postgrest ]]; then echo 'Postgrest binary exists..'; docker-compose build release; else echo "Postgrest binary does NOT exist"; exit 1; fi
+
 
 deployment:
   dockerhub_latest:
