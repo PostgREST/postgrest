@@ -27,6 +27,11 @@ dependencies:
     - "~/.cabal"
     - ".stack-work"
   pre:
+    - docker info
+    - cabal --version
+    - stack --version
+    - ghc --version
+
     - mkdir -p .release
     - mkdir -p ~/.docker
 
@@ -34,15 +39,13 @@ dependencies:
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
 
     - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
-    - stack install hlint packdeps cabal-install
+    - stack install hlint packdeps #cabal-install #we already have cabal installed?
+
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
-    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* # removes cache file for docker image builds
 
   override:
-    # - apt-get update
-    # - apt-get install -y libpq-dev
-
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
     - stack build --fast
