@@ -126,6 +126,51 @@ See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
 and the [guide to routing](http://postgrest.com/api/reading/).
 
+### Docker
+
+The PostgREST docker image expects the config file to be located at `/etc/postgrest/postgrest.conf`.
+It's recommended that you use a volume to persist the config file.
+
+```
+# Note: -p <port on host>:<port in container/application> -v /path/on/host:/path/inside/container
+
+# Run the postgrest image detached in the background
+# Uses host port 3000, mounting the config volume from the host
+docker run -d --name postgrest_container -p 3000:3000 -v /path/to/config/:/etc/postgrest/ begriffs/postgrest
+
+# Get a shell into the container created by the previous command
+docker exec -it postgrest_container /bin/bash
+
+# Shell into a new image bypassing the default Dockerfile RUN
+docker run -it --name postgrest_container -p 3000:3000 -v /path/to/config/:/etc/postgrest/ begriffs/postgrest /bin/bash
+```
+
+#### Example Config
+
+Derived from postgrest --example-config.
+```
+db-uri = "postgres://user:pass@localhost:5432/dbname"
+db-schema = "public"
+db-anon-role = "postgres"
+db-pool = 10
+
+server-host = "*4"
+server-port = 3000
+
+## base url for swagger output
+# server-proxy-uri = ""
+
+## choose a secret to enable JWT auth
+## (use "@filename" to load from separate file)
+# jwt-secret = "foo"
+
+## limit rows in response
+# max-rows = 1000
+
+## stored proc to exec immediately after auth
+# pre-request = "stored_proc_name"
+```
+
 ### Thanks
 
 I'm grateful to the generous project

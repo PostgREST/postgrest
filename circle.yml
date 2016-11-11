@@ -1,19 +1,60 @@
+---
+general:
+  artifacts:
+    - ".release/postgrest"
+
+
+machine:
+  ghc:
+    version: 7.4.2
+
+  services:
+    - docker
+
+  environment:
+    DOCKER_REPO: ${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+    # Assumes an empty tag means master branch, e.g. latest release
+    DOCKER_IMAGE_TAG: ${CIRCLE_TAG:-latest}
+    POSTGREST_SRC: ${POSTGREST_SRC:-${HOME}/postgrest}
+    RELEASE_DIR: ${POSTGREST_SRC}/.release
+
+  pre:
+    # Update Docker & Docker-Compose
+    - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- 1.10.0
+    - pip install docker-compose
+
+    # Install stack
+    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+
+
 dependencies:
   cache_directories:
     - "~/.stack"
+    - "~/.cabal"
     - ".stack-work"
+
   pre:
-    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
-    - sudo apt-get update; sudo apt-get install --only-upgrade binutils
+    - docker info
+    - cabal --version
+    - stack --version
+    - ghc --version
+    - psql --version
+
+    - mkdir -p .release
+
+    - sudo apt-get update && sudo apt-get install --only-upgrade libpq-dev
+    - stack install hlint packdeps
+
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
+
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack install hlint packdeps cabal-install
     - stack build --fast
     - stack build --fast --test --no-run-tests
+
 
 test:
   override:
@@ -25,3 +66,21 @@ test:
     - stack exec -- cabal check
     - stack haddock --no-haddock-deps
     - stack sdist
+
+  post:
+    - mkdir -p $RELEASE_DIR && stack install --allow-different-user --local-bin-path $RELEASE_DIR
+
+deployment:
+  dockerhub_latest:
+    branch: master
+    commands:
+      - scripts/make_docker_release.sh
+      - scripts/docker_push.sh
+
+  dockerhub_version:
+    tag: /^v[0-9]+(\.[0-9]+)*/
+    #owner doesn't like env vars...
+    owner: begriffs
+    commands:
+      - scripts/make_docker_release.sh
+      - scripts/docker_push.sh
