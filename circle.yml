@@ -68,7 +68,7 @@ test:
     - stack sdist
 
   post:
-    - scripts/make_release.sh
+    - scripts/make_docker_release.sh
 
 
 deployment:
