@@ -1,14 +1,47 @@
+general:
+  artifacts:
+    - ".release/postgrest"
+
+machine:
+  ghc:
+    version: 7.4
+  services:
+    - docker
+  environment:
+    DOCKER_REPO: ${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+    # Assumes an empty tag means master branch, e.g. latest release
+    DOCKER_IMAGE_TAG: ${CIRCLE_TAG:-latest}
+    POSTGREST_SRC: ${POSTGREST_SRC:-${HOME}/postgrest}
+    RELEASE_DIR: ${POSTGREST_SRC}/.release
+    DB_HOST: ${HOSTNAME}
+
+  pre:
+    # Update Docker & Docker-Compose
+    - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- 1.10.0
+    - pip install docker-compose
+
 dependencies:
   cache_directories:
     - "~/.stack"
+    - "~/.docker"
+    - "~/.cabal"
     - ".stack-work"
   pre:
-    - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
-    - sudo apt-get update; sudo apt-get install --only-upgrade binutils
+    - mkdir -p .release
+    - mkdir -p ~/.docker
+
+    # - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+    # - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+
+    - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
+    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
   override:
+    # - apt-get update
+    # - apt-get install -y libpq-dev
+
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
     - stack install hlint packdeps cabal-install
@@ -25,3 +58,20 @@ test:
     - stack exec -- cabal check
     - stack haddock --no-haddock-deps
     - stack sdist
+  post:
+    - stack install --allow-different-user --local-bin-path $RELEASE_DIR
+    - if [[ -e ${RELEASE_DIR}/postgrest ]]; then echo 'Postgrest binary exists..'; docker-compose build release; else echo "Postgrest binary does NOT exist"; exit 1; fi
+
+
+deployment:
+  dockerhub_latest:
+    branch: master
+    commands:
+      - scripts/docker_push.sh
+
+  dockerhub_version:
+    tag: /^v[0-9]+(\.[0-9]+)*/
+    #owner doesn't like env vars...
+    owner: jhr007
+    commands:
+      - scripts/docker_push.sh
