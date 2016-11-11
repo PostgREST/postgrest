@@ -4,7 +4,7 @@ general:
 
 machine:
   ghc:
-    version: 7.4
+    version: 8.0.1
   services:
     - docker
   environment:
