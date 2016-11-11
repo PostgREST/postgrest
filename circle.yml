@@ -31,7 +31,6 @@ machine:
 dependencies:
   cache_directories:
     - "~/.stack"
-    - "~/.docker"
     - "~/.cabal"
     - ".stack-work"
 
@@ -42,14 +41,13 @@ dependencies:
     - ghc --version
 
     - mkdir -p .release
-    - mkdir -p ~/.docker
 
     - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
     - stack install hlint packdeps #cabal-install #we already have cabal installed?
+    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* # removes cache file for docker image builds
 
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
-    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* # removes cache file for docker image builds
 
   override:
     - stack setup

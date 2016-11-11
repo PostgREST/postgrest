@@ -1,7 +1,10 @@
 #!/bin/bash
 
-MAX_CACHE_AGE=604800 # seconds
-DOCKER_REPO=${DOCKER_REPO:-postgrest}
+# Manages docker image in circleci caching environment
+# Requires that folder, '~/.docker', is being cached in the circle.yml
+
+MAX_CACHE_AGE=604800 # seconds, 1 week
+DOCKER_REPO=${DOCKER_REPO:-DefaultImage}
 
 if [[ -e ~/.docker/image.tar ]]; then
   stat -c %Y ~/.docker/image.tar;

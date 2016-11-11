@@ -1,7 +1,5 @@
 FROM fpco/stack-build:lts-7.4
 
-LABEL postgrestdev yes
-
 ENV POSTGREST_SRC ${POSTGREST_SRC:-/srv/postgrest}
 
 ENV RELEASE_DIR ${RELEASE_DIR:-${POSTGREST_SRC}/.release}
@@ -11,12 +9,6 @@ WORKDIR ${POSTGREST_SRC}
 COPY . ${POSTGREST_SRC}
 
 RUN scripts/install_deps.sh
-
-RUN cabal update && \
-    stack install --allow-different-user hlint packdeps && \
-    stack build --allow-different-user --fast && \
-    stack build --allow-different-user --fast --test --no-run-tests && \
-    rm -fr $(stack path --dist-dir)
 
 RUN stack install --allow-different-user --local-bin-path /usr/local/bin
 
