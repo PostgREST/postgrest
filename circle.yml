@@ -80,6 +80,6 @@ deployment:
   dockerhub_version:
     tag: /^v[0-9]+(\.[0-9]+)*/
     #owner doesn't like env vars...
-    owner: jhr007
+    owner: begriffs
     commands:
       - scripts/docker_push.sh
