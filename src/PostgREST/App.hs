@@ -15,6 +15,7 @@ import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
+import           Data.Either.Combinators   (mapLeft)
 
 import qualified Hasql.Pool                as P
 import qualified Hasql.Transaction         as HT
@@ -377,10 +378,6 @@ treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` re
   where
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
-
-mapLeft :: (a -> b) -> Either a c -> Either b c
-mapLeft f (Left x) = Left $ f x
-mapLeft _ (Right x) = Right x
 
 readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels allProcs apiRequest  =
