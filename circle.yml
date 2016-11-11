@@ -68,8 +68,7 @@ test:
     - stack sdist
 
   post:
-    - stack install --allow-different-user --local-bin-path $RELEASE_DIR
-    - if [[ -e ${RELEASE_DIR}/postgrest ]]; then echo 'Postgrest binary exists..'; docker-compose build release; else echo "Postgrest binary does NOT exist"; exit 1; fi
+    - scripts/make_release.sh
 
 
 deployment:
