@@ -15,7 +15,7 @@ import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
 import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
-                                                ctToHeader)
+                                                toHeader)
 import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
@@ -37,7 +37,7 @@ runWithClaims conf eClaims app req =
   where
     anon = String . toS $ configAnonRole conf
     unauthed message = responseLBS unauthorized401
-      [ ctToHeader CTApplicationJSON
+      [ toHeader CTApplicationJSON
       , ( "WWW-Authenticate"
         , "Bearer error=\"invalid_token\", " <>
           "error_description=\"" <> message <> "\""

@@ -15,6 +15,7 @@ import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
+import           Data.Either.Combinators   (mapLeft)
 
 import qualified Hasql.Pool                as P
 import qualified Hasql.Transaction         as HT
@@ -38,14 +39,15 @@ import qualified Hasql.Transaction         as H
 
 import qualified Data.HashMap.Strict       as M
 
-import           PostgREST.ApiRequest   (ApiRequest(..), ContentType(..)
-                                            , Action(..), Target(..)
-                                            , PreferRepresentation (..)
-                                            , userApiRequest, mutuallyAgreeable
-                                            , ctToHeader
-                                            , userApiRequest
-                                            , toHeader)
-import           PostgREST.Auth            (tokenJWT, jwtClaims, containsRole)
+import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
+                                        , Action(..), Target(..)
+                                        , PreferRepresentation (..)
+                                        , mutuallyAgreeable
+                                        , toHeader
+                                        , userApiRequest
+                                        , toMime
+                                        )
+import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.Error           (errResponse, pgErrResponse)
@@ -98,212 +100,209 @@ transactionMode _ = HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
-  case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
+  case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) of
+    Left errorResponse -> return errorResponse
+    Right contentType ->
+      case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
-    (ActionRead, TargetIdent qi, Nothing) ->
-      serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
-      case readSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ toS e
-        Right (q, cq) -> do
-          let singular = iPreferSingular apiRequest
-              stm = createReadStatement q cq singular
-                    shouldCount (contentType == CTTextCSV)
-          respondToRange $ do
-            row <- H.query () stm
-            let (tableTotal, queryTotal, _ , body) = row
-            if singular
-            then return $ if queryTotal <= 0
-              then responseLBS status404 [] ""
-              else responseLBS status200 [ctToHeader contentType] (toS body)
-            else do
-              let (status, contentRange) = rangeHeader queryTotal tableTotal
-                  canonical = iCanonicalQS apiRequest
-              return $ responseLBS status
-                [ctToHeader contentType, contentRange,
-                  ("Content-Location",
-                    "/" <> toS (qiName qi) <>
-                      if BS.null canonical then "" else "?" <> toS canonical
-                  )
-                ] (toS body)
+        (ActionRead, TargetIdent qi, Nothing) ->
+          case readSqlParts of
+            Left errorResponse -> return errorResponse
+            Right (q, cq) -> respondToRange $ do
+              let singular = iPreferSingular apiRequest
+                  stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
+              row <- H.query () stm
+              let (tableTotal, queryTotal, _ , body) = row
+              if singular
+              then return $ if queryTotal <= 0
+                then notFound
+                else responseLBS status200 [toHeader contentType] (toS body)
+              else do
+                let (status, contentRange) = rangeHeader queryTotal tableTotal
+                    canonical = iCanonicalQS apiRequest
+                    --TargetIdent qi = iTarget apiRequest
+                return $ responseLBS status
+                  [toHeader contentType, contentRange,
+                    ("Content-Location",
+                      "/" <> toS (qiName qi) <>
+                        if BS.null canonical then "" else "?" <> toS canonical
+                    )
+                  ] (toS body)
 
-    (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table),
-     Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
-      serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
-      case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ toS e
-        Right (sq,mq) -> do
-          let isSingle = (==1) $ V.length rows
-          when (not isSingle && iPreferSingular apiRequest) $
-            HT.sql [P6.q| DO $$
-                       BEGIN RAISE EXCEPTION cardinality_violation
-                       USING MESSAGE =
-                         'plurality=singular specified, but more than one object would be inserted';
-                       END $$;
-                     |]
-          let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-          let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
-          row <- H.query uniform stm
-          let (_, _, fs, body) = extractQueryResult row
-              headers = catMaybes [
-                  if null fs
-                    then Nothing
-                    else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
-                , if iPreferRepresentation apiRequest == Full
-                    then Just $ ctToHeader contentType
-                    else Nothing
-                , Just . contentRangeH 1 0 $
-                    toInteger <$> if shouldCount then Just (V.length rows) else Nothing
-                ]
+        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
+          case mutateSqlParts of
+            Left errorResponse -> return errorResponse
+            Right (sq, mq) -> do
+              let isSingle = (==1) $ V.length rows
+              when (not isSingle && iPreferSingular apiRequest) $
+                HT.sql [P6.q| DO $$
+                          BEGIN RAISE EXCEPTION cardinality_violation
+                          USING MESSAGE =
+                            'plurality=singular specified, but more than one object would be inserted';
+                          END $$;
+                        |]
+              let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+              let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
+              row <- H.query uniform stm
+              let (_, _, fs, body) = extractQueryResult row
+                  headers = catMaybes [
+                      if null fs
+                        then Nothing
+                        else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
+                    , if iPreferRepresentation apiRequest == Full
+                        then Just $ toHeader contentType
+                        else Nothing
+                    , Just . contentRangeH 1 0 $
+                        toInteger <$> if shouldCount then Just (V.length rows) else Nothing
+                    ]
 
-          return . responseLBS status201 headers $
-            if iPreferRepresentation apiRequest == Full
-               then toS body else ""
+              return . responseLBS status201 headers $
+                if iPreferRepresentation apiRequest == Full
+                  then toS body else ""
 
-    (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
-      serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
-      case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ toS e
-        Right (sq,mq) -> do
-          let singular = iPreferSingular apiRequest
-              stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
-          row <- H.query uniform stm
-          let (_, queryTotal, _, body) = extractQueryResult row
-          when (singular && queryTotal > 1) $
-            HT.sql [P6.q| DO $$
-                       BEGIN RAISE EXCEPTION cardinality_violation
-                       USING MESSAGE =
-                         'plurality=singular specified, but more than one object would be updated';
-                       END $$;
-                     |]
-          let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                    (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-              s = case () of _ | queryTotal == 0 -> status404
-                               | iPreferRepresentation apiRequest == Full -> status200
-                               | otherwise -> status204
-          return $ if iPreferRepresentation apiRequest == Full
-            then responseLBS s [ctToHeader contentType, r] (toS body)
-            else responseLBS s [r] ""
+        (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
+          case mutateSqlParts of
+            Left errorResponse -> return errorResponse
+            Right (sq, mq) -> do
+              let singular = iPreferSingular apiRequest
+                  stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
+              row <- H.query uniform stm
+              let (_, queryTotal, _, body) = extractQueryResult row
+              when (singular && queryTotal > 1) $
+                HT.sql [P6.q| DO $$
+                          BEGIN RAISE EXCEPTION cardinality_violation
+                          USING MESSAGE =
+                            'plurality=singular specified, but more than one object would be updated';
+                          END $$;
+                        |]
+              let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                        (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+                  s = case () of _ | queryTotal == 0 -> status404
+                                  | iPreferRepresentation apiRequest == Full -> status200
+                                  | otherwise -> status204
+              return $ if iPreferRepresentation apiRequest == Full
+                then responseLBS s [toHeader contentType, r] (toS body)
+                else responseLBS s [r] ""
 
-    (ActionDelete, TargetIdent qi, Nothing) ->
-      serves [CTApplicationJSON, CTTextCSV] (iAccepts apiRequest) $ \contentType ->
-      case mutateSqlParts of
-        Left e -> return $ responseLBS status400 [jsonH] $ toS e
-        Right (sq,mq) -> do
-          let emptyUniform = UniformObjects V.empty
-              fakeload = PayloadJSON emptyUniform
-              stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
-          row <- H.query emptyUniform stm
-          let (_, queryTotal, _, body) = extractQueryResult row
-              r = contentRangeH 1 0 $
-                    toInteger <$> if shouldCount then Just queryTotal else Nothing
-          return $ if queryTotal == 0
-            then notFound
-            else if iPreferRepresentation apiRequest == Full
-              then responseLBS status200 [ctToHeader contentType, r] (toS body)
-              else responseLBS status204 [r] ""
+        (ActionDelete, TargetIdent qi, Nothing) ->
+          case mutateSqlParts of
+            Left errorResponse -> return errorResponse
+            Right (sq, mq) -> do
+              let emptyUniform = UniformObjects V.empty
+                  fakeload = PayloadJSON emptyUniform
+                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
+              row <- H.query emptyUniform stm
+              let (_, queryTotal, _, body) = extractQueryResult row
+                  r = contentRangeH 1 0 $
+                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+              return $ if queryTotal == 0
+                then notFound
+                else if iPreferRepresentation apiRequest == Full
+                  then responseLBS status200 [toHeader contentType, r] (toS body)
+                  else responseLBS status204 [r] ""
 
-    (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
-      let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
-      case mTable of
-        Nothing -> return notFound
-        Just table ->
-          let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
-          return $ responseLBS status200 [allOrigins, acceptH] ""
+        (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
+          let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
+          case mTable of
+            Nothing -> return notFound
+            Just table ->
+              let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
+              return $ responseLBS status200 [allOrigins, acceptH] ""
 
-    (ActionInvoke, TargetProc qi,
-     Just (PayloadJSON (UniformObjects payload))) -> do
-        let p = V.head payload
-            singular = iPreferSingular apiRequest
+        (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
+          case readSqlParts of
+            Left errorResponse -> return errorResponse
+            Right (q, cq) -> respondToRange $ do
+              let p = V.head payload
+                  singular = iPreferSingular apiRequest
             jwtSecret = secret <$> configJwtSecret conf
             returnType = lookup (qiName qi) $ dbProcs dbStructure
             returnsJWT = fromMaybe False $
               isInfixOf "jwt_claims" . pdReturnType <$> returnType
-        serves [CTApplicationJSON] (iAccepts apiRequest) $ \_ -> case readSqlParts of
-          Left e -> return $ responseLBS status400 [jsonH] $ toS e
-          Right (q,cq) -> respondToRange $ do
-            row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
-            let (tableTotal, queryTotal, body) =
-                  fromMaybe (Just 0, 0, emptyArray) row
-                (status, contentRange) = rangeHeader queryTotal tableTotal
-            return $ case (returnsJWT, jwtSecret) of
-              (True, Nothing) ->
-                errResponse status500 "Server lacks JWT secret"
-              (True, Just s) ->
-                responseLBS status [jsonH, contentRange] $
-                  "{\"token\":\"" <> toS (tokenJWT s body) <> "\"}"
-              (False, _) ->
-                responseLBS status [jsonH, contentRange] (toS . encode $ body)
+              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+              let (tableTotal, queryTotal, body) =
+                    fromMaybe (Just 0, 0, emptyArray) row
+                  (status, contentRange) = rangeHeader queryTotal tableTotal
+              return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
+        (ActionInspect, TargetRoot, Nothing) -> do
+          let host = configHost conf
+              port = toInteger $ configPort conf
+              proxy = pickProxy $ toS <$> configProxyUri conf
+              uri Nothing = ("http", host, port, "/")
+              uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
+              uri' = uri proxy
+              encodeApi ti = encodeOpenAPI (map snd $ dbProcs dbStructure) ti uri'
+          body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
+          return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
-    (ActionRead, TargetRoot, Nothing) -> do
-      let host = configHost conf
-          port = toInteger $ configPort conf
-          proxy = pickProxy $ toS <$> configProxyUri conf
-          uri Nothing = ("http", host, port, "/")
-          uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
-          uri' = uri proxy
-          encodeApi ti = encodeOpenAPI (map snd $ dbProcs dbStructure) ti uri'
-      serves [CTOpenAPI] (iAccepts apiRequest) $ \_ -> do
-        body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
-        return $ responseLBS status200 [openapiH] $ toS body
+        (_, _, Just (PayloadParseError e)) ->
+          return $ errResponse status400 $
+            toS (formatGeneralError "Cannot parse request payload" (toS e))
 
-    (ActionInappropriate, _, _) -> return $ responseLBS status405 [] ""
+        _ -> return notFound
 
-    (_, _, Just (PayloadParseError e)) ->
-      return $ responseLBS status400 [jsonH] $
-        toS (formatGeneralError "Cannot parse request payload" (toS e))
+    where
+      toTableInfo :: [Table] -> [(Table, [Column], [Text])]
+      toTableInfo = map (\t ->
+        let tSchema = tableSchema t
+            tTable = tableName t
+            cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
+            pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
+        in (t, cols, pkeys))
+      notFound = responseLBS status404 [] ""
+      filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
+      filterCol :: Schema -> TableName -> Column -> Bool
+      filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
+      filterCol _ _ _ =  False
+      allPrKeys = dbPrimaryKeys dbStructure
+      allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
+      jsonH = toHeader CTApplicationJSON
+      shouldCount = iPreferCount apiRequest
+      schema = toS $ configSchema conf
+      topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
+      rangeHeader queryTotal tableTotal =
+        let lower = rangeOffset topLevelRange
+            upper = lower + toInteger queryTotal - 1
+            contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
+            status = rangeStatus lower upper (toInteger <$> tableTotal)
+        in (status, contentRange)
 
-    (_, TargetUnknown _, _) -> return notFound
+      mapSnd f (a, b) = (a, f b)
+      readDbRequest = DbRead <$> readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+      mutateDbRequest = DbMutate <$> mutateRequest apiRequest
+      selectQuery = requestToQuery schema False <$> readDbRequest
+      mutateQuery = requestToQuery schema False <$> mutateDbRequest
+      countQuery = requestToCountQuery schema <$> readDbRequest
+      readSqlParts = (,) <$> selectQuery <*> countQuery
+      mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
+      respondToRange response =
+        if topLevelRange == emptyRange
+          then return $ errResponse status416 "HTTP Range error"
+          else response
 
-    (_, _, _) -> return notFound
-
- where
-  toTableInfo :: [Table] -> [(Table, [Column], [Text])]
-  toTableInfo = map (\t ->
-    let tSchema = tableSchema t
-        tTable = tableName t
-        cols = filter (filterCol tSchema tTable) $ dbColumns dbStructure
-        pkeys = map pkName $ filter (filterPk tSchema tTable) allPrKeys
-     in
-        (t, cols, pkeys))
-  notFound = responseLBS status404 [] ""
-  filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
-  filterCol :: Schema -> TableName -> Column -> Bool
-  filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
-  filterCol _ _ _ =  False
-  allPrKeys = dbPrimaryKeys dbStructure
-  allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-  jsonH = ctToHeader CTApplicationJSON
-  openapiH = ctToHeader CTOpenAPI
-  schema = toS $ configSchema conf
-  shouldCount = iPreferCount apiRequest
-  topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
-  mapSnd f (a, b) = (a, f b)
-  readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-  mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-  selectQuery = requestToQuery schema False <$> readDbRequest
-  countQuery = requestToCountQuery schema <$> readDbRequest
-  mutateQuery = requestToQuery schema False <$> mutateDbRequest
-  readSqlParts = (,) <$> selectQuery <*> countQuery
-  mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
-  respondToRange response = if topLevelRange == emptyRange
-                            then return $ errResponse status416 "HTTP Range error"
-                            else response
-  rangeHeader queryTotal tableTotal = let lower = rangeOffset topLevelRange
-                                          upper = lower + toInteger queryTotal - 1
-                                          contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
-                                          status = rangeStatus lower upper (toInteger <$> tableTotal)
-                                      in (status, contentRange)
-
-
-serves :: Monad m => [ContentType] -> [ContentType] ->
-  (ContentType -> m Response) -> m Response
-serves sProduces cAccepts resp =
-  case mutuallyAgreeable sProduces cAccepts of
-    Nothing -> do
-      let failed = intercalate ", " $ map (toS . toHeader) cAccepts
-      return $ errResponse status415 $
-        "None of these Content-Types are available: " <> failed
-    Just ct -> resp ct
+responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
+responseContentTypeOrError accepts action =
+  case action of
+    ActionInappropriate -> Left $ errResponse status405 "Unsupported HTTP verb"
+    _ -> serves contentTypesForRequest accepts
+  where
+    contentTypesForRequest =
+      case action of
+        ActionRead -> [CTApplicationJSON, CTTextCSV]
+        ActionCreate -> [CTApplicationJSON, CTTextCSV]
+        ActionUpdate -> [CTApplicationJSON, CTTextCSV]
+        ActionDelete -> [CTApplicationJSON, CTTextCSV]
+        ActionInvoke -> [CTApplicationJSON]
+        ActionInspect -> [CTOpenAPI]
+        ActionInfo -> [CTTextCSV]
+        ActionInappropriate -> []
+    serves sProduces cAccepts =
+      case mutuallyAgreeable sProduces cAccepts of
+        Nothing -> do
+          let failed = intercalate ", " $ map (toS . toMime) cAccepts
+          Left $ errResponse status415 $
+            "None of these Content-Types are available: " <> failed
+        Just ct -> Right ct
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
 splitKeyValue kv = (k, BS.tail v)
@@ -383,11 +382,12 @@ treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` re
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-buildReadRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Text ReadRequest
-buildReadRequest maxRows allRels allProcs apiRequest  =
+readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
+readRequest maxRows allRels allProcs apiRequest  =
+  mapLeft (errResponse status400) $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
-  first formatParserError readRequest
+  first formatParserError parseReadRequest
   where
     (schema, rootTableName) = fromJust $ -- Make it safe
       let target = iTarget apiRequest in
@@ -406,8 +406,8 @@ buildReadRequest maxRows allRels allProcs apiRequest  =
     action :: Action
     action = iAction apiRequest
 
-    readRequest :: Either ParseError ReadRequest
-    readRequest = addFiltersOrdersRanges apiRequest <*>
+    parseReadRequest :: Either ParseError ReadRequest
+    parseReadRequest = addFiltersOrdersRanges apiRequest <*>
       parse (pRequestSelect rootName) ("failed to parse select parameter <<" <> toS selStr <> ">>") (toS selStr)
       where
         selStr = iSelect apiRequest
@@ -424,12 +424,13 @@ buildReadRequest maxRows allRels allProcs apiRequest  =
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
-buildMutateRequest :: ApiRequest -> Either Text MutateRequest
-buildMutateRequest apiRequest = case action of
-  ActionCreate -> Insert rootTableName <$> pure payload
-  ActionUpdate -> Update rootTableName <$> pure payload <*> filters
-  ActionDelete -> Delete rootTableName <$> filters
-  _        -> Left "Unsupported HTTP verb"
+mutateRequest :: ApiRequest -> Either Response MutateRequest
+mutateRequest apiRequest = mapLeft (errResponse status400) $
+  case action of
+    ActionCreate -> Insert rootTableName <$> pure payload
+    ActionUpdate -> Update rootTableName <$> pure payload <*> filters
+    ActionDelete -> Delete rootTableName <$> filters
+    _        -> Left "Unsupported HTTP verb"
   where
     action = iAction apiRequest
     payload = fromJust $ iPayload apiRequest

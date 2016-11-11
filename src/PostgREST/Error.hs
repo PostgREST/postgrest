@@ -12,17 +12,17 @@ import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
-import           PostgREST.ApiRequest      (ctToHeader, ContentType(..))
+import           PostgREST.ApiRequest      (toHeader, ContentType(..))
 
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status
-  [ctToHeader CTApplicationJSON]
+  [toHeader CTApplicationJSON]
   (toS $ T.concat ["{\"message\":\"",message,"\"}"])
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
   let status = httpStatus authed e
-      jsonType = ctToHeader CTApplicationJSON
+      jsonType = toHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]

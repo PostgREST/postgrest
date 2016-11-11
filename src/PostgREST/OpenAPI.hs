@@ -20,14 +20,14 @@ import           Protolude hiding              (concat, (&), Proxy, get, interca
 
 import           Data.Swagger
 
-import           PostgREST.ApiRequest        (ContentType(..), toHeader)
+import           PostgREST.ApiRequest        (ContentType(..), toMime)
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
                                               Proxy(..), ProcDescription(..))
 
 makeMimeList :: [ContentType] -> MimeList
-makeMimeList cs = MimeList $ map (fromString . toS . toHeader) cs
+makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
 
 toSwaggerType :: Text -> SwaggerType t
 toSwaggerType "text"      = SwaggerString
