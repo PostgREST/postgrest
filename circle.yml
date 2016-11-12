@@ -68,13 +68,13 @@ test:
     - stack sdist
 
   post:
-    - scripts/make_docker_release.sh
-
+    - mkdir -p $RELEASE_DIR && stack install --allow-different-user --local-bin-path $RELEASE_DIR
 
 deployment:
   dockerhub_latest:
     branch: master
     commands:
+      - scripts/make_docker_release.sh
       - scripts/docker_push.sh
 
   dockerhub_version:
@@ -82,4 +82,5 @@ deployment:
     #owner doesn't like env vars...
     owner: begriffs
     commands:
+      - scripts/make_docker_release.sh
       - scripts/docker_push.sh
