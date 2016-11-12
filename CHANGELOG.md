@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Custom request validation with `--pre-request` argument - @begriffs
 - Ability to order by jsonb keys - @steve-chavez
 - Ability to specify offset for a deeper level - @ruslantalpa
+- Release and development docker builds via docker-compose and related scripts @jhr007
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa
@@ -34,6 +35,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Remove default JWT secret - @begriffs
 - Use GUC request.jwt.claim.foo rather than postgrest.claims.foo - @begriffs
 - Use config file rather than command line arguments - @begriffs
+- Dockerfile should use config file and make docker hub images @jhr007
+- Update CirclCI build script to push a docker image for master and tagged versions @jhr007
 
 ## [0.3.2.0] - 2016-06-10
 

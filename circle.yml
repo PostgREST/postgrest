@@ -39,12 +39,12 @@ dependencies:
     - cabal --version
     - stack --version
     - ghc --version
+    - psql --version
 
     - mkdir -p .release
 
-    - sudo apt-get update && sudo apt-get install --only-upgrade binutils libpq-dev
-    - stack install hlint packdeps #cabal-install #we already have cabal installed?
-    # - apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* # removes cache file for docker image builds
+    - sudo apt-get update && sudo apt-get install --only-upgrade libpq-dev
+    - stack install hlint packdeps
 
     - createuser --superuser --no-password postgrest_test
     - createdb -O postgrest_test -U ubuntu postgrest_test
