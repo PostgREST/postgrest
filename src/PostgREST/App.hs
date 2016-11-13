@@ -215,7 +215,8 @@ app dbStructure conf apiRequest =
             Right (q, cq) -> respondToRange $ do
               let p = V.head payload
                   singular = iPreferSingular apiRequest
-              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+                  paramsAsJson = iPreferSingleJsonParameter apiRequest
+              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsJson)
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, emptyArray) row
                   (status, contentRange) = rangeHeader queryTotal tableTotal

@@ -238,8 +238,8 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
-callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params selectQuery countQuery _ countTotal isSingle =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
@@ -258,7 +258,9 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
           |]
           -- FROM (select * from {sourceCTEName} {limitF range}) t;
     countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
-    _args = intercalate "," $ map _assignment (HM.toList params)
+    _args = if paramsAsJson
+                then insertableValueWithType "json" $ JSON.Object params
+                else intercalate "," $ map _assignment (HM.toList params)
     _procName = pgFmtLit $ qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
@@ -497,6 +499,9 @@ emptyOnNull val x = if null x then "" else val
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
+
+insertableValueWithType :: Text -> JSON.Value -> SqlFragment
+insertableValueWithType t v = (<> "::" <> t) . pgFmtLit $ unquoted v
 
 whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe
