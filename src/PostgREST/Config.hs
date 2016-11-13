@@ -34,6 +34,7 @@ import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
+import           Options.Applicative.Help    (renderHelp, parserHelp)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
 
@@ -85,8 +86,11 @@ prettyVersion = intercalate "." $ map show $ versionBranch version
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = do
+  -- First read the command line arguments
   args <- customExecParser parserPrefs opts
 
+  -- Regardless of any other args, a request for example
+  -- config file will provide that on stdout and then quit
   when (caExample args) $ do
     putStrLn (
       [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
@@ -112,8 +116,21 @@ readOptions = do
           |]::Text)
     exitSuccess
 
+  -- Why not make the `-c` option required in optparse-applicative
+  -- rather than doing this check ourselvse? Because otherwise passing
+  -- `--example-config` alone would be considered a usage error.
+  configPath <-
+    case caConfig args of
+      "" -> do
+        putStrLn . renderHelp 72 $ parserHelp parserPrefs argParser
+        exitFailure
+      p -> return p
+
+  -- Load all the actual configuration parameters from a config file.
+  -- That's where the bulk of configuration happens, not in command
+  -- line arguments.
   conf <- catch
-    (C.load [C.Required $ caConfig args])
+    (C.load [C.Required configPath])
     configNotfoundHint
 
   handle missingKeyHint $ do
@@ -167,10 +184,13 @@ data CmdArgs = CmdArgs {
 
 argParser :: Parser CmdArgs
 argParser = CmdArgs <$>
-  (toS <$> strOption
-    (short 'c' <> metavar "filename" <>
-      help "Path to configuration file")) <*>
-  switch (long "example-config" <> help "output an example config file")
+  strOption
+    (short 'c' <> metavar "filename"
+      <> value ""
+      <> help "Path to configuration file")
+  <*> switch
+    (long "example-config"
+      <> help "output an example config file")
 
 
 data PgVersion = PgVersion {
