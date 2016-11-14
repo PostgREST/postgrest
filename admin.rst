@@ -137,6 +137,42 @@ See the :ref:`ssl` section of the authentication guide.
 Rate Limiting
 -------------
 
+Foo
+
+Debugging
+=========
+
+The PostgREST server logs basic request information to stdout, including the requester's IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
+
+A great way to inspect incoming HTTP requests including headers and query params is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
+
+.. code:: bash
+
+  # sudo access is necessary for watching the network
+  sudo ngrep -d lo0 port 3000
+
+The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the `Configuration`_ section. The ngrep output isn't particularly pretty, but it's legible. Note the `Server` response header as well which identifies the version of server. This is important when submitting bug reports.
+
+Once you've verified that requests are as you expect, you can get more information about the server operations by watching the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below. Find `postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command `show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
+
+.. code:: sql
+
+  # send logs where the collector can access them
+  log_destination = 'stderr'
+
+  # collect stderr output to log files
+  logging_collector = on
+
+  # save logs in pg_log/ under the pg data directory
+  log_directory = 'pg_log'
+
+  # (optional) new log file per day
+  log_filename = 'postgresql-%Y-%m-%d.log'
+
+  # log every kind of SQL statement
+  log_statement = 'all'
+
+Restart the database and watch the log file in real-time to understand how HTTP requests are being translated into SQL commands.
 
 .. Administration
 ..   Alternate URL structure
@@ -144,5 +180,3 @@ Rate Limiting
 ..   Schema Reloading
 ..   HTTP Caching
 ..   Upgrading
-..   Debugging
-..     (viewing db logs)
