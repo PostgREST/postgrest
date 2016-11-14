@@ -183,6 +183,22 @@ To refresh the cache without restarting the PostgREST server, send its process a
 
 For the future we're investigating ways to keep the cache updated without an intrusive setup procedure or system resource usage.
 
+Alternate URL Structure
+=======================
+
+As discussed in `Singular or Plural`_, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like `/people/1`. It would be specified instead as
+
+.. code:: http
+
+  GET /people?id=eq.1
+  Prefer: plurality=singular
+
+This allows compound primary keys and makes the intent for singular response independent of a URL convention. However for any table which uses a simple primary key you can use Nginx to simulate the familiar URL convention.
+
+.. code:: nginx
+
+  nginx code here
+
 .. Administration
 ..   Alternate URL structure
 ..   API Versioning

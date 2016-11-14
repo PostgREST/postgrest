@@ -11,7 +11,7 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, POST, PATCH
 
 .. note::
 
-  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about Embedding.
+  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about `Resource Embedding`_.
 
 Filtering
 ---------
