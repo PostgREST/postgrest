@@ -188,7 +188,7 @@ Next write a stored procedure that returns the token. The one below returns a to
     ) r;
   $$;
 
-PostgREST exposes this function to clients via a POST request to `/rpc/jwt_token`.
+PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`.
 
 JWT from Auth0
 ~~~~~~~~~~~~~~
