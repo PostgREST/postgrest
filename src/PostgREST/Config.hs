@@ -28,7 +28,7 @@ import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
 import qualified Data.Configurator.Types     as C
 import           Data.List                   (lookup)
-import           Data.Text                   (strip, intercalate)
+import           Data.Text                   (strip, intercalate, lines)
 import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
 import           Network.Wai
@@ -36,6 +36,7 @@ import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<>))
 
 import           Protolude hiding            (intercalate
                                              , (<>))
@@ -85,35 +86,11 @@ prettyVersion = intercalate "." $ map show $ versionBranch version
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
 readOptions = do
-  args <- customExecParser parserPrefs opts
-
-  when (caExample args) $ do
-    putStrLn (
-      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-          |db-schema = "public"
-          |db-anon-role = "postgres"
-          |db-pool = 10
-          |
-          |server-host = "*4"
-          |server-port = 3000
-          |
-          |## base url for swagger output
-          |# server-proxy-uri = ""
-          |
-          |## choose a secret to enable JWT auth
-          |## (use "@filename" to load from separate file)
-          |# jwt-secret = "foo"
-          |
-          |## limit rows in response
-          |# max-rows = 1000
-          |
-          |## stored proc to exec immediately after auth
-          |# pre-request = "stored_proc_name"
-          |]::Text)
-    exitSuccess
-
+  -- First read the config file path from command line
+  cfgPath <- customExecParser parserPrefs opts
+  -- Now read the actual config file
   conf <- catch
-    (C.load [C.Required $ caConfig args])
+    (C.load [C.Required cfgPath])
     configNotfoundHint
 
   handle missingKeyHint $ do
@@ -136,21 +113,24 @@ readOptions = do
           cJwtSec cPool cMaxRows cReqCheck False
 
  where
-  opts = info (helper <*> argParser) $
+  opts = info (helper <*> pathParser) $
            fullDesc
            <> progDesc (
-             "PostgREST "
-             <> toS prettyVersion
-             <> " / create a REST API to an existing Postgres database"
-           )
+               "PostgREST "
+               <> toS prettyVersion
+               <> " / create a REST API to an existing Postgres database"
+             )
+           <> footerDoc (Just $
+               text "Example Config File:"
+               <> nest 2 (hardline <> exampleCfg)
+             )
+
   parserPrefs = prefs showHelpOnError
 
   configNotfoundHint :: IOError -> IO a
   configNotfoundHint e = do
-    hPutStrLn stderr $ intercalate "\n" [
-      "Cannot open config file:",
-      "\t" <> show e,
-      "\nUse the --help flag to learn how to fix this."]
+    hPutStrLn stderr $
+      "Cannot open config file:\n\t" <> show e
     exitFailure
 
   missingKeyHint :: C.KeyError -> IO a
@@ -160,18 +140,36 @@ readOptions = do
       "Try the --example-config option to see how to configure PostgREST."
     exitFailure
 
-data CmdArgs = CmdArgs {
-    caConfig :: FilePath
-  , caExample :: Bool
-  }
+  exampleCfg :: Doc
+  exampleCfg = vsep . map (text . toS) . lines $
+    [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+        |db-schema = "public"
+        |db-anon-role = "postgres"
+        |db-pool = 10
+        |
+        |server-host = "*4"
+        |server-port = 3000
+        |
+        |## base url for swagger output
+        |# server-proxy-uri = ""
+        |
+        |## choose a secret to enable JWT auth
+        |## (use "@filename" to load from separate file)
+        |# jwt-secret = "foo"
+        |
+        |## limit rows in response
+        |# max-rows = 1000
+        |
+        |## stored proc to exec immediately after auth
+        |# pre-request = "stored_proc_name"
+        |]
 
-argParser :: Parser CmdArgs
-argParser = CmdArgs <$>
-  (toS <$> strOption
-    (short 'c' <> metavar "filename" <>
-      help "Path to configuration file")) <*>
-  switch (long "example-config" <> help "output an example config file")
 
+pathParser :: Parser FilePath
+pathParser =
+  strArgument $
+    metavar "FILENAME" <>
+    help "Path to configuration file"
 
 data PgVersion = PgVersion {
   pgvNum  :: Int32
