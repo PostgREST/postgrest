@@ -609,6 +609,20 @@ spec = do
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|2|]
 
+    context "expects a single json object" $ do
+      it "does not expand posted json into parameters" $
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
+          [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
+
+      it "accepts parameters from an html form" $ do
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
+          ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
+           "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
+          [json| { "integer": 7, "double": 2.71828, "varchar" : "forms are fun"
+                 , "boolean":false, "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
+
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`
