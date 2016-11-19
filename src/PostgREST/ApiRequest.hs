@@ -97,7 +97,7 @@ data ApiRequest = ApiRequest {
   -- | If client wants first row as raw object
   , iPreferSingular :: Bool
   -- | Pass all parameters as a single json object to a stored procedure
-  , iPreferSingleJsonParameter :: Bool
+  , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
   , iPreferCount :: Bool
   -- | Filters on the result ("id", "eq.10")
@@ -174,7 +174,7 @@ userApiRequest schema req reqBody =
   , iPayload = relevantPayload
   , iPreferRepresentation = representation
   , iPreferSingular = singular
-  , iPreferSingleJsonParameter = asJson
+  , iPreferSingleObjectParameter = singleObject
   , iPreferCount = not singular && hasPrefer "count=exact"
   , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
   , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
@@ -200,7 +200,7 @@ userApiRequest schema req reqBody =
         split :: BS.ByteString -> [Text]
         split = map T.strip . T.split (==',') . toS
   singular        = hasPrefer "plurality=singular"
-  asJson          = hasPrefer "rpcParams=asJson"
+  singleObject    = hasPrefer "params=single-object"
   representation
     | hasPrefer "return=representation" = Full
     | hasPrefer "return=minimal" = None
