@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- New `Prefer` header value: `params=single-object` to pass all form values as a single json object to a stored procedure - @dsimunic
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
 - Ability to generate an OpenAPI spec behind a proxy- @hudayou
 - Ability to set addresses to listen on - @hudayou

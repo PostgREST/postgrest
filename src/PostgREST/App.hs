@@ -215,11 +215,9 @@ app dbStructure conf apiRequest =
             Right (q, cq) -> respondToRange $ do
               let p = V.head payload
                   singular = iPreferSingular apiRequest
-            jwtSecret = secret <$> configJwtSecret conf
-            returnType = lookup (qiName qi) $ dbProcs dbStructure
-            returnsJWT = fromMaybe False $
-              isInfixOf "jwt_claims" . pdReturnType <$> returnType
-              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular)
+                  paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
+              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsSingleObject)
+
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, emptyArray) row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
