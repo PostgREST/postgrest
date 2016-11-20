@@ -501,7 +501,8 @@ insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
 insertableValueWithType :: Text -> JSON.Value -> SqlFragment
-insertableValueWithType t v = (<> "::" <> t) . pgFmtLit $ unquoted v
+insertableValueWithType t v =
+  pgFmtLit (unquoted v) <> "::" <> t
 
 whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe
