@@ -615,7 +615,7 @@ spec = do
           [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
           [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
 
-      it "accepts parameters from an html form" $ do
+      it "accepts parameters from an html form" $ 
         request methodPost "/rpc/singlejsonparam"
           [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
           ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
