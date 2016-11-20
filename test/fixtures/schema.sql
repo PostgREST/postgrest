@@ -323,6 +323,16 @@ CREATE FUNCTION callcounter() RETURNS bigint
 $_$;
 
 --
+-- Name: singlejsonparam(json); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION singlejsonparam(single_param json) RETURNS json
+    LANGUAGE sql
+    AS $_$
+    SELECT single_param;
+$_$;
+
+--
 -- Name: test_empty_rowset(); Type: FUNCTION; Schema: test; Owner: -
 --
 

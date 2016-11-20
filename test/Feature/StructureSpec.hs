@@ -33,7 +33,7 @@ spec = do
         r <- simpleBody <$> get "/"
         let ref = r ^? key "paths" . key "/rpc/varied_arguments"
                      . key "post"  . key "parameters"
-                     . nth 0       . key "schema"
+                     . nth 1       . key "schema"
                      . key "$ref"  . _String
             args = r ^? key "definitions" . key "(rpc) varied_arguments"
 
