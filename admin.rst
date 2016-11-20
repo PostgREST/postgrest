@@ -1,11 +1,11 @@
 Configuration
 =============
 
-The PostgREST server reads a configuration file to determine information about the database and how to serve client requests. There is no predefined location for this file, you must specify it with the `-c` option when starting the server:
+The PostgREST server reads a configuration file to determine information about the database and how to serve client requests. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
 
 .. code:: bash
 
-  postgrest -c /path/to/postgrest.conf
+  postgrest /path/to/postgrest.conf
 
 The file must contain a set of key value pairs. At minimum you must include these keys:
 
