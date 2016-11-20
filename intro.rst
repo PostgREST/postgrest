@@ -10,8 +10,8 @@ Declarative Programming
 
 It's easier to ask PostgreSQL to join data for you and let its query planner figure out the details than to loop through rows yourself. It's easier to assign permissions to db objects than to add guards in controllers. (This is especially true for cascading permissions in data dependencies.) It's easier set constraints than to litter code with sanity checks.
 
-Leakproof Abstraction
----------------------
+Leak-proof Abstraction
+----------------------
 
 There is no ORM involved. Creating new views happens in SQL with known performance implications. A database administrator can now create an API from scratch with no custom programming.
 
@@ -28,7 +28,7 @@ PostgREST has a focused scope. It works well with other tools like Nginx. This f
 Shared Improvements
 -------------------
 
-As with any open source project, we all gain from features and fixes in the tool. It's more beneficial than improvements locked inextricably within custom codebases.
+As with any open source project, we all gain from features and fixes in the tool. It's more beneficial than improvements locked inextricably within custom code-bases.
 
 Ecosystem
 #########

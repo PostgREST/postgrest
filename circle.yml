@@ -1,0 +1,8 @@
+dependencies:
+  pre:
+    - sudo apt-get install aspell
+
+test:
+  override:
+    - cat *.rst | grep -v '^\(\.\.\|  \)' | sed 's/`.*`//g' |aspell -d en_US -p ./postgrest.dict list | tee misspellings
+    - test ! -s misspellings

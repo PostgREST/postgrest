@@ -92,7 +92,7 @@ However it's very easy to delete the **entire table** by omitting the query para
 
 This can happen accidentally such as by switching a request from a GET to a DELETE. To protect against accidental operations use the `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ PostgreSQL extension. It raises an error if UPDATE or DELETE are executed without specifying conditions.
 
-This does not protect against malicious actions, since someone can add a url parameter that does not affect the resultset. To prevent this you must turn to database permissions, forbidding the wrong people from deleting rows, and using `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ if finer access control is required.
+This does not protect against malicious actions, since someone can add a url parameter that does not affect the result set. To prevent this you must turn to database permissions, forbidding the wrong people from deleting rows, and using `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ if finer access control is required.
 
 Count-Header DoS
 ----------------
@@ -138,7 +138,7 @@ Foo
 Debugging
 =========
 
-The PostgREST server logs basic request information to stdout, including the requester's IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
+The PostgREST server logs basic request information to stdout, including the requesting IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
 
 A great way to inspect incoming HTTP requests including headers and query params is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
 

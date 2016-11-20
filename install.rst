@@ -21,7 +21,7 @@ Build from Source
 
   We discourage building and using PostgREST on **Alpine Linux** because of a reported GHC memory leak on that platform.
 
-When a prebuilt binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. `Stack <https://github.com/commercialhaskell/stack>`_ makes it easy. It will install any necessary Haskell dependencies on your system.
+When a pre-built binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. `Stack <https://github.com/commercialhaskell/stack>`_ makes it easy. It will install any necessary Haskell dependencies on your system.
 
 * `Install Stack <http://docs.haskellstack.org/en/stable/README.html#how-to-install>`_ for your platform
 * Install Library Dependencies

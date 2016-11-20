@@ -61,7 +61,7 @@ You can use row-level security to flexibly restrict visibility and access for th
     message_body    TEXT
   );
 
-We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with anyone else's name.
+We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
 
 PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
 
@@ -310,7 +310,7 @@ In the previous section we created an internal table to store user information. 
 Logins
 ~~~~~~
 
-As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hardcoded in this example to a secure secret of your choosing.
+As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure secret of your choosing.
 
 .. code:: plpgsql
 

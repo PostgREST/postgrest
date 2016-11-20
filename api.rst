@@ -146,7 +146,7 @@ Note that the server may respond with fewer if unable to meet your request:
 
 You may also request open-ended ranges for an offset with no limit, e.g. :code:`Range: 10-`.
 
-The other way to request a limit or offset is with query pamameters. For example
+The other way to request a limit or offset is with query parameters. For example
 
 .. code-block:: http
 
