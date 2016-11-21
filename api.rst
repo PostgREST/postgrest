@@ -175,6 +175,24 @@ Note that the larger the table the slower this query runs in the database. The s
 Response Format
 ---------------
 
+PostgREST uses proper HTTP content negotiation (`RFC7231 <https://tools.ietf.org/html/rfc7231#section-5.3>`_) to deliver the desired representation of a resource. That is to say the same API endpoint can respond respond in different formats like JSON or CSV depending on the client request.
+
+Use the Accept request header to specify the acceptable format (or formats) for the response:
+
+.. code-block:: http
+
+  GET /people HTTP/1.1
+  Accept: application/json
+
+The current possibilities are
+
+* \*/\*
+* text/csv
+* application/json
+* application/openapi+json
+
+The server will default to JSON for API endpoints and OpenAPI on the root.
+
 Singular or Plural
 ------------------
 
