@@ -196,6 +196,33 @@ The server will default to JSON for API endpoints and OpenAPI on the root.
 Singular or Plural
 ------------------
 
+By default PostgREST returns all JSON results in an array, even when there is only one item. For example, requesting `/items?id=eq.1` returns
+
+.. code:: json
+
+  [
+    { "id": 1 }
+  ]
+
+This can be inconvenient for client code. To return the first result as an object unenclosed by an array, Include a Prefer request header
+
+.. code:: http
+
+  GET /items?id=eq.1 HTTP/1.1
+  Prefer: plurality=singular
+
+This returns
+
+.. code:: json
+
+  { "id": 1 }
+
+.. note::
+
+  Many APIs distinguish plural and singular resources using a special nested URL convention e.g. `/stories` vs `/stories/1`. Why do we use `/stories?id=eq.1`? It is because a singlular resource is (for us) a row determined by a primary key, and primary keys can be compound (meaning defined across more than one column). The more familiar nested urls consider only a degenerate case of simple and overwhelmingly numeric primary keys. These so-called artificial keys are often introduced automatically by Object Relational Mapping libraries.
+
+  Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
+
 OpenAPI Support
 ===============
 
