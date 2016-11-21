@@ -173,15 +173,15 @@ Restart the database and watch the log file in real-time to understand how HTTP 
 Schema Reloading
 ----------------
 
-PostgREST's database schema cache is a common source of confusion. Detecting the foreign key relationships between tables (including how those relationships pass through views) is an involved query. To speed up regular API requests the server caches the database schema on startup. However if the schema changes while the server is running it results in a stale cache and failures for :ref:`Resource Embedding`_ in API requests.
+Users are often confused by PostgREST's database schema cache. It is present because detecting foreign key relationships between tables (including how those relationships pass through views) is necessary, but costly. API requests consult the schema cache as part of :ref:`Resource Embedding`_. However if the schema changes while the server is running it results in a stale cache and leads to errors claiming that no relations are detected between tables.
 
-To refresh the cache without restarting the PostgREST server, send its process a SIGHUP signal:
+To refresh the cache without restarting the PostgREST server, send the server process a SIGHUP signal:
 
 .. code:: bash
 
   killall -HUP postgrest
 
-For the future we're investigating ways to keep the cache updated without an intrusive setup procedure or system resource usage.
+In the future we're investigating ways to keep the cache updated without manual intervention.
 
 Alternate URL Structure
 =======================
