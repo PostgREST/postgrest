@@ -13,8 +13,8 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, POST, PATCH
 
   Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about `Resource Embedding`_.
 
-Filtering
----------
+Horizontal Filtering (Rows)
+---------------------------
 
 You can filter result rows by adding conditions on columns, each condition a query string parameter. For instance, to return people aged under 13 years old:
 
@@ -53,6 +53,17 @@ not           negates another operator, see below
 To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2`.
 
 For more complicated filters (such as those involving condition 1 OR condition 2) you will have to create a new view in the database.
+
+Vertical Filtering (Columns)
+----------------------------
+
+When certain columns are wide (such as those holding binary data), it is more efficient for the server to withold them in a response. The client can specify which columns are required using the `select` parameter.
+
+.. code-block:: http
+
+  GET /people?select=fname,age
+
+The default is `*`, meaning all columns. This value will become more important below in :ref:`Resource Embedding`_.
 
 .. _computed_cols:
 
@@ -106,12 +117,6 @@ If you care where nulls are sorted, add nullsfirst or nullslast:
 .. code-block:: http
 
   GET /people?order=age.desc.nullslast HTTP/1.1
-
-To order the embedded items, you need to specify the tree path for the order param like so.
-
-.. code-block:: http
-
-  GET /projects?select=id,name,tasks{id,name}&order=id.asc&tasks.order=name.asc HTTP/1.1
 
 You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output.
 
@@ -219,7 +224,7 @@ This returns
 
 .. note::
 
-  Many APIs distinguish plural and singular resources using a special nested URL convention e.g. `/stories` vs `/stories/1`. Why do we use `/stories?id=eq.1`? It is because a singlular resource is (for us) a row determined by a primary key, and primary keys can be compound (meaning defined across more than one column). The more familiar nested urls consider only a degenerate case of simple and overwhelmingly numeric primary keys. These so-called artificial keys are often introduced automatically by Object Relational Mapping libraries.
+  Many APIs distinguish plural and singular resources using a special nested URL convention e.g. `/stories` vs `/stories/1`. Why do we use `/stories?id=eq.1`? The answer is because a singlular resource is (for us) a row determined by a primary key, and primary keys can be compound (meaning defined across more than one column). The more familiar nested urls consider only a degenerate case of simple and overwhelmingly numeric primary keys. These so-called artificial keys are often introduced automatically by Object Relational Mapping libraries.
 
   Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
 
@@ -232,6 +237,68 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 
 Resource Embedding
 ==================
+
+In addition to providing RESTful routes for each table and view, PostgREST allows related resources to be included together in a single API call. This reduces the need for multiple API requests. The server uses foreign keys to determine which tables and views can be returned together. For example, consider a database of films and their awards:
+
+.. image:: _static/film.png
+
+As seen above in `vertical_filtering`_ we can request the titles of all films like this:
+
+.. code-block:: http
+
+  GET /films?select=title HTTP/1.1
+
+This might return something like
+
+.. code-block:: json
+
+  [
+    { "title": "Workers Leaving The Lumière Factory In Lyon" },
+    { "title": "The Dickson Experimental Sound Film" },
+    { "title": "The Haunted Castle" }
+  ]
+
+However because a foreign key constraint exists between Films and Directors, we can request this information be included:
+
+.. code-block:: http
+
+  GET /films?select=title,directors{last_name} HTTP/1.1
+
+Which would return
+
+.. code-block:: json
+
+  [
+    { "title": "Workers Leaving The Lumière Factory In Lyon",
+      "directors": {
+        "last_name": "Lumière"
+      }
+    },
+    { "title": "The Dickson Experimental Sound Film",
+      "directors": {
+        "last_name": "Dickson"
+      }
+    },
+    { "title": "The Haunted Castle",
+      "directors": {
+        "last_name": "Méliès"
+      }
+    }
+  ]
+
+PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directories with each including the list of their Films.
+
+To order the embedded items, you need to specify the tree path in the order parameter. For instance
+
+.. code-block:: http
+
+  GET /films?select=*,actors{*}&actors.order=last_name,first_name HTTP/1.1
+
+Note this does not change the order of the Films, but of the list of Actors in each Film.
+
+.. note::
+
+  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`Schema Reloading`_.
 
 Query Limitations
 =================
