@@ -31,6 +31,7 @@ main :: IO ()
 main = do
   setupDb
 
+  testDbConn <- mkTestDbConn
   pool <- P.acquire (3, 10, toS testDbConn)
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate
@@ -39,11 +40,11 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ either (panic.show) id result
-  let withApp = return $ postgrest testCfg refDbStructure pool getTime
-      ltdApp  = return $ postgrest testLtdRowsCfg refDbStructure pool getTime
-      unicodeApp = return $ postgrest testUnicodeCfg refDbStructure pool getTime
-      proxyApp = return $ postgrest testProxyCfg refDbStructure pool getTime
-      noJwtApp = return $ postgrest testCfgNoJWT refDbStructure pool getTime
+  let withApp = return $ postgrest (testCfg testDbConn) refDbStructure pool getTime
+      ltdApp  = return $ postgrest (testLtdRowsCfg testDbConn) refDbStructure pool getTime
+      unicodeApp = return $ postgrest (testUnicodeCfg testDbConn) refDbStructure pool getTime
+      proxyApp = return $ postgrest (testProxyCfg testDbConn) refDbStructure pool getTime
+      noJwtApp = return $ postgrest (testCfgNoJWT testDbConn) refDbStructure pool getTime
 
   hspec $ do
     mapM_ (beforeAll_ resetDb . before withApp) specs

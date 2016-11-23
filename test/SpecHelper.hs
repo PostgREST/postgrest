@@ -2,6 +2,9 @@ module SpecHelper where
 
 import Control.Monad (void)
 
+import qualified System.IO.Error as E
+import System.Environment (getEnv)
+
 import Codec.Binary.Base64.String (encode)
 import Data.CaseInsensitive (CI(..))
 import Data.List (lookup)
@@ -46,27 +49,35 @@ validateOpenApiResponse headers = do
        in
        D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
 
-testDbConn :: Text
-testDbConn = "postgres://postgrest_test_authenticator@localhost:5432/postgrest_test"
+getEnvVarWithDefault :: Text -> Text -> IO Text
+getEnvVarWithDefault var def = do
+  varValue <- getEnv (toS var) `E.catchIOError` const (return $ toS def)
+  return $ toS varValue
 
-testCfg :: AppConfig
-testCfg =
+mkTestDbConn :: IO Text
+mkTestDbConn = do
+  host <- getEnvVarWithDefault "PGHOST" "localhost"
+  port <- getEnvVarWithDefault "PGPORT" "5432"
+  return $ "postgres://postgrest_test_authenticator@" <> host <> ":" <> port <> "/postgrest_test"
+
+testCfg :: Text -> AppConfig
+testCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.switch_role") True
 
-testCfgNoJWT :: AppConfig
-testCfgNoJWT =
+testCfgNoJWT :: Text -> AppConfig
+testCfgNoJWT testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 Nothing 10 Nothing Nothing True
 
-testUnicodeCfg :: AppConfig
-testUnicodeCfg =
+testUnicodeCfg :: Text -> AppConfig
+testUnicodeCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
-testLtdRowsCfg :: AppConfig
-testLtdRowsCfg =
+testLtdRowsCfg :: Text -> AppConfig
+testLtdRowsCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 (Just 2) Nothing True
 
-testProxyCfg :: AppConfig
-testProxyCfg =
+testProxyCfg :: Text -> AppConfig
+testProxyCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
 setupDb :: IO ()
