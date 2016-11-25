@@ -269,8 +269,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'PostgREST', u'PostgREST Documentation',
-     author, 'PostgREST', 'One line description of project.',
-     'Miscellaneous'),
+     author, 'PostgREST', 'REST API for any PostgreSQL database',
+     'Web'),
 ]
 
 # Documents to append as an appendix to all manuals.
