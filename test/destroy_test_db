@@ -1,0 +1,60 @@
+#! /bin/bash
+if [ -z "$1" ]
+  then
+    echo "Please supply the connection uri for the user with create database privileges"
+    exit -1
+fi
+
+if [ -z "$2" ]
+  then
+    echo "Please supply the test database name"
+    exit -1
+fi
+if [[ $1 != postgres://* ]]
+then
+  echo "Please use a valid connection URI (https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347)"
+  exit -1
+fi
+
+BASEPATH=$( cd $(dirname $0) ; pwd -P )
+#Remove database path from the connection uri
+URI=$(echo $1 | cut -d'/' -f1-3)
+DB=$2
+
+# plpgsql does not like psql variables, easier to pull this part off with bash variables
+PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -q >/dev/null <<EOF
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE pg_stat_activity.datname = '$DB'
+  AND pid <> pg_backend_pid();
+
+drop database if exists "$DB";
+
+-- Find all test users that were members of role 'postgrest_test_author'--that way we don't have to know the 
+-- test user name (in case it was auto-generated).
+DO \$\$
+DECLARE
+    mem text;
+BEGIN
+    FOR mem IN 
+      SELECT pg_get_userbyid(member)
+      FROM pg_roles r 
+      JOIN pg_auth_members m
+      ON m.roleid = r.oid 
+      WHERE rolname = 'postgrest_test_author' 
+    LOOP
+      EXECUTE 'drop role '|| mem || ';';
+    END LOOP;
+END \$\$;
+
+DO \$\$
+DECLARE
+    r text;
+BEGIN
+    FOR r IN 
+      VALUES('postgrest_test_author'),('postgrest_test_anonymous'),('postgrest_test_default_role')
+    LOOP    
+      EXECUTE 'drop role if exists '|| r || ';';
+    END LOOP;
+END \$\$;
+EOF

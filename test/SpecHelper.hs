@@ -54,12 +54,6 @@ getEnvVarWithDefault var def = do
   varValue <- getEnv (toS var) `E.catchIOError` const (return $ toS def)
   return $ toS varValue
 
-mkTestDbConn :: IO Text
-mkTestDbConn = do
-  host <- getEnvVarWithDefault "PGHOST" "localhost"
-  port <- getEnvVarWithDefault "PGPORT" "5432"
-  return $ "postgres://postgrest_test_authenticator@" <> host <> ":" <> port <> "/postgrest_test"
-
 testCfg :: Text -> AppConfig
 testCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.switch_role") True
@@ -80,22 +74,12 @@ testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
-setupDb :: IO ()
-setupDb = do
-  void $ readProcess "psql" ["-d", "postgres", "-a", "-f", "test/fixtures/database.sql"] []
-  void $ readProcess "psql" ["-d", "postgrest_test", "-a", "-c", "CREATE EXTENSION IF NOT EXISTS pgcrypto;"] []
-  loadFixture "roles"
-  loadFixture "schema"
-  loadFixture "jwt"
-  loadFixture "privileges"
-  resetDb
+resetDb :: Text -> IO ()
+resetDb dbConn = loadFixture dbConn "data"
 
-resetDb :: IO ()
-resetDb = loadFixture "data"
-
-loadFixture :: FilePath -> IO()
-loadFixture name =
-  void $ readProcess "psql" ["-U", "postgrest_test", "-d", "postgrest_test", "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+loadFixture :: Text -> FilePath -> IO()
+loadFixture dbConn name =
+  void $ readProcess "psql" [toS dbConn, "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
