@@ -71,9 +71,30 @@ PostgREST is a fast way to construct a RESTful API. Its default behavior is grea
 
 The first step is to create an Nginx configuration file that proxies requests to an underlying PostgREST server.
 
-.. code::
+.. code:: nginx
 
-  Nginx code goes here.
+  http {
+    ...
+    # upstream configuration
+    upstream postgrest {
+      server localhost:3000;
+      keepalive 64;
+    }
+    ...
+    server {
+      ...
+      # expose to the outside world
+      location /api {
+        default_type  application/json;
+        proxy_hide_header Content-Location;
+        add_header Content-Location  /api$upstream_http_content_location;
+        proxy_set_header  Connection "";
+        proxy_http_version 1.1;
+        proxy_pass http://postgrest/;
+      }
+      ...
+    }
+  }
 
 Block Full-Table Operations
 ---------------------------
