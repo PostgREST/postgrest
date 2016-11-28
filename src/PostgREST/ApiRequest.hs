@@ -162,15 +162,13 @@ userApiRequest schema req reqBody
       ct ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
-  action =
-    if isTargetingProc
-      then ActionInvoke
-      else
-        case method of
+  action = case method of
             "GET"     -> if target == TargetRoot
                           then ActionInspect
                           else ActionRead
-            "POST"    -> ActionCreate
+            "POST"    -> if isTargetingProc
+                          then ActionInvoke
+                          else ActionCreate
             "PATCH"   -> ActionUpdate
             "DELETE"  -> ActionDelete
             "OPTIONS" -> ActionInfo
