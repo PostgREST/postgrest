@@ -182,9 +182,7 @@ userApiRequest schema req reqBody
               other         -> TargetUnknown other
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke]
   relevantPayload = if shouldParsePayload
-                      then case payload of
-                        Right p -> Just p
-                        Left _ -> Nothing
+                      then rightToMaybe payload
                       else Nothing
   path            = pathInfo req
   method          = requestMethod req
