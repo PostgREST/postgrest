@@ -95,8 +95,8 @@ postgrest conf refDbStructure pool getTime =
           (HT.run handleReq HT.ReadCommitted txMode)
         respond resp
   where
-    respondToError error =
-      case error of
+    respondToError err =
+      case err of
         ErrorActionInappropriate -> errResponse status405 "Bad Request"
         ErrorInvalidBody errorMessage -> errResponse status400 $ toS errorMessage
 
@@ -286,10 +286,7 @@ app dbStructure conf apiRequest =
           else response
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
-responseContentTypeOrError accepts action =
-  case action of
-    ActionInappropriate -> Left $ errResponse status405 "Unsupported HTTP verb"
-    _ -> serves contentTypesForRequest accepts
+responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
   where
     contentTypesForRequest =
       case action of
@@ -300,7 +297,6 @@ responseContentTypeOrError accepts action =
         ActionInvoke -> [CTApplicationJSON]
         ActionInspect -> [CTOpenAPI]
         ActionInfo -> [CTTextCSV]
-        ActionInappropriate -> []
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
