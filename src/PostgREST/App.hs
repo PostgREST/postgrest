@@ -128,7 +128,7 @@ app dbStructure conf apiRequest =
                     )
                   ] (toS body)
 
-        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
+        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -142,7 +142,7 @@ app dbStructure conf apiRequest =
                         |]
               let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
               let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
-              row <- H.query uniform stm
+              row <- H.query payload stm
               let (_, _, fs, body) = extractQueryResult row
                   headers = catMaybes [
                       if null fs
@@ -159,13 +159,13 @@ app dbStructure conf apiRequest =
                 if iPreferRepresentation apiRequest == Full
                   then toS body else ""
 
-        (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
+        (ActionUpdate, TargetIdent qi, Just payload) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let singular = iPreferSingular apiRequest
                   stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
-              row <- H.query uniform stm
+              row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
               when (singular && queryTotal > 1) $
                 HT.sql [P6.q| DO $$
@@ -187,10 +187,9 @@ app dbStructure conf apiRequest =
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let emptyUniform = UniformObjects V.empty
-                  fakeload = PayloadJSON emptyUniform
-                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
-              row <- H.query emptyUniform stm
+              let emptyPayload = PayloadJSON V.empty
+                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
+              row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
@@ -208,7 +207,7 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
+        (ActionInvoke, TargetProc qi, Just (PayloadJSON payload)) ->
           case readSqlParts of
             Left errorResponse -> return errorResponse
             Right (q, cq) -> do

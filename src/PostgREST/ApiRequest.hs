@@ -36,8 +36,8 @@ import           Network.Wai.Parse         (parseHttpAccept)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
 import           Data.Ranged.Boundaries
 import           PostgREST.Types           (QualifiedIdentifier (..),
-                                            Schema, Payload(..),
-                                            UniformObjects(..))
+                                            Schema,
+                                            PayloadJSON(..))
 import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection, emptyRange)
 
 type RequestBody = BL.ByteString
@@ -95,7 +95,7 @@ data ApiRequest = ApiRequest {
   -- | Content types the client will accept, [CTAny] if no Accept header
   , iAccepts :: [ContentType]
   -- | Data sent by client and used for mutation actions
-  , iPayload :: Maybe Payload
+  , iPayload :: Maybe PayloadJSON
   -- | If client wants created items echoed back
   , iPreferRepresentation :: PreferRepresentation
   -- | If client wants first row as raw object
@@ -150,13 +150,13 @@ userApiRequest schema req reqBody
       CTApplicationJSON ->
           either Left (\val -> case ensureUniform (pluralize val) of
             Nothing -> Left "All object keys must match"
-            Just json -> Right $ PayloadJSON json) (JSON.eitherDecode reqBody)
+            Just json -> Right json) (JSON.eitherDecode reqBody)
       CTTextCSV ->
           either Left (\val -> case ensureUniform (csvToJson val) of
             Nothing -> Left "All lines must have same number of fields"
-            Just json -> Right $ PayloadJSON json) (CSV.decodeByName reqBody)
+            Just json -> Right json) (CSV.decodeByName reqBody)
       CTOther "application/x-www-form-urlencoded" ->
-        Right . PayloadJSON . UniformObjects . V.singleton . M.fromList
+        Right . PayloadJSON . V.singleton . M.fromList
                     . map (toS *** JSON.String . toS) . parseSimpleQuery
                     $ toS reqBody
       ct ->
@@ -283,8 +283,8 @@ pluralize (JSON.Array arr)    = arr
 pluralize _                   = V.empty
 
 -- | Test that Array contains only Objects having the same keys
--- and if so mark it as UniformObjects
-ensureUniform :: JSON.Array -> Maybe UniformObjects
+-- and if so mark it as PayloadJSON
+ensureUniform :: JSON.Array -> Maybe PayloadJSON
 ensureUniform arr =
   let objs :: V.Vector JSON.Object
       objs = foldr -- filter non-objects, map to raw objects
@@ -297,5 +297,5 @@ ensureUniform arr =
       areKeysUniform = all (==canonicalKeys) keysPerObj in
 
   if (V.length objs == V.length arr) && areKeysUniform
-    then Just (UniformObjects objs)
+    then Just (PayloadJSON objs)
     else Nothing
