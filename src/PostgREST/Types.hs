@@ -110,9 +110,7 @@ unUniformObjects (UniformObjects objs) = objs
 -- | When Hasql supports the COPY command then we can
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.
-data Payload = PayloadJSON UniformObjects
-             | PayloadParseError ByteString
-             deriving (Show, Eq)
+data Payload = PayloadJSON UniformObjects deriving (Show, Eq)
 
 data Proxy = Proxy {
   proxyScheme     :: Text

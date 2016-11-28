@@ -15,8 +15,6 @@ module PostgREST.ApiRequest ( ApiRequest(..)
                             ) where
 
 import           Protolude
-import           Data.Ranged.Ranges        (emptyRange)
-
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS (c2w)
@@ -40,7 +38,7 @@ import           Data.Ranged.Boundaries
 import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema, Payload(..),
                                             UniformObjects(..))
-import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection)
+import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection, emptyRange)
 
 type RequestBody = BL.ByteString
 
@@ -122,8 +120,8 @@ data ApiRequest = ApiRequest {
 userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema req reqBody
   | isTargetingProc && method /= "POST" = Left ErrorActionInappropriate
-  | topLevelRange == emptyRange = Left $ ErrorInvalidRange
-  | isError = Left $ ErrorInvalidBody payloadError
+  | topLevelRange == emptyRange = Left ErrorInvalidRange
+  | shouldParsePayload && isLeft payload = either (Left . ErrorInvalidBody . toS) undefined payload
   | otherwise = Right ApiRequest {
       iAction = action
       , iTarget = target
@@ -147,32 +145,22 @@ userApiRequest schema req reqBody
       }
  where
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
-  payloadError = case payload of
-      PayloadParseError err -> err
-      _ -> ""
-  isError = case relevantPayload of
-      Just (PayloadParseError _) -> True
-      _ -> False
   payload =
     case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
       CTApplicationJSON ->
-        either (PayloadParseError . toS)
-          (\val -> case ensureUniform (pluralize val) of
-            Nothing -> PayloadParseError "All object keys must match"
-            Just json -> PayloadJSON json)
-          (JSON.eitherDecode reqBody)
+          either Left (\val -> case ensureUniform (pluralize val) of
+            Nothing -> Left "All object keys must match"
+            Just json -> Right $ PayloadJSON json) (JSON.eitherDecode reqBody)
       CTTextCSV ->
-        either (PayloadParseError . toS)
-          (\val -> case ensureUniform (csvToJson val) of
-            Nothing -> PayloadParseError "All lines must have same number of fields"
-            Just json -> PayloadJSON json)
-          (CSV.decodeByName reqBody)
+          either Left (\val -> case ensureUniform (csvToJson val) of
+            Nothing -> Left "All lines must have same number of fields"
+            Just json -> Right $ PayloadJSON json) (CSV.decodeByName reqBody)
       CTOther "application/x-www-form-urlencoded" ->
-        PayloadJSON . UniformObjects . V.singleton . M.fromList
+        Right . PayloadJSON . UniformObjects . V.singleton . M.fromList
                     . map (toS *** JSON.String . toS) . parseSimpleQuery
                     $ toS reqBody
       ct ->
-        PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
+        Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
   action =
     if isTargetingProc
@@ -194,11 +182,12 @@ userApiRequest schema req reqBody
               ["rpc", proc] -> TargetProc
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
-  relevantPayload = case action of
-    ActionCreate -> Just payload
-    ActionUpdate -> Just payload
-    ActionInvoke -> Just payload
-    _            -> Nothing
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke]
+  relevantPayload = if shouldParsePayload
+                      then case payload of
+                        Right p -> Just p
+                        Left _ -> Nothing
+                      else Nothing
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req
