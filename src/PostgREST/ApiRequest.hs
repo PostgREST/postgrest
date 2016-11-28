@@ -3,6 +3,7 @@ Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 module PostgREST.ApiRequest ( ApiRequest(..)
+                            , ApiRequestError(..)
                             , ContentType(..)
                             , Action(..)
                             , Target(..)
@@ -62,6 +63,8 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 
+data ApiRequestError = ErrorActionInappropriate | ErrorInvalidBody ByteString deriving (Show, Eq)
+
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header
 toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
@@ -113,84 +116,86 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Request -> RequestBody -> ApiRequest
-userApiRequest schema req reqBody =
-  let action =
-        if isTargetingProc
-          then
-            if method == "POST"
-               then ActionInvoke
-               else ActionInappropriate
-          else
-            case method of
-               "GET"     -> if target == TargetRoot
-                              then ActionInspect
-                              else ActionRead
-               "POST"    -> ActionCreate
-               "PATCH"   -> ActionUpdate
-               "DELETE"  -> ActionDelete
-               "OPTIONS" -> ActionInfo
-               _         -> ActionInappropriate
-      target = case path of
-                 []            -> TargetRoot
-                 [table]       -> TargetIdent
-                                  $ QualifiedIdentifier schema table
-                 ["rpc", proc] -> TargetProc
-                                  $ QualifiedIdentifier schema proc
-                 other         -> TargetUnknown other
-      payload = case decodeContentType
-                     . fromMaybe "application/json"
-                     $ lookupHeader "content-type" of
-        CTApplicationJSON ->
-          either (PayloadParseError . toS)
-            (\val -> case ensureUniform (pluralize val) of
-              Nothing -> PayloadParseError "All object keys must match"
-              Just json -> PayloadJSON json)
-            (JSON.eitherDecode reqBody)
-        CTTextCSV ->
-          either (PayloadParseError . toS)
-            (\val -> case ensureUniform (csvToJson val) of
-              Nothing -> PayloadParseError "All lines must have same number of fields"
-              Just json -> PayloadJSON json)
-            (CSV.decodeByName reqBody)
-        CTOther "application/x-www-form-urlencoded" ->
-          PayloadJSON . UniformObjects . V.singleton . M.fromList
-                      . map (toS *** JSON.String . toS) . parseSimpleQuery
-                      $ toS reqBody
-        ct ->
-          PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
-      relevantPayload = case action of
-        ActionCreate -> Just payload
-        ActionUpdate -> Just payload
-        ActionInvoke -> Just payload
-        _            -> Nothing in
-
-  ApiRequest {
-    iAction = action
-  , iTarget = target
-  , iRange = ranges
-  , iAccepts = fromMaybe [CTAny] $
-      map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
-  , iPayload = relevantPayload
-  , iPreferRepresentation = representation
-  , iPreferSingular = singular
-  , iPreferSingleObjectParameter = singleObject
-  , iPreferCount = not singular && hasPrefer "count=exact"
-  , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
-  , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
-  , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
-  , iCanonicalQS = toS $ urlEncodeVars
-     . L.sortBy (comparing fst)
-     . map (join (***) toS)
-     . parseSimpleQuery
-     $ rawQueryString req
-  , iJWT = tokenStr
-  }
-
+userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest schema req reqBody
+  | isTargetingProc && method /= "POST" = Left ErrorActionInappropriate
+  | isError = Left $ ErrorInvalidBody payloadError
+  | otherwise = Right ApiRequest {
+      iAction = action
+      , iTarget = target
+      , iRange = ranges
+      , iAccepts = fromMaybe [CTAny] $
+        map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
+      , iPayload = relevantPayload
+      , iPreferRepresentation = representation
+      , iPreferSingular = singular
+      , iPreferSingleObjectParameter = singleObject
+      , iPreferCount = not singular && hasPrefer "count=exact"
+      , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
+      , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+      , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
+      , iCanonicalQS = toS $ urlEncodeVars
+        . L.sortBy (comparing fst)
+        . map (join (***) toS)
+        . parseSimpleQuery
+        $ rawQueryString req
+      , iJWT = tokenStr
+      }
  where
+  isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
+  payloadError = case payload of
+      PayloadParseError err -> err
+      _ -> ""
+  isError = case relevantPayload of
+      Just (PayloadParseError _) -> True
+      _ -> False
+  payload =
+    case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
+      CTApplicationJSON ->
+        either (PayloadParseError . toS)
+          (\val -> case ensureUniform (pluralize val) of
+            Nothing -> PayloadParseError "All object keys must match"
+            Just json -> PayloadJSON json)
+          (JSON.eitherDecode reqBody)
+      CTTextCSV ->
+        either (PayloadParseError . toS)
+          (\val -> case ensureUniform (csvToJson val) of
+            Nothing -> PayloadParseError "All lines must have same number of fields"
+            Just json -> PayloadJSON json)
+          (CSV.decodeByName reqBody)
+      CTOther "application/x-www-form-urlencoded" ->
+        PayloadJSON . UniformObjects . V.singleton . M.fromList
+                    . map (toS *** JSON.String . toS) . parseSimpleQuery
+                    $ toS reqBody
+      ct ->
+        PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
+  action =
+    if isTargetingProc
+      then ActionInvoke
+      else
+        case method of
+            "GET"     -> if target == TargetRoot
+                          then ActionInspect
+                          else ActionRead
+            "POST"    -> ActionCreate
+            "PATCH"   -> ActionUpdate
+            "DELETE"  -> ActionDelete
+            "OPTIONS" -> ActionInfo
+            _         -> ActionInappropriate
+  target = case path of
+              []            -> TargetRoot
+              [table]       -> TargetIdent
+                              $ QualifiedIdentifier schema table
+              ["rpc", proc] -> TargetProc
+                              $ QualifiedIdentifier schema proc
+              other         -> TargetUnknown other
+  relevantPayload = case action of
+    ActionCreate -> Just payload
+    ActionUpdate -> Just payload
+    ActionInvoke -> Just payload
+    _            -> Nothing
   path            = pathInfo req
   method          = requestMethod req
-  isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   hdrs            = requestHeaders req
   qParams         = [(toS k, v)|(k,v) <- queryString req]
   lookupHeader    = flip lookup hdrs

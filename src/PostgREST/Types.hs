@@ -2,7 +2,6 @@ module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
 import           Data.Aeson
-import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
 import           Data.Tree
 import qualified Data.Vector          as V
@@ -112,7 +111,7 @@ unUniformObjects (UniformObjects objs) = objs
 -- have a special payload just for CSV, but until
 -- then CSV is converted to a JSON array.
 data Payload = PayloadJSON UniformObjects
-             | PayloadParseError BS.ByteString
+             | PayloadParseError ByteString
              deriving (Show, Eq)
 
 data Proxy = Proxy {
