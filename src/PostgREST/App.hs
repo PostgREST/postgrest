@@ -240,10 +240,6 @@ app dbStructure conf apiRequest =
           body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
-        (_, _, Just (PayloadParseError e)) ->
-          return $ errResponse status400 $
-            toS (formatGeneralError "Cannot parse request payload" (toS e))
-
         _ -> return notFound
 
     where
