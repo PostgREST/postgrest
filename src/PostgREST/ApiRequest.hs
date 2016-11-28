@@ -48,7 +48,6 @@ data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
             | ActionInspect
-            | ActionInappropriate
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
@@ -181,7 +180,7 @@ userApiRequest schema req reqBody
             "PATCH"   -> ActionUpdate
             "DELETE"  -> ActionDelete
             "OPTIONS" -> ActionInfo
-            _         -> ActionInappropriate
+            _         -> ActionInspect
   target = case path of
               []            -> TargetRoot
               [table]       -> TargetIdent
