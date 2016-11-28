@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (pgErrResponse, errResponse, prettyUsageError) where
+module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
@@ -12,7 +12,14 @@ import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
-import           PostgREST.ApiRequest      (toHeader, ContentType(..))
+import           PostgREST.ApiRequest      (toHeader, ContentType(..), ApiRequestError(..))
+
+apiRequestErrResponse :: ApiRequestError -> Response
+apiRequestErrResponse err =
+  case err of
+    ErrorActionInappropriate -> errResponse HT.status405 "Bad Request"
+    ErrorInvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
+    ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
 
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status

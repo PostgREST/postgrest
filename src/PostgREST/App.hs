@@ -39,7 +39,6 @@ import qualified Hasql.Transaction         as H
 import qualified Data.HashMap.Strict       as M
 
 import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
-                                        , ApiRequestError(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         , mutuallyAgreeable
@@ -50,7 +49,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error           (errResponse, pgErrResponse)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
 import           PostgREST.Middleware
@@ -82,7 +81,7 @@ postgrest conf refDbStructure pool getTime =
     dbStructure <- readIORef refDbStructure
 
     case userApiRequest (configSchema conf) req body of
-      Left err -> respond $ respondToError err
+      Left err -> respond $ apiRequestErrResponse err
       Right apiRequest -> do
         let eClaims = jwtClaims
               (secret <$> configJwtSecret conf) (iJWT apiRequest) time
@@ -93,12 +92,6 @@ postgrest conf refDbStructure pool getTime =
         resp <- either (pgErrResponse authed) id <$> P.use pool
           (HT.run handleReq HT.ReadCommitted txMode)
         respond resp
-  where
-    respondToError err =
-      case err of
-        ErrorActionInappropriate -> errResponse status405 "Bad Request"
-        ErrorInvalidBody errorMessage -> errResponse status400 $ toS errorMessage
-        ErrorInvalidRange -> errResponse status416 "HTTP Range error"
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
