@@ -15,6 +15,7 @@ module PostgREST.ApiRequest ( ApiRequest(..)
                             ) where
 
 import           Protolude
+import           Data.Ranged.Ranges        (emptyRange)
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
@@ -62,7 +63,10 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTAny | CTOther BS.ByteString deriving Eq
 
-data ApiRequestError = ErrorActionInappropriate | ErrorInvalidBody ByteString deriving (Show, Eq)
+data ApiRequestError = ErrorActionInappropriate
+                     | ErrorInvalidBody ByteString
+                     | ErrorInvalidRange
+                     deriving (Show, Eq)
 
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header
@@ -118,6 +122,7 @@ data ApiRequest = ApiRequest {
 userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema req reqBody
   | isTargetingProc && method /= "POST" = Left ErrorActionInappropriate
+  | topLevelRange == emptyRange = Left $ ErrorInvalidRange
   | isError = Left $ ErrorInvalidBody payloadError
   | otherwise = Right ApiRequest {
       iAction = action
@@ -168,6 +173,7 @@ userApiRequest schema req reqBody
                     $ toS reqBody
       ct ->
         PayloadParseError $ "Content-Type not acceptable: " <> toMime ct
+  topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
   action =
     if isTargetingProc
       then ActionInvoke

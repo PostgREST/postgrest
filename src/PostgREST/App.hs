@@ -11,7 +11,6 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
-import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
@@ -99,6 +98,7 @@ postgrest conf refDbStructure pool getTime =
       case err of
         ErrorActionInappropriate -> errResponse status405 "Bad Request"
         ErrorInvalidBody errorMessage -> errResponse status400 $ toS errorMessage
+        ErrorInvalidRange -> errResponse status416 "HTTP Range error"
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
@@ -115,7 +115,7 @@ app dbStructure conf apiRequest =
         (ActionRead, TargetIdent qi, Nothing) ->
           case readSqlParts of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> respondToRange $ do
+            Right (q, cq) -> do
               let singular = iPreferSingular apiRequest
                   stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
               row <- H.query () stm
@@ -219,7 +219,7 @@ app dbStructure conf apiRequest =
         (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
           case readSqlParts of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> respondToRange $ do
+            Right (q, cq) -> do
               let p = V.head payload
                   singular = iPreferSingular apiRequest
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
@@ -276,10 +276,6 @@ app dbStructure conf apiRequest =
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
-      respondToRange response =
-        if topLevelRange == emptyRange
-          then return $ errResponse status416 "HTTP Range error"
-          else response
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
 responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
