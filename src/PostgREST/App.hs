@@ -40,6 +40,7 @@ import qualified Hasql.Transaction         as H
 import qualified Data.HashMap.Strict       as M
 
 import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
+                                        , ApiRequestError(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         , mutuallyAgreeable
@@ -81,17 +82,23 @@ postgrest conf refDbStructure pool getTime =
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
-    let schema = toS $ configSchema conf
-        apiRequest = userApiRequest schema req body
-        eClaims = jwtClaims
-          (secret <$> configJwtSecret conf) (iJWT apiRequest) time
-        authed = containsRole eClaims
-        handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-        txMode = transactionMode $ iAction apiRequest
+    case userApiRequest (configSchema conf) req body of
+      Left err -> respond $ respondToError err
+      Right apiRequest -> do
+        let eClaims = jwtClaims
+              (secret <$> configJwtSecret conf) (iJWT apiRequest) time
+            authed = containsRole eClaims
+            handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
+            txMode = transactionMode $ iAction apiRequest
 
-    resp <- either (pgErrResponse authed) id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted txMode)
-    respond resp
+        resp <- either (pgErrResponse authed) id <$> P.use pool
+          (HT.run handleReq HT.ReadCommitted txMode)
+        respond resp
+  where
+    respondToError error =
+      case error of
+        ErrorActionInappropriate -> errResponse status405 "Bad Request"
+        ErrorInvalidBody errorMessage -> errResponse status400 $ toS errorMessage
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
