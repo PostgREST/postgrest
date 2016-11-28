@@ -28,6 +28,12 @@ TEST_USER_NAME=${3:-postgrest_test_$DB}
 # Otherwise make sure to provide the correct password for the existing user
 TEST_USER_PASS=${4:-$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)a}
 
+PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -q >/dev/null -c 'select rolcreatedb from pg_authid where rolname = current_user;' 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "ERROR: Please specify the user with 'Create DB' permissions, and ensure that the default database for the username exists."
+  exit 1
+fi
+
 # plpgsql does not like psql variables, easier to pull this part off with bash variables
 PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -q >/dev/null <<EOF
 SELECT pg_terminate_backend(pg_stat_activity.pid)
