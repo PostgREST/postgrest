@@ -80,18 +80,17 @@ postgrest conf refDbStructure pool getTime =
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
-    case userApiRequest (configSchema conf) req body of
-      Left err -> respond $ apiRequestErrResponse err
+    response <- case userApiRequest (configSchema conf) req body of
+      Left err -> return $ apiRequestErrResponse err
       Right apiRequest -> do
-        let eClaims = jwtClaims
-              (secret <$> configJwtSecret conf) (iJWT apiRequest) time
+        let jwtSecret = secret <$> configJwtSecret conf
+            eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
             txMode = transactionMode $ iAction apiRequest
-
-        resp <- either (pgErrResponse authed) id <$> P.use pool
-          (HT.run handleReq HT.ReadCommitted txMode)
-        respond resp
+        response <- P.use pool $ HT.run handleReq HT.ReadCommitted txMode
+        return $ either (pgErrResponse authed) identity response
+    respond response
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
