@@ -113,7 +113,6 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
                         PreferRepresentation -> [Text] -> Bool -> Payload ->
                         H.Query UniformObjects (Maybe ResultsWithCount)
-createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
 createWriteStatement _ _ mutateQuery _ None
                      _ _ (PayloadJSON (UniformObjects _)) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
@@ -322,8 +321,6 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
