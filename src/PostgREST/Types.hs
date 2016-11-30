@@ -2,7 +2,6 @@ module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
 import           Data.Aeson
-import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
 import           Data.Tree
 import qualified Data.Vector          as V
@@ -102,18 +101,11 @@ data Relation = Relation {
 
 -- | An array of JSON objects that has been verified to have
 -- the same keys in every object
-newtype UniformObjects = UniformObjects (V.Vector Object)
+newtype PayloadJSON = PayloadJSON (V.Vector Object)
   deriving (Show, Eq)
 
-unUniformObjects :: UniformObjects -> V.Vector Object
-unUniformObjects (UniformObjects objs) = objs
-
--- | When Hasql supports the COPY command then we can
--- have a special payload just for CSV, but until
--- then CSV is converted to a JSON array.
-data Payload = PayloadJSON UniformObjects
-             | PayloadParseError BS.ByteString
-             deriving (Show, Eq)
+unPayloadJSON :: PayloadJSON -> V.Vector Object
+unPayloadJSON (PayloadJSON objs) = objs
 
 data Proxy = Proxy {
   proxyScheme     :: Text
@@ -133,9 +125,9 @@ type NodeName = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type Path = [Text]
 data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, qPayload::Payload }
+data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON }
                  | Delete { in_::TableName, where_::[Filter] }
-                 | Update { in_::TableName, qPayload::Payload, where_::[Filter] } deriving (Show, Eq)
+                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode

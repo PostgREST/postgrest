@@ -83,12 +83,12 @@ decodeStandardMay =
   HD.maybeRow standardRow
 
 {-| JSON and CSV payloads from the client are given to us as
-    UniformObjects (objects who all have the same keys),
+    PayloadJSON (objects who all have the same keys),
     and we turn this into an old fasioned JSON array
 -}
-encodeUniformObjs :: HE.Params UniformObjects
+encodeUniformObjs :: HE.Params PayloadJSON
 encodeUniformObjs =
-  contramap (JSON.Array . V.map JSON.Object . unUniformObjects) (HE.value HE.json)
+  contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
@@ -111,11 +111,10 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | otherwise = asJsonF
 
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
-                        PreferRepresentation -> [Text] -> Bool -> Payload ->
-                        H.Query UniformObjects (Maybe ResultsWithCount)
-createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
+                        PreferRepresentation -> [Text] -> Bool -> PayloadJSON ->
+                        H.Query PayloadJSON (Maybe ResultsWithCount)
 createWriteStatement _ _ mutateQuery _ None
-                     _ _ (PayloadJSON (UniformObjects _)) =
+                     _ _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -123,7 +122,7 @@ createWriteStatement _ _ mutateQuery _ None
       SELECT '', 0, {noLocationF}, '' |]
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON (UniformObjects _)) =
+                     pKeys _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -138,7 +137,7 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
     ]
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON (UniformObjects _)) =
+                     pKeys asCsv (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -322,8 +321,6 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
@@ -384,7 +381,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = undefined --error "undefined getQueryParts"
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
       colsString = intercalate ", " cols
@@ -396,7 +393,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects r
                 else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
   insInto <> vals
 
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map

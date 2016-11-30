@@ -11,7 +11,6 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
-import           Data.Ranged.Ranges        (emptyRange)
 import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
@@ -50,7 +49,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error           (errResponse, pgErrResponse)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
 import           PostgREST.Middleware
@@ -81,17 +80,17 @@ postgrest conf refDbStructure pool getTime =
     body <- strictRequestBody req
     dbStructure <- readIORef refDbStructure
 
-    let schema = toS $ configSchema conf
-        apiRequest = userApiRequest schema req body
-        eClaims = jwtClaims
-          (secret <$> configJwtSecret conf) (iJWT apiRequest) time
-        authed = containsRole eClaims
-        handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-        txMode = transactionMode $ iAction apiRequest
-
-    resp <- either (pgErrResponse authed) id <$> P.use pool
-      (HT.run handleReq HT.ReadCommitted txMode)
-    respond resp
+    response <- case userApiRequest (configSchema conf) req body of
+      Left err -> return $ apiRequestErrResponse err
+      Right apiRequest -> do
+        let jwtSecret = secret <$> configJwtSecret conf
+            eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
+            authed = containsRole eClaims
+            handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
+            txMode = transactionMode $ iAction apiRequest
+        response <- P.use pool $ HT.run handleReq HT.ReadCommitted txMode
+        return $ either (pgErrResponse authed) identity response
+    respond response
 
 transactionMode :: Action -> H.Mode
 transactionMode ActionRead = HT.Read
@@ -108,7 +107,7 @@ app dbStructure conf apiRequest =
         (ActionRead, TargetIdent qi, Nothing) ->
           case readSqlParts of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> respondToRange $ do
+            Right (q, cq) -> do
               let singular = iPreferSingular apiRequest
                   stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
               row <- H.query () stm
@@ -129,7 +128,7 @@ app dbStructure conf apiRequest =
                     )
                   ] (toS body)
 
-        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON uniform@(UniformObjects rows))) ->
+        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -143,7 +142,7 @@ app dbStructure conf apiRequest =
                         |]
               let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
               let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
-              row <- H.query uniform stm
+              row <- H.query payload stm
               let (_, _, fs, body) = extractQueryResult row
                   headers = catMaybes [
                       if null fs
@@ -160,13 +159,13 @@ app dbStructure conf apiRequest =
                 if iPreferRepresentation apiRequest == Full
                   then toS body else ""
 
-        (ActionUpdate, TargetIdent qi, Just payload@(PayloadJSON uniform)) ->
+        (ActionUpdate, TargetIdent qi, Just payload) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let singular = iPreferSingular apiRequest
                   stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
-              row <- H.query uniform stm
+              row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
               when (singular && queryTotal > 1) $
                 HT.sql [P6.q| DO $$
@@ -188,10 +187,9 @@ app dbStructure conf apiRequest =
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let emptyUniform = UniformObjects V.empty
-                  fakeload = PayloadJSON emptyUniform
-                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) fakeload
-              row <- H.query emptyUniform stm
+              let emptyPayload = PayloadJSON V.empty
+                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
+              row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
@@ -209,10 +207,10 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke, TargetProc qi, Just (PayloadJSON (UniformObjects payload))) ->
+        (ActionInvoke, TargetProc qi, Just (PayloadJSON payload)) ->
           case readSqlParts of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> respondToRange $ do
+            Right (q, cq) -> do
               let p = V.head payload
                   singular = iPreferSingular apiRequest
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
@@ -232,10 +230,6 @@ app dbStructure conf apiRequest =
               encodeApi ti = encodeOpenAPI (map snd $ dbProcs dbStructure) ti uri'
           body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
-
-        (_, _, Just (PayloadParseError e)) ->
-          return $ errResponse status400 $
-            toS (formatGeneralError "Cannot parse request payload" (toS e))
 
         _ -> return notFound
 
@@ -273,16 +267,9 @@ app dbStructure conf apiRequest =
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
-      respondToRange response =
-        if topLevelRange == emptyRange
-          then return $ errResponse status416 "HTTP Range error"
-          else response
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
-responseContentTypeOrError accepts action =
-  case action of
-    ActionInappropriate -> Left $ errResponse status405 "Unsupported HTTP verb"
-    _ -> serves contentTypesForRequest accepts
+responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
   where
     contentTypesForRequest =
       case action of
@@ -293,7 +280,6 @@ responseContentTypeOrError accepts action =
         ActionInvoke -> [CTApplicationJSON]
         ActionInspect -> [CTOpenAPI]
         ActionInfo -> [CTTextCSV]
-        ActionInappropriate -> []
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
