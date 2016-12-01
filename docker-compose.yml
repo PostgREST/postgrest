@@ -1,0 +1,12 @@
+version: '2'
+services:
+  development:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    image: ${DOCKER_REPO}dev
+    volumes:
+      - ./.release:${POSTGREST_SRC}/.release
+  release:
+    build: .
+    image: ${DOCKER_REPO}:${DOCKER_IMAGE_TAG}

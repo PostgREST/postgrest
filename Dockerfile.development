@@ -1,0 +1,17 @@
+FROM fpco/stack-build:lts-7.4
+
+ENV POSTGREST_SRC ${POSTGREST_SRC:-/srv/postgrest}
+
+ENV RELEASE_DIR ${RELEASE_DIR:-${POSTGREST_SRC}/.release}
+
+WORKDIR ${POSTGREST_SRC}
+
+COPY . ${POSTGREST_SRC}
+
+RUN scripts/install_deps.sh
+
+RUN stack install --allow-different-user --local-bin-path /usr/local/bin
+
+VOLUME ["${POSTGREST_SRC}", "/etc/postgrest", "/root/.stack", "${POSTGREST_SRC}/.stack-work"]
+
+CMD [ "/usr/local/bin/postgrest", "-c", "/etc/postgrest/postgrest.conf"]
