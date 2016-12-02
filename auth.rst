@@ -103,6 +103,28 @@ This allows JWT generation services to include extra information and your databa
     -- an exception if the setting is not present. Default it to ''.
     ALTER DATABASE your_db_name SET request.claim.email TO '';
 
+  If you are unable to issue an ALTER DATABASE statement (for instance on Amazon RDS), you can create a helper function to read environment variables and swallow exceptions.
+
+  .. code:: plpgsql
+
+    create function env_var(v text) returns text as $$
+      declare
+        result text;
+      begin
+        begin
+          select current_setting(v) into result;
+        exception 
+          when undefined_object then
+            return null;
+        end;
+
+        return result;
+      end;
+    $$ stable language plpgsql;
+
+    -- now you can call call for instance
+    -- SELECT env_var('request.claim.email')
+
 Hybrid User-Group Roles
 ~~~~~~~~~~~~~~~~~~~~~~~
 
