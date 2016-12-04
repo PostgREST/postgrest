@@ -233,7 +233,11 @@ OpenAPI Support
 
 Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads.
 
-You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and host an interactive web-based dahsboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dahsboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+
+.. note::
+
+  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`Schema Reloading`_.
 
 Resource Embedding
 ==================
@@ -300,11 +304,51 @@ Note this does not change the order of the Films, but of the list of Actors in e
 
   Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`Schema Reloading`_.
 
-Query Limitations
-=================
+Custom Queries
+==============
+
+The PostgREST url grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and stored procedures to provide richer endpoints. The most common causes for custom endpoints are
+
+* Table unions and OR-conditions in the where clause
+* More complicated joins than those provided by `Resource Embedding`_
+* Geospatial queries that require an argument, like "points near (lat,lon)"
+* More sophisticated full-text search than a simple use of the `@@` filter
 
 Stored Procedures
 =================
+
+Every stored procedure in the API-exposed database schema is accessible under the `/rpc` prefix. The API endpoint supports only POST which executes the function.
+
+.. code:: http
+
+  POST /rpc/function_name HTTP/1.1
+
+Procedures must used `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
+
+For instance, assume we have created this function in the database.
+
+.. code:: plpgsql
+
+  CREATE FUNCTION add_them(a integer, b integer)
+  RETURNS integer AS $$
+   SELECT $1 + $2;
+  $$ LANGUAGE SQL IMMUTABLE STRICT;
+
+The client can call it by posting an object like
+
+.. code:: http
+
+  POST /rpc/add_them HTTP/1.1
+  { "a": 1, "b": 2}
+
+The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like `CREATE FUNCTION foo("mixedCase" text) ...`.
+
+.. note::
+
+  Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+
+  We are considering allowing GET requests for functions that are marked non-volatile. Allowing GET is important for HTTP caching. However we still must decide how to pass function parameters since request bodies are not allowed. Also some query string arguments are already reserved for shaping/filtering the output.
+
 
 Insertions / Updates
 ====================
