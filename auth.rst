@@ -12,7 +12,7 @@ There are three types of roles used by PostgREST, the **authenticator**, **anony
 
 .. image:: _static/security-roles.png
 
-The authenticator should be created `NOINHERIT` and configured in the database to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests. The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role.
+The authenticator should be created :code:`NOINHERIT` and configured in the database to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests. The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role.
 
 .. image:: _static/security-anon-choice.png
 
@@ -46,7 +46,7 @@ PostgreSQL manages database access permissions using the concept of roles. A rol
 Roles for Each Web User
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-PostgREST can accommodate either viewpoint. If you treat a role as a single user then the the JWT-based role switching described above does most of what you need. When an authenticated user makes a request PostgREST will switch into the role for that user, which in addition to restricting queries, is available to SQL through the `current_user` variable.
+PostgREST can accommodate either viewpoint. If you treat a role as a single user then the the JWT-based role switching described above does most of what you need. When an authenticated user makes a request PostgREST will switch into the role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
 
 You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
 
@@ -146,7 +146,7 @@ There is no performance penalty for having many database roles, although roles a
 Custom Validation
 -----------------
 
-PostgREST honors the `exp` claim for token expiration, rejecting expired tokens. However it does not enforce any extra constraints. An example of an extra constraint would be to immediately revoke access for a certain user. The configuration file paramter `pre-request` specifies a stored procedure to call immediately after the authenticator switches into a new role and before the main query itself runs.
+PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens. However it does not enforce any extra constraints. An example of an extra constraint would be to immediately revoke access for a certain user. The configuration file paramter :code:`pre-request` specifies a stored procedure to call immediately after the authenticator switches into a new role and before the main query itself runs.
 
 Here's an example. In the config file specify a stored procedure:
 
@@ -172,7 +172,7 @@ In the function you can run arbitrary code to check the request and raise an exc
 Client Auth
 ===========
 
-To make an authenticated request the client must include an `Authorization` HTTP header with the value `Bearer <jwt>`. For instance:
+To make an authenticated request the client must include an :code:`Authorization` HTTP header with the value :code:`Bearer <jwt>`. For instance:
 
 .. code:: http
 
@@ -241,7 +241,7 @@ Storing Users and Passwords
 
 As mentioned, an external service can provide user management and coordinate with the PostgREST server using JWT. It's also possible to support logins entirely through SQL. It's a fair bit of work, so get ready.
 
-The following table, functions, and triggers will live in a `basic_auth` schema that you shouldn't expose publicly in the API. The public views and functions will live in a different schema which internally references this internal information.
+The following table, functions, and triggers will live in a :code:`basic_auth` schema that you shouldn't expose publicly in the API. The public views and functions will live in a different schema which internally references this internal information.
 
 First we'll need a table to keep track of our users:
 
@@ -259,7 +259,7 @@ First we'll need a table to keep track of our users:
     role     name not null check (length(role) < 512),
   );
 
-We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the `pg_roles` table. We'll use a trigger to manually enforce it.
+We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the :code:`pg_roles` table. We'll use a trigger to manually enforce it.
 
 .. code:: plpgsql
 
@@ -283,7 +283,7 @@ We would like the role to be a foreign key to actual database roles, however Pos
     for each row
     execute procedure basic_auth.check_role_exists();
 
-Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the `users` table.
+Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the :code:`users` table.
 
 .. code:: plpgsql
 
@@ -370,7 +370,7 @@ An API request to call this function would look like:
 
   { "email": "foo@bar.com", "pass": "foobar" }
 
-The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of `mysecret` as specified in the SQL code above. You'll want to change this secret in your app!)
+The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`mysecret` as specified in the SQL code above. You'll want to change this secret in your app!)
 
 .. code:: json
 
@@ -395,4 +395,4 @@ Your database roles need access to the schema, tables, views and functions in or
   grant select on table pg_authid, basic_auth.users to anon;
   grant execute on function login(text,text) to anon;
 
-You may be worried from the above that anonymous users can read everything from the `basic_auth.users` table. However this table is not available for direct queries because it lives in a separate schema. The anonymous role needs access because the public `users` view reads the underlying table with the permissions of the calling user. But we have made sure the view properly restricts access to sensitive information.
+You may be worried from the above that anonymous users can read everything from the :code:`basic_auth.users` table. However this table is not available for direct queries because it lives in a separate schema. The anonymous role needs access because the public :code:`users` view reads the underlying table with the permissions of the calling user. But we have made sure the view properly restricts access to sensitive information.

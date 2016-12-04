@@ -1,3 +1,6 @@
+.. role:: sql(code)
+   :language: sql
+
 Tables and Views
 ================
 
@@ -57,13 +60,13 @@ For more complicated filters (such as those involving condition 1 OR condition 2
 Vertical Filtering (Columns)
 ----------------------------
 
-When certain columns are wide (such as those holding binary data), it is more efficient for the server to withold them in a response. The client can specify which columns are required using the `select` parameter.
+When certain columns are wide (such as those holding binary data), it is more efficient for the server to withold them in a response. The client can specify which columns are required using the :sql:`select` parameter.
 
 .. code-block:: http
 
-  GET /people?select=fname,age
+  GET /people?select=fname,age HTTP/1.1
 
-The default is `*`, meaning all columns. This value will become more important below in :ref:`Resource Embedding`_.
+The default is :sql:`*`, meaning all columns. This value will become more important below in :ref:`Resource Embedding`_.
 
 .. _computed_cols:
 
@@ -96,7 +99,7 @@ A full-text search on the computed column:
 Ordering
 --------
 
-The reserved word :code:`order` reorders the response rows. It uses a comma-separated list of columns and directions:
+The reserved word :sql:`order` reorders the response rows. It uses a comma-separated list of columns and directions:
 
 .. code-block:: http
 
@@ -201,7 +204,7 @@ The server will default to JSON for API endpoints and OpenAPI on the root.
 Singular or Plural
 ------------------
 
-By default PostgREST returns all JSON results in an array, even when there is only one item. For example, requesting `/items?id=eq.1` returns
+By default PostgREST returns all JSON results in an array, even when there is only one item. For example, requesting :code:`/items?id=eq.1` returns
 
 .. code:: json
 
@@ -312,12 +315,12 @@ The PostgREST url grammar limits the kinds of queries clients can perform. It pr
 * Table unions and OR-conditions in the where clause
 * More complicated joins than those provided by `Resource Embedding`_
 * Geospatial queries that require an argument, like "points near (lat,lon)"
-* More sophisticated full-text search than a simple use of the `@@` filter
+* More sophisticated full-text search than a simple use of the :sql:`@@` filter
 
 Stored Procedures
 =================
 
-Every stored procedure in the API-exposed database schema is accessible under the `/rpc` prefix. The API endpoint supports only POST which executes the function.
+Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function.
 
 .. code:: http
 
@@ -339,9 +342,10 @@ The client can call it by posting an object like
 .. code:: http
 
   POST /rpc/add_them HTTP/1.1
+
   { "a": 1, "b": 2}
 
-The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like `CREATE FUNCTION foo("mixedCase" text) ...`.
+The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`.
 
 .. note::
 

@@ -50,7 +50,7 @@ db-schema
 db-anon-role
   The database role to use when executing commands on behalf of unauthenticated clients.
 db-pool
-  Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the `max_connections` GUC in your database.
+  Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
 server-host
   Where to bind the PostgREST web server.
 server-port
@@ -58,7 +58,7 @@ server-port
 server-proxy-url
   Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path.
 jwt-secret
-  The secret used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as `@filename` loads the secret out of an external file which is useful for non-UTF-8 binary secrets.
+  The secret used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file which is useful for non-UTF-8 binary secrets.
 max-rows
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
 pre-request
@@ -118,7 +118,7 @@ This does not protect against malicious actions, since someone can add a url par
 Count-Header DoS
 ----------------
 
-For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in :ref:`Limits and Pagination`_, responses ordinarily include a range and unspecified total like
+For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in :ref:`Limits and Pagination`_, responses ordinarily include a range but leave the total unspecified like
 
 .. code-block:: http
 
@@ -126,7 +126,7 @@ For convenience to client-side pagination controls PostgREST supports counting a
   Range-Unit: items
   Content-Range: 0-14/*
 
-However including the request header `Prefer: count=exact` calculates and includes the full count:
+However including the request header :code:`Prefer: count=exact` calculates and includes the full count:
 
 .. code-block:: http
 
@@ -142,7 +142,7 @@ This is fine in small tables, but count performance degrades in big tables due t
 
 .. note::
 
-  In future versions we will support `Prefer: count=estimated` to leverage the PostgreSQL statistics tables for a fast (and fairly accurate) result.
+  In future versions we will support :code:`Prefer: count=estimated` to leverage the PostgreSQL statistics tables for a fast (and fairly accurate) result.
 
 .. _hardening_https:
 
@@ -168,9 +168,9 @@ A great way to inspect incoming HTTP requests including headers and query params
   # sudo access is necessary for watching the network
   sudo ngrep -d lo0 port 3000
 
-The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the `Configuration`_ section. The ngrep output isn't particularly pretty, but it's legible. Note the `Server` response header as well which identifies the version of server. This is important when submitting bug reports.
+The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the `Configuration`_ section. The ngrep output isn't particularly pretty, but it's legible. Note the :code:`Server` response header as well which identifies the version of server. This is important when submitting bug reports.
 
-Once you've verified that requests are as you expect, you can get more information about the server operations by watching the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below. Find `postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command `show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
+Once you've verified that requests are as you expect, you can get more information about the server operations by watching the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below. Find :code:`postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command :code:`show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
 
 .. code:: sql
 
@@ -207,7 +207,7 @@ In the future we're investigating ways to keep the cache updated without manual 
 Alternate URL Structure
 =======================
 
-As discussed in `Singular or Plural`_, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like `/people/1`. It would be specified instead as
+As discussed in `Singular or Plural`_, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like :code:`/people/1`. It would be specified instead as
 
 .. code:: http
 

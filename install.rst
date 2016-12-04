@@ -84,7 +84,7 @@ PostgREST Test Suite
 Creating the Test Database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To properly run postgrest tests one needs to create a database. To do so, use the test creation script `create_test_database` in the `test/` folder.
+To properly run postgrest tests one needs to create a database. To do so, use the test creation script :code:`create_test_database` in the :code:`test/` folder.
 
 The script expects the following parameters:
 
@@ -94,22 +94,22 @@ The script expects the following parameters:
 
 Use the `connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ to specify the user, password, host, and port. Do not provide the database in the connection URI. The Postgres role you are using to connect must be capable of creating new databases.
 
-The `database_name` is the name of the database that `stack test` will connect to. If the database of the same name already exists on the server, the script will first drop it and then re-create it.
+The :code:`database_name` is the name of the database that :code:`stack test` will connect to. If the database of the same name already exists on the server, the script will first drop it and then re-create it.
 
-Optionally, specify the database user `stack test` will use. The user will be given necessary permissions to reset the database after every test run.
+Optionally, specify the database user :code:`stack test` will use. The user will be given necessary permissions to reset the database after every test run.
 
-If the user is not specified, the script will generate the role name `postgrest_test_` suffixed by the chosen database name, and will generate a random password for it.
+If the user is not specified, the script will generate the role name :code:`postgrest_test_` suffixed by the chosen database name, and will generate a random password for it.
 
 Optionally, if specifying an existing user to be used for the test connection, one can specify the password the user has.
 
-The script will return the db uri to use in the tests--this uri corresponds to the `db-uri` parameter in the configuration file that one would use in production.
+The script will return the db uri to use in the tests--this uri corresponds to the :code:`db-uri` parameter in the configuration file that one would use in production.
 
 Generating the user and the password allows one to create the database and run the tests against any postgres server without any modifications to the server. (Such as allowing accounts without a passoword or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
 
 Running the Tests
 ~~~~~~~~~~~~~~~~~
 
-To run the tests, one must supply the database uri in the environment variable `POSTGREST_TEST_CONNECTION`.
+To run the tests, one must supply the database uri in the environment variable :code:`POSTGREST_TEST_CONNECTION`.
 
 Typically, one would create the database and run the test in the same command line, using the `postgres` superuser:
 
@@ -132,12 +132,12 @@ If the environment variable is empty or not specified, then the test runner will
 
   postgres://postgrest_test@localhost/postgrest_test
 
-This connection assumes the test server on the `localhost` with the user `postgrest_test` without the password and the database of the same name.
+This connection assumes the test server on the :code:`localhost:code:` with the user `postgrest_test` without the password and the database of the same name.
 
 Destroying the Database
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The test database will remain after the test, together with four new roles created on the postgres server. To permanently erase the created database and the roles, run the script `test/delete_test_database`, using the same superuser role used for creating the database:
+The test database will remain after the test, together with four new roles created on the postgres server. To permanently erase the created database and the roles, run the script :code:`test/delete_test_database`, using the same superuser role used for creating the database:
 
 .. code:: bash
 
@@ -155,16 +155,16 @@ For example, if local development is on a mac with Docker for Mac installed:
   $ docker run --name db-scripting-test -e POSTGRES_PASSWORD=pwd -p 5434:5432 -d postgres
   $ POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@localhost:5434" test_db) stack test
 
-Additionally, if one creates a docker container to run stack test (this is necessary on MacOS Sierra with GHC below 8.0.1, where `stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed Postgres.app.
+Additionally, if one creates a docker container to run stack test (this is necessary on MacOS Sierra with GHC below 8.0.1, where :code:`stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed Postgres.app.
 
-Build the test container with `test/Dockerfile.test`:
+Build the test container with :code:`test/Dockerfile.test`:
 
 .. code:: bash
 
   $ docker build -t pgst-test - < text/Dockerfile.test
   $ mkdir .stack-work-docker ~/.stack-linux
 
-The first run of the test container will take a long time while the dependencies get cached. Creating the `~/.stack-linux` folder and mapping it as a volume into the container ensures that we can run the container in disposable mode and not worry about subsequent runs being slow. `.stack-work-docker` is also mapped into the container and must be specified when using stack from Linux, not to interfere with the `.stack-work` for local development. (On Sierra, `stack build` works, while `stack test` fails with GHC 8.0.1).
+The first run of the test container will take a long time while the dependencies get cached. Creating the :code:`~/.stack-linux` folder and mapping it as a volume into the container ensures that we can run the container in disposable mode and not worry about subsequent runs being slow. :code:`.stack-work-docker` is also mapped into the container and must be specified when using stack from Linux, not to interfere with the :code:`.stack-work` for local development. (On Sierra, :code:`stack build` works, while :code:`stack test` fails with GHC 8.0.1).
 
 Linked containers:
 
