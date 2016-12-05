@@ -96,6 +96,12 @@ A full-text search on the computed column:
 
   GET /people?full_name=@@.Beckett HTTP/1.1
 
+As mentioned, computed columns do not appear in the output by default. However you can include them by listing them in the vertical filtering :code:`select` param:
+
+.. code-block:: HTTP
+
+  GET /people?select=*,full_name HTTP/1.1
+
 Ordering
 --------
 
@@ -310,7 +316,7 @@ Note this does not change the order of the Films, but of the list of Actors in e
 Custom Queries
 ==============
 
-The PostgREST url grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and stored procedures to provide richer endpoints. The most common causes for custom endpoints are
+The PostgREST URL grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and stored procedures to provide richer endpoints. The most common causes for custom endpoints are
 
 * Table unions and OR-conditions in the where clause
 * More complicated joins than those provided by `Resource Embedding`_
@@ -357,11 +363,87 @@ The keys of the object match the parameter names. Note that PostgreSQL converts 
 Insertions / Updates
 ====================
 
-Getting Results
----------------
+All tables and `auto-updatable views <https://www.postgresql.org/docs/current/static/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
+
+To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
+
+.. code:: HTTP
+
+  POST /table_name HTTP/1.1
+
+  { "col1": "value1", "col2": "value2" }
+
+The response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
+
+On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard `Vertical Filtering (Columns)`_ to these results.
+
+.. note::
+
+  When inserting a row you must post a JSON object, not quoted JSON.
+
+  .. code::
+
+    Yes
+    { "a": 1, "b": 2 }
+
+    No
+    "{ \"a\": 1, \"b\": 2 }"
+
+  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`Client-Side Libraries`_ built for PostgREST.
+
+To update a row or rows in a table, use the PATCH verb. Use :ref:`Horizontal Filtering (Rows)`_ to specify which record(s) to update. Here is an exmaple query setting the :code:`category` column to child for all people below a certain age.
+
+.. code:: HTTP
+
+  PATCH /people?age=lt.13 HTTP/1.1
+
+  { "category": "child" }
+
+Updates also support :code:`Prefer: return=representation` plus `Vertical Filtering (Columns)`_.
+
+.. note::
+
+  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`Block Full-Table Operations`_.
 
 Bulk Insert
 -----------
 
+Bulk insert works exactly like single row insert except that you provide either a JSON array of objects having uniform keys, or lines in CSV format. This not only minimizes the HTTP requests required but uses a single INSERT statement on the backend for efficiency. Note that using CSV requires less parsing on the server and is much faster.
+
+To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
+
+.. code:: HTTP
+
+  POST /people HTTP/1.1
+  Content-Type: text/csv
+
+  name,age,height
+  J Doe,62,70
+  Jonas,10,55
+
+An empty field (:code:`,,`) is coerced to an empty string and the reserved word :code:`NULL` is mapped to the SQL null value. Note that there should be no spaces between the column names and commas.
+
+To bulk insert JSON post an array of objects having all-matching keys
+
+.. code:: HTTP
+
+  POST /people HTTP/1.1
+  Content-Type: application/json
+
+  [
+    { "name": "J Doe", "age": 62, "height": 70 },
+    { "name": "Janus", "age": 10, "height": 55 }
+  ]
+
 Deletions
 =========
+
+To delete rows in a table, use the DELETE verb plus :ref:`Horizontal Filtering (Rows)`_. For instance deleting inactive users:
+
+.. code-block:: HTTP
+
+  DELETE /user?active=is.false HTTP/1.1
+
+.. note::
+
+  Beware of accidentally delting all rows in a table. To learn to prevent that see :ref:`Block Full-Table Operations`_.
