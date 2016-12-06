@@ -11,8 +11,9 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN echo $'cabal update\n\
+stack setup\n\
 stack install --allow-different-user hlint packdeps\n\
 stack build --allow-different-user --fast\n\
 stack build --allow-different-user --fast --test --no-run-tests\n\
->> /run_stack_deps.sh && chmod u+x /run_stack_deps.sh
+' >> /run_stack_deps.sh && chmod u+x /run_stack_deps.sh
 
