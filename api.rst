@@ -301,17 +301,27 @@ Which would return
 
 PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directories with each including the list of their Films.
 
-To order the embedded items, you need to specify the tree path in the order parameter. For instance
+.. note::
+
+  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`Schema Reloading`_.
+
+Embedded Filters and Order
+--------------------------
+
+Embedded tables can be filtered and ordered similarly to their top-level counterparts. To to do so prefix the query parameters with the name of the embedded table. For instance to order the actors in each film:
 
 .. code-block:: http
 
   GET /films?select=*,actors{*}&actors.order=last_name,first_name HTTP/1.1
 
-Note this does not change the order of the Films, but of the list of Actors in each Film.
+This sorts the list of actors in each film but does *not* change the order of the films themselves. To filter the roles returned with each film:
 
-.. note::
+.. code-block:: http
 
-  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`Schema Reloading`_.
+  GET /films?select=*,roles{*}&roles.character=in.Chico,Harpo,Groucho HTTP/1.1
+
+Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
+
 
 Custom Queries
 ==============

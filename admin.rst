@@ -220,8 +220,8 @@ This allows compound primary keys and makes the intent for singular response ind
 
   nginx code here
 
+.. TODO
 .. Administration
-..   Alternate URL structure
 ..   API Versioning
 ..   HTTP Caching
 ..   Upgrading
