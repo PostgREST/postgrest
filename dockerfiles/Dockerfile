@@ -2,8 +2,8 @@ FROM debian:jessie
 
 # PostgREST reads /etc/postgrest.conf so map the configuration
 # file in when you run this container
-ENTRYPOINT ["/sbin/pid1", "postgrest"]
-CMD ["--help"]
+ENTRYPOINT ["/sbin/pid1"]
+CMD ["postgrest-docker-usage"]
 
 EXPOSE 3000
 
@@ -13,5 +13,8 @@ RUN cd / && tar xzvf pid1*.tar.gz && rm /pid1*.tar.gz
 RUN apt-get update && \
     apt-get install -y libpq5 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY postgrest-docker-usage /usr/local/bin/
+COPY postgrest-env /usr/local/bin/
 
 ENV POSTGREST_VERSION 0.4.0.0

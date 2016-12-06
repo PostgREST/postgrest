@@ -1,0 +1,102 @@
+#!/bin/bash
+
+_POSTGREST_CONF_OPTS=$(postgrest --help | sed -n '0,/Example Config File:/d; / = /!d; {s/^ *#\? *//; s/-/_/g; s/ = .*//p}')
+_POSTGREST_ENV_VARS=$(echo "$_POSTGREST_CONF_OPTS" | sed -n 's/\(.*\)/POSTGREST_\U\1/p')
+
+read -d '' usage <<-EOF
+
+$(basename $0) usage:
+
+  -h,--help                Display usage
+  -q,--quiet               Do not log the options used
+
+Backward Compatible Environment variables:
+  PG_ENV_POSTGRES_USER
+  PG_ENV_POSTGRES_PASSWORD
+  PG_PORT_5432_TCP_ADDR
+  PG_PORT_5432_TCP_PORT
+  PG_ENV_POSTGRES_DB
+The format of the resulting DB_URI will be:
+  postgres://\${PG_ENV_POSTGRES_USER}:\${PG_ENV_POSTGRES_PASSWORD}@\${PG_PORT_5432_TCP_ADDR}:\${PG_PORT_5432_TCP_PORT}/\${PG_ENV_POSTGRES_DB}
+
+Environment variables that will be used to build the postgrest.conf file:
+$(echo "$_POSTGREST_ENV_VARS" | sed 's/^/  /')
+
+EOF
+
+LOG_OPTIONS=1
+OPTS=$(getopt -o hq --long help,quiet -n 'postgrest-env' -- "$@") || { echo "$usage" && exit 1; }
+eval set -- "$OPTS"
+while true; do
+    case "$1" in
+    -h|--help)
+        echo "$usage"; exit 1;;
+    -q|--quiet)
+        LOG_OPTIONS=0
+        shift;;
+    --) shift; break;;
+    *)  echo $usage; exit 1;;
+    esac
+done
+
+ERROR=0
+if [ -z "$POSTGREST_DB_URI" ]; then
+    if [ -z "$PG_PORT_5432_TCP_ADDR" ]; then
+      echo "\$POSTGREST_DB_URI or \$PG_PORT_5432_TCP_ADDR must be supplied."
+      ERROR=1
+    else
+      POSTGREST_DB_URI="postgres://${PG_ENV_POSTGRES_USER:=postgres}${PG_ENV_POSTGRES_PASSWORD:+:}${PG_ENV_POSTGRES_PASSWORD}@${PG_PORT_5432_TCP_ADDR}${PG_PORT_5432_TCP_PORT:+:}${PG_PORT_5432_TCP_PORT}/${PG_ENV_POSTGRES_DB:=postgres}"
+    fi
+fi
+if [ -z "$POSTGREST_DB_SCHEMA" ]; then
+    echo "\$POSTGREST_DB_SCHEMA must be supplied."
+    ERROR=1
+fi
+if [ -z "$POSTGREST_DB_ANON_ROLE" ]; then
+    echo "\$POSTGREST_DB_ANON_ROLE must be supplied."
+    ERROR=1
+fi
+
+if [ $ERROR -eq 1 ]; then
+  echo "$usage"
+  exit 1;
+fi
+
+[ $LOG_OPTIONS ] && cat << EOF
+postgrest starting with this generated config:
+
+db-uri = ${POSTGREST_DB_URI/:*@/:<password>@}
+db-schema = ${POSTGREST_DB_SCHEMA-"<not set> (default: 'public')"}
+db-anon-role = ${POSTGREST_DB_ANON_ROLE}
+
+server-proxy-uri = ${POSTGREST_SERVER_PROXY_URI-"<not set>"}
+server-host = ${POSTGREST_SERVER_HOST-"<not set> (default: '*4')"}
+
+jwt-secret = $(if [ -z "$POSTGREST_JWT_SECRET" ]; then echo "<not set> (default: none)"; else echo "<secret>"; fi)
+pre-request = ${POSTGREST_PRE_REQUEST-"<not set> (default: none)"}
+
+db-pool = ${POSTGREST_DB_POOL-"<not set> (default: 10)"}
+max-rows = ${POSTGREST_MAX_ROWS-"<not set> (default: 'infinity')"}
+
+server-port = 3000 (Required value for Docker container)
+
+EOF
+
+cat << EOF > /postgrest.conf
+  db-uri = "${POSTGREST_DB_URI}"
+  db-schema = "${POSTGREST_DB_SCHEMA-"public"}"
+  db-anon-role = "${POSTGREST_DB_ANON_ROLE}"
+  
+  server-port = 3000
+  
+  ${POSTGREST_SERVER_HOST:+server-host = "$POSTGREST_SERVER_HOST"}
+  ${POSTGREST_SERVER_PROXY_URI:+server-proxy-uri = "$POSTGREST_SERVER_PROXY_URI"}
+  
+  ${POSTGREST_JWT_SECRET:+jwt-secret = "$POSTGREST_JWT_SECRET"}
+  ${POSTGREST_PRE_REQUEST:+pre-request = "$POSTGREST_PRE_REQUEST"}
+  
+  ${POSTGREST_DB_POOL:+db-pool = $POSTGREST_DB_POOL}
+  ${POSTGREST_MAX_ROWS:+max-rows = $POSTGREST_MAX_ROWS}
+EOF
+
+exec postgrest /postgrest.conf
