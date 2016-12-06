@@ -7,3 +7,113 @@ ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
 nix:
   packages: [postgresql, zlib]
+
+
+image:
+  container:
+    # Base
+    #   The name of the base Docker image to use as the container to run the built executable
+    #   fpco/stack-run is an ubuntu based minimal image maintained by FPComplete, the maintainers of stack
+    base: "begriffs/postgrest-empty"
+    name: "begriffs/postgrest:dev"
+
+
+docker:
+
+  # Set to true to enable using Docker.  In the project configuration,
+  # the presence of a `docker:` section implies docker is enabled unless
+  # `enable: false` is set.  In user and global configuration, this is not
+  # the case.
+  enable: false
+
+  # The name of the repository to pull the image from.  See the "repositories"
+  # section of this document for more information about available repositories.
+  # If this includes a tag (e.g. "my/image:tag"), that tagged image will be
+  # used.  Without a tag specified, the LTS version slug is added automatically.
+  # Either `repo` or `image` may be specified, but not both.
+  repo: "fpco/stack-build"
+
+  # Exact Docker image name or ID.  Overrides `repo`. Either `repo` or `image`
+  # may be specified, but not both.  (default none)
+  #image: "5c624ec1d63f"
+
+  # Registry requires login.  A login will be requested before attempting to
+  # pull.
+  registry-login: false
+
+  # Username to log into the registry.  (default none)
+  #registry-username: "myuser"
+
+  # Password to log into the registry.  (default none)
+  #registry-password: "SETME"
+
+  # If true, the image will be pulled from the registry automatically, without
+  # needing to run `stack docker pull`.  See the "security" section of the
+  # documentation for implications of enabling this.
+  # https://github.com/commercialhaskell/stack/blob/master/doc/docker_integration.md#security
+  auto-pull: false
+
+  # If true, the container will be run "detached" (in the background).  Refer
+  # to the Docker users guide for information about how to manage containers.
+  # This option would rarely make sense in the configuration file, but can be
+  # useful on the command-line.  When true, implies `persist`.
+  detach: false
+
+  # If true, the container will not be deleted after it terminates.  Refer to
+  # the Docker users guide for information about how to manage containers. This
+  # option would rarely make sense in the configuration file, but can be
+  # useful on the command-line.  `detach` implies `persist`.
+  persist: false
+
+  # What to name the Docker container.  Only useful with `detach` or
+  # `persist` true.  (default none)
+  container-name: "postgrest-build"
+
+  # Additional arguments to pass to `docker run`.  (default none)
+  #run-args: ["--net=bridge"]
+
+  # Directories from the host to volume-mount into the container.  If it
+  # contains a `:`, the part before the `:` is the directory on the host and
+  # the part after the `:` is where it should be mounted in the container.
+  # (default none, aside from the project and stack root directories which are
+  # always mounted)
+  mount:
+    # - "/foo/bar"
+    # - "/baz:/tmp/quux"
+
+  # Environment variables to set in the container.  Environment variables
+  # are not automatically inherited from the host, so if you need any specific
+  # variables, use the `--docker-env` command-line argument version of this to
+  # pass them in.  (default none)
+  env:
+    - "POSTGREST_VERSION=0.4.0"
+
+  # Location of database used to track image usage, which `stack docker cleanup`
+  # uses to determine which images should be kept.  On shared systems, it may
+  # be useful to override this in the global configuration file so that
+  # all users share a single database.
+  #database-path: "~/.stack/docker.db"
+
+  # Location of a Docker container-compatible 'stack' executable with the
+  # matching version. This executable must be built on linux-x86_64 and
+  # statically linked.
+  # Valid values are:
+  #   host: use the host's executable.  This is the default when the host's
+  #     executable is known to work (e.g., from official linux-x86_64 bindist)
+  #   download: download a compatible executable matching the host's version.
+  #     This is the default when the host's executable is not known to work
+  #   image: use the 'stack' executable baked into the image.  The version
+  #     must match the host's version
+  #   /path/to/stack: path on the host's local filesystem
+  stack-exe: download
+
+  # If true (the default when using the local Docker Engine), run processes
+  # in the Docker container as the same UID/GID as the host.  The ensures
+  # that files written by the container are owned by you on the host.
+  # When the Docker Engine is remote (accessed by tcp), defaults to false.
+  set-user: true
+
+  # Require the version of the Docker client to be within the specified
+  # Cabal-style version range (e.g., ">= 1.6.0 && < 1.9.0")
+  #require-docker-version: "any"
+  
