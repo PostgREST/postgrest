@@ -82,6 +82,8 @@ server-port = 3000 (Required value for Docker container)
 
 EOF
 
+# The $(echo '"') is to work around a weird bug in bash when trying to quote inside
+# a variable expansion inside a here document. :/
 cat << EOF > /postgrest.conf
   db-uri = "${POSTGREST_DB_URI}"
   db-schema = "${POSTGREST_DB_SCHEMA-"public"}"
@@ -89,11 +91,11 @@ cat << EOF > /postgrest.conf
   
   server-port = 3000
   
-  ${POSTGREST_SERVER_HOST:+server-host = "$POSTGREST_SERVER_HOST"}
-  ${POSTGREST_SERVER_PROXY_URI:+server-proxy-uri = "$POSTGREST_SERVER_PROXY_URI"}
+  ${POSTGREST_SERVER_HOST:+server-host = $(echo '"')$POSTGREST_SERVER_HOST$(echo '"')}
+  ${POSTGREST_SERVER_PROXY_URI:+server-proxy-uri = $(echo '"')$POSTGREST_SERVER_PROXY_URI$(echo '"')}
   
-  ${POSTGREST_JWT_SECRET:+jwt-secret = "$POSTGREST_JWT_SECRET"}
-  ${POSTGREST_PRE_REQUEST:+pre-request = "$POSTGREST_PRE_REQUEST"}
+  ${POSTGREST_JWT_SECRET:+jwt-secret = $(echo '"')$POSTGREST_JWT_SECRET$(echo '"')}
+  ${POSTGREST_PRE_REQUEST:+pre-request = $(echo '"')$POSTGREST_PRE_REQUEST$(echo '"')}
   
   ${POSTGREST_DB_POOL:+db-pool = $POSTGREST_DB_POOL}
   ${POSTGREST_MAX_ROWS:+max-rows = $POSTGREST_MAX_ROWS}
