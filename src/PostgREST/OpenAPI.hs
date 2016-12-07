@@ -155,7 +155,7 @@ makeGetParams :: [Column] -> [Param]
 makeGetParams [] =
   makeRangeParams ++
   [ makeSelectParam
-  , makePreferParam ["plurality=singular", "count=none"]
+  , makePreferParam ["count=none"]
   ]
 makeGetParams cs =
   makeRangeParams ++
@@ -168,12 +168,12 @@ makeGetParams cs =
       & in_ .~ ParamQuery
       & type_ .~ SwaggerString
       & enum_ .~ decode (encode $ makeOrderItems cs))
-  , makePreferParam ["plurality=singular", "count=none"]
+  , makePreferParam ["count=none"]
   ]
 
 makePostParams :: Text -> [Param]
 makePostParams tn =
-  [ makePreferParam ["return=representation", "return=representation,plurality=singular",
+  [ makePreferParam ["return=representation",
                      "return=minimal", "return=none"]
   , (mempty :: Param)
     & name        .~ "body"

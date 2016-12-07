@@ -91,9 +91,9 @@ encodeUniformObjs :: HE.Params PayloadJSON
 encodeUniformObjs =
   contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
 
-createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool ->
                        H.Query () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv =
+createReadStatement selectQuery countQuery countTotal asCsv =
   unicodeStatement sql HE.unit decodeStandard False
  where
   sql = [qc|
@@ -108,7 +108,6 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     ]
   bodyF
     | asCsv = asCsvF
-    | isSingle = asJsonSingleF
     | otherwise = asJsonF
 
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
