@@ -15,7 +15,7 @@ import Protolude hiding (get)
 
 spec :: SpecWith Application
 spec = describe "authorization" $ do
-  let single = ("Prefer","plurality=singular")
+  let single = ("Accept","application/vnd.pgrst.object+json")
 
   it "denies access to tables that anonymous does not own" $
     get "/authors_only" `shouldRespondWith` ResponseMatcher {
