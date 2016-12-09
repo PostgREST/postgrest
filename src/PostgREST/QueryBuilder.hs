@@ -93,7 +93,7 @@ encodeUniformObjs =
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv =
-  unicodeStatement sql HE.unit decodeStandard True
+  unicodeStatement sql HE.unit decodeStandard False
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
