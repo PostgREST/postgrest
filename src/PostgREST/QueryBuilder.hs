@@ -418,13 +418,9 @@ requestToQuery schema _ returningSql (DbMutate (Delete mainTbl conditions)) =
 
 returningF :: Target -> PreferRepresentation -> DbRequest -> SqlFragment
 returningF _ None _ = ""
--- returningF schema _ (DbRead (Node (Select colSelects _ _ _ _, (nodeName, maybeRelation, _)) _)) =
 returningF (TargetIdent qi) _ (DbRead (Node (Select colSelects _ _ _ _, (_, _, _)) forest)) =
-  " RETURNING " <> intercalate ", "
-    (
-      map (pgFmtSelectItem qi) colSelects ++
-      map (pgFmtColumn qi . colName) fks
-    )
+  " RETURNING " <>
+  intercalate ", " ( map (pgFmtSelectItem qi) colSelects ++ map (pgFmtColumn qi . colName) fks)
   where
     fks = concatMap (fromMaybe [] . f) forest
     f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
