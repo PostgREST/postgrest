@@ -74,6 +74,15 @@ testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn =
   AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
 
+setupDb :: Text -> IO ()
+setupDb dbConn = do
+  loadFixture dbConn "database"
+  loadFixture dbConn "roles"
+  loadFixture dbConn "schema"
+  loadFixture dbConn "jwt"
+  loadFixture dbConn "privileges"
+  resetDb dbConn
+
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"
 
