@@ -47,9 +47,10 @@ CREATE USER $TEST_USER_NAME WITH LOGIN NOINHERIT PASSWORD '$TEST_USER_PASS' CREA
 CREATE DATABASE $DB OWNER $TEST_USER_NAME;
 EOF
 
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq \
-    -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" \
-    -c "ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';"
+PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq <<EOF
+  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+  ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
+EOF
 
 # Create a new connection string to use with the test runner
 echo 'postgres://'${TEST_USER_NAME}':'$TEST_USER_PASS'@'$HOST_PORT'/'$DB
