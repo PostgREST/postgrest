@@ -213,6 +213,8 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 TRUNCATE TABLE json CASCADE;
 INSERT INTO json VALUES ('{"foo":{"bar":"baz"},"id":1}');
+INSERT INTO json VALUES ('{"id":3}');
+INSERT INTO json VALUES ('{"id":0}');
 
 
 --

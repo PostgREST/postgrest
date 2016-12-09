@@ -35,7 +35,6 @@ import qualified Hasql.Decoders          as HD
 import qualified Data.Aeson              as JSON
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note, hush)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
@@ -84,12 +83,12 @@ decodeStandardMay =
   HD.maybeRow standardRow
 
 {-| JSON and CSV payloads from the client are given to us as
-    UniformObjects (objects who all have the same keys),
+    PayloadJSON (objects who all have the same keys),
     and we turn this into an old fasioned JSON array
 -}
-encodeUniformObjs :: HE.Params UniformObjects
+encodeUniformObjs :: HE.Params PayloadJSON
 encodeUniformObjs =
-  contramap (JSON.Array . V.map JSON.Object . unUniformObjects) (HE.value HE.json)
+  contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
@@ -112,11 +111,10 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | otherwise = asJsonF
 
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
-                        PreferRepresentation -> [Text] -> Bool -> Payload ->
-                        H.Query UniformObjects (Maybe ResultsWithCount)
-createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
+                        PreferRepresentation -> [Text] -> Bool -> PayloadJSON ->
+                        H.Query PayloadJSON (Maybe ResultsWithCount)
 createWriteStatement _ _ mutateQuery _ None
-                     _ _ (PayloadJSON (UniformObjects _)) =
+                     _ _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -124,7 +122,7 @@ createWriteStatement _ _ mutateQuery _ None
       SELECT '', 0, {noLocationF}, '' |]
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON (UniformObjects _)) =
+                     pKeys _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -139,7 +137,7 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
     ]
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON (UniformObjects _)) =
+                     pKeys asCsv (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -239,8 +237,8 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
-callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params selectQuery countQuery _ countTotal isSingle =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
@@ -249,7 +247,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
               {countResultF} AS total_result_set,
               pg_catalog.count(_postgrest_t) AS page_total,
               case
-                when pg_catalog.count(1) > 1 then
+                when pg_catalog.count(*) > 1 then
                   {bodyF}
                 else
                   coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
@@ -259,12 +257,14 @@ callProc qi params selectQuery countQuery _ countTotal isSingle =
           |]
           -- FROM (select * from {sourceCTEName} {limitF range}) t;
     countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
-    _args = intercalate "," $ map _assignment (HM.toList params)
+    _args = if paramsAsJson
+                then insertableValueWithType "json" $ JSON.Object params
+                else intercalate "," $ map _assignment (HM.toList params)
     _procName = pgFmtLit $ qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
-                   then [qc|(select pg_catalog.count(1) from {sourceCTEName})|]
+                   then [qc|(select pg_catalog.count(*) from {sourceCTEName})|]
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
@@ -308,7 +308,7 @@ requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
 requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
-   "SELECT pg_catalog.count(1)",
+   "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
    ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
    ]
@@ -321,8 +321,6 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
@@ -348,7 +346,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
             clause = intercalate "," (map queryTerm ts)
             queryTerm :: OrderTerm -> Text
             queryTerm t = " "
-                <> toS (pgFmtColumn qi $ otTerm t) <> " "
+                <> toS (pgFmtField qi $ otTerm t) <> " "
                 <> maybe "" show (otDirection t) <> " "
                 <> maybe "" show (otNullOrder t) <> " "
     (joins, selects) = foldr getQueryParts ([],[]) forest
@@ -361,7 +359,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
-        
+
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias
@@ -383,7 +381,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = undefined --error "undefined getQueryParts"
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows))) =
   let qi = QualifiedIdentifier schema mainTbl
       cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
       colsString = intercalate ", " cols
@@ -395,7 +393,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects r
                 else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
   insInto <> vals
 
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -498,6 +496,10 @@ emptyOnNull val x = if null x then "" else val
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
+
+insertableValueWithType :: Text -> JSON.Value -> SqlFragment
+insertableValueWithType t v =
+  pgFmtLit (unquoted v) <> "::" <> t
 
 whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe

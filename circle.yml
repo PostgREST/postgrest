@@ -6,8 +6,6 @@ dependencies:
     - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
     - sudo apt-get update; sudo apt-get install --only-upgrade binutils
-    - createuser --superuser --no-password postgrest_test
-    - createdb -O postgrest_test -U ubuntu postgrest_test
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
@@ -17,7 +15,7 @@ dependencies:
 
 test:
   override:
-    - stack test --test-arguments "--skip \"returns a valid openapi\""
+    - POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://ubuntu@localhost" postgrest_test) stack test --test-arguments "--skip \"returns a valid openapi\""
     - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
     - stack exec -- cabal update
     - stack exec --no-ghc-package-path -- cabal install --only-d --dry-run

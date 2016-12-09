@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Allow test database to be on another host - @dsimunic
+- New `Prefer` header value: `params=single-object` to pass all form values as a single json object to a stored procedure - @dsimunic
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
 - Ability to generate an OpenAPI spec behind a proxy - @hudayou
 - Ability to set addresses to listen on - @hudayou
@@ -14,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Implement support for singular representation responses for POST/PATCH requests - @ehamberg
 - Include RPC endpoints in OpenAPI output - @begriffs, @LogvinovLeon
 - Custom request validation with `--pre-request` argument - @begriffs
+- Ability to order by jsonb keys - @steve-chavez
 - Ability to specify offset for a deeper level - @ruslantalpa
 
 ### Fixed
@@ -21,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix bug in relation detection when selecting parents two levels up by using the name of the FK - @ruslantalpa
 - Customize content negotiation per route - @begriffs
 - Allow using nulls order without explicit order direction - @steve-chavez
+- Fatal error on postgres unsupported version, format supported version in error message - @steve-chavez
 - Prevent database memory cosumption by prepared statements caches - @ruslantalpa
 
 ### Changed
@@ -31,6 +35,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - No more reserved `jwt_claims` return type - @begriffs
 - HTTP 401 rather than 400 for expired JWT - @begriffs
 - Remove default JWT secret - @begriffs
+- Use GUC request.jwt.claim.foo rather than postgrest.claims.foo - @begriffs
+- Use config file rather than command line arguments - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 

@@ -20,14 +20,14 @@ import           Protolude hiding              (concat, (&), Proxy, get, interca
 
 import           Data.Swagger
 
-import           PostgREST.ApiRequest        (ContentType(..), toHeader)
+import           PostgREST.ApiRequest        (ContentType(..), toMime)
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
                                               Proxy(..), ProcDescription(..))
 
 makeMimeList :: [ContentType] -> MimeList
-makeMimeList cs = MimeList $ map (fromString . toS . toHeader) cs
+makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
 
 toSwaggerType :: Text -> SwaggerType t
 toSwaggerType "text"      = SwaggerString
@@ -182,12 +182,14 @@ makePostParams tn =
     & schema .~ ParamBody (Ref (Reference tn))
   ]
 
-makeProcParam :: Text -> Param
+makeProcParam :: Text -> [Param]
 makeProcParam refName =
-  (mempty :: Param)
+  [ makePreferParam ["params=single-object"]
+  , (mempty :: Param)
     & name     .~ "args"
     & required ?~ True
     & schema   .~ ParamBody (Ref (Reference refName))
+  ]
 
 makeDeleteParams :: [Param]
 makeDeleteParams =
@@ -224,7 +226,7 @@ makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     postOp = (mempty :: Operation)
-      & parameters .~ [Inline (makeProcParam $ "(rpc) " <> pdName pd)]
+      & parameters .~ map Inline (makeProcParam $ "(rpc) " <> pdName pd)
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON]
       & at 200 ?~ "OK"

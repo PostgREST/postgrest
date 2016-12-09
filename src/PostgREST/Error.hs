@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (pgErrResponse, errResponse) where
+module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
@@ -12,22 +12,34 @@ import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
-import           PostgREST.ApiRequest      (ctToHeader, ContentType(..))
+import           PostgREST.ApiRequest      (toHeader, ContentType(..), ApiRequestError(..))
+
+apiRequestErrResponse :: ApiRequestError -> Response
+apiRequestErrResponse err =
+  case err of
+    ErrorActionInappropriate -> errResponse HT.status405 "Bad Request"
+    ErrorInvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
+    ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
 
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = responseLBS status
-  [ctToHeader CTApplicationJSON]
+  [toHeader CTApplicationJSON]
   (toS $ T.concat ["{\"message\":\"",message,"\"}"])
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
   let status = httpStatus authed e
-      jsonType = ctToHeader CTApplicationJSON
+      jsonType = toHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]
                 else [jsonType] in
   responseLBS status hdrs (JSON.encode e)
+
+prettyUsageError :: P.UsageError -> Text
+prettyUsageError (P.ConnectionError e) =
+  "Database connection error:\n" <> toS (fromMaybe "" e)
+prettyUsageError e = show $ JSON.encode e
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
