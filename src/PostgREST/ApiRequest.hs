@@ -59,6 +59,7 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
+                 | CTSingularJSON
                  | CTAny | CTOther BS.ByteString deriving Eq
 
 data ApiRequestError = ErrorActionInappropriate
@@ -75,6 +76,7 @@ toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
 toMime CTOpenAPI         = "application/openapi+json"
+toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
 
@@ -240,11 +242,13 @@ mutuallyAgreeable sProduces cAccepts =
 decodeContentType :: BS.ByteString -> ContentType
 decodeContentType ct =
   case BS.takeWhile (/= BS.c2w ';') ct of
-    "application/json"         -> CTApplicationJSON
-    "text/csv"                 -> CTTextCSV
-    "application/openapi+json" -> CTOpenAPI
-    "*/*"                      -> CTAny
-    ct'                        -> CTOther ct'
+    "application/json"                  -> CTApplicationJSON
+    "text/csv"                          -> CTTextCSV
+    "application/openapi+json"          -> CTOpenAPI
+    "application/vnd.pgrst.object+json" -> CTSingularJSON
+    "application/vnd.pgrst.object"      -> CTSingularJSON
+    "*/*"                               -> CTAny
+    ct'                                 -> CTOther ct'
 
 type CsvData = V.Vector (M.HashMap Text BL.ByteString)
 

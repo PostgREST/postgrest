@@ -251,13 +251,13 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
   where
     contentTypesForRequest =
       case action of
-        ActionRead -> [CTApplicationJSON, CTTextCSV]
-        ActionCreate -> [CTApplicationJSON, CTTextCSV]
-        ActionUpdate -> [CTApplicationJSON, CTTextCSV]
-        ActionDelete -> [CTApplicationJSON, CTTextCSV]
-        ActionInvoke -> [CTApplicationJSON]
+        ActionRead ->    [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON]
         ActionInspect -> [CTOpenAPI]
-        ActionInfo -> [CTTextCSV]
+        ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do

@@ -200,17 +200,17 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
   where
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
-      & produces ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
+      & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & at 200 ?~ "OK"
     getOp = tOp
       & parameters .~ map Inline (makeGetParams cs ++ rs)
       & at 206 ?~ "Partial Content"
     postOp = tOp
-      & consumes ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
+      & consumes ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & parameters .~ map Inline (makePostParams tn)
       & at 201 ?~ "Created"
     patchOp = tOp
-      & consumes ?~ makeMimeList [CTApplicationJSON, CTTextCSV]
+      & consumes ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & parameters .~ map Inline (makePostParams tn ++ rs)
       & at 204 ?~ "No Content"
     deletOp = tOp
@@ -228,7 +228,7 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
     postOp = (mempty :: Operation)
       & parameters .~ map Inline (makeProcParam $ "(rpc) " <> pdName pd)
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
-      & produces ?~ makeMimeList [CTApplicationJSON]
+      & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]
       & at 200 ?~ "OK"
     pe = (mempty :: PathItem) & post ?~ postOp
 
