@@ -61,6 +61,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , createReadStatement
                                         , createWriteStatement
                                         , ResultsWithCount
+                                        , returningF
                                         )
 import           PostgREST.Types
 import           PostgREST.OpenAPI
@@ -269,9 +270,10 @@ app dbStructure conf apiRequest =
   mapSnd f (a, b) = (a, f b)
   readDbRequest = DbRead <$> buildReadRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
   mutateDbRequest = DbMutate <$> buildMutateRequest apiRequest
-  selectQuery = requestToQuery schema False <$> readDbRequest
+  returningSql = returningF (iTarget apiRequest) (iPreferRepresentation apiRequest) <$> readDbRequest
+  selectQuery = requestToQuery schema False "" <$> readDbRequest
   countQuery = requestToCountQuery schema <$> readDbRequest
-  mutateQuery = requestToQuery schema False <$> mutateDbRequest
+  mutateQuery = requestToQuery schema False <$> returningSql <*> mutateDbRequest
   readSqlParts = (,) <$> selectQuery <*> countQuery
   mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
   respondToRange response = if topLevelRange == emptyRange

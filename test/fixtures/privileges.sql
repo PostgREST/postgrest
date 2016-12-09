@@ -56,3 +56,7 @@ TO postgrest_test_anonymous;
 -- Privileges for non anonymous users
 GRANT USAGE ON SCHEMA test TO postgrest_test_author;
 GRANT ALL ON TABLE authors_only TO postgrest_test_author;
+
+GRANT SELECT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
+GRANT INSERT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
+GRANT UPDATE (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;

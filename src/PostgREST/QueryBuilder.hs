@@ -23,6 +23,7 @@ module PostgREST.QueryBuilder (
   , pgFmtLit
   , requestToQuery
   , requestToCountQuery
+  , returningF
   , sourceCTEName
   , unquoted
   , ResultsWithCount
@@ -53,7 +54,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , isInteger
                                          )
 import           Protolude hiding        (from, intercalate, ord, cast)
-import           PostgREST.ApiRequest    (PreferRepresentation (..))
+import           PostgREST.ApiRequest    (PreferRepresentation (..), Target (..))
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -122,12 +123,12 @@ createWriteStatement _ _ mutateQuery _ None
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT '', 0, {noLocationF}, '' |]
 
-createWriteStatement qi _ mutateQuery isSingle HeadersOnly
+createWriteStatement _ _ mutateQuery isSingle HeadersOnly
                      pKeys _ (PayloadJSON (UniformObjects _)) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
-      WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
+      WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
   cols = intercalate ", " [
@@ -137,12 +138,12 @@ createWriteStatement qi _ mutateQuery isSingle HeadersOnly
       "''"
     ]
 
-createWriteStatement qi selectQuery mutateQuery isSingle Full
+createWriteStatement _ selectQuery mutateQuery isSingle Full
                      pKeys asCsv (PayloadJSON (UniformObjects _)) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
-      WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
+      WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM ({selectQuery}) _postgrest_t |]
   cols = intercalate ", " [
@@ -278,10 +279,10 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    fn Filter{value=VForeignKey _ _} = False
    localConditions = filter fn conditions
 
-requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery :: Schema -> Bool -> SqlFragment -> DbRequest -> SqlQuery
+requestToQuery _ _ _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
+requestToQuery _ _ _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
+requestToQuery schema isParent _ (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
@@ -318,7 +319,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema False (DbRead (Node n forst))
+           where subquery = requestToQuery schema False "" (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias
@@ -328,31 +329,30 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
               " ON " <> intercalate " AND " ( map (pgFmtCondition qi . replaceTableName local_table_name) (getJoinConditions r) )
-          where subquery = requestToQuery schema True (DbRead (Node n forst))
+          where subquery = requestToQuery schema True "" (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema False (DbRead (Node n forst))
+           where subquery = requestToQuery schema False "" (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts (Node (_,(_,Nothing,_)) _) _ = undefined
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
-  let qi = QualifiedIdentifier schema mainTbl
-      cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
-      colsString = intercalate ", " cols
-      insInto = unwords [ "INSERT INTO" , fromQi qi,
-          if T.null colsString then "" else "(" <> colsString <> ")"
-        ]
-      vals = unwords $ if T.null colsString
-                then ["DEFAULT VALUES"]
-                else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
-  insInto <> vals
-
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+requestToQuery schema _ returningSql (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
+  insInto <> vals <> returningSql
+  where qi = QualifiedIdentifier schema mainTbl
+        cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
+        colsString = intercalate ", " cols
+        insInto = unwords [ "INSERT INTO" , fromQi qi,
+            if T.null colsString then "" else "(" <> colsString <> ")"
+          ]
+        vals = unwords $ if T.null colsString
+                  then ["DEFAULT VALUES"]
+                  else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
+requestToQuery schema _ returningSql (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -360,19 +360,36 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON (UniformObjects r
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+        returningSql
         ]
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema _ (DbMutate (Delete mainTbl conditions)) =
+requestToQuery schema _ returningSql (DbMutate (Delete mainTbl conditions)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      returningSql
       ]
+
+returningF :: Target -> PreferRepresentation -> DbRequest -> SqlFragment
+returningF _ None _ = ""
+-- returningF schema _ (DbRead (Node (Select colSelects _ _ _ _, (nodeName, maybeRelation, _)) _)) =
+returningF (TargetIdent qi) _ (DbRead (Node (Select colSelects _ _ _ _, (_, _, _)) forest)) =
+  " RETURNING " <> intercalate ", "
+    (
+      map (pgFmtSelectItem qi) colSelects ++
+      map (pgFmtColumn qi . colName) fks
+    )
+  where
+    fks = concatMap (fromMaybe [] . f) forest
+    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
+    f _ = Nothing
+returningF _ _ _ = ""
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
