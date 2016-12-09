@@ -16,6 +16,8 @@ import Network.Wai.Test (Session)
 
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec =
   describe "Queryiny in parallel" $

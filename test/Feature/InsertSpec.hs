@@ -8,8 +8,8 @@ import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 import SpecHelper
 
 import qualified Data.Aeson as JSON
+import Data.List (lookup)
 import Data.Maybe (fromJust)
-import Data.Monoid ((<>))
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
@@ -17,6 +17,8 @@ import Control.Monad (replicateM_, void)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 import Network.Wai (Application)
+
+import Protolude hiding (get)
 
 spec :: SpecWith Application
 spec = do

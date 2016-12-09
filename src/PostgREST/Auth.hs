@@ -43,7 +43,7 @@ claimsToSQL claims = roleStmts <> varStmts
   roleStmts = maybeToList $
     (\r -> "set local role " <> r <> ";") . toS . valueToVariable <$> M.lookup "role" claims
   varStmts = map setVar $ M.toList (M.delete "role" claims)
-  setVar (k, val) = "set local " <> toS (pgFmtIdent $ "postgrest.claims." <> k)
+  setVar (k, val) = "set local " <> toS (pgFmtIdent $ "request.jwt.claim." <> k)
                     <> " = " <> toS (valueToVariable val) <> ";"
   valueToVariable = pgFmtLit . unquoted
 

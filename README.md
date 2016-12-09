@@ -5,42 +5,32 @@
   <img src="https://img.shields.io/badge/%E2%86%91_Deploy_to-Heroku-7056bf.svg" alt="Deploy">
 </a>
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
-[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-%E2%86%92-blue.svg)](https://hub.docker.com/r/begriffs/postgrest/)
+[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](https://postgrest.com)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
 API than you are likely to write from scratch.
 
-### Demo [postgrest.herokuapp.com](https://postgrest.herokuapp.com) | Read [Docs](http://postgrest.com/) | Watch [Video](http://begriffs.com/posts/2014-12-30-intro-to-postgrest.html)
-
-
-Try making requests to the live demo server with an HTTP client
-such as [postman](http://www.getpostman.com/). The structure of the
-demo database is defined by
+Try making requests to the live [demo
+server](https://postgrest.herokuapp.com) with an HTTP client such
+as [postman](http://www.getpostman.com/). The structure of the demo
+database is defined by
 [begriffs/postgrest-example](https://github.com/begriffs/postgrest-example).
 You can use it as inspiration for test-driven server migrations in
 your own projects.
 
 Also try other tools in the PostgREST
-[ecosystem](http://postgrest.com/install/ecosystem/) like the
-[ng-admin demo](http://marmelab.com/ng-admin-postgrest).
+[ecosystem](http://postgrest.com/en/stable/intro.html#ecosystem).
 
 ### Usage
 
 1. Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest))
    for your platform.
-2. Invoke like so:
+2. Invoke for help:
 
     ```bash
-    postgrest postgres://postgres:foobar@localhost:5432/my_db \
-              --port 3000 \
-              --schema public \
-              --anonymous postgres \
-              --pool 200
+    postgrest --help
     ```
-
-For more information on valid connection strings see the
-[PostgreSQL docs](http://www.postgresql.org/docs/9.4/static/libpq-connect.html#LIBPQ-CONNSTRING).
 
 ### Performance
 
@@ -69,7 +59,6 @@ Finally it uses the database efficiently with the
 [Hasql](https://nikita-volkov.github.io/hasql-benchmarks/) library
 by
 
-* Reusing prepared statements
 * Keeping a pool of db connections
 * Using the PostgreSQL binary protocol
 * Being stateless to allow horizontal scaling
@@ -78,8 +67,6 @@ Ultimately the server (when load balanced) is constrained by database
 performance. This may make it inappropriate for very large traffic
 load. To learn more about scaling with Heroku and Amazon RDS see
 the [performance guide](http://postgrest.com/admin/performance/).
-Alternatively [CitusDB](https://www.citusdata.com/products/what-is-citusdb)
-supports Postgres clustering for higher performance.
 
 Other optimizations are possible, and some are outlined in the
 [Future Features](#future-features).
@@ -105,34 +92,25 @@ are limited to certain templates using
 functions, the trigger workaround does not compromise row-level
 security.
 
-For example security patterns see the [security
-guide](http://postgrest.com/admin/security/).
-
 ### Versioning
 
 A robust long-lived API needs the freedom to exist in multiple
 versions. PostgREST does versioning through database schemas. This
 allows you to expose tables and views without making the app brittle.
 Underlying tables can be superseded and hidden behind public facing
-views. You run an instance of PostgREST per schema and route requests
-among them with a reverse proxy such as [nginx](http://nginx.org).
-Learn more [here](http://postgrest.com/admin/versioning/).
+views.
 
 ### Self-documentation
 
-Rather than writing and maintaining separate docs yourself let the
-API explain its own affordances using HTTP. All PostgREST endpoints
-respond to the OPTIONS verb and explain what they support as well
-as the data format of their JSON payload. RAML support is an upcoming
-feature.
+PostgREST uses the [OpenAPI](https://openapis.org/) standard to
+generate up-to-date documentation for APIs. You can use a tool like
+[Swagger-UI](https://github.com/swagger-api/swagger-ui) to render
+interactive documentation for demo requests against the live API server.
 
-The project uses HTTP itself to communicate other metadata. For
+This project uses HTTP to communicate other metadata as well.  For
 instance the number of rows returned by an endpoint is reported by -
 and limited with - range headers. More about
 [that](http://begriffs.com/posts/2014-03-06-beyond-http-header-links.html).
-
-There are more opportunities for self-documentation listed in [Future
-Features](#future-features).
 
 ### Data Integrity
 
@@ -147,19 +125,6 @@ surprises, such as enforcing idempotent PUT requests, and
 See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
 and the [guide to routing](http://postgrest.com/api/reading/).
-
-### Future Features
-
-* Watching endpoint changes with sockets and Postgres pubsub
-* Specifying per-view HTTP caching
-* Inferring good default caching policies from the Postgres stats collector
-* Generating mock data for test clients
-* Maintaining separate connection pools per role to avoid "set/reset
-  role" performance penalty
-* Describe more relationships with Link headers
-* Depending on accept headers, render OPTIONS as [RAML](http://raml.org/) or a
-  relational diagram
-* ... the other [issues](https://github.com/begriffs/postgrest/issues)
 
 ### Thanks
 

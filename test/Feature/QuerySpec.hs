@@ -10,6 +10,8 @@ import SpecHelper
 import Text.Heredoc
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec = do
 
@@ -229,6 +231,14 @@ spec = do
       get "/projects?id=eq.1&select=myId:id, name, project_client:client_id{*}, project_tasks:tasks{id, name}" `shouldRespondWith`
         [str|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
+    it "requesting parents two levels up while using FK to specify the link" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
+    it "requesting parents two levels up while using FK to specify the link (with rename)" $
+      get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
+        [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients{id}" `shouldRespondWith`
@@ -262,6 +272,11 @@ spec = do
     it "requesting parents and children on views" $
       get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
+    it "requesting parents and children on views with renamed keys" $
+      get "/projects_view_alt?t_id=eq.1&select=t_id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
+        [str|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
@@ -373,6 +388,14 @@ spec = do
         , matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
+
+    it "by a json column property asc" $
+      get "/json?order=data->>id.asc" `shouldRespondWith`
+        [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
+
+    it "by a json column with two level property nulls first" $
+      get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
+        [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
 
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
@@ -585,6 +608,20 @@ spec = do
         [json|1|]
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|2|]
+
+    context "expects a single json object" $ do
+      it "does not expand posted json into parameters" $
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
+          [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
+
+      it "accepts parameters from an html form" $ 
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
+          ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
+           "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
+          [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
+                 , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
 
   describe "weird requests" $ do
     it "can query as normal" $ do

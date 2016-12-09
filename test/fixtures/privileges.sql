@@ -29,6 +29,7 @@ GRANT ALL ON TABLE
     , nullable_integer
     , projects
     , projects_view
+    , projects_view_alt
     , simple_pk
     , tasks
     , filtered_tasks
@@ -60,3 +61,7 @@ GRANT ALL ON TABLE authors_only TO postgrest_test_author;
 GRANT SELECT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
 GRANT INSERT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
 GRANT UPDATE (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
+
+GRANT USAGE ON SCHEMA postgrest,private,test to :test_user_name;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA postgrest,private,test TO :test_user_name;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA postgrest,private,test TO :test_user_name;

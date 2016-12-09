@@ -12,6 +12,8 @@ import SpecHelper
 import Text.Heredoc
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 defaultRange :: BL.ByteString
 defaultRange = [json| { "min": 0, "max": 15 } |]
 
@@ -167,16 +169,13 @@ spec = do
           }
 
       it "limit works on all levels" $
-        get "/clients?select=id,projects{id,tasks{id}}&order=id.asc&limit=1&projects.order=id.asc&projects.limit=1&projects.tasks.order=id.asc&projects.tasks.limit=2"
+        get "/clients?select=id,projects{id,tasks{id}}&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=1"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]}]}]|]
+            matchBody    = Just [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1}]},{"id":2,"tasks":[{"id":3}]}]}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-      it "fails on offset specified below level 1" $
-        get "/clients?select=id,projects{id,tasks{id}}&projects.offset=2&projects.limit=1"
-          `shouldRespondWith` 400
 
       it "limit and offset works on first level" $
         get "/items?select=id&order=id.asc&limit=3&offset=2"
