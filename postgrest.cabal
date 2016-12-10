@@ -129,6 +129,7 @@ Test-Suite spec
                      , async
                      , auto-update
                      , base
+                     , bytestring
                      , base64-bytestring
                      , case-insensitive
                      , cassava
