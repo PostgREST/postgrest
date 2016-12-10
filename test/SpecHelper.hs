@@ -55,14 +55,14 @@ getEnvVarWithDefault var def = do
   return $ toS varValue
 
 _baseCfg :: AppConfig
-                      -- Connection Settings
-_baseCfg =  AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
-                      -- Jwt settings
-                      (Just $ encodeUtf8 "safe") False
-                      -- Connection Modifiers
-                      10 Nothing (Just "test.switch_role")
-                      -- Debug Settings
-                      True
+_baseCfg =  -- Connection Settings
+  AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
+            -- Jwt settings
+            (Just $ encodeUtf8 "safe") False
+            -- Connection Modifiers
+            10 Nothing (Just "test.switch_role")
+            -- Debug Settings
+            True
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }

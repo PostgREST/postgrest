@@ -162,6 +162,7 @@ readOptions = do
         |## choose a secret to enable JWT auth
         |## (use "@filename" to load from separate file)
         |# jwt-secret = "foo"
+        |# secret-is-base64 = false
         |
         |## limit rows in response
         |# max-rows = 1000

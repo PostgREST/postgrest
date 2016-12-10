@@ -16,7 +16,7 @@ import           PostgREST.DbStructure
 import           Control.AutoUpdate
 import           Data.ByteString.Base64               (decode)
 import           Data.String                          (IsString (..))
-import           Data.Text                            (stripPrefix, pack)
+import           Data.Text                            (stripPrefix, pack, replace)
 import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
 import           Data.Text.IO                         (hPutStrLn, readFile)
 import           Data.Function                        (id)
@@ -116,9 +116,11 @@ loadSecretFile conf = extractAndTransform mSecret
     transformString :: Bool -> Text -> IO ByteString
     transformString False t = return . encodeUtf8 $ t
     transformString True  t =
-      case decode (encodeUtf8 t) of
+      case decode (encodeUtf8 $ replaceUrlChars t) of
         Left errMsg -> panic $ pack errMsg
         Right bs    -> return bs
 
     setSecret bs = conf { configJwtSecret = Just bs }
+
+    replaceUrlChars = replace "_" "/" . replace "-" "+" . replace "." "="
         
