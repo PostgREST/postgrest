@@ -7,7 +7,6 @@ module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prett
 import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import qualified Data.Text                 as T
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
@@ -22,9 +21,10 @@ apiRequestErrResponse err =
     ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
 
 errResponse :: HT.Status -> Text -> Response
-errResponse status message = responseLBS status
-  [toHeader CTApplicationJSON]
-  (toS $ T.concat ["{\"message\":\"",message,"\"}"])
+errResponse status message = jsonErrResponse status $ JSON.object ["message" .= message]
+
+jsonErrResponse :: HT.Status -> JSON.Value -> Response
+jsonErrResponse status message = responseLBS status [toHeader CTApplicationJSON] $ JSON.encode message
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =

@@ -132,6 +132,14 @@ spec = do
       get "/items?order=anti_id.desc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
 
+    it "matches filtering nested items 2" $
+      get "/clients?select=id,projects{id,tasks2{id,name}}&projects.tasks.name=like.Design*"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
+        , matchStatus  = 400
+        , matchHeaders = []
+        }
+
     it "matches filtering nested items" $
       get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
         [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
