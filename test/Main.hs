@@ -13,6 +13,7 @@ import Data.IORef
 import Data.Time.Clock.POSIX   (getPOSIXTime)
 
 import qualified Feature.AuthSpec
+import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
@@ -39,11 +40,12 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ either (panic.show) id result
-  let withApp = return $ postgrest (testCfg testDbConn) refDbStructure pool getTime
-      ltdApp  = return $ postgrest (testLtdRowsCfg testDbConn) refDbStructure pool getTime
-      unicodeApp = return $ postgrest (testUnicodeCfg testDbConn) refDbStructure pool getTime
-      proxyApp = return $ postgrest (testProxyCfg testDbConn) refDbStructure pool getTime
-      noJwtApp = return $ postgrest (testCfgNoJWT testDbConn) refDbStructure pool getTime
+  let withApp      = return $ postgrest (testCfg testDbConn)          refDbStructure pool getTime
+      ltdApp       = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool getTime
+      unicodeApp   = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool getTime
+      proxyApp     = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool getTime
+      noJwtApp     = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool getTime
+      binaryJwtApp = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool getTime
 
   let reset = resetDb testDbConn
   hspec $ do
@@ -64,6 +66,10 @@ main = do
     -- this test runs without a JWT secret
     beforeAll_ reset . before noJwtApp $
       describe "Feature.NoJwtSpec" Feature.NoJwtSpec.spec
+
+    -- this test runs with a binary JWT secret
+    beforeAll_ reset . before binaryJwtApp $
+      describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
 
  where
   specs = map (uncurry describe) [

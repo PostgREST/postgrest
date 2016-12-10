@@ -23,6 +23,7 @@ module PostgREST.Config ( prettyVersion
 
 import           System.IO.Error             (IOError)
 import           Control.Applicative
+import qualified Data.ByteString             as B
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
@@ -43,17 +44,19 @@ import           Protolude hiding            (intercalate
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDatabase  :: Text
-  , configAnonRole  :: Text
-  , configProxyUri  :: Maybe Text
-  , configSchema    :: Text
-  , configHost      :: Text
-  , configPort      :: Int
-  , configJwtSecret :: Maybe Text
-  , configPool      :: Int
-  , configMaxRows   :: Maybe Integer
-  , configReqCheck  :: Maybe Text
-  , configQuiet     :: Bool
+    configDatabase          :: Text
+  , configAnonRole          :: Text
+  , configProxyUri          :: Maybe Text
+  , configSchema            :: Text
+  , configHost              :: Text
+  , configPort              :: Int
+  , configJwtSecretOrFile   :: Maybe Text
+  , configJwtSecret         :: Maybe B.ByteString
+  , configJwtSecretIsBase64 :: Bool
+  , configPool              :: Int
+  , configMaxRows           :: Maybe Integer
+  , configReqCheck          :: Maybe Text
+  , configQuiet             :: Bool
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -105,12 +108,13 @@ readOptions = do
     cProxy    <- C.lookup conf "server-proxy-uri"
     -- jwt ---------------
     cJwtSec   <- C.lookup conf "jwt-secret"
+    cJwtB64   <- C.lookupDefault False conf "secret-is-base64"
     -- safety ------------
     cMaxRows  <- C.lookup conf "max-rows"
     cReqCheck <- C.lookup conf "pre-request"
 
     return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-          cJwtSec cPool cMaxRows cReqCheck False
+          cJwtSec Nothing cJwtB64 cPool cMaxRows cReqCheck False
 
  where
   opts = info (helper <*> pathParser) $

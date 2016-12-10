@@ -29,7 +29,7 @@ import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-import           Web.JWT                   (secret)
+import           Web.JWT                   (binarySecret)
 
 import           Data.Aeson
 import           Data.Aeson.Types          (emptyArray)
@@ -83,7 +83,7 @@ postgrest conf refDbStructure pool getTime =
     response <- case userApiRequest (configSchema conf) req body of
       Left err -> return $ apiRequestErrResponse err
       Right apiRequest -> do
-        let jwtSecret = secret <$> configJwtSecret conf
+        let jwtSecret = binarySecret <$> configJwtSecret conf
             eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
