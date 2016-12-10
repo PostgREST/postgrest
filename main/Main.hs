@@ -103,22 +103,22 @@ main = do
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret
   where
-      mSecret   = decodeUtf8 <$> configJwtSecret conf
-      isB64     = configJwtSecretIsBase64 conf
+    mSecret   = decodeUtf8 <$> configJwtSecret conf
+    isB64     = configJwtSecretIsBase64 conf
 
-      extractAndTransform :: Maybe Text -> IO AppConfig
-      extractAndTransform Nothing  = return conf
-      extractAndTransform (Just s) =
-        case stripPrefix "@" s of
-          Nothing       -> setSecret <$> transformString isB64 s
-          Just filename -> fmap setSecret $ transformString isB64 =<< readFile (toS filename)
+    extractAndTransform :: Maybe Text -> IO AppConfig
+    extractAndTransform Nothing  = return conf
+    extractAndTransform (Just s) =
+      case stripPrefix "@" s of
+        Nothing       -> setSecret <$> transformString isB64 s
+        Just filename -> fmap setSecret $ transformString isB64 =<< readFile (toS filename)
 
-      transformString :: Bool -> Text -> IO ByteString
-      transformString False t = return . encodeUtf8 $ t
-      transformString True  t =
-        case decode (encodeUtf8 t) of
-          Left errMsg -> panic $ pack errMsg
-          Right bs    -> return bs
+    transformString :: Bool -> Text -> IO ByteString
+    transformString False t = return . encodeUtf8 $ t
+    transformString True  t =
+      case decode (encodeUtf8 t) of
+        Left errMsg -> panic $ pack errMsg
+        Right bs    -> return bs
 
-      setSecret bs = conf { configJwtSecret = Just bs }
+    setSecret bs = conf { configJwtSecret = Just bs }
         
