@@ -12,7 +12,7 @@ import Protolude hiding (get)
 -- }}}
 
 spec :: SpecWith Application
-spec = describe "server started with binary JWT secret" $ do
+spec = describe "server started with binary JWT secret" $
 
   -- this test will stop working 9999999999s after the UNIX EPOCH
   it "succeeds with jwt token encoded with a binary secret" $ do
