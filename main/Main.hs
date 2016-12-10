@@ -17,7 +17,7 @@ import           Control.AutoUpdate
 import           Data.ByteString.Base64               (decode)
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix, pack)
-import           Data.Text.Encoding                   (encodeUtf8)
+import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
 import           Data.Text.IO                         (hPutStrLn, readFile)
 import           Data.Function                        (id)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
@@ -103,7 +103,7 @@ main = do
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret
   where
-      mSecret   = configJwtSecretOrFile   conf
+      mSecret   = decodeUtf8 <$> configJwtSecret conf
       isB64     = configJwtSecretIsBase64 conf
 
       extractAndTransform :: Maybe Text -> IO AppConfig

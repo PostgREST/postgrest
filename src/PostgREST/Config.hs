@@ -30,6 +30,7 @@ import qualified Data.Configurator           as C
 import qualified Data.Configurator.Types     as C
 import           Data.List                   (lookup)
 import           Data.Text                   (strip, intercalate, lines)
+import           Data.Text.Encoding          (encodeUtf8)
 import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
 import           Network.Wai
@@ -37,7 +38,7 @@ import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 
 import           Protolude hiding            (intercalate
                                              , (<>))
@@ -50,9 +51,10 @@ data AppConfig = AppConfig {
   , configSchema            :: Text
   , configHost              :: Text
   , configPort              :: Int
-  , configJwtSecretOrFile   :: Maybe Text
+
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
+
   , configPool              :: Int
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
@@ -114,7 +116,7 @@ readOptions = do
     cReqCheck <- C.lookup conf "pre-request"
 
     return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-          cJwtSec Nothing cJwtB64 cPool cMaxRows cReqCheck False
+          (encodeUtf8 <$> cJwtSec) cJwtB64 cPool cMaxRows cReqCheck False
 
  where
   opts = info (helper <*> pathParser) $

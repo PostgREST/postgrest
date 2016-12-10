@@ -58,7 +58,7 @@ _baseCfg :: AppConfig
 _baseCfg =  AppConfig -- Connection Settings
                       mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
                       -- Jwt settings
-                      (Just "safe") (Just $ encodeUtf8 "safe") False
+                      (Just $ encodeUtf8 "safe") False
                       -- Connection Modifiers
                       10 Nothing (Just "test.switch_role")
                       -- Debug Settings
@@ -68,7 +68,7 @@ testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
 
 testCfgNoJWT :: Text -> AppConfig
-testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecretOrFile = Nothing, configJwtSecret = Nothing }
+testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
 testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
@@ -80,9 +80,8 @@ testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }
 
 testCfgBinaryJWT :: Text -> AppConfig
-testCfgBinaryJWT testDbConn = (testCfg testDbConn) { configJwtSecretOrFile = Just secret, configJwtSecret = Just secretBs }
-  where secret   = "h2CGB1FoBd51aQooCS2g+UmRgYQfTPQ6v3+9ALbaqM4="
-        secretBs = B64.decodeLenient "h2CGB1FoBd51aQooCS2g+UmRgYQfTPQ6v3+9ALbaqM4="
+testCfgBinaryJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Just secretBs }
+  where secretBs = B64.decodeLenient "h2CGB1FoBd51aQooCS2g+UmRgYQfTPQ6v3+9ALbaqM4="
 
 
 resetDb :: Text -> IO ()
