@@ -112,14 +112,24 @@ app dbStructure conf apiRequest =
               let (tableTotal, queryTotal, _ , body) = row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
                   canonical = iCanonicalQS apiRequest
-                  --TargetIdent qi = iTarget apiRequest
-              return $ responseLBS status
-                [toHeader contentType, contentRange,
-                  ("Content-Location",
-                    "/" <> toS (qiName qi) <>
-                      if BS.null canonical then "" else "?" <> toS canonical
-                  )
-                ] (toS body)
+              return $
+                if contentType == CTSingularJSON && queryTotal /= 1
+                  then
+                    responseLBS status406
+                      [toHeader contentType]
+                      $ toS . formatGeneralError
+                        "JSON object requested, multiple rows returned"
+                        $ intercalate " "
+                          [ "Results contain", show queryTotal, "rows,"
+                          , toS (toMime contentType), "requires 1 row"
+                          ]
+                  else responseLBS status
+                    [toHeader contentType, contentRange,
+                      ("Content-Location",
+                        "/" <> toS (qiName qi) <>
+                          if BS.null canonical then "" else "?" <> toS canonical
+                      )
+                    ] (toS body)
 
         (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
