@@ -109,9 +109,10 @@ loadSecretFile conf = extractAndTransform mSecret
     extractAndTransform :: Maybe Text -> IO AppConfig
     extractAndTransform Nothing  = return conf
     extractAndTransform (Just s) =
-      case stripPrefix "@" s of
-        Nothing       -> setSecret <$> transformString isB64 s
-        Just filename -> fmap setSecret $ transformString isB64 =<< readFile (toS filename)
+      fmap setSecret $ transformString isB64 =<<
+        case stripPrefix "@" s of
+            Nothing       -> return s
+            Just filename -> readFile (toS filename)
 
     transformString :: Bool -> Text -> IO ByteString
     transformString False t = return . encodeUtf8 $ t
