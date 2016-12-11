@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Custom request validation with `--pre-request` argument - @begriffs
 - Ability to order by jsonb keys - @steve-chavez
 - Ability to specify offset for a deeper level - @ruslantalpa
+- Ability to use binary base64 encoded secrets - @TrevorBasinger
 
 ### Fixed
 - Do not apply limit to parent items - @ruslantalpa

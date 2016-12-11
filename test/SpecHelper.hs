@@ -5,7 +5,7 @@ import Control.Monad (void)
 import qualified System.IO.Error as E
 import System.Environment (getEnv)
 
-import Codec.Binary.Base64.String (encode)
+import qualified Data.ByteString.Base64 as B64 (encode, decodeLenient)
 import Data.CaseInsensitive (CI(..))
 import Data.List (lookup)
 import Text.Regex.TDFA ((=~))
@@ -54,25 +54,35 @@ getEnvVarWithDefault var def = do
   varValue <- getEnv (toS var) `E.catchIOError` const (return $ toS def)
   return $ toS varValue
 
+_baseCfg :: AppConfig
+_baseCfg =  -- Connection Settings
+  AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
+            -- Jwt settings
+            (Just $ encodeUtf8 "safe") False
+            -- Connection Modifiers
+            10 Nothing (Just "test.switch_role")
+            -- Debug Settings
+            True
+
 testCfg :: Text -> AppConfig
-testCfg testDbConn =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 Nothing (Just "test.switch_role") True
+testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
 
 testCfgNoJWT :: Text -> AppConfig
-testCfgNoJWT testDbConn =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 Nothing 10 Nothing Nothing True
+testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
-testUnicodeCfg testDbConn =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "تست" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
+testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
 
 testLtdRowsCfg :: Text -> AppConfig
-testLtdRowsCfg testDbConn =
-  AppConfig testDbConn "postgrest_test_anonymous" Nothing "test" "localhost" 3000 (Just "safe") 10 (Just 2) Nothing True
+testLtdRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
 
 testProxyCfg :: Text -> AppConfig
-testProxyCfg testDbConn =
-  AppConfig testDbConn "postgrest_test_anonymous" (Just "https://postgrest.com/openapi.json") "test" "localhost" 3000 (Just "safe") 10 Nothing Nothing True
+testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }
+
+testCfgBinaryJWT :: Text -> AppConfig
+testCfgBinaryJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Just secretBs }
+  where secretBs = B64.decodeLenient "h2CGB1FoBd51aQooCS2g+UmRgYQfTPQ6v3+9ALbaqM4="
+
 
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"
@@ -99,7 +109,7 @@ matchHeader name valRegex headers =
 
 authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
-  (hAuthorization, "Basic " <> (toS . encode . toS $ u <> ":" <> p))
+  (hAuthorization, "Basic " <> (toS . B64.encode . toS $ u <> ":" <> p))
 
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =

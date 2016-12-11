@@ -38,6 +38,8 @@ executable postgrest
                      , text
                      , time
                      , warp
+                     , bytestring
+                     , base64-bytestring
   if !os(windows)
     build-depends:     unix
 
@@ -108,6 +110,7 @@ Test-Suite spec
   Hs-Source-Dirs:      test
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
+                     , Feature.BinaryJwtSecretSpec
                      , Feature.ConcurrentSpec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
@@ -126,8 +129,8 @@ Test-Suite spec
                      , async
                      , auto-update
                      , base
-                     , base64-string
                      , bytestring
+                     , base64-bytestring
                      , case-insensitive
                      , cassava
                      , contravariant
