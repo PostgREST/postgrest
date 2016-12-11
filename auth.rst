@@ -217,9 +217,33 @@ JWT from Auth0
 
 An external service like `Auth0 <https://auth0.com/>`_ can do the hard work transforming OAuth from Github, Twitter, Google etc into a JWT suitable for PostgREST. Auth0 can also handle email signup and password reset flows.
 
-To adapt Auth0 to our uses we need to save the database role in `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_ and include the metadata in `private claims <https://auth0.com/docs/jwt#payload>`_ of the generated JWT.
+By default, Auth0 generates binary base64URL encoded secrets. You can find the secret in the client settings of the Auth0 management console. Copy the client secret into your PostgREST configuration file as the :code:`jwt-secret`. Then set :code:`secret-is-base64` to :code:`true`.
 
-**TODO: add details**
+To adapt Auth0 to our uses we need to save the database role in `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write a rule that will extract the role from the user metadata and include a :code:`role` claim in the payload of our user object. Afterwards, in your Auth0Lock code, include the :code:`role` claim in your `scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->`_.
+
+
+.. code:: javascript
+
+  // Example Auth0 rule
+  function (user, context, callback) {
+    var role = user.user_metadata.role;
+    user.role = role;
+    callback(null, user, context);
+  }
+
+
+.. code:: javascript
+
+  // Example using Auth0Lock with role claim in scope
+  new Auth0Lock ( AUTH0_CLIENTID, AUTH0_DOMAIN, {
+    container: 'lock-container',
+    auth: {
+      params: { scope: 'openid role' },
+      redirectUrl: FQDN + '/login', // Replace with your redirect url
+      responseType: 'token'
+    }
+  })
+
 
 .. _ssl:
 

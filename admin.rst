@@ -39,6 +39,7 @@ server-host       String  \*4
 server-port       Int     3000
 server-proxy-url  String
 jwt-secret        String
+secret-is-base64  Bool    False
 max-rows          Int     ∞
 pre-request       String
 ================  ======  =======  ========
@@ -58,7 +59,9 @@ server-port
 server-proxy-url
   Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path.
 jwt-secret
-  The secret used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file which is useful for non-UTF-8 binary secrets.
+  The secret used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded.
+secret-is-base64
+  When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 max-rows
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
 pre-request
