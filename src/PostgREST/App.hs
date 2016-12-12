@@ -22,6 +22,8 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
+import qualified Text.InterpolatedString.Perl6 as P6 (q)
+
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (renderSimpleQuery)
@@ -107,7 +109,7 @@ app dbStructure conf apiRequest =
           case readSqlParts of
             Left errorResponse -> return errorResponse
             Right (q, cq) -> do
-              let stm = createReadStatement q cq shouldCount (contentType == CTTextCSV)
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount (contentType == CTTextCSV)
               row <- H.query () stm
               let (tableTotal, queryTotal, _ , body) = row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -136,7 +138,15 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let isSingle = (==1) $ V.length rows
-                  pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+              when (not isSingle && contentType == CTSingularJSON) $
+                HT.sql [P6.q| DO $$
+                          BEGIN RAISE EXCEPTION cardinality_violation
+                          USING MESSAGE =
+                            'Singular response requested, but more than one object would be inserted';
+                          END $$;
+                        |]
+
+              let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
                   stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
               row <- H.query payload stm
               let (_, _, fs, body) = extractQueryResult row
@@ -159,10 +169,18 @@ app dbStructure conf apiRequest =
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
+              let stm = createWriteStatement qi sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
-                  r = contentRangeH 0 (toInteger $ queryTotal-1)
+              when (queryTotal /= 1 && contentType == CTSingularJSON) $
+                HT.sql [P6.q| DO $$
+                          BEGIN RAISE EXCEPTION cardinality_violation
+                          USING MESSAGE =
+                            'Singular response requested, but more than one object would be updated;
+                          END $$;
+                        |]
+
+              let r = contentRangeH 0 (toInteger $ queryTotal-1)
                         (toInteger <$> if shouldCount then Just queryTotal else Nothing)
                   s = case () of _ | queryTotal == 0 -> status404
                                   | iPreferRepresentation apiRequest == Full -> status200
@@ -200,8 +218,9 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right (q, cq) -> do
               let p = V.head payload
+                  singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
-              row <- H.query () (callProc qi p q cq topLevelRange shouldCount False paramsAsSingleObject)
+              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsSingleObject)
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, emptyArray) row
                   (status, contentRange) = rangeHeader queryTotal tableTotal

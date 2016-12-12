@@ -322,18 +322,9 @@ spec = do
         , matchHeaders = []
         }
 
-    it "works in the presence of a range header" $
-      let headers = singular : rangeHdrs (ByteRangeFromTo 0 9) in
-      request methodGet "/items" headers ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":1} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will respond with 404 when not found" $
+    it "will respond with 406 for empty response" $
       request methodGet "/items?id=eq.9999" [singular] ""
-        `shouldRespondWith` 404
+        `shouldRespondWith` 406
 
     it "can shape plurality singular object routes" $
       request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [singular] ""
