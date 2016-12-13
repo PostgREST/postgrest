@@ -11,7 +11,7 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
-import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate, unwords)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
@@ -121,7 +121,7 @@ app dbStructure conf apiRequest =
                       [toHeader contentType]
                       $ toS . formatGeneralError
                         "JSON object requested, multiple rows returned"
-                        $ intercalate " "
+                        $ unwords
                           [ "Results contain", show queryTotal, "rows,"
                           , toS (toMime contentType), "requires 1 row"
                           ]
