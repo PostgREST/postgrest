@@ -377,7 +377,7 @@ spec = do
           "/addresses"
           [("Prefer", "return=representation"),("Accept", "application/vnd.pgrst.object+json")]
           [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
-        liftIO $ simpleStatus p `shouldBe` status400
+        liftIO $ simpleStatus p `shouldBe` status406
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]

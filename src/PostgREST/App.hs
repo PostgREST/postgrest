@@ -116,15 +116,7 @@ app dbStructure conf apiRequest =
                   canonical = iCanonicalQS apiRequest
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
-                  then
-                    responseLBS status406
-                      [toHeader contentType]
-                      $ toS . formatGeneralError
-                        "JSON object requested, multiple rows returned"
-                        $ unwords
-                          [ "Results contain", show queryTotal, "rows,"
-                          , toS (toMime contentType), "requires 1 row"
-                          ]
+                  then singularityError (toInteger queryTotal)
                   else responseLBS status
                     [toHeader contentType, contentRange,
                       ("Content-Location",
@@ -138,32 +130,30 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let isSingle = (==1) $ V.length rows
-              when (not isSingle && contentType == CTSingularJSON) $
-                HT.sql [P6.q| DO $$
-                          BEGIN RAISE EXCEPTION cardinality_violation
-                          USING MESSAGE =
-                            'Singular response requested, but more than one object would be inserted';
-                          END $$;
-                        |]
+              if contentType == CTSingularJSON
+                 && not isSingle
+                 && iPreferRepresentation apiRequest == Full
+                then
+                  return $ singularityError (toInteger $ V.length rows)
+                else do
+                  let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+                      stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
+                  row <- H.query payload stm
+                  let (_, _, fs, body) = extractQueryResult row
+                      headers = catMaybes [
+                          if null fs
+                            then Nothing
+                            else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
+                        , if iPreferRepresentation apiRequest == Full
+                            then Just $ toHeader contentType
+                            else Nothing
+                        , Just . contentRangeH 1 0 $
+                            toInteger <$> if shouldCount then Just (V.length rows) else Nothing
+                        ]
 
-              let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-                  stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
-              row <- H.query payload stm
-              let (_, _, fs, body) = extractQueryResult row
-                  headers = catMaybes [
-                      if null fs
-                        then Nothing
-                        else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
-                    , if iPreferRepresentation apiRequest == Full
-                        then Just $ toHeader contentType
-                        else Nothing
-                    , Just . contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just (V.length rows) else Nothing
-                    ]
-
-              return . responseLBS status201 headers $
-                if iPreferRepresentation apiRequest == Full
-                  then toS body else ""
+                  return . responseLBS status201 headers $
+                    if iPreferRepresentation apiRequest == Full
+                      then toS body else ""
 
         (ActionUpdate, TargetIdent qi, Just payload) ->
           case mutateSqlParts of
@@ -172,22 +162,25 @@ app dbStructure conf apiRequest =
               let stm = createWriteStatement qi sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              when (queryTotal /= 1 && contentType == CTSingularJSON) $
-                HT.sql [P6.q| DO $$
-                          BEGIN RAISE EXCEPTION cardinality_violation
-                          USING MESSAGE =
-                            'Singular response requested, but more than one object would be updated;
-                          END $$;
-                        |]
-
-              let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                        (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                  s = case () of _ | queryTotal == 0 -> status404
-                                  | iPreferRepresentation apiRequest == Full -> status200
-                                  | otherwise -> status204
-              return $ if iPreferRepresentation apiRequest == Full
-                then responseLBS s [toHeader contentType, r] (toS body)
-                else responseLBS s [r] ""
+              if contentType == CTSingularJSON
+                 && queryTotal /= 1
+                 && iPreferRepresentation apiRequest == Full
+                then do
+                  -- raise exception to roll back the inserted data
+                  HT.sql [P6.q| DO $$
+                            BEGIN RAISE EXCEPTION cardinality_violation;
+                            END $$;
+                          |]
+                  return $ singularityError (toInteger queryTotal)
+                else do
+                  let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                            (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+                      s = case () of _ | queryTotal == 0 -> status404
+                                      | iPreferRepresentation apiRequest == Full -> status200
+                                      | otherwise -> status204
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS s [toHeader contentType, r] (toS body)
+                    else responseLBS s [r] ""
 
         (ActionDelete, TargetIdent qi, Nothing) ->
           case mutateSqlParts of
@@ -322,6 +315,17 @@ contentRangeH lower upper total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = lower <= upper
+
+singularityError :: Integer -> Response
+singularityError numRows =
+  responseLBS status406
+    [toHeader CTSingularJSON]
+    $ toS . formatGeneralError
+      "JSON object requested, multiple rows returned"
+      $ unwords
+        [ "Results contain", show numRows, "rows,"
+        , toS (toMime CTSingularJSON), "requires 1 row"
+        ]
 
 formatParserError :: ParseError -> Text
 formatParserError e = formatGeneralError message details
