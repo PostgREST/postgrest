@@ -161,7 +161,7 @@ Build the test container with :code:`test/Dockerfile.test`:
 
 .. code:: bash
 
-  $ docker build -t pgst-test - < text/Dockerfile.test
+  $ docker build -t pgst-test - < test/Dockerfile.test
   $ mkdir .stack-work-docker ~/.stack-linux
 
 The first run of the test container will take a long time while the dependencies get cached. Creating the :code:`~/.stack-linux` folder and mapping it as a volume into the container ensures that we can run the container in disposable mode and not worry about subsequent runs being slow. :code:`.stack-work-docker` is also mapped into the container and must be specified when using stack from Linux, not to interfere with the :code:`.stack-work` for local development. (On Sierra, :code:`stack build` works, while :code:`stack test` fails with GHC 8.0.1).
