@@ -382,6 +382,10 @@ CREATE TABLE articles (
 
 SET search_path = test, pg_catalog;
 
+CREATE VIEW limited_article_stars AS
+  SELECT article_id, user_id, created_at FROM private.article_stars;
+
+
 --
 -- Name: articleStars; Type: VIEW; Schema: test; Owner: -
 --

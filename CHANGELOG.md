@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Allow using nulls order without explicit order direction - @steve-chavez
 - Fatal error on postgres unsupported version, format supported version in error message - @steve-chavez
 - Prevent database memory cosumption by prepared statements caches - @ruslantalpa
+- Use specific columns in the RETURNING section - @ruslantalpa
 
 ### Changed
 - Use HTTP 400 for raise\_exception - @begriffs

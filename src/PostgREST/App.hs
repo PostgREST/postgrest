@@ -62,6 +62,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , createReadStatement
                                         , createWriteStatement
                                         , ResultsWithCount
+                                        , returningF
                                         )
 import           PostgREST.Types
 import           PostgREST.OpenAPI
@@ -262,8 +263,9 @@ app dbStructure conf apiRequest =
       mapSnd f (a, b) = (a, f b)
       readDbRequest = DbRead <$> readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
       mutateDbRequest = DbMutate <$> mutateRequest apiRequest
-      selectQuery = requestToQuery schema False <$> readDbRequest
-      mutateQuery = requestToQuery schema False <$> mutateDbRequest
+      returningSql = returningF (iTarget apiRequest) (iPreferRepresentation apiRequest) <$> readDbRequest
+      selectQuery = requestToQuery schema False "" <$> readDbRequest
+      mutateQuery = requestToQuery schema False <$> returningSql <*> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
@@ -287,6 +289,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
           Left $ errResponse status415 $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
+
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
 splitKeyValue kv = (k, BS.tail v)

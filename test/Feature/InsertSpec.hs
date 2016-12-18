@@ -201,6 +201,28 @@ spec = do
           , matchStatus  = 201
           , matchHeaders = []
           }
+    context "table with limited privileges" $ do
+      it "succeeds if correct select is applied" $
+        request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
+          [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"article_id":2,"user_id":1}|]
+          , matchStatus  = 201
+          , matchHeaders = []
+          }
+      it "fails if more columns are selected" $
+        request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
+          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          , matchStatus  = 401
+          , matchHeaders = []
+          }
+      it "fails if select is not specified" $
+        request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
+          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          , matchStatus  = 401
+          , matchHeaders = []
+          }
 
   describe "CSV insert" $ do
 

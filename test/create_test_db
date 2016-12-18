@@ -23,10 +23,10 @@ URI=$(echo $1 | cut -d'/' -f1-3)
 HOST_PORT=$(echo $URI | cut -d'/' -f3 | cut -d'@' -f2 )
 DB=$2
 # Specify the username of choice, or let the script create a random unique user by appending the database name
-TEST_USER_NAME=${3:-postgrest_test_$DB}
+TEST_USER_NAME=postgrest_test_authenticator
 # New password will get assigned only if the user does not already exist
 # Otherwise make sure to provide the correct password for the existing user
-TEST_USER_PASS=${4:-$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)a}
+TEST_USER_PASS=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 
 PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xq >/dev/null -c 'select rolcreatedb from pg_authid where rolname = current_user;' 2>/dev/null
 if [ $? -ne 0 ]; then
@@ -41,53 +41,16 @@ FROM pg_stat_activity
 WHERE pg_stat_activity.datname = '$DB'
   AND pid <> pg_backend_pid();
 
-drop database if exists "$DB";
-
-create database "$DB" encoding = 'UTF8';
-
-DO \$\$
-  BEGIN
-    IF NOT EXISTS (SELECT * FROM pg_catalog.pg_roles WHERE rolname = '$TEST_USER_NAME')
-      THEN CREATE ROLE $TEST_USER_NAME WITH LOGIN NOINHERIT PASSWORD '$TEST_USER_PASS';
-    END IF;
-  END \$\$;
-DO \$\$
-  BEGIN
-    IF NOT EXISTS (SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'postgrest_test_anonymous')
-      THEN CREATE ROLE postgrest_test_anonymous;
-    END IF;
-  END \$\$;
-DO \$\$
-  BEGIN
-    IF NOT EXISTS (SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'postgrest_test_default_role')
-      THEN CREATE ROLE postgrest_test_default_role;
-    END IF;
-  END \$\$;
-DO \$\$
-  BEGIN
-    IF NOT EXISTS (SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'postgrest_test_author')
-      THEN CREATE ROLE postgrest_test_author;
-    END IF;
-  END \$\$;
-
-DO \$\$
-  BEGIN
-  IF NOT EXISTS (select * from pg_roles where rolname = 'postgrest_test_anonymous' AND pg_has_role('$TEST_USER_NAME', oid, 'member'))
-    THEN GRANT postgrest_test_anonymous TO $TEST_USER_NAME;
-  END IF;
-  IF NOT EXISTS (select * from pg_roles where rolname = 'postgrest_test_author' AND pg_has_role('$TEST_USER_NAME', oid, 'member'))
-    THEN GRANT postgrest_test_author TO $TEST_USER_NAME;
-  END IF;
-  IF NOT EXISTS (select * from pg_roles where rolname = 'postgrest_test_default_role' AND pg_has_role('$TEST_USER_NAME', oid, 'member'))
-    THEN GRANT postgrest_test_default_role TO $TEST_USER_NAME;
-  END IF;
-END \$\$;
+DROP DATABASE IF EXISTS $DB;
+DROP ROLE IF EXISTS $TEST_USER_NAME;
+CREATE USER $TEST_USER_NAME WITH LOGIN NOINHERIT PASSWORD '$TEST_USER_PASS' CREATEROLE;
+CREATE DATABASE $DB OWNER $TEST_USER_NAME;
 EOF
 
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xqf $BASEPATH/fixtures/database.sql
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xqf $BASEPATH/fixtures/schema.sql
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xqf $BASEPATH/fixtures/jwt.sql
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=test_user_name="$TEST_USER_NAME" -Xqf $BASEPATH/fixtures/privileges.sql
+PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq <<EOF
+  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+  ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
+EOF
 
 # Create a new connection string to use with the test runner
 echo 'postgres://'${TEST_USER_NAME}':'$TEST_USER_PASS'@'$HOST_PORT'/'$DB

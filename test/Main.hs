@@ -31,6 +31,7 @@ import Protolude
 main :: IO ()
 main = do
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
+  setupDb testDbConn
 
   pool <- P.acquire (3, 10, toS testDbConn)
   -- ask for the OS time at most once per second
