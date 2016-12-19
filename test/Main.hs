@@ -23,6 +23,7 @@ import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
 import qualified Feature.StructureSpec
+import qualified Feature.SingularSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.ProxySpec
 
@@ -81,5 +82,6 @@ main = do
     , ("Feature.InsertSpec"       , Feature.InsertSpec.spec)
     , ("Feature.QuerySpec"        , Feature.QuerySpec.spec)
     , ("Feature.RangeSpec"        , Feature.RangeSpec.spec)
+    , ("Feature.SingularSpec"     , Feature.SingularSpec.spec)
     , ("Feature.StructureSpec"    , Feature.StructureSpec.spec)
     ]

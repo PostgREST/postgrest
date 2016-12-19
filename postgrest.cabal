@@ -120,6 +120,7 @@ Test-Suite spec
                      , Feature.QueryLimitedSpec
                      , Feature.QuerySpec
                      , Feature.RangeSpec
+                     , Feature.SingularSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , SpecHelper
