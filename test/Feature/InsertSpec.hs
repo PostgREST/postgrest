@@ -335,6 +335,17 @@ spec = do
         get "/no_pk?a=eq.keepme" `shouldRespondWith`
           [json| [{ a: "keepme", b: null }] |]
 
+      it "can set a json column to escaped value" $ do
+        _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
+        request methodPatch "/json?data->>escaped=eq.bar"
+                     [("Prefer", "return=representation")]
+                     [json| { "data": { "escaped":" \"bar" } } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| [{ "data": { "escaped":" \"bar" } }] |]
+          , matchStatus  = 200
+          , matchHeaders = []
+          }
+
       it "can update based on a computed column" $
         request methodPatch
           "/items?always_true=eq.false"
@@ -349,46 +360,6 @@ spec = do
           [("Prefer", "return=representation")]
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
-
-    context "in a table" $ do
-      it "can provide a singular representation when updating one entity" $ do
-        _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
-        p <- request methodPatch
-          "/addresses?id=eq.97"
-          [("Prefer", "return=representation"),("Accept", "application/vnd.pgrst.object+json")]
-          [json| { address: "B Street" } |]
-        liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
-      it "raises an error when attempting to update multiple entities with singular object mime accept header" $ do
-        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
-        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
-        p <- request methodPatch
-          "/addresses?id=gt.0"
-          [("Prefer", "return=representation"),("Accept", "application/vnd.pgrst.object+json")]
-          [json| { address: "zzz" } |]
-        liftIO $ simpleStatus p `shouldBe` status400
-      it "can provide a singular representation when creating one entity" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation"),("Accept", "application/vnd.pgrst.object+json")]
-          [json| [ { id: 100, address: "xxx" } ] |]
-        liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
-      it "raises an error when attempting to create multiple entities with singular object accept header" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation"),("Accept", "application/vnd.pgrst.object+json")]
-          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
-        liftIO $ simpleStatus p `shouldBe` status406
-
-      it "can set a json column to escaped value" $ do
-        _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
-        request methodPatch "/json?data->>escaped=eq.bar"
-                     [("Prefer", "return=representation")]
-                     [json| { "data": { "escaped":" \"bar" } } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| [{ "data": { "escaped":" \"bar" } }] |]
-          , matchStatus  = 200
-          , matchHeaders = []
-          }
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do

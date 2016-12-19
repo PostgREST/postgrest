@@ -302,36 +302,6 @@ spec = do
       get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
 
-
-  describe "Plurality singular" $ do
-    let singular = ("Accept", "application/vnd.pgrst.object+json")
-
-    it "will select an existing object" $
-      request methodGet "/items?id=eq.5" [singular] ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "can combine multiple prefer values" $
-      request methodGet "/items?id=eq.5" [singular, ("Prefer","count=none")] ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will respond with 406 for empty response" $
-      request methodGet "/items?id=eq.9999" [singular] ""
-        `shouldRespondWith` 406
-
-    it "can shape plurality singular object routes" $
-      request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [singular] ""
-        `shouldRespondWith`
-          [str|{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}|]
-
-
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
