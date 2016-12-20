@@ -111,50 +111,40 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | isSingle = asJsonSingleF
     | otherwise = asJsonF
 
-
-createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> PreferRepresentation ->
-                        [Text] -> Bool -> PayloadJSON ->
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+                        PreferRepresentation -> [Text] ->
                         H.Query PayloadJSON (Maybe ResultsWithCount)
-createWriteStatement _ mutateQuery _ None
-                     _ _ (PayloadJSON _) =
+createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
+
  where
-  sql = [qc|
+  sql = case rep of
+    None -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT '', 0, {noLocationF}, '' |]
-
-createWriteStatement _ mutateQuery _ HeadersOnly
-                     pKeys _ (PayloadJSON rows) =
-  unicodeStatement sql encodeUniformObjs decodeStandardMay True
- where
-  sql = [qc|
+    HeadersOnly -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
-  cols = intercalate ", " [
-      "'' AS total_result_set",
-      "pg_catalog.count(_postgrest_t) AS page_total",
-      if V.length rows == 1 then locationF pKeys else noLocationF,
-      "''"
-    ]
-
-createWriteStatement selectQuery mutateQuery wantsSingle Full
-                     pKeys asCsv (PayloadJSON rows) =
-  unicodeStatement sql encodeUniformObjs decodeStandardMay True
- where
-  sql = [qc|
+    Full -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM ({selectQuery}) _postgrest_t |]
+
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(_postgrest_t) AS page_total",
-      if V.length rows == 1 then locationF pKeys else noLocationF <> " AS header",
-      bodyF <> " AS body"
+      if wantHdrs
+         then locationF pKeys
+         else noLocationF <> " AS header",
+      if rep == Full
+         then bodyF <> " AS body"
+         else "''"
     ]
+
   bodyF
     | asCsv = asCsvF
-    | wantsSingle = asJsonSingleF
+    | wantSingle = asJsonSingleF
     | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest

@@ -134,7 +134,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
         liftIO $ do
-          JSON.decode (simpleBody p) `shouldBe` Just expectedObj
+          JSON.decode (simpleBody p) `shouldBe` Just [expectedObj]
           simpleStatus p `shouldBe` created201
           lookup hLocation (simpleHeaders p) `shouldBe` Just expectedLoc
 

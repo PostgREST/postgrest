@@ -137,7 +137,10 @@ app dbStructure conf apiRequest =
                   return $ singularityError (toInteger $ V.length rows)
                 else do
                   let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-                      stm = createWriteStatement sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
+                      stm = createWriteStatement sq mq
+                        (contentType == CTSingularJSON) isSingle
+                        (contentType == CTTextCSV) (iPreferRepresentation apiRequest)
+                        pKeys
                   row <- H.query payload stm
                   let (_, _, fs, body) = extractQueryResult row
                       headers = catMaybes [
@@ -159,7 +162,9 @@ app dbStructure conf apiRequest =
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let stm = createWriteStatement sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
+              let stm = createWriteStatement sq mq
+                    (contentType == CTSingularJSON) False (contentType == CTTextCSV)
+                    (iPreferRepresentation apiRequest) []
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
               if contentType == CTSingularJSON
@@ -187,7 +192,9 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let emptyPayload = PayloadJSON V.empty
-                  stm = createWriteStatement sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
+                  stm = createWriteStatement sq mq
+                    False False (contentType == CTTextCSV)
+                    (iPreferRepresentation apiRequest) []
               row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
