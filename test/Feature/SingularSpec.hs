@@ -13,7 +13,7 @@ import Protolude hiding (get)
 
 
 spec :: SpecWith Application
-spec = do
+spec =
   describe "Requesting singular json object" $ do
     let pgrstObj = "application/vnd.pgrst.object+json"
         singular = ("Accept", pgrstObj)

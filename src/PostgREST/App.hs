@@ -125,7 +125,7 @@ app dbStructure conf apiRequest =
                       )
                     ] (toS body)
 
-        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
+        (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -137,7 +137,7 @@ app dbStructure conf apiRequest =
                   return $ singularityError (toInteger $ V.length rows)
                 else do
                   let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-                      stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
+                      stm = createWriteStatement sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
                   row <- H.query payload stm
                   let (_, _, fs, body) = extractQueryResult row
                       headers = catMaybes [
@@ -155,11 +155,11 @@ app dbStructure conf apiRequest =
                     if iPreferRepresentation apiRequest == Full
                       then toS body else ""
 
-        (ActionUpdate, TargetIdent qi, Just payload) ->
+        (ActionUpdate, TargetIdent _, Just payload) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let stm = createWriteStatement qi sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
+              let stm = createWriteStatement sq mq (contentType == CTSingularJSON) (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
               if contentType == CTSingularJSON
@@ -182,12 +182,12 @@ app dbStructure conf apiRequest =
                     then responseLBS s [toHeader contentType, r] (toS body)
                     else responseLBS s [r] ""
 
-        (ActionDelete, TargetIdent qi, Nothing) ->
+        (ActionDelete, TargetIdent _, Nothing) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let emptyPayload = PayloadJSON V.empty
-                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
+                  stm = createWriteStatement sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
               row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $

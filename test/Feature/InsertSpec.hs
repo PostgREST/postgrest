@@ -39,12 +39,12 @@ spec = do
 
       it "filters columns in result using &select" $
         request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
-          [json| {
+          [json| [{
             "integer": 14, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
-          } |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"integer":14,"varchar":"testing!"}|]
+          }] |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"integer":14,"varchar":"testing!"}]|]
           , matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
@@ -53,7 +53,7 @@ spec = do
         request methodPost "/projects?select=id,name,clients{id,name}"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
+            matchBody    = Just [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           , matchStatus  = 201
           , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
                            , "Location" <:> "/projects?id=eq.6"
@@ -103,7 +103,7 @@ spec = do
                        [("Prefer", "return=representation")]
                        [json| { "a":"bar", "b":"baz" } |]
           liftIO $ do
-            simpleBody p `shouldBe` [json| { "a":"bar", "b":"baz" } |]
+            simpleBody p `shouldBe` [json| [{ "a":"bar", "b":"baz" }] |]
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
             simpleStatus p `shouldBe` created201
 
@@ -121,7 +121,7 @@ spec = do
                        [("Prefer", "return=representation")]
                        [json| { "a":null, "b":"foo" } |]
           liftIO $ do
-            simpleBody p `shouldBe` [json| { "a":null, "b":"foo" } |]
+            simpleBody p `shouldBe` [json| [{ "a":null, "b":"foo" }] |]
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
             simpleStatus p `shouldBe` created201
 
@@ -177,7 +177,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just inserted
+            matchBody    = Just [str|[{"data":{"foo":"bar"}}]|]
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
@@ -189,7 +189,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just inserted
+            matchBody    = Just [str|[{"data":[1,2,3]}]|]
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
@@ -205,7 +205,7 @@ spec = do
       it "succeeds if correct select is applied" $
         request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
           [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"article_id":2,"user_id":1}|]
+            matchBody    = Just [str|[{"article_id":2,"user_id":1}]|]
           , matchStatus  = 201
           , matchHeaders = []
           }
@@ -277,7 +277,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      payload
         liftIO $ do
-          simpleBody p `shouldBe` payload
+          simpleBody p `shouldBe` "["<>payload<>"]"
           simpleStatus p `shouldBe` created201
 
         let Just location = lookup hLocation $ simpleHeaders p
@@ -382,13 +382,13 @@ spec = do
         [ auth, ("Prefer", "return=representation") ]
         [json| { "secret": "nyancat" } |]
       liftIO $ do
-          simpleBody p1 `shouldBe` [str|{"owner":"jdoe","secret":"nyancat"}|]
-          simpleStatus p1 `shouldBe` created201
+        simpleBody p1 `shouldBe` [str|[{"owner":"jdoe","secret":"nyancat"}]|]
+        simpleStatus p1 `shouldBe` created201
 
       p2 <- request methodPost "/authors_only"
         -- jwt token for jroe
         [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.YuF_VfmyIxWyuceT7crnNKEprIYXsJAyXid3rjPjIow", ("Prefer", "return=representation") ]
         [json| { "secret": "lolcat", "owner": "hacker" } |]
       liftIO $ do
-          simpleBody p2 `shouldBe` [str|{"owner":"jroe","secret":"lolcat"}|]
-          simpleStatus p2 `shouldBe` created201
+        simpleBody p2 `shouldBe` [str|[{"owner":"jroe","secret":"lolcat"}]|]
+        simpleStatus p2 `shouldBe` created201

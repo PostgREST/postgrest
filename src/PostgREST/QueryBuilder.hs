@@ -111,10 +111,11 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | isSingle = asJsonSingleF
     | otherwise = asJsonF
 
-createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
-                        PreferRepresentation -> [Text] -> Bool -> PayloadJSON ->
+
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> PreferRepresentation ->
+                        [Text] -> Bool -> PayloadJSON ->
                         H.Query PayloadJSON (Maybe ResultsWithCount)
-createWriteStatement _ _ mutateQuery _ None
+createWriteStatement _ mutateQuery _ None
                      _ _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
@@ -122,8 +123,8 @@ createWriteStatement _ _ mutateQuery _ None
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT '', 0, {noLocationF}, '' |]
 
-createWriteStatement _ _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON _) =
+createWriteStatement _ mutateQuery _ HeadersOnly
+                     pKeys _ (PayloadJSON rows) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -133,12 +134,12 @@ createWriteStatement _ _ mutateQuery isSingle HeadersOnly
   cols = intercalate ", " [
       "'' AS total_result_set",
       "pg_catalog.count(_postgrest_t) AS page_total",
-      if isSingle then locationF pKeys else noLocationF,
+      if V.length rows == 1 then locationF pKeys else noLocationF,
       "''"
     ]
 
-createWriteStatement _ selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON _) =
+createWriteStatement selectQuery mutateQuery wantsSingle Full
+                     pKeys asCsv (PayloadJSON rows) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -148,12 +149,12 @@ createWriteStatement _ selectQuery mutateQuery isSingle Full
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(_postgrest_t) AS page_total",
-      if isSingle then locationF pKeys else noLocationF <> " AS header",
+      if V.length rows == 1 then locationF pKeys else noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
   bodyF
     | asCsv = asCsvF
-    | isSingle = asJsonSingleF
+    | wantsSingle = asJsonSingleF
     | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
