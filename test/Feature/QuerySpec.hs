@@ -510,13 +510,6 @@ spec = do
              , matchHeaders = ["Content-Range" <:> "1-2/*"]
              }
 
-
-
-      it "prefer singular" $
-        request methodPost "/rpc/getproject"
-          [("Accept", "application/vnd.pgrst.object+json")] [json| { "id": 1} |] `shouldRespondWith`
-          [json|{"id":1,"name":"Windows 7","client_id":1}|]
-
       it "select works on the first level" $
         post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
           [json|[{"id":1,"name":"Windows 7"}]|]

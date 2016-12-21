@@ -23,8 +23,12 @@ spec =
         request methodGet  "/items?id=gt.0&id=lt.0" [singular] ""
           `shouldRespondWith` 406
 
-      it "will select an existing object" $
+      it "will select an existing object" $ do
         request methodGet "/items?id=eq.5" [singular] ""
+          `shouldRespondWith` [str|{"id":5}|]
+        -- also test without the +json suffix
+        request methodGet "/items?id=eq.5"
+          [("Accept", "application/vnd.pgrst.object")] ""
           `shouldRespondWith` [str|{"id":5}|]
 
       it "can combine multiple prefer values" $

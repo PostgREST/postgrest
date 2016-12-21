@@ -107,6 +107,14 @@ spec = do
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
             simpleStatus p `shouldBe` created201
 
+        it "returns empty array when no items inserted, and return=rep" $ do
+          p <- request methodPost "/no_pk"
+                       [("Prefer", "return=representation")]
+                       [json| [] |]
+          liftIO $ do
+            simpleBody p `shouldBe` [json| [] |]
+            simpleStatus p `shouldBe` created201
+
         it "can insert in tables with no select privileges" $ do
           p <- request methodPost "/insertonly"
                        [("Prefer", "return=minimal")]
@@ -316,6 +324,24 @@ spec = do
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
+
+      it "returns empty array when no rows updated and return=rep" $
+        request methodPatch "/items?id=eq.999999"
+          [("Prefer", "return=representation")] [json| { "id":42 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]",
+            matchStatus  = 404,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+      it "returns updated object as array when return=rep" $
+        request methodPatch "/items?id=eq.2"
+          [("Prefer", "return=representation")] [json| { "id":42 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":42}]|],
+            matchStatus  = 200,
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
+          }
 
       it "can update multiple items" $ do
         replicateM_ 10 $ post "/auto_incrementing_pk"
