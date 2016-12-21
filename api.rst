@@ -336,7 +336,7 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 Stored Procedures
 =================
 
-Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function.
+Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function. Such function can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations).
 
 .. code:: http
 
@@ -362,6 +362,10 @@ The client can call it by posting an object like
   { "a": 1, "b": 2}
 
 The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`.
+
+PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
+
+By default, a function is to be executed with the privileges of the user that calls it. This means, that the user has to have all permissions to do all operations the procedure performs. But if the function was defined with :code:`SECURITY DEFINER` options, only one permission check will take place – the permission to call the function. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
 
 .. note::
 
