@@ -10,20 +10,9 @@ import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           PostgREST.RangeQuery      (NonnegRange,allRange)
 
-pRequestSelect :: Text -> Parser ReadRequest
-pRequestSelect rootNodeName = do
-  fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
-  where
-    readQuery = Select [] [rootNodeName] [] Nothing allRange
-    treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
-      case fldForest of
-        [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) newForest
-          where
-            newForest =
-              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
+pRequestSelect :: Text -> Text -> Either ParseError ReadRequest
+pRequestSelect rootName selStr = 
+  parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
 
 pRequestFilter :: (Text, Text) -> Either ParseError (Path, Filter)
 pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
@@ -53,6 +42,21 @@ ws = toS <$> many (oneOf " \t")
 
 lexeme :: Parser a -> Parser a
 lexeme p = ws *> p <* ws
+
+pReadRequest :: Text -> Parser ReadRequest
+pReadRequest rootNodeName = do
+  fieldTree <- pFieldForest
+  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
+  where
+    readQuery = Select [] [rootNodeName] [] Nothing allRange
+    treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
+    treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
+      case fldForest of
+        [] -> Node (q {select=fld:select q}, i) rForest
+        _  -> Node (q, i) newForest
+          where
+            newForest =
+              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
 
 pTreePath :: Parser (Path,Field)
 pTreePath = do

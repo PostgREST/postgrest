@@ -21,7 +21,6 @@ import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
 import           Text.Parsec.Error
-import           Text.ParserCombinators.Parsec (parse)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
@@ -388,7 +387,7 @@ readRequest maxRows allRels allProcs apiRequest  =
 
     parseReadRequest :: Either ParseError ReadRequest
     parseReadRequest = addFiltersOrdersRanges apiRequest <*>
-      parse (pRequestSelect rootName) ("failed to parse select parameter <<" <> toS selStr <> ">>") (toS selStr)
+      pRequestSelect rootName selStr
       where
         selStr = iSelect apiRequest
         rootName = if action == ActionRead
