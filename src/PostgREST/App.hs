@@ -7,6 +7,8 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
+import           Control.Lens.Getter       (view)
+import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
@@ -58,7 +60,6 @@ import           PostgREST.QueryBuilder ( callProc
                                         , createReadStatement
                                         , createWriteStatement
                                         , ResultsWithCount
-                                        , returningF
                                         )
 import           PostgREST.Types
 import           PostgREST.OpenAPI
@@ -267,11 +268,11 @@ app dbStructure conf apiRequest =
         in (status, contentRange)
 
       mapSnd f (a, b) = (a, f b)
-      readDbRequest = DbRead <$> readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
-      mutateDbRequest = DbMutate <$> mutateRequest apiRequest
-      returningSql = returningF (iTarget apiRequest) (iPreferRepresentation apiRequest) <$> readDbRequest
-      selectQuery = requestToQuery schema False "" <$> readDbRequest
-      mutateQuery = requestToQuery schema False <$> returningSql <*> mutateDbRequest
+      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+      readDbRequest = DbRead <$> readReq
+      mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< readReq)
+      selectQuery = requestToQuery schema False <$> readDbRequest
+      mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutateSqlParts = (,) <$> selectQuery <*> mutateQuery
@@ -403,12 +404,12 @@ readRequest maxRows allRels allProcs apiRequest  =
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
-mutateRequest :: ApiRequest -> Either Response MutateRequest
-mutateRequest apiRequest = mapLeft (errResponse status400) $
+mutateRequest :: ApiRequest -> ReadRequest -> Either Response MutateRequest
+mutateRequest apiRequest readReq = mapLeft (errResponse status400) $
   case action of
-    ActionCreate -> Insert rootTableName <$> pure payload
-    ActionUpdate -> Update rootTableName <$> pure payload <*> filters
-    ActionDelete -> Delete rootTableName <$> filters
+    ActionCreate -> Right $ Insert rootTableName payload returnings
+    ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings
+    ActionDelete -> Delete rootTableName <$> filters <*> pure returnings
     _        -> Left "Unsupported HTTP verb"
   where
     action = iAction apiRequest
@@ -418,6 +419,15 @@ mutateRequest apiRequest = mapLeft (errResponse status400) $
       case target of
         (TargetIdent (QualifiedIdentifier _ t) ) -> t
         _ -> undefined
+    fieldNames :: ReadRequest -> PreferRepresentation -> [FieldName]
+    fieldNames _ None = []
+    fieldNames (Node (Select colSelects _ _ _ _, (_, _, _)) forest) _ =
+      map (fst . view _1) colSelects ++ map colName fks
+      where
+        fks = concatMap (fromMaybe [] . f) forest
+        f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
+        f _ = Nothing
+    returnings = fieldNames readReq (iPreferRepresentation apiRequest) 
     filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
       where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
 
