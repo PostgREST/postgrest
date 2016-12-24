@@ -180,9 +180,9 @@ app dbStructure conf apiRequest =
                 else do
                   let r = contentRangeH 0 (toInteger $ queryTotal-1)
                             (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                      s = case () of _ | queryTotal == 0 -> status404
-                                      | iPreferRepresentation apiRequest == Full -> status200
-                                      | otherwise -> status204
+                      s = if iPreferRepresentation apiRequest == Full
+                            then status200
+                            else status204
                   return $ if iPreferRepresentation apiRequest == Full
                     then responseLBS s [toHeader contentType, r] (toS body)
                     else responseLBS s [r] ""
@@ -199,11 +199,9 @@ app dbStructure conf apiRequest =
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
-              return $ if queryTotal == 0
-                then notFound
-                else if iPreferRepresentation apiRequest == Full
-                  then responseLBS status200 [toHeader contentType, r] (toS body)
-                  else responseLBS status204 [r] ""
+              return $ if iPreferRepresentation apiRequest == Full
+                then responseLBS status200 [toHeader contentType, r] (toS body)
+                else responseLBS status204 [r] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in

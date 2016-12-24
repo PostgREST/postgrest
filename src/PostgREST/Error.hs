@@ -103,6 +103,7 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     "P0001"   -> HT.status400 -- default code for "raise"
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
+    "42883"   -> HT.status404 -- undefined function
     "42P01"   -> HT.status404 -- undefined table
     "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
     _         -> HT.status400

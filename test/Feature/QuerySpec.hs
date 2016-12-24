@@ -493,6 +493,10 @@ spec = do
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
 
+    context "unknown function" $
+      it "returns 404" $
+        post "/rpc/fakefunc" [json| {} |] `shouldRespondWith` 404
+
     context "shaping the response returned by a proc" $ do
       it "returns a project" $
         post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
@@ -541,10 +545,6 @@ spec = do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"
             `shouldRespondWith` 400
-      -- it used to be 404 and it makes sense but in another part we decided that it's good to return
-      -- PostgreSQL errors (and have the proxy handle them) and this saves us an aditional query on each rpc request
-      it "responds with 400 on an unexisting proc" $
-        post "/rpc/fake" "{}" `shouldRespondWith` 400
       it "treats simple plpgsql raise as invalid input" $
         post "/rpc/problem" "{}" `shouldRespondWith` 400
 

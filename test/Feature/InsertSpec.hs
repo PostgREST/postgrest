@@ -305,7 +305,11 @@ spec = do
       it "indicates no records found to update" $
         request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
-            `shouldRespondWith` 404
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "",
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
     context "in a nonempty table" $ do
       it "can update a single item" $ do
@@ -330,7 +334,7 @@ spec = do
           [("Prefer", "return=representation")] [json| { "id":42 } |]
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "[]",
-            matchStatus  = 404,
+            matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
@@ -377,7 +381,12 @@ spec = do
           "/items?always_true=eq.false"
           [("Prefer", "return=representation")]
           [json| { id: 100 } |]
-          `shouldRespondWith` 404
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]",
+            matchStatus  = 200,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
       it "can provide a representation" $ do
         _ <- post "/items"
           [json| { id: 1 } |]
