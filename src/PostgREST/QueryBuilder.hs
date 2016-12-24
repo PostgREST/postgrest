@@ -380,9 +380,10 @@ requestToQuery schema _ returningSql (DbMutate (Insert mainTbl (PayloadJSON rows
         insInto = unwords [ "INSERT INTO" , fromQi qi,
             if T.null colsString then "" else "(" <> colsString <> ")"
           ]
-        vals = unwords $ if T.null colsString
-                  then ["DEFAULT VALUES"]
-                  else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
+        vals = unwords $
+          if T.null colsString
+            then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
+            else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
 requestToQuery schema _ returningSql (DbMutate (Update mainTbl (PayloadJSON rows) conditions)) =
   case rows V.!? 0 of
     Just obj ->

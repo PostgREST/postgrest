@@ -322,16 +322,18 @@ spec = do
             matchStatus  = 204,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
-        liftIO $
-          lookup hContentType (simpleHeaders p) `shouldBe` Nothing
+        liftIO $ lookup hContentType (simpleHeaders p) `shouldBe` Nothing
 
+        -- check it really got updated
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
+        -- put value back for other tests
+        void $ request methodPatch "/items?id=eq.42" [] [json| { "id":2 } |]
 
       it "returns empty array when no rows updated and return=rep" $
         request methodPatch "/items?id=eq.999999"
-          [("Prefer", "return=representation")] [json| { "id":42 } |]
+          [("Prefer", "return=representation")] [json| { "id":999999 } |]
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just "[]",
             matchStatus  = 200,
@@ -340,9 +342,9 @@ spec = do
 
       it "returns updated object as array when return=rep" $
         request methodPatch "/items?id=eq.2"
-          [("Prefer", "return=representation")] [json| { "id":42 } |]
+          [("Prefer", "return=representation")] [json| { "id":2 } |]
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":42}]|],
+            matchBody    = Just [str|[{"id":2}]|],
             matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }

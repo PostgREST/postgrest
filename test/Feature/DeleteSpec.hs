@@ -52,7 +52,7 @@ spec =
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-    context "known route, no records matched" $ do
+    context "known route, no records matched" $
       it "includes [] body if return=rep" $
         request methodDelete "/items?id=eq.101"
           [("Prefer", "return=representation")] ""
