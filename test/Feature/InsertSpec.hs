@@ -86,9 +86,11 @@ spec = do
             incNullableStr record `shouldBe` Nothing
 
       context "into a table with simple pk" $
-        it "fails with 400 and error" $
-          post "/simple_pk" [json| { "extra":"foo"} |]
-            `shouldRespondWith` 400
+        it "fails with 400 and error" $ do
+          p <- post "/simple_pk" [json| { "extra":"foo"} |]
+          liftIO $ do
+            simpleStatus p `shouldBe` badRequest400
+            isErrorFormat (simpleBody p) `shouldBe` True
 
       context "into a table with no pk" $ do
         it "succeeds with 201 and a link including all fields" $ do
@@ -162,8 +164,11 @@ spec = do
           lookup hLocation (simpleHeaders p) `shouldBe` Nothing
 
     context "with invalid json payload" $
-      it "fails with 400 and error" $
-        post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
+      it "fails with 400 and error" $ do
+        p <- post "/simple_pk" "}{ x = 2"
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "with valid json payload" $
       it "succeeds and returns 201 created" $
@@ -272,11 +277,12 @@ spec = do
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
-
     context "with wrong number of columns" $
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
-        liftIO $ simpleStatus p `shouldBe` badRequest400
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do

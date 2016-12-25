@@ -4,7 +4,7 @@ import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-import Network.Wai.Test (SResponse(simpleHeaders))
+import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus,simpleBody))
 
 import SpecHelper
 import Text.Heredoc
@@ -541,13 +541,17 @@ spec = do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "audio/mpeg3") [json| { "name": "world" } |]
             `shouldRespondWith` 415
-      it "rejects malformed json payload" $
-        request methodPost "/rpc/sayhello"
+      it "rejects malformed json payload" $ do
+        p <- request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"
-            `shouldRespondWith` 400
-      it "treats simple plpgsql raise as invalid input" $
-        post "/rpc/problem" "{}" `shouldRespondWith` 400
-
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
+      it "treats simple plpgsql raise as invalid input" $ do
+        p <- post "/rpc/problem" "{}"
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "unsupported verbs" $ do
       it "DELETE fails" $

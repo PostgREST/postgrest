@@ -9,6 +9,7 @@ import Network.Wai.Test (SResponse(..))
 
 import Network.Wai (Application)
 
+import SpecHelper
 import Protolude hiding (get)
 
 
@@ -58,7 +59,9 @@ spec =
           "/addresses?id=gt.0"
           [("Prefer", "return=representation"), singular]
           [json| { address: "zzz" } |]
-        liftIO $ simpleStatus p `shouldBe` status400
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "when creating rows" $ do
 
@@ -75,6 +78,17 @@ spec =
           [("Prefer", "return=representation"), singular]
           [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
         liftIO $ simpleStatus p `shouldBe` status406
+
+      it "raises an error when creating zero entities with singular object accept header" $
+        request methodPost
+          "/addresses"
+          [("Prefer", "return=representation"), singular]
+          [json| [ ] |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [json| [] |]
+          , matchStatus  = 406
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
     context "when calling a stored proc" $
 
