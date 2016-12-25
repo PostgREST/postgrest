@@ -79,16 +79,14 @@ spec =
           [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
         liftIO $ simpleStatus p `shouldBe` status406
 
-      it "raises an error when creating zero entities with singular object accept header" $
-        request methodPost
+      it "raises an error when creating zero entities with vnd.pgrst.object" $ do
+        p <- request methodPost
           "/addresses"
           [("Prefer", "return=representation"), singular]
           [json| [ ] |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| [] |]
-          , matchStatus  = 406
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "when calling a stored proc" $
 

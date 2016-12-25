@@ -127,9 +127,9 @@ authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
   (hAuthorization, "Bearer " <> token)
 
--- | Can the text be parsed as a json object comtaining the keys
--- message (required), details (optional), hint (optional) and
--- no extraneous keys?
+-- | Tests whether the text can be parsed as a json object comtaining
+-- the key "message", and optional keys "details", "hint", "code",
+-- and no extraneous keys
 isErrorFormat :: BL.ByteString -> Bool
 isErrorFormat s =
   "message" `S.member` keys &&
@@ -137,4 +137,4 @@ isErrorFormat s =
  where
   obj = decode s :: Maybe (M.Map Text Value)
   keys = fromMaybe S.empty (M.keysSet <$> obj)
-  validKeys = S.fromList ["message", "details", "hint"]
+  validKeys = S.fromList ["message", "details", "hint", "code"]

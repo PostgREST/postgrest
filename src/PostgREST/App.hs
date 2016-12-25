@@ -326,7 +326,7 @@ singularityError numRows =
   responseLBS status406
     [toHeader CTSingularJSON]
     $ toS . formatGeneralError
-      "JSON object requested, multiple rows returned"
+      "JSON object requested, multiple (or no) rows returned"
       $ unwords
         [ "Results contain", show numRows, "rows,"
         , toS (toMime CTSingularJSON), "requires 1 row"
@@ -340,15 +340,15 @@ formatParserError e = formatGeneralError message details
        $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
 formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = message <> ", " <> details
+formatGeneralError message details = toS . encode $
+  object ["message" .= message, "details" .= details]
 
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either Text ReadRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
   where
-    formatRelationError = formatGeneralError
-      "could not find foreign keys between these entities"
+    formatRelationError = ("could not find foreign keys between these entities, " <>)
 
 addFiltersOrdersRanges :: ApiRequest -> Either ParseError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
