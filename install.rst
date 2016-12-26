@@ -75,6 +75,10 @@ When a pre-built binary does not exist for your system you can build the project
     cd postgrest
     stack build --install-ghc
     sudo stack install --allow-different-user --local-bin-path /usr/local/bin
+    
+.. note::
+
+   If building fails and your system has less than 1GB of memory, try adding a swap file.
 
 * Check that the server is installed: :code:`postgrest --help`.
 
