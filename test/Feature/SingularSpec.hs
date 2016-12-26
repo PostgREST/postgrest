@@ -60,7 +60,14 @@ spec =
           [("Prefer", "return=representation"), singular]
           [json| { address: "zzz" } |]
         liftIO $ do
-          simpleStatus p `shouldBe` badRequest400
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
+
+      it "raises an error for zero rows" $ do
+        p <- request methodPatch  "/items?id=gt.0&id=lt.0"
+          [("Prefer", "return=representation"), singular] [json|{"id":1}|]
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
 
     context "when creating rows" $ do
@@ -77,7 +84,7 @@ spec =
           "/addresses"
           [("Prefer", "return=representation"), singular]
           [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
-        liftIO $ simpleStatus p `shouldBe` status406
+        liftIO $ simpleStatus p `shouldBe` notAcceptable406
 
       it "raises an error when creating zero entities with vnd.pgrst.object" $ do
         p <- request methodPost

@@ -22,8 +22,6 @@ import qualified Hasql.Transaction         as HT
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
 
-import qualified Text.InterpolatedString.Perl6 as P6 (q)
-
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (renderSimpleQuery)
@@ -167,23 +165,17 @@ app dbStructure conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              if contentType == CTSingularJSON
+              return $ if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
-                then do
-                  -- raise exception to roll back the inserted data
-                  HT.sql [P6.q| DO $$
-                            BEGIN RAISE EXCEPTION cardinality_violation;
-                            END $$;
-                          |]
-                  return $ singularityError (toInteger queryTotal)
+                then singularityError (toInteger queryTotal)
                 else do
                   let r = contentRangeH 0 (toInteger $ queryTotal-1)
                             (toInteger <$> if shouldCount then Just queryTotal else Nothing)
                       s = if iPreferRepresentation apiRequest == Full
                             then status200
                             else status204
-                  return $ if iPreferRepresentation apiRequest == Full
+                  if iPreferRepresentation apiRequest == Full
                     then responseLBS s [toHeader contentType, r] (toS body)
                     else responseLBS s [r] ""
 
