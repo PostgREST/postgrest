@@ -97,6 +97,20 @@ spec =
 
     context "when calling a stored proc" $ do
 
+      it "fails for zero rows" $ do
+        p <- request methodPost "/rpc/getproject"
+          [singular] [json|{ "id": 9999999}|]
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
+
+      -- this one may be controversial, should vnd.pgrst.object include
+      -- the likes of 2 and "hello?"
+      it "succeeds for scalar result" $
+        request methodPost "/rpc/sayhello"
+          [singular] [json|{ "name": "world"}|]
+          `shouldRespondWith` 200
+
       it "returns a single object for json proc" $
         request methodPost "/rpc/getproject"
           [singular] [json|{ "id": 1}|] `shouldRespondWith`
