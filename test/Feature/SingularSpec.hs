@@ -95,9 +95,15 @@ spec =
           simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
 
-    context "when calling a stored proc" $
+    context "when calling a stored proc" $ do
 
       it "returns a single object for json proc" $
         request methodPost "/rpc/getproject"
           [singular] [json|{ "id": 1}|] `shouldRespondWith`
           [str|{"client_id":1,"name":"Windows 7","id":1}|]
+
+      it "fails for multiple rows" $ do
+        p <- request methodPost "/rpc/getallprojects" [singular] "{}"
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
