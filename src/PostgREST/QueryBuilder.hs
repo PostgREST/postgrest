@@ -228,7 +228,7 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-type ProcResults = (Maybe Int64, Int64, JSON.Value)
+type ProcResults = (Maybe Int64, Int64, ByteString)
 callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
 callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
   unicodeStatement sql HE.unit decodeProc True
@@ -260,7 +260,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                   <*> HD.value HD.json
+                   <*> HD.value HD.bytea
     bodyF
      | isSingle = asJsonSingleF
      | otherwise = asJsonF

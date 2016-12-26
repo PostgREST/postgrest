@@ -500,7 +500,7 @@ spec = do
     context "shaping the response returned by a proc" $ do
       it "returns a project" $
         post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client_id":1}]|]
+          [str|[{"id":1,"name":"Windows 7","client_id":1}]|]
 
       it "can filter proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
@@ -516,11 +516,11 @@ spec = do
 
       it "select works on the first level" $
         post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7"}]|]
+          [str|[{"id":1,"name":"Windows 7"}]|]
 
       it "can embed foreign entities to the items returned by a proc" $
         post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
 
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $

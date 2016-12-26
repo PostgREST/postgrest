@@ -30,7 +30,6 @@ import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           Web.JWT                   (binarySecret)
 
 import           Data.Aeson
-import           Data.Aeson.Types          (emptyArray)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -212,9 +211,11 @@ app dbStructure conf apiRequest =
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsSingleObject)
               let (tableTotal, queryTotal, body) =
-                    fromMaybe (Just 0, 0, emptyArray) row
+                    fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
-              return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
+              return $ if singular && queryTotal /= 1
+                then singularityError (toInteger queryTotal)
+                else responseLBS status [jsonH, contentRange] (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf
