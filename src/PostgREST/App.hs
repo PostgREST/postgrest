@@ -130,7 +130,8 @@ app dbStructure conf apiRequest =
               if contentType == CTSingularJSON
                  && not isSingle
                  && iPreferRepresentation apiRequest == Full
-                then
+               then do
+                  HT.sql "ROLLBACK;"
                   return $ singularityError (toInteger $ V.length rows)
                 else do
                   let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
@@ -164,17 +165,19 @@ app dbStructure conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              return $ if contentType == CTSingularJSON
+              if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
-                then singularityError (toInteger queryTotal)
+                then do
+                  HT.sql "ROLLBACK;"
+                  return $ singularityError (toInteger queryTotal)
                 else do
                   let r = contentRangeH 0 (toInteger $ queryTotal-1)
                             (toInteger <$> if shouldCount then Just queryTotal else Nothing)
                       s = if iPreferRepresentation apiRequest == Full
                             then status200
                             else status204
-                  if iPreferRepresentation apiRequest == Full
+                  return $ if iPreferRepresentation apiRequest == Full
                     then responseLBS s [toHeader contentType, r] (toS body)
                     else responseLBS s [r] ""
 
@@ -213,9 +216,11 @@ app dbStructure conf apiRequest =
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
-              return $ if singular && queryTotal /= 1
-                then singularityError (toInteger queryTotal)
-                else responseLBS status [jsonH, contentRange] (toS body)
+              if singular && queryTotal /= 1
+                then do
+                  HT.sql "ROLLBACK;"
+                  return $ singularityError (toInteger queryTotal)
+                else return $ responseLBS status [jsonH, contentRange] (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf

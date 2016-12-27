@@ -63,6 +63,9 @@ spec =
           simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
 
+        -- the rows should not be updated, either
+        get "/addresses?id=eq.98" `shouldRespondWith` [str|[{"id":98,"address":"xxx"}]|]
+
       it "raises an error for zero rows" $ do
         p <- request methodPatch  "/items?id=gt.0&id=lt.0"
           [("Prefer", "return=representation"), singular] [json|{"id":1}|]
@@ -79,14 +82,17 @@ spec =
           [json| [ { id: 100, address: "xxx" } ] |]
         liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
 
-      it "raises an error when attempting to create multiple entities with singular object accept header" $ do
+      it "raises an error when attempting to create multiple entities" $ do
         p <- request methodPost
           "/addresses"
           [("Prefer", "return=representation"), singular]
-          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
+          [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
         liftIO $ simpleStatus p `shouldBe` notAcceptable406
 
-      it "raises an error when creating zero entities with vnd.pgrst.object" $ do
+        -- the rows should not exist, either
+        get "/addresses?id=eq.200" `shouldRespondWith` "[]"
+
+      it "raises an error when creating zero entities" $ do
         p <- request methodPost
           "/addresses"
           [("Prefer", "return=representation"), singular]
@@ -121,3 +127,16 @@ spec =
         liftIO $ do
           simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
+
+      it "executes the proc exactly once per request" $ do
+        request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]
+          `shouldRespondWith` [str|[{"id":1,"name":"Windows 7"}]|]
+        p <- request methodPost "/rpc/setprojects" [singular]
+          [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
+
+        -- should not actually have executed the function
+        request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]
+          `shouldRespondWith` [str|[{"id":1,"name":"Windows 7"}]|]

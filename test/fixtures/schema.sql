@@ -1091,6 +1091,12 @@ CREATE FUNCTION getallprojects() RETURNS SETOF projects
     SELECT * FROM test.projects;
 $_$;
 
+CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    update test.projects set name = $3 WHERE id >= $1 AND id <= $2 returning *;
+$_$;
+
 --
 -- PostgreSQL database dump complete
 --
