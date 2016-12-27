@@ -187,15 +187,23 @@ app dbStructure conf apiRequest =
             Right (sq, mq) -> do
               let emptyPayload = PayloadJSON V.empty
                   stm = createWriteStatement sq mq
-                    False False (contentType == CTTextCSV)
+                    (contentType == CTSingularJSON) False
+                    (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
               row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
-              return $ if iPreferRepresentation apiRequest == Full
-                then responseLBS status200 [toHeader contentType, r] (toS body)
-                else responseLBS status204 [r] ""
+              if contentType == CTSingularJSON
+                 && queryTotal /= 1
+                 && iPreferRepresentation apiRequest == Full
+                then do
+                  HT.sql "ROLLBACK;"
+                  return $ singularityError (toInteger queryTotal)
+                else
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS status200 [toHeader contentType, r] (toS body)
+                    else responseLBS status204 [r] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in

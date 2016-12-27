@@ -101,6 +101,35 @@ spec =
           simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
 
+    context "when deleting rows" $ do
+
+      it "works for one row" $ do
+        p <- request methodDelete
+          "/items?id=eq.11"
+          [("Prefer", "return=representation"), singular] ""
+        liftIO $ simpleBody p `shouldBe` [str|{"id":11}|]
+
+      it "raises an error when attempting to delete multiple entities" $ do
+        let firstItems = "/items?id=gt.0&id=lt.11"
+        request methodDelete firstItems
+          [("Prefer", "return=representation"), singular] ""
+          `shouldRespondWith` 406
+
+        -- the rows should not exist, either
+        get firstItems
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Nothing
+          , matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "0-9/*"]
+          }
+
+      it "raises an error when deleting zero entities" $ do
+        p <- request methodDelete "/items?id=lt.0"
+          [("Prefer", "return=representation"), singular] ""
+        liftIO $ do
+          simpleStatus p `shouldBe` notAcceptable406
+          isErrorFormat (simpleBody p) `shouldBe` True
+
     context "when calling a stored proc" $ do
 
       it "fails for zero rows" $ do
