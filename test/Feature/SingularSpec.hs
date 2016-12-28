@@ -82,6 +82,23 @@ spec =
           [json| [ { id: 100, address: "xxx" } ] |]
         liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
 
+      it "works for one row even with return=minimal" $ do
+        request methodPost "/addresses"
+          [("Prefer", "return=minimal"), singular]
+          [json| [ { id: 101, address: "xxx" } ] |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just ""
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+        -- and the element should exist
+        get "/addresses?id=eq.101"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":101,"address":"xxx"}]|]
+          , matchStatus  = 200
+          , matchHeaders = []
+          }
+
       it "raises an error when attempting to create multiple entities" $ do
         p <- request methodPost
           "/addresses"
@@ -91,6 +108,16 @@ spec =
 
         -- the rows should not exist, either
         get "/addresses?id=eq.200" `shouldRespondWith` "[]"
+
+      it "return=minimal allows request to create multiple elements" $
+        request methodPost "/addresses"
+          [("Prefer", "return=minimal"), singular]
+          [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just ""
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
       it "raises an error when creating zero entities" $ do
         p <- request methodPost
