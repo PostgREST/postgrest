@@ -130,9 +130,7 @@ app dbStructure conf apiRequest =
               if contentType == CTSingularJSON
                  && not isSingle
                  && iPreferRepresentation apiRequest == Full
-               then do
-                  HT.sql "ROLLBACK;"
-                  return $ singularityError (toInteger $ V.length rows)
+                then return $ singularityError (toInteger $ V.length rows)
                 else do
                   let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
                       stm = createWriteStatement sq mq
