@@ -30,7 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Use specific columns in the RETURNING section - @ruslantalpa
 
 ### Changed
-- Replace `Prefer: plurality=singular` with custom mime type - @begriffs
+- Replace `Prefer: plurality=singular` with `Accept: application/vnd.pgrst.object` - @begriffs
 - Standardize arrays in responses for `Prefer: return=representation` - @begriffs
 - Calling unknown RPC gives 404, not 400 - @begriffs
 - Use HTTP 400 for raise\_exception - @begriffs
