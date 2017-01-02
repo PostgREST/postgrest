@@ -11,7 +11,7 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
-import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate, unwords)
+import           Data.Text                 (isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
@@ -29,7 +29,6 @@ import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           Web.JWT                   (binarySecret)
 
-import           Data.Aeson
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -46,7 +45,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse, singularityError, formatParserError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
 import           PostgREST.Middleware
@@ -324,28 +323,6 @@ contentRangeH lower upper total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = lower <= upper
-
-singularityError :: Integer -> Response
-singularityError numRows =
-  responseLBS status406
-    [toHeader CTSingularJSON]
-    $ toS . formatGeneralError
-      "JSON object requested, multiple (or no) rows returned"
-      $ unwords
-        [ "Results contain", show numRows, "rows,"
-        , toS (toMime CTSingularJSON), "requires 1 row"
-        ]
-
-formatParserError :: ParseError -> Text
-formatParserError e = formatGeneralError message details
-  where
-     message = show $ errorPos e
-     details = strip $ replace "\n" " " $ toS
-       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
-formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = toS . encode $
-  object ["message" .= message, "details" .= details]
 
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either Text ReadRequest
 augumentRequestWithJoin schema allRels request =
