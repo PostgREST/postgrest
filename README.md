@@ -20,7 +20,7 @@ You can use it as inspiration for test-driven server migrations in
 your own projects.
 
 Also try other tools in the PostgREST
-[ecosystem](http://postgrest.com/en/stable/intro.html#ecosystem).
+[ecosystem](http://postgrest.com/install/ecosystem).
 
 ### Usage
 
