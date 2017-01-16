@@ -16,8 +16,9 @@ import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
 
-import qualified Hasql.Pool                as P
-import qualified Hasql.Transaction         as HT
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction          as HT
+import qualified Hasql.Transaction.Sessions as HT
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
@@ -85,7 +86,7 @@ postgrest conf refDbStructure pool getTime =
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
             txMode = transactionMode $ iAction apiRequest
-        response <- P.use pool $ HT.run handleReq HT.ReadCommitted txMode
+        response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
         return $ either (pgErrResponse authed) identity response
     respond response
 
@@ -166,7 +167,7 @@ app dbStructure conf apiRequest =
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
                 then do
-                  HT.sql "ROLLBACK;"
+                  HT.condemn
                   return $ singularityError (toInteger queryTotal)
                 else do
                   let r = contentRangeH 0 (toInteger $ queryTotal-1)
@@ -195,7 +196,7 @@ app dbStructure conf apiRequest =
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
                 then do
-                  HT.sql "ROLLBACK;"
+                  HT.condemn
                   return $ singularityError (toInteger queryTotal)
                 else
                   return $ if iPreferRepresentation apiRequest == Full
@@ -223,7 +224,7 @@ app dbStructure conf apiRequest =
                   (status, contentRange) = rangeHeader queryTotal tableTotal
               if singular && queryTotal /= 1
                 then do
-                  HT.sql "ROLLBACK;"
+                  HT.condemn
                   return $ singularityError (toInteger queryTotal)
                 else return $ responseLBS status [jsonH, contentRange] (toS body)
 
