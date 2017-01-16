@@ -52,9 +52,15 @@ spec =
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-    context "known route, unknown record" $
-      it "fails with 404" $
-        request methodDelete "/items?id=eq.101" [] "" `shouldRespondWith` 404
+    context "known route, no records matched" $
+      it "includes [] body if return=rep" $
+        request methodDelete "/items?id=eq.101"
+          [("Prefer", "return=representation")] ""
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]"
+          , matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
     context "totally unknown route" $
       it "fails with 404" $

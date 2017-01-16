@@ -111,49 +111,40 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | isSingle = asJsonSingleF
     | otherwise = asJsonF
 
-createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
-                        PreferRepresentation -> [Text] -> Bool -> PayloadJSON ->
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+                        PreferRepresentation -> [Text] ->
                         H.Query PayloadJSON (Maybe ResultsWithCount)
-createWriteStatement _ _ mutateQuery _ None
-                     _ _ (PayloadJSON _) =
+createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
+
  where
-  sql = [qc|
+  sql = case rep of
+    None -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT '', 0, {noLocationF}, '' |]
-
-createWriteStatement _ _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON _) =
-  unicodeStatement sql encodeUniformObjs decodeStandardMay True
- where
-  sql = [qc|
+    HeadersOnly -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
-  cols = intercalate ", " [
-      "'' AS total_result_set",
-      "pg_catalog.count(_postgrest_t) AS page_total",
-      if isSingle then locationF pKeys else noLocationF,
-      "''"
-    ]
-
-createWriteStatement _ selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON _) =
-  unicodeStatement sql encodeUniformObjs decodeStandardMay True
- where
-  sql = [qc|
+    Full -> [qc|
       WITH {sourceCTEName} AS ({mutateQuery})
       SELECT {cols}
       FROM ({selectQuery}) _postgrest_t |]
+
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(_postgrest_t) AS page_total",
-      if isSingle then locationF pKeys else noLocationF <> " AS header",
-      bodyF <> " AS body"
+      if wantHdrs
+         then locationF pKeys
+         else noLocationF <> " AS header",
+      if rep == Full
+         then bodyF <> " AS body"
+         else "''"
     ]
+
   bodyF
     | asCsv = asCsvF
-    | isSingle = asJsonSingleF
+    | wantSingle = asJsonSingleF
     | otherwise = asJsonF
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
@@ -237,7 +228,7 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-type ProcResults = (Maybe Int64, Int64, JSON.Value)
+type ProcResults = (Maybe Int64, Int64, ByteString)
 callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
 callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
   unicodeStatement sql HE.unit decodeProc True
@@ -269,7 +260,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                   <*> HD.value HD.json
+                   <*> HD.value HD.bytea
     bodyF
      | isSingle = asJsonSingleF
      | otherwise = asJsonF
@@ -389,9 +380,10 @@ requestToQuery schema _ returningSql (DbMutate (Insert mainTbl (PayloadJSON rows
         insInto = unwords [ "INSERT INTO" , fromQi qi,
             if T.null colsString then "" else "(" <> colsString <> ")"
           ]
-        vals = unwords $ if T.null colsString
-                  then ["DEFAULT VALUES"]
-                  else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
+        vals = unwords $
+          if T.null colsString
+            then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
+            else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
 requestToQuery schema _ returningSql (DbMutate (Update mainTbl (PayloadJSON rows) conditions)) =
   case rows V.!? 0 of
     Just obj ->

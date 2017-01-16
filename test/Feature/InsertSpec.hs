@@ -39,12 +39,12 @@ spec = do
 
       it "filters columns in result using &select" $
         request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
-          [json| {
+          [json| [{
             "integer": 14, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
-          } |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"integer":14,"varchar":"testing!"}|]
+          }] |] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"integer":14,"varchar":"testing!"}]|]
           , matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
@@ -53,7 +53,7 @@ spec = do
         request methodPost "/projects?select=id,name,clients{id,name}"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
+            matchBody    = Just [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           , matchStatus  = 201
           , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
                            , "Location" <:> "/projects?id=eq.6"
@@ -86,9 +86,11 @@ spec = do
             incNullableStr record `shouldBe` Nothing
 
       context "into a table with simple pk" $
-        it "fails with 400 and error" $
-          post "/simple_pk" [json| { "extra":"foo"} |]
-            `shouldRespondWith` 400
+        it "fails with 400 and error" $ do
+          p <- post "/simple_pk" [json| { "extra":"foo"} |]
+          liftIO $ do
+            simpleStatus p `shouldBe` badRequest400
+            isErrorFormat (simpleBody p) `shouldBe` True
 
       context "into a table with no pk" $ do
         it "succeeds with 201 and a link including all fields" $ do
@@ -103,8 +105,16 @@ spec = do
                        [("Prefer", "return=representation")]
                        [json| { "a":"bar", "b":"baz" } |]
           liftIO $ do
-            simpleBody p `shouldBe` [json| { "a":"bar", "b":"baz" } |]
+            simpleBody p `shouldBe` [json| [{ "a":"bar", "b":"baz" }] |]
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
+            simpleStatus p `shouldBe` created201
+
+        it "returns empty array when no items inserted, and return=rep" $ do
+          p <- request methodPost "/no_pk"
+                       [("Prefer", "return=representation")]
+                       [json| [] |]
+          liftIO $ do
+            simpleBody p `shouldBe` [json| [] |]
             simpleStatus p `shouldBe` created201
 
         it "can insert in tables with no select privileges" $ do
@@ -121,7 +131,7 @@ spec = do
                        [("Prefer", "return=representation")]
                        [json| { "a":null, "b":"foo" } |]
           liftIO $ do
-            simpleBody p `shouldBe` [json| { "a":null, "b":"foo" } |]
+            simpleBody p `shouldBe` [json| [{ "a":null, "b":"foo" }] |]
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
             simpleStatus p `shouldBe` created201
 
@@ -134,7 +144,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
         liftIO $ do
-          JSON.decode (simpleBody p) `shouldBe` Just expectedObj
+          JSON.decode (simpleBody p) `shouldBe` Just [expectedObj]
           simpleStatus p `shouldBe` created201
           lookup hLocation (simpleHeaders p) `shouldBe` Just expectedLoc
 
@@ -154,8 +164,11 @@ spec = do
           lookup hLocation (simpleHeaders p) `shouldBe` Nothing
 
     context "with invalid json payload" $
-      it "fails with 400 and error" $
-        post "/simple_pk" "}{ x = 2" `shouldRespondWith` 400
+      it "fails with 400 and error" $ do
+        p <- post "/simple_pk" "}{ x = 2"
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "with valid json payload" $
       it "succeeds and returns 201 created" $
@@ -177,7 +190,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just inserted
+            matchBody    = Just [str|[{"data":{"foo":"bar"}}]|]
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
@@ -189,7 +202,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just inserted
+            matchBody    = Just [str|[{"data":[1,2,3]}]|]
           , matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
@@ -205,7 +218,7 @@ spec = do
       it "succeeds if correct select is applied" $
         request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
           [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"article_id":2,"user_id":1}|]
+            matchBody    = Just [str|[{"article_id":2,"user_id":1}]|]
           , matchStatus  = 201
           , matchHeaders = []
           }
@@ -264,11 +277,12 @@ spec = do
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
-
     context "with wrong number of columns" $
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
-        liftIO $ simpleStatus p `shouldBe` badRequest400
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
@@ -277,7 +291,7 @@ spec = do
                      [("Prefer", "return=representation")]
                      payload
         liftIO $ do
-          simpleBody p `shouldBe` payload
+          simpleBody p `shouldBe` "["<>payload<>"]"
           simpleStatus p `shouldBe` created201
 
         let Just location = lookup hLocation $ simpleHeaders p
@@ -297,7 +311,11 @@ spec = do
       it "indicates no records found to update" $
         request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
-            `shouldRespondWith` 404
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "",
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
     context "in a nonempty table" $ do
       it "can update a single item" $ do
@@ -310,12 +328,32 @@ spec = do
             matchStatus  = 204,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
-        liftIO $
-          lookup hContentType (simpleHeaders p) `shouldBe` Nothing
+        liftIO $ lookup hContentType (simpleHeaders p) `shouldBe` Nothing
 
+        -- check it really got updated
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
           `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
+        -- put value back for other tests
+        void $ request methodPatch "/items?id=eq.42" [] [json| { "id":2 } |]
+
+      it "returns empty array when no rows updated and return=rep" $
+        request methodPatch "/items?id=eq.999999"
+          [("Prefer", "return=representation")] [json| { "id":999999 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]",
+            matchStatus  = 200,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+      it "returns updated object as array when return=rep" $
+        request methodPatch "/items?id=eq.2"
+          [("Prefer", "return=representation")] [json| { "id":2 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"id":2}]|],
+            matchStatus  = 200,
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
+          }
 
       it "can update multiple items" $ do
         replicateM_ 10 $ post "/auto_incrementing_pk"
@@ -335,50 +373,6 @@ spec = do
         get "/no_pk?a=eq.keepme" `shouldRespondWith`
           [json| [{ a: "keepme", b: null }] |]
 
-      it "can update based on a computed column" $
-        request methodPatch
-          "/items?always_true=eq.false"
-          [("Prefer", "return=representation")]
-          [json| { id: 100 } |]
-          `shouldRespondWith` 404
-      it "can provide a representation" $ do
-        _ <- post "/items"
-          [json| { id: 1 } |]
-        request methodPatch
-          "/items?id=eq.1"
-          [("Prefer", "return=representation")]
-          [json| { id: 99 } |]
-          `shouldRespondWith` [json| [{id:99}] |]
-
-    context "in a table" $ do
-      it "can provide a singular representation when updating one entity" $ do
-        _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
-        p <- request methodPatch
-          "/addresses?id=eq.97"
-          [("Prefer", "return=representation,plurality=singular")]
-          [json| { address: "B Street" } |]
-        liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
-      it "raises an error when attempting to update multiple entities with plurality=singular" $ do
-        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
-        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
-        p <- request methodPatch
-          "/addresses?id=gt.0"
-          [("Prefer", "return=representation,plurality=singular")]
-          [json| { address: "zzz" } |]
-        liftIO $ simpleStatus p `shouldBe` status400
-      it "can provide a singular representation when creating one entity" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation,plurality=singular")]
-          [json| [ { id: 100, address: "xxx" } ] |]
-        liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
-      it "raises an error when attempting to create multiple entities with plurality=singular" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation,plurality=singular")]
-          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
-        liftIO $ simpleStatus p `shouldBe` status400
-
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
         request methodPatch "/json?data->>escaped=eq.bar"
@@ -389,6 +383,26 @@ spec = do
           , matchStatus  = 200
           , matchHeaders = []
           }
+
+      it "can update based on a computed column" $
+        request methodPatch
+          "/items?always_true=eq.false"
+          [("Prefer", "return=representation")]
+          [json| { id: 100 } |]
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]",
+            matchStatus  = 200,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+      it "can provide a representation" $ do
+        _ <- post "/items"
+          [json| { id: 1 } |]
+        request methodPatch
+          "/items?id=eq.1"
+          [("Prefer", "return=representation")]
+          [json| { id: 99 } |]
+          `shouldRespondWith` [json| [{id:99}] |]
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
@@ -411,13 +425,13 @@ spec = do
         [ auth, ("Prefer", "return=representation") ]
         [json| { "secret": "nyancat" } |]
       liftIO $ do
-          simpleBody p1 `shouldBe` [str|{"owner":"jdoe","secret":"nyancat"}|]
-          simpleStatus p1 `shouldBe` created201
+        simpleBody p1 `shouldBe` [str|[{"owner":"jdoe","secret":"nyancat"}]|]
+        simpleStatus p1 `shouldBe` created201
 
       p2 <- request methodPost "/authors_only"
         -- jwt token for jroe
         [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.YuF_VfmyIxWyuceT7crnNKEprIYXsJAyXid3rjPjIow", ("Prefer", "return=representation") ]
         [json| { "secret": "lolcat", "owner": "hacker" } |]
       liftIO $ do
-          simpleBody p2 `shouldBe` [str|{"owner":"jroe","secret":"lolcat"}|]
-          simpleStatus p2 `shouldBe` created201
+        simpleBody p2 `shouldBe` [str|[{"owner":"jroe","secret":"lolcat"}]|]
+        simpleStatus p2 `shouldBe` created201

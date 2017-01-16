@@ -60,7 +60,7 @@ library
                      , either
                      , hasql
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.5.1
+                     , hasql-transaction == 0.5
                      , heredoc
                      , HTTP
                      , http-types
@@ -120,6 +120,7 @@ Test-Suite spec
                      , Feature.QueryLimitedSpec
                      , Feature.QuerySpec
                      , Feature.RangeSpec
+                     , Feature.SingularSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , SpecHelper
@@ -133,6 +134,7 @@ Test-Suite spec
                      , base64-bytestring
                      , case-insensitive
                      , cassava
+                     , containers
                      , contravariant
                      , hasql
                      , hasql-pool

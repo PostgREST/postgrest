@@ -11,18 +11,17 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.IORef                (IORef, readIORef)
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
-import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Text                 (isInfixOf, dropWhile, drop, intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
 
-import qualified Hasql.Pool                as P
-import qualified Hasql.Transaction         as HT
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction          as HT
+import qualified Hasql.Transaction.Sessions as HT
 
 import           Text.Parsec.Error
 import           Text.ParserCombinators.Parsec (parse)
-
-import qualified Text.InterpolatedString.Perl6 as P6 (q)
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
@@ -31,8 +30,6 @@ import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 import           Web.JWT                   (binarySecret)
 
-import           Data.Aeson
-import           Data.Aeson.Types          (emptyArray)
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
 
@@ -49,7 +46,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse, singularityError, formatParserError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
 import           PostgREST.Middleware
@@ -89,7 +86,7 @@ postgrest conf refDbStructure pool getTime =
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
             txMode = transactionMode $ iAction apiRequest
-        response <- P.use pool $ HT.run handleReq HT.ReadCommitted txMode
+        response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
         return $ either (pgErrResponse authed) identity response
     respond response
 
@@ -109,96 +106,102 @@ app dbStructure conf apiRequest =
           case readSqlParts of
             Left errorResponse -> return errorResponse
             Right (q, cq) -> do
-              let singular = iPreferSingular apiRequest
-                  stm = createReadStatement q cq singular shouldCount (contentType == CTTextCSV)
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount (contentType == CTTextCSV)
               row <- H.query () stm
               let (tableTotal, queryTotal, _ , body) = row
-              if singular
-              then return $ if queryTotal <= 0
-                then notFound
-                else responseLBS status200 [toHeader contentType] (toS body)
-              else do
-                let (status, contentRange) = rangeHeader queryTotal tableTotal
-                    canonical = iCanonicalQS apiRequest
-                    --TargetIdent qi = iTarget apiRequest
-                return $ responseLBS status
-                  [toHeader contentType, contentRange,
-                    ("Content-Location",
-                      "/" <> toS (qiName qi) <>
-                        if BS.null canonical then "" else "?" <> toS canonical
-                    )
-                  ] (toS body)
+                  (status, contentRange) = rangeHeader queryTotal tableTotal
+                  canonical = iCanonicalQS apiRequest
+              return $
+                if contentType == CTSingularJSON && queryTotal /= 1
+                  then singularityError (toInteger queryTotal)
+                  else responseLBS status
+                    [toHeader contentType, contentRange,
+                      ("Content-Location",
+                        "/" <> toS (qiName qi) <>
+                          if BS.null canonical then "" else "?" <> toS canonical
+                      )
+                    ] (toS body)
 
-        (ActionCreate, TargetIdent qi@(QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
+        (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let isSingle = (==1) $ V.length rows
-              when (not isSingle && iPreferSingular apiRequest) $
-                HT.sql [P6.q| DO $$
-                          BEGIN RAISE EXCEPTION cardinality_violation
-                          USING MESSAGE =
-                            'plurality=singular specified, but more than one object would be inserted';
-                          END $$;
-                        |]
-              let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
-              let stm = createWriteStatement qi sq mq isSingle (iPreferRepresentation apiRequest) pKeys (contentType == CTTextCSV) payload
-              row <- H.query payload stm
-              let (_, _, fs, body) = extractQueryResult row
-                  headers = catMaybes [
-                      if null fs
-                        then Nothing
-                        else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
-                    , if iPreferRepresentation apiRequest == Full
-                        then Just $ toHeader contentType
-                        else Nothing
-                    , Just . contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just (V.length rows) else Nothing
-                    ]
+              if contentType == CTSingularJSON
+                 && not isSingle
+                 && iPreferRepresentation apiRequest == Full
+                then return $ singularityError (toInteger $ V.length rows)
+                else do
+                  let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
+                      stm = createWriteStatement sq mq
+                        (contentType == CTSingularJSON) isSingle
+                        (contentType == CTTextCSV) (iPreferRepresentation apiRequest)
+                        pKeys
+                  row <- H.query payload stm
+                  let (_, _, fs, body) = extractQueryResult row
+                      headers = catMaybes [
+                          if null fs
+                            then Nothing
+                            else Just (hLocation, "/" <> toS table <> renderLocationFields fs)
+                        , if iPreferRepresentation apiRequest == Full
+                            then Just $ toHeader contentType
+                            else Nothing
+                        , Just . contentRangeH 1 0 $
+                            toInteger <$> if shouldCount then Just (V.length rows) else Nothing
+                        ]
 
-              return . responseLBS status201 headers $
-                if iPreferRepresentation apiRequest == Full
-                  then toS body else ""
+                  return . responseLBS status201 headers $
+                    if iPreferRepresentation apiRequest == Full
+                      then toS body else ""
 
-        (ActionUpdate, TargetIdent qi, Just payload) ->
+        (ActionUpdate, TargetIdent _, Just payload) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let singular = iPreferSingular apiRequest
-                  stm = createWriteStatement qi sq mq singular (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) payload
+              let stm = createWriteStatement sq mq
+                    (contentType == CTSingularJSON) False (contentType == CTTextCSV)
+                    (iPreferRepresentation apiRequest) []
               row <- H.query payload stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              when (singular && queryTotal > 1) $
-                HT.sql [P6.q| DO $$
-                          BEGIN RAISE EXCEPTION cardinality_violation
-                          USING MESSAGE =
-                            'plurality=singular specified, but more than one object would be updated';
-                          END $$;
-                        |]
-              let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                        (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                  s = case () of _ | queryTotal == 0 -> status404
-                                  | iPreferRepresentation apiRequest == Full -> status200
-                                  | otherwise -> status204
-              return $ if iPreferRepresentation apiRequest == Full
-                then responseLBS s [toHeader contentType, r] (toS body)
-                else responseLBS s [r] ""
+              if contentType == CTSingularJSON
+                 && queryTotal /= 1
+                 && iPreferRepresentation apiRequest == Full
+                then do
+                  HT.condemn
+                  return $ singularityError (toInteger queryTotal)
+                else do
+                  let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                            (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+                      s = if iPreferRepresentation apiRequest == Full
+                            then status200
+                            else status204
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS s [toHeader contentType, r] (toS body)
+                    else responseLBS s [r] ""
 
-        (ActionDelete, TargetIdent qi, Nothing) ->
+        (ActionDelete, TargetIdent _, Nothing) ->
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let emptyPayload = PayloadJSON V.empty
-                  stm = createWriteStatement qi sq mq False (iPreferRepresentation apiRequest) [] (contentType == CTTextCSV) emptyPayload
+                  stm = createWriteStatement sq mq
+                    (contentType == CTSingularJSON) False
+                    (contentType == CTTextCSV)
+                    (iPreferRepresentation apiRequest) []
               row <- H.query emptyPayload stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
-              return $ if queryTotal == 0
-                then notFound
-                else if iPreferRepresentation apiRequest == Full
-                  then responseLBS status200 [toHeader contentType, r] (toS body)
-                  else responseLBS status204 [r] ""
+              if contentType == CTSingularJSON
+                 && queryTotal /= 1
+                 && iPreferRepresentation apiRequest == Full
+                then do
+                  HT.condemn
+                  return $ singularityError (toInteger queryTotal)
+                else
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS status200 [toHeader contentType, r] (toS body)
+                    else responseLBS status204 [r] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
@@ -213,13 +216,17 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right (q, cq) -> do
               let p = V.head payload
-                  singular = iPreferSingular apiRequest
+                  singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsSingleObject)
               let (tableTotal, queryTotal, body) =
-                    fromMaybe (Just 0, 0, emptyArray) row
+                    fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
-              return $ responseLBS status [jsonH, contentRange] (toS . encode $ body)
+              if singular && queryTotal /= 1
+                then do
+                  HT.condemn
+                  return $ singularityError (toInteger queryTotal)
+                else return $ responseLBS status [jsonH, contentRange] (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf
@@ -275,13 +282,13 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
   where
     contentTypesForRequest =
       case action of
-        ActionRead -> [CTApplicationJSON, CTTextCSV]
-        ActionCreate -> [CTApplicationJSON, CTTextCSV]
-        ActionUpdate -> [CTApplicationJSON, CTTextCSV]
-        ActionDelete -> [CTApplicationJSON, CTTextCSV]
-        ActionInvoke -> [CTApplicationJSON]
+        ActionRead ->    [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON]
         ActionInspect -> [CTOpenAPI]
-        ActionInfo -> [CTTextCSV]
+        ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
@@ -318,23 +325,12 @@ contentRangeH lower upper total =
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = lower <= upper
 
-formatParserError :: ParseError -> Text
-formatParserError e = formatGeneralError message details
-  where
-     message = show $ errorPos e
-     details = strip $ replace "\n" " " $ toS
-       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
-formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = message <> ", " <> details
-
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either Text ReadRequest
 augumentRequestWithJoin schema allRels request =
   (first formatRelationError . addRelations schema allRels Nothing) request
   >>= addJoinConditions schema
   where
-    formatRelationError = formatGeneralError
-      "could not find foreign keys between these entities"
+    formatRelationError = ("could not find foreign keys between these entities, " <>)
 
 addFiltersOrdersRanges :: ApiRequest -> Either ParseError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [

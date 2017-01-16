@@ -7,9 +7,12 @@ import System.Environment (getEnv)
 
 import qualified Data.ByteString.Base64 as B64 (encode, decodeLenient)
 import Data.CaseInsensitive (CI(..))
+import qualified Data.Set as S
+import qualified Data.Map.Strict as M
 import Data.List (lookup)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy as BL
 import System.Process (readProcess)
 
 import PostgREST.Config (AppConfig(..))
@@ -21,7 +24,7 @@ import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
 
 import Data.Maybe (fromJust)
-import Data.Aeson (decode)
+import Data.Aeson (decode, Value(..))
 import qualified Data.JsonSchema.Draft4 as D4
 
 import Protolude
@@ -123,3 +126,15 @@ authHeaderBasic u p =
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
   (hAuthorization, "Bearer " <> token)
+
+-- | Tests whether the text can be parsed as a json object comtaining
+-- the key "message", and optional keys "details", "hint", "code",
+-- and no extraneous keys
+isErrorFormat :: BL.ByteString -> Bool
+isErrorFormat s =
+  "message" `S.member` keys &&
+    S.null (S.difference keys validKeys)
+ where
+  obj = decode s :: Maybe (M.Map Text Value)
+  keys = fromMaybe S.empty (M.keysSet <$> obj)
+  validKeys = S.fromList ["message", "details", "hint", "code"]

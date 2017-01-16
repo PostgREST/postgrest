@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Allow test database to be on another host - @dsimunic
-- New `Prefer` header value: `params=single-object` to pass all form values as a single json object to a stored procedure - @dsimunic
+- `Prefer: params=single-object` to treat payload as single json argument in RPC - @dsimunic
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
 - Ability to generate an OpenAPI spec behind a proxy - @hudayou
 - Ability to set addresses to listen on - @hudayou
@@ -30,6 +30,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Use specific columns in the RETURNING section - @ruslantalpa
 
 ### Changed
+- Replace `Prefer: plurality=singular` with `Accept: application/vnd.pgrst.object` - @begriffs
+- Standardize arrays in responses for `Prefer: return=representation` - @begriffs
+- Calling unknown RPC gives 404, not 400 - @begriffs
 - Use HTTP 400 for raise\_exception - @begriffs
 - Remove non-OpenAPI schema description - @begriffs
 - Use comma rather than semicolon to separate Prefer header values - @begriffs
