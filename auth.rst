@@ -212,15 +212,29 @@ Next write a stored procedure that returns the token. The one below returns a to
 
 PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`.
 
+.. note::
+
+  To avoid hard-coding the secret in stored procedures, save it as a property of the database.
+
+  .. code-block:: postgres
+
+    -- run this once
+    ALTER DATABASE mydb SET "app.jwt_secret" TO '!!secret!!';
+
+    -- then all functions can refer to app.jwt_secret
+    SELECT jwt.sign(
+      row_to_json(r), current_setting('app.jwt_secret')
+    ) AS token
+    FROM ...
+
 JWT from Auth0
 ~~~~~~~~~~~~~~
 
 An external service like `Auth0 <https://auth0.com/>`_ can do the hard work transforming OAuth from Github, Twitter, Google etc into a JWT suitable for PostgREST. Auth0 can also handle email signup and password reset flows.
 
-By default, Auth0 generates binary base64URL encoded secrets. You can find the secret in the client settings of the Auth0 management console. Copy the client secret into your PostgREST configuration file as the :code:`jwt-secret`. Then set :code:`secret-is-base64` to :code:`true`.
+To use Auth0, copy its client secret into your PostgREST configuration file as the :code:`jwt-secret`. (Old-style Auth0 secrets are Base64 encoded. For these secrets set :code:`secret-is-base64` to :code:`true`, or just refresh the Auth0 secret.) You can find the secret in the client settings of the Auth0 management console.
 
-To adapt Auth0 to our uses we need to save the database role in `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write a rule that will extract the role from the user metadata and include a :code:`role` claim in the payload of our user object. Afterwards, in your Auth0Lock code, include the :code:`role` claim in your `scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->`_.
-
+Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `user metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write a rule that will extract the role from the user metadata and include a :code:`role` claim in the payload of our user object. Afterwards, in your Auth0Lock code, include the :code:`role` claim in your `scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->`_.
 
 .. code:: javascript
 
@@ -243,7 +257,6 @@ To adapt Auth0 to our uses we need to save the database role in `user metadata <
       responseType: 'token'
     }
   })
-
 
 .. _ssl:
 
