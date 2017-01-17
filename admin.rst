@@ -135,7 +135,7 @@ This does not protect against malicious actions, since someone can add a url par
 Count-Header DoS
 ----------------
 
-For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in :ref:`Limits and Pagination`_, responses ordinarily include a range but leave the total unspecified like
+For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in `Limits and Pagination`_, responses ordinarily include a range but leave the total unspecified like
 
 .. code-block:: http
 
