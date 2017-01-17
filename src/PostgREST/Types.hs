@@ -125,9 +125,9 @@ type NodeName = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type Path = [Text]
 data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON }
-                 | Delete { in_::TableName, where_::[Filter] }
-                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter] } deriving (Show, Eq)
+data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
+                 | Delete { in_::TableName, where_::[Filter], returning::[FieldName] }
+                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], returning::[FieldName] } deriving (Show, Eq)
 data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
