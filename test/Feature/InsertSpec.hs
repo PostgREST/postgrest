@@ -289,6 +289,17 @@ spec = do
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
+      it "only returns the requested column header with his associated data" $
+        request methodPost "/projects?select=id"
+                     [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
+                     "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "id\n8\n9"
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
+                            "Content-Range" <:> "*/*"]
+          }
+
     context "with wrong number of columns" $
       it "fails for too few" $ do
         p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
