@@ -14,6 +14,11 @@
    install.rst
 
 .. toctree::
+   :caption: Administration
+
+   admin.rst
+
+.. toctree::
    :caption: API
 
    api.rst
@@ -22,8 +27,3 @@
    :caption: Authentication
 
    auth.rst
-
-.. toctree::
-   :caption: Administration
-
-   admin.rst
