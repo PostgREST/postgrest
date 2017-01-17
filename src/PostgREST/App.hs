@@ -421,8 +421,8 @@ mutateRequest apiRequest readReq = mapLeft (errResponse status400) $
         _ -> undefined
     fieldNames :: ReadRequest -> PreferRepresentation -> [FieldName]
     fieldNames _ None = []
-    fieldNames (Node (Select colSelects _ _ _ _, (_, _, _)) forest) _ =
-      map (fst . view _1) colSelects ++ map colName fks
+    fieldNames (Node (sel, _) forest) _ =
+      map (fst . view _1) (select sel) ++ map colName fks
       where
         fks = concatMap (fromMaybe [] . f) forest
         f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols

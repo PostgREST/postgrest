@@ -289,7 +289,7 @@ spec = do
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
-      it "only returns the requested column header with his associated data" $
+      it "only returns the requested column header with its associated data" $
         request methodPost "/projects?select=id"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
