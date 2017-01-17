@@ -67,6 +67,20 @@ max-rows
 pre-request
   A schema-qualified stored procedure name to call right after switching roles for a client request. This provides an opportunity to modify SQL variables or raise an exception to prevent the request from completing.
 
+Running the Server
+------------------
+
+PostgREST outputs basic request logging to stdout. When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a logfile or to the syslog:
+
+.. code-block:: bash
+
+  ssh foo@example.com \
+    'postgrest foo.conf </dev/null >/var/log/postgrest.log 2>&1 &'
+
+  # another option is to pipe the output into "logger -t postgrest"
+
+(Avoid :code:`nohup postgrest` because the HUP signal is used for manual `Schema Reloading`_.)
+
 Hardening PostgREST
 ===================
 
