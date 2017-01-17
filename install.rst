@@ -59,13 +59,14 @@ When a pre-built binary does not exist for your system you can build the project
 * `Install Stack <http://docs.haskellstack.org/en/stable/README.html#how-to-install>`_ for your platform
 * Install Library Dependencies
 
-  =====================  ============================
+  =====================  =======================================
   Operating System       Dependencies
-  =====================  ============================
-  Ubuntu/Debian          libpq-dev
-  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel
+  =====================  =======================================
+  Ubuntu/Debian          libpq-dev, libgmp-dev
+  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
   BSD                    postgresql95-server
-  =====================  ============================
+  OS X                   postgresql, gmp
+  =====================  =======================================
 
 * Build and install binary
 
@@ -73,9 +74,10 @@ When a pre-built binary does not exist for your system you can build the project
 
     git clone https://github.com/begriffs/postgrest.git
     cd postgrest
-    stack build --install-ghc
-    sudo stack install --allow-different-user --local-bin-path /usr/local/bin
-    
+
+    # adjust local-bin-path to taste
+    stack build --install-ghc --copy-bins --local-bin-path /usr/local/bin
+
 .. note::
 
    If building fails and your system has less than 1GB of memory, try adding a swap file.
