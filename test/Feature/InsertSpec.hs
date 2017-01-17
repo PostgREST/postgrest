@@ -49,6 +49,7 @@ spec = do
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
+    context "requesting full representation" $ do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients{id,name}"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
@@ -58,6 +59,17 @@ spec = do
           , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
                            , "Location" <:> "/projects?id=eq.6"
                            , "Content-Range" <:> "*/1" ]
+          }
+
+      it "can rename and cast the selected columns" $
+        request methodPost "/projects?select=pId:id::text,pName:name,cId:client_id::text"
+                [("Prefer", "return=representation")] 
+          [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
+          , matchStatus  = 201
+          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                           , "Location" <:> "/projects?id=eq.7"
+                           , "Content-Range" <:> "*/*" ]
           }
 
     context "from an html form" $
@@ -240,6 +252,17 @@ spec = do
           , matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
+          }
+
+      it "only returns the requested column header with its associated data" $
+        request methodPost "/projects?select=id"
+                     [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
+                     "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "id\n8\n9"
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
+                            "Content-Range" <:> "*/*"]
           }
 
 
