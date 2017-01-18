@@ -91,6 +91,7 @@ library
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.DbStructure
+                     , PostgREST.DbRequestBuilder
                      , PostgREST.Error
                      , PostgREST.Middleware
                      , PostgREST.OpenAPI

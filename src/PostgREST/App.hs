@@ -7,21 +7,13 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Control.Lens.Getter       (view)
-import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8   as BS
 import           Data.IORef                (IORef, readIORef)
-import           Data.List                 (delete, lookup)
-import           Data.Maybe                (fromJust)
-import           Data.Text                 (replace, strip, isInfixOf, dropWhile, drop, intercalate)
+import           Data.Text                 (intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
-import           Data.Tree
-import           Data.Either.Combinators   (mapLeft)
 
 import qualified Hasql.Pool                as P
 import qualified Hasql.Transaction         as HT
-
-import           Text.Parsec.Error
 
 import qualified Text.InterpolatedString.Perl6 as P6 (q)
 
@@ -50,16 +42,13 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
-import           PostgREST.Parsers
-import           PostgREST.RangeQuery      (NonnegRange, allRange, rangeOffset, restrictRange)
+import           PostgREST.DbRequestBuilder(readRequest, mutateRequest)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse, singularityError)
+import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder ( callProc
-                                        , addJoinConditions
-                                        , sourceCTEName
                                         , requestToQuery
                                         , requestToCountQuery
-                                        , addRelations
                                         , createReadStatement
                                         , createWriteStatement
                                         , ResultsWithCount
@@ -67,9 +56,8 @@ import           PostgREST.QueryBuilder ( callProc
 import           PostgREST.Types
 import           PostgREST.OpenAPI
 
-import           Data.Foldable (foldr1)
 import           Data.Function (id)
-import           Protolude                hiding (dropWhile, drop, intercalate, Proxy)
+import           Protolude                hiding (intercalate, Proxy)
 
 postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> IO POSIXTime ->
              Application
@@ -316,174 +304,3 @@ contentRangeH lower upper total =
       totalString   = fromMaybe "*" (show <$> total)
       totalNotZero  = fromMaybe True ((/=) 0 <$> total)
       fromInRange   = lower <= upper
-
-formatParserError :: ParseError -> Text
-formatParserError e = formatGeneralError message details
-  where
-     message = show $ errorPos e
-     details = strip $ replace "\n" " " $ toS
-       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
-formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = message <> ", " <> details
-
-augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either Text ReadRequest
-augumentRequestWithJoin schema allRels request =
-  (first formatRelationError . addRelations schema allRels Nothing) request
-  >>= addJoinConditions schema
-  where
-    formatRelationError = formatGeneralError
-      "could not find foreign keys between these entities"
-
-addFiltersOrdersRanges :: ApiRequest -> Either ParseError (ReadRequest -> ReadRequest)
-addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
-    flip (foldr addFilter) <$> filters,
-    flip (foldr addOrder) <$> orders,
-    flip (foldr addRange) <$> ranges
-  ]
-  {-
-  The esence of what is going on above is that we are composing tree functions
-  of type (ReadRequest->ReadRequest) that are in (Either ParseError a) context
-  -}
-  where
-    filters :: Either ParseError [(Path, Filter)]
-    filters = mapM pRequestFilter flts
-      where
-        action = iAction apiRequest
-        flts
-          | action == ActionRead = iFilters apiRequest
-          | action == ActionInvoke = iFilters apiRequest
-          | otherwise = filter (( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
-    orders :: Either ParseError [(Path, [OrderTerm])]
-    orders = mapM pRequestOrder $ iOrder apiRequest
-    ranges :: Either ParseError [(Path, NonnegRange)]
-    ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
-
-treeRestrictRange :: Maybe Integer -> ReadRequest -> Either Text ReadRequest
-treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` request
-  where
-    nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
-    nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
-
-readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
-readRequest maxRows allRels allProcs apiRequest  =
-  mapLeft (errResponse status400) $
-  treeRestrictRange maxRows =<<
-  augumentRequestWithJoin schema relations =<<
-  first formatParserError parseReadRequest
-  where
-    (schema, rootTableName) = fromJust $ -- Make it safe
-      let target = iTarget apiRequest in
-      case target of
-        (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
-        (TargetProc  (QualifiedIdentifier s p) ) -> Just (s, t)
-          where
-            returnType = fromMaybe "" $ lookup p allProcs
-            -- we are looking for results looking like "SETOF schema.tablename" and want to extract tablename
-            t = if "SETOF " `isInfixOf` returnType
-              then drop 1 $ dropWhile (/= '.') returnType
-              else p
-
-        _ -> Nothing
-
-    action :: Action
-    action = iAction apiRequest
-
-    parseReadRequest :: Either ParseError ReadRequest
-    parseReadRequest = addFiltersOrdersRanges apiRequest <*>
-      pRequestSelect rootName selStr
-      where
-        selStr = iSelect apiRequest
-        rootName = if action == ActionRead
-          then rootTableName
-          else sourceCTEName
-
-    relations :: [Relation]
-    relations = case action of
-      ActionCreate -> fakeSourceRelations ++ allRels
-      ActionUpdate -> fakeSourceRelations ++ allRels
-      ActionDelete -> fakeSourceRelations ++ allRels
-      ActionInvoke -> fakeSourceRelations ++ allRels
-      _       -> allRels
-      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
-
-mutateRequest :: ApiRequest -> ReadRequest -> Either Response MutateRequest
-mutateRequest apiRequest readReq = mapLeft (errResponse status400) $
-  case action of
-    ActionCreate -> Right $ Insert rootTableName payload returnings
-    ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings
-    ActionDelete -> Delete rootTableName <$> filters <*> pure returnings
-    _        -> Left "Unsupported HTTP verb"
-  where
-    action = iAction apiRequest
-    payload = fromJust $ iPayload apiRequest
-    rootTableName = -- TODO: Make it safe
-      let target = iTarget apiRequest in
-      case target of
-        (TargetIdent (QualifiedIdentifier _ t) ) -> t
-        _ -> undefined
-    fieldNames :: ReadRequest -> PreferRepresentation -> [FieldName]
-    fieldNames _ None = []
-    fieldNames (Node (sel, _) forest) _ =
-      map (fst . view _1) (select sel) ++ map colName fks
-      where
-        fks = concatMap (fromMaybe [] . f) forest
-        f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
-        f _ = Nothing
-    returnings = fieldNames readReq (iPreferRepresentation apiRequest) 
-    filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
-      where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
-
-addFilterToNode :: Filter -> ReadRequest -> ReadRequest
-addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f
-
-addFilter :: (Path, Filter) -> ReadRequest -> ReadRequest
-addFilter = addProperty addFilterToNode
-
-addOrderToNode :: [OrderTerm] -> ReadRequest -> ReadRequest
-addOrderToNode o (Node (q,i) f) = Node (q{order=Just o}, i) f
-
-addOrder :: (Path, [OrderTerm]) -> ReadRequest -> ReadRequest
-addOrder = addProperty addOrderToNode
-
-addRangeToNode :: NonnegRange -> ReadRequest -> ReadRequest
-addRangeToNode r (Node (q,i) f) = Node (q{range_=r}, i) f
-
-addRange :: (Path, NonnegRange) -> ReadRequest -> ReadRequest
-addRange = addProperty addRangeToNode
-
-addProperty :: (a -> ReadRequest -> ReadRequest) -> (Path, a) -> ReadRequest -> ReadRequest
-addProperty f ([], a) n = f a n
-addProperty f (path, a) (Node rn forest) =
-  case targetNode of
-    Nothing -> Node rn forest -- the property is silenty dropped in the Request does not contain the required path
-    Just tn -> Node rn (addProperty f (remainingPath, a) tn:restForest)
-  where
-    targetNodeName:remainingPath = path
-    (targetNode,restForest) = splitForest targetNodeName forest
-    splitForest :: NodeName -> Forest ReadNode -> (Maybe ReadRequest, Forest ReadNode)
-    splitForest name forst =
-      case maybeNode of
-        Nothing -> (Nothing,forest)
-        Just node -> (Just node, delete node forest)
-      where
-        maybeNode :: Maybe ReadRequest
-        maybeNode = find fnd forst
-          where
-            fnd :: ReadRequest -> Bool
-            fnd (Node (_,(n,_,_)) _) = n == name
-
--- in a relation where one of the tables mathces "TableName"
--- replace the name to that table with pg_source
--- this "fake" relations is needed so that in a mutate query
--- we can look a the "returning *" part which is wrapped with a "with"
--- as just another table that has relations with other tables
-toSourceRelation :: TableName -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
-  | mt == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
-  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
-  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
-  | otherwise = Nothing
-
-extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
-extractQueryResult = fromMaybe (Nothing, 0, [], "")
