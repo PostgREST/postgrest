@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE TupleSections        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
@@ -13,11 +12,10 @@ and produces SQL Statements.
 Any function that outputs a SQL fragment should be in this module.
 -}
 module PostgREST.QueryBuilder (
-    addRelations
-  , addJoinConditions
-  , callProc
+    callProc
   , createReadStatement
   , createWriteStatement
+  , getJoinConditions
   , operators
   , pgFmtIdent
   , pgFmtLit
@@ -45,7 +43,6 @@ import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
 import           Text.InterpolatedString.Perl6 (qc)
-import           Text.Regex.TDFA         ((=~))
 import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
@@ -53,7 +50,6 @@ import           Data.Scientific         ( FPFormat (..)
                                          )
 import           Protolude hiding        (from, intercalate, ord, cast)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
-import           Unsafe                  (unsafeHead)
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -145,87 +141,6 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | asCsv = asCsvF
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF
-
-addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
-addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias)) forest) =
-  case parentNode of
-    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _)) _)) ->
-      Node <$> readNode' <*> forest'
-      where
-        forest' = updateForest $ hush node'
-        node' = Node <$> readNode' <*> pure forest
-        readNode' = addRel readNode <$> rel
-        rel :: Either Text Relation
-        rel = note ("no relation between " <> parentNodeTable <> " and " <> name)
-            $ findRelation schema name parentNodeTable
-
-            where
-              findRelation s nodeTableName parentNodeTableName =
-                find (\r ->
-                  s == tableSchema (relTable r) && -- match schema for relation table
-                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
-                  (
-
-                    -- (request)        => projects { ..., clients{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    (
-                      nodeTableName == tableName (relTable r) && -- match relation table name
-                      parentNodeTableName == tableName (relFTable r) -- match relation foreign table name
-                    ) ||
-
-
-                    -- (request)        => projects { ..., client_id{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    (
-                      parentNodeTableName == tableName (relFTable r) &&
-                      length (relFColumns r) == 1 &&
-                      nodeTableName `colMatches` (colName . unsafeHead . relFColumns) r
-                    )
-
-                    -- (request)        => project_id { ..., client_id{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    -- this case works becasue before reaching this place
-                    -- addRelation will turn project_id to project so the above condition will match
-                  )
-                ) allRelations
-                where n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
-        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
-        addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
-          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
-
-    _ -> n' <$> updateForest (Just (n' forest))
-      where
-        n' = Node (query, (name, Just r, alias))
-        t = Table schema name True -- !!! TODO find another way to get the table from the query
-        r = Relation t [] t [] Root Nothing Nothing Nothing
-  where
-    updateForest :: Maybe ReadRequest -> Either Text [ReadRequest]
-    updateForest n = mapM (addRelations schema allRelations n) forest
-
-addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
-addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
-  case r of
-    Just Relation{relType=Root} -> Node nn  <$> updatedForest -- this is the root node
-    Just rel@Relation{relType=Child} -> Node (addCond query (getJoinConditions rel),(n,r,a)) <$> updatedForest
-    Just Relation{relType=Parent} -> Node nn <$> updatedForest
-    Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
-      Node (qq, (n, r, a)) <$> updatedForest
-      where
-         query' = addCond query (getJoinConditions rel)
-         qq = query'{from=tableName linkTable : from query'}
-    _ -> Left "unknown relation"
-  where
-    updatedForest = mapM (addJoinConditions schema) forest
-    addCond query' con = query'{flt_=con ++ flt_ query'}
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
 callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
