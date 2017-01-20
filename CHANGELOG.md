@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+
+### Fixed
+
+## [0.4.0.0] - 2017-01-19
+
+### Added
 - Allow test database to be on another host - @dsimunic
 - `Prefer: params=single-object` to treat payload as single json argument in RPC - @dsimunic
 - Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
