@@ -4,6 +4,6 @@ extra-deps:
   - hasql-pool-0.4.1
   - hasql-transaction-0.5
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-identities
+  postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
   packages: [postgresql, zlib]
