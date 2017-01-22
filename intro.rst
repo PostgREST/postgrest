@@ -52,7 +52,7 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
 
-* `matthewmueller/pg-sns-bridge <https://github.com/matthewmueller/pg-sns-bridge>`_ - Amazon SNS
+* `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
 * `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
 * `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
 
