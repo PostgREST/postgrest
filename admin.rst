@@ -171,7 +171,26 @@ See the :ref:`ssl` section of the authentication guide.
 Rate Limiting
 -------------
 
-Foo
+Nginx supports "leaky bucket" rate limiting (see `official docs <https://nginx.org/en/docs/http/ngx_http_limit_req_module.html>`_). Using standard Nginx configuration, routes can be grouped into *request zones* for rate limiting. For instance we can define a zone for login attempts:
+
+.. code-block:: nginx
+
+  limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
+
+This creates a shared memory zone called "login" to store a log of IP addresses that access the rate limited urls. The space reserved, 10 MB (:code:`10m`) will give us enough space to store a history of 160k requests. We have chosen to allow only allow one request per second (:code:`1r/s`).
+
+Next we apply the zone to certain routes, like a hypothetical stored procedure called :code:`login`.
+
+.. code-block:: nginx
+
+  location /rpc/login/ {
+    # apply rate limiting
+    limit_req zone=login burst=5;
+  }
+
+The burst argument tells Nginx to start dropping requests if more than five queue up from a specific IP.
+
+Nginx rate limiting is general and indescriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
 
 Debugging
 =========

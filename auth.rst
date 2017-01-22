@@ -143,6 +143,8 @@ There is no performance penalty for having many database roles, although roles a
   -- allow authenticator to switch into user000 role
   -- (the role itself has nologin)
 
+.. _custom_validation:
+
 Custom Validation
 -----------------
 
