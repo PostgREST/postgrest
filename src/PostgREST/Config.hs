@@ -136,6 +136,8 @@ readOptions = do
   missingKeyHint (C.KeyError n) = do
     hPutStrLn stderr $
       "Required config parameter \"" <> n <> "\" is missing or of wrong type.\n" <>
+      "Documentation for configuration options available at\n" <>
+      "\thttp://postgrest.com/en/v0.4/admin.html#configuration\n\n" <>
       "Try the --example-config option to see how to configure PostgREST."
     exitFailure
 
