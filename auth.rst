@@ -99,9 +99,9 @@ This allows JWT generation services to include extra information and your databa
 
   .. code:: postgres
 
-    -- Prevent current_setting('postgrest.claims.email') from raising
+    -- Prevent current_setting('request.jwt.claim.email') from raising
     -- an exception if the setting is not present. Default it to ''.
-    ALTER DATABASE your_db_name SET request.claim.email TO '';
+    ALTER DATABASE your_db_name SET request.jwt.claim.email TO '';
 
   If you are unable to issue an ALTER DATABASE statement (for instance on Amazon RDS), you can create a helper function to read environment variables and swallow exceptions.
 
@@ -123,7 +123,7 @@ This allows JWT generation services to include extra information and your databa
     $$ stable language plpgsql;
 
     -- now you can call call for instance
-    -- SELECT env_var('request.claim.email')
+    -- SELECT env_var('request.jwt.claim.email')
 
 Hybrid User-Group Roles
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -381,7 +381,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
     as $$
   declare
     _role name;
-    result basic_auth.jwt_claims;
+    result basic_auth.jwt_token;
   begin
     -- check email and password
     select basic_auth.user_role(email, pass) into _role;
