@@ -359,9 +359,25 @@ The client can call it by posting an object like
 
   POST /rpc/add_them HTTP/1.1
 
-  { "a": 1, "b": 2}
+  { "a": 1, "b": 2 }
 
 The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`.
+
+.. note::
+
+  We recommend using function arguments of type json to accept arrays from the client. To pass a PostgreSQL native array you'll need to quote it as a string:
+
+  .. code:: http
+
+    POST /rpc/native_array_func HTTP/1.1
+
+    { "arg": "{1,2,3}" }
+
+  .. code:: http
+
+    POST /rpc/json_array_func HTTP/1.1
+
+    { "arg": [1,2,3] }
 
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
