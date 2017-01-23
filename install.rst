@@ -1,7 +1,9 @@
 Binary Release
 ==============
 
-The `release page <https://github.com/begriffs/postgrest/releases/latest>`_ has precompiled binaries for Mac OS X, Windows, and several Linux distros. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
+[ `Download from release page <https://github.com/begriffs/postgrest/releases/latest>`_ ]
+
+The release page has precompiled binaries for Mac OS X, Windows, and several Linux distros. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
 
 .. code-block:: bash
 
