@@ -248,7 +248,7 @@ As discussed in `Singular or Plural`_, there are no special URL forms for singul
 .. code:: http
 
   GET /people?id=eq.1
-  Prefer: plurality=singular
+  Accept: application/vnd.pgrst.object+json
 
 This allows compound primary keys and makes the intent for singular response independent of a URL convention. However for any table which uses a simple primary key you can use Nginx to simulate the familiar URL convention.
 

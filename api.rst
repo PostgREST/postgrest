@@ -218,12 +218,12 @@ By default PostgREST returns all JSON results in an array, even when there is on
     { "id": 1 }
   ]
 
-This can be inconvenient for client code. To return the first result as an object unenclosed by an array, Include a Prefer request header
+This can be inconvenient for client code. To return the first result as an object unenclosed by an array, specify :code:`vnd.pgrst.object` as part of the :code:`Accept` header
 
 .. code:: http
 
   GET /items?id=eq.1 HTTP/1.1
-  Prefer: plurality=singular
+  Accept: application/vnd.pgrst.object+json
 
 This returns
 
