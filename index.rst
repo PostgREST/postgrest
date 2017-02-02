@@ -1,3 +1,5 @@
+.. title:: PostgREST Documentation
+
 .. image:: _static/logo.png
 
 .. toctree::
