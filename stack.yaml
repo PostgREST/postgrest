@@ -3,6 +3,7 @@ extra-deps:
   - Ranged-sets-0.3.0
   - hasql-pool-0.4.1
   - hasql-transaction-0.4.5.1
+  - optparse-applicative-0.13.0.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities
 nix:
