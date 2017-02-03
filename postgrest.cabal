@@ -70,7 +70,7 @@ library
                      , lens
                      , lens-aeson
                      , network-uri
-                     , optparse-applicative >= 0.12.0.0 && < 0.13.0.0
+                     , optparse-applicative >= 0.13 && < 0.14
                      , parsec
                      , protolude
                      , Ranged-sets == 0.3.0
