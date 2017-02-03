@@ -29,6 +29,7 @@ import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
 import qualified Data.Configurator.Types     as C
 import           Data.List                   (lookup)
+import           Data.Monoid
 import           Data.Text                   (strip, intercalate, lines)
 import           Data.Text.Encoding          (encodeUtf8)
 import           Data.Text.IO                (hPutStrLn)
