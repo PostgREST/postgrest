@@ -22,7 +22,6 @@ import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-import           Web.JWT                   (binarySecret)
 
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
@@ -78,8 +77,8 @@ postgrest conf refDbStructure pool getTime worker =
         response <- case userApiRequest (configSchema conf) req body of
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
-            let jwtSecret = binarySecret <$> configJwtSecret conf
-                eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
+            let jwtSecret = undefined
+                eClaims = jwtClaims jwtSecret (toS $ iJWT apiRequest) time
                 authed = containsRole eClaims
                 handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
                 txMode = transactionMode dbStructure

@@ -14,27 +14,23 @@ very simple authentication system inside the PostgreSQL database.
 module PostgREST.Auth (
     containsRole
   , jwtClaims
-  , tokenJWT
   , JWTAttempt(..)
   ) where
 
 import           Protolude
-import           Control.Lens
-import           Data.Aeson              (Value (..), parseJSON, toJSON)
-import           Data.Aeson.Lens
-import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
-import qualified Data.Vector             as V
+import           Data.Aeson              (Value (..), toJSON)
+import qualified Data.ByteString.Lazy    as BL
 import qualified Data.HashMap.Strict     as M
-import           Data.Maybe              (fromJust)
 import           Data.Time.Clock         (NominalDiffTime)
-import qualified Web.JWT                 as JWT
 
+import           Crypto.JOSE.Compact
+import           Crypto.JOSE.JWK
+import           Crypto.JWT
 
 {-|
   Possible situations encountered with client JWTs
 -}
-data JWTAttempt = JWTExpired
-                | JWTInvalid
+data JWTAttempt = JWTInvalid JWTError
                 | JWTMissingSecret
                 | JWTClaims (M.HashMap Text Value)
                 deriving Eq
@@ -43,34 +39,15 @@ data JWTAttempt = JWTExpired
   Receives the JWT secret (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWT.Secret -> Text -> NominalDiffTime -> JWTAttempt
+jwtClaims :: Maybe JWK -> BL.ByteString -> NominalDiffTime -> JWTAttempt
 jwtClaims _ "" _ = JWTClaims M.empty
-jwtClaims secret jwt time =
+jwtClaims secret payload _time =
   case secret of
     Nothing -> JWTMissingSecret
-    Just s ->
-      let mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature s jwt in
-      case isExpired <$> mClaims of
-        Just True -> JWTExpired
-        Nothing -> JWTInvalid
-        Just False -> JWTClaims $ value2map $ fromJust mClaims
- where
-  isExpired claims =
-    let mExp = claims ^? key "exp" . _Integer
-    in fromMaybe False $ (<= time) . fromInteger <$> mExp
-  value2map (Object o) = o
-  value2map _          = M.empty
-
-{-|
-  Receives the JWT secret (from config) and a JWT and a JSON value
-  and returns a signed JWT.
--}
-tokenJWT :: JWT.Secret -> Value -> Text
-tokenJWT secret (Array arr) =
-  let obj = if V.null arr then emptyObject else V.head arr
-      jcs = parseMaybe parseJSON obj :: Maybe JWT.JWTClaimsSet in
-  JWT.encodeSigned JWT.HS256 secret $ fromMaybe JWT.def jcs
-tokenJWT secret _ = tokenJWT secret emptyArray
+    Just _ ->
+      case jwtClaimsSet <$> decodeCompact payload of
+        Left e -> JWTInvalid e
+        Right claims -> JWTClaims $ claims2map claims
 
 {-|
   Whether a response from jwtClaims contains a role claim
@@ -78,3 +55,13 @@ tokenJWT secret _ = tokenJWT secret emptyArray
 containsRole :: JWTAttempt -> Bool
 containsRole (JWTClaims claims) = M.member "role" claims
 containsRole _ = False
+
+{-|
+  Internal helper used to turn JWT ClaimSet into something
+  easier to work with
+-}
+claims2map :: ClaimsSet -> M.HashMap Text Value
+claims2map = val2map . toJSON
+ where
+  val2map (Object o) = o
+  val2map _ = M.empty

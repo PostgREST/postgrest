@@ -4,6 +4,7 @@
 
 module PostgREST.Middleware where
 
+import           Crypto.JWT
 import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import qualified Hasql.Transaction             as H
@@ -29,8 +30,8 @@ runWithClaims :: AppConfig -> JWTAttempt ->
                  ApiRequest -> H.Transaction Response
 runWithClaims conf eClaims app req =
   case eClaims of
-    JWTExpired -> return $ unauthed "JWT expired"
-    JWTInvalid -> return $ unauthed "JWT invalid"
+    JWTInvalid JWTExpired -> return $ unauthed "JWT expired"
+    JWTInvalid e -> return $ unauthed $ show e
     JWTMissingSecret -> return $ simpleError status500 "Server lacks JWT secret"
     JWTClaims claims -> do
       H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql

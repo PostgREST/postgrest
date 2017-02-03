@@ -67,7 +67,7 @@ library
                      , http-types
                      , insert-ordered-containers
                      , interpolatedstring-perl6
-                     , jwt
+                     , jose
                      , lens
                      , lens-aeson
                      , network-uri
