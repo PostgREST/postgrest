@@ -14,7 +14,9 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, POST, PATCH
 
 .. note::
 
-  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about `Resource Embedding`_.
+  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about :ref:`resource_embedding`.
+
+.. _h_filter:
 
 Horizontal Filtering (Rows)
 ---------------------------
@@ -57,6 +59,8 @@ To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2`.
 
 For more complicated filters (such as those involving condition 1 OR condition 2) you will have to create a new view in the database.
 
+.. _v_filter:
+
 Vertical Filtering (Columns)
 ----------------------------
 
@@ -66,7 +70,7 @@ When certain columns are wide (such as those holding binary data), it is more ef
 
   GET /people?select=fname,age HTTP/1.1
 
-The default is :sql:`*`, meaning all columns. This value will become more important below in :ref:`Resource Embedding`_.
+The default is :sql:`*`, meaning all columns. This value will become more important below in :ref:`resource_embedding`.
 
 .. _computed_cols:
 
@@ -128,6 +132,8 @@ If you care where nulls are sorted, add nullsfirst or nullslast:
   GET /people?order=age.desc.nullslast HTTP/1.1
 
 You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output.
+
+.. _limits:
 
 Limits and Pagination
 ---------------------
@@ -246,7 +252,9 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 
 .. note::
 
-  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`Schema Reloading`_.
+  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+
+.. _resource_embedding:
 
 Resource Embedding
 ==================
@@ -303,7 +311,7 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 
 .. note::
 
-  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`Schema Reloading`_.
+  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
 Embedded Filters and Order
 --------------------------
@@ -405,7 +413,7 @@ To create a row in a database table post a JSON object whose keys are the names 
 
 The response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
 
-On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard `Vertical Filtering (Columns)`_ to these results.
+On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
 
 .. note::
 
@@ -419,9 +427,9 @@ On the other end of the spectrum you can get the full created object back in the
     No
     "{ \"a\": 1, \"b\": 2 }"
 
-  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`Client-Side Libraries`_ built for PostgREST.
+  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
 
-To update a row or rows in a table, use the PATCH verb. Use :ref:`Horizontal Filtering (Rows)`_ to specify which record(s) to update. Here is an exmaple query setting the :code:`category` column to child for all people below a certain age.
+To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an exmaple query setting the :code:`category` column to child for all people below a certain age.
 
 .. code:: HTTP
 
@@ -429,11 +437,11 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`Horizontal Fil
 
   { "category": "child" }
 
-Updates also support :code:`Prefer: return=representation` plus `Vertical Filtering (Columns)`_.
+Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
 .. note::
 
-  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`Block Full-Table Operations`_.
+  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
 Bulk Insert
 -----------
@@ -468,7 +476,7 @@ To bulk insert JSON post an array of objects having all-matching keys
 Deletions
 =========
 
-To delete rows in a table, use the DELETE verb plus :ref:`Horizontal Filtering (Rows)`_. For instance deleting inactive users:
+To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instance deleting inactive users:
 
 .. code-block:: HTTP
 
@@ -476,4 +484,4 @@ To delete rows in a table, use the DELETE verb plus :ref:`Horizontal Filtering (
 
 .. note::
 
-  Beware of accidentally delting all rows in a table. To learn to prevent that see :ref:`Block Full-Table Operations`_.
+  Beware of accidentally delting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.

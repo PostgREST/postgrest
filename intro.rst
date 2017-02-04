@@ -35,6 +35,8 @@ Ecosystem
 
 PostgREST has a growing ecosystem of examples, and libraries, experiments, and users. Here is a selection.
 
+.. _clientside_libraries:
+
 Client-Side Libraries
 ---------------------
 

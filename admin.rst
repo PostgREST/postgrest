@@ -79,7 +79,7 @@ PostgREST outputs basic request logging to stdout. When running it in an SSH ses
 
   # another option is to pipe the output into "logger -t postgrest"
 
-(Avoid :code:`nohup postgrest` because the HUP signal is used for manual `Schema Reloading`_.)
+(Avoid :code:`nohup postgrest` because the HUP signal is used for manual :ref:`schema_reloading`.)
 
 Hardening PostgREST
 ===================
@@ -113,6 +113,8 @@ The first step is to create an Nginx configuration file that proxies requests to
     }
   }
 
+.. _block_fulltable:
+
 Block Full-Table Operations
 ---------------------------
 
@@ -135,7 +137,7 @@ This does not protect against malicious actions, since someone can add a url par
 Count-Header DoS
 ----------------
 
-For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in `Limits and Pagination`_, responses ordinarily include a range but leave the total unspecified like
+For convenience to client-side pagination controls PostgREST supports counting and reporting total table size in its response. As described in :ref:`limits`, responses ordinarily include a range but leave the total unspecified like
 
 .. code-block:: http
 
@@ -227,10 +229,12 @@ Once you've verified that requests are as you expect, you can get more informati
 
 Restart the database and watch the log file in real-time to understand how HTTP requests are being translated into SQL commands.
 
+.. _schema_reloading:
+
 Schema Reloading
 ----------------
 
-Users are often confused by PostgREST's database schema cache. It is present because detecting foreign key relationships between tables (including how those relationships pass through views) is necessary, but costly. API requests consult the schema cache as part of :ref:`Resource Embedding`_. However if the schema changes while the server is running it results in a stale cache and leads to errors claiming that no relations are detected between tables.
+Users are often confused by PostgREST's database schema cache. It is present because detecting foreign key relationships between tables (including how those relationships pass through views) is necessary, but costly. API requests consult the schema cache as part of :ref:`resource_embedding`. However if the schema changes while the server is running it results in a stale cache and leads to errors claiming that no relations are detected between tables.
 
 To refresh the cache without restarting the PostgREST server, send the server process a SIGHUP signal:
 
