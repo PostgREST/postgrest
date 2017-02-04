@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PostgREST'
-copyright = u'2016, Joe Nelson'
+copyright = u'2017, Joe Nelson'
 author = u'Joe Nelson'
 
 # The version info for the project you're documenting, acts as replacement for
