@@ -40,6 +40,8 @@ PostgREST has a growing ecosystem of examples, and libraries, experiments, and u
 Client-Side Libraries
 ---------------------
 
+* `PierreRochard/angular2-postgrest <https://github.com/PierreRochard/angular2-postgrest>`_ - JS, Angular 2
+* `tomberek/aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
 * `hugomrdias/postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
 * `john-kelly/elm-postgrest <https://github.com/john-kelly/elm-postgrest>`_ - Elm
 * `mithril.postgrest <https://github.com/catarse/mithril.postgrest>`_ - JS, Mithril
