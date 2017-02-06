@@ -93,6 +93,7 @@ Extensions
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
+* `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
 
 Commercial PaaS
 ---------------
