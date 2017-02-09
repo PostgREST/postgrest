@@ -25,7 +25,7 @@ import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
 
 import Data.Maybe (fromJust)
 import Data.Aeson (decode, Value(..))
-import qualified Data.JsonSchema.Draft4 as D4
+import qualified JSONSchema.Draft4 as D4
 
 import Protolude
 

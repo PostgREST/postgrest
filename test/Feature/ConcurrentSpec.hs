@@ -24,14 +24,13 @@ spec =
     it "should not raise 'transaction in progress' error" $
       raceTest 10 $
         get "/fakefake"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json|
+          `shouldRespondWith` [json|
               { "hint": null,
                 "details":null,
                 "code":"42P01",
                 "message":"relation \"test.fakefake\" does not exist"
               } |]
-          , matchStatus  = 404
+          { matchStatus  = 404
           , matchHeaders = []
           }
 

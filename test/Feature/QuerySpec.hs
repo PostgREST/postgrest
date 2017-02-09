@@ -30,68 +30,49 @@ spec = do
   describe "Filtering response" $ do
     it "matches with equality" $
       get "/items?id=eq.5"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":5}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-0/*"]
-        }
+        `shouldRespondWith` [json| [{"id":5}] |]
+        { matchHeaders = ["Content-Range" <:> "0-0/*"] }
 
     it "matches with equality using not operator" $
       get "/items?id=not.eq.5"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-13/*"]
-        }
+        `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+        { matchHeaders = ["Content-Range" <:> "0-13/*"] }
 
     it "matches with more than one condition using not operator" $
       get "/simple_pk?k=like.*yx&extra=not.eq.u" `shouldRespondWith` "[]"
 
     it "matches with inequality using not operator" $ do
       get "/items?id=not.lt.14&order=id.asc"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":14},{"id":15}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/*"]
-        }
+        `shouldRespondWith` [json| [{"id":14},{"id":15}] |]
+        { matchHeaders = ["Content-Range" <:> "0-1/*"] }
       get "/items?id=not.gt.2&order=id.asc"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":2}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/*"]
-        }
+        `shouldRespondWith` [json| [{"id":1},{"id":2}] |]
+        { matchHeaders = ["Content-Range" <:> "0-1/*"] }
 
     it "matches items IN" $
       get "/items?id=in.1,3,5"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/*"]
-        }
+        `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
+        { matchHeaders = ["Content-Range" <:> "0-2/*"] }
 
     it "matches items NOT IN" $
       get "/items?id=notin.2,4,6,7,8,9,10,11,12,13,14,15"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/*"]
-        }
+        `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
+        { matchHeaders = ["Content-Range" <:> "0-2/*"] }
 
     it "matches items NOT IN using not operator" $
       get "/items?id=not.in.2,4,6,7,8,9,10,11,12,13,14,15"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":3},{"id":5}] |]
-        , matchStatus  = 200
-        , matchHeaders = ["Content-Range" <:> "0-2/*"]
-        }
+        `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
+        { matchHeaders = ["Content-Range" <:> "0-2/*"] }
 
     it "matches nulls using not operator" $
       get "/no_pk?a=not.is.null" `shouldRespondWith`
         [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
       get "/nullable_integer?a=is.null" `shouldRespondWith` [str|[{"a":null}]|]
 
@@ -119,25 +100,28 @@ spec = do
     it "matches with tsearch @@" $
       get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
         [json| [{"text_search_vector":"'bar':2 'foo':1"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "matches with tsearch @@ using not operator" $
       get "/tsearch?text_search_vector=not.@@.foo" `shouldRespondWith`
         [json| [{"text_search_vector":"'baz':1 'qux':2"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "order by computed column" $
       get "/items?order=anti_id.desc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects{id,tasks2{id,name}}&projects.tasks.name=like.Design*"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
-        , matchStatus  = 400
-        , matchHeaders = []
+        `shouldRespondWith` [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
+        { matchStatus  = 400
+        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }
 
     it "matches filtering nested items" $
@@ -166,45 +150,50 @@ spec = do
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "rename simple column" $
       get "/complex_items?id=eq.1&select=myId:id" `shouldRespondWith`
         [json| [{"myId":1}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
 
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
         [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "rename simple column with casting" $
       get "/complex_items?id=eq.1&select=myId:id::text" `shouldRespondWith`
         [json| [{"myId":"1"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "json column" $
       get "/complex_items?id=eq.1&select=settings" `shouldRespondWith`
         [json| [{"settings":{"foo":{"int":1,"bar":"baz"}}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "json subfield one level with casting (json)" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
         [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "rename json subfield one level with casting (json)" $
       get "/complex_items?id=eq.1&select=myFoo:settings->>foo::json" `shouldRespondWith`
         [json| [{"myFoo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
-        , matchStatus  = 400
+        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
+        { matchStatus  = 400
         , matchHeaders = []
         }
 
     it "fails on bad casting (wrong cast type)" $
       get "/complex_items?select=id::fakecolumntype"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
-        , matchStatus  = 400
+        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
+        { matchStatus  = 400
         , matchHeaders = []
         }
 
@@ -212,19 +201,23 @@ spec = do
     it "json subfield two levels (string)" $
       get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
         [json| [{"bar":"baz"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "rename json subfield two levels (string)" $
       get "/complex_items?id=eq.1&select=myBar:settings->foo->>bar" `shouldRespondWith`
         [json| [{"myBar":"baz"}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
 
     it "json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "rename json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=myInt:settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
@@ -309,67 +302,63 @@ spec = do
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":1},{"id":2}] |]
-        , matchStatus  = 200
+        `shouldRespondWith` [json| [{"id":1},{"id":2}] |]
+        { matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| [{"id":2},{"id":1}] |]
-        , matchStatus  = 200
+        `shouldRespondWith` [json| [{"id":2},{"id":1}] |]
+        { matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
     it "by a column with nulls first" $
       get "/no_pk?order=a.nullsfirst"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| [{"a":null,"b":null},
+        `shouldRespondWith` [json| [{"a":null,"b":null},
                               {"a":"1","b":"0"},
                               {"a":"2","b":"0"}
                               ] |]
-        , matchStatus = 200
+        { matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a column asc with nulls last" $
       get "/no_pk?order=a.asc.nullslast"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| [{"a":"1","b":"0"},
+        `shouldRespondWith` [json| [{"a":"1","b":"0"},
                               {"a":"2","b":"0"},
                               {"a":null,"b":null}] |]
-        , matchStatus = 200
+        { matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a column desc with nulls first" $
       get "/no_pk?order=a.desc.nullsfirst"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| [{"a":null,"b":null},
+        `shouldRespondWith` [json| [{"a":null,"b":null},
                               {"a":"2","b":"0"},
                               {"a":"1","b":"0"}] |]
-        , matchStatus = 200
+        { matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a column desc with nulls last" $
       get "/no_pk?order=a.desc.nullslast"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| [{"a":"2","b":"0"},
+        `shouldRespondWith` [json| [{"a":"2","b":"0"},
                               {"a":"1","b":"0"},
                               {"a":null,"b":null}] |]
-        , matchStatus = 200
+        { matchStatus = 200
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
     it "by a json column property asc" $
       get "/json?order=data->>id.asc" `shouldRespondWith`
         [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "by a json column with two level property nulls first" $
       get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
         [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
@@ -437,7 +426,7 @@ spec = do
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "k,extra\nxyyx,u\nxYYx,v"
+          matchBody    = "k,extra\nxyyx,u\nxYYx,v"
         , matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
         }
@@ -446,7 +435,7 @@ spec = do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"
         `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just "[]"
+          matchBody    = "[]"
         , matchStatus  = 200
         , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
         }
@@ -462,23 +451,26 @@ spec = do
     it "can filter by properties inside json column" $ do
       get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
       get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
         [json| [] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
     it "can filter by properties inside json column using not" $
       get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
     it "can filter by properties inside json column using ->>" $
       get "/json?data->>id=eq.1" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       it "returns paginated results" $
         request methodPost "/rpc/getitemrange"
                 (rangeHdrs (ByteRangeFromTo 0 0))  [json| { "min": 2, "max": 4 } |]
-           `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [{"id":3}] |]
-            , matchStatus = 200
+           `shouldRespondWith` [json| [{"id":3}] |]
+            { matchStatus = 200
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
 
@@ -486,9 +478,8 @@ spec = do
         request methodPost "/rpc/getitemrange"
                 (rangeHdrsWithCount (ByteRangeFromTo 0 0))
                 [json| { "min": 2, "max": 4 } |]
-           `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [{"id":3}] |]
-            , matchStatus = 206 -- it now knows the response is partial
+           `shouldRespondWith` [json| [{"id":3}] |]
+            { matchStatus = 206 -- it now knows the response is partial
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
 
@@ -496,6 +487,7 @@ spec = do
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     context "unknown function" $
       it "returns 404" $
@@ -509,12 +501,12 @@ spec = do
       it "can filter proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
           [json|[{"id":2},{"id":3},{"id":4}]|]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
       it "can limit proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
-          `shouldRespondWith` ResponseMatcher {
-               matchBody    = Just [json|[{"id":3},{"id":4}]|]
-             , matchStatus = 200
+          `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
+             { matchStatus = 200
              , matchHeaders = ["Content-Range" <:> "1-2/*"]
              }
 
@@ -530,15 +522,18 @@ spec = do
       it "returns empty json array" $
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
           [json| [] |]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json|"Hello, world"|]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
       it "can handle unicode" $
         post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
           [json|"Hello, ￥"|]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $
@@ -577,14 +572,17 @@ spec = do
     it "executes the proc exactly once per request" $ do
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|1|]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|2|]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     context "expects a single json object" $ do
       it "does not expand posted json into parameters" $
         request methodPost "/rpc/singlejsonparam"
           [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
           [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
+          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
       it "accepts parameters from an html form" $
         request methodPost "/rpc/singlejsonparam"
@@ -593,29 +591,33 @@ spec = do
            "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
           [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
                  , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
+                 { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`
         [json| [{"so6meIdColumn":1},{"so6meIdColumn":2},{"so6meIdColumn":3},{"so6meIdColumn":4},{"so6meIdColumn":5}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
       get "/ghostBusters" `shouldRespondWith`
         [json| [{"escapeId":1},{"escapeId":3},{"escapeId":5}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "will embed a collection" $
       get "/Escap3e;?select=ghostBusters{*}" `shouldRespondWith`
         [json| [{"ghostBusters":[{"escapeId":1}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":3}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":5}]}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
     it "will embed using a column" $
       get "/ghostBusters?select=escapeId{*}" `shouldRespondWith`
         [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
 
   describe "binary output" $ do
-    it "can query if a single column is selected" $ 
+    it "can query if a single column is selected" $
       request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
-          , matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
         }
 
     it "fails if a single column is not selected" $ do
@@ -626,12 +628,9 @@ spec = do
       request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith` 406
 
-    it "concatenates results if more than one row is returned" $ 
+    it "concatenates results if more than one row is returned" $
       request methodGet "/images_base64?select=img&name=in.A.png,B.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
-          , matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
         }
-
-

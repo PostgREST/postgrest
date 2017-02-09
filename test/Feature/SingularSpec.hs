@@ -87,14 +87,14 @@ spec =
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 101, address: "xxx" } ] |]
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just ""
+            matchBody    = ""
           , matchStatus  = 201
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
         -- and the element should exist
         get "/addresses?id=eq.101"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":101,"address":"xxx"}]|]
+            matchBody    = [str|[{"id":101,"address":"xxx"}]|]
           , matchStatus  = 200
           , matchHeaders = []
           }
@@ -114,7 +114,7 @@ spec =
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just ""
+            matchBody    = ""
           , matchStatus  = 201
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
@@ -144,9 +144,8 @@ spec =
 
         -- the rows should not exist, either
         get firstItems
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Nothing
-          , matchStatus  = 200
+          `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10}] |]
+          { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-9/*"]
           }
 

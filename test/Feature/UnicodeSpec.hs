@@ -20,3 +20,4 @@ spec =
 
       get "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
         `shouldRespondWith` [json| [{ "هویت": 1 }] |]
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }

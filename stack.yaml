@@ -1,4 +1,4 @@
-resolver: lts-7.4
+resolver: nightly-2017-01-31
 extra-deps:
   - Ranged-sets-0.3.0
   - hasql-pool-0.4.1

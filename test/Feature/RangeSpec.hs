@@ -31,19 +31,12 @@ spec = do
       context "when I don't want the count" $ do
         it "returns range Content-Range with */* for empty range" $
           request methodPost "/rpc/getitemrange" [] emptyRange
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [] |]
-            , matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+            `shouldRespondWith` [json| [] |] {matchHeaders = ["Content-Range" <:> "*/*"]}
 
         it "returns range Content-Range with range/*" $
           request methodPost "/rpc/getitemrange" [] defaultRange
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
-            , matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-14/*"]
-            }
+            `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+            { matchHeaders = ["Content-Range" <:> "0-14/*"] }
 
     context "with range headers" $ do
 
@@ -65,7 +58,7 @@ spec = do
           request methodPost "/rpc/getitemrange"
                   (rangeHdrs $ ByteRangeFromTo 0 1) emptyRange
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just "[]"
+              matchBody    = "[]"
             , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/*"]
             }
@@ -96,7 +89,7 @@ spec = do
           request methodPost "/rpc/getitemrange"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) emptyRange
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing
+              matchBody    = "[]"
             , matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -105,7 +98,7 @@ spec = do
           request methodPost "/rpc/getitemrange"
                   (rangeHdrsWithCount $ ByteRangeFromTo 100 199) defaultRange
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing
+              matchBody    = "[]"
             , matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
@@ -121,7 +114,7 @@ spec = do
           request methodGet "/menagerie"
                   [("Prefer", "count=none")] ""
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just "[]"
+              matchBody    = "[]"
             , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/*"]
             }
@@ -129,33 +122,27 @@ spec = do
         it "returns range Content-Range with range/*" $
           request methodGet "/items?order=id"
                   [("Prefer", "count=none")] ""
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
-            , matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-14/*"]
-            }
+            `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+            { matchHeaders = ["Content-Range" <:> "0-14/*"] }
 
         it "returns range Content-Range with range/* even using other filters" $
           request methodGet "/items?id=eq.1&order=id"
                   [("Prefer", "count=none")] ""
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just [json| [{"id":1}] |]
-            , matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
-            }
+            `shouldRespondWith` [json| [{"id":1}] |]
+            { matchHeaders = ["Content-Range" <:> "0-0/*"] }
 
     context "with limit/offset parameters" $ do
       it "no parameters return everything" $
         get "/items?select=id&order=id.asc"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
+            matchBody    = [str|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-14/*"]
           }
       it "top level limit with parameter" $
         get "/items?select=id&order=id.asc&limit=3"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":1},{"id":2},{"id":3}]|]
+            matchBody    = [str|[{"id":1},{"id":2},{"id":3}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-2/*"]
           }
@@ -163,7 +150,7 @@ spec = do
         request methodGet  "/items?select=id&order=id.asc&limit=3"
                      (rangeHdrs $ ByteRangeFromTo 0 1) ""
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":1},{"id":2}]|]
+            matchBody    = [str|[{"id":1},{"id":2}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-1/*"]
           }
@@ -171,7 +158,7 @@ spec = do
       it "limit works on all levels" $
         get "/clients?select=id,projects{id,tasks{id}}&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=1"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1}]},{"id":2,"tasks":[{"id":3}]}]}]|]
+            matchBody    = [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1}]},{"id":2,"tasks":[{"id":3}]}]}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
@@ -180,7 +167,7 @@ spec = do
       it "limit and offset works on first level" $
         get "/items?select=id&order=id.asc&limit=3&offset=2"
           `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":3},{"id":4},{"id":5}]|]
+            matchBody    = [str|[{"id":3},{"id":4},{"id":5}]|]
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "2-4/*"]
           }
@@ -205,7 +192,7 @@ spec = do
           request methodGet "/menagerie"
                   (rangeHdrs $ ByteRangeFromTo 0 1) ""
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Just "[]"
+              matchBody    = "[]"
             , matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/*"]
             }
@@ -236,7 +223,7 @@ spec = do
           request methodGet "/menagerie"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) ""
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing
+              matchBody    = "[]"
             , matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -245,7 +232,7 @@ spec = do
           request methodGet "/items"
                   (rangeHdrsWithCount $ ByteRangeFromTo 100 199) ""
             `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing
+              matchBody    = "[]"
             , matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
