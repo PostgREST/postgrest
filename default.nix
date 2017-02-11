@@ -1,5 +1,4 @@
 let
-  # inherit (nixpkgs) pkgs;
   channel = "nixos-16.09";
   sysPkgs = import <nixpkgs> {};
 
@@ -25,10 +24,10 @@ let
       packageOverrides = pkgs: rec {
         haskellPackages = pkgs.haskellPackages.override {
           overrides = haskellPackagesNew: haskllPackagesOld: rec {
-            swagger2 = haskellPackagesNew.callPackage ./nixExternalLibs/swagger2.nix { };
-
             hasql-transaction =
               haskellPackagesNew.callPackage ./nixExternalLibs/hasql-transaction.nix { };
+            swagger2 = haskellPackagesNew.callPackage ./nixExternalLibs/swagger2.nix { };
+
           };
         };
       };
