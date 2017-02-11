@@ -5,8 +5,6 @@ module PostgREST.DbRequestBuilder (
 ) where
 
 import           Control.Applicative
-import           Control.Lens.Getter       (view)
-import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
 import           Data.List                 (delete, lookup)
 import           Data.Maybe                (fromJust)
@@ -23,6 +21,7 @@ import           Data.Foldable (foldr1)
 import qualified Data.HashMap.Strict       as M
 
 import           PostgREST.ApiRequest   ( ApiRequest(..) 
+                                        , PreferRepresentation(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         )
@@ -247,8 +246,8 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
   | otherwise = Nothing
 
-mutateRequest :: ApiRequest -> ReadRequest -> Either Response MutateRequest
-mutateRequest apiRequest readReq = mapLeft (errResponse status400) $
+mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
+mutateRequest apiRequest fieldNames = mapLeft (errResponse status400) $
   case action of
     ActionCreate -> Right $ Insert rootTableName payload returnings
     ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings
@@ -262,14 +261,6 @@ mutateRequest apiRequest readReq = mapLeft (errResponse status400) $
       case target of
         (TargetIdent (QualifiedIdentifier _ t) ) -> t
         _ -> undefined
-    fieldNames :: ReadRequest -> PreferRepresentation -> [FieldName]
-    fieldNames _ None = []
-    fieldNames (Node (sel, _) forest) _ =
-      map (fst . view _1) (select sel) ++ map colName fks
-      where
-        fks = concatMap (fromMaybe [] . f) forest
-        f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
-        f _ = Nothing
-    returnings = fieldNames readReq (iPreferRepresentation apiRequest) 
+    returnings = if iPreferRepresentation apiRequest == None then [] else fieldNames
     filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
       where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table

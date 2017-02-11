@@ -59,7 +59,7 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
-                 | CTSingularJSON
+                 | CTSingularJSON | CTOctetStream
                  | CTAny | CTOther BS.ByteString deriving Eq
 
 data ApiRequestError = ErrorActionInappropriate
@@ -77,6 +77,7 @@ toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
 toMime CTOpenAPI         = "application/openapi+json"
 toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
+toMime CTOctetStream     = "application/octet-stream"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
 
@@ -247,6 +248,7 @@ decodeContentType ct =
     "application/openapi+json"          -> CTOpenAPI
     "application/vnd.pgrst.object+json" -> CTSingularJSON
     "application/vnd.pgrst.object"      -> CTSingularJSON
+    "application/octet-stream"          -> CTOctetStream
     "*/*"                               -> CTAny
     ct'                                 -> CTOther ct'
 
