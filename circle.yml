@@ -2,7 +2,6 @@ dependencies:
   cache_directories:
     - "~/.stack"
     - ".stack-work"
-    - "/nix/store"
   pre:
     - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
