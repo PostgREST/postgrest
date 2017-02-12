@@ -3,6 +3,7 @@ GRANT USAGE ON SCHEMA
       postgrest
     , test
     , jwt
+    , public
     , "تست"
 TO postgrest_test_anonymous;
 
@@ -44,6 +45,10 @@ GRANT ALL ON TABLE
     , "موارد"
     , addresses
     , orders
+    , public.public_consumers
+    , public.public_orders
+    , consumers_view
+    , orders_view
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
