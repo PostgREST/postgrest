@@ -7,14 +7,11 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Control.Lens.Getter       (view)
-import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
 import           Data.Text                 (intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
-import           Data.Tree
 
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as HT
@@ -43,7 +40,10 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.DbRequestBuilder(readRequest, mutateRequest)
+import           PostgREST.DbRequestBuilder( readRequest
+                                           , mutateRequest
+                                           , fieldNames
+                                           )
 import           PostgREST.Error           ( errResponse, pgErrResponse
                                            , apiRequestErrResponse
                                            , singularityError, binaryFieldError
@@ -99,28 +99,27 @@ app dbStructure conf apiRequest =
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
         (ActionRead, TargetIdent qi, Nothing) ->
-          case readSqlParts of
+          let partsField = (,) <$> readSqlParts
+                <*> (binaryField contentType =<< fldNames) in
+          case partsField of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> 
-              case binaryField contentType =<< fldNames of
-                Left errorResponse -> return errorResponse
-                Right bField -> do
-                  let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount 
-                                                (contentType == CTTextCSV) bField
-                  row <- H.query () stm
-                  let (tableTotal, queryTotal, _ , body) = row
-                      (status, contentRange) = rangeHeader queryTotal tableTotal
-                      canonical = iCanonicalQS apiRequest
-                  return $
-                    if contentType == CTSingularJSON && queryTotal /= 1
-                      then singularityError (toInteger queryTotal)
-                      else responseLBS status
-                        [toHeader contentType, contentRange,
-                          ("Content-Location",
-                            "/" <> toS (qiName qi) <>
-                              if BS.null canonical then "" else "?" <> toS canonical
-                          )
-                        ] (toS body)
+            Right ((q, cq), bField) -> do
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount 
+                                            (contentType == CTTextCSV) bField
+              row <- H.query () stm
+              let (tableTotal, queryTotal, _ , body) = row
+                  (status, contentRange) = rangeHeader queryTotal tableTotal
+                  canonical = iCanonicalQS apiRequest
+              return $
+                if contentType == CTSingularJSON && queryTotal /= 1
+                  then singularityError (toInteger queryTotal)
+                  else responseLBS status
+                    [toHeader contentType, contentRange,
+                      ("Content-Location",
+                        "/" <> toS (qiName qi) <>
+                          if BS.null canonical then "" else "?" <> toS canonical
+                      )
+                    ] (toS body)
 
         (ActionCreate, TargetIdent (QualifiedIdentifier _ table), Just payload@(PayloadJSON rows)) ->
           case mutateSqlParts of
@@ -270,13 +269,6 @@ app dbStructure conf apiRequest =
       mapSnd f (a, b) = (a, f b)
       readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
       fldNames = fieldNames <$> readReq
-      fieldNames :: ReadRequest -> [FieldName]
-      fieldNames (Node (sel, _) forest) =
-        map (fst . view _1) (select sel) ++ map colName fks
-        where
-          fks = concatMap (fromMaybe [] . f) forest
-          f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
-          f _ = Nothing
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
       selectQuery = requestToQuery schema False <$> readDbRequest
@@ -306,12 +298,12 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         Just ct -> Right ct
 
 binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
-binaryField CTOctetStream fieldNames = 
-  if length fieldNames == 1 && fromJust fieldName /= "*"
+binaryField CTOctetStream fldNames = 
+  if length fldNames == 1 && fieldName /= Just "*"
     then Right fieldName
     else Left binaryFieldError
   where
-    fieldName = headMay fieldNames
+    fieldName = headMay fldNames
 binaryField _ _ = Right Nothing
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
