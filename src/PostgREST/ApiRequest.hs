@@ -38,7 +38,7 @@ import           Data.Ranged.Boundaries
 import           PostgREST.Types           (QualifiedIdentifier (..),
                                             Schema,
                                             PayloadJSON(..))
-import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection, emptyRange)
+import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
 
 type RequestBody = BL.ByteString
 
@@ -59,6 +59,7 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
+                 | CTSingularJSON
                  | CTAny | CTOther BS.ByteString deriving Eq
 
 data ApiRequestError = ErrorActionInappropriate
@@ -75,6 +76,7 @@ toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
 toMime CTOpenAPI         = "application/openapi+json"
+toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
 
@@ -98,8 +100,6 @@ data ApiRequest = ApiRequest {
   , iPayload :: Maybe PayloadJSON
   -- | If client wants created items echoed back
   , iPreferRepresentation :: PreferRepresentation
-  -- | If client wants first row as raw object
-  , iPreferSingular :: Bool
   -- | Pass all parameters as a single json object to a stored procedure
   , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
@@ -130,9 +130,8 @@ userApiRequest schema req reqBody
         map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
-      , iPreferSingular = singular
       , iPreferSingleObjectParameter = singleObject
-      , iPreferCount = not singular && hasPrefer "count=exact"
+      , iPreferCount = hasPrefer "count=exact"
       , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
       , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
@@ -194,7 +193,6 @@ userApiRequest schema req reqBody
     where
         split :: BS.ByteString -> [Text]
         split = map T.strip . T.split (==',') . toS
-  singular        = hasPrefer "plurality=singular"
   singleObject    = hasPrefer "params=single-object"
   representation
     | hasPrefer "return=representation" = Full
@@ -208,7 +206,7 @@ userApiRequest schema req reqBody
   endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key
 
-  headerRange = if singular && method == "GET" then singletonRange 0 else rangeRequested hdrs
+  headerRange = rangeRequested hdrs
   replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
   limitParams :: M.HashMap ByteString NonnegRange
   limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
@@ -244,11 +242,13 @@ mutuallyAgreeable sProduces cAccepts =
 decodeContentType :: BS.ByteString -> ContentType
 decodeContentType ct =
   case BS.takeWhile (/= BS.c2w ';') ct of
-    "application/json"         -> CTApplicationJSON
-    "text/csv"                 -> CTTextCSV
-    "application/openapi+json" -> CTOpenAPI
-    "*/*"                      -> CTAny
-    ct'                        -> CTOther ct'
+    "application/json"                  -> CTApplicationJSON
+    "text/csv"                          -> CTTextCSV
+    "application/openapi+json"          -> CTOpenAPI
+    "application/vnd.pgrst.object+json" -> CTSingularJSON
+    "application/vnd.pgrst.object"      -> CTSingularJSON
+    "*/*"                               -> CTAny
+    ct'                                 -> CTOther ct'
 
 type CsvData = V.Vector (M.HashMap Text BL.ByteString)
 

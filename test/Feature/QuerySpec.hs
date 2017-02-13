@@ -4,7 +4,7 @@ import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
-import Network.Wai.Test (SResponse(simpleHeaders))
+import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus,simpleBody))
 
 import SpecHelper
 import Text.Heredoc
@@ -131,6 +131,14 @@ spec = do
     it "order by computed column" $
       get "/items?order=anti_id.desc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
+
+    it "matches filtering nested items 2" $
+      get "/clients?select=id,projects{id,tasks2{id,name}}&projects.tasks.name=like.Design*"
+        `shouldRespondWith` ResponseMatcher {
+          matchBody    = Just [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
+        , matchStatus  = 400
+        , matchHeaders = []
+        }
 
     it "matches filtering nested items" $
       get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
@@ -294,42 +302,8 @@ spec = do
       get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
 
-
-  describe "Plurality singular" $ do
-    it "will select an existing object" $
-      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular")] ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "can combine multiple prefer values" $
-      request methodGet "/items?id=eq.5" [("Prefer","plurality=singular , future=new, count=none")] ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":5} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "works in the presence of a range header" $
-      let headers = ("Prefer","plurality=singular") :
-            rangeHdrs (ByteRangeFromTo 0 9) in
-      request methodGet "/items" headers ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = Just [json| {"id":1} |]
-        , matchStatus  = 200
-        , matchHeaders = []
-        }
-
-    it "will respond with 404 when not found" $
-      request methodGet "/items?id=eq.9999" [("Prefer","plurality=singular")] ""
-        `shouldRespondWith` 404
-
-    it "can shape plurality singular object routes" $
-      request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [("Prefer","plurality=singular")] ""
-        `shouldRespondWith`
-          [str|{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}|]
+    it "can detect fk relations through views to tables in the public schema" $
+      get "/consumers_view?select=*,orders_view{*}" `shouldRespondWith` 200
 
 
   describe "ordering response" $ do
@@ -523,10 +497,14 @@ spec = do
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
 
+    context "unknown function" $
+      it "returns 404" $
+        post "/rpc/fakefunc" [json| {} |] `shouldRespondWith` 404
+
     context "shaping the response returned by a proc" $ do
       it "returns a project" $
         post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client_id":1}]|]
+          [str|[{"id":1,"name":"Windows 7","client_id":1}]|]
 
       it "can filter proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
@@ -540,20 +518,13 @@ spec = do
              , matchHeaders = ["Content-Range" <:> "1-2/*"]
              }
 
-
-
-      it "prefer singular" $
-        request methodPost "/rpc/getproject"
-          [("Prefer","plurality=singular")] [json| { "id": 1} |] `shouldRespondWith`
-          [json|{"id":1,"name":"Windows 7","client_id":1}|]
-
       it "select works on the first level" $
         post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7"}]|]
+          [str|[{"id":1,"name":"Windows 7"}]|]
 
       it "can embed foreign entities to the items returned by a proc" $
         post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
 
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $
@@ -574,17 +545,17 @@ spec = do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "audio/mpeg3") [json| { "name": "world" } |]
             `shouldRespondWith` 415
-      it "rejects malformed json payload" $
-        request methodPost "/rpc/sayhello"
+      it "rejects malformed json payload" $ do
+        p <- request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"
-            `shouldRespondWith` 400
-      -- it used to be 404 and it makes sense but in another part we decided that it's good to return
-      -- PostgreSQL errors (and have the proxy handle them) and this saves us an aditional query on each rpc request
-      it "responds with 400 on an unexisting proc" $
-        post "/rpc/fake" "{}" `shouldRespondWith` 400
-      it "treats simple plpgsql raise as invalid input" $
-        post "/rpc/problem" "{}" `shouldRespondWith` 400
-
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
+      it "treats simple plpgsql raise as invalid input" $ do
+        p <- post "/rpc/problem" "{}"
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "unsupported verbs" $ do
       it "DELETE fails" $
@@ -615,7 +586,7 @@ spec = do
           [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
           [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
 
-      it "accepts parameters from an html form" $ 
+      it "accepts parameters from an html form" $
         request methodPost "/rpc/singlejsonparam"
           [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
           ("integer=7&double=2.71828&varchar=forms+are+fun&" <>

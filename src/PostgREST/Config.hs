@@ -23,12 +23,15 @@ module PostgREST.Config ( prettyVersion
 
 import           System.IO.Error             (IOError)
 import           Control.Applicative
+import qualified Data.ByteString             as B
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
 import qualified Data.Configurator.Types     as C
 import           Data.List                   (lookup)
+import           Data.Monoid
 import           Data.Text                   (strip, intercalate, lines)
+import           Data.Text.Encoding          (encodeUtf8)
 import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
 import           Network.Wai
@@ -36,24 +39,27 @@ import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 
 import           Protolude hiding            (intercalate
                                              , (<>))
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDatabase  :: Text
-  , configAnonRole  :: Text
-  , configProxyUri  :: Maybe Text
-  , configSchema    :: Text
-  , configHost      :: Text
-  , configPort      :: Int
-  , configJwtSecret :: Maybe Text
-  , configPool      :: Int
-  , configMaxRows   :: Maybe Integer
-  , configReqCheck  :: Maybe Text
-  , configQuiet     :: Bool
+    configDatabase          :: Text
+  , configAnonRole          :: Text
+  , configProxyUri          :: Maybe Text
+  , configSchema            :: Text
+  , configHost              :: Text
+  , configPort              :: Int
+
+  , configJwtSecret         :: Maybe B.ByteString
+  , configJwtSecretIsBase64 :: Bool
+
+  , configPool              :: Int
+  , configMaxRows           :: Maybe Integer
+  , configReqCheck          :: Maybe Text
+  , configQuiet             :: Bool
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -105,12 +111,13 @@ readOptions = do
     cProxy    <- C.lookup conf "server-proxy-uri"
     -- jwt ---------------
     cJwtSec   <- C.lookup conf "jwt-secret"
+    cJwtB64   <- C.lookupDefault False conf "secret-is-base64"
     -- safety ------------
     cMaxRows  <- C.lookup conf "max-rows"
     cReqCheck <- C.lookup conf "pre-request"
 
     return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-          cJwtSec cPool cMaxRows cReqCheck False
+          (encodeUtf8 <$> cJwtSec) cJwtB64 cPool cMaxRows cReqCheck False
 
  where
   opts = info (helper <*> pathParser) $
@@ -137,6 +144,8 @@ readOptions = do
   missingKeyHint (C.KeyError n) = do
     hPutStrLn stderr $
       "Required config parameter \"" <> n <> "\" is missing or of wrong type.\n" <>
+      "Documentation for configuration options available at\n" <>
+      "\thttp://postgrest.com/en/v0.4/admin.html#configuration\n\n" <>
       "Try the --example-config option to see how to configure PostgREST."
     exitFailure
 
@@ -156,6 +165,7 @@ readOptions = do
         |## choose a secret to enable JWT auth
         |## (use "@filename" to load from separate file)
         |# jwt-secret = "foo"
+        |# secret-is-base64 = false
         |
         |## limit rows in response
         |# max-rows = 1000

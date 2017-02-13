@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.3.2.0
+version:               0.4.0.0
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
@@ -38,6 +38,8 @@ executable postgrest
                      , text
                      , time
                      , warp
+                     , bytestring
+                     , base64-bytestring
   if !os(windows)
     build-depends:     unix
 
@@ -58,7 +60,7 @@ library
                      , either
                      , hasql
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.5.1
+                     , hasql-transaction == 0.5
                      , heredoc
                      , HTTP
                      , http-types
@@ -68,7 +70,7 @@ library
                      , lens
                      , lens-aeson
                      , network-uri
-                     , optparse-applicative >= 0.12.0.0 && < 0.13.0.0
+                     , optparse-applicative >= 0.13 && < 0.14
                      , parsec
                      , protolude
                      , Ranged-sets == 0.3.0
@@ -91,6 +93,7 @@ library
                      , PostgREST.Auth
                      , PostgREST.Config
                      , PostgREST.DbStructure
+                     , PostgREST.DbRequestBuilder
                      , PostgREST.Error
                      , PostgREST.Middleware
                      , PostgREST.OpenAPI
@@ -108,6 +111,7 @@ Test-Suite spec
   Hs-Source-Dirs:      test
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
+                     , Feature.BinaryJwtSecretSpec
                      , Feature.ConcurrentSpec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
@@ -117,6 +121,7 @@ Test-Suite spec
                      , Feature.QueryLimitedSpec
                      , Feature.QuerySpec
                      , Feature.RangeSpec
+                     , Feature.SingularSpec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , SpecHelper
@@ -126,10 +131,11 @@ Test-Suite spec
                      , async
                      , auto-update
                      , base
-                     , base64-string
                      , bytestring
+                     , base64-bytestring
                      , case-insensitive
                      , cassava
+                     , containers
                      , contravariant
                      , hasql
                      , hasql-pool

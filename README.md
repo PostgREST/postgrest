@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/%E2%86%91_Deploy_to-Heroku-7056bf.svg" alt="Deploy">
 </a>
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
-[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](https://postgrest.com)
+[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.com)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
@@ -20,7 +20,7 @@ You can use it as inspiration for test-driven server migrations in
 your own projects.
 
 Also try other tools in the PostgREST
-[ecosystem](http://postgrest.com/en/stable/intro.html#ecosystem).
+[ecosystem](http://postgrest.com/en/v0.4/intro.html#ecosystem).
 
 ### Usage
 
@@ -35,12 +35,9 @@ Also try other tools in the PostgREST
 ### Performance
 
 TLDR; subsecond response times for up to 2000 requests/sec on Heroku
-free tier. ([see the load
-test](http://postgrest.com/admin/performance/#benchmarks))
-
-If you're used to servers written in interpreted languages (or named
-after precious gems), prepare to be pleasantly surprised by PostgREST
-performance.
+free tier. If you're used to servers written in interpreted languages
+(or named after precious gems), prepare to be pleasantly surprised by
+PostgREST performance.
 
 Three factors contribute to the speed. First the server is written
 in [Haskell](https://www.haskell.org/) using the
@@ -63,25 +60,20 @@ by
 * Using the PostgreSQL binary protocol
 * Being stateless to allow horizontal scaling
 
-Ultimately the server (when load balanced) is constrained by database
-performance. This may make it inappropriate for very large traffic
-load. To learn more about scaling with Heroku and Amazon RDS see
-the [performance guide](http://postgrest.com/admin/performance/).
-
 Other optimizations are possible, and some are outlined in the
 [Future Features](#future-features).
 
 ### Security
 
-PostgREST handles authentication (via [JSON Web
-Tokens](http://postgrest.com/admin/security/#json-web-tokens))
-and delegates authorization to the role information defined in the
-database. This ensures there is a single declarative source of truth
-for security.  When dealing with the database the server assumes
-the identity of the currently authenticated user, and for the
-duration of the connection cannot do anything the user themselves
-couldn't. Other forms of authentication can be built on top
-of the JWT primitive. See the docs for more information.
+PostgREST [handles
+authentication](http://postgrest.com/en/v0.4/auth.html) (via JSON Web
+Tokens) and delegates authorization to the role information defined in
+the database. This ensures there is a single declarative source of truth
+for security.  When dealing with the database the server assumes the
+identity of the currently authenticated user, and for the duration of
+the connection cannot do anything the user themselves couldn't. Other
+forms of authentication can be built on top of the JWT primitive. See
+the docs for more information.
 
 PostgreSQL 9.5 supports true [row-level
 security](http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html).
@@ -124,7 +116,7 @@ surprises, such as enforcing idempotent PUT requests, and
 
 See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
-and the [guide to routing](http://postgrest.com/api/reading/).
+and the [API guide](http://postgrest.com/en/v0.4/api.html).
 
 ### Thanks
 

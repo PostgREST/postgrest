@@ -35,6 +35,9 @@ spec =
           , matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
+      it "can rename and cast the selected columns" $
+        request methodDelete "/complex_items?id=eq.3&select=ciId:id::text,ciName:name" [("Prefer", "return=representation")] ""
+          `shouldRespondWith` [str|[{"ciId":"3","ciName":"Three"}]|]
       it "can embed (parent) entities" $
         request methodDelete "/tasks?id=eq.8&select=id,name,project{id}" [("Prefer", "return=representation")] ""
           `shouldRespondWith` ResponseMatcher {
@@ -52,9 +55,15 @@ spec =
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-    context "known route, unknown record" $
-      it "fails with 404" $
-        request methodDelete "/items?id=eq.101" [] "" `shouldRespondWith` 404
+    context "known route, no records matched" $
+      it "includes [] body if return=rep" $
+        request methodDelete "/items?id=eq.101"
+          [("Prefer", "return=representation")] ""
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "[]"
+          , matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
     context "totally unknown route" $
       it "fails with 404" $

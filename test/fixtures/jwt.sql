@@ -1,5 +1,6 @@
 -- From michelp/pgjwt commit c02bbd3
 BEGIN;
+set client_min_messages to warning;
 DROP SCHEMA IF EXISTS jwt CASCADE;
 CREATE SCHEMA jwt;
 

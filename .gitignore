@@ -9,3 +9,6 @@ codex.tags
 .stack-work*
 tags
 site
+*~
+*#*
+.#*
