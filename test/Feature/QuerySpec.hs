@@ -302,6 +302,10 @@ spec = do
       get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
 
+    it "can detect fk relations through views to tables in the public schema" $
+      get "/consumers_view?select=*,orders_view{*}" `shouldRespondWith` 200
+
+
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
