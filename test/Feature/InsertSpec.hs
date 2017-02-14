@@ -3,6 +3,7 @@ module Feature.InsertSpec where
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Test.Hspec.Wai.Matcher (bodyEquals)
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
 import SpecHelper
@@ -252,12 +253,10 @@ spec = do
             |12,0.1,a string,true,1929-10-01,12,bar
             |]
         request methodPost "/menagerie" [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")] inserted
-           `shouldRespondWith` [str|integer,double,varchar,boolean,date,money,enum
-            |13,3.14159,testing!,false,1900-01-01,$3.99,foo
-            |12,0.1,a string,true,1929-10-01,12,bar
-            |]
+           `shouldRespondWith` ResponseMatcher
            { matchStatus  = 201
            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+           , matchBody = bodyEquals inserted
            }
 
     context "requesting full representation" $ do
