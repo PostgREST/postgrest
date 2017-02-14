@@ -29,6 +29,9 @@ import qualified JSONSchema.Draft4 as D4
 
 import Protolude
 
+matchContentTypeJson :: MatchHeader
+matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
+
 validateOpenApiResponse :: [Header] -> WaiSession ()
 validateOpenApiResponse headers = do
   r <- request methodGet "/" headers ""

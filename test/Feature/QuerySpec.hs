@@ -67,12 +67,12 @@ spec = do
     it "matches nulls using not operator" $
       get "/no_pk?a=not.is.null" `shouldRespondWith`
         [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
       get "/nullable_integer?a=is.null" `shouldRespondWith` [str|[{"a":null}]|]
 
@@ -100,28 +100,28 @@ spec = do
     it "matches with tsearch @@" $
       get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
         [json| [{"text_search_vector":"'bar':2 'foo':1"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches with tsearch @@ using not operator" $
       get "/tsearch?text_search_vector=not.@@.foo" `shouldRespondWith`
         [json| [{"text_search_vector":"'baz':1 'qux':2"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "order by computed column" $
       get "/items?order=anti_id.desc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects{id,tasks2{id,name}}&projects.tasks.name=like.Design*"
         `shouldRespondWith` [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
         { matchStatus  = 400
-        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        , matchHeaders = [matchContentTypeJson]
         }
 
     it "matches filtering nested items" $
@@ -150,38 +150,38 @@ spec = do
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rename simple column" $
       get "/complex_items?id=eq.1&select=myId:id" `shouldRespondWith`
         [json| [{"myId":1}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
 
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
         [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rename simple column with casting" $
       get "/complex_items?id=eq.1&select=myId:id::text" `shouldRespondWith`
         [json| [{"myId":"1"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "json column" $
       get "/complex_items?id=eq.1&select=settings" `shouldRespondWith`
         [json| [{"settings":{"foo":{"int":1,"bar":"baz"}}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "json subfield one level with casting (json)" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
         [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rename json subfield one level with casting (json)" $
       get "/complex_items?id=eq.1&select=myFoo:settings->>foo::json" `shouldRespondWith`
         [json| [{"myFoo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
@@ -201,23 +201,23 @@ spec = do
     it "json subfield two levels (string)" $
       get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
         [json| [{"bar":"baz"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rename json subfield two levels (string)" $
       get "/complex_items?id=eq.1&select=myBar:settings->foo->>bar" `shouldRespondWith`
         [json| [{"myBar":"baz"}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
 
     it "json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rename json subfield two levels with casting (int)" $
       get "/complex_items?id=eq.1&select=myInt:settings->foo->>int::integer" `shouldRespondWith`
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
@@ -353,12 +353,12 @@ spec = do
     it "by a json column property asc" $
       get "/json?order=data->>id.asc" `shouldRespondWith`
         [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "by a json column with two level property nulls first" $
       get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
         [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
@@ -451,18 +451,18 @@ spec = do
     it "can filter by properties inside json column" $ do
       get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
       get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
         [json| [] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
     it "can filter by properties inside json column using not" $
       get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
     it "can filter by properties inside json column using ->>" $
       get "/json?data->>id=eq.1" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
@@ -487,7 +487,7 @@ spec = do
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
     context "unknown function" $
       it "returns 404" $
@@ -501,7 +501,7 @@ spec = do
       it "can filter proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
           [json|[{"id":2},{"id":3},{"id":4}]|]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
       it "can limit proc results" $
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
@@ -522,18 +522,18 @@ spec = do
       it "returns empty json array" $
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
           [json| [] |]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
     context "a proc that returns plain text" $ do
       it "returns proper json" $
         post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
           [json|"Hello, world"|]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
       it "can handle unicode" $
         post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
           [json|"Hello, ￥"|]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $
@@ -572,17 +572,17 @@ spec = do
     it "executes the proc exactly once per request" $ do
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|1|]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
         [json|2|]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     context "expects a single json object" $ do
       it "does not expand posted json into parameters" $
         request methodPost "/rpc/singlejsonparam"
           [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
           [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
       it "accepts parameters from an html form" $
         request methodPost "/rpc/singlejsonparam"
@@ -591,26 +591,26 @@ spec = do
            "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
           [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
                  , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
-                 { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+                 { matchHeaders = [matchContentTypeJson] }
 
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`
         [json| [{"so6meIdColumn":1},{"so6meIdColumn":2},{"so6meIdColumn":3},{"so6meIdColumn":4},{"so6meIdColumn":5}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
       get "/ghostBusters" `shouldRespondWith`
         [json| [{"escapeId":1},{"escapeId":3},{"escapeId":5}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "will embed a collection" $
       get "/Escap3e;?select=ghostBusters{*}" `shouldRespondWith`
         [json| [{"ghostBusters":[{"escapeId":1}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":3}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":5}]}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
     it "will embed using a column" $
       get "/ghostBusters?select=escapeId{*}" `shouldRespondWith`
         [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
-        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = [matchContentTypeJson] }
 
   describe "binary output" $ do
     it "can query if a single column is selected" $

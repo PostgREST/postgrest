@@ -46,7 +46,7 @@ spec = do
           , "enum": "foo"
           }] |] `shouldRespondWith` [str|[{"integer":14,"varchar":"testing!"}]|]
           { matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          , matchHeaders = [matchContentTypeJson]
           }
 
     context "requesting full representation" $ do
@@ -55,7 +55,7 @@ spec = do
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
-          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+          , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.6"
                            , "Content-Range" <:> "*/1" ]
           }
@@ -66,7 +66,7 @@ spec = do
           [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith`
           [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
           { matchStatus  = 201
-          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+          , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.7"
                            , "Content-Range" <:> "*/*" ]
           }
@@ -382,7 +382,7 @@ spec = do
         _ <- request methodPatch "/no_pk?b=eq.nullme" [] [json| { b: null } |]
         get "/no_pk?a=eq.keepme" `shouldRespondWith`
           [json| [{ a: "keepme", b: null }] |]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
@@ -412,7 +412,7 @@ spec = do
           [("Prefer", "return=representation")]
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
-          { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"] }
+          { matchHeaders = [matchContentTypeJson] }
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
