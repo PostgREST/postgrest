@@ -608,3 +608,30 @@ spec = do
     it "will embed using a column" $
       get "/ghostBusters?select=escapeId{*}" `shouldRespondWith`
         [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
+
+  describe "binary output" $ do
+    it "can query if a single column is selected" $ 
+      request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+        `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
+          , matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        }
+
+    it "fails if a single column is not selected" $ do
+      request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+        `shouldRespondWith` 406
+      request methodGet "/images?select=*&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+        `shouldRespondWith` 406
+      request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+        `shouldRespondWith` 406
+
+    it "concatenates results if more than one row is returned" $ 
+      request methodGet "/images_base64?select=img&name=in.A.png,B.png" (acceptHdrs "application/octet-stream") ""
+        `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
+          , matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        }
+
+

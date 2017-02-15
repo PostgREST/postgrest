@@ -8,6 +8,7 @@ module PostgREST.App (
 
 import           Control.Applicative
 import qualified Data.ByteString.Char8     as BS
+import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
 import           Data.Text                 (intercalate)
 import           Data.Time.Clock.POSIX     (POSIXTime)
@@ -39,8 +40,14 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
-import           PostgREST.DbRequestBuilder(readRequest, mutateRequest)
-import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse, singularityError)
+import           PostgREST.DbRequestBuilder( readRequest
+                                           , mutateRequest
+                                           , fieldNames
+                                           )
+import           PostgREST.Error           ( errResponse, pgErrResponse
+                                           , apiRequestErrResponse
+                                           , singularityError, binaryFieldError
+                                           )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder ( callProc
@@ -54,7 +61,8 @@ import           PostgREST.Types
 import           PostgREST.OpenAPI
 
 import           Data.Function (id)
-import           Protolude                hiding (intercalate, Proxy)
+import           Protolude              hiding (intercalate, Proxy)
+import           Safe                   (headMay)
 
 postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> IO POSIXTime ->
              Application
@@ -91,10 +99,13 @@ app dbStructure conf apiRequest =
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
         (ActionRead, TargetIdent qi, Nothing) ->
-          case readSqlParts of
+          let partsField = (,) <$> readSqlParts
+                <*> (binaryField contentType =<< fldNames) in
+          case partsField of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> do
-              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount (contentType == CTTextCSV)
+            Right ((q, cq), bField) -> do
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount 
+                                            (contentType == CTTextCSV) bField
               row <- H.query () stm
               let (tableTotal, queryTotal, _ , body) = row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -257,8 +268,9 @@ app dbStructure conf apiRequest =
 
       mapSnd f (a, b) = (a, f b)
       readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+      fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
-      mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< readReq)
+      mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
       selectQuery = requestToQuery schema False <$> readDbRequest
       mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
@@ -270,7 +282,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
   where
     contentTypesForRequest =
       case action of
-        ActionRead ->    [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionRead ->    [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
         ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
@@ -284,6 +296,15 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
           Left $ errResponse status415 $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
+
+binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
+binaryField CTOctetStream fldNames = 
+  if length fldNames == 1 && fieldName /= Just "*"
+    then Right fieldName
+    else Left binaryFieldError
+  where
+    fieldName = headMay fldNames
+binaryField _ _ = Right Nothing
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
 splitKeyValue kv = (k, BS.tail v)

@@ -35,6 +35,7 @@ import qualified Data.Aeson              as JSON
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
+import           Data.Maybe              
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
@@ -86,9 +87,9 @@ encodeUniformObjs :: HE.Params PayloadJSON
 encodeUniformObjs =
   contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
 
-createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
                        H.Query () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv =
+createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
   unicodeStatement sql HE.unit decodeStandard False
  where
   sql = [qc|
@@ -104,6 +105,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
   bodyF
     | asCsv = asCsvF
     | isSingle = asJsonSingleF
+    | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
@@ -355,6 +357,9 @@ asJsonF = "coalesce(array_to_json(array_agg(row_to_json(_postgrest_t))), '[]')::
 
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF = "coalesce(string_agg(row_to_json(_postgrest_t)::text, ','), '')::character varying "
+
+asBinaryF :: FieldName -> SqlFragment 
+asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys =

@@ -1099,6 +1099,15 @@ CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF project
     update test.projects set name = $3 WHERE id >= $1 AND id <= $2 returning *;
 $_$;
 
+create table images (
+	name               text not null,
+	img                bytea not null
+);
+
+create view images_base64 as (
+  select name, replace(encode(img, 'base64'), E'\n', '') as img from images
+);
+
 --
 -- PostgreSQL database dump complete
 --

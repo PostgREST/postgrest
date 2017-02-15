@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Allow requesting binary output on GET - @steve-chavez
 
 ### Fixed
 

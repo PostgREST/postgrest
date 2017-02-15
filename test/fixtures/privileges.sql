@@ -49,6 +49,8 @@ GRANT ALL ON TABLE
     , public.public_orders
     , consumers_view
     , orders_view
+    , images
+    , images_base64
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

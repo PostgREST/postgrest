@@ -2,7 +2,16 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError, singularityError, formatGeneralError, formatParserError) where
+module PostgREST.Error (
+  apiRequestErrResponse
+, pgErrResponse
+, errResponse
+, prettyUsageError
+, singularityError
+, binaryFieldError
+, formatGeneralError
+, formatParserError
+) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
@@ -53,6 +62,11 @@ singularityError numRows =
         [ "Results contain", show numRows, "rows,"
         , toS (toMime CTSingularJSON), "requires 1 row"
         ]
+
+binaryFieldError :: Response
+binaryFieldError = 
+  errResponse HT.status406 (toS (toMime CTOctetStream) <>
+  " requested but a single column was not selected")
 
 formatParserError :: ParseError -> Text
 formatParserError e = formatGeneralError message details
