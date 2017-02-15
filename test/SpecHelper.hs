@@ -25,9 +25,12 @@ import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
 
 import Data.Maybe (fromJust)
 import Data.Aeson (decode, Value(..))
-import qualified Data.JsonSchema.Draft4 as D4
+import qualified JSONSchema.Draft4 as D4
 
 import Protolude
+
+matchContentTypeJson :: MatchHeader
+matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
 
 validateOpenApiResponse :: [Header] -> WaiSession ()
 validateOpenApiResponse headers = do

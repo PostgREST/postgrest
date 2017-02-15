@@ -39,7 +39,7 @@ data Table = Table {
 , tableInsertable :: Bool
 } deriving (Show, Ord)
 
-data ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
+newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
 data Column =
     Column {

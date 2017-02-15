@@ -40,9 +40,8 @@ import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
-
-import           Protolude hiding            (intercalate
-                                             , (<>))
+import qualified Text.PrettyPrint.ANSI.Leijen as L
+import           Protolude hiding            (intercalate, (<>))
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -129,7 +128,7 @@ readOptions = do
              )
            <> footerDoc (Just $
                text "Example Config File:"
-               <> nest 2 (hardline <> exampleCfg)
+               L.<> nest 2 (hardline L.<> exampleCfg)
              )
 
   parserPrefs = prefs showHelpOnError

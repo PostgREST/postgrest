@@ -3,6 +3,7 @@ module Feature.InsertSpec where
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Test.Hspec.Wai.Matcher (bodyEquals)
 import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 
 import SpecHelper
@@ -43,31 +44,29 @@ spec = do
             "integer": 14, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
-          }] |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"integer":14,"varchar":"testing!"}]|]
-          , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          }] |] `shouldRespondWith` [str|[{"integer":14,"varchar":"testing!"}]|]
+          { matchStatus  = 201
+          , matchHeaders = [matchContentTypeJson]
           }
 
     context "requesting full representation" $ do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients{id,name}"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
-          [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
-          , matchStatus  = 201
-          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+          [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
+          { matchStatus  = 201
+          , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.6"
                            , "Content-Range" <:> "*/1" ]
           }
 
       it "can rename and cast the selected columns" $
         request methodPost "/projects?select=pId:id::text,pName:name,cId:client_id::text"
-                [("Prefer", "return=representation")] 
-          [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
-          , matchStatus  = 201
-          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                [("Prefer", "return=representation")]
+          [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith`
+          [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
+          { matchStatus  = 201
+          , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.7"
                            , "Content-Range" <:> "*/*" ]
           }
@@ -201,9 +200,8 @@ spec = do
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"data":{"foo":"bar"}}]|]
-          , matchStatus  = 201
+          `shouldRespondWith` [str|[{"data":{"foo":"bar"}}]|]
+          { matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
 
@@ -213,39 +211,35 @@ spec = do
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"data":[1,2,3]}]|]
-          , matchStatus  = 201
+          `shouldRespondWith` [str|[{"data":[1,2,3]}]|]
+          { matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
 
     context "empty object" $
       it "successfully populates table with all-default columns" $
-        post "/items" "{}" `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just ""
-          , matchStatus  = 201
+        post "/items" "{}" `shouldRespondWith` ""
+          { matchStatus  = 201
           , matchHeaders = []
           }
     context "table with limited privileges" $ do
       it "succeeds if correct select is applied" $
         request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
-          [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"article_id":2,"user_id":1}]|]
-          , matchStatus  = 201
+          [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` [str|[{"article_id":2,"user_id":1}]|]
+          { matchStatus  = 201
           , matchHeaders = []
           }
       it "fails if more columns are selected" $
         request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
-          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-          , matchStatus  = 401
+          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith`
+          [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          { matchStatus  = 401
           , matchHeaders = []
           }
       it "fails if select is not specified" $
         request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
-          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-          , matchStatus  = 401
+          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          { matchStatus  = 401
           , matchHeaders = []
           }
 
@@ -259,11 +253,10 @@ spec = do
             |12,0.1,a string,true,1929-10-01,12,bar
             |]
         request methodPost "/menagerie" [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")] inserted
-
-           `shouldRespondWith` ResponseMatcher {
-             matchBody    = Just inserted
-           , matchStatus  = 201
+           `shouldRespondWith` ResponseMatcher
+           { matchStatus  = 201
            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+           , matchBody = bodyEquals inserted
            }
 
     context "requesting full representation" $ do
@@ -271,9 +264,8 @@ spec = do
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"),  ("Prefer", "return=representation")]
                      "a,b\nbar,baz"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "a,b\nbar,baz"
-          , matchStatus  = 201
+          `shouldRespondWith` "a,b\nbar,baz"
+          { matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
           }
@@ -282,9 +274,8 @@ spec = do
         request methodPost "/no_pk"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "a,b\nNULL,foo"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "a,b\n,foo"
-          , matchStatus  = 201
+          `shouldRespondWith` "a,b\n,foo"
+          { matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
@@ -293,9 +284,8 @@ spec = do
         request methodPost "/projects?select=id"
                      [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
                      "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "id\n8\n9"
-          , matchStatus  = 201
+          `shouldRespondWith` "id\n8\n9"
+          { matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
                             "Content-Range" <:> "*/*"]
           }
@@ -334,9 +324,8 @@ spec = do
       it "indicates no records found to update" $
         request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "",
-            matchStatus  = 204,
+          `shouldRespondWith` ""
+          { matchStatus  = 204,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
@@ -346,9 +335,8 @@ spec = do
         liftIO $ simpleHeaders g
           `shouldSatisfy` matchHeader "Content-Range" "\\*/\\*"
         p <- request methodPatch "/items?id=eq.2" [] [json| { "id":42 } |]
-        pure p `shouldRespondWith` ResponseMatcher {
-            matchBody    = Nothing,
-            matchStatus  = 204,
+        pure p `shouldRespondWith` ""
+          { matchStatus  = 204,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
         liftIO $ lookup hContentType (simpleHeaders p) `shouldBe` Nothing
@@ -363,8 +351,8 @@ spec = do
       it "returns empty array when no rows updated and return=rep" $
         request methodPatch "/items?id=eq.999999"
           [("Prefer", "return=representation")] [json| { "id":999999 } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "[]",
+          `shouldRespondWith` "[]"
+          {
             matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
@@ -372,9 +360,8 @@ spec = do
       it "returns updated object as array when return=rep" $
         request methodPatch "/items?id=eq.2"
           [("Prefer", "return=representation")] [json| { "id":2 } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [str|[{"id":2}]|],
-            matchStatus  = 200,
+          `shouldRespondWith` [str|[{"id":2}]|]
+          { matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
@@ -395,15 +382,15 @@ spec = do
         _ <- request methodPatch "/no_pk?b=eq.nullme" [] [json| { b: null } |]
         get "/no_pk?a=eq.keepme" `shouldRespondWith`
           [json| [{ a: "keepme", b: null }] |]
+          { matchHeaders = [matchContentTypeJson] }
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
         request methodPatch "/json?data->>escaped=eq.bar"
                      [("Prefer", "return=representation")]
                      [json| { "data": { "escaped":" \"bar" } } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just [json| [{ "data": { "escaped":" \"bar" } }] |]
-          , matchStatus  = 200
+          `shouldRespondWith` [json| [{ "data": { "escaped":" \"bar" } }] |]
+          { matchStatus  = 200
           , matchHeaders = []
           }
 
@@ -412,9 +399,8 @@ spec = do
           "/items?always_true=eq.false"
           [("Prefer", "return=representation")]
           [json| { id: 100 } |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = Just "[]",
-            matchStatus  = 200,
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
@@ -426,6 +412,7 @@ spec = do
           [("Prefer", "return=representation")]
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
+          { matchHeaders = [matchContentTypeJson] }
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
