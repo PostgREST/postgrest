@@ -86,16 +86,14 @@ spec =
         request methodPost "/addresses"
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 101, address: "xxx" } ] |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = ""
-          , matchStatus  = 201
+          `shouldRespondWith` ""
+          { matchStatus  = 201
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
         -- and the element should exist
         get "/addresses?id=eq.101"
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = [str|[{"id":101,"address":"xxx"}]|]
-          , matchStatus  = 200
+          `shouldRespondWith` [str|[{"id":101,"address":"xxx"}]|]
+          { matchStatus  = 200
           , matchHeaders = []
           }
 
@@ -113,9 +111,8 @@ spec =
         request methodPost "/addresses"
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
-          `shouldRespondWith` ResponseMatcher {
-            matchBody    = ""
-          , matchStatus  = 201
+          `shouldRespondWith` ""
+          { matchStatus  = 201
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 

@@ -425,18 +425,16 @@ spec = do
     it "should respond with CSV to 'text/csv' request" $
       request methodGet "/simple_pk"
               (acceptHdrs "text/csv; version=1") ""
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = "k,extra\nxyyx,u\nxYYx,v"
-        , matchStatus  = 200
+        `shouldRespondWith` "k,extra\nxyyx,u\nxYYx,v"
+        { matchStatus  = 200
         , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
         }
 
   describe "Canonical location" $ do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"
-        `shouldRespondWith` ResponseMatcher {
-          matchBody    = "[]"
-        , matchStatus  = 200
+        `shouldRespondWith` "[]"
+        { matchStatus  = 200
         , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
         }
 
