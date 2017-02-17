@@ -13,7 +13,9 @@ dependencies:
     - stack install hlint packdeps cabal-install
     - stack build --fast
     - stack build --fast --test --no-run-tests
-    # - nix-build
+compile:
+  post:
+    - nix-build
 
 test:
   override:
