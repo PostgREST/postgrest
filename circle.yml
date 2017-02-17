@@ -14,11 +14,11 @@ dependencies:
     - stack build --fast
     - stack build --fast --test --no-run-tests
   post:
-    . /home/ubuntu/.nix-profile/etc/profile.d/nix.sh
+    - . /home/ubuntu/.nix-profile/etc/profile.d/nix.sh
 
 compile:
   post:
-    - nix-build
+    - nix-build --no-check-certificate
 
 test:
   override:
