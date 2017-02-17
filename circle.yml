@@ -6,14 +6,16 @@ dependencies:
     - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
     - sudo apt-get update; sudo apt-get install --only-upgrade binutils
-    - curl https://nixos.org/nix/install | sh && . /home/ubuntu/.nix-profile/etc/profile.d/nix.sh
-
+    - curl https://nixos.org/nix/install | sh 
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
     - stack install hlint packdeps cabal-install
     - stack build --fast
     - stack build --fast --test --no-run-tests
+  post:
+    . /home/ubuntu/.nix-profile/etc/profile.d/nix.sh
+
 compile:
   post:
     - nix-build
