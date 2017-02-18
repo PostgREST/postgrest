@@ -1,0 +1,17 @@
+stgrest:
+  image: begriffs/postgrest:latest
+  ports:
+    - "3000:3000"
+  volumes:
+    - ./config.conf:/etc/postgrest.conf
+  links:
+    - postgres:postgres
+
+postgres:
+  image: postgres
+  ports:
+    - "5432:5432"
+  environment:
+    POSTGRES_DB: app_db
+    POSTGRES_USER: app_user
+    POSTGRES_PASSWORD: password

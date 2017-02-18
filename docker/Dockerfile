@@ -13,6 +13,6 @@ RUN wget http://github.com/begriffs/postgrest/releases/download/v${POSTGREST_VER
 
 # PostgREST reads /etc/postgrest.conf so map the configuration
 # file in when you run this container
-CMD exec postgrest
+CMD exec postgrest /etc/postgrest.conf
 
 EXPOSE 3000
