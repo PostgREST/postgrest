@@ -45,7 +45,7 @@ pre-request       String
 ================  ======  =======  ========
 
 db-uri
-  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_. On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`. Also allows connections over Unix sockets for higher performance.
+  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`. Also allows connections over Unix sockets for higher performance.
 db-schema
   The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints.
 db-anon-role
