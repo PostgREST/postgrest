@@ -118,10 +118,10 @@ The first step is to create an Nginx configuration file that proxies requests to
     server {
       ...
       # expose to the outside world
-      location /api {
+      location /api/ {
         default_type  application/json;
         proxy_hide_header Content-Location;
-        add_header Content-Location  /api$upstream_http_content_location;
+        add_header Content-Location  /api/$upstream_http_content_location;
         proxy_set_header  Connection "";
         proxy_http_version 1.1;
         proxy_pass http://postgrest/;
