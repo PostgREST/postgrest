@@ -62,9 +62,9 @@ data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTSingularJSON | CTOctetStream
                  | CTAny | CTOther BS.ByteString deriving Eq
 
-data ApiRequestError = ErrorActionInappropriate
-                     | ErrorInvalidBody ByteString
-                     | ErrorInvalidRange
+data ApiRequestError = ActionInappropriate
+                     | InvalidBody ByteString
+                     | InvalidRange
                      deriving (Show, Eq)
 
 -- | Convert from ContentType to a full HTTP Header
@@ -120,9 +120,9 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema req reqBody
-  | isTargetingProc && method /= "POST" = Left ErrorActionInappropriate
-  | topLevelRange == emptyRange = Left ErrorInvalidRange
-  | shouldParsePayload && isLeft payload = either (Left . ErrorInvalidBody . toS) undefined payload
+  | isTargetingProc && method /= "POST" = Left ActionInappropriate
+  | topLevelRange == emptyRange = Left InvalidRange
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) undefined payload
   | otherwise = Right ApiRequest {
       iAction = action
       , iTarget = target

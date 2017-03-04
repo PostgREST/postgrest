@@ -27,9 +27,9 @@ import           Text.Parsec.Error
 apiRequestErrResponse :: ApiRequestError -> Response
 apiRequestErrResponse err =
   case err of
-    ErrorActionInappropriate -> errResponse HT.status405 "Bad Request"
-    ErrorInvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
-    ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
+    ActionInappropriate -> errResponse HT.status405 "Bad Request"
+    InvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
+    InvalidRange -> errResponse HT.status416 "HTTP Range error"
 
 errResponse :: HT.Status -> Text -> Response
 errResponse status message = jsonErrResponse status $ JSON.object ["message" .= message]
