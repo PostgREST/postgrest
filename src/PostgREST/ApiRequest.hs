@@ -3,15 +3,12 @@ Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 module PostgREST.ApiRequest ( ApiRequest(..)
-                            , ApiRequestError(..)
                             , ContentType(..)
                             , Action(..)
                             , Target(..)
                             , PreferRepresentation (..)
                             , mutuallyAgreeable
-                            , toHeader
                             , userApiRequest
-                            , toMime
                             ) where
 
 import           Protolude
@@ -29,15 +26,18 @@ import           Control.Arrow             ((***))
 import qualified Data.Text                 as T
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization, hContentType, Header)
+import           Network.HTTP.Types.Header (hAuthorization)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
 import           Data.Ranged.Boundaries
-import           PostgREST.Types           (QualifiedIdentifier (..),
-                                            Schema,
-                                            PayloadJSON(..))
+import           PostgREST.Types           ( QualifiedIdentifier (..)
+                                           , Schema
+                                           , PayloadJSON(..)
+                                           , ContentType(..)
+                                           , ApiRequestError(..)
+                                           , toMime)
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
 
 type RequestBody = BL.ByteString
@@ -57,30 +57,6 @@ data Target = TargetIdent QualifiedIdentifier
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
                           --
--- | Enumeration of currently supported response content types
-data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
-                 | CTSingularJSON | CTOctetStream
-                 | CTAny | CTOther BS.ByteString deriving Eq
-
-data ApiRequestError = ActionInappropriate
-                     | InvalidBody ByteString
-                     | InvalidRange
-                     deriving (Show, Eq)
-
--- | Convert from ContentType to a full HTTP Header
-toHeader :: ContentType -> Header
-toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
-
--- | Convert from ContentType to a ByteString representing the mime type
-toMime :: ContentType -> ByteString
-toMime CTApplicationJSON = "application/json"
-toMime CTTextCSV         = "text/csv"
-toMime CTOpenAPI         = "application/openapi+json"
-toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
-toMime CTOctetStream     = "application/octet-stream"
-toMime CTAny             = "*/*"
-toMime (CTOther ct)      = ct
-
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain

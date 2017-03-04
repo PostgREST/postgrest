@@ -14,11 +14,11 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
-                                                toHeader)
+import           PostgREST.ApiRequest          (ApiRequest(..))
 import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (errResponse)
+import           PostgREST.Types               (ContentType (..), toHeader)
 
 import           Protolude                     hiding (concat, null)
 

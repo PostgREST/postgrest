@@ -33,9 +33,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         , mutuallyAgreeable
-                                        , toHeader
                                         , userApiRequest
-                                        , toMime
                                         )
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
@@ -104,7 +102,7 @@ app dbStructure conf apiRequest =
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount 
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount
                                             (contentType == CTTextCSV) bField
               row <- H.query () stm
               let (tableTotal, queryTotal, _ , body) = row
@@ -298,7 +296,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         Just ct -> Right ct
 
 binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
-binaryField CTOctetStream fldNames = 
+binaryField CTOctetStream fldNames =
   if length fldNames == 1 && fieldName /= Just "*"
     then Right fieldName
     else Left binaryFieldError

@@ -21,7 +21,7 @@ import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
-import           PostgREST.ApiRequest      (toHeader, toMime, ContentType(..), ApiRequestError(..))
+import           PostgREST.Types
 import           Text.Parsec.Error
 
 apiRequestErrResponse :: ApiRequestError -> Response
@@ -64,7 +64,7 @@ singularityError numRows =
         ]
 
 binaryFieldError :: Response
-binaryFieldError = 
+binaryFieldError =
   errResponse HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
 
