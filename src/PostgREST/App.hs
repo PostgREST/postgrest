@@ -42,7 +42,7 @@ import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
                                            , fieldNames
                                            )
-import           PostgREST.Error           ( errResponse, pgErrResponse
+import           PostgREST.Error           ( simpleErrorResponse, pgErrResponse
                                            , apiRequestErrResponse
                                            , singularityError, binaryFieldError
                                            )
@@ -291,7 +291,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
           let failed = intercalate ", " $ map (toS . toMime) cAccepts
-          Left $ errResponse status415 $
+          Left $ simpleErrorResponse status415 $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
 

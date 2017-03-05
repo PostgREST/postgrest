@@ -15,20 +15,18 @@ import           Data.Text                 (isInfixOf, dropWhile, drop)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
 
-import           Text.Parsec.Error
-
 import           Network.HTTP.Types.Status
 import           Network.Wai
 
 import           Data.Foldable (foldr1)
 import qualified Data.HashMap.Strict       as M
 
-import           PostgREST.ApiRequest   ( ApiRequest(..) 
+import           PostgREST.ApiRequest   ( ApiRequest(..)
                                         , PreferRepresentation(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         )
-import           PostgREST.Error           (errResponse, formatParserError)
+import           PostgREST.Error           (simpleErrorResponse, encodeError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange)
 import           PostgREST.QueryBuilder (getJoinConditions, sourceCTEName)
@@ -40,10 +38,10 @@ import           Unsafe                  (unsafeHead)
 
 readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels allProcs apiRequest  =
-  mapLeft (errResponse status400) $
+  mapLeft (simpleErrorResponse status400) $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
-  first formatParserError parseReadRequest
+  first (toS . encodeError) parseReadRequest
   where
     (schema, rootTableName) = fromJust $ -- Make it safe
       let target = iTarget apiRequest in
@@ -62,7 +60,7 @@ readRequest maxRows allRels allProcs apiRequest  =
     action :: Action
     action = iAction apiRequest
 
-    parseReadRequest :: Either ParseError ReadRequest
+    parseReadRequest :: Either ApiRequestError ReadRequest
     parseReadRequest = addFiltersOrdersRanges apiRequest <*>
       pRequestSelect rootName selStr
       where
@@ -174,7 +172,7 @@ addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
     updatedForest = mapM (addJoinConditions schema) forest
     addCond query' con = query'{flt_=con ++ flt_ query'}
 
-addFiltersOrdersRanges :: ApiRequest -> Either ParseError (ReadRequest -> ReadRequest)
+addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     flip (foldr addFilter) <$> filters,
     flip (foldr addOrder) <$> orders,
@@ -185,7 +183,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
   of type (ReadRequest->ReadRequest) that are in (Either ParseError a) context
   -}
   where
-    filters :: Either ParseError [(Path, Filter)]
+    filters :: Either ApiRequestError [(Path, Filter)]
     filters = mapM pRequestFilter flts
       where
         action = iAction apiRequest
@@ -193,9 +191,9 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
           | action == ActionRead = iFilters apiRequest
           | action == ActionInvoke = iFilters apiRequest
           | otherwise = filter (( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
-    orders :: Either ParseError [(Path, [OrderTerm])]
+    orders :: Either ApiRequestError [(Path, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
-    ranges :: Either ParseError [(Path, NonnegRange)]
+    ranges :: Either ApiRequestError [(Path, NonnegRange)]
     ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
@@ -250,7 +248,7 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | otherwise = Nothing
 
 mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest fldNames = mapLeft (errResponse status400) $
+mutateRequest apiRequest fldNames = mapLeft (simpleErrorResponse status400) $
   case action of
     ActionCreate -> Right $ Insert rootTableName payload returnings
     ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings
@@ -265,7 +263,7 @@ mutateRequest apiRequest fldNames = mapLeft (errResponse status400) $
         (TargetIdent (QualifiedIdentifier _ t) ) -> t
         _ -> undefined
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
-    filters = first formatParserError $ map snd <$> mapM pRequestFilter mutateFilters
+    filters = first (toS . encodeError) $ map snd <$> mapM pRequestFilter mutateFilters
       where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
 
 fieldNames :: ReadRequest -> [FieldName]

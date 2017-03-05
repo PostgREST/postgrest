@@ -2,20 +2,22 @@ module PostgREST.Parsers where
 
 import           Protolude                     hiding (try, intercalate)
 import           Control.Monad                ((>>))
-import           Data.Text                     (intercalate)
+import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
 import           Data.Tree
+import           Data.Either.Combinators       (mapLeft)
 import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           PostgREST.RangeQuery      (NonnegRange,allRange)
+import           Text.Parsec.Error
 
-pRequestSelect :: Text -> Text -> Either ParseError ReadRequest
-pRequestSelect rootName selStr = 
-  parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
+pRequestSelect :: Text -> Text -> Either ApiRequestError ReadRequest
+pRequestSelect rootName selStr =
+  mapError $ parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
 
-pRequestFilter :: (Text, Text) -> Either ParseError (Path, Filter)
-pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
+pRequestFilter :: (Text, Text) -> Either ApiRequestError (Path, Filter)
+pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> op <*> val)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
     opVal = parse pOpValueExp ("failed to parse filter (" ++ toS v ++ ")") $ toS v
@@ -24,15 +26,15 @@ pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
     op = fst <$> opVal
     val = snd <$> opVal
 
-pRequestOrder :: (Text, Text) -> Either ParseError (Path, [OrderTerm])
-pRequestOrder (k, v) = (,) <$> path <*> ord'
+pRequestOrder :: (Text, Text) -> Either ApiRequestError (Path, [OrderTerm])
+pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
     ord' = parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
 
-pRequestRange :: (ByteString, NonnegRange) -> Either ParseError (Path, NonnegRange)
-pRequestRange (k, v) = (,) <$> path <*> pure v
+pRequestRange :: (ByteString, NonnegRange) -> Either ApiRequestError (Path, NonnegRange)
+pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
@@ -152,3 +154,13 @@ pOrderTerm =
     return $ OrderTerm c d nls
   )
   <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing
+
+mapError :: Either ParseError a -> Either ApiRequestError a
+mapError = mapLeft translateError
+  where
+    translateError e =
+      ParseRequestError message details
+      where
+        message = show $ errorPos e
+        details = strip $ replace "\n" " " $ toS
+           $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)

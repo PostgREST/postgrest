@@ -5,37 +5,39 @@
 module PostgREST.Error (
   apiRequestErrResponse
 , pgErrResponse
-, errResponse
-, prettyUsageError
+, simpleErrorResponse
+, encodeError
 , singularityError
 , binaryFieldError
-, formatGeneralError
-, formatParserError
 ) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import           Data.Text                 (replace, strip, unwords)
+import           Data.Text                 (unwords)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.Types
-import           Text.Parsec.Error
 
 apiRequestErrResponse :: ApiRequestError -> Response
-apiRequestErrResponse err =
-  case err of
-    ActionInappropriate -> errResponse HT.status405 "Bad Request"
-    InvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
-    InvalidRange -> errResponse HT.status416 "HTTP Range error"
+apiRequestErrResponse err = errorResponse status err
+  where
+    status =
+      case err of
+        ActionInappropriate -> HT.status405
+        InvalidBody _ -> HT.status400
+        InvalidRange -> HT.status416
+        _ -> HT.status500
 
-errResponse :: HT.Status -> Text -> Response
-errResponse status message = jsonErrResponse status $ JSON.object ["message" .= message]
+simpleErrorResponse :: HT.Status -> Text -> Response
+simpleErrorResponse status message =
+  errorResponse status $ JSON.object ["message" .= message]
 
-jsonErrResponse :: HT.Status -> JSON.Value -> Response
-jsonErrResponse status message = responseLBS status [toHeader CTApplicationJSON] $ JSON.encode message
+errorResponse :: JSON.ToJSON a => HT.Status -> a -> Response
+errorResponse status e =
+  responseLBS status [toHeader CTApplicationJSON] $ encodeError e
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
@@ -45,12 +47,10 @@ pgErrResponse authed e =
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]
                 else [jsonType] in
-  responseLBS status hdrs (JSON.encode e)
+  responseLBS status hdrs (encodeError e)
 
-prettyUsageError :: P.UsageError -> Text
-prettyUsageError (P.ConnectionError e) =
-  "Database connection error:\n" <> toS (fromMaybe "" e)
-prettyUsageError e = show $ JSON.encode e
+encodeError :: JSON.ToJSON a => a -> LByteString
+encodeError = JSON.encode
 
 singularityError :: Integer -> Response
 singularityError numRows =
@@ -62,27 +62,31 @@ singularityError numRows =
         [ "Results contain", show numRows, "rows,"
         , toS (toMime CTSingularJSON), "requires 1 row"
         ]
+  where
+    formatGeneralError :: Text -> Text -> Text
+    formatGeneralError message details = toS . JSON.encode $
+      JSON.object ["message" .= message, "details" .= details]
+
 
 binaryFieldError :: Response
 binaryFieldError =
-  errResponse HT.status406 (toS (toMime CTOctetStream) <>
+  simpleErrorResponse HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
 
-formatParserError :: ParseError -> Text
-formatParserError e = formatGeneralError message details
-  where
-     message = show $ errorPos e
-     details = strip $ replace "\n" " " $ toS
-       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
-formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = toS . JSON.encode $
-  JSON.object ["message" .= message, "details" .= details]
+instance JSON.ToJSON ApiRequestError where
+  toJSON (ParseRequestError message details) = JSON.object [
+    "message" .= message, "details" .= details]
+  toJSON ActionInappropriate = JSON.object [
+    "message" .= ("Bad Request" :: Text)]
+  toJSON (InvalidBody errorMessage) = JSON.object [
+    "message" .= (toS errorMessage :: Text)]
+  toJSON InvalidRange = JSON.object [
+    "message" .= ("HTTP Range error" :: Text)]
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
     "code" .= ("" :: Text),
-    "message" .= ("Connection error" :: Text),
+    "message" .= ("Database connection error" :: Text),
     "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 

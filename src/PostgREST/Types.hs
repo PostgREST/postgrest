@@ -16,6 +16,7 @@ data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
 data ApiRequestError = ActionInappropriate
                      | InvalidBody ByteString
                      | InvalidRange
+                     | ParseRequestError Text Text
                      deriving (Show, Eq)
 
 data DbStructure = DbStructure {

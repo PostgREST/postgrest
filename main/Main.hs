@@ -9,7 +9,7 @@ import           PostgREST.Config                     (AppConfig (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
-import           PostgREST.Error                      (prettyUsageError)
+import           PostgREST.Error                      (encodeError)
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
@@ -74,7 +74,7 @@ main = do
     getDbStructure (toS $ configSchema conf)
 
   forM_ (lefts [result]) $ \e -> do
-    hPutStrLn stderr (prettyUsageError e)
+    hPutStrLn stderr (toS $ encodeError e)
     exitFailure
 
   refDbStructure <- newIORef $ either (panic . show) id result
@@ -124,4 +124,3 @@ loadSecretFile conf = extractAndTransform mSecret
     setSecret bs = conf { configJwtSecret = Just bs }
 
     replaceUrlChars = replace "_" "/" . replace "-" "+" . replace "." "="
-        
