@@ -36,10 +36,14 @@ data PgArg = PgArg {
 , pgaReq  :: Bool
 } deriving (Show, Eq)
 
+data RetType = 
+  Scalar Text | SetOfQI QualifiedIdentifier | SetOf Text |
+  TempTable Text | Void deriving (Eq, Show)
+
 data ProcDescription = ProcDescription {
   pdName       :: Text
 , pdArgs       :: [PgArg]
-, pdReturnType :: Text
+, pdReturnType :: RetType
 } deriving (Show, Eq)
 
 type Schema = Text

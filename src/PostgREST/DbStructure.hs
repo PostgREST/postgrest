@@ -16,14 +16,16 @@ import           Control.Applicative
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
-                                                breakOn, dropAround)
+                                                breakOn, dropAround, 
+                                                isPrefixOf, isInfixOf, 
+                                                stripPrefix, drop)
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
 
 import           GHC.Exts                      (groupWith)
-import           Protolude
+import           Protolude              hiding (isPrefixOf, drop)
 import           Unsafe (unsafeHead)
 
 getDbStructure :: Schema -> H.Session DbStructure
@@ -101,7 +103,7 @@ accessibleProcs =
   H.statement sql (HE.value HE.text)
     (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
                                 <*> (parseArgs <$> HD.value HD.text)
-                                <*> HD.value HD.text)) True
+                                <*> (parseRetType <$> HD.value HD.text))) True
  where
   addName :: ProcDescription -> (Text, ProcDescription)
   addName pd = (pdName pd, pd)
@@ -117,6 +119,18 @@ accessibleProcs =
        then Nothing
        else Just $
          PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+
+  parseRetType :: Text -> RetType
+  parseRetType retType
+    | "SETOF" `isPrefixOf` retType = 
+      let item = fromJust $ stripPrefix "SETOF " retType
+          (schema, name) = drop 1 <$> (breakOn "." item) in
+      if "." `isInfixOf` item
+        then SetOfQI $ QualifiedIdentifier schema name
+        else SetOf item
+    | "TABLE" `isPrefixOf` retType = TempTable retType
+    | "void" `isPrefixOf` retType  = Void
+    | otherwise               = Scalar retType
 
   sql = [q|
     SELECT p.proname as "proc_name",
