@@ -28,6 +28,8 @@ apiRequestErrResponse err = errorResponse status err
       case err of
         ActionInappropriate -> HT.status405
         InvalidBody _ -> HT.status400
+        ParseRequestError _ _ -> HT.status400
+        NoRelationBetween _ _ -> HT.status400
         InvalidRange -> HT.status416
         _ -> HT.status500
 
@@ -82,6 +84,12 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= (toS errorMessage :: Text)]
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
+  toJSON UnknownRelation = JSON.object [
+    "message" .= ("Unknown relation" :: Text)]
+  toJSON (NoRelationBetween parent child) = JSON.object [
+    "message" .= ("Could not find foreign keys between these entities, No relation found between " <> parent <> " and " <> child :: Text)]
+  toJSON UnsupportedVerb = JSON.object [
+    "message" .= ("Unsupported HTTP verb" :: Text)]
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [

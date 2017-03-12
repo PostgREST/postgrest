@@ -17,6 +17,9 @@ data ApiRequestError = ActionInappropriate
                      | InvalidBody ByteString
                      | InvalidRange
                      | ParseRequestError Text Text
+                     | UnknownRelation
+                     | NoRelationBetween Text Text
+                     | UnsupportedVerb
                      deriving (Show, Eq)
 
 data DbStructure = DbStructure {

@@ -119,7 +119,7 @@ spec = do
 
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects{id,tasks2{id,name}}&projects.tasks.name=like.Design*"
-        `shouldRespondWith` [json| {"message":"could not find foreign keys between these entities, no relation between projects and tasks2"}|]
+        `shouldRespondWith` [json| {"message":"Could not find foreign keys between these entities, No relation found between projects and tasks2"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -599,6 +599,12 @@ spec = do
       get "/ghostBusters" `shouldRespondWith`
         [json| [{"escapeId":1},{"escapeId":3},{"escapeId":5}] |]
         { matchHeaders = [matchContentTypeJson] }
+
+    it "fails if an operator is not given" $ do
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not.\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     it "will embed a collection" $
       get "/Escap3e;?select=ghostBusters{*}" `shouldRespondWith`
