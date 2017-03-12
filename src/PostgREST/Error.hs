@@ -27,11 +27,12 @@ apiRequestError err = errorResponse status err
     status =
       case err of
         ActionInappropriate -> HT.status405
+        UnsupportedVerb -> HT.status405
         InvalidBody _ -> HT.status400
         ParseRequestError _ _ -> HT.status400
         NoRelationBetween _ _ -> HT.status400
         InvalidRange -> HT.status416
-        _ -> HT.status500
+        UnknownRelation -> HT.status404
 
 simpleError :: HT.Status -> Text -> Response
 simpleError status message =
