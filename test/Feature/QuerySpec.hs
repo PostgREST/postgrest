@@ -600,7 +600,7 @@ spec = do
         [json| [{"escapeId":1},{"escapeId":3},{"escapeId":5}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "fails if an operator is not given" $ do
+    it "fails if an operator is not given" $
       get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not.\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]

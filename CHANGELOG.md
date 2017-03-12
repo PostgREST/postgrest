@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #791, malformed nested JSON error - @diogob
 - Resource embedding in views referencing tables in public schema - @fab1an
 
 ## [0.4.0.0] - 2017-01-19
