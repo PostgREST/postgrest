@@ -3,12 +3,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module PostgREST.Error (
-  apiRequestErrResponse
-, pgErrResponse
-, simpleErrorResponse
-, encodeError
+  apiRequestError
+, pgError
+, simpleError
 , singularityError
 , binaryFieldError
+, encodeError
 ) where
 
 import           Protolude
@@ -21,8 +21,8 @@ import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.Types
 
-apiRequestErrResponse :: ApiRequestError -> Response
-apiRequestErrResponse err = errorResponse status err
+apiRequestError :: ApiRequestError -> Response
+apiRequestError err = errorResponse status err
   where
     status =
       case err of
@@ -33,16 +33,16 @@ apiRequestErrResponse err = errorResponse status err
         InvalidRange -> HT.status416
         _ -> HT.status500
 
-simpleErrorResponse :: HT.Status -> Text -> Response
-simpleErrorResponse status message =
+simpleError :: HT.Status -> Text -> Response
+simpleError status message =
   errorResponse status $ JSON.object ["message" .= message]
 
 errorResponse :: JSON.ToJSON a => HT.Status -> a -> Response
 errorResponse status e =
   responseLBS status [toHeader CTApplicationJSON] $ encodeError e
 
-pgErrResponse :: Bool -> P.UsageError -> Response
-pgErrResponse authed e =
+pgError :: Bool -> P.UsageError -> Response
+pgError authed e =
   let status = httpStatus authed e
       jsonType = toHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
@@ -50,9 +50,6 @@ pgErrResponse authed e =
                 then [jsonType, wwwAuth]
                 else [jsonType] in
   responseLBS status hdrs (encodeError e)
-
-encodeError :: JSON.ToJSON a => a -> LByteString
-encodeError = JSON.encode
 
 singularityError :: Integer -> Response
 singularityError numRows =
@@ -72,8 +69,11 @@ singularityError numRows =
 
 binaryFieldError :: Response
 binaryFieldError =
-  simpleErrorResponse HT.status406 (toS (toMime CTOctetStream) <>
+  simpleError HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
+
+encodeError :: JSON.ToJSON a => a -> LByteString
+encodeError = JSON.encode
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (ParseRequestError message details) = JSON.object [

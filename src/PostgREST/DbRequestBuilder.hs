@@ -25,7 +25,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         )
-import           PostgREST.Error           (apiRequestErrResponse)
+import           PostgREST.Error           (apiRequestError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange)
 import           PostgREST.QueryBuilder (getJoinConditions, sourceCTEName)
@@ -37,7 +37,7 @@ import           Unsafe                  (unsafeHead)
 
 readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels allProcs apiRequest  =
-  mapLeft apiRequestErrResponse $
+  mapLeft apiRequestError $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
   parseReadRequest
@@ -245,7 +245,7 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | otherwise = Nothing
 
 mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest fldNames = mapLeft apiRequestErrResponse $
+mutateRequest apiRequest fldNames = mapLeft apiRequestError $
   case action of
     ActionCreate -> Right $ Insert rootTableName payload returnings
     ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings

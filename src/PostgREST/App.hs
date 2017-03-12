@@ -42,8 +42,8 @@ import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
                                            , fieldNames
                                            )
-import           PostgREST.Error           ( simpleErrorResponse, pgErrResponse
-                                           , apiRequestErrResponse
+import           PostgREST.Error           ( simpleError, pgError
+                                           , apiRequestError
                                            , singularityError, binaryFieldError
                                            )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
@@ -73,7 +73,7 @@ postgrest conf refDbStructure pool getTime =
     dbStructure <- readIORef refDbStructure
 
     response <- case userApiRequest (configSchema conf) req body of
-      Left err -> return $ apiRequestErrResponse err
+      Left err -> return $ apiRequestError err
       Right apiRequest -> do
         let jwtSecret = binarySecret <$> configJwtSecret conf
             eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
@@ -81,7 +81,7 @@ postgrest conf refDbStructure pool getTime =
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
             txMode = transactionMode $ iAction apiRequest
         response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-        return $ either (pgErrResponse authed) identity response
+        return $ either (pgError authed) identity response
     respond response
 
 transactionMode :: Action -> H.Mode
@@ -291,7 +291,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
           let failed = intercalate ", " $ map (toS . toMime) cAccepts
-          Left $ simpleErrorResponse status415 $
+          Left $ simpleError status415 $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
 
