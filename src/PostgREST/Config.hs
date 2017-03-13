@@ -27,7 +27,7 @@ import qualified Data.ByteString             as B
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
-import qualified Data.Configurator.Types     as C
+import qualified Data.Configurator.Parser    as C
 import           Data.List                   (lookup)
 import           Data.Monoid
 import           Data.Text                   (strip, intercalate, lines)
@@ -95,28 +95,30 @@ readOptions = do
   cfgPath <- customExecParser parserPrefs opts
   -- Now read the actual config file
   conf <- catch
-    (C.load [C.Required cfgPath])
+    (C.readConfig =<< C.load [C.Required cfgPath])
     configNotfoundHint
 
-  handle missingKeyHint $ do
-    -- db ----------------
-    cDbUri    <- C.require conf "db-uri"
-    cDbSchema <- C.require conf "db-schema"
-    cDbAnon   <- C.require conf "db-anon-role"
-    cPool     <- C.lookupDefault 10 conf "db-pool"
-    -- server ------------
-    cHost     <- C.lookupDefault "*4" conf "server-host"
-    cPort     <- C.lookupDefault 3000 conf "server-port"
-    cProxy    <- C.lookup conf "server-proxy-uri"
-    -- jwt ---------------
-    cJwtSec   <- C.lookup conf "jwt-secret"
-    cJwtB64   <- C.lookupDefault False conf "secret-is-base64"
-    -- safety ------------
-    cMaxRows  <- C.lookup conf "max-rows"
-    cReqCheck <- C.lookup conf "pre-request"
+  let (mAppConf, errs) = flip C.runParserA conf $
+        AppConfig <$>
+            C.key "db-uri"
+          <*> C.key "db-anon-role"
+          <*> C.key "server-proxy-uri"
+          <*> C.key "db-schema"
+          <*> (fromMaybe "*4" <$> C.key "server-host")
+          <*> (fromMaybe 3000 <$> C.key "server-port")
+          <*> (fmap encodeUtf8 <$> C.key "jwt-secret")
+          <*> (fromMaybe False <$> C.key "secret-is-base64")
+          <*> (fromMaybe 10 <$> C.key "db-pool")
+          <*> C.key "max-rows"
+          <*> C.key "pre-request"
+          <*> pure False
 
-    return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-          (encodeUtf8 <$> cJwtSec) cJwtB64 cPool cMaxRows cReqCheck False
+  case mAppConf of
+    Nothing -> do
+      forM_ errs $ hPutStrLn stderr . show
+      exitFailure
+    Just appConf ->
+      return appConf
 
  where
   opts = info (helper <*> pathParser) $
@@ -137,15 +139,6 @@ readOptions = do
   configNotfoundHint e = do
     hPutStrLn stderr $
       "Cannot open config file:\n\t" <> show e
-    exitFailure
-
-  missingKeyHint :: C.KeyError -> IO a
-  missingKeyHint (C.KeyError n) = do
-    hPutStrLn stderr $
-      "Required config parameter \"" <> n <> "\" is missing or of wrong type.\n" <>
-      "Documentation for configuration options available at\n" <>
-      "\thttp://postgrest.com/en/v0.4/admin.html#configuration\n\n" <>
-      "Try the --example-config option to see how to configure PostgREST."
     exitFailure
 
   exampleCfg :: Doc
@@ -172,7 +165,6 @@ readOptions = do
         |## stored proc to exec immediately after auth
         |# pre-request = "stored_proc_name"
         |]
-
 
 pathParser :: Parser FilePath
 pathParser =

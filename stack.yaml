@@ -2,6 +2,8 @@ resolver: lts-8.5
 extra-deps:
   - Ranged-sets-0.3.0
   - hasql-pool-0.4.1
+  - configurator-ng-0.0.0.1
+  - critbit-0.2.0.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
