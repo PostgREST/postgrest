@@ -50,6 +50,7 @@ Client-Side Libraries
 * `JarvusInnovations/jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
 * `davidthewatson/postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
 * `calebmer/postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
+* `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
 
 External Notification
 ---------------------
@@ -77,6 +78,7 @@ Example Apps
 * `myfreeweb/moneylog <https://github.com/myfreeweb/moneylog>`_ - accounting web app in Polymer + PostgREST
 * `tyrchen/goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film api
 * `begriffs/postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
+* `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
 
 In Production
 -------------
@@ -90,11 +92,12 @@ In Production
 Extensions
 ----------
 
+* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
 * `diogob/postgrest-ws <https://github.com/diogob/postgrest-ws>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
+* `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
-* `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
 
 Commercial PaaS
 ---------------
