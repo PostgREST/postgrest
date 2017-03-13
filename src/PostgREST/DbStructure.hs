@@ -124,7 +124,7 @@ accessibleProcs =
   parseRetType retType
     | "SETOF" `isPrefixOf` retType = 
       let item = fromJust $ stripPrefix "SETOF " retType
-          (schema, name) = drop 1 <$> (breakOn "." item) in
+          (schema, name) = drop 1 <$> breakOn "." item in
       if "." `isInfixOf` item
         then SetOfQI $ QualifiedIdentifier schema name
         else SetOf item

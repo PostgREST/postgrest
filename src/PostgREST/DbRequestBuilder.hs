@@ -51,6 +51,7 @@ readRequest maxRows allRels allProcs apiRequest  =
             retType = lookup proc allProcs
             tName = case retType of
               Just (SetOfQI qi) -> qiName qi
+              Just (SetOf item) -> item
               _ -> proc
 
         _ -> Nothing
