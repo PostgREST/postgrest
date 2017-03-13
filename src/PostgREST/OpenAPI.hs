@@ -20,11 +20,11 @@ import           Protolude hiding              (concat, (&), Proxy, get, interca
 
 import           Data.Swagger
 
-import           PostgREST.ApiRequest        (ContentType(..), toMime)
+import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
-                                              Proxy(..), ProcDescription(..))
+                                              Proxy(..), ProcDescription(..), toMime)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs

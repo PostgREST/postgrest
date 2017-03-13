@@ -6,6 +6,21 @@ import qualified Data.ByteString.Lazy as BL
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
+import           Network.HTTP.Types.Header (hContentType, Header)
+
+-- | Enumeration of currently supported response content types
+data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
+                 | CTSingularJSON | CTOctetStream
+                 | CTAny | CTOther ByteString deriving Eq
+
+data ApiRequestError = ActionInappropriate
+                     | InvalidBody ByteString
+                     | InvalidRange
+                     | ParseRequestError Text Text
+                     | UnknownRelation
+                     | NoRelationBetween Text Text
+                     | UnsupportedVerb
+                     deriving (Show, Eq)
 
 data DbStructure = DbStructure {
   dbTables      :: [Table]
@@ -134,7 +149,6 @@ type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
-
 instance ToJSON Column where
   toJSON c = object [
       "schema"    .= tableSchema t
@@ -172,3 +186,17 @@ instance Eq Table where
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
   _ == _ = False
+
+-- | Convert from ContentType to a full HTTP Header
+toHeader :: ContentType -> Header
+toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
+
+-- | Convert from ContentType to a ByteString representing the mime type
+toMime :: ContentType -> ByteString
+toMime CTApplicationJSON = "application/json"
+toMime CTTextCSV         = "text/csv"
+toMime CTOpenAPI         = "application/openapi+json"
+toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
+toMime CTOctetStream     = "application/octet-stream"
+toMime CTAny             = "*/*"
+toMime (CTOther ct)      = ct

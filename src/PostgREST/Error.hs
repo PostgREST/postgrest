@@ -3,54 +3,54 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module PostgREST.Error (
-  apiRequestErrResponse
-, pgErrResponse
-, errResponse
-, prettyUsageError
+  apiRequestError
+, pgError
+, simpleError
 , singularityError
 , binaryFieldError
-, formatGeneralError
-, formatParserError
+, encodeError
 ) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import           Data.Text                 (replace, strip, unwords)
+import           Data.Text                 (unwords)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
-import           PostgREST.ApiRequest      (toHeader, toMime, ContentType(..), ApiRequestError(..))
-import           Text.Parsec.Error
+import           PostgREST.Types
 
-apiRequestErrResponse :: ApiRequestError -> Response
-apiRequestErrResponse err =
-  case err of
-    ErrorActionInappropriate -> errResponse HT.status405 "Bad Request"
-    ErrorInvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
-    ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
+apiRequestError :: ApiRequestError -> Response
+apiRequestError err = errorResponse status err
+  where
+    status =
+      case err of
+        ActionInappropriate -> HT.status405
+        UnsupportedVerb -> HT.status405
+        InvalidBody _ -> HT.status400
+        ParseRequestError _ _ -> HT.status400
+        NoRelationBetween _ _ -> HT.status400
+        InvalidRange -> HT.status416
+        UnknownRelation -> HT.status404
 
-errResponse :: HT.Status -> Text -> Response
-errResponse status message = jsonErrResponse status $ JSON.object ["message" .= message]
+simpleError :: HT.Status -> Text -> Response
+simpleError status message =
+  errorResponse status $ JSON.object ["message" .= message]
 
-jsonErrResponse :: HT.Status -> JSON.Value -> Response
-jsonErrResponse status message = responseLBS status [toHeader CTApplicationJSON] $ JSON.encode message
+errorResponse :: JSON.ToJSON a => HT.Status -> a -> Response
+errorResponse status e =
+  responseLBS status [toHeader CTApplicationJSON] $ encodeError e
 
-pgErrResponse :: Bool -> P.UsageError -> Response
-pgErrResponse authed e =
+pgError :: Bool -> P.UsageError -> Response
+pgError authed e =
   let status = httpStatus authed e
       jsonType = toHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]
                 else [jsonType] in
-  responseLBS status hdrs (JSON.encode e)
-
-prettyUsageError :: P.UsageError -> Text
-prettyUsageError (P.ConnectionError e) =
-  "Database connection error:\n" <> toS (fromMaybe "" e)
-prettyUsageError e = show $ JSON.encode e
+  responseLBS status hdrs (encodeError e)
 
 singularityError :: Integer -> Response
 singularityError numRows =
@@ -62,27 +62,40 @@ singularityError numRows =
         [ "Results contain", show numRows, "rows,"
         , toS (toMime CTSingularJSON), "requires 1 row"
         ]
+  where
+    formatGeneralError :: Text -> Text -> Text
+    formatGeneralError message details = toS . JSON.encode $
+      JSON.object ["message" .= message, "details" .= details]
+
 
 binaryFieldError :: Response
-binaryFieldError = 
-  errResponse HT.status406 (toS (toMime CTOctetStream) <>
+binaryFieldError =
+  simpleError HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
 
-formatParserError :: ParseError -> Text
-formatParserError e = formatGeneralError message details
-  where
-     message = show $ errorPos e
-     details = strip $ replace "\n" " " $ toS
-       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+encodeError :: JSON.ToJSON a => a -> LByteString
+encodeError = JSON.encode
 
-formatGeneralError :: Text -> Text -> Text
-formatGeneralError message details = toS . JSON.encode $
-  JSON.object ["message" .= message, "details" .= details]
+instance JSON.ToJSON ApiRequestError where
+  toJSON (ParseRequestError message details) = JSON.object [
+    "message" .= message, "details" .= details]
+  toJSON ActionInappropriate = JSON.object [
+    "message" .= ("Bad Request" :: Text)]
+  toJSON (InvalidBody errorMessage) = JSON.object [
+    "message" .= (toS errorMessage :: Text)]
+  toJSON InvalidRange = JSON.object [
+    "message" .= ("HTTP Range error" :: Text)]
+  toJSON UnknownRelation = JSON.object [
+    "message" .= ("Unknown relation" :: Text)]
+  toJSON (NoRelationBetween parent child) = JSON.object [
+    "message" .= ("Could not find foreign keys between these entities, No relation found between " <> parent <> " and " <> child :: Text)]
+  toJSON UnsupportedVerb = JSON.object [
+    "message" .= ("Unsupported HTTP verb" :: Text)]
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
     "code" .= ("" :: Text),
-    "message" .= ("Connection error" :: Text),
+    "message" .= ("Database connection error" :: Text),
     "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 

@@ -33,9 +33,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
                                         , Action(..), Target(..)
                                         , PreferRepresentation (..)
                                         , mutuallyAgreeable
-                                        , toHeader
                                         , userApiRequest
-                                        , toMime
                                         )
 import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
@@ -44,8 +42,8 @@ import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
                                            , fieldNames
                                            )
-import           PostgREST.Error           ( errResponse, pgErrResponse
-                                           , apiRequestErrResponse
+import           PostgREST.Error           ( simpleError, pgError
+                                           , apiRequestError
                                            , singularityError, binaryFieldError
                                            )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
@@ -75,7 +73,7 @@ postgrest conf refDbStructure pool getTime =
     dbStructure <- readIORef refDbStructure
 
     response <- case userApiRequest (configSchema conf) req body of
-      Left err -> return $ apiRequestErrResponse err
+      Left err -> return $ apiRequestError err
       Right apiRequest -> do
         let jwtSecret = binarySecret <$> configJwtSecret conf
             eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
@@ -83,7 +81,7 @@ postgrest conf refDbStructure pool getTime =
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
             txMode = transactionMode $ iAction apiRequest
         response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-        return $ either (pgErrResponse authed) identity response
+        return $ either (pgError authed) identity response
     respond response
 
 transactionMode :: Action -> H.Mode
@@ -104,7 +102,7 @@ app dbStructure conf apiRequest =
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount 
+              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount
                                             (contentType == CTTextCSV) bField
               row <- H.query () stm
               let (tableTotal, queryTotal, _ , body) = row
@@ -293,12 +291,12 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
           let failed = intercalate ", " $ map (toS . toMime) cAccepts
-          Left $ errResponse status415 $
+          Left $ simpleError status415 $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
 
 binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
-binaryField CTOctetStream fldNames = 
+binaryField CTOctetStream fldNames =
   if length fldNames == 1 && fieldName /= Just "*"
     then Right fieldName
     else Left binaryFieldError

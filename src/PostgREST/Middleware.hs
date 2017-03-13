@@ -14,11 +14,11 @@ import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..), ContentType(..),
-                                                toHeader)
+import           PostgREST.ApiRequest          (ApiRequest(..))
 import           PostgREST.Auth                (claimsToSQL, JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
-import           PostgREST.Error               (errResponse)
+import           PostgREST.Error               (simpleError)
+import           PostgREST.Types               (ContentType (..), toHeader)
 
 import           Protolude                     hiding (concat, null)
 
@@ -29,7 +29,7 @@ runWithClaims conf eClaims app req =
   case eClaims of
     JWTExpired -> return $ unauthed "JWT expired"
     JWTInvalid -> return $ unauthed "JWT invalid"
-    JWTMissingSecret -> return $ errResponse status500 "Server lacks JWT secret"
+    JWTMissingSecret -> return $ simpleError status500 "Server lacks JWT secret"
     JWTClaims claims -> do
       -- role claim defaults to anon if not specified in jwt
       let setClaims = claimsToSQL (M.union claims (M.singleton "role" anon))
