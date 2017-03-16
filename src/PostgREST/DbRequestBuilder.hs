@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module PostgREST.DbRequestBuilder (
-readRequest
+  readRequest
 , mutateRequest
 , fieldNames
 ) where
