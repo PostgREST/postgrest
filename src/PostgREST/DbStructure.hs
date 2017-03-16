@@ -16,16 +16,14 @@ import           Control.Applicative
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
-                                                breakOn, dropAround, 
-                                                isPrefixOf, isInfixOf, 
-                                                stripPrefix, drop)
+                                                breakOn, dropAround)
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
 
 import           GHC.Exts                      (groupWith)
-import           Protolude              hiding (isPrefixOf, drop)
+import           Protolude              
 import           Unsafe (unsafeHead)
 
 getDbStructure :: Schema -> H.Session DbStructure
@@ -103,7 +101,8 @@ accessibleProcs =
   H.statement sql (HE.value HE.text)
     (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
                                 <*> (parseArgs <$> HD.value HD.text)
-                                <*> (parseRetType <$> HD.value HD.text))) True
+                                <*> (parseRetType <$> HD.value HD.text <*> HD.value HD.text <*>
+                                                      HD.value HD.bool <*> HD.value HD.char))) True
  where
   addName :: ProcDescription -> (Text, ProcDescription)
   addName pd = (pdName pd, pd)
@@ -120,26 +119,29 @@ accessibleProcs =
        else Just $
          PgArg (dropAround (== '"') name) (strip typ) (T.null def)
 
-  parseRetType :: Text -> RetType
-  parseRetType retType
-    | "SETOF" `isPrefixOf` retType = 
-      let item = fromJust $ stripPrefix "SETOF " retType
-          (schema, name) = drop 1 <$> breakOn "." item in
-      if "." `isInfixOf` item
-        then SetOfQI $ QualifiedIdentifier schema name
-        else SetOf item
-    | "TABLE" `isPrefixOf` retType = TempTable retType
-    | "void" `isPrefixOf` retType  = Void
-    | otherwise               = Scalar retType
-
+  parseRetType :: Text -> Text -> Bool -> Char -> RetType
+  parseRetType schema name isSetOf typ
+    | isSetOf   = SetOf pgType
+    | otherwise = Single pgType
+    where 
+      pgType = case typ of 
+        'c' -> Composite $ QualifiedIdentifier schema name
+        'p' -> Pseudo name
+        _   -> Scalar name -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+          
   sql = [q|
-    SELECT p.proname as "proc_name",
-           pg_get_function_arguments(p.oid) as "args",
-           pg_get_function_result(p.oid) as "return_type"
-    FROM   pg_namespace n
-    JOIN   pg_proc p
-    ON     pronamespace = n.oid
-    WHERE  n.nspname = $1|]
+  SELECT p.proname as "proc_name",
+         pg_get_function_arguments(p.oid) as "args",
+         coalesce(pn.nspname, '') as "rettype_schema",
+         coalesce(pc.relname, pt.typname) as "rettype_name",
+         p.proretset as "rettype_is_setof",
+         pt.typtype as "rettype_typ"
+  FROM pg_proc p
+    JOIN pg_namespace pp ON p.pronamespace = pp.oid
+    LEFT JOIN pg_type pt ON pt.oid = p.prorettype
+    LEFT JOIN pg_class pc ON pc.oid = pt.typrelid 
+    LEFT JOIN pg_namespace pn ON pc.relnamespace = pn.oid
+  WHERE  pp.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
