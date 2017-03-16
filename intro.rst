@@ -88,6 +88,7 @@ In Production
 * `Redsmin <https://www.redsmin.com/>`_
 * `Image-charts <https://image-charts.com/>`_
 * `Drip Depot <https://www.dripdepot.com/>`_
+* `OpenBooking <http://openbooking.ch>`_
 
 Extensions
 ----------
