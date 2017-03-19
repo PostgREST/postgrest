@@ -13,6 +13,7 @@ module PostgREST.ApiRequest ( ApiRequest(..)
 
 import           Protolude
 import qualified Data.Aeson                as JSON
+import           Data.Aeson.Types          (emptyObject)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
@@ -125,8 +126,11 @@ userApiRequest schema req reqBody
     case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
       CTApplicationJSON ->
           either Left (\val -> case ensureUniform (pluralize val) of
-            Nothing -> Left "All object keys must match"
-            Just json -> Right json) (JSON.eitherDecode reqBody)
+              Nothing -> Left "All object keys must match"
+              Just json -> Right json)
+            (if BL.null reqBody && isTargetingProc
+              then Right emptyObject
+              else JSON.eitherDecode reqBody)
       CTTextCSV ->
           either Left (\val -> case ensureUniform (csvToJson val) of
             Nothing -> Left "All lines must have same number of fields"

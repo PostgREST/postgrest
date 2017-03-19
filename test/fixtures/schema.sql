@@ -173,6 +173,15 @@ CREATE FUNCTION getitemrange(min bigint, max bigint) RETURNS SETOF items
     SELECT * FROM test.items WHERE id > $1 AND id <= $2;
 $_$;
 
+--
+-- Name: version(); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION noparamsproc() RETURNS text
+	LANGUAGE sql
+	AS $$
+		SELECT a FROM (VALUES ('Return value of no parameters procedure.')) s(a);
+	$$;
 
 --
 -- Name: insert_insertable_view_with_join(); Type: FUNCTION; Schema: test; Owner: -
