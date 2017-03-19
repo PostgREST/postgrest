@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #791, malformed nested JSON error - @diogob
 - Resource embedding in views referencing tables in public schema - @fab1an
+- #777, Empty body is enforced when calling a non-parameterized RPC - @koulakis
 
 ## [0.4.0.0] - 2017-01-19
 
