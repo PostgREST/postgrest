@@ -23,7 +23,7 @@ import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
 
 import           GHC.Exts                      (groupWith)
-import           Protolude              
+import           Protolude
 import           Unsafe (unsafeHead)
 
 getDbStructure :: Schema -> H.Session DbStructure
