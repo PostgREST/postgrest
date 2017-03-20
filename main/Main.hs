@@ -57,7 +57,7 @@ main = do
       appSettings = setHost ((fromString . toS) host)
                   . setPort port
                   . setServerName (toS $ "postgrest/" <> prettyVersion)
-                  . setTimeout 86400
+                  . setTimeout 3600
                   $ defaultSettings
 
   when (isMalformedProxyUri $ toS <$> proxy) $ panic
