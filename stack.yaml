@@ -1,4 +1,4 @@
-resolver: lts-8.0
+resolver: lts-8.5
 extra-deps:
   - Ranged-sets-0.3.0
   - hasql-pool-0.4.1
