@@ -13,6 +13,7 @@ import qualified Hasql.Encoders                as HE
 import qualified Hasql.Query                   as H
 
 import           Control.Applicative
+import qualified Data.HashMap.Strict           as M
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
@@ -96,10 +97,10 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-accessibleProcs :: H.Query Schema [(Text, ProcDescription)]
+accessibleProcs :: H.Query Schema (M.HashMap Text ProcDescription)
 accessibleProcs =
   H.statement sql (HE.value HE.text)
-    (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
+    (M.fromList . map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
                                 <*> (parseArgs <$> HD.value HD.text)
                                 <*> (parseRetType <$> HD.value HD.text <*> HD.value HD.text <*>
                                                       HD.value HD.bool <*> HD.value HD.char))) True

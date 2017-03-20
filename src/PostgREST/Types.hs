@@ -3,6 +3,7 @@ import           Protolude
 import qualified GHC.Show
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as BL
+import           Data.HashMap.Strict  as M
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
@@ -27,7 +28,7 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
-, dbProcs       :: [(Text,ProcDescription)]
+, dbProcs       :: M.HashMap Text ProcDescription
 } deriving (Show, Eq)
 
 data PgArg = PgArg {

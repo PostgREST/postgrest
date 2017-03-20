@@ -9,7 +9,7 @@ import           Control.Applicative
 import           Control.Lens.Getter       (view)
 import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
-import           Data.List                 (delete, lookup)
+import           Data.List                 (delete)
 import           Data.Maybe                (fromJust)
 import           Data.Text                 (isInfixOf)
 import           Data.Tree
@@ -35,7 +35,7 @@ import           Protolude                hiding (from, dropWhile, drop)
 import           Text.Regex.TDFA         ((=~))
 import           Unsafe                  (unsafeHead)
 
-readRequest :: Maybe Integer -> [Relation] -> [(Text, RetType)] -> ApiRequest -> Either Response ReadRequest
+readRequest :: Maybe Integer -> [Relation] -> M.HashMap Text ProcDescription -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels allProcs apiRequest  =
   mapLeft apiRequestError $
   treeRestrictRange maxRows =<<
@@ -48,7 +48,7 @@ readRequest maxRows allRels allProcs apiRequest  =
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
         (TargetProc  (QualifiedIdentifier s proc) ) -> Just (s, tName)
           where
-            retType = lookup proc allProcs
+            retType = pdReturnType <$> M.lookup proc allProcs
             tName = case retType of
               Just (SetOf (Composite qi)) -> qiName qi
               Just (Single (Composite qi)) -> qiName qi
