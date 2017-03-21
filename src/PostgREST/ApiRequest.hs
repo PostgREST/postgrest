@@ -125,13 +125,13 @@ userApiRequest schema req reqBody
   payload =
     case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
       CTApplicationJSON ->
-        (if BL.null reqBody && isTargetingProc
-           then Right emptyObject
-           else JSON.eitherDecode reqBody)
-         >>= note "All object keys must match" . ensureUniform . pluralize
+        note "All object keys must match" . ensureUniform . pluralize
+          =<< if BL.null reqBody && isTargetingProc
+               then Right emptyObject
+               else JSON.eitherDecode reqBody
       CTTextCSV ->
-        CSV.decodeByName reqBody
-        >>= note "All lines must have same number of fields" . ensureUniform . csvToJson
+        note "All lines must have same number of fields" . ensureUniform . csvToJson
+          =<< CSV.decodeByName reqBody
       CTOther "application/x-www-form-urlencoded" ->
         Right . PayloadJSON . V.singleton . M.fromList
                     . map (toS *** JSON.String . toS) . parseSimpleQuery
