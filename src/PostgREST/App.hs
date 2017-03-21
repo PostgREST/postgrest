@@ -232,7 +232,7 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti = encodeOpenAPI (map snd $ dbProcs dbStructure) ti uri'
+              encodeApi ti = encodeOpenAPI (M.elems $ dbProcs dbStructure) ti uri'
           body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
@@ -264,8 +264,7 @@ app dbStructure conf apiRequest =
             status = rangeStatus lower upper (toInteger <$> tableTotal)
         in (status, contentRange)
 
-      mapSnd f (a, b) = (a, f b)
-      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (map (mapSnd pdReturnType) $ dbProcs dbStructure) apiRequest
+      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
