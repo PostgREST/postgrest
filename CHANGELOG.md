@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #827, Avoid Warp reaper, extend socket timeout to 1 hour - @majorcode
 - #791, malformed nested JSON error - @diogob
 - Resource embedding in views referencing tables in public schema - @fab1an
 - #831, Fix proc resource embedding issue with search_path - @steve-chavez
