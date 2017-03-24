@@ -210,6 +210,7 @@ The current possibilities are
 * text/csv
 * application/json
 * application/openapi+json
+* application/octet-stream
 
 The server will default to JSON for API endpoints and OpenAPI on the root.
 
@@ -243,16 +244,20 @@ This returns
 
   Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
 
-OpenAPI Support
-===============
+Binary output
+-------------
 
-Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads.
+If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
+and select a single column :code:`?select=bin_data`.
 
-You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dahsboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+.. code:: http
+
+  GET /items?select=bin_data&id=eq.1 HTTP/1.1
+  Accept: application/octet-stream
 
 .. note::
 
-  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+  If more than one row would be returned the binary results will be concatenated with no delimiter.
 
 .. _resource_embedding:
 
@@ -350,7 +355,7 @@ Every stored procedure in the API-exposed database schema is accessible under th
 
   POST /rpc/function_name HTTP/1.1
 
-Procedures must used `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
+Procedures must be used with `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
 
 For instance, assume we have created this function in the database.
 
@@ -485,3 +490,14 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 .. note::
 
   Beware of accidentally delting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+OpenAPI Support
+===============
+
+Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads.
+
+You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dahsboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+
+.. note::
+
+  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
