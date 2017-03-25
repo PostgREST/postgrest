@@ -57,7 +57,26 @@ not           negates another operator, see below
 
 To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2`.
 
-For more complicated filters (such as those involving condition 1 OR condition 2) you will have to create a new view in the database.
+For more complicated filters (such as those involving disjunctions) you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
+
+.. code-block:: postgresql
+
+  CREATE VIEW fresh_stories AS
+  SELECT *
+    FROM stories
+   WHERE pinned = true
+      OR published > now() - interval '1 day'
+  ORDER BY pinned DESC, published DESC;
+
+The view will provide a new endpoint:
+
+.. code-block:: http
+
+  GET /fresh_stories HTTP/1.1
+
+.. note::
+
+  We're working to extend the PostgREST query grammar to allow more complicated boolean logic, while continuing to prevent performance problems from arbitrary client queries.
 
 .. _v_filter:
 
@@ -238,6 +257,8 @@ This returns
 
   { "id": 1 }
 
+When a singular response is requested but no entries are found, the server responds with an empty body and 404 status code rather than the usual empty array and 200 status.
+
 .. note::
 
   Many APIs distinguish plural and singular resources using a special nested URL convention e.g. `/stories` vs `/stories/1`. Why do we use `/stories?id=eq.1`? The answer is because a singlular resource is (for us) a row determined by a primary key, and primary keys can be compound (meaning defined across more than one column). The more familiar nested urls consider only a degenerate case of simple and overwhelmingly numeric primary keys. These so-called artificial keys are often introduced automatically by Object Relational Mapping libraries.
@@ -374,7 +395,7 @@ The client can call it by posting an object like
 
   { "a": 1, "b": 2 }
 
-The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`.
+The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
 
 .. note::
 
@@ -501,3 +522,66 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 .. note::
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+
+HTTP Status Codes
+=================
+
+PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/static/errcodes-appendix.html>`_ into HTTP status as follows:
+
++--------------------------+-------------------------+---------------------------------+
+| PostgreSQL error code(s) | HTTP status             | Error description               |
++==========================+=========================+=================================+
+| 08*                      | 503                     | pg connection err               |
++--------------------------+-------------------------+---------------------------------+
+| 09*                      | 500                     | triggered action exception      |
++--------------------------+-------------------------+---------------------------------+
+| 0L*                      | 403                     | invalid grantor                 |
++--------------------------+-------------------------+---------------------------------+
+| 0P*                      | 403                     | invalid role specification      |
++--------------------------+-------------------------+---------------------------------+
+| 23503                    | 409                     | foreign key violation           |
++--------------------------+-------------------------+---------------------------------+
+| 23505                    | 409                     | uniqueness violation            |
++--------------------------+-------------------------+---------------------------------+
+| 25*                      | 500                     | invalid transaction state       |
++--------------------------+-------------------------+---------------------------------+
+| 28*                      | 403                     | invalid auth specification      |
++--------------------------+-------------------------+---------------------------------+
+| 2D*                      | 500                     | invalid transaction termination |
++--------------------------+-------------------------+---------------------------------+
+| 38*                      | 500                     | external routine exception      |
++--------------------------+-------------------------+---------------------------------+
+| 39*                      | 500                     | external routine invocation     |
++--------------------------+-------------------------+---------------------------------+
+| 3B*                      | 500                     | savepoint exception             |
++--------------------------+-------------------------+---------------------------------+
+| 40*                      | 500                     | transaction rollback            |
++--------------------------+-------------------------+---------------------------------+
+| 53*                      | 503                     | insufficient resources          |
++--------------------------+-------------------------+---------------------------------+
+| 54*                      | 413                     | too complex                     |
++--------------------------+-------------------------+---------------------------------+
+| 55*                      | 500                     | obj not in prereq state         |
++--------------------------+-------------------------+---------------------------------+
+| 57*                      | 500                     | operator intervention           |
++--------------------------+-------------------------+---------------------------------+
+| 58*                      | 500                     | system error                    |
++--------------------------+-------------------------+---------------------------------+
+| F0*                      | 500                     | conf file error                 |
++--------------------------+-------------------------+---------------------------------+
+| HV*                      | 500                     | foreign data wrapper error      |
++--------------------------+-------------------------+---------------------------------+
+| P0001                    | 400                     | default code for "raise"        |
++--------------------------+-------------------------+---------------------------------+
+| P0*                      | 500                     | PL/pgSQL error                  |
++--------------------------+-------------------------+---------------------------------+
+| XX*                      | 500                     | internal error                  |
++--------------------------+-------------------------+---------------------------------+
+| 42883                    | 404                     | undefined function              |
++--------------------------+-------------------------+---------------------------------+
+| 42P01                    | 404                     | undefined table                 |
++--------------------------+-------------------------+---------------------------------+
+| 42501                    | if authed 403, else 401 | insufficient privileges         |
++--------------------------+-------------------------+---------------------------------+
+| other                    | 500                     |                                 |
++--------------------------+-------------------------+---------------------------------+

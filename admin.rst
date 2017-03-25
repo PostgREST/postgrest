@@ -278,11 +278,22 @@ As discussed in `Singular or Plural`_, there are no special URL forms for singul
   GET /people?id=eq.1
   Accept: application/vnd.pgrst.object+json
 
-This allows compound primary keys and makes the intent for singular response independent of a URL convention. However for any table which uses a simple primary key you can use Nginx to simulate the familiar URL convention.
+This allows compound primary keys and makes the intent for singular response independent of a URL convention.
+
+Nginx rewrite rules allow you to simulate the familiar URL convention. The following example adds a rewrite rule for all table endpoints, but you'll want to restrict it to those tables that have a numeric simple primary key named "id."
 
 .. code:: nginx
 
-  nginx code here
+  # support /endpoint/:id url style
+  location ~ ^/([a-z_]+)/([0-9]+) {
+
+    # make the response singular
+    proxy_set_header Accept 'application/vnd.pgrst.object+json';
+
+    # assuming an upstream named "postgrest"
+    proxy_pass http://postgrest/$1?id=eq.$2;
+
+  }
 
 .. TODO
 .. Administration
