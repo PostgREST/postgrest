@@ -271,7 +271,7 @@ In the future we're investigating ways to keep the cache updated without manual 
 Alternate URL Structure
 =======================
 
-As discussed in `Singular or Plural`_, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like :code:`/people/1`. It would be specified instead as
+As discussed in :ref:`singular_plural`, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like :code:`/people/1`. It would be specified instead as
 
 .. code:: http
 

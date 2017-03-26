@@ -233,6 +233,8 @@ The current possibilities are
 
 The server will default to JSON for API endpoints and OpenAPI on the root.
 
+.. _singular_plural:
+
 Singular or Plural
 ------------------
 
@@ -289,7 +291,7 @@ In addition to providing RESTful routes for each table and view, PostgREST allow
 
 .. image:: _static/film.png
 
-As seen above in `vertical_filtering`_ we can request the titles of all films like this:
+As seen above in :ref:`v_filter` we can request the titles of all films like this:
 
 .. code-block:: http
 
@@ -423,6 +425,35 @@ By default, a function is executed with the privileges of the user who calls it.
 
   We are considering allowing GET requests for functions that are marked non-volatile. Allowing GET is important for HTTP caching. However we still must decide how to pass function parameters since request bodies are not allowed. Also some query string arguments are already reserved for shaping/filtering the output.
 
+Raising Errors
+--------------
+
+Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always errors:
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    RAISE EXCEPTION 'I refuse!'
+      USING DETAIL = 'Pretty simple',
+            HINT = 'There is nothing you can do.';
+  END
+  $$;
+
+Calling the function returns HTTP 400 with the body
+
+.. code-block:: json
+
+  {
+    "message":"I refuse!",
+    "details":"Pretty simple",
+    "hint":"There is nothing you can do.",
+    "code":"P0001"
+  }
+
+You can customize the HTTP status code by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
 
 Insertions / Updates
 ====================
@@ -522,6 +553,8 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 .. note::
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+
+.. _status_codes:
 
 HTTP Status Codes
 =================

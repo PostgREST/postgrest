@@ -270,7 +270,7 @@ PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL datab
 Schema Isolation
 ================
 
-A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. This means private data or implementation details can go inside a private schema and be invisible to HTTP clients. You can then expose views and stored procedures which insulate the internal details from the outside world. It keeps you code easier to refactor, and provides a natural way to do API `versioning`_. For an example of wrapping a private table with a public view see the `Editing User Info`_ section below.
+A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. This means private data or implementation details can go inside a private schema and be invisible to HTTP clients. You can then expose views and stored procedures which insulate the internal details from the outside world. It keeps you code easier to refactor, and provides a natural way to do API versioning. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
 
 SQL User Management
 ===================
@@ -362,6 +362,8 @@ With the table in place we can make a helper to check a password against the enc
     );
   end;
   $$;
+
+.. _public_ui:
 
 Public User Interface
 ---------------------
