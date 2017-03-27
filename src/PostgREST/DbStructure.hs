@@ -13,6 +13,7 @@ import qualified Hasql.Encoders                as HE
 import qualified Hasql.Query                   as H
 
 import           Control.Applicative
+import qualified Data.HashMap.Strict           as M
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
@@ -96,12 +97,13 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-accessibleProcs :: H.Query Schema [(Text, ProcDescription)]
+accessibleProcs :: H.Query Schema (M.HashMap Text ProcDescription)
 accessibleProcs =
   H.statement sql (HE.value HE.text)
-    (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
+    (M.fromList . map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
                                 <*> (parseArgs <$> HD.value HD.text)
-                                <*> HD.value HD.text)) True
+                                <*> (parseRetType <$> HD.value HD.text <*> HD.value HD.text <*>
+                                                      HD.value HD.bool <*> HD.value HD.char))) True
  where
   addName :: ProcDescription -> (Text, ProcDescription)
   addName pd = (pdName pd, pd)
@@ -118,14 +120,30 @@ accessibleProcs =
        else Just $
          PgArg (dropAround (== '"') name) (strip typ) (T.null def)
 
+  parseRetType :: Text -> Text -> Bool -> Char -> RetType
+  parseRetType schema name isSetOf typ
+    | isSetOf   = SetOf pgType
+    | otherwise = Single pgType
+    where 
+      qi = QualifiedIdentifier schema name
+      pgType = case typ of 
+        'c' -> Composite qi
+        'p' -> Pseudo name
+        _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+          
   sql = [q|
-    SELECT p.proname as "proc_name",
-           pg_get_function_arguments(p.oid) as "args",
-           pg_get_function_result(p.oid) as "return_type"
-    FROM   pg_namespace n
-    JOIN   pg_proc p
-    ON     pronamespace = n.oid
-    WHERE  n.nspname = $1|]
+  SELECT p.proname as "proc_name",
+         pg_get_function_arguments(p.oid) as "args",
+         tn.nspname as "rettype_schema",
+         coalesce(comp.relname, t.typname) as "rettype_name",
+         p.proretset as "rettype_is_setof",
+         t.typtype as "rettype_typ"
+  FROM pg_proc p
+    JOIN pg_namespace pn ON pn.oid = p.pronamespace
+    JOIN pg_type t ON t.oid = p.prorettype
+    JOIN pg_namespace tn ON tn.oid = t.typnamespace
+    LEFT JOIN pg_class comp ON comp.oid = t.typrelid 
+  WHERE  pn.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =

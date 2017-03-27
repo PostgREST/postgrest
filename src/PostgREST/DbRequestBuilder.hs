@@ -9,9 +9,9 @@ import           Control.Applicative
 import           Control.Lens.Getter       (view)
 import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
-import           Data.List                 (delete, lookup)
+import           Data.List                 (delete)
 import           Data.Maybe                (fromJust)
-import           Data.Text                 (isInfixOf, dropWhile, drop)
+import           Data.Text                 (isInfixOf)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
 
@@ -35,7 +35,7 @@ import           Protolude                hiding (from, dropWhile, drop)
 import           Text.Regex.TDFA         ((=~))
 import           Unsafe                  (unsafeHead)
 
-readRequest :: Maybe Integer -> [Relation] -> [(Text, Text)] -> ApiRequest -> Either Response ReadRequest
+readRequest :: Maybe Integer -> [Relation] -> M.HashMap Text ProcDescription -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels allProcs apiRequest  =
   mapLeft apiRequestError $
   treeRestrictRange maxRows =<<
@@ -46,13 +46,13 @@ readRequest maxRows allRels allProcs apiRequest  =
       let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
-        (TargetProc  (QualifiedIdentifier s p) ) -> Just (s, t)
+        (TargetProc  (QualifiedIdentifier s proc) ) -> Just (s, tName)
           where
-            returnType = fromMaybe "" $ lookup p allProcs
-            -- we are looking for results looking like "SETOF schema.tablename" and want to extract tablename
-            t = if "SETOF " `isInfixOf` returnType
-              then drop 1 $ dropWhile (/= '.') returnType
-              else p
+            retType = pdReturnType <$> M.lookup proc allProcs
+            tName = case retType of
+              Just (SetOf (Composite qi)) -> qiName qi
+              Just (Single (Composite qi)) -> qiName qi
+              _ -> proc
 
         _ -> Nothing
 

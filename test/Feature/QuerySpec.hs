@@ -512,9 +512,19 @@ spec = do
         post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
           [str|[{"id":1,"name":"Windows 7"}]|]
 
-      it "can embed foreign entities to the items returned by a proc" $
+    context "foreign entities embedding" $ do
+      it "can embed if related tables are in the exposed schema" $
         post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
           [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+
+      it "cannot embed if the related table is not in the exposed schema" $
+        post "/rpc/single_article?select=*,article_stars{*}" [json|{ "id": 1}|] 
+          `shouldRespondWith` 400
+
+      it "can embed if the related tables are in a hidden schema but exposed as views" $
+        post "/rpc/single_article?select=id,articleStars{userId}" [json|{ "id": 2}|] 
+          `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $
@@ -522,15 +532,54 @@ spec = do
           [json| [] |]
           { matchHeaders = [matchContentTypeJson] }
 
-    context "a proc that returns plain text" $ do
-      it "returns proper json" $
-        post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
-          [json|"Hello, world"|]
+    context "proc return types" $ do
+      context "returns text" $ do
+        it "returns proper json" $
+          post "/rpc/sayhello" [json| { "name": "world" } |] `shouldRespondWith`
+            [json|"Hello, world"|]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can handle unicode" $
+          post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
+            [json|"Hello, ￥"|]
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "returns enum value" $
+        post "/rpc/ret_enum" [json|{ "val": "foo" }|] `shouldRespondWith`
+          [json|"foo"|]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "can handle unicode" $
-        post "/rpc/sayhello" [json| { "name": "￥" } |] `shouldRespondWith`
-          [json|"Hello, ￥"|]
+      it "returns domain value" $
+        post "/rpc/ret_domain" [json|{ "val": "8" }|] `shouldRespondWith`
+          [json|8|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "returns range" $
+        post "/rpc/ret_range" [json|{ "low": 10, "up": 20 }|] `shouldRespondWith`
+          [json|"[10,20)"|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "returns row of scalars" $
+        post "/rpc/ret_scalars" [json|{}|] `shouldRespondWith`
+          [json|[{"a":"scalars", "b":"foo", "c":1, "d":"[10,20)"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "returns composite type in exposed schema" $
+        post "/rpc/ret_point_2d" [json|{}|] `shouldRespondWith`
+          [json|[{"x": 10, "y": 5}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "cannot return composite type in hidden schema" $
+        post "/rpc/ret_point_3d" [json|{}|] `shouldRespondWith` 401
+
+      it "returns single row from table" $
+        post "/rpc/single_article?select=id" [json|{"id": 2}|] `shouldRespondWith` 
+          [json|[{"id": 2}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "returns null for void" $
+        post "/rpc/ret_void" [json|{}|] `shouldRespondWith`
+          [json|null|]
           { matchHeaders = [matchContentTypeJson] }
 
     context "improper input" $ do
