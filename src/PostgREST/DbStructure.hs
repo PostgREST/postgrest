@@ -100,10 +100,19 @@ decodeSynonyms cols =
 accessibleProcs :: H.Query Schema (M.HashMap Text ProcDescription)
 accessibleProcs =
   H.statement sql (HE.value HE.text)
-    (M.fromList . map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
-                                <*> (parseArgs <$> HD.value HD.text)
-                                <*> (parseRetType <$> HD.value HD.text <*> HD.value HD.text <*>
-                                                      HD.value HD.bool <*> HD.value HD.char))) True
+    (M.fromList . map addName <$>
+      HD.rowsList (
+        ProcDescription <$> HD.value HD.text
+                        <*> (parseArgs <$> HD.value HD.text)
+                        <*> (parseRetType <$>
+                            HD.value HD.text <*>
+                            HD.value HD.text <*>
+                            HD.value HD.bool <*>
+                            HD.value HD.char)
+                        <*> (parseVolatility <$>
+                            HD.value HD.text)
+      )
+    ) True
  where
   addName :: ProcDescription -> (Text, ProcDescription)
   addName pd = (pdName pd, pd)
@@ -124,25 +133,32 @@ accessibleProcs =
   parseRetType schema name isSetOf typ
     | isSetOf   = SetOf pgType
     | otherwise = Single pgType
-    where 
+    where
       qi = QualifiedIdentifier schema name
-      pgType = case typ of 
+      pgType = case typ of
         'c' -> Composite qi
         'p' -> Pseudo name
         _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
-          
+
+  parseVolatility :: Text -> ProcVolatility
+  parseVolatility "i" = Immutable
+  parseVolatility "s" = Stable
+  parseVolatility "v" = Volatile
+  parseVolatility _   = Volatile -- should not happen, but be pessimistic
+
   sql = [q|
   SELECT p.proname as "proc_name",
          pg_get_function_arguments(p.oid) as "args",
          tn.nspname as "rettype_schema",
          coalesce(comp.relname, t.typname) as "rettype_name",
          p.proretset as "rettype_is_setof",
-         t.typtype as "rettype_typ"
+         t.typtype as "rettype_typ",
+         p.provolatile
   FROM pg_proc p
     JOIN pg_namespace pn ON pn.oid = p.pronamespace
     JOIN pg_type t ON t.oid = p.prorettype
     JOIN pg_namespace tn ON tn.oid = t.typnamespace
-    LEFT JOIN pg_class comp ON comp.oid = t.typrelid 
+    LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   WHERE  pn.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
