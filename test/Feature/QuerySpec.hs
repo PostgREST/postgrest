@@ -5,6 +5,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus,simpleBody))
+import qualified Data.ByteString.Lazy as BL (empty)
 
 import SpecHelper
 import Text.Heredoc
@@ -481,7 +482,6 @@ spec = do
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
 
-
       it "returns proper json" $
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
@@ -639,6 +639,12 @@ spec = do
           [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
                  , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
                  { matchHeaders = [matchContentTypeJson] }
+
+    context "a proc that receives no parameters" $
+      it "interprets empty string as empty json object on a post request" $
+        post "/rpc/noparamsproc" BL.empty `shouldRespondWith`
+          [json| "Return value of no parameters procedure." |]
+          { matchHeaders = [matchContentTypeJson] }
 
   describe "weird requests" $ do
     it "can query as normal" $ do
