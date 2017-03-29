@@ -40,6 +40,7 @@ import           PostgREST.Types           ( QualifiedIdentifier (..)
                                            , ApiRequestError(..)
                                            , toMime)
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
+import qualified Data.CaseInsensitive      as CI
 
 type RequestBody = BL.ByteString
 
@@ -92,6 +93,8 @@ data ApiRequest = ApiRequest {
   , iCanonicalQS :: ByteString
   -- | JSON Web Token
   , iJWT :: Text
+  -- | HTTP request headers
+  , iHeaders :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -119,6 +122,7 @@ userApiRequest schema req reqBody
         . parseSimpleQuery
         $ rawQueryString req
       , iJWT = tokenStr
+      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization]
       }
  where
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path

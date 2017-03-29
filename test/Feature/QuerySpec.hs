@@ -518,11 +518,11 @@ spec = do
           [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
 
       it "cannot embed if the related table is not in the exposed schema" $
-        post "/rpc/single_article?select=*,article_stars{*}" [json|{ "id": 1}|] 
+        post "/rpc/single_article?select=*,article_stars{*}" [json|{ "id": 1}|]
           `shouldRespondWith` 400
 
       it "can embed if the related tables are in a hidden schema but exposed as views" $
-        post "/rpc/single_article?select=id,articleStars{userId}" [json|{ "id": 2}|] 
+        post "/rpc/single_article?select=id,articleStars{userId}" [json|{ "id": 2}|]
           `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -573,7 +573,7 @@ spec = do
         post "/rpc/ret_point_3d" [json|{}|] `shouldRespondWith` 401
 
       it "returns single row from table" $
-        post "/rpc/single_article?select=id" [json|{"id": 2}|] `shouldRespondWith` 
+        post "/rpc/single_article?select=id" [json|{"id": 2}|] `shouldRespondWith`
           [json|[{"id": 2}]|]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -693,3 +693,30 @@ spec = do
         { matchStatus = 200
         , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
         }
+  describe "HTTP request env vars" $ do
+    it "custom header is set" $ do
+      request methodPost "/rpc/get_guc_value"
+                [("Custom-Header", "test")]
+          [json| { "name": "request.header.custom-header" } |]
+          `shouldRespondWith`
+          [str|"test"|]
+          { matchStatus  = 200
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+    it "standard header is set" $ do
+      request methodPost "/rpc/get_guc_value"
+                [("Origin", "http://example.com")]
+          [json| { "name": "request.header.origin" } |]
+          `shouldRespondWith`
+          [str|"http://example.com"|]
+          { matchStatus  = 200
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+    it "current role is available as GUC claim" $ do
+      request methodPost "/rpc/get_guc_value" []
+          [json| { "name": "request.jwt.claim.role" } |]
+          `shouldRespondWith`
+          [str|"postgrest_test_anonymous"|]
+          { matchStatus  = 200
+          , matchHeaders = [ matchContentTypeJson ]
+          }

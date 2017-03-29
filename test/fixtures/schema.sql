@@ -1156,6 +1156,11 @@ create function test.single_article(id integer) returns test.articles as $$
   select a.* from test.articles a where a.id = $1;
 $$ language sql;
 
+create function test.get_guc_value(name text) returns text as $$ 
+  select nullif(current_setting(name), '')::text;
+$$ language sql;
+
+
 --
 -- PostgreSQL database dump complete
 --
