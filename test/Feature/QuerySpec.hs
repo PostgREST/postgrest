@@ -694,7 +694,7 @@ spec = do
         , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
         }
   describe "HTTP request env vars" $ do
-    it "custom header is set" $ do
+    it "custom header is set" $
       request methodPost "/rpc/get_guc_value"
                 [("Custom-Header", "test")]
           [json| { "name": "request.header.custom-header" } |]
@@ -703,7 +703,7 @@ spec = do
           { matchStatus  = 200
           , matchHeaders = [ matchContentTypeJson ]
           }
-    it "standard header is set" $ do
+    it "standard header is set" $
       request methodPost "/rpc/get_guc_value"
                 [("Origin", "http://example.com")]
           [json| { "name": "request.header.origin" } |]
@@ -712,7 +712,7 @@ spec = do
           { matchStatus  = 200
           , matchHeaders = [ matchContentTypeJson ]
           }
-    it "current role is available as GUC claim" $ do
+    it "current role is available as GUC claim" $
       request methodPost "/rpc/get_guc_value" []
           [json| { "name": "request.jwt.claim.role" } |]
           `shouldRespondWith`
