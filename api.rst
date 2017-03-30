@@ -111,7 +111,7 @@ Filters may be applied to computed columns as well as actual table/view columns,
 
   -- (optional) add an index to speed up anticipated query
   CREATE INDEX people_full_name_idx ON people
-    USING GIN (to_tsvector('english', fname || ' ' || lname));
+    USING GIN (to_tsvector('english', full_name(people)));
 
 A full-text search on the computed column:
 
