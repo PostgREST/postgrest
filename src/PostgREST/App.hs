@@ -90,6 +90,7 @@ transactionMode structure target action =
   case action of
     ActionRead -> HT.Read
     ActionInfo -> HT.Read
+    ActionInspect -> HT.Read
     ActionInvoke ->
       let proc =
             case target of
