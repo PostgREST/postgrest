@@ -110,7 +110,7 @@ accessibleProcs =
                             HD.value HD.bool <*>
                             HD.value HD.char)
                         <*> (parseVolatility <$>
-                            HD.value HD.text)
+                            HD.value HD.char)
       )
     ) True
  where
@@ -140,10 +140,10 @@ accessibleProcs =
         'p' -> Pseudo name
         _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
 
-  parseVolatility :: Text -> ProcVolatility
-  parseVolatility "i" = Immutable
-  parseVolatility "s" = Stable
-  parseVolatility "v" = Volatile
+  parseVolatility :: Char -> ProcVolatility
+  parseVolatility 'i' = Immutable
+  parseVolatility 's' = Stable
+  parseVolatility 'v' = Volatile
   parseVolatility _   = Volatile -- should not happen, but be pessimistic
 
   sql = [q|
