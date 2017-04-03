@@ -414,6 +414,17 @@ spec = do
           `shouldRespondWith` [json| [{id:99}] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "makes no updates and returns 204, when patching with an empty json object" $ do
+        request methodPatch "/items" [] [json| {} |]
+          `shouldRespondWith` ""
+          {
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        g <- get "/items"
+        liftIO $ simpleBody g `shouldBe` [json| [{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15},{id:16},{"id":2},{"id":99}] |]
+
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
         void $ request methodPost "/no_pk" []
