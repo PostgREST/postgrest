@@ -166,10 +166,11 @@ app dbStructure conf apiRequest =
                       then toS body else ""
 
         (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON rows)) ->
-          case (mutateSqlParts, null <$> rows V.!? 0) of
-            (Left errorResponse, _) -> return errorResponse
-            (_, Just True) -> return $ responseLBS status204 [contentRangeH 1 0 Nothing] ""
-            (Right (sq, mq), _) -> do
+          case (mutateSqlParts, null <$> rows V.!? 0, iPreferRepresentation apiRequest == Full) of
+            (Left errorResponse, _, _) -> return errorResponse
+            (_, Just True, True) -> return $ responseLBS status200 [contentRangeH 1 0 Nothing] "[]"
+            (_, Just True, False) -> return $ responseLBS status204 [contentRangeH 1 0 Nothing] ""
+            (Right (sq, mq), _, _) -> do
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
