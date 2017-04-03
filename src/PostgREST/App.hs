@@ -284,7 +284,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionInvoke ->  [CTApplicationJSON, CTSingularJSON]
-        ActionInspect -> [CTOpenAPI]
+        ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
