@@ -22,9 +22,8 @@ import           Data.Swagger
 
 import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
-import           PostgREST.QueryBuilder      (operators)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
-                                              Proxy(..), ProcDescription(..), toMime)
+                                              Proxy(..), ProcDescription(..), toMime, Operator(..))
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -73,7 +72,7 @@ makeOperatorPattern =
   intercalate "|"
   [ concat ["^", x, y, "[.]"] |
     x <- ["not[.]", ""],
-    y <- map fst operators ]
+    y <- map show [Equals ..] ]
 
 makeRowFilter :: Column -> Param
 makeRowFilter c =

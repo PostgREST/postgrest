@@ -16,7 +16,6 @@ module PostgREST.QueryBuilder (
   , createReadStatement
   , createWriteStatement
   , getJoinConditions
-  , operators
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
@@ -180,25 +179,6 @@ callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
     bodyF
      | isSingle = asJsonSingleF
      | otherwise = asJsonF
-
-operators :: [(Text, SqlFragment)]
-operators = [
-  ("eq", "="),
-  ("gte", ">="), -- has to be before gt (parsers)
-  ("gt", ">"),
-  ("lte", "<="), -- has to be before lt (parsers)
-  ("lt", "<"),
-  ("neq", "<>"),
-  ("like", "like"),
-  ("ilike", "ilike"),
-  ("in", "in"),
-  ("notin", "not in"),
-  ("isnot", "is not"), -- has to be before is (parsers)
-  ("is", "is"),
-  ("@@", "@@"),
-  ("@>", "@>"),
-  ("<@", "<@")
-  ]
 
 pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
