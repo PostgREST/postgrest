@@ -201,9 +201,7 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi) localConditions )) `emptyOnNull` localConditions
    ]
  where
-   qi = if mainTbl == sourceCTEName
-     then QualifiedIdentifier "" mainTbl
-     else QualifiedIdentifier schema mainTbl
+   qi = removeSourceCTESchema schema mainTbl
    fn Filter{operation=Operation{opVal=(_, VText _)}} = True
    fn Filter{operation=Operation{opVal=(_, VTextL _)}} = True
    fn Filter{operation=Operation{opVal=(_, VForeignKey _ _)}} = False
@@ -213,12 +211,9 @@ requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
-    -- TODO! the following helper functions are just to remove the "schema" part when the table is "source" which is the name
-    -- of our WITH query part
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
-    tblSchema tbl = if tbl == sourceCTEName then "" else schema
-    qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
-    toQi t = QualifiedIdentifier (tblSchema t) t
+    qi = removeSourceCTESchema schema mainTbl
+    toQi = removeSourceCTESchema schema
     query = unwords [
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
@@ -310,6 +305,9 @@ requestToQuery schema _ (DbMutate (Delete mainTbl conditions returnings)) =
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
+
+removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
+removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
 
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
@@ -412,13 +410,11 @@ pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
 pgFmtFilter table (Filter field_ (Operation hasNot_ opVal_@(op, filterValue))) =
   notOp <> " " <> operation_
   where
-    notOp       = if hasNot_ then "not" else ""
-    operation_ = 
-      case filterValue of
-        VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) -> 
-          pgFmtField fQi field_ <> " " <> opToSqlFragment op <> " " <> pgFmtColumn qi fColName
-          where qi = QualifiedIdentifier (if fTableName == sourceCTEName then "" else qiSchema fQi) fTableName
-        _ -> pgFmtField table field_ <> " " <> opToSqlFragment op <> " " <> pgFmtOpVal opVal_ 
+    notOp       = if hasNot_ then "NOT" else ""
+    operation_ = case filterValue of
+      VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) -> 
+        pgFmtField fQi field_ <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
+      _ -> pgFmtField table field_ <> " " <> opToSqlFragment op <> " " <> pgFmtOpVal opVal_ 
 
 pgFmtOpVal :: (Operator, FValue) -> SqlFragment
 pgFmtOpVal opVal_ =
