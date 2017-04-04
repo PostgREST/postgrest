@@ -2,13 +2,14 @@ module PostgREST.Parsers where
 
 import           Protolude                     hiding (try, intercalate)
 import           Control.Monad                ((>>))
+import           Data.Foldable                (foldl1)
 import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
 import           Data.Tree
 import           Data.Either.Combinators       (mapLeft)
-import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
+import           Text.Read                    (read)
 import           PostgREST.RangeQuery      (NonnegRange,allRange)
 import           Text.Parsec.Error
 
@@ -17,14 +18,12 @@ pRequestSelect rootName selStr =
   mapError $ parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
 
 pRequestFilter :: (Text, Text) -> Either ApiRequestError (Path, Filter)
-pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> op <*> val)
+pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
-    opVal = parse pOpValueExp ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = parse pOperation ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
-    op = fst <$> opVal
-    val = snd <$> opVal
 
 pRequestOrder :: (Text, Text) -> Either ApiRequestError (Path, [OrderTerm])
 pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
@@ -120,21 +119,28 @@ pSelect = lexeme $
     s <- pStar
     return ((s, Nothing), Nothing, Nothing)
 
-pOperator :: Parser Operator
-pOperator = toS <$> (pOp <?> "operator (eq, gt, ...)")
-  where pOp = foldl (<|>) empty $ map (try . string . toS . fst) operators
+pOperation :: Parser Operation
+pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pOpVal)) <|> Operation False <$> pOpVal
+  where
+    pOpVal :: Parser (Operator, FValue)
+    pOpVal = 
+          ((,) <$> (read <$> foldl1 (<|>) (try . string . show <$> notListOps)) <*> (pDelimiter *> pVText))
+      <|> try (string (show In) *> pDelimiter *> ((,) <$> pure In <*> pVTextL))
+      <|> try (string (show NotIn) *> pDelimiter *> ((,) <$> pure NotIn <*> pVTextL))
+      <?> "operator (eq, gt, ...)"
+    notListOps = [Equals .. Contained]
 
-pValue :: Parser FValue
-pValue = VText <$> (toS <$> many anyChar)
+pVText :: Parser FValue
+pVText = VText . toS <$> many anyChar
+
+pVTextL :: Parser FValue
+pVTextL = VTextL <$> pLValue `sepBy1` char ','
+  where 
+    pLValue :: Parser Text
+    pLValue = toS <$> (try (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",") ) <|> many (noneOf ","))
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
-
-pOperatiorWithNegation :: Parser Operator
-pOperatiorWithNegation = try ( (<>) <$> ( toS <$> string "not." ) <*>  pOperator) <|> pOperator
-
-pOpValueExp :: Parser (Operator, FValue)
-pOpValueExp = (,) <$> pOperatiorWithNegation <*> (pDelimiter *> pValue)
 
 pOrder :: Parser [OrderTerm]
 pOrder = lexeme pOrderTerm `sepBy` char ','

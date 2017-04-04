@@ -656,7 +656,7 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not.\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
