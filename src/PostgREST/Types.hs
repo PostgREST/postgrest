@@ -79,9 +79,7 @@ data Column =
     , colDefault   :: Maybe Text
     , colEnum      :: [Text]
     , colFK        :: Maybe ForeignKey
-    }
-  | Star { colTable :: Table }
-  deriving (Show, Ord)
+    } deriving (Show, Ord)
 
 type Synonym = (Column,Column)
 
@@ -253,7 +251,6 @@ instance Eq Table where
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
-  _ == _ = False
 
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header

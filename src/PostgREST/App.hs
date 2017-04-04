@@ -266,7 +266,6 @@ app dbStructure conf apiRequest =
       filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
       filterCol :: Schema -> TableName -> Column -> Bool
       filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
-      filterCol _ _ _ =  False
       allPrKeys = dbPrimaryKeys dbStructure
       allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
       jsonH = toHeader CTApplicationJSON
