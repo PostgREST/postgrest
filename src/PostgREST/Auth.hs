@@ -12,7 +12,6 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 module PostgREST.Auth (
-    -- claimsToSQL
     containsRole
   , jwtClaims
   , tokenJWT
