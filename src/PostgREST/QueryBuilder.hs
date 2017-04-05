@@ -296,8 +296,8 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = undefined --error "undefined getQueryParts"
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)) =
-  insInto <> vals <> ret
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) _)) =
+  insInto <> vals
   where qi = QualifiedIdentifier schema mainTbl
         cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
         colsString = intercalate ", " cols
@@ -308,10 +308,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)
           if T.null colsString
             then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
             else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
-        ret = if null returnings 
-                then ""
-                else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions returnings)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions _)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -319,20 +316,18 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-        ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
         ]
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema _ (DbMutate (Delete mainTbl conditions returnings)) =
+requestToQuery schema _ (DbMutate (Delete mainTbl conditions _)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
-      ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
       ]
 
 sourceCTEName :: SqlFragment
