@@ -50,7 +50,6 @@ import           Data.Scientific         ( FPFormat (..)
                                          )
 import           Protolude hiding        (from, intercalate, ord, cast)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
-import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -300,22 +299,18 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
 requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)) =
   insInto <> vals <> ret
   where qi = QualifiedIdentifier schema mainTbl
-      cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
-      colsString = intercalate ", " cols
-      insInto = unwords [ "INSERT INTO" , fromQi qi,
-          if T.null colsString then "" else "(" <> colsString <> ")"
-        ]
-      vals = unwords $
-        if T.null colsString
-          then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
-          else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
-
-                then ["DEFAULT VALUES"]
-                else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
-  insInto <> vals
+        cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
+        colsString = intercalate ", " cols
+        insInto = unwords [ "INSERT INTO" , fromQi qi,
+            if T.null colsString then "" else "(" <> colsString <> ")"
+          ]
+        vals = unwords $
+          if T.null colsString
+            then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
+            else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
         ret = if null returnings 
-                  then ""
-                  else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
+                then ""
+                else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
 requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions returnings)) =
   case rows V.!? 0 of
     Just obj ->
@@ -324,7 +319,7 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
+        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
         ]
     Nothing -> undefined
@@ -336,7 +331,7 @@ requestToQuery schema _ (DbMutate (Delete mainTbl conditions returnings)) =
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions
+      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
       ]
 
