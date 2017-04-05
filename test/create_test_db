@@ -86,7 +86,6 @@ EOF
 
 PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xqf $BASEPATH/fixtures/database.sql
 PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xqf $BASEPATH/fixtures/schema.sql
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xqf $BASEPATH/fixtures/jwt.sql
 PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=test_user_name="$TEST_USER_NAME" -Xqf $BASEPATH/fixtures/privileges.sql
 
 # Create a new connection string to use with the test runner
