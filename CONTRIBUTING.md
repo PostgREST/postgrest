@@ -66,4 +66,4 @@ discuss issues you are having.
 
 For instructions on running tests, see the official docs hosted here:
 
-https://postgrest.readthedocs.io/en/v0.4/install.html#postgrest-test-suite
+https://postgrest.com/en/v0.4/install.html#postgrest-test-suite
