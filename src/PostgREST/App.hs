@@ -43,7 +43,7 @@ import           PostgREST.Auth            (jwtClaims, containsRole)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.DbRequestBuilder(readRequest, mutateRequest)
-import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse, singularityError)
+import           PostgREST.Error           (errResponse, pgErrResponse, apiRequestErrResponse)
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
 import           PostgREST.QueryBuilder ( callProc
