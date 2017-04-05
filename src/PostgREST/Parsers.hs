@@ -123,7 +123,7 @@ pOperation :: Parser Operation
 pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pOpVal)) <|> Operation False <$> pOpVal
   where
     pOpVal :: Parser (Operator, FValue)
-    pOpVal = 
+    pOpVal =
           ((,) <$> (read <$> foldl1 (<|>) (try . string . show <$> notListOps)) <*> (pDelimiter *> pVText))
       <|> try (string (show In) *> pDelimiter *> ((,) <$> pure In <*> pVTextL))
       <|> try (string (show NotIn) *> pDelimiter *> ((,) <$> pure NotIn <*> pVTextL))
@@ -135,7 +135,7 @@ pVText = VText . toS <$> many anyChar
 
 pVTextL :: Parser FValue
 pVTextL = VTextL <$> pLValue `sepBy1` char ','
-  where 
+  where
     pLValue :: Parser Text
     pLValue = toS <$> (try (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",") ) <|> many (noneOf ","))
 

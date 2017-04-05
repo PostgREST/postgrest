@@ -35,7 +35,7 @@ import qualified Data.Aeson              as JSON
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
-import           Data.Maybe              
+import           Data.Maybe
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
@@ -412,9 +412,9 @@ pgFmtFilter table (Filter field_ (Operation hasNot_ opVal_@(op, filterValue))) =
   where
     notOp       = if hasNot_ then "NOT" else ""
     operation_ = case filterValue of
-      VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) -> 
+      VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
         pgFmtField fQi field_ <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
-      _ -> pgFmtField table field_ <> " " <> opToSqlFragment op <> " " <> pgFmtOpVal opVal_ 
+      _ -> pgFmtField table field_ <> " " <> opToSqlFragment op <> " " <> pgFmtOpVal opVal_
 
 pgFmtOpVal :: (Operator, FValue) -> SqlFragment
 pgFmtOpVal opVal_ =

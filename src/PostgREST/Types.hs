@@ -178,7 +178,7 @@ instance Read Operator where
     _ -> []
 
 opToSqlFragment :: Operator -> SqlFragment
-opToSqlFragment op = case op of 
+opToSqlFragment op = case op of
   Equals -> "="
   Gte -> ">="
   Gt -> ">"
