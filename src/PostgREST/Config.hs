@@ -23,6 +23,7 @@ module PostgREST.Config ( prettyVersion
 
 import           System.IO.Error             (IOError)
 import           Control.Applicative
+import qualified Data.ByteString             as B
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
@@ -37,7 +38,7 @@ import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
 import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 
 import           Protolude hiding            (intercalate
                                              , (<>))
@@ -50,9 +51,11 @@ data AppConfig = AppConfig {
   , configSchema    :: Text
   , configHost      :: Text
   , configPort      :: Int
-  , configJwtSecret :: Maybe Text
+  , configJwtSecret :: Maybe B.ByteString
+  , configJwtSecretIsBase64 :: Bool
   , configPool      :: Int
   , configMaxRows   :: Maybe Integer
+  , configReqCheck  :: Maybe Text
   , configQuiet     :: Bool
   }
 
@@ -105,12 +108,13 @@ readOptions = do
     cProxy    <- C.lookup conf "server-proxy-uri"
     -- jwt ---------------
     cJwtSec   <- C.lookup conf "jwt-secret"
+    cJwtB64   <- C.lookupDefault False conf "secret-is-base64"
     -- safety ------------
     cMaxRows  <- C.lookup conf "max-rows"
     cReqCheck <- C.lookup conf "pre-request"
 
     return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
-          cJwtSec cPool cMaxRows cReqCheck False
+          (encodeUtf8 <$> cJwtSec) cJwtB64 cPool cMaxRows cReqCheck False
 
  where
   opts = info (helper <*> pathParser) $
