@@ -131,8 +131,10 @@ Test-Suite spec
                      , base
                      , bytestring
                      , base64-bytestring
+                     , base64-string
                      , case-insensitive
                      , cassava
+                     , containers
                      , contravariant
                      , hasql
                      , hasql-pool
