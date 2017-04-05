@@ -425,6 +425,25 @@ By default, a function is executed with the privileges of the user who calls it.
 
   We are considering allowing GET requests for functions that are marked non-volatile. Allowing GET is important for HTTP caching. However we still must decide how to pass function parameters since request bodies are not allowed. Also some query string arguments are already reserved for shaping/filtering the output.
 
+Complex boolean logic
+---------------------
+
+For complex boolean logic you can use stored procedures, an example:
+
+.. code-block:: postgresql
+
+  CREATE FUNCTION key_customers(country TEXT, company TEXT, salary FLOAT) RETURNS SETOF customers AS $$
+    SELECT * FROM customers WHERE (country = $1 AND company = $2) OR salary = $3;
+  $$ LANGUAGE SQL;
+
+Then you can query by doing:
+
+.. code-block:: http
+
+  POST /rpc/key_customers HTTP/1.1
+
+  { "country": "Germany", "company": "Volkswagen", salary": 120000.00 }
+
 Raising Errors
 --------------
 
