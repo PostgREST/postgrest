@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Accept clients requesting `Content-Type: application/json` from / - @feynmanliang
 - #493, Updating with empty JSON object makes zero updates @koulakis
 - Make HTTP headers and cookies available as GUCs #800 - @ruslantalpa
+- #701, Ability to quote values on IN filters - @steve-chavez
 
 ### Fixed
 - #827, Avoid Warp reaper, extend socket timeout to 1 hour - @majorcode

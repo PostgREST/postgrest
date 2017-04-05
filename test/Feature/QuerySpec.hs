@@ -737,3 +737,37 @@ spec = do
           { matchStatus = 200
           , matchHeaders = []
           }
+
+  describe "values with quotes in IN and NOTIN operators" $ do
+    it "succeeds when only quoted values are present" $ do
+      get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "succeeds w/ and w/o quoted values" $ do
+      get "/w_or_wo_comma_names?name=in.David White,\"Hebdon, John\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"},{"name":"David White"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"Williams, Mary"},{"name":"David White"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",David White,\"Williams, Mary\",Larry Thompson" `shouldRespondWith`
+        [json| [{"name":"Smith, Joseph"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "checks well formed quoted values" $ do
+      get "/w_or_wo_comma_names?name=in.\"\"Hebdon, John\"" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.\"\"Hebdon, John\"\"Mary" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.Williams\"Hebdon, John\"" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }

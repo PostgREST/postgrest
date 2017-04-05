@@ -287,6 +287,13 @@ TRUNCATE TABLE images CASCADE;
 INSERT INTO images(name, img) VALUES ('A.png', decode('iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC', 'base64'));
 INSERT INTO images(name, img) VALUES ('B.png', decode('iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII=', 'base64'));
 
+TRUNCATE TABLE w_or_wo_comma_names CASCADE;
+INSERT INTO w_or_wo_comma_names VALUES ('Hebdon, John');
+INSERT INTO w_or_wo_comma_names VALUES ('Williams, Mary');
+INSERT INTO w_or_wo_comma_names VALUES ('Smith, Joseph');
+INSERT INTO w_or_wo_comma_names VALUES ('David White');
+INSERT INTO w_or_wo_comma_names VALUES ('Larry Thompson');
+
 --
 -- PostgreSQL database dump complete
 --
