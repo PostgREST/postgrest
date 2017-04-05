@@ -20,7 +20,7 @@ import           PostgREST.Auth                (JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (simpleError)
 import           PostgREST.Types               (ContentType (..), toHeader)
-import           PostgREST.QueryBuilder        (pgFmtIdent, pgFmtLit, unquoted)
+import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtEnvVar)
 
 import           Protolude                     hiding (concat, null)
 
@@ -33,12 +33,12 @@ runWithClaims conf eClaims app req =
     JWTInvalid -> return $ unauthed "JWT invalid"
     JWTMissingSecret -> return $ simpleError status500 "Server lacks JWT secret"
     JWTClaims claims -> do
-      H.sql $ mconcat $ setRoleSql ++ claimsSql ++ headersSql
+      H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql
       mapM_ H.sql customReqCheck
       app req
       where
-        headersSql = envVarToSql "request.header." $ iHeaders req
-        claimsSql = envVarToSql "request.jwt.claim." [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
+        headersSql = map (pgFmtEnvVar "request.header.") $ iHeaders req
+        claimsSql = map (pgFmtEnvVar "request.jwt.claim.") [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
         setRoleSql = maybeToList $
           (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
         -- role claim defaults to anon if not specified in jwt
@@ -54,13 +54,6 @@ runWithClaims conf eClaims app req =
         )
       ]
       (toS $ "{\"message\":\""<>message<>"\"}")
-
-envVarToSql :: Text -> [(Text, Text)] -> [ByteString]
-envVarToSql prefix vars = varStmts
- where
-  varStmts = map setVar vars
-  setVar (k, val) = toS $ "set local " <> pgFmtIdent (prefix <> k)
-                    <> " = " <> pgFmtLit val <> ";"
 
 defaultMiddle :: Application -> Application
 defaultMiddle =
