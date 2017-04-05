@@ -61,3 +61,9 @@ my other obligations.  If you don't get a response right away
 don't worry, I will definitely get to it. Also you can join the
 Gitter [chat room](https://gitter.im/begriffs/postgrest) to
 discuss issues you are having.
+
+## Running Tests
+
+For instructions on running tests, see the official docs hosted here:
+
+https://postgrest.com/en/v0.4/install.html#postgrest-test-suite
