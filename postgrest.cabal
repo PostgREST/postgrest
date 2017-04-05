@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.3.2.0
+version:               0.3.2.1
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
@@ -38,6 +38,8 @@ executable postgrest
                      , text
                      , time
                      , warp
+                     , bytestring
+                     , base64-bytestring
   if !os(windows)
     build-depends:     unix
 
@@ -58,7 +60,7 @@ library
                      , either
                      , hasql
                      , hasql-pool == 0.4.1
-                     , hasql-transaction == 0.4.5.1
+                     , hasql-transaction == 0.5
                      , heredoc
                      , HTTP
                      , http-types
@@ -68,7 +70,7 @@ library
                      , lens
                      , lens-aeson
                      , network-uri
-                     , optparse-applicative >= 0.13 && < 0.14
+                     , optparse-applicative >= 0.12.0.0 && < 0.13.0.0
                      , parsec
                      , protolude
                      , Ranged-sets == 0.3.0
@@ -127,8 +129,8 @@ Test-Suite spec
                      , async
                      , auto-update
                      , base
-                     , base64-string
                      , bytestring
+                     , base64-bytestring
                      , case-insensitive
                      , cassava
                      , contravariant
