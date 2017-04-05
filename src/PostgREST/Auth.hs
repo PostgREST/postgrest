@@ -16,19 +16,17 @@ module PostgREST.Auth (
   , containsRole
   , jwtClaims
   , tokenJWT
+  , JWTAttempt(..)
   ) where
 
-import           Lens.Micro
-import           Lens.Micro.Aeson
+import           Protolude
+import           Control.Lens
 import           Data.Aeson              (Value (..), parseJSON, toJSON)
+import           Data.Aeson.Lens
 import           Data.Aeson.Types        (parseMaybe, emptyObject, emptyArray)
-import qualified Data.ByteString         as BS
 import qualified Data.Vector             as V
 import qualified Data.HashMap.Strict     as M
-import           Data.Maybe              (fromMaybe, maybeToList, fromJust)
-import           Data.Monoid             ((<>))
-import           Data.String.Conversions (cs)
-import           Data.Text               (Text)
+import           Data.Maybe              (fromJust)
 import           Data.Time.Clock         (NominalDiffTime)
 import           PostgREST.QueryBuilder  (pgFmtIdent, pgFmtLit, unquoted)
 import qualified Web.JWT                 as JWT
@@ -39,33 +37,44 @@ import qualified Web.JWT                 as JWT
   have a claim called role, this one is mapped to a SET ROLE
   statement.
 -}
-claimsToSQL :: M.HashMap Text Value -> [BS.ByteString]
+claimsToSQL :: M.HashMap Text Value -> [ByteString]
 claimsToSQL claims = roleStmts <> varStmts
  where
   roleStmts = maybeToList $
-    (\r -> "set local role " <> r <> ";") . cs . valueToVariable <$> M.lookup "role" claims
+    (\r -> "set local role " <> r <> ";") . toS . valueToVariable <$> M.lookup "role" claims
   varStmts = map setVar $ M.toList (M.delete "role" claims)
-  setVar (k, val) = "set local " <> cs (pgFmtIdent $ "postgrest.claims." <> k)
-                    <> " = " <> cs (valueToVariable val) <> ";"
+  setVar (k, val) = "set local " <> toS (pgFmtIdent $ "postgrest.claims." <> k)
+                    <> " = " <> toS (valueToVariable val) <> ";"
   valueToVariable = pgFmtLit . unquoted
 
 {-|
-  Receives the JWT secret (from config) and a JWT and
-  returns a map of JWT claims
-  In case there is any problem decoding the JWT it returns an error Text
+  Possible situations encountered with client JWTs
 -}
-jwtClaims :: JWT.Secret -> Text -> NominalDiffTime -> Either Text (M.HashMap Text Value)
-jwtClaims _ "" _ = Right M.empty
+data JWTAttempt = JWTExpired
+                | JWTInvalid
+                | JWTMissingSecret
+                | JWTClaims (M.HashMap Text Value)
+                deriving Eq
+
+{-|
+  Receives the JWT secret (from config) and a JWT and returns a map
+  of JWT claims.
+-}
+jwtClaims :: Maybe JWT.Secret -> Text -> NominalDiffTime -> JWTAttempt
+jwtClaims _ "" _ = JWTClaims M.empty
 jwtClaims secret jwt time =
-  case isExpired <$> mClaims of
-    Just True -> Left "JWT expired"
-    Nothing -> Left "Invalid JWT"
-    Just False -> Right $ value2map $ fromJust mClaims
+  case secret of
+    Nothing -> JWTMissingSecret
+    Just s ->
+      let mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature s jwt in
+      case isExpired <$> mClaims of
+        Just True -> JWTExpired
+        Nothing -> JWTInvalid
+        Just False -> JWTClaims $ value2map $ fromJust mClaims
  where
   isExpired claims =
     let mExp = claims ^? key "exp" . _Integer
     in fromMaybe False $ (<= time) . fromInteger <$> mExp
-  mClaims = toJSON . JWT.claims <$> JWT.decodeAndVerifySignature secret jwt
   value2map (Object o) = o
   value2map _          = M.empty
 
@@ -83,6 +92,6 @@ tokenJWT secret _ = tokenJWT secret emptyArray
 {-|
   Whether a response from jwtClaims contains a role claim
 -}
-containsRole :: Either Text (M.HashMap Text Value) -> Bool
-containsRole (Left _) = False
-containsRole (Right claims) = M.member "role" claims
+containsRole :: JWTAttempt -> Bool
+containsRole (JWTClaims claims) = M.member "role" claims
+containsRole _ = False

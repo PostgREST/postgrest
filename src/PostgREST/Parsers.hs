@@ -1,20 +1,50 @@
-module PostgREST.Parsers
--- ( parseGetRequest
--- )
-where
+module PostgREST.Parsers where
 
-import           Control.Applicative           hiding ((<$>))
-import           Data.Monoid
-import           Data.String.Conversions       (cs)
-import           Data.Text                     (Text, intercalate)
+import           Protolude                     hiding (try, intercalate)
+import           Control.Monad                ((>>))
+import           Data.Text                     (intercalate)
+import           Data.List                     (init, last)
 import           Data.Tree
 import           PostgREST.QueryBuilder        (operators)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           PostgREST.RangeQuery      (NonnegRange,allRange)
 
-pRequestSelect :: Text -> Parser ReadRequest
-pRequestSelect rootNodeName = do
+pRequestSelect :: Text -> Text -> Either ParseError ReadRequest
+pRequestSelect rootName selStr = 
+  parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
+
+pRequestFilter :: (Text, Text) -> Either ParseError (Path, Filter)
+pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
+  where
+    treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
+    opVal = parse pOpValueExp ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    path = fst <$> treePath
+    fld = snd <$> treePath
+    op = fst <$> opVal
+    val = snd <$> opVal
+
+pRequestOrder :: (Text, Text) -> Either ParseError (Path, [OrderTerm])
+pRequestOrder (k, v) = (,) <$> path <*> ord'
+  where
+    treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
+    path = fst <$> treePath
+    ord' = parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
+
+pRequestRange :: (ByteString, NonnegRange) -> Either ParseError (Path, NonnegRange)
+pRequestRange (k, v) = (,) <$> path <*> pure v
+  where
+    treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
+    path = fst <$> treePath
+
+ws :: Parser Text
+ws = toS <$> many (oneOf " \t")
+
+lexeme :: Parser a -> Parser a
+lexeme p = ws *> p <* ws
+
+pReadRequest :: Text -> Parser ReadRequest
+pReadRequest rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
   where
@@ -28,42 +58,11 @@ pRequestSelect rootNodeName = do
             newForest =
               foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
 
-pRequestFilter :: (String, String) -> Either ParseError (Path, Filter)
-pRequestFilter (k, v) = (,) <$> path <*> (Filter <$> fld <*> op <*> val)
-  where
-    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
-    opVal = parse pOpValueExp ("failed to parse filter (" ++ v ++ ")") v
-    path = fst <$> treePath
-    fld = snd <$> treePath
-    op = fst <$> opVal
-    val = snd <$> opVal
-
-pRequestOrder :: (String, String) -> Either ParseError (Path, [OrderTerm])
-pRequestOrder (k, v) = (,) <$> path <*> ord
-  where
-    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
-    path = fst <$> treePath
-    ord = parse pOrder ("failed to parse order (" ++ v ++ ")") v
-
-pRequestRange :: (String, NonnegRange) -> Either ParseError (Path, NonnegRange)
-pRequestRange (k, v) = (,) <$> path <*> pure v
-  where
-    treePath = parse pTreePath ("failed to parser tree path (" ++ k ++ ")") k
-    path = fst <$> treePath
-
-ws :: Parser Text
-ws = cs <$> many (oneOf " \t")
-
-lexeme :: Parser a -> Parser a
-lexeme p = ws *> p <* ws
-
 pTreePath :: Parser (Path,Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe pJsonPath
-  let pp = map cs p
-      jpp = map cs <$> jp
-  return (init pp, (last pp, jpp))
+  return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
@@ -73,13 +72,13 @@ pFieldTree = try (Node <$> pSimpleSelect <*> between (char '{') (char '}') pFiel
           <|>     Node <$> pSelect <*> pure []
 
 pStar :: Parser Text
-pStar = cs <$> (string "*" *> pure ("*"::String))
+pStar = toS <$> (string "*" *> pure ("*"::ByteString))
 
 
 pFieldName :: Parser Text
 pFieldName = do
   matches <- (many1 (letter <|> digit <|> oneOf "_") `sepBy1` dash) <?> "field name (* or [a..z0..9_])"
-  return $ intercalate "-" $ map cs matches
+  return $ intercalate "-" $ map toS matches
   where
     isDash :: GenParser Char st ()
     isDash = try ( char '-' >> notFollowedBy (char '>') )
@@ -88,10 +87,10 @@ pFieldName = do
 
 
 pJsonPathStep :: Parser Text
-pJsonPathStep = cs <$> try (string "->" *> pFieldName)
+pJsonPathStep = toS <$> try (string "->" *> pFieldName)
 
 pJsonPath :: Parser [Text]
-pJsonPath = (++) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
+pJsonPath = (<>) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
 
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
@@ -112,25 +111,25 @@ pSelect = lexeme $
     do
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
-      cast <- optionMaybe (string "::" *> many letter)
-      return (fld, cs <$> cast, alias)
+      cast' <- optionMaybe (string "::" *> many letter)
+      return (fld, toS <$> cast', alias)
   )
   <|> do
     s <- pStar
     return ((s, Nothing), Nothing, Nothing)
 
 pOperator :: Parser Operator
-pOperator = cs <$> (pOp <?> "operator (eq, gt, ...)")
-  where pOp = foldl (<|>) empty $ map (try . string . cs . fst) operators
+pOperator = toS <$> (pOp <?> "operator (eq, gt, ...)")
+  where pOp = foldl (<|>) empty $ map (try . string . toS . fst) operators
 
 pValue :: Parser FValue
-pValue = VText <$> (cs <$> many anyChar)
+pValue = VText <$> (toS <$> many anyChar)
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
 pOperatiorWithNegation :: Parser Operator
-pOperatiorWithNegation = try ( (<>) <$> ( cs <$> string "not." ) <*>  pOperator) <|> pOperator
+pOperatiorWithNegation = try ( (<>) <$> ( toS <$> string "not." ) <*>  pOperator) <|> pOperator
 
 pOpValueExp :: Parser (Operator, FValue)
 pOpValueExp = (,) <$> pOperatiorWithNegation <*> (pDelimiter *> pValue)
@@ -141,14 +140,15 @@ pOrder = lexeme pOrderTerm `sepBy` char ','
 pOrderTerm :: Parser OrderTerm
 pOrderTerm =
   try ( do
-    c <- pFieldName
-    _ <- pDelimiter
-    d <- (string "asc" *> pure OrderAsc)
-         <|> (string "desc" *> pure OrderDesc)
+    c <- pField
+    d <- optionMaybe (try $ pDelimiter *> (
+               try(string "asc" *> pure OrderAsc)
+           <|> try(string "desc" *> pure OrderDesc)
+         ))
     nls <- optionMaybe (pDelimiter *> (
                  try(string "nullslast" *> pure OrderNullsLast)
              <|> try(string "nullsfirst" *> pure OrderNullsFirst)
            ))
     return $ OrderTerm c d nls
   )
-  <|> OrderTerm <$> (cs <$> pFieldName) <*> pure OrderAsc <*> pure Nothing
+  <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing

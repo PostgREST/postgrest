@@ -2,74 +2,97 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (pgErrResponse, errResponse) where
+module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError, formatGeneralError, formatParserError) where
 
-
+import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import           Data.Maybe                (fromMaybe)
-import           Data.Monoid               ((<>))
-import           Data.String.Conversions   (cs)
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
+import           Data.Text                 (replace, strip)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
-import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
+import           PostgREST.ApiRequest      (toHeader, ContentType(..), ApiRequestError(..))
+import           Text.Parsec.Error
+
+apiRequestErrResponse :: ApiRequestError -> Response
+apiRequestErrResponse err =
+  case err of
+    ErrorActionInappropriate -> errResponse HT.status405 "Bad Request"
+    ErrorInvalidBody errorMessage -> errResponse HT.status400 $ toS errorMessage
+    ErrorInvalidRange -> errResponse HT.status416 "HTTP Range error"
 
 errResponse :: HT.Status -> Text -> Response
-errResponse status message = responseLBS status [(hContentType, "application/json")] (cs $ T.concat ["{\"message\":\"",message,"\"}"])
+errResponse status message = jsonErrResponse status $ JSON.object ["message" .= message]
+
+jsonErrResponse :: HT.Status -> JSON.Value -> Response
+jsonErrResponse status message = responseLBS status [toHeader CTApplicationJSON] $ JSON.encode message
 
 pgErrResponse :: Bool -> P.UsageError -> Response
 pgErrResponse authed e =
   let status = httpStatus authed e
-      jsonType = (hContentType, "application/json")
+      jsonType = toHeader CTApplicationJSON
       wwwAuth = ("WWW-Authenticate", "Bearer")
       hdrs = if status == HT.status401
                 then [jsonType, wwwAuth]
                 else [jsonType] in
   responseLBS status hdrs (JSON.encode e)
 
+prettyUsageError :: P.UsageError -> Text
+prettyUsageError (P.ConnectionError e) =
+  "Database connection error:\n" <> toS (fromMaybe "" e)
+prettyUsageError e = show $ JSON.encode e
+
+formatParserError :: ParseError -> Text
+formatParserError e = formatGeneralError message details
+  where
+     message = show $ errorPos e
+     details = strip $ replace "\n" " " $ toS
+       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
+formatGeneralError :: Text -> Text -> Text
+formatGeneralError message details = toS . JSON.encode $
+  JSON.object ["message" .= message, "details" .= details]
+
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
-    "code" .= ("" :: T.Text),
-    "message" .= ("Connection error" :: T.Text),
-    "details" .= (cs (fromMaybe "" e) :: T.Text)]
+    "code" .= ("" :: Text),
+    "message" .= ("Connection error" :: Text),
+    "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
   toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
-    "code" .= (cs c::T.Text),
-    "message" .= (cs m::T.Text),
-    "details" .= (fmap cs d::Maybe T.Text),
-    "hint" .= (fmap cs h::Maybe T.Text)]
+    "code" .= (toS c::Text),
+    "message" .= (toS m::Text),
+    "details" .= (fmap toS d::Maybe Text),
+    "hint" .= (fmap toS h::Maybe Text)]
   toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
-    "message" .= (cs m::T.Text)]
+    "message" .= (m::Text)]
   toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
-    "message" .= ("Row error: end of input"::String),
+    "message" .= ("Row error: end of input"::Text),
     "details" .=
-      ("Attempt to parse more columns than there are in the result"::String),
-    "details" .= ("Row number " <> show i)]
+      ("Attempt to parse more columns than there are in the result"::Text),
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.RowError i H.UnexpectedNull)) = JSON.object [
-    "message" .= ("Row error: unexpected null"::String),
-    "details" .= ("Attempt to parse a NULL as some value."::String),
-    "details" .= ("Row number " <> show i)]
+    "message" .= ("Row error: unexpected null"::Text),
+    "details" .= ("Attempt to parse a NULL as some value."::Text),
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.RowError i (H.ValueError d))) = JSON.object [
-    "message" .= ("Row error: Wrong value parser used"::String),
+    "message" .= ("Row error: Wrong value parser used"::Text),
     "details" .= d,
-    "details" .= ("Row number " <> show i)]
+    "details" .= (("Row number " <> show i)::Text)]
   toJSON (H.ResultError (H.UnexpectedAmountOfRows i)) = JSON.object [
-    "message" .= ("Unexpected amount of rows"::String),
+    "message" .= ("Unexpected amount of rows"::Text),
     "details" .= i]
   toJSON (H.ClientError d) = JSON.object [
-    "message" .= ("Database client error"::String),
-    "details" .= (fmap cs d::Maybe T.Text)]
+    "message" .= ("Database client error"::Text),
+    "details" .= (fmap toS d::Maybe Text)]
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
 httpStatus _ (P.ConnectionError _) = HT.status500
 httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
-  case cs c of
+  case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
     '0':'L':_ -> HT.status403 -- invalid grantor
@@ -90,8 +113,10 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     '5':'8':_ -> HT.status500 -- system error
     'F':'0':_ -> HT.status500 -- conf file error
     'H':'V':_ -> HT.status500 -- foreign data wrapper error
+    "P0001"   -> HT.status400 -- default code for "raise"
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
+    "42883"   -> HT.status404 -- undefined function
     "42P01"   -> HT.status404 -- undefined table
     "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
     _         -> HT.status400

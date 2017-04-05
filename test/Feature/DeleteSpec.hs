@@ -7,6 +7,8 @@ import Text.Heredoc
 import Network.HTTP.Types
 import Network.Wai (Application)
 
+import Protolude hiding (get)
+
 spec :: SpecWith Application
 spec =
   describe "Deleting" $ do
@@ -16,11 +18,11 @@ spec =
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing
           , matchStatus  = 204
-          , matchHeaders = ["Content-Range" <:> "*/1"]
+          , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-      it "returns the deleted item" $
-        request methodDelete "/items?id=eq.2" [("Prefer", "return=representation")] ""
+      it "returns the deleted item and count if requested" $
+        request methodDelete "/items?id=eq.2" [("Prefer", "return=representation"), ("Prefer", "count=exact")] ""
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|[{"id":2}]|]
           , matchStatus  = 200
@@ -31,14 +33,17 @@ spec =
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|[{"id":2,"name":"Two"}]|]
           , matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/1"]
+          , matchHeaders = ["Content-Range" <:> "*/*"]
           }
+      it "can rename and cast the selected columns" $
+        request methodDelete "/complex_items?id=eq.3&select=ciId:id::text,ciName:name" [("Prefer", "return=representation")] ""
+          `shouldRespondWith` [str|[{"ciId":"3","ciName":"Three"}]|]
       it "can embed (parent) entities" $
         request methodDelete "/tasks?id=eq.8&select=id,name,project{id}" [("Prefer", "return=representation")] ""
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|[{"id":8,"name":"Code OSX","project":{"id":4}}]|]
           , matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/1"]
+          , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
       it "actually clears items ouf the db" $ do
@@ -47,7 +52,7 @@ spec =
           `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|[{"id":15}]|]
           , matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-0/1"]
+          , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
     context "known route, unknown record" $

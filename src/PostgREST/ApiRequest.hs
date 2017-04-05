@@ -1,32 +1,44 @@
-module PostgREST.ApiRequest where
+{-|
+Module      : PostgREST.ApiRequest
+Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
+-}
+module PostgREST.ApiRequest ( ApiRequest(..)
+                            , ApiRequestError(..)
+                            , ContentType(..)
+                            , Action(..)
+                            , Target(..)
+                            , PreferRepresentation (..)
+                            , mutuallyAgreeable
+                            , toHeader
+                            , userApiRequest
+                            , toMime
+                            ) where
 
+import           Protolude
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
-import           Data.List                 (find, sortBy)
+import qualified Data.List                 as L
+import           Data.List                 (lookup, last)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
-import           Data.Maybe                (fromMaybe, isJust, isNothing,
-                                            listToMaybe, fromJust)
+import           Data.Maybe                (fromJust)
 import           Control.Arrow             ((***))
-import           Control.Monad             (join)
-import           Data.Monoid               ((<>))
-import           Data.Ord                  (comparing)
-import           Data.String.Conversions   (cs)
 import qualified Data.Text                 as T
-import           Text.Read                 (readMaybe)
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization)
+import           Network.HTTP.Types.Header (hAuthorization, hContentType, Header)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange)
+import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
+import           Data.Ranged.Boundaries
 import           PostgREST.Types           (QualifiedIdentifier (..),
-                                            Schema, Payload(..),
-                                            UniformObjects(..))
-import           Data.Ranged.Ranges        (singletonRange, rangeIntersection)
+                                            Schema,
+                                            PayloadJSON(..))
+import           Data.Ranged.Ranges        (Range(..), singletonRange, rangeIntersection, emptyRange)
 
 type RequestBody = BL.ByteString
 
@@ -34,21 +46,37 @@ type RequestBody = BL.ByteString
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
             | ActionInfo   | ActionInvoke
-            | ActionInappropriate
+            | ActionInspect
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc  QualifiedIdentifier
             | TargetRoot
-            | TargetUnknown [T.Text]
+            | TargetUnknown [Text]
+            deriving Eq
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
--- | Enumeration of currently supported content types for
--- route responses and upload payloads
-data ContentType = ApplicationJSON | TextCSV deriving Eq
-instance Show ContentType where
-  show ApplicationJSON = "application/json; charset=utf-8"
-  show TextCSV         = "text/csv; charset=utf-8"
+                          --
+-- | Enumeration of currently supported response content types
+data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
+                 | CTAny | CTOther BS.ByteString deriving Eq
+
+data ApiRequestError = ErrorActionInappropriate
+                     | ErrorInvalidBody ByteString
+                     | ErrorInvalidRange
+                     deriving (Show, Eq)
+
+-- | Convert from ContentType to a full HTTP Header
+toHeader :: ContentType -> Header
+toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
+
+-- | Convert from ContentType to a ByteString representing the mime type
+toMime :: ContentType -> ByteString
+toMime CTApplicationJSON = "application/json"
+toMime CTTextCSV         = "text/csv"
+toMime CTOpenAPI         = "application/openapi+json"
+toMime CTAny             = "*/*"
+toMime (CTOther ct)      = ct
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -61,163 +89,168 @@ data ApiRequest = ApiRequest {
   -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
     iAction :: Action
   -- | Requested range of rows within response
-  , iRange  :: M.HashMap String NonnegRange
+  , iRange  :: M.HashMap ByteString NonnegRange
   -- | The target, be it calling a proc or accessing a table
   , iTarget :: Target
-  -- | The content type the client most desires (or JSON if undecided)
-  , iAccepts :: Either BS.ByteString ContentType
+  -- | Content types the client will accept, [CTAny] if no Accept header
+  , iAccepts :: [ContentType]
   -- | Data sent by client and used for mutation actions
-  , iPayload :: Maybe Payload
+  , iPayload :: Maybe PayloadJSON
   -- | If client wants created items echoed back
   , iPreferRepresentation :: PreferRepresentation
   -- | If client wants first row as raw object
   , iPreferSingular :: Bool
+  -- | Pass all parameters as a single json object to a stored procedure
+  , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
   , iPreferCount :: Bool
   -- | Filters on the result ("id", "eq.10")
-  , iFilters :: [(String, String)]
+  , iFilters :: [(Text, Text)]
   -- | &select parameter used to shape the response
-  , iSelect :: String
+  , iSelect :: Text
   -- | &order parameters for each level
-  , iOrder :: [(String,String)]
+  , iOrder :: [(Text, Text)]
   -- | Alphabetized (canonical) request query string for response URLs
-  , iCanonicalQS :: String
+  , iCanonicalQS :: ByteString
   -- | JSON Web Token
-  , iJWT :: T.Text
+  , iJWT :: Text
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Request -> RequestBody -> ApiRequest
-userApiRequest schema req reqBody =
-  let action =
-        if isTargetingProc
-          then
-            if method == "POST"
-               then ActionInvoke
-               else ActionInappropriate
-          else
-            case method of
-               "GET"     -> ActionRead
-               "POST"    -> ActionCreate
-               "PATCH"   -> ActionUpdate
-               "DELETE"  -> ActionDelete
-               "OPTIONS" -> ActionInfo
-               _         -> ActionInappropriate
-      target = case path of
-                 []            -> TargetRoot
-                 [table]       -> TargetIdent
-                                  $ QualifiedIdentifier schema table
-                 ["rpc", proc] -> TargetProc
-                                  $ QualifiedIdentifier schema proc
-                 other         -> TargetUnknown other
-      payload = case pickContentType (lookupHeader "content-type") of
-        Right ApplicationJSON ->
-          either (PayloadParseError . cs)
-            (\val -> case ensureUniform (pluralize val) of
-              Nothing -> PayloadParseError "All object keys must match"
-              Just json -> PayloadJSON json)
-            (JSON.eitherDecode reqBody)
-        Right TextCSV ->
-          either (PayloadParseError . cs)
-            (\val -> case ensureUniform (csvToJson val) of
-              Nothing -> PayloadParseError "All lines must have same number of fields"
-              Just json -> PayloadJSON json)
-            (CSV.decodeByName reqBody)
-        -- This is a Left value because form-urlencoded is not a content
-        -- type which we ever use for responses, only something we handle
-        -- just this once for requests
-        Left "application/x-www-form-urlencoded" ->
-          PayloadJSON . UniformObjects . V.singleton . M.fromList
-                      . map (cs *** JSON.String . cs) . parseSimpleQuery
-                      $ cs reqBody
-        Left accept ->
-          PayloadParseError $
-            "Content-type not acceptable: " <> accept
-      relevantPayload = case action of
-        ActionCreate -> Just payload
-        ActionUpdate -> Just payload
-        ActionInvoke -> Just payload
-        _            -> Nothing in
-
-  ApiRequest {
-    iAction = action
-  , iTarget = target
-  , iRange = M.insert "limit" (rangeIntersection headerRange urlRange) $
-      M.fromList [ (cs k, restrictRange (readMaybe =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k ]
-  , iAccepts = pickContentType $ lookupHeader "accept"
-  , iPayload = relevantPayload
-  , iPreferRepresentation = representation
-  , iPreferSingular = singular
-  , iPreferCount = not $ singular || hasPrefer "count=none"
-  , iFilters = [ (cs k, fromJust v) | (k,v) <- qParams, isJust v, k /= "select", k /= "offset", not (endingIn ["order", "limit"] k) ]
-  , iSelect = fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
-  , iOrder = [(cs k, fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
-  , iCanonicalQS = urlEncodeVars
-     . sortBy (comparing fst)
-     . map (join (***) cs)
-     . parseSimpleQuery
-     $ rawQueryString req
-  , iJWT = tokenStr
-  }
-
+userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest schema req reqBody
+  | isTargetingProc && method /= "POST" = Left ErrorActionInappropriate
+  | topLevelRange == emptyRange = Left ErrorInvalidRange
+  | shouldParsePayload && isLeft payload = either (Left . ErrorInvalidBody . toS) undefined payload
+  | otherwise = Right ApiRequest {
+      iAction = action
+      , iTarget = target
+      , iRange = ranges
+      , iAccepts = fromMaybe [CTAny] $
+        map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
+      , iPayload = relevantPayload
+      , iPreferRepresentation = representation
+      , iPreferSingular = singular
+      , iPreferSingleObjectParameter = singleObject
+      , iPreferCount = not singular && hasPrefer "count=exact"
+      , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset"] k) ]
+      , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+      , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
+      , iCanonicalQS = toS $ urlEncodeVars
+        . L.sortBy (comparing fst)
+        . map (join (***) toS)
+        . parseSimpleQuery
+        $ rawQueryString req
+      , iJWT = tokenStr
+      }
  where
+  isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
+  payload =
+    case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
+      CTApplicationJSON ->
+          either Left (\val -> case ensureUniform (pluralize val) of
+            Nothing -> Left "All object keys must match"
+            Just json -> Right json) (JSON.eitherDecode reqBody)
+      CTTextCSV ->
+          either Left (\val -> case ensureUniform (csvToJson val) of
+            Nothing -> Left "All lines must have same number of fields"
+            Just json -> Right json) (CSV.decodeByName reqBody)
+      CTOther "application/x-www-form-urlencoded" ->
+        Right . PayloadJSON . V.singleton . M.fromList
+                    . map (toS *** JSON.String . toS) . parseSimpleQuery
+                    $ toS reqBody
+      ct ->
+        Left $ toS $ "Content-Type not acceptable: " <> toMime ct
+  topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
+  action = case method of
+            "GET"     -> if target == TargetRoot
+                          then ActionInspect
+                          else ActionRead
+            "POST"    -> if isTargetingProc
+                          then ActionInvoke
+                          else ActionCreate
+            "PATCH"   -> ActionUpdate
+            "DELETE"  -> ActionDelete
+            "OPTIONS" -> ActionInfo
+            _         -> ActionInspect
+  target = case path of
+              []            -> TargetRoot
+              [table]       -> TargetIdent
+                              $ QualifiedIdentifier schema table
+              ["rpc", proc] -> TargetProc
+                              $ QualifiedIdentifier schema proc
+              other         -> TargetUnknown other
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke]
+  relevantPayload = if shouldParsePayload
+                      then rightToMaybe payload
+                      else Nothing
   path            = pathInfo req
   method          = requestMethod req
-  isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   hdrs            = requestHeaders req
-  qParams         = [(cs k, cs <$> v)|(k,v) <- queryString req]
+  qParams         = [(toS k, v)|(k,v) <- queryString req]
   lookupHeader    = flip lookup hdrs
-  hasPrefer :: T.Text -> Bool
+  hasPrefer :: Text -> Bool
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
     where
-        split :: BS.ByteString -> [T.Text]
-        split = map T.strip . T.split (==';') . cs
+        split :: BS.ByteString -> [Text]
+        split = map T.strip . T.split (==',') . toS
   singular        = hasPrefer "plurality=singular"
+  singleObject    = hasPrefer "params=single-object"
   representation
     | hasPrefer "return=representation" = Full
     | hasPrefer "return=minimal" = None
     | otherwise = HeadersOnly
   auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (cs auth) of
+  tokenStr = case T.split (== ' ') (toS auth) of
     ("Bearer" : t : _) -> t
     _                  -> ""
-  endingIn:: [T.Text] -> T.Text -> Bool
+  endingIn:: [Text] -> Text -> Bool
   endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key
 
-  headerRange = if singular then singletonRange 0 else rangeRequested hdrs
-  urlOffsetRange = rangeGeq . fromMaybe (0::Integer) $
-    readMaybe =<< join (lookup "offset" qParams)
-  urlRange = restrictRange
-    (readMaybe =<< join (lookup "limit" qParams))
-    urlOffsetRange
+  headerRange = if singular && method == "GET" then singletonRange 0 else rangeRequested hdrs
+  replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
+  limitParams :: M.HashMap ByteString NonnegRange
+  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
+  offsetParams :: M.HashMap ByteString NonnegRange
+  offsetParams = M.fromList [(toS (replaceLast "limit" k), fromMaybe allRange (rangeGeq <$> (readMaybe =<< (toS <$> v)))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
+
+  urlRange = M.unionWith f limitParams offsetParams
+    where
+      f rl ro = Range (BoundaryBelow o) (BoundaryAbove $ o + l - 1)
+        where
+          l = fromMaybe 0 $ rangeLimit rl
+          o = rangeOffset ro
+  ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" urlRange))) urlRange
+
+{-|
+  Find the best match from a list of content types accepted by the
+  client in order of decreasing preference and a list of types
+  producible by the server.  If there is no match but the client
+  accepts */* then return the top server pick.
+-}
+mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
+mutuallyAgreeable sProduces cAccepts =
+  let exact = listToMaybe $ L.intersect cAccepts sProduces in
+  if isNothing exact && CTAny `elem` cAccepts
+     then listToMaybe sProduces
+     else exact
 
 -- PRIVATE ---------------------------------------------------------------
 
 {-|
-  Picks a preferred content type from an Accept header (or from
-  Content-Type as a degenerate case).
-
-  For example
-  text/csv -> TextCSV
-  */*      -> ApplicationJSON
-  text/csv, application/json -> TextCSV
-  application/json, text/csv -> ApplicationJSON
+  Warning: discards MIME parameters
 -}
-pickContentType :: Maybe BS.ByteString -> Either BS.ByteString ContentType
-pickContentType accept
-  | isNothing accept || has ctAll || has ctJson = Right ApplicationJSON
-  | has ctCsv = Right TextCSV
-  | otherwise = Left accept'
- where
-  ctAll  = "*/*"
-  ctCsv  = "text/csv"
-  ctJson = "application/json"
-  Just accept' = accept
-  findInAccept = flip find $ parseHttpAccept accept'
-  has          = isJust . findInAccept . BS.isPrefixOf
+decodeContentType :: BS.ByteString -> ContentType
+decodeContentType ct =
+  case BS.takeWhile (/= BS.c2w ';') ct of
+    "application/json"         -> CTApplicationJSON
+    "text/csv"                 -> CTTextCSV
+    "application/openapi+json" -> CTOpenAPI
+    "*/*"                      -> CTAny
+    ct'                        -> CTOther ct'
 
-type CsvData = V.Vector (M.HashMap T.Text BL.ByteString)
+type CsvData = V.Vector (M.HashMap Text BL.ByteString)
 
 {-|
   Converts CSV like
@@ -239,7 +272,7 @@ csvToJson (_, vals) =
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
-          else JSON.String $ cs str
+          else JSON.String $ toS str
       )
 
 -- | Convert {foo} to [{foo}], leave arrays unchanged
@@ -250,8 +283,8 @@ pluralize (JSON.Array arr)    = arr
 pluralize _                   = V.empty
 
 -- | Test that Array contains only Objects having the same keys
--- and if so mark it as UniformObjects
-ensureUniform :: JSON.Array -> Maybe UniformObjects
+-- and if so mark it as PayloadJSON
+ensureUniform :: JSON.Array -> Maybe PayloadJSON
 ensureUniform arr =
   let objs :: V.Vector JSON.Object
       objs = foldr -- filter non-objects, map to raw objects
@@ -264,5 +297,5 @@ ensureUniform arr =
       areKeysUniform = all (==canonicalKeys) keysPerObj in
 
   if (V.length objs == V.length arr) && areKeysUniform
-    then Just (UniformObjects objs)
+    then Just (PayloadJSON objs)
     else Nothing

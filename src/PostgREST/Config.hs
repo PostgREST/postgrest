@@ -2,12 +2,13 @@
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
 
-This module provides a helper function to read the command line arguments using the optparse-applicative
-and the AppConfig type to store them.
-It also can be used to define other middleware configuration that may be delegated to some sort of
-external configuration.
+This module provides a helper function to read the command line
+arguments using the optparse-applicative and the AppConfig type to store
+them.  It also can be used to define other middleware configuration that
+may be delegated to some sort of external configuration.
 
-It currently includes a hardcoded CORS policy but this could easly be turned in configurable behaviour if needed.
+It currently includes a hardcoded CORS policy but this could easly be
+turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
@@ -15,48 +16,48 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
+                        , PgVersion (..)
                         , AppConfig (..)
                         )
        where
 
+import           System.IO.Error             (IOError)
 import           Control.Applicative
+import qualified Data.ByteString             as B
 import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
-import           Data.List                   (intercalate)
-import           Data.String.Conversions     (cs)
-import           Data.Text                   (strip)
+import qualified Data.Configurator           as C
+import qualified Data.Configurator.Types     as C
+import           Data.List                   (lookup)
+import           Data.Monoid
+import           Data.Text                   (strip, intercalate, lines)
+import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import           Options.Applicative
+import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
-import           Prelude
-import           Safe                        (readMay)
-import           Web.JWT                     (Secret, secret)
+import           Text.Heredoc
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 
--- | Data type to store all command line options
+import           Protolude hiding            (intercalate
+                                             , (<>))
+
+-- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDatabase  :: String
-  , configAnonRole  :: String
-  , configSchema    :: String
+    configDatabase  :: Text
+  , configAnonRole  :: Text
+  , configProxyUri  :: Maybe Text
+  , configSchema    :: Text
+  , configHost      :: Text
   , configPort      :: Int
-  , configJwtSecret :: Secret
+  , configJwtSecret :: Maybe B.ByteString
+  , configJwtSecretIsBase64 :: Bool
   , configPool      :: Int
   , configMaxRows   :: Maybe Integer
+  , configReqCheck  :: Maybe Text
   , configQuiet     :: Bool
   }
-
-argParser :: Parser AppConfig
-argParser = AppConfig
-  <$> argument str (help "(REQUIRED) database connection string, e.g. postgres://user:pass@host:port/db" <> metavar "DB_URL")
-  <*> strOption    (long "anonymous"  <> short 'a' <> help "(REQUIRED) postgres role to use for non-authenticated requests" <> metavar "ROLE")
-  <*> strOption    (long "schema"     <> short 's' <> help "schema to use for API routes" <> metavar "NAME" <> value "public" <> showDefault)
-  <*> option auto  (long "port"       <> short 'p' <> help "port number on which to run HTTP server" <> metavar "PORT" <> value 3000 <> showDefault)
-  <*> (secret . cs <$>
-      strOption    (long "jwt-secret" <> short 'j' <> help "secret used to encrypt and decrypt JWT tokens" <> metavar "SECRET" <> value "secret" <> showDefault))
-  <*> option auto  (long "pool"       <> short 'o' <> help "max connections in database pool" <> metavar "COUNT" <> value 10 <> showDefault)
-  <*> (readMay <$> strOption  (long "max-rows"   <> short 'm' <> help "max rows in response" <> metavar "COUNT" <> value "infinity" <> showDefault))
-  <*> pure False
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
@@ -78,26 +79,109 @@ corsPolicy req = case lookup "origin" headers of
   where
     headers = requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . cs . strip . cs) $ BS.split ',' hdrs
+      Just hdrs -> map (CI.mk . toS . strip . toS) $ BS.split ',' hdrs
       Nothing -> []
 
 -- | User friendly version number
-prettyVersion :: String
+prettyVersion :: Text
 prettyVersion = intercalate "." $ map show $ versionBranch version
 
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
-readOptions = customExecParser parserPrefs opts
-  where
-    opts = info (helper <*> argParser) $
-                    fullDesc
-                    <> progDesc (
-                    "PostgREST "
-                    <> prettyVersion
-                    <> " / create a REST API to an existing Postgres database"
-                    )
-    parserPrefs = prefs showHelpOnError
+readOptions = do
+  -- First read the config file path from command line
+  cfgPath <- customExecParser parserPrefs opts
+  -- Now read the actual config file
+  conf <- catch
+    (C.load [C.Required cfgPath])
+    configNotfoundHint
+
+  handle missingKeyHint $ do
+    -- db ----------------
+    cDbUri    <- C.require conf "db-uri"
+    cDbSchema <- C.require conf "db-schema"
+    cDbAnon   <- C.require conf "db-anon-role"
+    cPool     <- C.lookupDefault 10 conf "db-pool"
+    -- server ------------
+    cHost     <- C.lookupDefault "*4" conf "server-host"
+    cPort     <- C.lookupDefault 3000 conf "server-port"
+    cProxy    <- C.lookup conf "server-proxy-uri"
+    -- jwt ---------------
+    cJwtSec   <- C.lookup conf "jwt-secret"
+    cJwtB64   <- C.lookupDefault False conf "secret-is-base64"
+    -- safety ------------
+    cMaxRows  <- C.lookup conf "max-rows"
+    cReqCheck <- C.lookup conf "pre-request"
+
+    return $ AppConfig cDbUri cDbAnon cProxy cDbSchema cHost cPort
+          (encodeUtf8 <$> cJwtSec) cJwtB64 cPool cMaxRows cReqCheck False
+
+ where
+  opts = info (helper <*> pathParser) $
+           fullDesc
+           <> progDesc (
+               "PostgREST "
+               <> toS prettyVersion
+               <> " / create a REST API to an existing Postgres database"
+             )
+           <> footerDoc (Just $
+               text "Example Config File:"
+               <> nest 2 (hardline <> exampleCfg)
+             )
+
+  parserPrefs = prefs showHelpOnError
+
+  configNotfoundHint :: IOError -> IO a
+  configNotfoundHint e = do
+    hPutStrLn stderr $
+      "Cannot open config file:\n\t" <> show e
+    exitFailure
+
+  missingKeyHint :: C.KeyError -> IO a
+  missingKeyHint (C.KeyError n) = do
+    hPutStrLn stderr $
+      "Required config parameter \"" <> n <> "\" is missing or of wrong type.\n" <>
+      "Documentation for configuration options available at\n" <>
+      "\thttp://postgrest.com/en/v0.4/admin.html#configuration\n\n" <>
+      "Try the --example-config option to see how to configure PostgREST."
+    exitFailure
+
+  exampleCfg :: Doc
+  exampleCfg = vsep . map (text . toS) . lines $
+    [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+        |db-schema = "public"
+        |db-anon-role = "postgres"
+        |db-pool = 10
+        |
+        |server-host = "*4"
+        |server-port = 3000
+        |
+        |## base url for swagger output
+        |# server-proxy-uri = ""
+        |
+        |## choose a secret to enable JWT auth
+        |## (use "@filename" to load from separate file)
+        |# jwt-secret = "foo"
+        |
+        |## limit rows in response
+        |# max-rows = 1000
+        |
+        |## stored proc to exec immediately after auth
+        |# pre-request = "stored_proc_name"
+        |]
+
+
+pathParser :: Parser FilePath
+pathParser =
+  strArgument $
+    metavar "FILENAME" <>
+    help "Path to configuration file"
+
+data PgVersion = PgVersion {
+  pgvNum  :: Int32
+, pgvName :: Text
+}
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
-minimumPgVersion :: Integer
-minimumPgVersion = 90300
+minimumPgVersion :: PgVersion
+minimumPgVersion = PgVersion 90300 "9.3"

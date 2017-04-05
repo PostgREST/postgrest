@@ -10,6 +10,8 @@ import SpecHelper
 
 import Network.HTTP.Types
 import Network.Wai (Application)
+
+import Protolude hiding (get)
 -- }}}
 
 spec :: SpecWith Application
@@ -69,4 +71,4 @@ spec =
         liftIO $ do
           simpleHeaders r `shouldSatisfy` matchHeader
             "Access-Control-Allow-Origin" "\\*"
-          simpleBody r `shouldSatisfy` not . BL.null
+          simpleBody r `shouldSatisfy` BL.null

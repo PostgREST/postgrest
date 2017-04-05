@@ -6,8 +6,6 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
-, doesProcExist
-, doesProcReturnJWT
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -15,21 +13,18 @@ import qualified Hasql.Encoders                as HE
 import qualified Hasql.Query                   as H
 
 import           Control.Applicative
-import           Control.Monad                 (join, replicateM)
-import           Data.Functor.Contravariant    (contramap)
-import           Data.List                     (elemIndex, find, sort,
-                                                subsequences, transpose)
-import           Data.Maybe                    (fromJust, fromMaybe, isJust,
-                                                listToMaybe, mapMaybe)
-import           Data.Monoid
-import           Data.Text                     (Text, split)
+import           Data.List                     (elemIndex)
+import           Data.Maybe                    (fromJust)
+import           Data.Text                     (split, strip,
+                                                breakOn, dropAround)
+import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
 
-import           Data.Int                      (Int32)
 import           GHC.Exts                      (groupWith)
-import           Prelude
+import           Protolude
+import           Unsafe (unsafeHead)
 
 getDbStructure :: Schema -> H.Session DbStructure
 getDbStructure schema = do
@@ -38,6 +33,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
+  procs <- H.query schema accessibleProcs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -48,12 +44,8 @@ getDbStructure schema = do
     , dbColumns = cols'
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
+    , dbProcs = procs
     }
-
-encodeQi :: HE.Params QualifiedIdentifier
-encodeQi =
-  contramap qiSchema (HE.value HE.text) <>
-  contramap qiName   (HE.value HE.text)
 
 decodeTables :: HD.Result [Table]
 decodeTables =
@@ -104,32 +96,36 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-doesProcExist :: H.Query QualifiedIdentifier Bool
-doesProcExist =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
+accessibleProcs :: H.Query Schema [(Text, ProcDescription)]
+accessibleProcs =
+  H.statement sql (HE.value HE.text)
+    (map addName <$> HD.rowsList (ProcDescription <$> HD.value HD.text
+                                <*> (parseArgs <$> HD.value HD.text)
+                                <*> HD.value HD.text)) True
  where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-    ) |]
+  addName :: ProcDescription -> (Text, ProcDescription)
+  addName pd = (pdName pd, pd)
 
-doesProcReturnJWT :: H.Query QualifiedIdentifier Bool
-doesProcReturnJWT =
-  H.statement sql encodeQi (HD.singleRow (HD.value HD.bool)) True
- where
-  sql = [q| SELECT EXISTS (
-      SELECT 1
-      FROM   pg_catalog.pg_namespace n
-      JOIN   pg_catalog.pg_proc p
-      ON     pronamespace = n.oid
-      WHERE  nspname = $1
-      AND    proname = $2
-      AND    pg_catalog.pg_get_function_result(p.oid) like '%jwt_claims'
-    ) |]
+  parseArgs :: Text -> [PgArg]
+  parseArgs = mapMaybe (parseArg . strip) . split (==',')
+
+  parseArg :: Text -> Maybe PgArg
+  parseArg a =
+    let (body, def) = breakOn " DEFAULT " a
+        (name, typ) = breakOn " " body in
+    if T.null typ
+       then Nothing
+       else Just $
+         PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+
+  sql = [q|
+    SELECT p.proname as "proc_name",
+           pg_get_function_arguments(p.oid) as "args",
+           pg_get_function_result(p.oid) as "return_type"
+    FROM   pg_namespace n
+    JOIN   pg_proc p
+    ON     pronamespace = n.oid
+    WHERE  n.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
@@ -161,7 +157,9 @@ accessibleTables =
 synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
 synonymousColumns allSyns cols = synCols'
   where
-    syns = sort $ filter ((== colTable (head cols)) . colTable . fst) allSyns
+    syns = case headMay cols of
+            Just firstCol -> sort $ filter ((== colTable firstCol) . colTable . fst) allSyns
+            Nothing -> []
     synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
     synCols' = (filter sameTable . filter matchLength) synCols
     matchLength cs = length cols == length cs
@@ -175,11 +173,10 @@ addForeignKeys rels = map addFk
     fk col = join $ relToFk col <$> find (lookupFn col) rels
     lookupFn :: Column -> Relation -> Bool
     lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==Child
-    -- lookupFn _ _ = False
-    relToFk col Relation{relColumns=cols, relFColumns=colsF} = ForeignKey <$> colF
-      where
-        pos = elemIndex col cols
-        colF = (colsF !!) <$> pos
+    relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
+      pos <- elemIndex col cols
+      colF <- atMay colsF pos
+      return $ ForeignKey colF
 
 addSynonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
 addSynonymousRelations _ [] = []
@@ -187,7 +184,7 @@ addSynonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ addSynony
   where
     synRelsP = synRels (relColumns rel) (\t cs -> rel{relTable=t,relColumns=cs})
     synRelsF = synRels (relFColumns rel) (\t cs -> rel{relFTable=t,relFColumns=cs})
-    synRels cols mapFn = map (\cs -> mapFn (colTable $ head cs) cs) $ synonymousColumns syns cols
+    synRels cols mapFn = map (\cs -> mapFn (colTable $ unsafeHead cs) cs) $ synonymousColumns syns cols
 
 addParentRelations :: [Relation] -> [Relation]
 addParentRelations [] = []
@@ -220,8 +217,8 @@ raiseRelations schema syns = map raiseRel
       where
         cols = relFColumns rel
         table = relFTable rel
-        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . head) (synonymousColumns syns cols)
-        newTable = (colTable . head) <$> newCols
+        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . unsafeHead) (synonymousColumns syns cols)
+        newTable = (colTable . unsafeHead) <$> newCols
 
 synonymousPrimaryKeys :: [(Column,Column)] -> [PrimaryKey] -> [PrimaryKey]
 synonymousPrimaryKeys _ [] = []
@@ -289,13 +286,13 @@ allColumns tabs =
                         CASE
                             WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
+                            ELSE format_type(a.atttypid, a.atttypmod)
                         END
                         ELSE
                         CASE
                             WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                            ELSE 'USER-DEFINED'::text
+                            ELSE format_type(a.atttypid, a.atttypmod)
                         END
                     END::information_schema.character_data AS data_type,
                 information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
@@ -560,73 +557,73 @@ allSynonyms cols =
  where
   -- query explanation at https://gist.github.com/ruslantalpa/2eab8c930a65e8043d8f
   sql = [q|
-    WITH view_columns AS (
-    	SELECT
-    		c.oid AS view_oid,
-    		a.attname::information_schema.sql_identifier AS column_name
-    	FROM pg_attribute a
-    	JOIN pg_class c ON a.attrelid = c.oid
-    	JOIN pg_namespace nc ON c.relnamespace = nc.oid
-    	WHERE
-    		NOT pg_is_other_temp_schema(nc.oid)
-    		AND a.attnum > 0
-    		AND NOT a.attisdropped
-    		AND (c.relkind = 'v'::"char")
-    		AND nc.nspname NOT IN ('information_schema', 'pg_catalog')
+    with view_columns as (
+        select
+            c.oid as view_oid,
+            a.attname::information_schema.sql_identifier as column_name
+        from pg_attribute a
+        join pg_class c on a.attrelid = c.oid
+        join pg_namespace nc on c.relnamespace = nc.oid
+        where
+            not pg_is_other_temp_schema(nc.oid)
+            and a.attnum > 0
+            and not a.attisdropped
+            and (c.relkind = 'v'::"char")
+            and nc.nspname not in ('information_schema', 'pg_catalog')
     ),
-    view_column_usage AS (
-    	SELECT DISTINCT
-    		v.oid as view_oid,
-    		nv.nspname::information_schema.sql_identifier AS view_schema,
-    		v.relname::information_schema.sql_identifier AS view_name,
-    		nt.nspname::information_schema.sql_identifier AS table_schema,
-    		t.relname::information_schema.sql_identifier AS table_name,
-    		a.attname::information_schema.sql_identifier AS column_name,
-    		pg_get_viewdef(v.oid)::information_schema.character_data AS view_definition
-    	FROM pg_namespace nv
-    	JOIN pg_class v ON nv.oid = v.relnamespace
-    	JOIN pg_depend dv ON v.oid = dv.refobjid
-    	JOIN pg_depend dt ON dv.objid = dt.objid
-    	JOIN pg_class t ON dt.refobjid = t.oid
-    	JOIN pg_namespace nt ON t.relnamespace = nt.oid
-    	JOIN pg_attribute a ON t.oid = a.attrelid AND dt.refobjsubid = a.attnum
+    view_column_usage as (
+        select distinct
+            v.oid as view_oid,
+            nv.nspname::information_schema.sql_identifier as view_schema,
+            v.relname::information_schema.sql_identifier as view_name,
+            nt.nspname::information_schema.sql_identifier as table_schema,
+            t.relname::information_schema.sql_identifier as table_name,
+            a.attname::information_schema.sql_identifier as column_name,
+            pg_get_viewdef(v.oid)::information_schema.character_data as view_definition
+        from pg_namespace nv
+        join pg_class v on nv.oid = v.relnamespace
+        join pg_depend dv on v.oid = dv.refobjid
+        join pg_depend dt on dv.objid = dt.objid
+        join pg_class t on dt.refobjid = t.oid
+        join pg_namespace nt on t.relnamespace = nt.oid
+        join pg_attribute a on t.oid = a.attrelid and dt.refobjsubid = a.attnum
 
-    	WHERE
-    		nv.nspname not in ('information_schema', 'pg_catalog')
-    		AND v.relkind = 'v'::"char"
-    		AND dv.refclassid = 'pg_class'::regclass::oid
-    		AND dv.classid = 'pg_rewrite'::regclass::oid
-    		AND dv.deptype = 'i'::"char"
-    		AND dv.refobjid <> dt.refobjid
-    		AND dt.classid = 'pg_rewrite'::regclass::oid
-    		AND dt.refclassid = 'pg_class'::regclass::oid
-    		AND (t.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+        where
+            nv.nspname not in ('information_schema', 'pg_catalog')
+            and v.relkind = 'v'::"char"
+            and dv.refclassid = 'pg_class'::regclass::oid
+            and dv.classid = 'pg_rewrite'::regclass::oid
+            and dv.deptype = 'i'::"char"
+            and dv.refobjid <> dt.refobjid
+            and dt.classid = 'pg_rewrite'::regclass::oid
+            and dt.refclassid = 'pg_class'::regclass::oid
+            and (t.relkind = any (array['r'::"char", 'v'::"char", 'f'::"char"]))
     ),
-    candidates AS (
-    	SELECT
-    		vcu.*,
-    		(
-    			SELECT CASE WHEN match IS NOT NULL THEN coalesce(match[7], match[4]) END
-    			FROM REGEXP_MATCHES(
-    				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-    				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
-    				'ns'
-    			) match
-    		) AS view_column_name
-    	FROM view_column_usage AS vcu
+    candidates as (
+        select
+            vcu.*,
+            (
+                select case when match is not null then coalesce(match[8], match[7], match[4]) end
+                from regexp_matches(
+                    CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
+                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(as\s)?\3)'),
+                    'nsi'
+                ) match
+            ) as view_column_name
+        from view_column_usage as vcu
     )
-    SELECT
-    	c.table_schema,
-    	c.table_name,
-    	c.column_name AS table_column_name,
-    	c.view_schema,
-    	c.view_name,
-    	c.view_column_name
-    FROM view_columns AS vc, candidates AS c
-    WHERE
-    	vc.view_oid = c.view_oid AND
-    	vc.column_name = c.view_column_name
-    ORDER BY c.view_schema, c.view_name, c.table_name, c.view_column_name
+    select
+        c.table_schema,
+        c.table_name,
+        c.column_name as table_column_name,
+        c.view_schema,
+        c.view_name,
+        c.view_column_name
+    from view_columns as vc, candidates as c
+    where
+        vc.view_oid = c.view_oid
+        and vc.column_name = c.view_column_name
+    order by c.view_schema, c.view_name, c.table_name, c.view_column_name
     |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)

@@ -31,6 +31,10 @@ your contributions.
   [enable logging all statements](http://www.microhowto.info/howto/log_all_queries_to_a_postgresql_server.html),
   then [find your logs](http://blog.endpoint.com/2014/11/dear-postgresql-where-are-my-logs.html).
 
+* If your database schema has changed while the PostgREST server is running,
+  send the server a `SIGHUP` signal or restart it to ensure the schema cache
+  is not stale. This sometimes fixes apparent bugs.
+
 ## Code
 
 ### Haskell Conventions
@@ -44,7 +48,7 @@ your contributions.
   pull request.
 
 * For help building the Haskell code on your computer check out the [building from
-source](https://github.com/begriffs/postgrest/wiki/Building-from-source)
+source](http://postgrest.com/install/server/#building-from-source)
 wiki page.
 
 ## Maintenance

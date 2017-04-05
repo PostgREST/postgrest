@@ -6,8 +6,33 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- Allow test database to be on another host - @dsimunic
+- New `Prefer` header value: `params=single-object` to pass all form values as a single json object to a stored procedure - @dsimunic
+- Ability to generate an OpenAPI spec - @mainx07, @hudayou, @ruslantalpa, @begriffs
+- Ability to generate an OpenAPI spec behind a proxy- @hudayou
+- Ability to set addresses to listen on - @hudayou
+- Filtering, shaping and embedding with &select for the /rpc path - @ruslantalpa
+- Output names of used-defined types (instead of 'USER-DEFINED') - @martingms
+- Implement support for singular representation responses for POST/PATCH requests - @ehamberg
+- Include RPC endpoints in OpenAPI output - @begriffs, @LogvinovLeon
+- Ability to specify offset for a deeper level - @ruslantalpa
+- Ability to order by jsonb keys - @steve-chavez
 
 ### Fixed
+- Do not apply limit to parent items - @ruslantalpa
+- Fix bug in relation detection when selecting parents two levels up by using the name of the FK - @ruslantalpa
+- Customize content negotiation per route - @begriffs
+- Allow using nulls order without explicit order direction - @steve-chavez
+- Fatal error on postgres unsupported version, format supported version in error message - @steve-chavez
+- Prevent database memory cosumption by prepared statements caches - @ruslantalpa
+- Fix columns alias for RETURNING - @steve-chavez
+
+### Changed
+- Use HTTP 400 for raise\_exception - @begriffs
+- Remove non-OpenAPI schema description - @begriffs
+- Use comma rather than semicolon to separate Prefer header values - @begriffs
+- Omit total query count by default - @begriffs
+- Use config file rather than command line arguments - @begriffs
 
 ## [0.3.2.0] - 2016-06-10
 

@@ -2,17 +2,24 @@
 
 module Main where
 
-
+import           Protolude
 import           PostgREST.App
 import           PostgREST.Config                     (AppConfig (..),
+                                                       PgVersion (..),
                                                        minimumPgVersion,
                                                        prettyVersion,
                                                        readOptions)
+import           PostgREST.Error                      (prettyUsageError)
+import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 
-import           Control.Monad
-import           Data.Monoid                          ((<>))
-import           Data.String.Conversions              (cs)
+import           Control.AutoUpdate
+import           Data.ByteString.Base64               (decode)
+import           Data.String                          (IsString (..))
+import           Data.Text                            (stripPrefix, pack, replace)
+import           Data.Text.IO                         (hPutStrLn, readFile)
+import           Data.Function                        (id)
+import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -20,25 +27,20 @@ import qualified Hasql.Encoders                       as HE
 import qualified Hasql.Pool                           as P
 import           Network.Wai.Handler.Warp
 import           System.IO                            (BufferMode (..),
-                                                       hSetBuffering, stderr,
-                                                       stdin, stdout)
-import           Web.JWT                              (secret)
+                                                       hSetBuffering)
 import           Data.IORef
 #ifndef mingw32_HOST_OS
-import           Control.Monad.IO.Class               (liftIO)
 import           System.Posix.Signals
-import           Control.Concurrent                   (myThreadId)
-import           Control.Exception.Base               (throwTo, AsyncException(..))
 #endif
 
 isServerVersionSupported :: H.Session Bool
 isServerVersionSupported = do
   ver <- H.query () pgVersion
-  return $ read (cs ver) >= minimumPgVersion
+  return $ ver >= pgvNum minimumPgVersion
  where
   pgVersion =
-    H.statement "SHOW server_version_num"
-      HE.unit (HD.singleRow $ HD.value HD.text) True
+    H.statement "SELECT current_setting('server_version_num')::integer"
+      HE.unit (HD.singleRow $ HD.value HD.int4) False
 
 main :: IO ()
 main = do
@@ -46,28 +48,35 @@ main = do
   hSetBuffering stdin  LineBuffering
   hSetBuffering stderr NoBuffering
 
-  conf <- readOptions
-  let port = configPort conf
-      pgSettings = cs (configDatabase conf)
-      appSettings = setPort port
-                  . setServerName (cs $ "postgrest/" <> prettyVersion)
+  conf <- loadSecretFile =<< readOptions
+  let host = configHost conf
+      port = configPort conf
+      proxy = configProxyUri conf
+      pgSettings = toS (configDatabase conf)
+      appSettings = setHost ((fromString . toS) host)
+                  . setPort port
+                  . setServerName (toS $ "postgrest/" <> prettyVersion)
                   $ defaultSettings
 
-  unless (secret "secret" /= configJwtSecret conf) $
-    putStrLn "WARNING, running in insecure mode, JWT secret is the default value"
-  Prelude.putStrLn $ "Listening on port " ++
-    (show $ configPort conf :: String)
+  when (isMalformedProxyUri $ toS <$> proxy) $ panic
+    "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
+
+  putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
   result <- P.use pool $ do
     supported <- isServerVersionSupported
-    unless supported $ error (
+    unless supported $ panic (
       "Cannot run in this PostgreSQL version, PostgREST needs at least "
-      <> show minimumPgVersion)
-    getDbStructure (cs $ configSchema conf)
+      <> pgvName minimumPgVersion)
+    getDbStructure (toS $ configSchema conf)
 
-  refDbStructure <- newIORef $ either (error.show) id result
+  forM_ (lefts [result]) $ \e -> do
+    hPutStrLn stderr (prettyUsageError e)
+    exitFailure
+
+  refDbStructure <- newIORef $ either (panic . show) id result
 
 #ifndef mingw32_HOST_OS
   tid <- myThreadId
@@ -79,9 +88,38 @@ main = do
 
   void $ installHandler sigHUP (
       Catch . void . P.use pool $ do
-        s <- getDbStructure (cs $ configSchema conf)
+        s <- getDbStructure (toS $ configSchema conf)
         liftIO $ atomicWriteIORef refDbStructure s
    ) Nothing
 #endif
 
-  runSettings appSettings $ postgrest conf refDbStructure pool
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate
+    defaultUpdateSettings { updateAction = getPOSIXTime }
+
+  runSettings appSettings $ postgrest conf refDbStructure pool getTime
+
+loadSecretFile :: AppConfig -> IO AppConfig
+loadSecretFile conf = extractAndTransform mSecret
+  where
+    mSecret   = decodeUtf8 <$> configJwtSecret conf
+    isB64     = configJwtSecretIsBase64 conf
+
+    extractAndTransform :: Maybe Text -> IO AppConfig
+    extractAndTransform Nothing  = return conf
+    extractAndTransform (Just s) =
+      fmap setSecret $ transformString isB64 =<<
+        case stripPrefix "@" s of
+            Nothing       -> return s
+            Just filename -> readFile (toS filename)
+
+    transformString :: Bool -> Text -> IO ByteString
+    transformString False t = return . encodeUtf8 $ t
+    transformString True  t =
+      case decode (encodeUtf8 $ replaceUrlChars t) of
+        Left errMsg -> panic $ pack errMsg
+        Right bs    -> return bs
+
+    setSecret bs = conf { configJwtSecret = Just bs }
+
+    replaceUrlChars = replace "_" "/" . replace "-" "+" . replace "." "="

@@ -8,6 +8,8 @@ import Network.HTTP.Types
 
 import SpecHelper
 import Network.Wai (Application)
+
+import Protolude hiding (get)
 -- }}}
 
 spec :: SpecWith Application
@@ -37,22 +39,6 @@ spec = describe "authorization" $ do
       , matchHeaders = []
       }
 
-  it "returns jwt functions as jwt tokens" $
-    post "/rpc/login" [json| { "id": "jdoe", "pass": "1234" } |]
-      `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"} |]
-        , matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
-        }
-
-  it "sql functions can encode custom and standard claims" $
-    post "/rpc/jwt_test" "{}"
-      `shouldRespondWith` ResponseMatcher {
-          matchBody = Just [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6MTMwMDgxOTM4MCwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3QiLCJpYXQiOjEzMDA4MTkzODAsImF1ZCI6ImV2ZXJ5b25lIn0._tQCF79-ZZGMlLktd3csM_bVaiMg7A8YvIb6K2hcu5w"} |]
-        , matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
-        }
-
   it "sql functions can read custom and standard claims variables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6OTk5OTk5OTk5OSwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWF0IjoxMzAwODE5MzgwLCJhdWQiOiJldmVyeW9uZSJ9.AQmCA7CMScvfaDRMqRPeUY6eNf--69gpW-kxaWfq9X0"
     request methodPost "/rpc/reveal_big_jwt" [auth] "{}"
@@ -80,24 +66,38 @@ spec = describe "authorization" $ do
   it "fails with an expired token" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.enk_qZ_u6gZsXY4R8bREKB_HNExRpM0lIWSLktk9JJQ"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Nothing
+        , matchStatus = 401
+        , matchHeaders = [
+            "WWW-Authenticate" <:>
+            "Bearer error=\"invalid_token\", error_description=\"JWT expired\""
+          ]
+        }
 
   it "hides tables from users with invalid JWT" $ do
     let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` ResponseMatcher {
+          matchBody = Nothing
+        , matchStatus = 401
+        , matchHeaders = [
+            "WWW-Authenticate" <:>
+            "Bearer error=\"invalid_token\", error_description=\"JWT invalid\""
+          ]
+        }
 
   it "should fail when jwt contains no claims" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.MKYc_lOECtB0LJOiykilAdlHodB-I0_id2qHKq35dmc"
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.lu-rG8aSCiw-aOlN0IxpRGz5r7Jwq7K9r3tuMPUpytI"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` 401
 
   it "hides tables from users with JWT that contain no claims about role" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Impkb2UifQ.zyohGMnrDy4_8eJTl6I2AUXO3MeCCiwR24aGWRkTE9o"
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Impkb2UifQ.Jneso9X519Vh0z7i9PbXIu7W1HEoq9RRw9BBbyQKFCQ"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` 400
+      `shouldRespondWith` 401
 
-  it "recovers after 400 error with logged in user" $ do
+  it "recovers after 401 error with logged in user" $ do
     _ <- post "/authors_only" [json| { "owner": "jdoe", "secret": "test content" } |]
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     _ <- request methodPost "/rpc/problem" [auth] ""

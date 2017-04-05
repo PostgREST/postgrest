@@ -28,6 +28,7 @@ GRANT ALL ON TABLE
     , nullable_integer
     , projects
     , projects_view
+    , projects_view_alt
     , simple_pk
     , tasks
     , filtered_tasks
@@ -38,6 +39,7 @@ GRANT ALL ON TABLE
     , "Escap3e;"
     , "ghostBusters"
     , "withUnique"
+    , "clashing_column"
     , "موارد"
     , addresses
     , orders
@@ -54,3 +56,8 @@ TO postgrest_test_anonymous;
 -- Privileges for non anonymous users
 GRANT USAGE ON SCHEMA test TO postgrest_test_author;
 GRANT ALL ON TABLE authors_only TO postgrest_test_author;
+
+GRANT USAGE ON SCHEMA postgrest,private,test to :test_user_name;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA postgrest,private,test TO :test_user_name;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA postgrest,private,test TO :test_user_name;
+

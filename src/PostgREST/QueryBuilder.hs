@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE TupleSections        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
@@ -13,11 +12,10 @@ and produces SQL Statements.
 Any function that outputs a SQL fragment should be in this module.
 -}
 module PostgREST.QueryBuilder (
-    addRelations
-  , addJoinConditions
-  , callProc
+    callProc
   , createReadStatement
   , createWriteStatement
+  , getJoinConditions
   , operators
   , pgFmtIdent
   , pgFmtLit
@@ -33,32 +31,24 @@ import qualified Hasql.Encoders          as HE
 import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
-import           Data.Int                (Int64)
 
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Control.Error           (note, fromMaybe)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
-import           Data.List               (find)
-import           Data.Monoid             ((<>))
-import           Data.Text               (Text, intercalate, unwords, replace, isInfixOf, toLower, split)
+import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
-import           Data.String.Conversions (cs)
-import           Control.Applicative     ((<|>))
-import           Control.Monad           (replicateM)
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
 import qualified Data.Map as M
 import           Text.InterpolatedString.Perl6 (qc)
-import           Text.Regex.TDFA         ((=~))
 import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
-import           Prelude hiding          (unwords)
+import           Protolude hiding        (from, intercalate, ord, cast)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
@@ -89,25 +79,25 @@ decodeStandardMay =
   HD.maybeRow standardRow
 
 {-| JSON and CSV payloads from the client are given to us as
-    UniformObjects (objects who all have the same keys),
+    PayloadJSON (objects who all have the same keys),
     and we turn this into an old fasioned JSON array
 -}
-encodeUniformObjs :: HE.Params UniformObjects
+encodeUniformObjs :: HE.Params PayloadJSON
 encodeUniformObjs =
-  contramap (JSON.Array . V.map JSON.Object . unUniformObjects) (HE.value HE.json)
+  contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                        H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv =
-  unicodeStatement sql HE.unit decodeStandard True
+  unicodeStatement sql HE.unit decodeStandard False
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
-      FROM ( SELECT * FROM {sourceCTEName}) t |]
+      FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
   countResultF = if countTotal then "("<>countQuery<>")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
@@ -117,11 +107,10 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv =
     | otherwise = asJsonF
 
 createWriteStatement :: QualifiedIdentifier -> SqlQuery -> SqlQuery -> Bool ->
-                        PreferRepresentation -> [Text] -> Bool -> Payload ->
-                        H.Query UniformObjects (Maybe ResultsWithCount)
-createWriteStatement _ _ _ _ _ _ _ (PayloadParseError _) = undefined
+                        PreferRepresentation -> [Text] -> Bool -> PayloadJSON ->
+                        H.Query PayloadJSON (Maybe ResultsWithCount)
 createWriteStatement _ _ mutateQuery _ None
-                     _ _ (PayloadJSON (UniformObjects _)) =
+                     _ _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
@@ -129,31 +118,31 @@ createWriteStatement _ _ mutateQuery _ None
       SELECT '', 0, {noLocationF}, '' |]
 
 createWriteStatement qi _ mutateQuery isSingle HeadersOnly
-                     pKeys _ (PayloadJSON (UniformObjects _)) =
+                     pKeys _ (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM (SELECT 1 FROM {sourceCTEName}) t |]
+      FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
   cols = intercalate ", " [
       "'' AS total_result_set",
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       if isSingle then locationF pKeys else noLocationF,
       "''"
     ]
 
 createWriteStatement qi selectQuery mutateQuery isSingle Full
-                     pKeys asCsv (PayloadJSON (UniformObjects _)) =
+                     pKeys asCsv (PayloadJSON _) =
   unicodeStatement sql encodeUniformObjs decodeStandardMay True
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({mutateQuery} RETURNING {fromQi qi}.*)
       SELECT {cols}
-      FROM ({selectQuery}) t |]
+      FROM ({selectQuery}) _postgrest_t |]
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
-      "pg_catalog.count(t) AS page_total",
+      "pg_catalog.count(_postgrest_t) AS page_total",
       if isSingle then locationF pKeys else noLocationF <> " AS header",
       bodyF <> " AS body"
     ]
@@ -162,70 +151,42 @@ createWriteStatement qi selectQuery mutateQuery isSingle Full
     | isSingle = asJsonSingleF
     | otherwise = asJsonF
 
-addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Text ReadRequest
-addRelations schema allRelations parentNode node@(Node readNode@(query, (name, _, alias)) forest) =
-  case parentNode of
-    (Just (Node (Select{from=[parentTable]}, (_, _, _)) _)) -> Node <$> (addRel readNode <$> rel) <*> updatedForest
-      where
-        rel = note ("no relation between " <> parentTable <> " and " <> name)
-            $  findRelationByTable schema name parentTable
-           <|> findRelationByColumn schema parentTable name
-        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
-        addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
-          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
-
-    _ -> Node (query, (name, Nothing, alias)) <$> updatedForest
-  where
-    updatedForest = mapM (addRelations schema allRelations (Just node)) forest
-    -- Searches through all the relations and returns a match given the parameter conditions.
-    -- Will only find a relation where both schemas are in the PostgREST schema.
-    -- `findRelationByColumn` also does a ducktype check to see if the column name has any variation of `id` or `fk`. If so then the relation is returned as a match.
-    findRelationByTable s t1 t2 =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t1 == tableName (relTable r) && t2 == tableName (relFTable r)) allRelations
-    findRelationByColumn s t c =
-      find (\r -> s == tableSchema (relTable r) && s == tableSchema (relFTable r) && t == tableName (relFTable r) && length (relFColumns r) == 1 && c `colMatches` (colName . head . relFColumns) r) allRelations
-      where n `colMatches` rc = (cs ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (cs n :: BS.ByteString)
-
-addJoinConditions :: Schema -> ReadRequest -> Either Text ReadRequest
-addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
-  case r of
-    Nothing -> Node nn  <$> updatedForest -- this is the root node
-    Just rel@Relation{relType=Child} -> Node (addCond query (getJoinConditions rel),(n,r,a)) <$> updatedForest
-    Just Relation{relType=Parent} -> Node nn <$> updatedForest
-    Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
-      Node (qq, (n, r, a)) <$> updatedForest
-      where
-         query' = addCond query (getJoinConditions rel)
-         qq = query'{from=tableName linkTable : from query'}
-    _ -> Left "unknown relation"
-  where
-    updatedForest = mapM (addJoinConditions schema) forest
-    addCond query' con = query'{flt_=con ++ flt_ query'}
-
 type ProcResults = (Maybe Int64, Int64, JSON.Value)
-callProc :: QualifiedIdentifier -> JSON.Object -> NonnegRange -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params range countTotal =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
-            WITH t AS (select * {_callSql})
+            WITH {sourceCTEName} AS ({_callSql})
             SELECT
-              {_countExpr} as countTotal,
-              pg_catalog.count(1) as countResult,
-              array_to_json(
-                coalesce(array_agg(row_to_json(r)), '\{}')
-              )::character varying
-            FROM (select * from t {limitF range}) r;
+              {countResultF} AS total_result_set,
+              pg_catalog.count(_postgrest_t) AS page_total,
+              case
+                when pg_catalog.count(*) > 1 then
+                  {bodyF}
+                else
+                  coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
+
+              end as body
+            FROM ({selectQuery}) _postgrest_t;
           |]
-    _args = intercalate "," $ map _assignment (HM.toList params)
+          -- FROM (select * from {sourceCTEName} {limitF range}) t;
+    countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
+    _args = if paramsAsJson
+                then insertableValueWithType "json" $ JSON.Object params
+                else intercalate "," $ map _assignment (HM.toList params)
+    _procName = pgFmtLit $ qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc| from {fromQi qi}({_args}) |] :: Text
+    _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     _countExpr = if countTotal
-                   then "(select pg_catalog.count(1) from t)"
+                   then [qc|(select pg_catalog.count(*) from {sourceCTEName})|]
                    else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.json
+    bodyF
+     | isSingle = asJsonSingleF
+     | otherwise = asJsonF
 
 operators :: [(Text, SqlFragment)]
 operators = [
@@ -247,7 +208,7 @@ operators = [
   ]
 
 pgFmtIdent :: SqlFragment -> SqlFragment
-pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ cs x) <> "\""
+pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
 
 pgFmtLit :: SqlFragment -> SqlFragment
 pgFmtLit x =
@@ -262,22 +223,23 @@ requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
 requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
  unwords [
-   "SELECT pg_catalog.count(1)",
-   "FROM ", fromQi $ QualifiedIdentifier schema mainTbl,
-   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition (QualifiedIdentifier schema mainTbl)) localConditions )) `emptyOnNull` localConditions
+   "SELECT pg_catalog.count(*)",
+   "FROM ", fromQi qi,
+   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
    ]
  where
+   qi = if mainTbl == sourceCTEName
+     then QualifiedIdentifier "" mainTbl
+     else QualifiedIdentifier schema mainTbl
    fn Filter{value=VText _} = True
    fn Filter{value=VForeignKey _ _} = False
    localConditions = filter fn conditions
 
-requestToQuery :: Schema -> DbRequest -> SqlQuery
-requestToQuery _ (DbMutate (Insert _ (PayloadParseError _))) = undefined
-requestToQuery _ (DbMutate (Update _ (PayloadParseError _) _)) = undefined
-requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
-    -- TODO! the folloing helper functions are just to remove the "schema" part when the table is "source" which is the name
+    -- TODO! the following helper functions are just to remove the "schema" part when the table is "source" which is the name
     -- of our WITH query part
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
     tblSchema tbl = if tbl == sourceCTEName then "" else schema
@@ -289,7 +251,7 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
       unwords joins,
       ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord),
-      limitF range
+      if isParent then "" else limitF range
       ]
     orderF ts =
         if null ts
@@ -299,9 +261,9 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
             clause = intercalate "," (map queryTerm ts)
             queryTerm :: OrderTerm -> Text
             queryTerm t = " "
-                <> cs (pgFmtColumn qi $ otTerm t) <> " "
-                <> (cs.show) (otDirection t) <> " "
-                <> maybe "" (cs.show) (otNullOrder t) <> " "
+                <> toS (pgFmtField qi $ otTerm t) <> " "
+                <> maybe "" show (otDirection t) <> " "
+                <> maybe "" show (otNullOrder t) <> " "
     (joins, selects) = foldr getQueryParts ([],[]) forest
 
     getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
@@ -311,7 +273,8 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema (DbRead (Node n forst))
+           where subquery = requestToQuery schema False (DbRead (Node n forst))
+
     getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (joi:j,sel:s)
       where
         node_name = fromMaybe name alias
@@ -321,31 +284,31 @@ requestToQuery schema (DbRead (Node (Select colSelects tbls conditions ord range
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
               " ON " <> intercalate " AND " ( map (pgFmtCondition qi . replaceTableName local_table_name) (getJoinConditions r) )
-          where subquery = requestToQuery schema (DbRead (Node n forst))
+          where subquery = requestToQuery schema True (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema (DbRead (Node n forst))
+           where subquery = requestToQuery schema False (DbRead (Node n forst))
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
-    getQueryParts (Node (_,(_,Nothing,_)) _) _ = undefined
-requestToQuery schema (DbMutate (Insert mainTbl (PayloadJSON (UniformObjects rows)))) =
-  let qi = QualifiedIdentifier schema mainTbl
-      cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
-      colsString = intercalate ", " cols
-      insInto = unwords [ "INSERT INTO" , fromQi qi,
-          if T.null colsString then "" else "(" <> colsString <> ")"
-        ]
-      vals = unwords $ if T.null colsString
-                then ["DEFAULT VALUES"]
-                else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"] in
+    getQueryParts _ _ = undefined --error "undefined getQueryParts"
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) _)) =
   insInto <> vals
-
-requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects rows)) conditions)) =
+  where qi = QualifiedIdentifier schema mainTbl
+        cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
+        colsString = intercalate ", " cols
+        insInto = unwords [ "INSERT INTO" , fromQi qi,
+            if T.null colsString then "" else "(" <> colsString <> ")"
+          ]
+        vals = unwords $
+          if T.null colsString
+            then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
+            else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions _)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -358,7 +321,7 @@ requestToQuery schema (DbMutate (Update mainTbl (PayloadJSON (UniformObjects row
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema (DbMutate (Delete mainTbl conditions)) =
+requestToQuery schema _ (DbMutate (Delete mainTbl conditions _)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
@@ -373,9 +336,9 @@ sourceCTEName = "pg_source"
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
-  cs $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = cs . show $ b
-unquoted v = cs $ JSON.encode v
+  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+unquoted (JSON.Bool b) = show b
+unquoted v = toS $ JSON.encode v
 
 -- private functions
 asCsvF :: SqlFragment
@@ -390,13 +353,13 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       "    ) s" <>
       "  ) a" <>
       ")"
-    asCsvBodyF = "coalesce(string_agg(substring(t::text, 2, length(t::text) - 2), '\n'), '')"
+    asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
 asJsonF :: SqlFragment
-asJsonF = "coalesce(array_to_json(array_agg(row_to_json(t))), '[]')::character varying"
+asJsonF = "coalesce(array_to_json(array_agg(row_to_json(_postgrest_t))), '[]')::character varying"
 
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "coalesce(string_agg(row_to_json(t)::text, ','), '')::character varying "
+asJsonSingleF = "coalesce(string_agg(row_to_json(_postgrest_t)::text, ','), '')::character varying "
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys =
@@ -415,8 +378,8 @@ limitF r  = if r == allRange
   then ""
   else "LIMIT " <> limit <> " OFFSET " <> offset
   where
-    limit  = maybe "ALL" (cs . show) $ rangeLimit r
-    offset = cs . show $ rangeOffset r
+    limit  = maybe "ALL" show $ rangeLimit r
+    offset = show $ rangeOffset r
 
 fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
@@ -430,6 +393,7 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
     Child  -> zipWith (toFilter tN ftN) cols fcs
     Parent -> zipWith (toFilter tN ftN) cols fcs
     Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
+    Root   -> undefined --error "undefined getJoinConditions"
   where
     s = if typ == Parent then "" else tableSchema t
     tN = tableName t
@@ -448,9 +412,13 @@ insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
+insertableValueWithType :: Text -> JSON.Value -> SqlFragment
+insertableValueWithType t v =
+  pgFmtLit (unquoted v) <> "::" <> t
+
 whiteList :: Text -> SqlFragment
 whiteList val = fromMaybe
-  (cs (pgFmtLit val) <> "::unknown ")
+  (toS (pgFmtLit val) <> "::unknown ")
   (find ((==) . toLower $ val) ["null","true","false"])
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
@@ -471,7 +439,7 @@ pgFmtCondition table (Filter (col,jp) ops val) =
   where
     headPredicate:rest = split (=='.') ops
     hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
-    opCode      = hasNot (head rest) headPredicate
+    opCode      = hasNot (headDef "eq" rest) headPredicate
     notOp       = hasNot headPredicate ""
     sqlCol = case val of
       VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
@@ -511,7 +479,9 @@ pgFmtJsonPath _ = ""
 
 pgFmtAs :: Maybe JsonPath -> Maybe Alias -> SqlFragment
 pgFmtAs Nothing Nothing = ""
-pgFmtAs (Just xx) Nothing = " AS " <> pgFmtIdent (last xx)
+pgFmtAs (Just xx) Nothing = case lastMay xx of
+  Just alias -> " AS " <> pgFmtIdent alias
+  Nothing -> ""
 pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias
 
 trimNullChars :: Text -> Text

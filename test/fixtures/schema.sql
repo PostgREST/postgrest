@@ -215,6 +215,21 @@ SELECT rolname::text, id::text FROM postgrest.auth WHERE id = id AND pass = pass
 $$;
 
 
+CREATE FUNCTION varied_arguments(
+  double double precision,
+  "varchar" character varying,
+  "boolean" boolean,
+  date date,
+  money money,
+  enum enum_menagerie_type,
+  "integer" integer default 42
+) RETURNS text
+    LANGUAGE sql
+AS $_$
+  SELECT 'Hi'::text;
+$_$;
+
+
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
 --
@@ -286,6 +301,16 @@ CREATE FUNCTION callcounter() RETURNS bigint
     LANGUAGE sql
     AS $_$
     SELECT nextval('test.callcounter_count');
+$_$;
+
+--
+-- Name: singlejsonparam(json); Type: FUNCTION; Schema: test; Owner: -
+--
+
+CREATE FUNCTION singlejsonparam(single_param json) RETURNS json
+    LANGUAGE sql
+    AS $_$
+    SELECT single_param;
 $_$;
 
 --
@@ -620,6 +645,12 @@ CREATE VIEW projects_view AS
    FROM projects;
 
 
+CREATE VIEW projects_view_alt AS
+ SELECT projects.id as t_id,
+    projects.name,
+    projects.client_id as t_client_id
+   FROM projects;
+
 --
 -- Name: simple_pk; Type: TABLE; Schema: test; Owner: -
 --
@@ -701,6 +732,10 @@ CREATE TABLE "ghostBusters" (
 CREATE TABLE "withUnique" (
     uni text UNIQUE,
     extra text
+);
+
+CREATE TABLE clashing_column (
+    t text
 );
 
 
@@ -1020,6 +1055,18 @@ create table orders (
 	billing_address_id   int references addresses(id),
 	shipping_address_id  int references addresses(id)
 );
+
+CREATE FUNCTION getproject(id int) RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects WHERE id = $1;
+$_$;
+
+CREATE FUNCTION getallprojects() RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects;
+$_$;
 
 --
 -- PostgreSQL database dump complete

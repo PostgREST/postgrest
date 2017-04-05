@@ -8,8 +8,8 @@ import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
 import SpecHelper
 
 import qualified Data.Aeson as JSON
+import Data.List (lookup)
 import Data.Maybe (fromJust)
-import Data.Monoid ((<>))
 import Text.Heredoc
 import Network.HTTP.Types.Header
 import Network.HTTP.Types
@@ -17,6 +17,8 @@ import Control.Monad (replicateM_, void)
 
 import TestTypes(IncPK(..), CompoundPK(..))
 import Network.Wai (Application)
+
+import Protolude hiding (get)
 
 spec :: SpecWith Application
 spec = do
@@ -47,12 +49,27 @@ spec = do
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
+    context "requesting full representation" $ do
       it "includes related data after insert" $
-        request methodPost "/projects?select=id,name,clients{id,name}" [("Prefer", "return=representation")]
+        request methodPost "/projects?select=id,name,clients{id,name}"
+                [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
             matchBody    = Just [str|{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}|]
           , matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8", "Location" <:> "/projects?id=eq.6"]
+          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                           , "Location" <:> "/projects?id=eq.6"
+                           , "Content-Range" <:> "*/1" ]
+          }
+
+      it "can rename and cast the selected columns" $
+        request methodPost "/projects?select=pId:id::text,pName:name,cId:client_id::text"
+                [("Prefer", "return=representation")] 
+          [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
+          , matchStatus  = 201
+          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                           , "Location" <:> "/projects?id=eq.7"
+                           , "Content-Range" <:> "*/*" ]
           }
 
     context "from an html form" $
@@ -237,6 +254,17 @@ spec = do
                             "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
           }
 
+      it "only returns the requested column header with its associated data" $
+        request methodPost "/projects?select=id"
+                     [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
+                     "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
+          `shouldRespondWith` ResponseMatcher {
+            matchBody    = Just "id\n8\n9"
+          , matchStatus  = 201
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
+                            "Content-Range" <:> "*/*"]
+          }
+
 
     context "with wrong number of columns" $
       it "fails for too few" $ do
@@ -258,81 +286,6 @@ spec = do
         liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
 
 
-  describe "Putting record" $ do
-
-    context "to unknown uri" $
-      it "gives a 404" $ do
-        pendingWith "Decide on PUT usefullness"
-        request methodPut "/fake" []
-          [json| { "real": false } |]
-            `shouldRespondWith` 404
-
-    context "to a known uri" $ do
-      context "without a fully-specified primary key" $
-        it "is not an allowed operation" $ do
-          pendingWith "Decide on PUT usefullness"
-          request methodPut "/compound_pk?k1=eq.12" []
-            [json| { "k1":12, "k2":42 } |]
-              `shouldRespondWith` 405
-
-      context "with a fully-specified primary key" $ do
-
-        context "not specifying every column in the table" $
-          it "is rejected for lack of idempotence" $ do
-            pendingWith "Decide on PUT usefullness"
-            request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-              [json| { "k1":12, "k2":42 } |]
-                `shouldRespondWith` 400
-
-        context "specifying every column in the table" $ do
-          it "can create a new record" $ do
-            pendingWith "Decide on PUT usefullness"
-            p <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":3 } |]
-            liftIO $ do
-              simpleBody p `shouldBe` ""
-              simpleStatus p `shouldBe` status204
-
-            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
-            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
-            liftIO $ do
-              length rows `shouldBe` 1
-              let record = head rows
-              compoundK1 record `shouldBe` 12
-              compoundK2 record `shouldBe` "42"
-              compoundExtra record `shouldBe` Just 3
-
-          it "can update an existing record" $ do
-            pendingWith "Decide on PUT usefullness"
-            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":4 } |]
-            _ <- request methodPut "/compound_pk?k1=eq.12&k2=eq.42" []
-                 [json| { "k1":12, "k2":42, "extra":5 } |]
-
-            r <- get "/compound_pk?k1=eq.12&k2=eq.42"
-            let rows = fromJust (JSON.decode $ simpleBody r :: Maybe [CompoundPK])
-            liftIO $ do
-              length rows `shouldBe` 1
-              let record = head rows
-              compoundExtra record `shouldBe` Just 5
-
-      context "with an auto-incrementing primary key"$
-
-        it "succeeds with 204" $ do
-          pendingWith "Decide on PUT usefullness"
-          request methodPut "/auto_incrementing_pk?id=eq.1" []
-               [json| {
-                 "id":1,
-                 "nullable_string":"hi",
-                 "non_nullable_string":"bye",
-                 "inserted_at": "2020-11-11"
-               } |]
-            `shouldRespondWith` ResponseMatcher {
-              matchBody    = Nothing,
-              matchStatus  = 204,
-              matchHeaders = []
-            }
-
   describe "Patching record" $ do
 
     context "to unknown uri" $
@@ -351,19 +304,19 @@ spec = do
       it "can update a single item" $ do
         g <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "\\*/0"
+          `shouldSatisfy` matchHeader "Content-Range" "\\*/\\*"
         p <- request methodPatch "/items?id=eq.2" [] [json| { "id":42 } |]
         pure p `shouldRespondWith` ResponseMatcher {
             matchBody    = Nothing,
             matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "0-0/1"]
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
         liftIO $
           lookup hContentType (simpleHeaders p) `shouldBe` Nothing
 
         g' <- get "/items?id=eq.42"
         liftIO $ simpleHeaders g'
-          `shouldSatisfy` matchHeader "Content-Range" "0-0/1"
+          `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
 
       it "can update multiple items" $ do
         replicateM_ 10 $ post "/auto_incrementing_pk"
@@ -375,7 +328,7 @@ spec = do
           [json| { non_nullable_string: "c" } |]
         g <- get "/auto_incrementing_pk?non_nullable_string=eq.c"
         liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "0-9/10"
+          `shouldSatisfy` matchHeader "Content-Range" "0-9/\\*"
 
       it "can set a column to NULL" $ do
         _ <- post "/no_pk" [json| { a: "keepme", b: "nullme" } |]
@@ -397,6 +350,35 @@ spec = do
           [("Prefer", "return=representation")]
           [json| { id: 99 } |]
           `shouldRespondWith` [json| [{id:99}] |]
+
+    context "in a table" $ do
+      it "can provide a singular representation when updating one entity" $ do
+        _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
+        p <- request methodPatch
+          "/addresses?id=eq.97"
+          [("Prefer", "return=representation,plurality=singular")]
+          [json| { address: "B Street" } |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":97,"address":"B Street"}|]
+      it "raises an error when attempting to update multiple entities with plurality=singular" $ do
+        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
+        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
+        p <- request methodPatch
+          "/addresses?id=gt.0"
+          [("Prefer", "return=representation,plurality=singular")]
+          [json| { address: "zzz" } |]
+        liftIO $ simpleStatus p `shouldBe` status400
+      it "can provide a singular representation when creating one entity" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation,plurality=singular")]
+          [json| [ { id: 100, address: "xxx" } ] |]
+        liftIO $ simpleBody p `shouldBe` [str|{"id":100,"address":"xxx"}|]
+      it "raises an error when attempting to create multiple entities with plurality=singular" $ do
+        p <- request methodPost
+          "/addresses"
+          [("Prefer", "return=representation,plurality=singular")]
+          [json| [ { id: 100, address: "xxx" }, { id: 101, address: "xxx" } ] |]
+        liftIO $ simpleStatus p `shouldBe` status400
 
       it "can set a json column to escaped value" $ do
         _ <- post "/json" [json| { data: {"escaped":"bar"} } |]

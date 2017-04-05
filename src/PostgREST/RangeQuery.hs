@@ -17,13 +17,11 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.Ranged.Boundaries
 import           Data.Ranged.Ranges
 
-import           Data.String.Conversions   (cs)
-import           Text.Read                 (readMaybe)
 import           Text.Regex.TDFA           ((=~))
 
-import           Data.Maybe                (fromMaybe, listToMaybe)
+import Data.List (lookup)
 
-import           Prelude
+import           Protolude
 
 type NonnegRange = Range Integer
 
@@ -33,9 +31,9 @@ rangeParse range = do
 
   case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
     Just parsedRange ->
-      let [_, from, to] = readMaybe . cs <$> parsedRange
-          lower         = fromMaybe emptyRange   (rangeGeq <$> from)
-          upper         = fromMaybe allRange (rangeLeq <$> to) in
+      let [_, mLower, mUpper] = readMaybe . toS <$> parsedRange
+          lower         = fromMaybe emptyRange   (rangeGeq <$> mLower)
+          upper         = fromMaybe allRange (rangeLeq <$> mUpper) in
       rangeIntersection lower upper
     Nothing -> allRange
 
@@ -52,14 +50,14 @@ restrictRange (Just limit) r =
 rangeLimit :: NonnegRange -> Maybe Integer
 rangeLimit range =
   case [rangeLower range, rangeUpper range] of
-    [BoundaryBelow from, BoundaryAbove to] -> Just (1 + to - from)
+    [BoundaryBelow lower, BoundaryAbove upper] -> Just (1 + upper - lower)
     _ -> Nothing
 
 rangeOffset :: NonnegRange -> Integer
 rangeOffset range =
   case rangeLower range of
-    BoundaryBelow from -> from
-    _ -> error "range without lower bound" -- should never happen
+    BoundaryBelow lower -> lower
+    _ -> panic "range without lower bound" -- should never happen
 
 rangeGeq :: Integer -> NonnegRange
 rangeGeq n =
