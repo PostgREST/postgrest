@@ -2,16 +2,18 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError) where
+module PostgREST.Error (apiRequestErrResponse, pgErrResponse, errResponse, prettyUsageError, formatGeneralError, formatParserError) where
 
 import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
+import           Data.Text                 (replace, strip)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.ApiRequest      (toHeader, ContentType(..), ApiRequestError(..))
+import           Text.Parsec.Error
 
 apiRequestErrResponse :: ApiRequestError -> Response
 apiRequestErrResponse err =
@@ -40,6 +42,17 @@ prettyUsageError :: P.UsageError -> Text
 prettyUsageError (P.ConnectionError e) =
   "Database connection error:\n" <> toS (fromMaybe "" e)
 prettyUsageError e = show $ JSON.encode e
+
+formatParserError :: ParseError -> Text
+formatParserError e = formatGeneralError message details
+  where
+     message = show $ errorPos e
+     details = strip $ replace "\n" " " $ toS
+       $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
+formatGeneralError :: Text -> Text -> Text
+formatGeneralError message details = toS . JSON.encode $
+  JSON.object ["message" .= message, "details" .= details]
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
@@ -103,6 +116,7 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     "P0001"   -> HT.status400 -- default code for "raise"
     'P':'0':_ -> HT.status500 -- PL/pgSQL Error
     'X':'X':_ -> HT.status500 -- internal Error
+    "42883"   -> HT.status404 -- undefined function
     "42P01"   -> HT.status404 -- undefined table
     "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
     _         -> HT.status400
