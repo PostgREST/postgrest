@@ -100,10 +100,10 @@ Extensions
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
 
-Commercial PaaS
+Commercial
 ---------------
 
-* `Sub0 <http://graphqlapi.com/>`_ - Automated GraphQL & REST API with built-in caching (powered by PostgREST, not affiliated)
+* `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered by PostgREST, not affiliated)
 
 
 Getting Support
