@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Allow requesting binary output on GET - @steve-chavez
+- Accept clients requesting `Content-Type: application/json` from / - @feynmanliang
 
 ### Fixed
 
