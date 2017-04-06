@@ -103,7 +103,7 @@ Extensions
 Commercial
 ---------------
 
-* `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered by PostgREST, not affiliated)
+* `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered in part by PostgREST)
 
 
 Getting Support
