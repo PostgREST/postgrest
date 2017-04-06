@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Allow requesting binary output on GET - @steve-chavez
-- Make HTTP headers available as GUCs #800 - @ruslantalpa
+- Make HTTP headers and cookies available as GUCs #800 - @ruslantalpa
 
 ### Fixed
 

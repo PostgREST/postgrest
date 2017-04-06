@@ -720,3 +720,20 @@ spec = do
           { matchStatus  = 200
           , matchHeaders = [ matchContentTypeJson ]
           }
+    it "single cookie ends up as claims" $
+      request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
+        [json| {"name":"request.cookie.acookie"} |]
+          `shouldRespondWith`
+          [str|"cookievalue"|]
+          { matchStatus = 200
+          , matchHeaders = []
+          }
+
+    it "multiple cookies ends up as claims" $
+      request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
+        [json| {"name":"request.cookie.secondcookie"} |]
+          `shouldRespondWith`
+          [str|"anothervalue"|]
+          { matchStatus = 200
+          , matchHeaders = []
+          }

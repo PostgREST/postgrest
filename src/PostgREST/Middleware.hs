@@ -33,11 +33,12 @@ runWithClaims conf eClaims app req =
     JWTInvalid -> return $ unauthed "JWT invalid"
     JWTMissingSecret -> return $ simpleError status500 "Server lacks JWT secret"
     JWTClaims claims -> do
-      H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql
+      H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql
       mapM_ H.sql customReqCheck
       app req
       where
         headersSql = map (pgFmtEnvVar "request.header.") $ iHeaders req
+        cookiesSql = map (pgFmtEnvVar "request.cookie.") $ fromMaybe [] $ iCookies req
         claimsSql = map (pgFmtEnvVar "request.jwt.claim.") [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
         setRoleSql = maybeToList $
           (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
