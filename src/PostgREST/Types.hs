@@ -195,8 +195,8 @@ opToSqlFragment op = case op of
   Contains -> "@>"
   Contained -> "<@"
 
-data Operation = Operation{ hasNot::Bool, opVal::(Operator, FValue) } deriving (Eq, Show)
-data FValue = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
+data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
+data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)

@@ -120,20 +120,20 @@ pSelect = lexeme $
     return ((s, Nothing), Nothing, Nothing)
 
 pOperation :: Parser Operation
-pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pOpVal)) <|> Operation False <$> pOpVal
+pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|> Operation False <$> pExpr
   where
-    pOpVal :: Parser (Operator, FValue)
-    pOpVal =
-          ((,) <$> (read <$> foldl1 (<|>) (try . string . show <$> notListOps)) <*> (pDelimiter *> pVText))
+    pExpr :: Parser (Operator, Operand)
+    pExpr =
+          ((,) <$> (read <$> foldl1 (<|>) (try . string . show <$> notInOps)) <*> (pDelimiter *> pVText))
       <|> try (string (show In) *> pDelimiter *> ((,) <$> pure In <*> pVTextL))
       <|> try (string (show NotIn) *> pDelimiter *> ((,) <$> pure NotIn <*> pVTextL))
       <?> "operator (eq, gt, ...)"
-    notListOps = [Equals .. Contained]
+    notInOps = [Equals .. Contained]
 
-pVText :: Parser FValue
+pVText :: Parser Operand
 pVText = VText . toS <$> many anyChar
 
-pVTextL :: Parser FValue
+pVTextL :: Parser Operand
 pVTextL = VTextL <$> pLValue `sepBy1` char ','
   where
     pLValue :: Parser Text

@@ -202,9 +202,9 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
    ]
  where
    qi = removeSourceCTESchema schema mainTbl
-   fn Filter{operation=Operation{opVal=(_, VText _)}} = True
-   fn Filter{operation=Operation{opVal=(_, VTextL _)}} = True
-   fn Filter{operation=Operation{opVal=(_, VForeignKey _ _)}} = False
+   fn Filter{operation=Operation{expr=(_, VText _)}} = True
+   fn Filter{operation=Operation{expr=(_, VTextL _)}} = True
+   fn Filter{operation=Operation{expr=(_, VForeignKey _ _)}} = False
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
@@ -407,18 +407,18 @@ pgFmtSelectItem table (f@(_, jp), Nothing, alias) = pgFmtField table f <> pgFmtA
 pgFmtSelectItem table (f@(_, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
-pgFmtFilter table (Filter field_ (Operation hasNot_ opVal_@(op, filterValue))) =
-  notOp <> " " <> operation_
+pgFmtFilter table (Filter fld (Operation hasNot_ ex@(op, operand))) =
+  notOp <> " " <> fmtedExpr
   where
     notOp       = if hasNot_ then "NOT" else ""
-    operation_ = case filterValue of
+    fmtedExpr = case operand of
       VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
-        pgFmtField fQi field_ <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
-      _ -> pgFmtField table field_ <> " " <> opToSqlFragment op <> " " <> pgFmtOpVal opVal_
+        pgFmtField fQi fld <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
+      _ -> pgFmtField table fld <> " " <> opToSqlFragment op <> " " <> pgFmtExpr ex
 
-pgFmtOpVal :: (Operator, FValue) -> SqlFragment
-pgFmtOpVal opVal_ =
- case opVal_ of
+pgFmtExpr :: (Operator, Operand) -> SqlFragment
+pgFmtExpr ex =
+ case ex of
    (Like, VText val) -> unknownLiteral $ T.map star val
    (ILike, VText val) -> unknownLiteral $ T.map star val
    (TSearch, VText val) -> "to_tsquery(" <> unknownLiteral val <> ") "
