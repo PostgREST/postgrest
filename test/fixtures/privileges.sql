@@ -52,6 +52,7 @@ GRANT ALL ON TABLE
     , images
     , images_base64
     , w_or_wo_comma_names
+    , items_with_different_col_types
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

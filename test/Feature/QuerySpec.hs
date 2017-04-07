@@ -771,3 +771,36 @@ spec = do
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=in.Williams\"Hebdon, John\"" `shouldRespondWith`
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
+
+  describe "IN empty set" $ do
+    context "returns an empty result set when no value is present" $ do
+      it "works for integer" $
+        get "/items_with_different_col_types?int_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for text" $
+        get "/items_with_different_col_types?text_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for bool" $
+        get "/items_with_different_col_types?bool_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for bytea" $
+        get "/items_with_different_col_types?bin_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for char" $
+        get "/items_with_different_col_types?char_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for date" $
+        get "/items_with_different_col_types?date_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for real" $
+        get "/items_with_different_col_types?real_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for time" $
+        get "/items_with_different_col_types?time_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+
+    it "returns an empty result ignoring spaces" $
+      get "/items_with_different_col_types?int_data=in.    " `shouldRespondWith` 400
+
+    it "only returns an empty result set if the in value is empty" $
+      get "/items_with_different_col_types?int_data=in. ,3,4" `shouldRespondWith` 400

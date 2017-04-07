@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #493, Updating with empty JSON object makes zero updates @koulakis
 - Make HTTP headers and cookies available as GUCs #800 - @ruslantalpa
 - #701, Ability to quote values on IN filters - @steve-chavez
+- #641, Allow IN filter to have no values - @steve-chavez
 
 ### Fixed
 - #827, Avoid Warp reaper, extend socket timeout to 1 hour - @majorcode

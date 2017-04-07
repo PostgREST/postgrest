@@ -407,25 +407,23 @@ pgFmtSelectItem table (f@(_, jp), Nothing, alias) = pgFmtField table f <> pgFmtA
 pgFmtSelectItem table (f@(_, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
-pgFmtFilter table (Filter fld (Operation hasNot_ ex@(op, operand))) =
-  notOp <> " " <> fmtedExpr
+pgFmtFilter table (Filter fld (Operation hasNot_ ex@(op, operand))) = notOp <> " " <> case operand of
+  VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
+    pgFmtField fQi fld <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
+  _ -> pgFmtField table fld <> " " <> pgFmtExpr ex
   where
-    notOp       = if hasNot_ then "NOT" else ""
-    fmtedExpr = case operand of
-      VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
-        pgFmtField fQi fld <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
-      _ -> pgFmtField table fld <> " " <> opToSqlFragment op <> " " <> pgFmtExpr ex
+    notOp = if hasNot_ then "NOT" else ""
 
 pgFmtExpr :: (Operator, Operand) -> SqlFragment
 pgFmtExpr ex =
  case ex of
-   (Like, VText val) -> unknownLiteral $ T.map star val
-   (ILike, VText val) -> unknownLiteral $ T.map star val
-   (TSearch, VText val) -> "to_tsquery(" <> unknownLiteral val <> ") "
-   (Is, VText val) -> whiteList val
-   (In, VTextL vals) -> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
-   (NotIn, VTextL vals) -> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
-   (_, VText val)    -> unknownLiteral val
+   (Like, VText val)    -> opToSqlFragment Like <> " " <> unknownLiteral (T.map star val)
+   (ILike, VText val)   -> opToSqlFragment ILike <> " " <> unknownLiteral (T.map star val)
+   (TSearch, VText val) -> opToSqlFragment TSearch <> " " <> "to_tsquery(" <> unknownLiteral val <> ") "
+   (Is, VText val)      -> opToSqlFragment Is <> " " <> whiteList val
+   (In, VTextL vals)    -> exprForIn vals
+   (NotIn, VTextL vals) -> opToSqlFragment NotIn <> " " <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+   (op, VText val)      -> opToSqlFragment op <> " " <> unknownLiteral val
    _ -> "" -- should not happen, all possible combinations are defined in Parsers
  where
    star c = if c == '*' then '%' else c
@@ -434,6 +432,14 @@ pgFmtExpr ex =
    whiteList v = fromMaybe
      (toS (pgFmtLit v) <> "::unknown ")
      (find ((==) . toLower $ v) ["null","true","false"])
+   exprForIn :: [Text] -> SqlFragment
+   exprForIn vals =
+    let emptyValForIn = "= any('{}') " in
+    case T.null <$> headMay vals of
+      Just isNull -> if isNull && length vals == 1
+                        then emptyValForIn
+                        else opToSqlFragment In <> " " <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+      Nothing -> emptyValForIn
 
 pgFmtJsonPath :: Maybe JsonPath -> SqlFragment
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
