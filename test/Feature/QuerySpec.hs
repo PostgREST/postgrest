@@ -312,6 +312,9 @@ spec = do
         `shouldRespondWith`
           [str|{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}|]
 
+    it "can detect fk relations through views to tables in the public schema" $
+      get "/consumers_view?select=*,orders_view{*}" `shouldRespondWith` 200
+
 
   describe "ordering response" $ do
     it "by a column asc" $
