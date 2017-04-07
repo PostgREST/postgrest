@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Resource embedding in views referencing tables in public schema - @fab1an
 - #777, Empty body is allowed when calling a non-parameterized RPC - @koulakis
 - #831, Fix proc resource embedding issue with search_path - @steve-chavez
+- #857, Fix swagger-ui when "server-proxy-uri" is not set - @feynmanliang
 
 ## [0.4.0.0] - 2017-01-19
 
