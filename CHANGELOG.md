@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Resource embedding in views referencing tables in public schema - @fab1an
+
 ## [0.3.2.0] - 2016-06-10
 
 ### Added

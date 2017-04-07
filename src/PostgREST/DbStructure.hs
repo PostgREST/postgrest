@@ -609,7 +609,7 @@ allSynonyms cols =
     			SELECT CASE WHEN match IS NOT NULL THEN coalesce(match[7], match[4]) END
     			FROM REGEXP_MATCHES(
     				CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-    				CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\sAS\s(")?([^"]+)\6)?.*?FROM.*?',vcu.table_schema,'\.(\2|',vcu.table_name,'\s+(AS\s)?\3)'),
+                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
     				'ns'
     			) match
     		) AS view_column_name
