@@ -79,15 +79,29 @@ postgrest conf refDbStructure pool getTime =
             eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-            txMode = transactionMode $ iAction apiRequest
+            txMode = transactionMode dbStructure
+              (iTarget apiRequest) (iAction apiRequest)
         response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
         return $ either (pgError authed) identity response
     respond response
 
-transactionMode :: Action -> H.Mode
-transactionMode ActionRead = HT.Read
-transactionMode ActionInfo = HT.Read
-transactionMode _ = HT.Write
+transactionMode :: DbStructure -> Target -> Action -> H.Mode
+transactionMode structure target action =
+  case action of
+    ActionRead -> HT.Read
+    ActionInfo -> HT.Read
+    ActionInspect -> HT.Read
+    ActionInvoke ->
+      let proc =
+            case target of
+              (TargetProc qi) -> M.lookup (qiName qi) $
+                                   dbProcs structure
+              _               -> Nothing
+          v = fromMaybe Volatile $ pdVolatility <$> proc in
+      if v == Stable || v == Immutable
+         then HT.Read
+         else HT.Write
+    _ -> HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
