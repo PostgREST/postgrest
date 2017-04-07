@@ -8,9 +8,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Allow requesting binary output on GET - @steve-chavez
 - Accept clients requesting `Content-Type: application/json` from / - @feynmanliang
+- #493, Updating with empty JSON object makes zero updates @koulakis
 
 ### Fixed
-
 - #827, Avoid Warp reaper, extend socket timeout to 1 hour - @majorcode
 - #791, malformed nested JSON error - @diogob
 - Resource embedding in views referencing tables in public schema - @fab1an
