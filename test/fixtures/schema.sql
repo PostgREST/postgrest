@@ -316,6 +316,7 @@ $$;
 
 CREATE FUNCTION sayhello(name text) RETURNS text
     LANGUAGE sql
+    IMMUTABLE
     AS $_$
     SELECT 'Hello, ' || $1;
 $_$;

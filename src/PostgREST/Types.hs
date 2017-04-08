@@ -41,10 +41,14 @@ data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier | Pseud
 
 data RetType = Single PgType | SetOf PgType deriving (Eq, Show)
 
+data ProcVolatility = Volatile | Stable | Immutable
+  deriving (Eq, Show)
+
 data ProcDescription = ProcDescription {
   pdName       :: Text
 , pdArgs       :: [PgArg]
 , pdReturnType :: RetType
+, pdVolatility :: ProcVolatility
 } deriving (Show, Eq)
 
 type Schema = Text

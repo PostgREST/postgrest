@@ -79,15 +79,29 @@ postgrest conf refDbStructure pool getTime =
             eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
             authed = containsRole eClaims
             handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-            txMode = transactionMode $ iAction apiRequest
+            txMode = transactionMode dbStructure
+              (iTarget apiRequest) (iAction apiRequest)
         response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
         return $ either (pgError authed) identity response
     respond response
 
-transactionMode :: Action -> H.Mode
-transactionMode ActionRead = HT.Read
-transactionMode ActionInfo = HT.Read
-transactionMode _ = HT.Write
+transactionMode :: DbStructure -> Target -> Action -> H.Mode
+transactionMode structure target action =
+  case action of
+    ActionRead -> HT.Read
+    ActionInfo -> HT.Read
+    ActionInspect -> HT.Read
+    ActionInvoke ->
+      let proc =
+            case target of
+              (TargetProc qi) -> M.lookup (qiName qi) $
+                                   dbProcs structure
+              _               -> Nothing
+          v = fromMaybe Volatile $ pdVolatility <$> proc in
+      if v == Stable || v == Immutable
+         then HT.Read
+         else HT.Write
+    _ -> HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure conf apiRequest =
@@ -151,10 +165,12 @@ app dbStructure conf apiRequest =
                     if iPreferRepresentation apiRequest == Full
                       then toS body else ""
 
-        (ActionUpdate, TargetIdent _, Just payload) ->
-          case mutateSqlParts of
-            Left errorResponse -> return errorResponse
-            Right (sq, mq) -> do
+        (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON rows)) ->
+          case (mutateSqlParts, null <$> rows V.!? 0, iPreferRepresentation apiRequest == Full) of
+            (Left errorResponse, _, _) -> return errorResponse
+            (_, Just True, True) -> return $ responseLBS status200 [contentRangeH 1 0 Nothing] "[]"
+            (_, Just True, False) -> return $ responseLBS status204 [contentRangeH 1 0 Nothing] ""
+            (Right (sq, mq), _, _) -> do
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
@@ -229,7 +245,7 @@ app dbStructure conf apiRequest =
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configProxyUri conf
-              uri Nothing = ("http", host, port, "/")
+              uri Nothing = ("http", host, port, "")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
               encodeApi ti = encodeOpenAPI (M.elems $ dbProcs dbStructure) ti uri'
@@ -284,7 +300,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionInvoke ->  [CTApplicationJSON, CTSingularJSON]
-        ActionInspect -> [CTOpenAPI]
+        ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
