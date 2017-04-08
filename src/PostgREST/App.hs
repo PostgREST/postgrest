@@ -165,10 +165,12 @@ app dbStructure conf apiRequest =
                     if iPreferRepresentation apiRequest == Full
                       then toS body else ""
 
-        (ActionUpdate, TargetIdent _, Just payload) ->
-          case mutateSqlParts of
-            Left errorResponse -> return errorResponse
-            Right (sq, mq) -> do
+        (ActionUpdate, TargetIdent _, Just payload@(PayloadJSON rows)) ->
+          case (mutateSqlParts, null <$> rows V.!? 0, iPreferRepresentation apiRequest == Full) of
+            (Left errorResponse, _, _) -> return errorResponse
+            (_, Just True, True) -> return $ responseLBS status200 [contentRangeH 1 0 Nothing] "[]"
+            (_, Just True, False) -> return $ responseLBS status204 [contentRangeH 1 0 Nothing] ""
+            (Right (sq, mq), _, _) -> do
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
