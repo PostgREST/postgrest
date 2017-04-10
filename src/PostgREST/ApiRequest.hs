@@ -97,7 +97,7 @@ data ApiRequest = ApiRequest {
   -- | HTTP request headers
   , iHeaders :: [(Text, Text)]
   -- | Request Cookies
-  , iCookies :: Maybe [(Text, Text)]
+  , iCookies :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -126,7 +126,7 @@ userApiRequest schema req reqBody
         $ rawQueryString req
       , iJWT = tokenStr
       , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
-      , iCookies = parseCookiesText <$> lookupHeader "Cookie"
+      , iCookies = fromMaybe [] $ parseCookiesText <$> lookupHeader "Cookie"
       }
  where
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path

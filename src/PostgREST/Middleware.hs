@@ -38,7 +38,7 @@ runWithClaims conf eClaims app req =
       app req
       where
         headersSql = map (pgFmtEnvVar "request.header.") $ iHeaders req
-        cookiesSql = map (pgFmtEnvVar "request.cookie.") $ fromMaybe [] $ iCookies req
+        cookiesSql = map (pgFmtEnvVar "request.cookie.") $ iCookies req
         claimsSql = map (pgFmtEnvVar "request.jwt.claim.") [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
         setRoleSql = maybeToList $
           (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
