@@ -567,7 +567,7 @@ OpenAPI Support
 
 Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads.
 
-You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dahsboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
 
 .. note::
 
