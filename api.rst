@@ -560,7 +560,7 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 
 .. note::
 
-  Beware of accidentally delting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+  Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
 
 OpenAPI Support
 ===============
