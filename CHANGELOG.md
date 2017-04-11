@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Allow requesting binary output on GET - @steve-chavez
 - Accept clients requesting `Content-Type: application/json` from / - @feynmanliang
 - #493, Updating with empty JSON object makes zero updates @koulakis
+- Make HTTP headers and cookies available as GUCs #800 - @ruslantalpa
 
 ### Fixed
 - #827, Avoid Warp reaper, extend socket timeout to 1 hour - @majorcode

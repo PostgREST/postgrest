@@ -27,7 +27,7 @@ import           Control.Arrow             ((***))
 import qualified Data.Text                 as T
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization)
+import           Network.HTTP.Types.Header (hAuthorization, hCookie)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
@@ -40,6 +40,8 @@ import           PostgREST.Types           ( QualifiedIdentifier (..)
                                            , ApiRequestError(..)
                                            , toMime)
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
+import qualified Data.CaseInsensitive      as CI
+import           Web.Cookie                (parseCookiesText)
 
 type RequestBody = BL.ByteString
 
@@ -92,6 +94,10 @@ data ApiRequest = ApiRequest {
   , iCanonicalQS :: ByteString
   -- | JSON Web Token
   , iJWT :: Text
+  -- | HTTP request headers
+  , iHeaders :: [(Text, Text)]
+  -- | Request Cookies
+  , iCookies :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -119,6 +125,8 @@ userApiRequest schema req reqBody
         . parseSimpleQuery
         $ rawQueryString req
       , iJWT = tokenStr
+      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
+      , iCookies = fromMaybe [] $ parseCookiesText <$> lookupHeader "Cookie"
       }
  where
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path

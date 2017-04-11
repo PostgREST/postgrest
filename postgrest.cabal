@@ -86,6 +86,7 @@ library
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
+                     , cookie
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.ApiRequest

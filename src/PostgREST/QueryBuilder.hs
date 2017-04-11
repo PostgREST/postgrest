@@ -24,6 +24,7 @@ module PostgREST.QueryBuilder (
   , sourceCTEName
   , unquoted
   , ResultsWithCount
+  , pgFmtEnvVar
   ) where
 
 import qualified Hasql.Query             as H
@@ -35,7 +36,7 @@ import qualified Data.Aeson              as JSON
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
-import           Data.Maybe              
+import           Data.Maybe
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
@@ -300,7 +301,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)
           if T.null colsString
             then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
             else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
-        ret = if null returnings 
+        ret = if null returnings
                   then ""
                   else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
 requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions returnings)) =
@@ -358,7 +359,7 @@ asJsonF = "coalesce(array_to_json(array_agg(row_to_json(_postgrest_t))), '[]')::
 asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF = "coalesce(string_agg(row_to_json(_postgrest_t)::text, ','), '')::character varying "
 
-asBinaryF :: FieldName -> SqlFragment 
+asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
 
 locationF :: [Text] -> SqlFragment
@@ -483,6 +484,10 @@ pgFmtAs (Just xx) Nothing = case lastMay xx of
   Just alias -> " AS " <> pgFmtIdent alias
   Nothing -> ""
 pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias
+
+pgFmtEnvVar :: Text -> (Text, Text) -> SqlFragment
+pgFmtEnvVar prefix (k, v) =
+  "set local " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
