@@ -656,7 +656,7 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not.\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -737,3 +737,70 @@ spec = do
           { matchStatus = 200
           , matchHeaders = []
           }
+
+  describe "values with quotes in IN and NOTIN operators" $ do
+    it "succeeds when only quoted values are present" $ do
+      get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "succeeds w/ and w/o quoted values" $ do
+      get "/w_or_wo_comma_names?name=in.David White,\"Hebdon, John\"" `shouldRespondWith`
+        [json| [{"name":"Hebdon, John"},{"name":"David White"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\"" `shouldRespondWith`
+        [json| [{"name":"Williams, Mary"},{"name":"David White"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",David White,\"Williams, Mary\",Larry Thompson" `shouldRespondWith`
+        [json| [{"name":"Smith, Joseph"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "checks well formed quoted values" $ do
+      get "/w_or_wo_comma_names?name=in.\"\"Hebdon, John\"" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.\"\"Hebdon, John\"\"Mary" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.Williams\"Hebdon, John\"" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+
+  describe "IN empty set" $ do
+    context "returns an empty result set when no value is present" $ do
+      it "works for integer" $
+        get "/items_with_different_col_types?int_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for text" $
+        get "/items_with_different_col_types?text_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for bool" $
+        get "/items_with_different_col_types?bool_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for bytea" $
+        get "/items_with_different_col_types?bin_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for char" $
+        get "/items_with_different_col_types?char_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for date" $
+        get "/items_with_different_col_types?date_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for real" $
+        get "/items_with_different_col_types?real_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+      it "works for time" $
+        get "/items_with_different_col_types?time_data=in." `shouldRespondWith`
+          [json| [] |] { matchHeaders = [matchContentTypeJson] }
+
+    it "returns an empty result ignoring spaces" $
+      get "/items_with_different_col_types?int_data=in.    " `shouldRespondWith` 400
+
+    it "only returns an empty result set if the in value is empty" $
+      get "/items_with_different_col_types?int_data=in. ,3,4" `shouldRespondWith` 400

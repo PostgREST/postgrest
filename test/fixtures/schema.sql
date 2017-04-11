@@ -1161,6 +1161,18 @@ create function test.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
+create table w_or_wo_comma_names ( name text );
+
+create table items_with_different_col_types ( 
+  int_data integer,
+  text_data text,
+  bool_data bool,
+  bin_data bytea,
+  char_data character varying,
+  date_data date,
+  real_data real,
+  time_data time
+);
 
 --
 -- PostgreSQL database dump complete

@@ -1,6 +1,7 @@
 module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
+import qualified GHC.Read
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as BL
 import           Data.HashMap.Strict  as M
@@ -78,9 +79,7 @@ data Column =
     , colDefault   :: Maybe Text
     , colEnum      :: [Text]
     , colFK        :: Maybe ForeignKey
-    }
-  | Star { colTable :: Table }
-  deriving (Show, Ord)
+    } deriving (Show, Ord)
 
 type Synonym = (Column,Column)
 
@@ -138,8 +137,66 @@ data Proxy = Proxy {
 , proxyPath       :: Text
 } deriving (Show, Eq)
 
-type Operator = Text
-data FValue = VText Text | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
+data Operator = Equals | Gte | Gt | Lte | Lt | Neq | Like | ILike | Is | IsNot |
+                TSearch | Contains | Contained | In | NotIn deriving (Eq, Enum)
+
+instance Show Operator where
+  show op =  case op of
+    Equals -> "eq"
+    Gte -> "gte"
+    Gt -> "gt"
+    Lte -> "lte"
+    Lt -> "lt"
+    Neq -> "neq"
+    Like -> "like"
+    ILike -> "ilike"
+    In -> "in"
+    NotIn -> "notin"
+    IsNot -> "isnot"
+    Is -> "is"
+    TSearch -> "@@"
+    Contains -> "@>"
+    Contained -> "<@"
+
+instance Read Operator where
+  readsPrec _ op =  case op of
+    "eq" -> [(Equals, "")]
+    "gte" -> [(Gte, "")]
+    "gt" -> [(Gt, "")]
+    "lte" -> [(Lte, "")]
+    "lt" -> [(Lt, "")]
+    "neq" -> [(Neq, "")]
+    "like" -> [(Like, "")]
+    "ilike" -> [(ILike, "")]
+    "in" -> [(In, "")]
+    "notin" -> [(NotIn, "")]
+    "isnot" -> [(IsNot, "")]
+    "is" -> [(Is, "")]
+    "@@" -> [(TSearch, "")]
+    "@>" -> [(Contains, "")]
+    "<@" -> [(Contained, "")]
+    _ -> []
+
+opToSqlFragment :: Operator -> SqlFragment
+opToSqlFragment op = case op of
+  Equals -> "="
+  Gte -> ">="
+  Gt -> ">"
+  Lte -> "<="
+  Lt -> "<"
+  Neq -> "<>"
+  Like -> "LIKE"
+  ILike -> "ILIKE"
+  In -> "IN"
+  NotIn -> "NOT IN"
+  IsNot -> "IS NOT"
+  Is -> "IS"
+  TSearch -> "@@"
+  Contains -> "@>"
+  Contained -> "<@"
+
+data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
+data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
@@ -152,7 +209,7 @@ data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
                  | Delete { in_::TableName, where_::[Filter], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], returning::[FieldName] } deriving (Show, Eq)
-data Filter = Filter {field::Field, operator::Operator, value::FValue} deriving (Show, Eq)
+data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
@@ -194,7 +251,6 @@ instance Eq Table where
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
-  _ == _ = False
 
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header

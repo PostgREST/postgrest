@@ -16,7 +16,6 @@ module PostgREST.QueryBuilder (
   , createReadStatement
   , createWriteStatement
   , getJoinConditions
-  , operators
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
@@ -37,13 +36,12 @@ import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, 
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Maybe
-import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower, split)
+import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
 import           Data.Tree               (Tree(..))
 import qualified Data.Vector as V
 import           PostgREST.Types
-import qualified Data.Map as M
 import           Text.InterpolatedString.Perl6 (qc)
 import qualified Data.ByteString.Char8   as BS
 import           Data.Scientific         ( FPFormat (..)
@@ -182,25 +180,6 @@ callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
      | isSingle = asJsonSingleF
      | otherwise = asJsonF
 
-operators :: [(Text, SqlFragment)]
-operators = [
-  ("eq", "="),
-  ("gte", ">="), -- has to be before gt (parsers)
-  ("gt", ">"),
-  ("lte", "<="), -- has to be before lt (parsers)
-  ("lt", "<"),
-  ("neq", "<>"),
-  ("like", "like"),
-  ("ilike", "ilike"),
-  ("in", "in"),
-  ("notin", "not in"),
-  ("isnot", "is not"), -- has to be before is (parsers)
-  ("is", "is"),
-  ("@@", "@@"),
-  ("@>", "@>"),
-  ("<@", "<@")
-  ]
-
 pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
 
@@ -219,31 +198,27 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _
  unwords [
    "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
-   ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi) localConditions )) `emptyOnNull` localConditions
+   ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi) localConditions )) `emptyOnNull` localConditions
    ]
  where
-   qi = if mainTbl == sourceCTEName
-     then QualifiedIdentifier "" mainTbl
-     else QualifiedIdentifier schema mainTbl
-   fn Filter{value=VText _} = True
-   fn Filter{value=VForeignKey _ _} = False
+   qi = removeSourceCTESchema schema mainTbl
+   fn Filter{operation=Operation{expr=(_, VText _)}} = True
+   fn Filter{operation=Operation{expr=(_, VTextL _)}} = True
+   fn Filter{operation=Operation{expr=(_, VForeignKey _ _)}} = False
    localConditions = filter fn conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
-    -- TODO! the following helper functions are just to remove the "schema" part when the table is "source" which is the name
-    -- of our WITH query part
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
-    tblSchema tbl = if tbl == sourceCTEName then "" else schema
-    qi = QualifiedIdentifier (tblSchema mainTbl) mainTbl
-    toQi t = QualifiedIdentifier (tblSchema t) t
+    qi = removeSourceCTESchema schema mainTbl
+    toQi = removeSourceCTESchema schema
     query = unwords [
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
       unwords joins,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
       orderF (fromMaybe [] ord),
       if isParent then "" else limitF range
       ]
@@ -272,11 +247,11 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
       where
         node_name = fromMaybe name alias
         local_table_name = table <> "_" <> node_name
-        replaceTableName localTableName (Filter a b (VForeignKey (QualifiedIdentifier "" _) c)) = Filter a b (VForeignKey (QualifiedIdentifier "" localTableName) c)
+        replaceTableName localTableName (Filter a (Operation b (c, VForeignKey (QualifiedIdentifier "" _) d))) = Filter a (Operation b (c, VForeignKey (QualifiedIdentifier "" localTableName) d))
         replaceTableName _ x = x
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
-              " ON " <> intercalate " AND " ( map (pgFmtCondition qi . replaceTableName local_table_name) (getJoinConditions r) )
+              " ON " <> intercalate " AND " ( map (pgFmtFilter qi . replaceTableName local_table_name) (getJoinConditions r) )
           where subquery = requestToQuery schema True (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
@@ -312,7 +287,7 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+        ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
         ]
     Nothing -> undefined
@@ -324,12 +299,15 @@ requestToQuery schema _ (DbMutate (Delete mainTbl conditions returnings)) =
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtCondition qi ) conditions )) `emptyOnNull` conditions,
+      ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
       ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
       ]
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
+
+removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
+removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
 
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
@@ -401,7 +379,7 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
     ftN = tableName ft
     ltN = fromMaybe "" (tableName <$> lt)
     toFilter :: Text -> Text -> Column -> Column -> Filter
-    toFilter tb ftb c fc = Filter (colName c, Nothing) "=" (VForeignKey (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}}))
+    toFilter tb ftb c fc = Filter (colName c, Nothing) (Operation False (Equals, VForeignKey (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
 unicodeStatement = H.statement . T.encodeUtf8
@@ -417,11 +395,6 @@ insertableValueWithType :: Text -> JSON.Value -> SqlFragment
 insertableValueWithType t v =
   pgFmtLit (unquoted v) <> "::" <> t
 
-whiteList :: Text -> SqlFragment
-whiteList val = fromMaybe
-  (toS (pgFmtLit val) <> "::unknown ")
-  (find ((==) . toLower $ val) ["null","true","false"])
-
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
@@ -433,45 +406,40 @@ pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
 pgFmtSelectItem table (f@(_, jp), Nothing, alias) = pgFmtField table f <> pgFmtAs jp alias
 pgFmtSelectItem table (f@(_, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
-pgFmtCondition :: QualifiedIdentifier -> Filter -> SqlFragment
-pgFmtCondition table (Filter (col,jp) ops val) =
-  notOp <> " " <> sqlCol  <> " " <> pgFmtOperator opCode <> " " <>
-    if opCode `elem` ["is","isnot"] then whiteList (getInner val) else sqlValue
+pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
+pgFmtFilter table (Filter fld (Operation hasNot_ ex@(op, operand))) = notOp <> " " <> case operand of
+  VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
+    pgFmtField fQi fld <> " " <> opToSqlFragment op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
+  _ -> pgFmtField table fld <> " " <> pgFmtExpr ex
   where
-    headPredicate:rest = split (=='.') ops
-    hasNot caseTrue caseFalse = if headPredicate == "not" then caseTrue else caseFalse
-    opCode      = hasNot (headDef "eq" rest) headPredicate
-    notOp       = hasNot headPredicate ""
-    sqlCol = case val of
-      VText _ -> pgFmtColumn table col <> pgFmtJsonPath jp
-      VForeignKey qi _ -> pgFmtColumn qi col
-    sqlValue = valToStr val
-    getInner v = case v of
-      VText s -> s
-      _      -> ""
-    valToStr v = case v of
-      VText s -> pgFmtValue opCode s
-      VForeignKey (QualifiedIdentifier s _) (ForeignKey Column{colTable=Table{tableName=ft}, colName=fc}) -> pgFmtColumn qi fc
-        where qi = QualifiedIdentifier (if ft == sourceCTEName then "" else s) ft
-      _ -> ""
+    notOp = if hasNot_ then "NOT" else ""
 
-pgFmtValue :: Text -> Text -> SqlFragment
-pgFmtValue opCode val =
- case opCode of
-   "like" -> unknownLiteral $ T.map star val
-   "ilike" -> unknownLiteral $ T.map star val
-   "in" -> "(" <> intercalate ", " (map unknownLiteral $ split (==',') val) <> ") "
-   "notin" -> "(" <> intercalate ", " (map unknownLiteral $ split (==',') val) <> ") "
-   "@@" -> "to_tsquery(" <> unknownLiteral val <> ") "
-   _    -> unknownLiteral val
+pgFmtExpr :: (Operator, Operand) -> SqlFragment
+pgFmtExpr ex =
+ case ex of
+   (Like, VText val)    -> opToSqlFragment Like <> " " <> unknownLiteral (T.map star val)
+   (ILike, VText val)   -> opToSqlFragment ILike <> " " <> unknownLiteral (T.map star val)
+   (TSearch, VText val) -> opToSqlFragment TSearch <> " " <> "to_tsquery(" <> unknownLiteral val <> ") "
+   (Is, VText val)      -> opToSqlFragment Is <> " " <> whiteList val
+   (In, VTextL vals)    -> exprForIn vals
+   (NotIn, VTextL vals) -> opToSqlFragment NotIn <> " " <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+   (op, VText val)      -> opToSqlFragment op <> " " <> unknownLiteral val
+   _ -> "" -- should not happen, all possible combinations are defined in Parsers
  where
    star c = if c == '*' then '%' else c
    unknownLiteral = (<> "::unknown ") . pgFmtLit
-
-pgFmtOperator :: Text -> SqlFragment
-pgFmtOperator opCode = fromMaybe "=" $ M.lookup opCode operatorsMap
-  where
-    operatorsMap = M.fromList operators
+   whiteList :: Text -> SqlFragment
+   whiteList v = fromMaybe
+     (toS (pgFmtLit v) <> "::unknown ")
+     (find ((==) . toLower $ v) ["null","true","false"])
+   exprForIn :: [Text] -> SqlFragment
+   exprForIn vals =
+    let emptyValForIn = "= any('{}') " in
+    case T.null <$> headMay vals of
+      Just isNull -> if isNull && length vals == 1
+                        then emptyValForIn
+                        else opToSqlFragment In <> " " <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+      Nothing -> emptyValForIn
 
 pgFmtJsonPath :: Maybe JsonPath -> SqlFragment
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
