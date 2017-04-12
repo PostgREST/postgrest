@@ -67,7 +67,7 @@ _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
   AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
             -- Jwt settings
-            (Just $ encodeUtf8 "safe") False
+            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False
             -- Connection Modifiers
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
@@ -89,9 +89,10 @@ testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }
 
 testCfgBinaryJWT :: Text -> AppConfig
-testCfgBinaryJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Just secretBs }
-  where secretBs = B64.decodeLenient "h2CGB1FoBd51aQooCS2g+UmRgYQfTPQ6v3+9ALbaqM4="
-
+testCfgBinaryJWT testDbConn = (testCfg testDbConn) {
+    configJwtSecret = Just . B64.decodeLenient $
+      "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU="
+  }
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do

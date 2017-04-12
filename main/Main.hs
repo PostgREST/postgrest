@@ -13,8 +13,6 @@ import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema)
 import           Protolude
 
-import           Control.AutoUpdate       (defaultUpdateSettings,
-                                           mkAutoUpdate, updateAction)
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
                                            retrying, rsPreviousDelay)
@@ -25,7 +23,6 @@ import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn, readFile)
-import           Data.Time.Clock.POSIX    (getPOSIXTime)
 import qualified Hasql.Decoders           as HD
 import qualified Hasql.Encoders           as HE
 import qualified Hasql.Pool               as P
@@ -72,7 +69,7 @@ isServerVersionSupported = do
   4. If 2 or 3 fail to give their result it means the connection is down so it
      goes back to 1, otherwise it finishes his work successfully.
 -}
-connectionWorker 
+connectionWorker
   :: ThreadId -- ^ This thread is killed if 'isServerVersionSupported' returns false
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
@@ -144,7 +141,7 @@ connectingSucceeded pool =
 main :: IO ()
 main = do
   --
-  -- LineBuffering: the entire output buffer is flushed whenever a newline is 
+  -- LineBuffering: the entire output buffer is flushed whenever a newline is
   -- output, the buffer overflows, a hFlush is issued or the handle is closed
   --
   -- NoBuffering: output is written immediately and never stored in the buffer
@@ -166,7 +163,7 @@ main = do
         . setTimeout 3600 $
         defaultSettings
   --
-  -- Checks that the provided proxy uri is formated correctly, 
+  -- Checks that the provided proxy uri is formated correctly,
   -- does not test if it works here.
   when (isMalformedProxyUri $ toS <$> proxy) $
     panic
@@ -210,18 +207,15 @@ main = do
       ) Nothing
 
   void $ installHandler sigHUP (
-    Catch $ connectionWorker 
-              mainTid 
-              pool 
-              (configSchema conf) 
-              refDbStructure 
+    Catch $ connectionWorker
+              mainTid
+              pool
+              (configSchema conf)
+              refDbStructure
               refIsWorkerOn
     ) Nothing
 #endif
-  --
-  -- ask for the OS time at most once per second
-  getTime <-
-    mkAutoUpdate defaultUpdateSettings {updateAction = getPOSIXTime}
+
   --
   -- run the postgrest application
   runSettings appSettings $
@@ -229,7 +223,6 @@ main = do
       conf
       refDbStructure
       pool
-      getTime
       (connectionWorker
          mainTid
          pool
@@ -257,7 +250,7 @@ loadSecretFile conf = extractAndTransform mSecret
     mSecret = decodeUtf8 <$> configJwtSecret conf
     isB64 = configJwtSecretIsBase64 conf
     --
-    -- The Text (variable name secret) here is mSecret from above which is the JWT 
+    -- The Text (variable name secret) here is mSecret from above which is the JWT
     -- decoded as Utf8
     --
     -- stripPrefix: Return the suffix of the second string if its prefix matches

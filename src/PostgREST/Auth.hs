@@ -15,16 +15,19 @@ module PostgREST.Auth (
     containsRole
   , jwtClaims
   , JWTAttempt(..)
+  , parseJWK
   ) where
 
-import           Protolude
-import           Data.Aeson              (Value (..), toJSON)
+import           Protolude        hiding ((&))
+import           Control.Lens
+import           Data.Aeson              (Value (..), decode, toJSON)
 import qualified Data.ByteString.Lazy    as BL
 import qualified Data.HashMap.Strict     as M
-import           Data.Time.Clock         (NominalDiffTime)
 
 import           Crypto.JOSE.Compact
 import           Crypto.JOSE.JWK
+import           Crypto.JOSE.JWS
+import           Crypto.JOSE.Types
 import           Crypto.JWT
 
 {-|
@@ -39,15 +42,23 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> BL.ByteString -> NominalDiffTime -> JWTAttempt
-jwtClaims _ "" _ = JWTClaims M.empty
-jwtClaims secret payload _time =
+jwtClaims :: Maybe JWK -> BL.ByteString -> IO JWTAttempt
+jwtClaims _ "" = return $ JWTClaims M.empty
+jwtClaims secret payload =
   case secret of
-    Nothing -> JWTMissingSecret
-    Just _ ->
-      case jwtClaimsSet <$> decodeCompact payload of
+    Nothing -> return JWTMissingSecret
+    Just jwk -> do
+      let validation = defaultJWTValidationSettings
+            -- & jwtValidationSettingsAudiencePredicate .~ (const True)
+            -- & jwtValidationSettingsValidationSettings
+            --     . validationSettingsValidationPolicy .~ AnyValidated
+      eJwt <- runExceptT $ do
+        jwt <- decodeCompact payload
+        validateJWSJWT validation jwk jwt
+        return jwt
+      return $ case eJwt of
         Left e -> JWTInvalid e
-        Right claims -> JWTClaims $ claims2map claims
+        Right jwt -> JWTClaims . claims2map . jwtClaimsSet $ jwt
 
 {-|
   Whether a response from jwtClaims contains a role claim
@@ -65,3 +76,21 @@ claims2map = val2map . toJSON
  where
   val2map (Object o) = o
   val2map _ = M.empty
+
+parseJWK :: ByteString -> JWK
+parseJWK str =
+  fromMaybe (hs256jwk str) (decode (toS str) :: Maybe JWK)
+ where
+
+{-|
+  Internal helper to generate HMAC-SHA256. When the jwt key in the
+  config file is a simple string rather than a JWK object, we'll
+  apply this function to it.
+-}
+hs256jwk :: ByteString -> JWK
+hs256jwk key =
+  fromKeyMaterial km
+    & jwkUse .~ (Just Sig)
+    & jwkAlg .~ (Just $ JWSAlg HS256)
+ where
+  km = OctKeyMaterial (OctKeyParameters Oct (Base64Octets key))

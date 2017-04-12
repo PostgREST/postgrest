@@ -205,7 +205,7 @@ CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT jwt.sign(
-    row_to_json(r), 'safe'
+    row_to_json(r), 'reallyreallyreallyreallyverysafe'
   ) as token
   FROM (
     SELECT rolname::text, id::text
@@ -238,7 +238,7 @@ CREATE FUNCTION jwt_test() RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT jwt.sign(
-    row_to_json(r), 'safe'
+    row_to_json(r), 'reallyreallyreallyreallyverysafe'
   ) as token
   FROM (
     SELECT 'joe'::text as iss, 'fun'::text as sub, 'everyone'::text as aud,
@@ -279,14 +279,13 @@ $$;
 --
 
 CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
-      iss text, sub text, aud text, exp bigint,
+      iss text, sub text, exp bigint,
       nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
     )
     LANGUAGE sql SECURITY DEFINER
     AS $$
 SELECT current_setting('request.jwt.claim.iss') as iss,
        current_setting('request.jwt.claim.sub') as sub,
-       current_setting('request.jwt.claim.aud') as aud,
        current_setting('request.jwt.claim.exp')::bigint as exp,
        current_setting('request.jwt.claim.nbf')::bigint as nbf,
        current_setting('request.jwt.claim.iat')::bigint as iat,
