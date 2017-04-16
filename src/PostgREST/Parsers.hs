@@ -1,23 +1,23 @@
 module PostgREST.Parsers where
 
 import           Protolude                     hiding (try, intercalate)
-import           Control.Monad                ((>>))
-import           Data.Foldable                (foldl1)
+import           Control.Monad                 ((>>))
+import           Data.Foldable                 (foldl1)
+import qualified Data.HashMap.Strict           as M
 import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
 import           Data.Tree
 import           Data.Either.Combinators       (mapLeft)
+import           PostgREST.RangeQuery          (NonnegRange,allRange)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-import           Text.Read                    (read)
-import           PostgREST.RangeQuery      (NonnegRange,allRange)
 import           Text.Parsec.Error
 
 pRequestSelect :: Text -> Text -> Either ApiRequestError ReadRequest
 pRequestSelect rootName selStr =
   mapError $ parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
 
-pRequestFilter :: (Text, Text) -> Either ApiRequestError (Path, Filter)
+pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
@@ -25,14 +25,14 @@ pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
     path = fst <$> treePath
     fld = snd <$> treePath
 
-pRequestOrder :: (Text, Text) -> Either ApiRequestError (Path, [OrderTerm])
+pRequestOrder :: (Text, Text) -> Either ApiRequestError (EmbedPath, [OrderTerm])
 pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
     ord' = parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
 
-pRequestRange :: (ByteString, NonnegRange) -> Either ApiRequestError (Path, NonnegRange)
+pRequestRange :: (ByteString, NonnegRange) -> Either ApiRequestError (EmbedPath, NonnegRange)
 pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
@@ -59,7 +59,7 @@ pReadRequest rootNodeName = do
             newForest =
               foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
 
-pTreePath :: Parser (Path,Field)
+pTreePath :: Parser (EmbedPath, Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
   jp <- optionMaybe pJsonPath
@@ -124,17 +124,17 @@ pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|>
   where
     pExpr :: Parser (Operator, Operand)
     pExpr =
-          ((,) <$> (read <$> foldl1 (<|>) (try . string . show <$> notInOps)) <*> (pDelimiter *> pVText))
-      <|> try (string (show In) *> pDelimiter *> ((,) <$> pure In <*> pVTextL))
-      <|> try (string (show NotIn) *> pDelimiter *> ((,) <$> pure NotIn <*> pVTextL))
+          ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys notInOps)) <*> pVText)
+      <|> ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys inOps)) <*> pVTextL)
       <?> "operator (eq, gt, ...)"
-    notInOps = [Equals .. Contained]
+    inOps = M.filterWithKey (const . flip elem ["in", "notin"]) operators
+    notInOps = M.difference operators inOps
 
 pVText :: Parser Operand
 pVText = VText . toS <$> many anyChar
 
 pVTextL :: Parser Operand
-pVTextL = VTextL <$> pLValue `sepBy1` char ','
+pVTextL = VTextL <$> lexeme pLValue `sepBy1` char ','
   where
     pLValue :: Parser Text
     pLValue = toS <$> (try (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",") ) <|> many (noneOf ","))

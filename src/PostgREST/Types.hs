@@ -1,10 +1,9 @@
 module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
-import qualified GHC.Read
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as BL
-import           Data.HashMap.Strict  as M
+import qualified Data.HashMap.Strict  as M
 import           Data.Tree
 import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
@@ -137,66 +136,27 @@ data Proxy = Proxy {
 , proxyPath       :: Text
 } deriving (Show, Eq)
 
-data Operator = Equals | Gte | Gt | Lte | Lt | Neq | Like | ILike | Is | IsNot |
-                TSearch | Contains | Contained | In | NotIn deriving (Eq, Enum)
-
-instance Show Operator where
-  show op =  case op of
-    Equals -> "eq"
-    Gte -> "gte"
-    Gt -> "gt"
-    Lte -> "lte"
-    Lt -> "lt"
-    Neq -> "neq"
-    Like -> "like"
-    ILike -> "ilike"
-    In -> "in"
-    NotIn -> "notin"
-    IsNot -> "isnot"
-    Is -> "is"
-    TSearch -> "@@"
-    Contains -> "@>"
-    Contained -> "<@"
-
-instance Read Operator where
-  readsPrec _ op =  case op of
-    "eq" -> [(Equals, "")]
-    "gte" -> [(Gte, "")]
-    "gt" -> [(Gt, "")]
-    "lte" -> [(Lte, "")]
-    "lt" -> [(Lt, "")]
-    "neq" -> [(Neq, "")]
-    "like" -> [(Like, "")]
-    "ilike" -> [(ILike, "")]
-    "in" -> [(In, "")]
-    "notin" -> [(NotIn, "")]
-    "isnot" -> [(IsNot, "")]
-    "is" -> [(Is, "")]
-    "@@" -> [(TSearch, "")]
-    "@>" -> [(Contains, "")]
-    "<@" -> [(Contained, "")]
-    _ -> []
-
-opToSqlFragment :: Operator -> SqlFragment
-opToSqlFragment op = case op of
-  Equals -> "="
-  Gte -> ">="
-  Gt -> ">"
-  Lte -> "<="
-  Lt -> "<"
-  Neq -> "<>"
-  Like -> "LIKE"
-  ILike -> "ILIKE"
-  In -> "IN"
-  NotIn -> "NOT IN"
-  IsNot -> "IS NOT"
-  Is -> "IS"
-  TSearch -> "@@"
-  Contains -> "@>"
-  Contained -> "<@"
-
+type Operator = Text
+operators :: M.HashMap Operator SqlFragment
+operators = M.fromList [
+  ("eq", "="),
+  ("gte", ">="),
+  ("gt", ">"),
+  ("lte", "<="),
+  ("lt", "<"),
+  ("neq", "<>"),
+  ("like", "LIKE"),
+  ("ilike", "ILIKE"),
+  ("in", "IN"),
+  ("notin", "NOT IN"),
+  ("isnot", "IS NOT"),
+  ("is", "IS"),
+  ("@@", "@@"),
+  ("@>", "@>"),
+  ("<@", "<@")]
 data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
 data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
+
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
@@ -204,12 +164,14 @@ type Alias = Text
 type Cast = Text
 type NodeName = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias)
-type Path = [Text]
+-- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
+type EmbedPath = [Text]
+data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
+
 data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
                  | Delete { in_::TableName, where_::[Filter], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], returning::[FieldName] } deriving (Show, Eq)
-data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
