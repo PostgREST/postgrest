@@ -180,7 +180,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
   of type (ReadRequest->ReadRequest) that are in (Either ParseError a) context
   -}
   where
-    filters :: Either ApiRequestError [(Path, Filter)]
+    filters :: Either ApiRequestError [(EmbedPath, Filter)]
     filters = mapM pRequestFilter flts
       where
         action = iAction apiRequest
@@ -188,30 +188,30 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
           | action == ActionRead = iFilters apiRequest
           | action == ActionInvoke = iFilters apiRequest
           | otherwise = filter (( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
-    orders :: Either ApiRequestError [(Path, [OrderTerm])]
+    orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
-    ranges :: Either ApiRequestError [(Path, NonnegRange)]
+    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
     ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
 addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f
 
-addFilter :: (Path, Filter) -> ReadRequest -> ReadRequest
+addFilter :: (EmbedPath, Filter) -> ReadRequest -> ReadRequest
 addFilter = addProperty addFilterToNode
 
 addOrderToNode :: [OrderTerm] -> ReadRequest -> ReadRequest
 addOrderToNode o (Node (q,i) f) = Node (q{order=Just o}, i) f
 
-addOrder :: (Path, [OrderTerm]) -> ReadRequest -> ReadRequest
+addOrder :: (EmbedPath, [OrderTerm]) -> ReadRequest -> ReadRequest
 addOrder = addProperty addOrderToNode
 
 addRangeToNode :: NonnegRange -> ReadRequest -> ReadRequest
 addRangeToNode r (Node (q,i) f) = Node (q{range_=r}, i) f
 
-addRange :: (Path, NonnegRange) -> ReadRequest -> ReadRequest
+addRange :: (EmbedPath, NonnegRange) -> ReadRequest -> ReadRequest
 addRange = addProperty addRangeToNode
 
-addProperty :: (a -> ReadRequest -> ReadRequest) -> (Path, a) -> ReadRequest -> ReadRequest
+addProperty :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> ReadRequest -> ReadRequest
 addProperty f ([], a) n = f a n
 addProperty f (path, a) (Node rn forest) =
   case targetNode of

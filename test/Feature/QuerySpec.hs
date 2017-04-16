@@ -772,8 +772,8 @@ spec = do
       get "/w_or_wo_comma_names?name=in.Williams\"Hebdon, John\"" `shouldRespondWith`
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
-  describe "IN empty set" $ do
-    context "returns an empty result set when no value is present" $ do
+  describe "IN and NOT IN empty set" $ do
+    context "returns an empty result for IN when no value is present" $ do
       it "works for integer" $
         get "/items_with_different_col_types?int_data=in." `shouldRespondWith`
           [json| [] |] { matchHeaders = [matchContentTypeJson] }
@@ -799,8 +799,17 @@ spec = do
         get "/items_with_different_col_types?time_data=in." `shouldRespondWith`
           [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
+    it "returns all results for notin when no value is present" $
+      get "/items_with_different_col_types?int_data=notin.&select=int_data" `shouldRespondWith`
+        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+
+    it "returns all results for not.in when no value is present" $
+      get "/items_with_different_col_types?int_data=not.in.&select=int_data" `shouldRespondWith`
+        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+
     it "returns an empty result ignoring spaces" $
-      get "/items_with_different_col_types?int_data=in.    " `shouldRespondWith` 400
+      get "/items_with_different_col_types?int_data=in.    " `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
     it "only returns an empty result set if the in value is empty" $
       get "/items_with_different_col_types?int_data=in. ,3,4" `shouldRespondWith` 400

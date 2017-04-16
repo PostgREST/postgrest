@@ -294,6 +294,9 @@ INSERT INTO w_or_wo_comma_names VALUES ('Smith, Joseph');
 INSERT INTO w_or_wo_comma_names VALUES ('David White');
 INSERT INTO w_or_wo_comma_names VALUES ('Larry Thompson');
 
+TRUNCATE TABLE items_with_different_col_types CASCADE;
+INSERT INTO items_with_different_col_types VALUES (1, null, null, null, null, null, null, null);
+
 --
 -- PostgreSQL database dump complete
 --

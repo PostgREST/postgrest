@@ -8,11 +8,12 @@ module PostgREST.OpenAPI (
 
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
+import qualified Data.HashMap.Strict         as M
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.Maybe                  (fromJust)
+import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
 import           Data.Text                   (unpack, pack, concat, intercalate, init, tail, toLower)
-import qualified Data.Set                    as Set
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
@@ -23,7 +24,7 @@ import           Data.Swagger
 import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
-                                              Proxy(..), ProcDescription(..), toMime, Operator(..))
+                                              Proxy(..), ProcDescription(..), toMime, operators)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -72,7 +73,7 @@ makeOperatorPattern =
   intercalate "|"
   [ concat ["^", x, y, "[.]"] |
     x <- ["not[.]", ""],
-    y <- map show [Equals ..] ]
+    y <- M.keys operators ]
 
 makeRowFilter :: Column -> Param
 makeRowFilter c =
