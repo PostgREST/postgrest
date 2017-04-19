@@ -1174,6 +1174,30 @@ create table items_with_different_col_types (
   time_data time
 );
 
+-- Tables used for testing complex boolean logic with and/or query params
+
+create table entities ( 
+  id integer primary key,
+  name text,
+  arr integer[],
+  text_search_vector tsvector
+);
+
+create table child_entities ( 
+  id integer primary key,
+  name text,
+  parent_id integer references entities(id)
+);
+
+create table grandchild_entities ( 
+  id integer primary key,
+  name text,
+  parent_id integer references child_entities(id),
+  or_starting_col text,
+  and_starting_col text,
+  jsonb_col jsonb
+);
+
 --
 -- PostgreSQL database dump complete
 --

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #742, Add connection retrying on startup and SIGHUP - @steve-chavez
+- #652, Add and/or params for complex boolean logic - @steve-chavez
 
 ### Fixed
 

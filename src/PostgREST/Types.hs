@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields    #-}
 module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
@@ -157,6 +158,21 @@ operators = M.fromList [
 data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
 data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 
+data LogicOperator = And | Or deriving Eq
+instance Show LogicOperator where
+  show And  = "AND"
+  show Or = "OR"
+{-|
+  Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
+
+            And
+           /   \
+  name.eq.N     Or
+               /  \
+         id.eq.1   id.eq.2
+-}
+data LogicTree = Expr Bool LogicOperator LogicTree LogicTree | Stmnt Filter deriving (Show, Eq)
+
 type FieldName = Text
 type JsonPath = [Text]
 type Field = (FieldName, Maybe JsonPath)
@@ -168,10 +184,10 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
 
-data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], logic::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
-                 | Delete { in_::TableName, where_::[Filter], returning::[FieldName] }
-                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], returning::[FieldName] } deriving (Show, Eq)
+                 | Delete { in_::TableName, where_::[Filter], logic::[LogicTree], returning::[FieldName] }
+                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], logic::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery

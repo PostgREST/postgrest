@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DuplicateRecordFields    #-}
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
@@ -6,6 +7,7 @@ module PostgREST.DbRequestBuilder (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow             ((***))
 import           Control.Lens.Getter       (view)
 import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
@@ -173,7 +175,8 @@ addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> R
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     flip (foldr addFilter) <$> filters,
     flip (foldr addOrder) <$> orders,
-    flip (foldr addRange) <$> ranges
+    flip (foldr addRange) <$> ranges,
+    flip (foldr addLogicTree) <$> logicForest
   ]
   {-
   The esence of what is going on above is that we are composing tree functions
@@ -182,12 +185,13 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
   where
     filters :: Either ApiRequestError [(EmbedPath, Filter)]
     filters = mapM pRequestFilter flts
-      where
-        action = iAction apiRequest
-        flts
-          | action == ActionRead = iFilters apiRequest
-          | action == ActionInvoke = iFilters apiRequest
-          | otherwise = filter (( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- there can be no filters on the root table whre we are doing insert/update
+    logicForest :: Either ApiRequestError [(EmbedPath, LogicTree)]
+    logicForest = mapM pRequestLogicTree logFrst
+    action = iAction apiRequest
+    -- there can be no filters on the root table when we are doing insert/update/delete
+    (flts, logFrst)
+      | action == ActionRead || action == ActionInvoke = (iFilters apiRequest, iLogic apiRequest)
+      | otherwise = join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
     orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
@@ -210,6 +214,12 @@ addRangeToNode r (Node (q,i) f) = Node (q{range_=r}, i) f
 
 addRange :: (EmbedPath, NonnegRange) -> ReadRequest -> ReadRequest
 addRange = addProperty addRangeToNode
+
+addLogicTreeToNode :: LogicTree -> ReadRequest -> ReadRequest
+addLogicTreeToNode t (Node (q@Select{logic=l},i) f) = Node (q{logic=t:l}::ReadQuery, i) f
+
+addLogicTree :: (EmbedPath, LogicTree) -> ReadRequest -> ReadRequest
+addLogicTree = addProperty addLogicTreeToNode
 
 addProperty :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> ReadRequest -> ReadRequest
 addProperty f ([], a) n = f a n
@@ -248,8 +258,8 @@ mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest fldNames = mapLeft apiRequestError $
   case action of
     ActionCreate -> Right $ Insert rootTableName payload returnings
-    ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> pure returnings
-    ActionDelete -> Delete rootTableName <$> filters <*> pure returnings
+    ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> logic_ <*> pure returnings
+    ActionDelete -> Delete rootTableName <$> filters <*> logic_ <*> pure returnings
     _        -> Left UnsupportedVerb
   where
     action = iAction apiRequest
@@ -261,7 +271,11 @@ mutateRequest apiRequest fldNames = mapLeft apiRequestError $
         _ -> undefined
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
     filters = map snd <$> mapM pRequestFilter mutateFilters
-      where mutateFilters = filter (not . ( "." `isInfixOf` ) . fst) $ iFilters apiRequest -- update/delete filters can be only on the root table
+    logic_ = map snd <$> mapM pRequestLogicTree logicFilters
+    -- update/delete filters can be only on the root table
+    mutateFilters = onlyRoot $ iFilters apiRequest
+    logicFilters = onlyRoot $ iLogic apiRequest
+    onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
 
 fieldNames :: ReadRequest -> [FieldName]
 fieldNames (Node (sel, _) forest) =
