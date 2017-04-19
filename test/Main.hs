@@ -26,6 +26,7 @@ import qualified Feature.StructureSpec
 import qualified Feature.SingularSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.ProxySpec
+import qualified Feature.AndOrParamsSpec
 
 import Protolude
 
@@ -84,4 +85,5 @@ main = do
     , ("Feature.RangeSpec"        , Feature.RangeSpec.spec)
     , ("Feature.SingularSpec"     , Feature.SingularSpec.spec)
     , ("Feature.StructureSpec"    , Feature.StructureSpec.spec)
+    , ("Feature.AndOrParamsSpec"  , Feature.AndOrParamsSpec.spec)
     ]

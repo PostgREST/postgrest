@@ -297,6 +297,24 @@ INSERT INTO w_or_wo_comma_names VALUES ('Larry Thompson');
 TRUNCATE TABLE items_with_different_col_types CASCADE;
 INSERT INTO items_with_different_col_types VALUES (1, null, null, null, null, null, null, null);
 
+TRUNCATE TABLE entities CASCADE;
+INSERT INTO entities VALUES (1, 'entity 1', '{1}', '''bar'':2 ''foo'':1');
+INSERT INTO entities VALUES (2, 'entity 2', '{1,2}', '''baz'':1 ''qux'':2');
+INSERT INTO entities VALUES (3, 'entity 3', '{1,2,3}', null);
+INSERT INTO entities VALUES (4, null, null, null);
+
+TRUNCATE TABLE child_entities CASCADE;
+INSERT INTO child_entities VALUES (1, 'child entity 1', 1);
+INSERT INTO child_entities VALUES (2, 'child entity 2', 1);
+INSERT INTO child_entities VALUES (3, 'child entity 3', 2);
+
+TRUNCATE TABLE grandchild_entities CASCADE;
+INSERT INTO grandchild_entities VALUES (1, 'grandchild entity 1', 1, null, null, null);
+INSERT INTO grandchild_entities VALUES (2, 'grandchild entity 2', 1, null, null, null);
+INSERT INTO grandchild_entities VALUES (3, 'grandchild entity 3', 2, null, null, null);
+INSERT INTO grandchild_entities VALUES (4, '(grandchild,entity,4)', 2, null, null, '{"a": {"b":"foo"}}');
+INSERT INTO grandchild_entities VALUES (5, '(grandchild,entity,5)', 2, null, null, '{"b":"bar"}');
+
 --
 -- PostgreSQL database dump complete
 --

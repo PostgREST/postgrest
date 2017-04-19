@@ -194,21 +194,25 @@ pgFmtLit x =
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
-requestToCountQuery schema (DbRead (Node (Select _ _ conditions _ _, (mainTbl, _, _)) _)) =
+requestToCountQuery schema (DbRead (Node (Select _ _ conditions logic_ _ _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
-   ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi) localConditions )) `emptyOnNull` localConditions
+    -- logic_ doesn't not need localFilter filtering because it doesn't have VForeignKey vals
+    ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) localConditions ++ map (pgFmtLogicTree qi) logic_)) 
+      `emptyOnFalse` (null conditions && null logic_)
    ]
  where
    qi = removeSourceCTESchema schema mainTbl
-   fn Filter{operation=Operation{expr=(_, VText _)}} = True
-   fn Filter{operation=Operation{expr=(_, VTextL _)}} = True
-   fn Filter{operation=Operation{expr=(_, VForeignKey _ _)}} = False
-   localConditions = filter fn conditions
+   localFilter :: Filter -> Bool
+   localFilter Filter{operation=Operation{expr=(_, val)}} = case val of
+    VText _ -> True
+    VTextL _ -> True
+    VForeignKey _ _ -> False
+   localConditions = filter localFilter conditions
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions ord range, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions logic_ ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
@@ -218,7 +222,8 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
       unwords joins,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
+      ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
+        `emptyOnFalse` (null conditions && null logic_),
       orderF (fromMaybe [] ord),
       if isParent then "" else limitF range
       ]
@@ -279,7 +284,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)
         ret = if null returnings
                   then ""
                   else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions returnings)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions logic_ returnings)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -287,20 +292,22 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
-        ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
+        ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_)) 
+          `emptyOnFalse` (null conditions && null logic_),
+        ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
         ]
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema _ (DbMutate (Delete mainTbl conditions returnings)) =
+requestToQuery schema _ (DbMutate (Delete mainTbl conditions logic_ returnings)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " ( map (pgFmtFilter qi ) conditions )) `emptyOnNull` conditions,
-      ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnNull` returnings
+      ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
+        `emptyOnFalse` (null conditions && null logic_),
+      ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
       ]
 
 sourceCTEName :: SqlFragment
@@ -384,8 +391,8 @@ getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
 unicodeStatement = H.statement . T.encodeUtf8
 
-emptyOnNull :: Text -> [a] -> Text
-emptyOnNull val x = if null x then "" else val
+emptyOnFalse :: Text -> Bool -> Text
+emptyOnFalse val cond = if cond then "" else val
 
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
@@ -438,6 +445,11 @@ pgFmtFilter table (Filter fld (Operation hasNot_ ex)) = notOp <> " " <> case ex 
                         then emptyValForIn op
                         else pgFmtFieldOp op <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
       Nothing -> emptyValForIn op
+
+pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
+pgFmtLogicTree qi (Expr hasNot_ op lt rt) = notOp <> " (" <> pgFmtLogicTree qi lt <> " " <> show op <> " " <> pgFmtLogicTree qi rt <> ")"
+  where notOp =  if hasNot_ then "NOT" else ""
+pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: Maybe JsonPath -> SqlFragment
 pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x

@@ -21,7 +21,7 @@ pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
-    oper = parse pOperation ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = parse (pOperation pVText pVTextL) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -38,6 +38,15 @@ pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
 
+pRequestLogicTree :: (Text, Text) -> Either ApiRequestError (EmbedPath, LogicTree)
+pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
+  where
+    path = parse pLogicPath ("failed to parser logic path (" ++ toS k ++ ")") $ toS k
+    embedPath = fst <$> path
+    op = snd <$> path
+    -- Concat op and v to make pLogicTree argument regular, in the form of "op(.,.)"
+    logicTree = join $ parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") . toS <$> ((<>) <$> op <*> pure v)
+
 ws :: Parser Text
 ws = toS <$> many (oneOf " \t")
 
@@ -49,7 +58,7 @@ pReadRequest rootNodeName = do
   fieldTree <- pFieldForest
   return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
   where
-    readQuery = Select [] [rootNodeName] [] Nothing allRange
+    readQuery = Select [] [rootNodeName] [] [] Nothing allRange
     treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
       case fldForest of
@@ -57,7 +66,7 @@ pReadRequest rootNodeName = do
         _  -> Node (q, i) newForest
           where
             newForest =
-              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
+              foldr treeEntry (Node (Select [] [fn] [] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
 
 pTreePath :: Parser (EmbedPath, Field)
 pTreePath = do
@@ -119,13 +128,13 @@ pSelect = lexeme $
     s <- pStar
     return ((s, Nothing), Nothing, Nothing)
 
-pOperation :: Parser Operation
-pOperation = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|> Operation False <$> pExpr
+pOperation :: Parser Operand -> Parser Operand -> Parser Operation
+pOperation parserVText parserVTextL = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|> Operation False <$> pExpr
   where
     pExpr :: Parser (Operator, Operand)
     pExpr =
-          ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys notInOps)) <*> pVText)
-      <|> ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys inOps)) <*> pVTextL)
+          ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys notInOps)) <*> parserVText)
+      <|> ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys inOps)) <*> parserVTextL)
       <?> "operator (eq, gt, ...)"
     inOps = M.filterWithKey (const . flip elem ["in", "notin"]) operators
     notInOps = M.difference operators inOps
@@ -137,7 +146,10 @@ pVTextL :: Parser Operand
 pVTextL = VTextL <$> lexeme pLValue `sepBy1` char ','
   where
     pLValue :: Parser Text
-    pLValue = toS <$> (try (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",") ) <|> many (noneOf ","))
+    pLValue = try pQuotedValue <|> (toS <$> many (noneOf ","))
+
+pQuotedValue :: Parser Text
+pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",)"))
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
@@ -160,6 +172,44 @@ pOrderTerm =
     return $ OrderTerm c d nls
   )
   <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing
+
+pLogicTree :: Parser LogicTree
+pLogicTree = Stmnt <$> try pLogicFilter
+             <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree) <*> (lexeme (char ',') *> pLogicTree <* lexeme (char ')'))
+  where
+    pLogicFilter :: Parser Filter
+    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOperation pLogicVText pLogicVTextL
+    pNot :: Parser Bool
+    pNot = try (string "not" *> pDelimiter *> pure True) 
+           <|> pure False
+           <?> "negation operator (not)"
+    pLogicOp :: Parser LogicOperator
+    pLogicOp = try (string "and"  *> pure And)
+               <|> string "or" *> pure Or
+               <?> "logic operator (and, or)"
+
+pLogicVText :: Parser Operand
+pLogicVText = VText <$> (try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)")))
+  where
+    pPgArray :: Parser Text
+    pPgArray =  do
+      a <- string "{"
+      b <- many (noneOf "{}")
+      c <- string "}"
+      toS <$> pure (a ++ b ++ c)
+
+pLogicVTextL :: Parser Operand
+pLogicVTextL = VTextL <$> (lexeme (char '(') *> pLValue `sepBy1` char ',' <* lexeme (char ')'))
+  where
+    pLValue :: Parser Text
+    pLValue = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
+
+pLogicPath :: Parser (EmbedPath, Text)
+pLogicPath = do
+  path <- pFieldName `sepBy1` pDelimiter
+  let op = last path
+      notOp = "not." <> op
+  return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
 
 mapError :: Either ParseError a -> Either ApiRequestError a
 mapError = mapLeft translateError
