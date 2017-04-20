@@ -12,45 +12,44 @@
       "description": "Version of PostgREST to deploy",
       "value": "0.4.0.0"
     },
-    "DB_NAME": {
-      "description": "Database name",
+    "DB_URI": {
+      "description": "Database connection string",
       "required": true
     },
-    "AUTH_ROLE": {
-      "description": "Database role to use checking client authentication",
+    "DB_SCHEMA": {
+      "description": "The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints",
+      "required": true,
+      "value": "public"
+    },
+    "DB_ANON_ROLE": {
+      "description": "The database role to use when executing commands on behalf of unauthenticated clients",
       "required": true
-    },
-    "AUTH_PASS": {
-      "description": "Authentication password",
-      "required": false
-    },
-    "ANONYMOUS_ROLE": {
-      "description": "Database role for non-authenticated requests",
-      "required": true
-    },
-    "DB_HOST": {
-      "description": "Database server hostname",
-      "required": true
-    },
-    "DB_PORT": {
-      "description": "Database server port",
-      "required": false,
-      "value": "5432"
     },
     "DB_POOL": {
-      "description": "Maximum number of connections in database pool",
+      "description": "Number of connections to keep open in PostgREST’s database pool",
       "required": false,
       "value": "10"
     },
-    "JWT_SECRET": {
-      "description": "Secret used to encrypt JSON Web Tokens",
-      "required": false,
-      "value": "secret"
+    "SERVER_PROXY_URI": {
+      "description": "Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path",
+      "required": false
     },
-    "SCHEMA": {
-      "description": "DB schema to be exported",
+    "JWT_SECRET": {
+      "description": "The secret used to decode JWT tokens clients provide for authentication",
+      "required": false
+    },
+    "SECRET_IS_BASE64": {
+      "description": "When this is set to true, the value derived from jwt-secret will be treated as a base64 encoded secret",
       "required": false,
-      "value": "1"
+      "value": "false"
+    },
+    "MAX_ROWS": {
+      "description": "A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure",
+      "required": false
+    },
+    "PRE_REQUEST": {
+      "description": "A schema-qualified stored procedure name to call right after switching roles for a client request",
+      "required": false
     }
   }
 }

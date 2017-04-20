@@ -1,9 +1,11 @@
 ![Logo](static/logo.png "Logo")
 
 [![Build Status](https://circleci.com/gh/begriffs/postgrest.png?style=shield&circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
+<a href="https://heroku.com/deploy?template=https://github.com/begriffs/postgrest/tree/new-heroku">
+  <img src="https://img.shields.io/badge/%E2%86%91_Deploy_to-Heroku-7056bf.svg" alt="Deploy">
+</a>
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.com)
-[![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://patreon.com/begriffs)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
