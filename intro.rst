@@ -61,6 +61,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 * `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
 * `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
 * `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
+* `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
 
 Example Apps
 ------------
