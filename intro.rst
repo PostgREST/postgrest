@@ -89,6 +89,8 @@ In Production
 * `Image-charts <https://image-charts.com/>`_
 * `Drip Depot <https://www.dripdepot.com/>`_
 * `OpenBooking <http://openbooking.ch>`_
+* `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
+* `eGull <http://www.egull.co>`_
 
 Extensions
 ----------
