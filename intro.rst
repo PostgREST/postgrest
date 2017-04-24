@@ -107,6 +107,28 @@ Commercial
 
 * `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered in part by PostgREST)
 
+Testimonials
+############
+
+  "It's so fast to develop, it feels like cheating!"
+
+  -- François-G. Ribreau
+
+  "I just have to say that, the CPU/Memory usage compared to our
+  Node.js/Waterline ORM based API is ridiculous.  It's hard to even push
+  it over 60/70 MB while our current API constantly hits 1GB running on 6
+  instances (dynos)."
+
+  -- Louis Brauer
+
+  "I really enjoyed the fact that all of a sudden I was writing
+  microservices in SQL DDL (and v8 javascript functions). I dodged so
+  much boilerplate. The next thing I knew, we pulled out a full rewrite
+  of a Spring+MySQL legacy app in 6 months. Literally 10x faster, and
+  code was super concise. The old one took 3 years and a team of 4
+  people to develop."
+
+  -- Simone Scarduzio
 
 Getting Support
 ################
