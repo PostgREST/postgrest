@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+
+### Fixed
+
+## [0.4.1.0] - 2017-04-25
+
+### Added
 - Allow requesting binary output on GET - @steve-chavez
 - Accept clients requesting `Content-Type: application/json` from / - @feynmanliang
 - #493, Updating with empty JSON object makes zero updates @koulakis
