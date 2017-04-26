@@ -245,7 +245,7 @@ app dbStructure conf apiRequest =
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configProxyUri conf
-              uri Nothing = ("http", host, port, "")
+              uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
               encodeApi ti = encodeOpenAPI (M.elems $ dbProcs dbStructure) ti uri'
