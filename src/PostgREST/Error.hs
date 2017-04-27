@@ -8,6 +8,7 @@ module PostgREST.Error (
 , simpleError
 , singularityError
 , binaryFieldError
+, connectionLostError
 , encodeError
 ) where
 
@@ -72,6 +73,10 @@ binaryFieldError :: Response
 binaryFieldError =
   simpleError HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
+
+connectionLostError :: Response
+connectionLostError =
+  simpleError HT.status503 "Database connection lost, retrying the connection."
 
 encodeError :: JSON.ToJSON a => a -> LByteString
 encodeError = JSON.encode

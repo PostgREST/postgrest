@@ -12,14 +12,15 @@ import           PostgREST.Config                     (AppConfig (..),
 import           PostgREST.Error                      (encodeError)
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
+import           PostgREST.Types                      (DbStructure, Schema)
 
 import           Control.AutoUpdate
+import           Control.Retry
 import           Data.ByteString.Base64               (decode)
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix, pack, replace)
 import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
 import           Data.Text.IO                         (hPutStrLn, readFile)
-import           Data.Function                        (id)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
@@ -42,6 +43,59 @@ isServerVersionSupported = do
   pgVersion =
     H.statement "SELECT current_setting('server_version_num')::integer"
       HE.unit (HD.singleRow $ HD.value HD.int4) False
+
+{-|
+  Background thread that does the following :
+  1. Tries to connect to pg server and will keep trying until success.
+  2. Checks if the pg version is supported and if it's not it kills the main program.
+  3. Obtains the dbStructure.
+  4. If 2 or 3 fail to give their result it means the connection is down so it goes back to 1,
+     otherwise it finishes his work successfully.
+-}
+connectionWorker :: ThreadId -> P.Pool -> Schema -> IORef (Maybe DbStructure) -> IO ()
+connectionWorker mainTid pool schema refDbStructure = void $ forkIO work
+  where
+    work = do
+      atomicWriteIORef refDbStructure Nothing
+      putStrLn ("Attempting to connect to the database..." :: Text)
+      connected <- connectingSucceeded pool
+      when connected $ do
+        result <- P.use pool $ do
+          supported <- isServerVersionSupported
+          unless supported $ liftIO $ do
+            hPutStrLn stderr 
+              ("Cannot run in this PostgreSQL version, PostgREST needs at least " 
+              <> pgvName minimumPgVersion)
+            killThread mainTid
+          dbStructure <- getDbStructure schema
+          liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
+        case result of
+          Left e -> do
+            putStrLn ("Failed to query the database. Retrying." :: Text)
+            hPutStrLn stderr (toS $ encodeError e)
+            work
+          Right _ -> putStrLn ("Connection successful" :: Text)
+
+-- | Connect to pg server if it fails retry with capped exponential backoff until success
+connectingSucceeded :: P.Pool -> IO Bool
+connectingSucceeded pool =
+  retrying (capDelay 32000000 $ exponentialBackoff 1000000)
+           shouldRetry
+           (const $ P.release pool >> isConnectionSuccessful)
+  where
+    isConnectionSuccessful :: IO Bool
+    isConnectionSuccessful = do
+      testConn <- P.use pool $ H.sql "SELECT 1"
+      case testConn of
+        Left e -> hPutStrLn stderr (toS $ encodeError e) >> pure False
+        _ -> pure True
+    shouldRetry :: RetryStatus -> Bool -> IO Bool
+    shouldRetry rs isConnSucc = do
+      delay <- pure $ fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
+      itShould <- pure $ not isConnSucc
+      when itShould $
+        putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
+      return itShould
 
 main :: IO ()
 main = do
@@ -67,31 +121,21 @@ main = do
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
-  result <- P.use pool $ do
-    supported <- isServerVersionSupported
-    unless supported $ panic (
-      "Cannot run in this PostgreSQL version, PostgREST needs at least "
-      <> pgvName minimumPgVersion)
-    getDbStructure (toS $ configSchema conf)
+  refDbStructure <- newIORef Nothing
 
-  forM_ (lefts [result]) $ \e -> do
-    hPutStrLn stderr (toS $ encodeError e)
-    exitFailure
+  mainTid <- myThreadId
 
-  refDbStructure <- newIORef $ either (panic . show) id result
+  connectionWorker mainTid pool (configSchema conf) refDbStructure
 
 #ifndef mingw32_HOST_OS
-  tid <- myThreadId
   forM_ [sigINT, sigTERM] $ \sig ->
     void $ installHandler sig (Catch $ do
         P.release pool
-        throwTo tid UserInterrupt
+        throwTo mainTid UserInterrupt
       ) Nothing
 
   void $ installHandler sigHUP (
-      Catch . void . P.use pool $ do
-        s <- getDbStructure (toS $ configSchema conf)
-        liftIO $ atomicWriteIORef refDbStructure s
+      Catch $ connectionWorker mainTid pool (configSchema conf) refDbStructure
    ) Nothing
 #endif
 
