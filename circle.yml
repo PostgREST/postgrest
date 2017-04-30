@@ -15,7 +15,7 @@ dependencies:
 
 test:
   override:
-    - POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://ubuntu@localhost" postgrest_test) stack test --test-arguments "--skip \"returns a valid openapi\""
+    - POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://ubuntu@localhost" postgrest_test) stack test
     - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
     - stack exec -- cabal update
     - stack exec --no-ghc-package-path -- cabal install --only-d --dry-run
