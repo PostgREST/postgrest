@@ -41,7 +41,7 @@ main = do
 
 
   result <- P.use pool $ getDbStructure "test"
-  refDbStructure <- newIORef $ either (panic.show) id result
+  refDbStructure <- newIORef $ Just $ either (panic.show) id result
   let withApp      = return $ postgrest (testCfg testDbConn)          refDbStructure pool getTime
       ltdApp       = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool getTime
       unicodeApp   = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool getTime
