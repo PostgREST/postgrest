@@ -52,8 +52,12 @@ isServerVersionSupported = do
   4. If 2 or 3 fail to give their result it means the connection is down so it goes back to 1,
      otherwise it finishes his work successfully.
 -}
-connectionWorker :: ThreadId -> P.Pool -> Schema -> IORef (Maybe DbStructure) -> IO ()
-connectionWorker mainTid pool schema refDbStructure = void $ forkIO work
+connectionWorker :: ThreadId -> P.Pool -> Schema -> IORef (Maybe DbStructure) -> IORef Bool -> IO ()
+connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
+  isWorkerOn <- readIORef refIsWorkerOn
+  when (not isWorkerOn) $ do
+    atomicWriteIORef refIsWorkerOn True
+    void $ forkIO work
   where
     work = do
       atomicWriteIORef refDbStructure Nothing
@@ -63,8 +67,8 @@ connectionWorker mainTid pool schema refDbStructure = void $ forkIO work
         result <- P.use pool $ do
           supported <- isServerVersionSupported
           unless supported $ liftIO $ do
-            hPutStrLn stderr 
-              ("Cannot run in this PostgreSQL version, PostgREST needs at least " 
+            hPutStrLn stderr
+              ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
           dbStructure <- getDbStructure schema
@@ -74,7 +78,9 @@ connectionWorker mainTid pool schema refDbStructure = void $ forkIO work
             putStrLn ("Failed to query the database. Retrying." :: Text)
             hPutStrLn stderr (toS $ encodeError e)
             work
-          Right _ -> putStrLn ("Connection successful" :: Text)
+          Right _ -> do
+            atomicWriteIORef refIsWorkerOn False
+            putStrLn ("Connection successful" :: Text)
 
 -- | Connect to pg server if it fails retry with capped exponential backoff until success
 connectingSucceeded :: P.Pool -> IO Bool
@@ -123,9 +129,12 @@ main = do
 
   refDbStructure <- newIORef Nothing
 
+  -- Helper ref to make sure just one connectionWorker can run at a time
+  refIsWorkerOn <- newIORef False
+
   mainTid <- myThreadId
 
-  connectionWorker mainTid pool (configSchema conf) refDbStructure
+  connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn
 
 #ifndef mingw32_HOST_OS
   forM_ [sigINT, sigTERM] $ \sig ->
@@ -135,7 +144,7 @@ main = do
       ) Nothing
 
   void $ installHandler sigHUP (
-      Catch $ connectionWorker mainTid pool (configSchema conf) refDbStructure
+      Catch $ connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn
    ) Nothing
 #endif
 
