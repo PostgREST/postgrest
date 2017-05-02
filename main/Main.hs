@@ -55,7 +55,7 @@ isServerVersionSupported = do
 connectionWorker :: ThreadId -> P.Pool -> Schema -> IORef (Maybe DbStructure) -> IORef Bool -> IO ()
 connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
-  when (not isWorkerOn) $ do
+  unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
     void $ forkIO work
   where
