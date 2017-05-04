@@ -813,3 +813,30 @@ spec = do
 
     it "only returns an empty result set if the in value is empty" $
       get "/items_with_different_col_types?int_data=in. ,3,4" `shouldRespondWith` 400
+
+    it "returns empty result when the in value is empty between parentheses" $
+      get "/items_with_different_col_types?int_data=in.()" `shouldRespondWith`
+        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+
+    it "returns all results when the notin value is empty between parentheses" $ do
+      get "/items_with_different_col_types?int_data=notin.()&select=int_data" `shouldRespondWith`
+        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+      get "/items_with_different_col_types?int_data=not.in.()&select=int_data" `shouldRespondWith`
+        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+
+  describe "Transition to url safe characters" $ do
+    context "top level in operator" $ do
+      it "works with parentheses" $
+        get "/entities?id=in.(1,2,3)&select=id" `shouldRespondWith`
+          [json| [{"id": 1}, {"id": 2}, {"id": 3}] |] { matchHeaders = [matchContentTypeJson] }
+      it "works without parentheses" $
+        get "/entities?id=in.1,2,3&select=id" `shouldRespondWith`
+          [json| [{"id": 1}, {"id": 2}, {"id": 3}] |] { matchHeaders = [matchContentTypeJson] }
+
+    context "select query param" $ do
+      it "works with parentheses" $
+        get "/entities?id=eq.2&select=id,child_entities(id)" `shouldRespondWith`
+          [json| [{"id": 2, "child_entities": [{"id": 3}]}] |] { matchHeaders = [matchContentTypeJson] }
+      it "works with brackets" $
+        get "/entities?id=eq.2&select=id,child_entities{id}" `shouldRespondWith`
+          [json| [{"id": 2, "child_entities": [{"id": 3}]}] |] { matchHeaders = [matchContentTypeJson] }

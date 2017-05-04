@@ -78,8 +78,9 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree = try (Node <$> pSimpleSelect <*> between (char '{') (char '}') pFieldForest)
-          <|>     Node <$> pSelect <*> pure []
+pFieldTree =  try (Node <$> pSimpleSelect <*> between (char '{') (char '}') pFieldForest)
+          <|> try (Node <$> pSimpleSelect <*> between (char '(') (char ')') pFieldForest)
+          <|> Node <$> pSelect <*> pure []
 
 pStar :: Parser Text
 pStar = toS <$> (string "*" *> pure ("*"::ByteString))
@@ -143,10 +144,11 @@ pVText :: Parser Operand
 pVText = VText . toS <$> many anyChar
 
 pVTextL :: Parser Operand
-pVTextL = VTextL <$> lexeme pLValue `sepBy1` char ','
-  where
-    pLValue :: Parser Text
-    pLValue = try pQuotedValue <|> (toS <$> many (noneOf ","))
+pVTextL =     VTextL <$> try (lexeme (char '(') *> pVTextLElement `sepBy1` char ',' <* lexeme (char ')'))
+          <|> VTextL <$> lexeme pVTextLElement `sepBy1` char ','
+
+pVTextLElement :: Parser Text
+pVTextLElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
 
 pQuotedValue :: Parser Text
 pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",)"))
@@ -199,10 +201,7 @@ pLogicVText = VText <$> (try pQuotedValue <|> try pPgArray <|> (toS <$> many (no
       toS <$> pure (a ++ b ++ c)
 
 pLogicVTextL :: Parser Operand
-pLogicVTextL = VTextL <$> (lexeme (char '(') *> pLValue `sepBy1` char ',' <* lexeme (char ')'))
-  where
-    pLValue :: Parser Text
-    pLValue = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
+pLogicVTextL = VTextL <$> (lexeme (char '(') *> pVTextLElement `sepBy1` char ',' <* lexeme (char ')'))
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
