@@ -153,6 +153,7 @@ main = do
     defaultUpdateSettings { updateAction = getPOSIXTime }
 
   runSettings appSettings $ postgrest conf refDbStructure pool getTime
+    (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
 
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret

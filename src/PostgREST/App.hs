@@ -64,8 +64,8 @@ import           Protolude              hiding (intercalate, Proxy)
 import           Safe                   (headMay)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO POSIXTime ->
-             Application
-postgrest conf refDbStructure pool getTime =
+             IO () -> Application
+postgrest conf refDbStructure pool getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
@@ -86,7 +86,14 @@ postgrest conf refDbStructure pool getTime =
                   (iTarget apiRequest) (iAction apiRequest)
             response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
             return $ either (pgError authed) identity response
-        respond response
+        if isResponse503 response then do
+          worker
+          respond response
+        else
+          respond response
+
+isResponse503 :: Response -> Bool
+isResponse503 resp = statusCode (responseStatus resp) == 503
 
 transactionMode :: DbStructure -> Target -> Action -> H.Mode
 transactionMode structure target action =

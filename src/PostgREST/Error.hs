@@ -133,7 +133,7 @@ instance JSON.ToJSON H.Error where
     "details" .= (fmap toS d::Maybe Text)]
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
-httpStatus _ (P.ConnectionError _) = HT.status500
+httpStatus _ (P.ConnectionError _) = HT.status503
 httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
   case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
