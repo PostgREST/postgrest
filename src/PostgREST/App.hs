@@ -86,11 +86,8 @@ postgrest conf refDbStructure pool getTime worker =
                   (iTarget apiRequest) (iAction apiRequest)
             response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
             return $ either (pgError authed) identity response
-        if isResponse503 response then do
-          worker
-          respond response
-        else
-          respond response
+        when (isResponse503 response) worker
+        respond response
 
 isResponse503 :: Response -> Bool
 isResponse503 resp = statusCode (responseStatus resp) == 503
