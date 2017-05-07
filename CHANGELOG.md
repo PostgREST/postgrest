@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #742, Add connection retrying on startup and SIGHUP - @steve-chavez
+
 ### Fixed
 
 ## [0.4.1.0] - 2017-04-25

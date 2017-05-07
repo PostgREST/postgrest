@@ -45,6 +45,7 @@ import           PostgREST.DbRequestBuilder( readRequest
 import           PostgREST.Error           ( simpleError, pgError
                                            , apiRequestError
                                            , singularityError, binaryFieldError
+                                           , connectionLostError
                                            )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
@@ -62,28 +63,34 @@ import           Data.Function (id)
 import           Protolude              hiding (intercalate, Proxy)
 import           Safe                   (headMay)
 
-postgrest :: AppConfig -> IORef DbStructure -> P.Pool -> IO POSIXTime ->
-             Application
-postgrest conf refDbStructure pool getTime =
+postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO POSIXTime ->
+             IO () -> Application
+postgrest conf refDbStructure pool getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
 
   middle $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
-    dbStructure <- readIORef refDbStructure
+    maybeDbStructure <- readIORef refDbStructure
+    case maybeDbStructure of
+      Nothing -> respond connectionLostError
+      Just dbStructure -> do
+        response <- case userApiRequest (configSchema conf) req body of
+          Left err -> return $ apiRequestError err
+          Right apiRequest -> do
+            let jwtSecret = binarySecret <$> configJwtSecret conf
+                eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
+                authed = containsRole eClaims
+                handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
+                txMode = transactionMode dbStructure
+                  (iTarget apiRequest) (iAction apiRequest)
+            response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
+            return $ either (pgError authed) identity response
+        when (isResponse503 response) worker
+        respond response
 
-    response <- case userApiRequest (configSchema conf) req body of
-      Left err -> return $ apiRequestError err
-      Right apiRequest -> do
-        let jwtSecret = binarySecret <$> configJwtSecret conf
-            eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
-            authed = containsRole eClaims
-            handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-            txMode = transactionMode dbStructure
-              (iTarget apiRequest) (iAction apiRequest)
-        response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-        return $ either (pgError authed) identity response
-    respond response
+isResponse503 :: Response -> Bool
+isResponse503 resp = statusCode (responseStatus resp) == 503
 
 transactionMode :: DbStructure -> Target -> Action -> H.Mode
 transactionMode structure target action =

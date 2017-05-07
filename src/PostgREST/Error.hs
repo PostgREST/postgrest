@@ -8,6 +8,7 @@ module PostgREST.Error (
 , simpleError
 , singularityError
 , binaryFieldError
+, connectionLostError
 , encodeError
 ) where
 
@@ -73,6 +74,10 @@ binaryFieldError =
   simpleError HT.status406 (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
 
+connectionLostError :: Response
+connectionLostError =
+  simpleError HT.status503 "Database connection lost, retrying the connection."
+
 encodeError :: JSON.ToJSON a => a -> LByteString
 encodeError = JSON.encode
 
@@ -128,7 +133,7 @@ instance JSON.ToJSON H.Error where
     "details" .= (fmap toS d::Maybe Text)]
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
-httpStatus _ (P.ConnectionError _) = HT.status500
+httpStatus _ (P.ConnectionError _) = HT.status503
 httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
   case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
