@@ -13,15 +13,20 @@ import           PostgREST.Error                      (encodeError)
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 import           PostgREST.Types                      (DbStructure, Schema)
+import           PostgRESTWS
+import           PostgRESTWS.Broadcast
+import           PostgRESTWS.HasqlBroadcast
 
 import           Control.AutoUpdate
 import           Control.Retry
 import           Data.ByteString.Base64               (decode)
+import           Data.Function                        (id)
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix, pack, replace)
 import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
 import           Data.Text.IO                         (hPutStrLn, readFile)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
+import qualified Hasql.Connection                     as H
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -127,6 +132,9 @@ main = do
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
+  conOrError <- H.acquire pgSettings
+  let con = either (panic . show) id conOrError :: H.Connection
+
   refDbStructure <- newIORef Nothing
 
   -- Helper ref to make sure just one connectionWorker can run at a time
@@ -152,8 +160,13 @@ main = do
   getTime <- mkAutoUpdate
     defaultUpdateSettings { updateAction = getPOSIXTime }
 
-  runSettings appSettings $ postgrest conf refDbStructure pool getTime
-    (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
+  multi <- newHasqlBroadcaster con
+  void $ relayMessagesForever multi
+
+  runSettings appSettings $
+    postgrestWsMiddleware (configJwtSecret conf) getTime pool multi $
+    postgrest conf refDbStructure pool getTime
+      (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
 
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret
