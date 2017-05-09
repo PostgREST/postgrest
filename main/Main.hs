@@ -132,9 +132,6 @@ main = do
 
   pool <- P.acquire (configPool conf, 10, pgSettings)
 
-  conOrError <- H.acquire pgSettings
-  let con = either (panic . show) id conOrError :: H.Connection
-
   refDbStructure <- newIORef Nothing
 
   -- Helper ref to make sure just one connectionWorker can run at a time
@@ -160,11 +157,19 @@ main = do
   getTime <- mkAutoUpdate
     defaultUpdateSettings { updateAction = getPOSIXTime }
 
-  multi <- newHasqlBroadcaster con
-  void $ relayMessagesForever multi
+
+  wsMiddleware <-
+        if configWebsockets conf
+          then do
+            conOrError <- H.acquire pgSettings
+            let con = either (panic . show) id conOrError :: H.Connection
+            multi <- newHasqlBroadcaster con
+            void $ relayMessagesForever multi
+            return $ postgrestWsMiddleware (configJwtSecret conf) getTime pool multi
+          else return id
 
   runSettings appSettings $
-    postgrestWsMiddleware (configJwtSecret conf) getTime pool multi $
+    wsMiddleware $
     postgrest conf refDbStructure pool getTime
       (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
 
