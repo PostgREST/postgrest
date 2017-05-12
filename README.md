@@ -112,7 +112,7 @@ directly into your database. Hence no application can corrupt your
 data (including your API server).
 
 The PostgREST exposes HTTP interface with safeguards to prevent
-surprises, such as enforcing idempotent PUT requests, and
+surprises, such as enforcing idempotent PUT requests.
 
 See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
