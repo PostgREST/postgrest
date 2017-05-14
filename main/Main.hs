@@ -14,7 +14,6 @@ import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 import           PostgREST.Types                      (DbStructure, Schema)
 import           PostgRESTWS
-import           PostgRESTWS.Broadcast
 import           PostgRESTWS.HasqlBroadcast
 
 import           Control.AutoUpdate
@@ -26,7 +25,6 @@ import           Data.Text                            (stripPrefix, pack, replac
 import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
 import           Data.Text.IO                         (hPutStrLn, readFile)
 import           Data.Time.Clock.POSIX                (getPOSIXTime)
-import qualified Hasql.Connection                     as H
 import qualified Hasql.Query                          as H
 import qualified Hasql.Session                        as H
 import qualified Hasql.Decoders                       as HD
@@ -161,11 +159,10 @@ main = do
   wsMiddleware <-
         if configWebsockets conf
           then do
-            conOrError <- H.acquire pgSettings
-            let con = either (panic . show) id conOrError :: H.Connection
-            multi <- newHasqlBroadcaster con
-            void $ relayMessagesForever multi
-            return $ postgrestWsMiddleware (configJwtSecret conf) getTime pool multi
+            multiOrError <- newHasqlBroadcasterOrError pgSettings
+            let multi = either (panic . show) id multiOrError
+                secret = fromMaybe (panic "You need to set a JWT secret to enable websockets") $ configJwtSecret conf
+            return $ postgrestWsMiddleware secret getTime pool multi
           else return id
 
   runSettings appSettings $
