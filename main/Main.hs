@@ -14,7 +14,6 @@ import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 import           PostgREST.Types                      (DbStructure, Schema)
 import           PostgRESTWS
-import           PostgRESTWS.HasqlBroadcast
 
 import           Control.AutoUpdate
 import           Control.Retry
