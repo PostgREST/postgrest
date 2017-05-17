@@ -202,7 +202,7 @@ Next write a stored procedure that returns the token. The one below returns a to
   CREATE FUNCTION jwt_test() RETURNS public.jwt_token
       LANGUAGE sql
       AS $$
-    SELECT jwt.sign(
+    SELECT sign(
       row_to_json(r), 'mysecret'
     ) AS token
     FROM (
@@ -224,7 +224,7 @@ PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`
     ALTER DATABASE mydb SET "app.jwt_secret" TO '!!secret!!';
 
     -- then all functions can refer to app.jwt_secret
-    SELECT jwt.sign(
+    SELECT sign(
       row_to_json(r), current_setting('app.jwt_secret')
     ) AS token
     FROM ...
@@ -295,7 +295,7 @@ First we'll need a table to keep track of our users:
   basic_auth.users (
     email    text primary key check ( email ~* '^.+@.+\..+$' ),
     pass     text not null check (length(pass) < 512),
-    role     name not null check (length(role) < 512),
+    role     name not null check (length(role) < 512)
   );
 
 We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the :code:`pg_roles` table. We'll use a trigger to manually enforce it.
@@ -391,7 +391,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
       raise invalid_password using message = 'invalid user or password';
     end if;
 
-    select jwt.sign(
+    select sign(
         row_to_json(r), 'mysecret'
       ) as token
       from (
