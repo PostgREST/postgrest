@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
@@ -28,8 +29,10 @@ import qualified Data.ByteString.Char8       as BS
 import qualified Data.CaseInsensitive        as CI
 import qualified Data.Configurator           as C
 import qualified Data.Configurator.Parser    as C
+import           Data.Configurator.Types     (Value(..))
 import           Data.List                   (lookup)
 import           Data.Monoid
+import           Data.Scientific             (floatingOrInteger)
 import           Data.Text                   (strip, intercalate, lines)
 import           Data.Text.Encoding          (encodeUtf8)
 import           Data.Text.IO                (hPutStrLn)
@@ -105,11 +108,11 @@ readOptions = do
           <*> C.key "server-proxy-uri"
           <*> C.key "db-schema"
           <*> (fromMaybe "*4" <$> C.key "server-host")
-          <*> (fromMaybe 3000 <$> C.key "server-port")
+          <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 <$> C.key "jwt-secret")
           <*> (fromMaybe False <$> C.key "secret-is-base64")
-          <*> (fromMaybe 10 <$> C.key "db-pool")
-          <*> C.key "max-rows"
+          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
+          <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> C.key "pre-request"
           <*> pure False
 
@@ -121,6 +124,11 @@ readOptions = do
       return appConf
 
  where
+  coerceInt :: (Read i, Integral i) => Value -> Maybe i
+  coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
+  coerceInt (String x) = readMaybe $ toS x
+  coerceInt _ = Nothing
+
   opts = info (helper <*> pathParser) $
            fullDesc
            <> progDesc (
