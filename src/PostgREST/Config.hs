@@ -41,6 +41,7 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import           Options.Applicative hiding  (str)
 import           Paths_postgrest             (version)
+import           System.IO                   (hPrint)
 import           Text.Heredoc
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
@@ -118,7 +119,7 @@ readOptions = do
 
   case mAppConf of
     Nothing -> do
-      forM_ errs $ hPutStrLn stderr . show
+      forM_ errs $ hPrint stderr
       exitFailure
     Just appConf ->
       return appConf
