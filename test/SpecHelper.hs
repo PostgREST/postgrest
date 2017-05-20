@@ -13,7 +13,8 @@ import Data.List (lookup)
 import Text.Regex.TDFA ((=~))
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
-import System.Process (readProcess)
+import           System.Process (readProcess)
+import           Text.Heredoc
 
 import PostgREST.Config (AppConfig(..))
 
@@ -92,6 +93,12 @@ testCfgBinaryJWT :: Text -> AppConfig
 testCfgBinaryJWT testDbConn = (testCfg testDbConn) {
     configJwtSecret = Just . B64.decodeLenient $
       "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU="
+  }
+
+testCfgAsymJWK :: Text -> AppConfig
+testCfgAsymJWK testDbConn = (testCfg testDbConn) {
+    configJwtSecret = Just $ encodeUtf8
+      [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
   }
 
 setupDb :: Text -> IO ()

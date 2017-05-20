@@ -11,6 +11,7 @@ import Data.Function (id)
 import Data.IORef
 
 import qualified Feature.AuthSpec
+import qualified Feature.AsymmetricJwtSpec
 import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
@@ -43,6 +44,7 @@ main = do
       proxyApp     = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool $ pure ()
       noJwtApp     = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool $ pure ()
       binaryJwtApp = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool $ pure ()
+      asymJwkApp   = return $ postgrest (testCfgAsymJWK testDbConn)   refDbStructure pool $ pure ()
 
   let reset = resetDb testDbConn
   hspec $ do
@@ -67,6 +69,10 @@ main = do
     -- this test runs with a binary JWT secret
     beforeAll_ reset . before binaryJwtApp $
       describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
+
+    -- this test runs with asymmetric JWK
+    beforeAll_ reset . before asymJwkApp $
+      describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
  where
   specs = map (uncurry describe) [

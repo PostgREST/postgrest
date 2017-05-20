@@ -36,7 +36,7 @@ import           Crypto.JWT
 data JWTAttempt = JWTInvalid JWTError
                 | JWTMissingSecret
                 | JWTClaims (M.HashMap Text Value)
-                deriving Eq
+                deriving (Eq, Show)
 
 {-|
   Receives the JWT secret (from config) and a JWT and returns a map
@@ -49,9 +49,6 @@ jwtClaims secret payload =
     Nothing -> return JWTMissingSecret
     Just jwk -> do
       let validation = defaultJWTValidationSettings
-            -- & jwtValidationSettingsAudiencePredicate .~ (const True)
-            -- & jwtValidationSettingsValidationSettings
-            --     . validationSettingsValidationPolicy .~ AnyValidated
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
         validateJWSJWT validation jwk jwt

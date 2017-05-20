@@ -111,6 +111,7 @@ Test-Suite spec
   Hs-Source-Dirs:      test
   Main-Is:             Main.hs
   Other-Modules:       Feature.AuthSpec
+                     , Feature.AsymmetricJwtSpec
                      , Feature.BinaryJwtSecretSpec
                      , Feature.ConcurrentSpec
                      , Feature.CorsSpec
