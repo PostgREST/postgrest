@@ -110,7 +110,7 @@ readOptions = do
           <*> C.key "db-schema"
           <*> (fromMaybe "*4" <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
-          <*> (fmap encodeUtf8 <$> C.key "jwt-secret")
+          <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False <$> C.key "secret-is-base64")
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")

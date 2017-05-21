@@ -13,6 +13,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #822, Treat blank string JWT secret as no secret - @begriffs
+
 ## [0.4.1.0] - 2017-04-25
 
 ### Added
