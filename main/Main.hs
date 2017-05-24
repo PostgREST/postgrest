@@ -158,9 +158,8 @@ main = do
   wsMiddleware <-
         if configWebsockets conf
           then do
-            multiOrError <- newHasqlBroadcasterOrError pgSettings
-            let multi = either (panic . show) id multiOrError
-                secret = fromMaybe (panic "You need to set a JWT secret to enable websockets") $ configJwtSecret conf
+            multi <- newHasqlBroadcaster pgSettings
+            let secret = fromMaybe (panic "You need to set a JWT secret to enable websockets") $ configJwtSecret conf
             return $ postgrestWsMiddleware secret getTime pool multi
           else return id
 

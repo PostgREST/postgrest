@@ -41,7 +41,7 @@ executable postgrest
                      , bytestring
                      , base64-bytestring
                      , retry
-                     , postgrest-ws >= 0.3.1 && < 0.4
+                     , postgrest-ws >= 0.3.2 && < 0.4
   if !os(windows)
     build-depends:     unix
 
