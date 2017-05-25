@@ -89,41 +89,9 @@ SQL code can access claims through GUC variables set by PostgREST per request. F
 
 .. code:: sql
 
-  current_setting('request.jwt.claim.email')
+  current_setting('request.jwt.claim.email', true)
 
-This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user.
-
-.. note::
-
-  The current_setting function raises an exception if the setting in question is not present, as when a claim is missing from the JWT. Your SQL functions can either catch the exception, or you can set a default value for the database like this.
-
-  .. code:: sql
-
-    -- Prevent current_setting('request.jwt.claim.email') from raising
-    -- an exception if the setting is not present. Default it to ''.
-    ALTER DATABASE your_db_name SET request.jwt.claim.email TO '';
-
-  If you are unable to issue an ALTER DATABASE statement (for instance on Amazon RDS), you can create a helper function to read environment variables and swallow exceptions.
-
-  .. code:: sql
-
-    create function env_var(v text) returns text as $$
-      declare
-        result text;
-      begin
-        begin
-          select current_setting(v) into result;
-        exception 
-          when undefined_object then
-            return null;
-        end;
-
-        return result;
-      end;
-    $$ stable language plpgsql;
-
-    -- now you can call call for instance
-    -- SELECT env_var('request.jwt.claim.email')
+This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user.  The second 'true' argument tells current_setting to return NULL if the setting is missing from the current configuration.
 
 Hybrid User-Group Roles
 ~~~~~~~~~~~~~~~~~~~~~~~
