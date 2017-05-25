@@ -9,7 +9,7 @@ The release page has precompiled binaries for Mac OS X, Windows, and several Lin
 
   # Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
 
-  $ tar zxf postgrest-[version]-[platform].tar.xz
+  $ tar Jxf postgrest-[version]-[platform].tar.xz
 
   # Try running it
   $ ./postgrest --help
