@@ -1,11 +1,13 @@
 stgrest:
-  image: begriffs/postgrest:latest
+  image: pg_local
   ports:
     - "3000:3000"
-  volumes:
-    - ./config.conf:/etc/postgrest.conf
   links:
     - postgres:postgres
+  environment:
+    PGRST_DB_URI: postgres://app_user:password@postgres:5432/app_db
+    PGRST_DB_SCHEMA: public
+    PGRST_DB_ANON_ROLE: app_user
 
 postgres:
   image: postgres

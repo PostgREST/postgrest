@@ -9,8 +9,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #742, Add connection retrying on startup and SIGHUP - @steve-chavez
 - #652, Add and/or params for complex boolean logic - @steve-chavez
+- #808, Env var interpolation in config file (helps Docker) - @begriffs
 
 ### Fixed
+
+- #822, Treat blank string JWT secret as no secret - @begriffs
 
 ## [0.4.1.0] - 2017-04-25
 

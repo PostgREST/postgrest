@@ -55,7 +55,7 @@ library
                      , bytestring
                      , case-insensitive
                      , cassava
-                     , configurator
+                     , configurator-ng == 0.0.0.1
                      , containers
                      , contravariant
                      , either
