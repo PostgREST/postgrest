@@ -144,8 +144,9 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
+callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange ->
+  Bool -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
+callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql = [qc|
@@ -178,6 +179,7 @@ callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson =
                    <*> HD.value HD.bytea
     bodyF
      | isSingle = asJsonSingleF
+     | asCsv = asCsvF
      | otherwise = asJsonF
 
 pgFmtIdent :: SqlFragment -> SqlFragment
@@ -199,7 +201,7 @@ requestToCountQuery schema (DbRead (Node (Select _ _ conditions logic_ _ _, (mai
    "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
     -- logic_ doesn't not need localFilter filtering because it doesn't have VForeignKey vals
-    ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) localConditions ++ map (pgFmtLogicTree qi) logic_)) 
+    ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) localConditions ++ map (pgFmtLogicTree qi) logic_))
       `emptyOnFalse` (null conditions && null logic_)
    ]
  where
@@ -292,7 +294,7 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_)) 
+        ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
           `emptyOnFalse` (null conditions && null logic_),
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
         ]
