@@ -487,6 +487,15 @@ spec = do
           [json| [ {"id": 3}, {"id":4} ] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "returns CSV" $
+        request methodPost "/rpc/getitemrange"
+                (acceptHdrs "text/csv")
+                [json| { "min": 2, "max": 4 } |]
+           `shouldRespondWith` "id\n3\n4"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            }
+
     context "unknown function" $
       it "returns 404" $
         post "/rpc/fakefunc" [json| {} |] `shouldRespondWith` 404

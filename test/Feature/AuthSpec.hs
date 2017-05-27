@@ -44,14 +44,14 @@ spec = describe "authorization" $ do
       [json| { "id": "jdoe", "pass": "1234" } |]
       `shouldRespondWith` [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xuYW1lIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.P2G9EVSVI22MWxXWFuhEYd9BZerLS1WDlqzdqplM15s"} |]
         { matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeSingular]
         }
 
   it "sql functions can encode custom and standard claims" $
     request methodPost  "/rpc/jwt_test" [single] "{}"
       `shouldRespondWith` [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJqb2UiLCJzdWIiOiJmdW4iLCJhdWQiOiJldmVyeW9uZSIsImV4cCI6MTMwMDgxOTM4MCwibmJmIjoxMzAwODE5MzgwLCJpYXQiOjEzMDA4MTkzODAsImp0aSI6ImZvbyIsInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdCIsImh0dHA6Ly9wb3N0Z3Jlc3QuY29tL2ZvbyI6dHJ1ZX0.IHF16ZSU6XTbOnUWO8CCpUn2fJwt8P00rlYVyXQjpWc"} |]
         { matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeSingular]
         }
 
   it "sql functions can read custom and standard claims variables" $ do

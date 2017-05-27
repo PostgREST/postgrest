@@ -238,7 +238,9 @@ app dbStructure conf apiRequest =
               let p = V.head payload
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
-              row <- H.query () (callProc qi p q cq topLevelRange shouldCount singular paramsAsSingleObject)
+              row <- H.query () $
+                callProc qi p q cq topLevelRange shouldCount singular
+                         paramsAsSingleObject (contentType == CTTextCSV)
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -246,7 +248,7 @@ app dbStructure conf apiRequest =
                 then do
                   HT.condemn
                   return $ singularityError (toInteger queryTotal)
-                else return $ responseLBS status [jsonH, contentRange] (toS body)
+                else return $ responseLBS status [toHeader contentType, contentRange] (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf
@@ -275,7 +277,6 @@ app dbStructure conf apiRequest =
       filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
       allPrKeys = dbPrimaryKeys dbStructure
       allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
-      jsonH = toHeader CTApplicationJSON
       shouldCount = iPreferCount apiRequest
       schema = toS $ configSchema conf
       topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
@@ -305,7 +306,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON]
+        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
