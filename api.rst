@@ -335,7 +335,11 @@ Which would return
     }
   ]
 
-PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films.
+PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
+
+.. code-block:: http
+
+  GET /directors?select=films{title,year} HTTP/1.1
 
 .. note::
 
