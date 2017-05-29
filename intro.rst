@@ -40,17 +40,17 @@ PostgREST has a growing ecosystem of examples, and libraries, experiments, and u
 Client-Side Libraries
 ---------------------
 
-* `PierreRochard/angular2-postgrest <https://github.com/PierreRochard/angular2-postgrest>`_ - JS, Angular 2
 * `tomberek/aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
 * `hugomrdias/postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
 * `john-kelly/elm-postgrest <https://github.com/john-kelly/elm-postgrest>`_ - Elm
 * `mithril.postgrest <https://github.com/catarse/mithril.postgrest>`_ - JS, Mithril
-* `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ - C#, RestSharp
 * `lewisjared/postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
 * `JarvusInnovations/jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
 * `davidthewatson/postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
 * `calebmer/postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
 * `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
+* `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
+* `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
 
 External Notification
 ---------------------
@@ -66,6 +66,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 Example Apps
 ------------
 
+* `https://github.com/subzerocloud/postgrest-starter-kit <subzerocloud/postgrest-starter-kit>`_ - Boilerplate for new project
 * `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - Calling to external translation service
 * `CodeforAustralia/heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
 * `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - An excel-like database table editor
@@ -80,6 +81,7 @@ Example Apps
 * `tyrchen/goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film api
 * `begriffs/postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
 * `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
+* `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth backend
 
 In Production
 -------------
