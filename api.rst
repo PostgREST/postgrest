@@ -348,7 +348,7 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 Embedded Filters and Order
 --------------------------
 
-Embedded tables can be filtered and ordered similarly to their top-level counterparts. To to do so prefix the query parameters with the name of the embedded table. For instance to order the actors in each film:
+Embedded tables can be filtered and ordered similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded table. For instance, to order the actors in each film:
 
 .. code-block:: http
 
