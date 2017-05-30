@@ -1,0 +1,54 @@
+#!/bin/bash
+
+cat << EOF
+
+=== Dockerized Postgrest ===
+
+See usage instructions by running one of these commands:
+
+docker run --rm begriffs/postgrest:$POSTGREST_VERSION postgrest --help
+  Prints usage for the primary Postgrest executable
+  Including example of configuration file contents
+
+docker run --rm begriffs/postgrest:$POSTGREST_VERSION postgrest-env --help
+  Prints usage for the postgrest-env wrapper script
+  This script enables the usage of environment variables instead of mounting a config file
+
+-----
+
+Example methods of execution:
+
+# Run with config file as daemon
+docker run -d -p 3000:3000 --name postgrest \\
+  -v /path/to/postgrest.conf:/postgrest.conf \\
+  begriffs/postgrest:$POSTGREST_VERSION postgrest /postgrest.conf
+
+
+# Run in the foreground with config file connecting to a Dockerized PostgreSQL server
+docker run -it --rm -p 3000:3000 --name postgrest \\
+  --link postgres:postgres -v /path/to/postgrest.conf:/postgrest.conf \\
+  begriffs/postgrest:$POSTGREST_VERSION postgrest /postgrest.conf
+
+
+# Run as a daemon using the wrapper script passing the three required configuration parameters
+docker run -d -p 3000:3000 --name postgrest \\
+  -e POSTGREST_DB_URI="postgres://postgres@postgres.example.com:5432/mydb" \\
+  -e POSTGREST_DB_SCHEMA=public \\
+  -e POSTGREST_DB_ANON_ROLE=anon \\
+  begriffs/postgrest:$POSTGREST_VERSION postgrest-env
+
+
+# Run in foreground using the wrapper script and using exported environment variables
+export POSTGREST_DB_URI="postgres://postgres@postgres.example.com:5432/mydb"
+export POSTGREST_DB_SCHEMA=public
+export POSTGREST_DB_ANON_ROLE=anon
+export POSTGREST_JWT_SECRET=\$(<secret.txt)
+docker run -d -p 3000:3000 --name postgrest \\
+  -e POSTGREST_DB_URI \\
+  -e POSTGREST_DB_SCHEMA \\
+  -e POSTGREST_DB_ANON_ROLE \\
+  -e POSTGREST_JWT_SECRET \\
+  begriffs/postgrest:$POSTGREST_VERSION postgrest-env
+
+
+EOF
