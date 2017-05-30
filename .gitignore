@@ -1,6 +1,7 @@
 .DS_Store
 db
 dist
+.dobi
 .cabal-sandbox
 cabal.sandbox.config
 hscope.out
