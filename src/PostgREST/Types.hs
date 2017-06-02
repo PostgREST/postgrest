@@ -47,7 +47,7 @@ data ProcVolatility = Volatile | Stable | Immutable
 
 data ProcDescription = ProcDescription {
   pdName        :: Text
-  pdDescription :: Text
+, pdDescription :: Text
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
