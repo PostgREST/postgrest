@@ -149,7 +149,7 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
     _ -> n' <$> updateForest (Just (n' forest))
       where
         n' = Node (query, (name, Just r, alias))
-        t = Table schema name True -- !!! TODO find another way to get the table from the query
+        t = Table schema name "" True -- !!! TODO find another way to get the table from the query
         r = Relation t [] t [] Root Nothing Nothing Nothing
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]

@@ -52,7 +52,9 @@ decodeTables :: HD.Result [Table]
 decodeTables =
   HD.rowsList tblRow
  where
-  tblRow = Table <$> HD.value HD.text <*> HD.value HD.text
+  tblRow = Table <$> HD.value HD.text
+                 <*> HD.value HD.text
+                 <*> HD.value HD.text
                  <*> HD.value HD.bool
 
 decodeColumns :: [Table] -> HD.Result [Column]
@@ -60,11 +62,11 @@ decodeColumns tables =
   mapMaybe (columnFromRow tables) <$> HD.rowsList colRow
  where
   colRow =
-    (,,,,,,,,,,)
+    (,,,,,,,,,,,)
       <$> HD.value HD.text <*> HD.value HD.text
       <*> HD.value HD.text <*> HD.value HD.int4
-      <*> HD.value HD.bool <*> HD.value HD.text
-      <*> HD.value HD.bool
+      <*> HD.value HD.text <*> HD.value HD.bool
+      <*> HD.value HD.text <*> HD.value HD.bool
       <*> HD.nullableValue HD.int4
       <*> HD.nullableValue HD.int4
       <*> HD.nullableValue HD.text
@@ -103,6 +105,7 @@ accessibleProcs =
     (M.fromList . map addName <$>
       HD.rowsList (
         ProcDescription <$> HD.value HD.text
+                        <*> HD.value HD.text
                         <*> (parseArgs <$> HD.value HD.text)
                         <*> (parseRetType <$>
                             HD.value HD.text <*>
@@ -148,6 +151,7 @@ accessibleProcs =
 
   sql = [q|
   SELECT p.proname as "proc_name",
+         'PROC SENTINEL' as "proc_description",
          pg_get_function_arguments(p.oid) as "args",
          tn.nspname as "rettype_schema",
          coalesce(comp.relname, t.typname) as "rettype_name",
@@ -169,6 +173,7 @@ accessibleTables =
     select
       n.nspname as table_schema,
       relname as table_name,
+      'TABLE SENTINEL' as table_description,
       c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
       or (exists (
          select 1
@@ -269,6 +274,7 @@ allTables =
     SELECT
       n.nspname AS table_schema,
       c.relname AS table_name,
+      'ALL TABLE SENTINEL' AS table_description,
       c.relkind = 'r' OR (c.relkind IN ('v','f'))
       AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
       OR (EXISTS
@@ -292,6 +298,7 @@ allColumns tabs =
         info.table_schema AS schema,
         info.table_name AS table_name,
         info.column_name AS name,
+        'COLUMN SENTINEL' AS description,
         info.ordinal_position AS position,
         info.is_nullable::boolean AS nullable,
         info.data_type AS col_type,
@@ -422,14 +429,14 @@ allColumns tabs =
     ORDER BY schema, position |]
 
 columnFromRow :: [Table] ->
-                 (Text,       Text,        Text,
-                  Int32,      Bool,        Text,
-                  Bool,       Maybe Int32, Maybe Int32,
-                  Maybe Text, Maybe Text)
+                 (Text,        Text,        Text,
+                  Int32,       Text,        Bool,
+                  Text,        Bool,        Maybe Int32,
+                  Maybe Int32, Maybe Text,  Maybe Text)
                  -> Maybe Column
-columnFromRow tabs (s, t, n, pos, nul, typ, u, l, p, d, e) = buildColumn <$> table
+columnFromRow tabs (s, t, n, pos, desc, nul, typ, u, l, p, d, e) = buildColumn <$> table
   where
-    buildColumn tbl = Column tbl n pos nul typ u l p d (parseEnum e) Nothing
+    buildColumn tbl = Column tbl n desc pos nul typ u l p d (parseEnum e) Nothing
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
