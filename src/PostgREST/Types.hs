@@ -46,10 +46,11 @@ data ProcVolatility = Volatile | Stable | Immutable
   deriving (Eq, Show)
 
 data ProcDescription = ProcDescription {
-  pdName       :: Text
-, pdArgs       :: [PgArg]
-, pdReturnType :: RetType
-, pdVolatility :: ProcVolatility
+  pdName        :: Text
+  pdDescription :: Text
+, pdArgs        :: [PgArg]
+, pdReturnType  :: RetType
+, pdVolatility  :: ProcVolatility
 } deriving (Show, Eq)
 
 type Schema = Text
@@ -59,26 +60,28 @@ type SqlFragment = Text
 type RequestBody = BL.ByteString
 
 data Table = Table {
-  tableSchema     :: Schema
-, tableName       :: TableName
-, tableInsertable :: Bool
+  tableSchema      :: Schema
+, tableName        :: TableName
+, tableDescription :: Text
+, tableInsertable  :: Bool
 } deriving (Show, Ord)
 
 newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
 data Column =
     Column {
-      colTable     :: Table
-    , colName      :: Text
-    , colPosition  :: Int32
-    , colNullable  :: Bool
-    , colType      :: Text
-    , colUpdatable :: Bool
-    , colMaxLen    :: Maybe Int32
-    , colPrecision :: Maybe Int32
-    , colDefault   :: Maybe Text
-    , colEnum      :: [Text]
-    , colFK        :: Maybe ForeignKey
+      colTable       :: Table
+    , colName        :: Text
+    , colDescription :: Text
+    , colPosition    :: Int32
+    , colNullable    :: Bool
+    , colType        :: Text
+    , colUpdatable   :: Bool
+    , colMaxLen      :: Maybe Int32
+    , colPrecision   :: Maybe Int32
+    , colDefault     :: Maybe Text
+    , colEnum        :: [Text]
+    , colFK          :: Maybe ForeignKey
     } deriving (Show, Ord)
 
 type Synonym = (Column,Column)
@@ -195,17 +198,18 @@ data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
 instance ToJSON Column where
   toJSON c = object [
-      "schema"    .= tableSchema t
-    , "name"      .= colName c
-    , "position"  .= colPosition c
-    , "nullable"  .= colNullable c
-    , "type"      .= colType c
-    , "updatable" .= colUpdatable c
-    , "maxLen"    .= colMaxLen c
-    , "precision" .= colPrecision c
-    , "references".= colFK c
-    , "default"   .= colDefault c
-    , "enum"      .= colEnum c ]
+      "schema"      .= tableSchema t
+    , "name"        .= colName c
+    , "description" .= colDescription c
+    , "position"    .= colPosition c
+    , "nullable"    .= colNullable c
+    , "type"        .= colType c
+    , "updatable"   .= colUpdatable c
+    , "maxLen"      .= colMaxLen c
+    , "precision"   .= colPrecision c
+    , "references"  .= colFK c
+    , "default"     .= colDefault c
+    , "enum"        .= colEnum c ]
     where
       t = colTable c
 
@@ -220,9 +224,10 @@ instance ToJSON ForeignKey where
 
 instance ToJSON Table where
   toJSON v = object [
-      "schema"     .= tableSchema v
-    , "name"       .= tableName v
-    , "insertable" .= tableInsertable v ]
+      "schema"      .= tableSchema v
+    , "name"        .= tableName v
+    , "description" .= tableDescription v
+    , "insertable"  .= tableInsertable v ]
 
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
