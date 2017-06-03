@@ -40,6 +40,7 @@ makeTableDef :: (Table, [Column], [Text]) -> (Text, Schema)
 makeTableDef (t, cs, _) =
   let tn = tableName t in
       (tn, (mempty :: Schema)
+        & description ?~ tableDescription t
         & type_ .~ SwaggerObject
         & properties .~ fromList (map makeProperty cs))
 
@@ -51,12 +52,13 @@ makeProperty c = (colName c, Inline u)
            then r
            else r & enum_ .~ decode (encode (colEnum c))
     t = s & type_ .~ toSwaggerType (colType c)
-    u = t & format ?~ colType c
+    u = t & format ?~ colType c & description ?~ colDescription c
 
 makeProcDef :: ProcDescription -> (Text, Schema)
 makeProcDef pd = ("(rpc) " <> pdName pd, s)
   where
     s = (mempty :: Schema)
+          & description ?~ pdDescription pd
           & type_ .~ SwaggerObject
           & properties .~ fromList (map makeProcProperty (pdArgs pd))
           & required .~ map pgaName (filter pgaReq (pdArgs pd))
@@ -79,6 +81,7 @@ makeRowFilter :: Column -> Param
 makeRowFilter c =
   (mempty :: Param)
   & name .~ colName c
+  & description ?~ colDescription c
   & required ?~ False
   & schema .~ ParamOther ((mempty :: ParamOtherSchema)
     & in_ .~ ParamQuery
@@ -226,6 +229,7 @@ makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     postOp = (mempty :: Operation)
+      & description ?~ pdDescription pd
       & parameters .~ map Inline (makeProcParam $ "(rpc) " <> pdName pd)
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]
