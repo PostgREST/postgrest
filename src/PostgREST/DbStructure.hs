@@ -151,7 +151,7 @@ accessibleProcs =
 
   sql = [q|
   SELECT p.proname as "proc_name",
-         'PROC SENTINEL' as "proc_description",
+         d.description as "proc_description",
          pg_get_function_arguments(p.oid) as "args",
          tn.nspname as "rettype_schema",
          coalesce(comp.relname, t.typname) as "rettype_name",
@@ -163,6 +163,7 @@ accessibleProcs =
     JOIN pg_type t ON t.oid = p.prorettype
     JOIN pg_namespace tn ON tn.oid = t.typnamespace
     LEFT JOIN pg_class comp ON comp.oid = t.typrelid
+    LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
   WHERE  pn.nspname = $1|]
 
 accessibleTables :: H.Query Schema [Table]
@@ -173,7 +174,7 @@ accessibleTables =
     select
       n.nspname as table_schema,
       relname as table_name,
-      'TABLE SENTINEL' as table_description,
+      d.description as table_description,
       c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
       or (exists (
          select 1
@@ -183,6 +184,7 @@ accessibleTables =
     from
       pg_class c
       join pg_namespace n on n.oid = c.relnamespace
+      left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
       c.relkind in ('v', 'r', 'm')
       and n.nspname = $1
@@ -274,7 +276,7 @@ allTables =
     SELECT
       n.nspname AS table_schema,
       c.relname AS table_name,
-      'ALL TABLE SENTINEL' AS table_description,
+      NULL AS table_description,
       c.relkind = 'r' OR (c.relkind IN ('v','f'))
       AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
       OR (EXISTS
@@ -298,7 +300,7 @@ allColumns tabs =
         info.table_schema AS schema,
         info.table_name AS table_name,
         info.column_name AS name,
-        'COLUMN SENTINEL' AS description,
+        info.description AS description,
         info.ordinal_position AS position,
         info.is_nullable::boolean AS nullable,
         info.data_type AS col_type,
@@ -316,6 +318,7 @@ allColumns tabs =
                 nc.nspname::information_schema.sql_identifier AS table_schema,
                 c.relname::information_schema.sql_identifier AS table_name,
                 a.attname::information_schema.sql_identifier AS column_name,
+                d.description::information_schema.sql_identifier AS description,
                 a.attnum::information_schema.cardinal_number AS ordinal_position,
                 pg_get_expr(ad.adbin, ad.adrelid)::information_schema.character_data AS column_default,
                     CASE
@@ -388,6 +391,7 @@ allColumns tabs =
                     ELSE 'NO'::text
                 END::information_schema.yes_or_no AS is_updatable
             FROM pg_attribute a
+               LEFT JOIN pg_catalog.pg_description AS d ON d.objoid = a.attrelid and d.objsubid = a.attnum
                LEFT JOIN pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
                JOIN (pg_class c
                JOIN pg_namespace nc ON c.relnamespace = nc.oid) ON a.attrelid = c.oid
@@ -404,6 +408,7 @@ allColumns tabs =
             table_schema,
             table_name,
             column_name,
+            description,
             ordinal_position,
             is_nullable,
             data_type,
