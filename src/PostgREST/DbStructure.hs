@@ -54,7 +54,7 @@ decodeTables =
  where
   tblRow = Table <$> HD.value HD.text
                  <*> HD.value HD.text
-                 <*> HD.value HD.text
+                 <*> HD.nullableValue HD.text
                  <*> HD.value HD.bool
 
 decodeColumns :: [Table] -> HD.Result [Column]
@@ -64,7 +64,7 @@ decodeColumns tables =
   colRow =
     (,,,,,,,,,,,)
       <$> HD.value HD.text <*> HD.value HD.text
-      <*> HD.value HD.text <*> HD.value HD.text
+      <*> HD.value HD.text <*> HD.nullableValue HD.text
       <*> HD.value HD.int4 <*> HD.value HD.bool
       <*> HD.value HD.text <*> HD.value HD.bool
       <*> HD.nullableValue HD.int4
@@ -105,7 +105,7 @@ accessibleProcs =
     (M.fromList . map addName <$>
       HD.rowsList (
         ProcDescription <$> HD.value HD.text
-                        <*> HD.value HD.text
+                        <*> HD.nullableValue HD.text
                         <*> (parseArgs <$> HD.value HD.text)
                         <*> (parseRetType <$>
                             HD.value HD.text <*>
@@ -430,7 +430,7 @@ allColumns tabs =
 
 columnFromRow :: [Table] ->
                  (Text,        Text,        Text,
-                  Text,        Int32,       Bool,
+                  Maybe Text,  Int32,       Bool,
                   Text,        Bool,        Maybe Int32,
                   Maybe Int32, Maybe Text,  Maybe Text)
                  -> Maybe Column

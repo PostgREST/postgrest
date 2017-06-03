@@ -47,7 +47,7 @@ data ProcVolatility = Volatile | Stable | Immutable
 
 data ProcDescription = ProcDescription {
   pdName        :: Text
-, pdDescription :: Text
+, pdDescription :: Maybe Text
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
@@ -62,7 +62,7 @@ type RequestBody = BL.ByteString
 data Table = Table {
   tableSchema      :: Schema
 , tableName        :: TableName
-, tableDescription :: Text
+, tableDescription :: Maybe Text
 , tableInsertable  :: Bool
 } deriving (Show, Ord)
 
@@ -72,7 +72,7 @@ data Column =
     Column {
       colTable       :: Table
     , colName        :: Text
-    , colDescription :: Text
+    , colDescription :: Maybe Text
     , colPosition    :: Int32
     , colNullable    :: Bool
     , colType        :: Text
