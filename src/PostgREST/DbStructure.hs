@@ -64,8 +64,8 @@ decodeColumns tables =
   colRow =
     (,,,,,,,,,,,)
       <$> HD.value HD.text <*> HD.value HD.text
-      <*> HD.value HD.text <*> HD.value HD.int4
-      <*> HD.value HD.text <*> HD.value HD.bool
+      <*> HD.value HD.text <*> HD.value HD.text
+      <*> HD.value HD.int4 <*> HD.value HD.bool
       <*> HD.value HD.text <*> HD.value HD.bool
       <*> HD.nullableValue HD.int4
       <*> HD.nullableValue HD.int4
@@ -430,11 +430,11 @@ allColumns tabs =
 
 columnFromRow :: [Table] ->
                  (Text,        Text,        Text,
-                  Int32,       Text,        Bool,
+                  Text,        Int32,       Bool,
                   Text,        Bool,        Maybe Int32,
                   Maybe Int32, Maybe Text,  Maybe Text)
                  -> Maybe Column
-columnFromRow tabs (s, t, n, pos, desc, nul, typ, u, l, p, d, e) = buildColumn <$> table
+columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <$> table
   where
     buildColumn tbl = Column tbl n desc pos nul typ u l p d (parseEnum e) Nothing
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
