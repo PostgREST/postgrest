@@ -48,7 +48,7 @@ your contributions.
   pull request.
 
 * For help building the Haskell code on your computer check out the [building from
-source](http://postgrest.com/install/server/#building-from-source)
+source](https://postgrest.com/en/stable/install.html#build-from-source)
 wiki page.
 
 ## Maintenance
@@ -66,4 +66,4 @@ discuss issues you are having.
 
 For instructions on running tests, see the official docs hosted here:
 
-https://postgrest.com/en/v0.4/install.html#postgrest-test-suite
+https://postgrest.com/en/stable/install.html#postgrest-test-suite
