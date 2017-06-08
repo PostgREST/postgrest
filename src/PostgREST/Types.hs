@@ -196,39 +196,6 @@ type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
-instance ToJSON Column where
-  toJSON c = object [
-      "schema"      .= tableSchema t
-    , "name"        .= colName c
-    , "description" .= colDescription c
-    , "position"    .= colPosition c
-    , "nullable"    .= colNullable c
-    , "type"        .= colType c
-    , "updatable"   .= colUpdatable c
-    , "maxLen"      .= colMaxLen c
-    , "precision"   .= colPrecision c
-    , "references"  .= colFK c
-    , "default"     .= colDefault c
-    , "enum"        .= colEnum c ]
-    where
-      t = colTable c
-
-instance ToJSON ForeignKey where
-  toJSON fk = object [
-      "schema" .= tableSchema t
-    , "table"  .= tableName t
-    , "column" .= colName c ]
-    where
-      c = fkCol fk
-      t = colTable c
-
-instance ToJSON Table where
-  toJSON v = object [
-      "schema"      .= tableSchema v
-    , "name"        .= tableName v
-    , "description" .= tableDescription v
-    , "insertable"  .= tableInsertable v ]
-
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
 
