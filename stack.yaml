@@ -4,6 +4,7 @@ extra-deps:
   - hasql-pool-0.4.1
   - configurator-ng-0.0.0.1
   - critbit-0.2.0.0
+  - postgrest-ws-0.3.2.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:

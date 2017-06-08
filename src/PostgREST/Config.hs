@@ -63,6 +63,7 @@ data AppConfig = AppConfig {
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
+  , configWebsockets        :: Bool
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -116,6 +117,7 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> C.key "pre-request"
           <*> pure False
+          <*> (fromMaybe False <$> C.key "server-enable-websockets")
 
   case mAppConf of
     Nothing -> do
@@ -160,7 +162,11 @@ readOptions = do
         |server-host = "*4"
         |server-port = 3000
         |
+        |## If enabled maps websockets to database LISTEN/NOTIFY
+        |# server-enable-websockets = False
+        |
         |## base url for swagger output
+        |# server-proxy-uri = ""
         |# server-proxy-uri = ""
         |
         |## choose a secret to enable JWT auth

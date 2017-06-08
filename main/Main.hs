@@ -13,10 +13,12 @@ import           PostgREST.Error                      (encodeError)
 import           PostgREST.OpenAPI                    (isMalformedProxyUri)
 import           PostgREST.DbStructure
 import           PostgREST.Types                      (DbStructure, Schema)
+import           PostgRESTWS
 
 import           Control.AutoUpdate
 import           Control.Retry
 import           Data.ByteString.Base64               (decode)
+import           Data.Function                        (id)
 import           Data.String                          (IsString (..))
 import           Data.Text                            (stripPrefix, pack, replace)
 import           Data.Text.Encoding                   (encodeUtf8, decodeUtf8)
@@ -152,8 +154,19 @@ main = do
   getTime <- mkAutoUpdate
     defaultUpdateSettings { updateAction = getPOSIXTime }
 
-  runSettings appSettings $ postgrest conf refDbStructure pool getTime
-    (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
+
+  wsMiddleware <-
+        if configWebsockets conf
+          then do
+            multi <- newHasqlBroadcaster pgSettings
+            let secret = fromMaybe (panic "You need to set a JWT secret to enable websockets") $ configJwtSecret conf
+            return $ postgrestWsMiddleware secret getTime pool multi
+          else return id
+
+  runSettings appSettings $
+    wsMiddleware $
+    postgrest conf refDbStructure pool getTime
+      (connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn)
 
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret

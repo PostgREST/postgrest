@@ -72,6 +72,7 @@ _baseCfg =  -- Connection Settings
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
             True
+            False
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
