@@ -6,6 +6,7 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
+, schemaDescription
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -165,6 +166,19 @@ accessibleProcs =
     LEFT JOIN pg_class comp ON comp.oid = t.typrelid
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
   WHERE  pn.nspname = $1|]
+
+schemaDescription :: H.Query Schema (Maybe Text)
+schemaDescription =
+    H.statement sql (HE.value HE.text) (HD.singleRow $ HD.nullableValue HD.text) True
+  where
+    sql = [q|
+      select
+        description
+      from
+        pg_catalog.pg_namespace n
+        left join pg_catalog.pg_description d on d.objoid = n.oid
+      where
+        n.nspname = $1 |]
 
 accessibleTables :: H.Query Schema [Table]
 accessibleTables =
