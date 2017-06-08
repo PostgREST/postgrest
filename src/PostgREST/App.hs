@@ -257,7 +257,7 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti ds = encodeOpenAPI (M.elems $ dbProcs dbStructure) (toTableInfo ti) uri' ds
+              encodeApi ti = encodeOpenAPI (M.elems $ dbProcs dbStructure) (toTableInfo ti) uri'
           body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
