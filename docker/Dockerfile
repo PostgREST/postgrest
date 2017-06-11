@@ -7,7 +7,7 @@ RUN apt-get -qq update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install postgrest
-RUN POSTGREST_VERSION="0.4.1.0" \
+RUN POSTGREST_VERSION="0.4.2.0" \
     BUILD_DEPS="curl ca-certificates xz-utils" && \
     apt-get -qq update && \
     apt-get -qq install -y --no-install-recommends $BUILD_DEPS && \
