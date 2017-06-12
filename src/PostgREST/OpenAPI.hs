@@ -205,10 +205,13 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & tags .~ Set.fromList [tn]
       & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & description .~ tableDescription t
-      & at 200 ?~ "OK"
     getOp = tOp
       & parameters .~ map Inline (makeGetParams cs ++ rs)
       & at 206 ?~ "Partial Content"
+      & at 200 ?~ Inline ((mempty :: Response)
+        & description .~ "OK"
+        & schema .~ (Just $ Ref $ Reference $ tableName t)
+        )
     postOp = tOp
       & consumes ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & parameters .~ map Inline (makePostParams tn)
