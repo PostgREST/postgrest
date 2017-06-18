@@ -380,11 +380,13 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 Stored Procedures
 =================
 
-Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function. Such function can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations).
+Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function.
 
 .. code:: http
 
   POST /rpc/function_name HTTP/1.1
+
+Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations). However procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas.
 
 Procedures must be used with `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
 
