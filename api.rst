@@ -311,7 +311,7 @@ However because a foreign key constraint exists between Films and Directors, we 
 
 .. code-block:: http
 
-  GET /films?select=title,directors{last_name} HTTP/1.1
+  GET /films?select=title,directors(last_name) HTTP/1.1
 
 Which would return
 
@@ -335,11 +335,15 @@ Which would return
     }
   ]
 
+.. note::
+
+  As of PostgREST v4.1, parens :code:`()` are used rather than brackets :code:`{}` for the list of embedded columns. Brackets are still supported, but are deprecated and will be removed in v5.
+
 PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
 
 .. code-block:: http
 
-  GET /directors?select=films{title,year} HTTP/1.1
+  GET /directors?select=films(title,year) HTTP/1.1
 
 .. note::
 
@@ -352,13 +356,13 @@ Embedded tables can be filtered and ordered similarly to their top-level counter
 
 .. code-block:: http
 
-  GET /films?select=*,actors{*}&actors.order=last_name,first_name HTTP/1.1
+  GET /films?select=*,actors(*)&actors.order=last_name,first_name HTTP/1.1
 
 This sorts the list of actors in each film but does *not* change the order of the films themselves. To filter the roles returned with each film:
 
 .. code-block:: http
 
-  GET /films?select=*,roles{*}&roles.character=in.Chico,Harpo,Groucho HTTP/1.1
+  GET /films?select=*,roles(*)&roles.character=in.Chico,Harpo,Groucho HTTP/1.1
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
