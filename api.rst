@@ -46,7 +46,7 @@ lt            less than
 neq           not equal
 like          LIKE operator (use * in place of %)
 ilike         ILIKE operator (use * in place of %)
-in            one of a list of values e.g. :code:`?a=in.1,2,3`
+in            one of a list of values e.g. :code:`?a=in.1,2,3` – also supports commas in quoted strings like :code:`?a=in."hi,there","yes,you"`
 is            checking for exact equality (null,true,false)
 @@            full-text search using to_tsquery
 @>            contains e.g. :code:`?tags=@>.{example, new}`
