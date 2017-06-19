@@ -435,6 +435,15 @@ By default, a function is executed with the privileges of the user who calls it.
 
   We are considering allowing GET requests for functions that are marked non-volatile. Allowing GET is important for HTTP caching. However we still must decide how to pass function parameters since request bodies are not allowed. Also some query string arguments are already reserved for shaping/filtering the output.
 
+Accessing Request Headers/Cookies
+---------------------------------
+
+Stored procedures can access request headers and cookies by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ` and :code:`request.cookie.XYZ`. For example, to read the value of the Origin request header:
+
+.. code-block:: postgresql
+
+  SELECT current_setting('request.header.origin', true);
+
 Complex boolean logic
 ---------------------
 
