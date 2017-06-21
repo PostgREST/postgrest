@@ -177,7 +177,7 @@ pOrderTerm =
 
 pLogicTree :: Parser LogicTree
 pLogicTree = Stmnt <$> try pLogicFilter
-             <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree) <*> (lexeme (char ',') *> pLogicTree <* lexeme (char ')'))
+             <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
     pLogicFilter = Filter <$> pField <* pDelimiter <*> pOperation pLogicVText pLogicVTextL

@@ -449,7 +449,7 @@ pgFmtFilter table (Filter fld (Operation hasNot_ ex)) = notOp <> " " <> case ex 
       Nothing -> emptyValForIn op
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
-pgFmtLogicTree qi (Expr hasNot_ op lt rt) = notOp <> " (" <> pgFmtLogicTree qi lt <> " " <> show op <> " " <> pgFmtLogicTree qi rt <> ")"
+pgFmtLogicTree qi (Expr hasNot_ op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
   where notOp =  if hasNot_ then "NOT" else ""
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 

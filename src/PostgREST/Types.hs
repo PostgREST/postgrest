@@ -171,7 +171,7 @@ instance Show LogicOperator where
                /  \
          id.eq.1   id.eq.2
 -}
-data LogicTree = Expr Bool LogicOperator LogicTree LogicTree | Stmnt Filter deriving (Show, Eq)
+data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Show, Eq)
 
 type FieldName = Text
 type JsonPath = [Text]
