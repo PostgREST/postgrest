@@ -1124,12 +1124,20 @@ $$ language sql;
 
 create domain one_nine as integer check (value >= 1 and value <= 9);
 
+create function test.ret_array() returns integer[] as $$ 
+  select '{1,2,3}'::integer[];
+$$ language sql;
+
 create function test.ret_domain(val integer) returns test.one_nine as $$ 
   select val::test.one_nine;
 $$ language sql;
 
 create function test.ret_range(low integer, up integer) returns int4range as $$
   select int4range(low, up);
+$$ language sql;
+
+create function test.ret_setof_integers() returns setof integer as $$
+  values (1), (2), (3);
 $$ language sql;
 
 create function test.ret_scalars() returns table(

@@ -553,6 +553,18 @@ spec = do
             [json|"Hello, ￥"|]
             { matchHeaders = [matchContentTypeJson] }
 
+      it "returns array" $
+        post "/rpc/ret_array" [json|{}|] `shouldRespondWith`
+          [json|[1, 2, 3]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "returns setof integers" $
+        post "/rpc/ret_setof_integers" [json|{}|] `shouldRespondWith`
+          [json|[{ "ret_setof_integers": 1 },
+                 { "ret_setof_integers": 2 },
+                 { "ret_setof_integers": 3 }]|]
+          { matchHeaders = [matchContentTypeJson] }
+
       it "returns enum value" $
         post "/rpc/ret_enum" [json|{ "val": "foo" }|] `shouldRespondWith`
           [json|"foo"|]
