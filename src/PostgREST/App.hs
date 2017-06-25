@@ -238,8 +238,12 @@ app dbStructure conf apiRequest =
               let p = V.head payload
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
+                  proc = M.lookup (qiName qi) allProcs 
+                  returnsScalar = case proc of
+                    Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
+                    _ -> False
               row <- H.query () $
-                callProc qi p q cq topLevelRange shouldCount singular
+                callProc qi p returnsScalar q cq topLevelRange shouldCount singular
                          paramsAsSingleObject (contentType == CTTextCSV)
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
@@ -257,7 +261,7 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti = encodeOpenAPI (M.elems $ dbProcs dbStructure) ti uri'
+              encodeApi ti = encodeOpenAPI (M.elems allProcs) ti uri'
           body <- encodeApi . toTableInfo <$> H.query schema accessibleTables
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
@@ -276,6 +280,7 @@ app dbStructure conf apiRequest =
       filterCol :: Schema -> TableName -> Column -> Bool
       filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
       allPrKeys = dbPrimaryKeys dbStructure
+      allProcs = dbProcs dbStructure
       allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
       shouldCount = iPreferCount apiRequest
       schema = toS $ configSchema conf
@@ -287,7 +292,7 @@ app dbStructure conf apiRequest =
             status = rangeStatus lower upper (toInteger <$> tableTotal)
         in (status, contentRange)
 
-      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
+      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) allProcs apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)

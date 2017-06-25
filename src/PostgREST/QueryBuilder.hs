@@ -144,26 +144,27 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange ->
+callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
   Bool -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv =
+callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv =
   unicodeStatement sql HE.unit decodeProc True
   where
-    sql = [qc|
-            WITH {sourceCTEName} AS ({_callSql})
-            SELECT
-              {countResultF} AS total_result_set,
-              pg_catalog.count(_postgrest_t) AS page_total,
-              case
-                when pg_catalog.count(*) > 1 then
-                  {bodyF}
-                else
-                  coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
+    sql = 
+     if returnsScalar then [qc|
+       WITH {sourceCTEName} AS ({_callSql})
+       SELECT
+         {countResultF} AS total_result_set,
+         1 AS page_total,
+         (row_to_json(_postgrest_t)->{_procName})::character varying as body
+       FROM ({selectQuery}) _postgrest_t;|]
+     else [qc| 
+       WITH {sourceCTEName} AS ({_callSql})
+       SELECT
+         {countResultF} AS total_result_set,
+         pg_catalog.count(_postgrest_t) AS page_total,
+         {bodyF} as body
+       FROM ({selectQuery}) _postgrest_t;|]
 
-              end as body
-            FROM ({selectQuery}) _postgrest_t;
-          |]
-          -- FROM (select * from {sourceCTEName} {limitF range}) t;
     countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
     _args = if paramsAsJson
                 then insertableValueWithType "json" $ JSON.Object params
