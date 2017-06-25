@@ -693,27 +693,50 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
   describe "binary output" $ do
-    it "can query if a single column is selected" $
-      request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
-        }
+    context "on GET" $ do
+      it "can query if a single column is selected" $
+        request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+          `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+          }
 
-    it "fails if a single column is not selected" $ do
-      request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` 406
-      request methodGet "/images?select=*&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` 406
-      request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` 406
+      it "fails if a single column is not selected" $ do
+        request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+          `shouldRespondWith` 406
+        request methodGet "/images?select=*&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+          `shouldRespondWith` 406
+        request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
+          `shouldRespondWith` 406
 
-    it "concatenates results if more than one row is returned" $
-      request methodGet "/images_base64?select=img&name=in.A.png,B.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
-        }
+      it "concatenates results if more than one row is returned" $
+        request methodGet "/images_base64?select=img&name=in.A.png,B.png" (acceptHdrs "application/octet-stream") ""
+          `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+          }
+
+    context "on RPC" $ do
+      context "Proc that returns scalar" $
+        it "can query without selecting column" $
+          request methodPost "/rpc/ret_base64_bin" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            }
+
+      context "Proc that returns rows" $ do
+        it "can query if a single column is selected" $
+          request methodPost "/rpc/ret_rows_with_base64_bin?select=img" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            }
+
+        it "fails if a single column is not selected" $
+          request methodPost "/rpc/ret_rows_with_base64_bin" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith` 406
+
   describe "HTTP request env vars" $ do
     it "custom header is set" $
       request methodPost "/rpc/get_guc_value"

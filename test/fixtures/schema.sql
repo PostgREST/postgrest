@@ -1115,6 +1115,7 @@ create table images (
 );
 
 create view images_base64 as (
+  -- encoding in base64 puts a '\n' after every 76 character due to legacy reasons, this is isn't necessary here so it's removed
   select name, replace(encode(img, 'base64'), E'\n', '') as img from images
 );
 
@@ -1160,6 +1161,14 @@ create function test.ret_point_3d() returns private.point_3d as $$
 $$ language sql;
 
 create function test.ret_void() returns void as '' language sql;
+
+create function test.ret_base64_bin() returns text as $$
+  select i.img from test.images_base64 i where i.name = 'A.png';
+$$ language sql;
+
+create function test.ret_rows_with_base64_bin() returns setof test.images_base64 as $$
+  select i.name, i.img from test.images_base64 i;
+$$ language sql;
 
 create function test.single_article(id integer) returns test.articles as $$ 
   select a.* from test.articles a where a.id = $1;

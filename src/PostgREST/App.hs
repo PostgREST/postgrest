@@ -232,19 +232,25 @@ app dbStructure conf apiRequest =
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
         (ActionInvoke, TargetProc qi, Just (PayloadJSON payload)) ->
-          case readSqlParts of
+          let proc = M.lookup (qiName qi) allProcs
+              returnsScalar = case proc of
+                Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
+                _ -> False
+              rpcBinaryField = if returnsScalar
+                                 then Right Nothing
+                                 else binaryField contentType =<< fldNames
+              partsField = (,) <$> readSqlParts <*> rpcBinaryField in
+          case partsField of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> do
+            Right ((q, cq), bField) -> do
               let p = V.head payload
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
-                  proc = M.lookup (qiName qi) allProcs 
-                  returnsScalar = case proc of
-                    Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
-                    _ -> False
               row <- H.query () $
-                callProc qi p returnsScalar q cq topLevelRange shouldCount singular
-                         paramsAsSingleObject (contentType == CTTextCSV)
+                callProc qi p returnsScalar q cq topLevelRange shouldCount
+                         singular paramsAsSingleObject
+                         (contentType == CTTextCSV)
+                         (contentType == CTOctetStream) bField
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -311,7 +317,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
         ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =
