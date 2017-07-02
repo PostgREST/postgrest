@@ -5,10 +5,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Fixed
-
-## [0.4.2.0] - 2017-06-11
-
 ### Added
 
 - #889, Allow more than two conditions in a single and/or - @steve-chavez

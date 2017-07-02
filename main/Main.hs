@@ -57,12 +57,12 @@ isServerVersionSupported = do
 {-|
   The purpose of this worker is to fill the refDbStructure created in 'main'
   with the 'DbStructure' returned from calling 'getDbStructure'. This method
-  is meant to be called by multiple times by the same thead, but does nothing if
+  is meant to be called by multiple times by the same thread, but does nothing if
   the previous invocation has not terminated. In all cases this method does not
-  halt the caling thead, the work is proformed in a separate thread.
+  halt the calling thread, the work is preformed in a separate thread.
 
-  Note: 'atomicWriteIORef' is essentialy a lazy semaphore that prevents two
-  threads from runnig 'connectionWorker' at the same time.
+  Note: 'atomicWriteIORef' is essentially a lazy semaphore that prevents two
+  threads from running 'connectionWorker' at the same time.
 
   Background thread that does the following :
   1. Tries to connect to pg server and will keep trying until success.
@@ -72,7 +72,13 @@ isServerVersionSupported = do
   4. If 2 or 3 fail to give their result it means the connection is down so it
      goes back to 1, otherwise it finishes his work successfully.
 -}
-connectionWorker :: ThreadId -> P.Pool -> Schema -> IORef (Maybe DbStructure) -> IORef Bool -> IO ()
+connectionWorker 
+  :: ThreadId -- ^ This thread is killed if 'isServerVersionSupported' returns false
+  -> P.Pool   -- ^ The PostgreSQL connection pool
+  -> Schema   -- ^ Schema PostgREST is serving up
+  -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
+  -> IORef Bool                -- ^ Used as a binary Semaphore
+  -> IO ()
 connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
@@ -141,7 +147,7 @@ main = do
   -- LineBuffering: the entire output buffer is flushed whenever a newline is 
   -- output, the buffer overflows, a hFlush is issued or the handle is closed
   --
-  -- no-buffering: output is written immediately and never stored in the buffer
+  -- NoBuffering: output is written immediately and never stored in the buffer
   hSetBuffering stdout LineBuffering
   hSetBuffering stdin LineBuffering
   hSetBuffering stderr NoBuffering
@@ -155,10 +161,9 @@ main = do
       pgSettings = toS (configDatabase conf) -- is the db-uri
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
-         .
-        setPort port .
-        setServerName (toS $ "postgrest/" <> prettyVersion) .
-        setTimeout 3600 $
+        . setPort port
+        . setServerName (toS $ "postgrest/" <> prettyVersion)
+        . setTimeout 3600 $
         defaultSettings
   --
   -- Checks that the provided proxy uri is formated correctly, 
@@ -204,7 +209,14 @@ main = do
         throwTo mainTid UserInterrupt
       ) Nothing
 
-  void $ installHandler sigHUP (Catch $ connectionWorker mainTid pool (configSchema conf) refDbStructure refIsWorkerOn) Nothing
+  void $ installHandler sigHUP (
+    Catch $ connectionWorker 
+              mainTid 
+              pool 
+              (configSchema conf) 
+              refDbStructure 
+              refIsWorkerOn
+    ) Nothing
 #endif
   --
   -- ask for the OS time at most once per second
@@ -238,12 +250,6 @@ main = do
 
   decodeUtf8: Decode a ByteString containing UTF-8 encoded text that is known to
   be valid.
-
-  Throws errors if either: the configJwtSecret from AppConfig is not valid UTF8
-                        , @filename is not a valid path
-                        , or if configJwtSecretIsBase64 is True, then decode to
-                          Base64 ByteString can panic
-
 -}
 loadSecretFile :: AppConfig -> IO AppConfig
 loadSecretFile conf = extractAndTransform mSecret
@@ -251,15 +257,14 @@ loadSecretFile conf = extractAndTransform mSecret
     mSecret = decodeUtf8 <$> configJwtSecret conf
     isB64 = configJwtSecretIsBase64 conf
     --
-    -- The Text (variable name secret)  here is mSecret which is the JWT decoded
-    -- as Utf8
+    -- The Text (variable name secret) here is mSecret from above which is the JWT 
+    -- decoded as Utf8
     --
     -- stripPrefix: Return the suffix of the second string if its prefix matches
     -- the entire first string.
     --
     -- The configJwtSecret is a filepath instead of the JWT secret itself if the
     -- secret has @ as its prefix.
-    --
     extractAndTransform :: Maybe Text -> IO AppConfig
     extractAndTransform Nothing = return conf
     extractAndTransform (Just secret) =
