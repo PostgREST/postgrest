@@ -66,7 +66,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 Example Apps
 ------------
 
-* `https://github.com/subzerocloud/postgrest-starter-kit <subzerocloud/postgrest-starter-kit>`_ - Boilerplate for new project
+* `subzerocloud/postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - Boilerplate for new project
 * `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - Calling to external translation service
 * `CodeforAustralia/heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
 * `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - An excel-like database table editor
