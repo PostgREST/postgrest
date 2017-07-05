@@ -37,11 +37,11 @@ Let's create a password and provide it to PostgREST. Think of a nice long one, o
 
     openssl rand -base64 32
 
-Open the :code:`postgrest.conf` (created in the previous tutorial) and add a line with the password:
+Open the :code:`tutorial.conf` (created in the previous tutorial) and add a line with the password:
 
 .. code-block:: ini
 
-  # add this line to postgrest.conf
+  # add this line to tutorial.conf
 
   jwt-secret = "<the password you created>"
 
@@ -118,7 +118,7 @@ A request for the todos shows three of them, and all completed.
 Step 4. Add Expiration
 ----------------------
 
-Currently our authentication token is valid for all eternity. As long as the server continues using the same password to verify the JWT signature it will honor this token and use the :code:`todo_user` role to perform requests including it.
+Currently our authentication token is valid for all eternity. The server, as long as it continues using the same JWT password, will honor the token.
 
 It's better policy to include an expiration timestamp for tokens using the :code:`exp` claim. This is one of two JWT claims that PostgREST treats specially.
 
@@ -215,7 +215,7 @@ Next update :code:`tutorial.conf` and specify the new function:
 
 .. code-block:: ini
 
-  # add this line to postgrest.conf
+  # add this line to tutorial.conf
 
   pre-request = "auth.check_token"
 
