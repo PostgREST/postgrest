@@ -1,3 +1,5 @@
+.. _tut0:
+
 Tutorial 0 - Get it Running
 ===========================
 
