@@ -667,6 +667,10 @@ spec = do
           [json| "Return value of no parameters procedure." |]
           { matchHeaders = [matchContentTypeJson] }
 
+    it "returns proper output when having the same return col name as the proc name" $
+      post "/rpc/test" [json|{}|] `shouldRespondWith`
+        [json|[{"test":"hello","value":1}]|] { matchHeaders = [matchContentTypeJson] }
+
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`

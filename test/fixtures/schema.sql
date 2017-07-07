@@ -1215,6 +1215,12 @@ create table grandchild_entities (
   jsonb_col jsonb
 );
 
+-- Used for testing that having the same return column name as the proc name
+-- doesn't conflict with the required output, details in #901
+create function test.test() returns table(test text, value int) as $$
+  values ('hello', 1);
+$$ language sql;
+
 --
 -- PostgreSQL database dump complete
 --
