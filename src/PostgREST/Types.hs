@@ -38,7 +38,7 @@ data PgArg = PgArg {
 , pgaReq  :: Bool
 } deriving (Show, Eq)
 
-data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier | Pseudo Text deriving (Eq, Show)
+data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show)
 
 data RetType = Single PgType | SetOf PgType deriving (Eq, Show)
 

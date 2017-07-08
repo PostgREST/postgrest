@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #889, Allow more than two conditions in a single and/or - @steve-chavez
+- #883, Binary output support for RPC - @steve-chavez
 
 ### Fixed
 
