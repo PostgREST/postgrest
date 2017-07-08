@@ -239,19 +239,19 @@ Once you've verified that requests are as you expect, you can get more informati
 .. code:: sql
 
   # send logs where the collector can access them
-  log_destination = 'stderr'
+  log_destination = "stderr"
 
   # collect stderr output to log files
   logging_collector = on
 
   # save logs in pg_log/ under the pg data directory
-  log_directory = 'pg_log'
+  log_directory = "pg_log"
 
   # (optional) new log file per day
-  log_filename = 'postgresql-%Y-%m-%d.log'
+  log_filename = "postgresql-%Y-%m-%d.log"
 
   # log every kind of SQL statement
-  log_statement = 'all'
+  log_statement = "all"
 
 Restart the database and watch the log file in real-time to understand how HTTP requests are being translated into SQL commands.
 
