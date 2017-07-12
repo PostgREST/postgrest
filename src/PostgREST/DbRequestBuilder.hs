@@ -30,7 +30,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..)
 import           PostgREST.Error           (apiRequestError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange)
-import           PostgREST.QueryBuilder (getJoinConditions, sourceCTEName)
+import           PostgREST.QueryBuilder (getJoinFilters, sourceCTEName)
 import           PostgREST.Types
 
 import           Protolude                hiding (from, dropWhile, drop)
@@ -88,7 +88,7 @@ treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` re
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either ApiRequestError ReadRequest
 augumentRequestWithJoin schema allRels request =
   addRelations schema allRels Nothing request
-  >>= addJoinConditions schema
+  >>= addJoinFilters schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias)) forest) =
@@ -155,21 +155,20 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest n = mapM (addRelations schema allRelations n) forest
 
-addJoinConditions :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions schema (Node nn@(query, (n, r, a)) forest) =
-  case r of
-    Just Relation{relType=Root} -> Node nn  <$> updatedForest -- this is the root node
-    Just rel@Relation{relType=Child} -> Node (addCond query (getJoinConditions rel),(n,r,a)) <$> updatedForest
-    Just Relation{relType=Parent} -> Node nn <$> updatedForest
+addJoinFilters :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
+addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _)) forest) =
+  case relation of
+    Just Relation{relType=Root} -> Node node  <$> updatedForest -- this is the root node
+    Just Relation{relType=Parent} -> Node node <$> updatedForest
+    Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
-      Node (qq, (n, r, a)) <$> updatedForest
-      where
-         query' = addCond query (getJoinConditions rel)
-         qq = query'{from=tableName linkTable : from query'}
+      let rq = augmentQuery rel in
+      Node (rq{from=tableName linkTable:from rq}, nodeProps) <$> updatedForest
     _ -> Left UnknownRelation
   where
-    updatedForest = mapM (addJoinConditions schema) forest
-    addCond query' con = query'{flt_=con ++ flt_ query'}
+    updatedForest = mapM (addJoinFilters schema) forest
+    augmentQuery rel = foldr addFilterToReadQuery query (getJoinFilters rel)
+    addFilterToReadQuery flt rq@Select{where_=lf} = rq{where_=addFilterToLogicForest flt lf}::ReadQuery
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
@@ -198,7 +197,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
-addFilterToNode flt (Node (q@Select {flt_=flts}, i) f) = Node (q {flt_=flt:flts}, i) f
+addFilterToNode flt (Node (q@Select {where_=lf}, i) f) = Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f
 
 addFilter :: (EmbedPath, Filter) -> ReadRequest -> ReadRequest
 addFilter = addProperty addFilterToNode
@@ -216,7 +215,7 @@ addRange :: (EmbedPath, NonnegRange) -> ReadRequest -> ReadRequest
 addRange = addProperty addRangeToNode
 
 addLogicTreeToNode :: LogicTree -> ReadRequest -> ReadRequest
-addLogicTreeToNode t (Node (q@Select{logic=l},i) f) = Node (q{logic=t:l}::ReadQuery, i) f
+addLogicTreeToNode t (Node (q@Select{where_=lf},i) f) = Node (q{where_=t:lf}::ReadQuery, i) f
 
 addLogicTree :: (EmbedPath, LogicTree) -> ReadRequest -> ReadRequest
 addLogicTree = addProperty addLogicTreeToNode
@@ -258,8 +257,8 @@ mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest fldNames = mapLeft apiRequestError $
   case action of
     ActionCreate -> Right $ Insert rootTableName payload returnings
-    ActionUpdate -> Update rootTableName <$> pure payload <*> filters <*> logic_ <*> pure returnings
-    ActionDelete -> Delete rootTableName <$> filters <*> logic_ <*> pure returnings
+    ActionUpdate -> Update rootTableName <$> pure payload <*> combinedLogic <*> pure returnings
+    ActionDelete -> Delete rootTableName <$> combinedLogic <*> pure returnings
     _        -> Left UnsupportedVerb
   where
     action = iAction apiRequest
@@ -271,10 +270,10 @@ mutateRequest apiRequest fldNames = mapLeft apiRequestError $
         _ -> undefined
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
     filters = map snd <$> mapM pRequestFilter mutateFilters
-    logic_ = map snd <$> mapM pRequestLogicTree logicFilters
+    logic = map snd <$> mapM pRequestLogicTree logicFilters
+    combinedLogic = foldr addFilterToLogicForest <$> logic <*> filters
     -- update/delete filters can be only on the root table
-    mutateFilters = onlyRoot $ iFilters apiRequest
-    logicFilters = onlyRoot $ iLogic apiRequest
+    (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
 
 fieldNames :: ReadRequest -> [FieldName]
@@ -284,3 +283,8 @@ fieldNames (Node (sel, _) forest) =
     fks = concatMap (fromMaybe [] . f) forest
     f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
     f _ = Nothing
+
+-- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
+-- they are later concatenated with AND in the QueryBuilder
+addFilterToLogicForest :: Filter -> [LogicTree] -> [LogicTree]
+addFilterToLogicForest flt lf = Stmnt flt : lf
