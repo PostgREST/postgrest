@@ -222,6 +222,7 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & at 204 ?~ "No Content"
     deletOp = tOp
       & parameters .~ map Inline (makeDeleteParams ++ rs)
+      & at 204 ?~ "No Content"
     pr = (mempty :: PathItem) & get ?~ getOp
     pw = pr & post ?~ postOp & patch ?~ patchOp & delete ?~ deletOp
     p False = pr
