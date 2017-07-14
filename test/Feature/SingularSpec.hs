@@ -22,7 +22,7 @@ spec =
     context "with GET request" $ do
       it "fails for zero rows" $
         request methodGet  "/items?id=gt.0&id=lt.0" [singular] ""
-          `shouldRespondWith` 406
+          `shouldRespondWith` 404
 
       it "will select an existing object" $ do
         request methodGet "/items?id=eq.5" [singular] ""
@@ -70,8 +70,8 @@ spec =
         p <- request methodPatch  "/items?id=gt.0&id=lt.0"
           [("Prefer", "return=representation"), singular] [json|{"id":1}|]
         liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+          simpleStatus p `shouldBe` notFound404
+          simpleBody p `shouldBe` ""
 
     context "when creating rows" $ do
 
@@ -122,8 +122,8 @@ spec =
           [("Prefer", "return=representation"), singular]
           [json| [ ] |]
         liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+          simpleStatus p `shouldBe` notFound404
+          simpleBody p `shouldBe` ""
 
     context "when deleting rows" $ do
 
@@ -149,8 +149,8 @@ spec =
         p <- request methodDelete "/items?id=lt.0"
           [("Prefer", "return=representation"), singular] ""
         liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+          simpleStatus p `shouldBe` notFound404
+          simpleBody p `shouldBe` ""
 
     context "when calling a stored proc" $ do
 
@@ -158,8 +158,8 @@ spec =
         p <- request methodPost "/rpc/getproject"
           [singular] [json|{ "id": 9999999}|]
         liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+          simpleStatus p `shouldBe` notFound404
+          simpleBody p `shouldBe` ""
 
       -- this one may be controversial, should vnd.pgrst.object include
       -- the likes of 2 and "hello?"
