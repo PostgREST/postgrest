@@ -55,10 +55,13 @@ pgError authed e =
 
 singularityError :: Integer -> Response
 singularityError numRows =
-  responseLBS HT.status406
+  if numRows == 0
+    then responseLBS HT.status404 [toHeader CTSingularJSON] ""
+  else
+    responseLBS HT.status406
     [toHeader CTSingularJSON]
     $ toS . formatGeneralError
-      "JSON object requested, multiple (or no) rows returned"
+      "JSON object requested, multiple rows returned"
       $ unwords
         [ "Results contain", show numRows, "rows,"
         , toS (toMime CTSingularJSON), "requires 1 row"
