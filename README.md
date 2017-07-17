@@ -55,7 +55,7 @@ Other optimizations are possible, and some are outlined in the
 ### Security
 
 PostgREST [handles
-authentication](http://postgrest.com/en/v0.4/auth.html) (via JSON Web
+authentication](http://postgrest.com/en/stable/auth.html) (via JSON Web
 Tokens) and delegates authorization to the role information defined in
 the database. This ensures there is a single declarative source of truth
 for security.  When dealing with the database the server assumes the
@@ -105,7 +105,7 @@ surprises, such as enforcing idempotent PUT requests.
 
 See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
-and the [API guide](http://postgrest.com/en/v0.4/api.html).
+and the [API guide](http://postgrest.com/en/stable/api.html).
 
 ### Thanks
 

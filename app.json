@@ -10,7 +10,7 @@
     },
     "POSTGREST_VER": {
       "description": "Version of PostgREST to deploy",
-      "value": "0.4.1.0"
+      "value": "0.4.2.0"
     },
     "DB_URI": {
       "description": "Database connection string",

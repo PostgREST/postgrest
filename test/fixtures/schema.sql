@@ -1115,6 +1115,7 @@ create table images (
 );
 
 create view images_base64 as (
+  -- encoding in base64 puts a '\n' after every 76 character due to legacy reasons, this is isn't necessary here so it's removed
   select name, replace(encode(img, 'base64'), E'\n', '') as img from images
 );
 
@@ -1124,12 +1125,20 @@ $$ language sql;
 
 create domain one_nine as integer check (value >= 1 and value <= 9);
 
+create function test.ret_array() returns integer[] as $$ 
+  select '{1,2,3}'::integer[];
+$$ language sql;
+
 create function test.ret_domain(val integer) returns test.one_nine as $$ 
   select val::test.one_nine;
 $$ language sql;
 
 create function test.ret_range(low integer, up integer) returns int4range as $$
   select int4range(low, up);
+$$ language sql;
+
+create function test.ret_setof_integers() returns setof integer as $$
+  values (1), (2), (3);
 $$ language sql;
 
 create function test.ret_scalars() returns table(
@@ -1152,6 +1161,14 @@ create function test.ret_point_3d() returns private.point_3d as $$
 $$ language sql;
 
 create function test.ret_void() returns void as '' language sql;
+
+create function test.ret_base64_bin() returns text as $$
+  select i.img from test.images_base64 i where i.name = 'A.png';
+$$ language sql;
+
+create function test.ret_rows_with_base64_bin() returns setof test.images_base64 as $$
+  select i.name, i.img from test.images_base64 i;
+$$ language sql;
 
 create function test.single_article(id integer) returns test.articles as $$ 
   select a.* from test.articles a where a.id = $1;
@@ -1197,6 +1214,12 @@ create table grandchild_entities (
   and_starting_col text,
   jsonb_col jsonb
 );
+
+-- Used for testing that having the same return column name as the proc name
+-- doesn't conflict with the required output, details in #901
+create function test.test() returns table(test text, value int) as $$
+  values ('hello', 1);
+$$ language sql;
 
 --
 -- PostgreSQL database dump complete
