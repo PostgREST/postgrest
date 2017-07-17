@@ -8,23 +8,22 @@ module PostgREST.OpenAPI (
 
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
-import qualified Data.HashMap.Strict         as M
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.Maybe                  (fromJust)
 import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
-import           Data.Text                   (unpack, pack, concat, intercalate, init, tail, toLower)
+import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate)
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
-import           Protolude hiding              (concat, (&), Proxy, get, intercalate)
+import           Protolude hiding              ((&), Proxy, get, intercalate)
 
 import           Data.Swagger
 
 import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
-                                              Proxy(..), ProcDescription(..), toMime, operators)
+                                              Proxy(..), ProcDescription(..), toMime)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -54,14 +53,13 @@ makeProperty c = (colName c, Inline u)
     t = s & type_ .~ toSwaggerType (colType c)
     u = t & format ?~ colType c & description .~ colDescription c
 
-makeProcDef :: ProcDescription -> (Text, Schema)
-makeProcDef pd = ("(rpc) " <> pdName pd, s)
-  where
-    s = (mempty :: Schema)
-          & description .~ pdDescription pd
-          & type_ .~ SwaggerObject
-          & properties .~ fromList (map makeProcProperty (pdArgs pd))
-          & required .~ map pgaName (filter pgaReq (pdArgs pd))
+makeProcSchema :: ProcDescription -> Schema
+makeProcSchema pd =
+  (mempty :: Schema)
+  & description .~ pdDescription pd
+  & type_ .~ SwaggerObject
+  & properties .~ fromList (map makeProcProperty (pdArgs pd))
+  & required .~ map pgaName (filter pgaReq (pdArgs pd))
 
 makeProcProperty :: PgArg -> (Text, Referenced Schema)
 makeProcProperty (PgArg n t _) = (n, Inline s)
@@ -69,69 +67,6 @@ makeProcProperty (PgArg n t _) = (n, Inline s)
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
           & format ?~ t
-
-makeOperatorPattern :: Text
-makeOperatorPattern =
-  intercalate "|"
-  [ concat ["^", x, y, "[.]"] |
-    x <- ["not[.]", ""],
-    y <- M.keys operators ]
-
-makeRowFilter :: Column -> Param
-makeRowFilter c =
-  (mempty :: Param)
-  & name .~ colName c
-  & description .~ colDescription c
-  & required ?~ False
-  & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-    & in_ .~ ParamQuery
-    & type_ .~ SwaggerString
-    & format ?~ colType c
-    & pattern ?~ makeOperatorPattern)
-
-makeRowFilters :: [Column] -> [Param]
-makeRowFilters = map makeRowFilter
-
-makeOrderItems :: [Column] -> [Text]
-makeOrderItems cs =
-  [ concat [x, y, z] |
-    x <- map colName cs,
-    y <- [".asc", ".desc", ""],
-    z <- [".nullsfirst", ".nulllast", ""]
-  ]
-
-makeRangeParams :: [Param]
-makeRangeParams =
-  [ (mempty :: Param)
-    & name        .~ "Range"
-    & description ?~ "Limiting and Pagination"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamHeader
-      & type_ .~ SwaggerString)
-  , (mempty :: Param)
-    & name        .~ "Range-Unit"
-    & description ?~ "Limiting and Pagination"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamHeader
-      & type_ .~ SwaggerString
-      & default_ .~ decode "\"items\"")
-  , (mempty :: Param)
-    & name        .~ "offset"
-    & description ?~ "Limiting and Pagination"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamQuery
-      & type_ .~ SwaggerString)
-  , (mempty :: Param)
-    & name        .~ "limit"
-    & description ?~ "Limiting and Pagination"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamQuery
-      & type_ .~ SwaggerString)
-  ]
 
 makePreferParam :: [Text] -> Param
 makePreferParam ts =
@@ -144,98 +79,126 @@ makePreferParam ts =
     & type_ .~ SwaggerString
     & enum_ .~ decode (encode ts))
 
-makeSelectParam :: Param
-makeSelectParam =
-  (mempty :: Param)
-    & name        .~ "select"
-    & description ?~ "Filtering Columns"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamQuery
-      & type_ .~ SwaggerString)
-
-makeGetParams :: [Column] -> [Param]
-makeGetParams [] =
-  makeRangeParams ++
-  [ makeSelectParam
-  , makePreferParam ["count=none"]
-  ]
-makeGetParams cs =
-  makeRangeParams ++
-  [ makeSelectParam
-  , (mempty :: Param)
-    & name        .~ "order"
-    & description ?~ "Ordering"
-    & required    ?~ False
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-      & in_ .~ ParamQuery
-      & type_ .~ SwaggerString
-      & enum_ .~ decode (encode $ makeOrderItems cs))
-  , makePreferParam ["count=none"]
-  ]
-
-makePostParams :: Text -> [Param]
-makePostParams tn =
-  [ makePreferParam ["return=representation",
-                     "return=minimal", "return=none"]
-  , (mempty :: Param)
-    & name        .~ "body"
-    & description ?~ tn
-    & required    ?~ False
-    & schema .~ ParamBody (Ref (Reference tn))
-  ]
-
-makeProcParam :: Text -> [Param]
-makeProcParam refName =
-  [ makePreferParam ["params=single-object"]
-  , (mempty :: Param)
+makeProcParam :: ProcDescription -> [Referenced Param]
+makeProcParam pd =
+  [ Inline $ (mempty :: Param)
     & name     .~ "args"
     & required ?~ True
-    & schema   .~ ParamBody (Ref (Reference refName))
+    & schema   .~ (ParamBody $ Inline $ makeProcSchema pd)
+  , Ref $ Reference $ "preferParams"
   ]
 
-makeDeleteParams :: [Param]
-makeDeleteParams =
-  [ makePreferParam ["return=representation", "return=minimal", "return=none"] ]
+makeParamDefs :: [(Table, [Column], [Text])] -> [(Text, Param)]
+makeParamDefs ti =
+  [ ("preferParams", makePreferParam ["params=single-object"])
+  , ("preferReturn", makePreferParam ["return=representation", "return=minimal", "return=none"])
+  , ("preferCount", makePreferParam ["count=none"])
+  , ("select", (mempty :: Param)
+      & name        .~ "select"
+      & description ?~ "Filtering Columns"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamQuery
+        & type_ .~ SwaggerString))
+  , ("order", (mempty :: Param)
+      & name        .~ "order"
+      & description ?~ "Ordering"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamQuery
+        & type_ .~ SwaggerString))
+  , ("range", (mempty :: Param)
+      & name        .~ "Range"
+      & description ?~ "Limiting and Pagination"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamHeader
+        & type_ .~ SwaggerString))
+  , ("rangeUnit", (mempty :: Param)
+      & name        .~ "Range-Unit"
+      & description ?~ "Limiting and Pagination"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamHeader
+        & type_ .~ SwaggerString
+        & default_ .~ decode "\"items\""))
+  , ("offset", (mempty :: Param)
+      & name        .~ "offset"
+      & description ?~ "Limiting and Pagination"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamQuery
+        & type_ .~ SwaggerString))
+  , ("limit", (mempty :: Param)
+      & name        .~ "limit"
+      & description ?~ "Limiting and Pagination"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamQuery
+        & type_ .~ SwaggerString))
+  ]
+  <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) cs
+            | (t, cs, _) <- ti
+            ]
+  where
+    makeObjectBody :: Text -> (Text, Param)
+    makeObjectBody tn =
+      ("body." <> tn, (mempty :: Param)
+         & name .~ tn
+         & description ?~ tn
+         & required ?~ False
+         & schema .~ ParamBody (Ref (Reference tn)))
+
+    makeRowFilter :: Text -> Column -> (Text, Param)
+    makeRowFilter tn c =
+      (intercalate "." ["rowFilter", tn, colName c], (mempty :: Param)
+        & name .~ colName c
+        & description .~ colDescription c
+        & required ?~ False
+        & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+          & in_ .~ ParamQuery
+          & type_ .~ SwaggerString
+          & format ?~ colType c))
+  
+    makeRowFilters :: Text -> [Column] -> [(Text, Param)]
+    makeRowFilters tn = map (makeRowFilter tn)
 
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
 makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
   where
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
-      & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       & description .~ tableDescription t
     getOp = tOp
-      & parameters .~ map Inline (makeGetParams cs ++ rs)
+      & parameters .~ map ref (rs <> ["select", "order", "range", "rangeUnit", "offset", "limit", "preferCount"])
       & at 206 ?~ "Partial Content"
       & at 200 ?~ Inline ((mempty :: Response)
         & description .~ "OK"
-        & schema .~ (Just $ Ref $ Reference $ tableName t)
+        & schema ?~ (Ref $ Reference $ tableName t)
         )
     postOp = tOp
-      & consumes ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-      & parameters .~ map Inline (makePostParams tn)
+      & parameters .~ map ref ["body." <> tn, "preferReturn"]
       & at 201 ?~ "Created"
     patchOp = tOp
-      & consumes ?~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-      & parameters .~ map Inline (makePostParams tn ++ rs)
+      & parameters .~ map ref (rs <> ["body." <> tn, "preferReturn"])
       & at 204 ?~ "No Content"
     deletOp = tOp
-      & parameters .~ map Inline (makeDeleteParams ++ rs)
+      & parameters .~ map ref (rs <> ["preferReturn"])
       & at 204 ?~ "No Content"
     pr = (mempty :: PathItem) & get ?~ getOp
     pw = pr & post ?~ postOp & patch ?~ patchOp & delete ?~ deletOp
     p False = pr
     p True  = pw
-    rs = makeRowFilters cs
     tn = tableName t
+    rs = [ intercalate "." ["rowFilter", tn, colName c ] | c <- cs ]
+    ref = Ref . Reference
 
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     postOp = (mempty :: Operation)
       & description .~ pdDescription pd
-      & parameters .~ map Inline (makeProcParam $ "(rpc) " <> pdName pd)
+      & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]
       & at 200 ?~ "OK"
@@ -272,12 +235,15 @@ postgrestSpec pds ti (s, h, p, b) sd = (mempty :: Swagger)
       & version .~ prettyVersion
       & title .~ "PostgREST API"
       & description ?~ d)
-  & host .~ h'
-  & definitions .~ fromList (map makeTableDef ti <> map makeProcDef pds)
-  & paths .~ makePathItems pds ti
   & externalDocs ?~ ((mempty :: ExternalDocs)
     & description ?~ "PostgREST Documentation"
     & url .~ URL "https://postgrest.com/en/latest/api.html")
+  & host .~ h'
+  & definitions .~ fromList (map makeTableDef ti)
+  & parameters .~ fromList (makeParamDefs ti)
+  & paths .~ makePathItems pds ti
+  & produces .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+  & consumes .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
     where
       s' = if s == "http" then Http else Https
       h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
