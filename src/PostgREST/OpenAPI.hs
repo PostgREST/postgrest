@@ -245,7 +245,8 @@ makeRootPathItem :: (FilePath, PathItem)
 makeRootPathItem = ("/", p)
   where
     getOp = (mempty :: Operation)
-      & tags .~ Set.fromList ["/"]
+      & tags .~ Set.fromList ["Introspection"]
+      & summary ?~ "OpenAPI description (this document)"
       & produces ?~ makeMimeList [CTOpenAPI, CTApplicationJSON]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
@@ -274,6 +275,9 @@ postgrestSpec pds ti (s, h, p, b) sd = (mempty :: Swagger)
   & host .~ h'
   & definitions .~ fromList (map makeTableDef ti <> map makeProcDef pds)
   & paths .~ makePathItems pds ti
+  & externalDocs ?~ ((mempty :: ExternalDocs)
+    & description ?~ "PostgREST Documentation"
+    & url .~ URL "https://postgrest.com/en/latest/api.html")
     where
       s' = if s == "http" then Http else Https
       h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
