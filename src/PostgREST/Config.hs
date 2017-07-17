@@ -111,7 +111,7 @@ readOptions = do
           <*> (fromMaybe "*4" <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
-          <*> (fromMaybe False <$> C.key "secret-is-base64")
+          <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> C.key "pre-request"
@@ -129,6 +129,11 @@ readOptions = do
   coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
   coerceInt (String x) = readMaybe $ toS x
   coerceInt _ = Nothing
+
+  coerceBool ::  Value -> Maybe Bool
+  coerceBool (Bool b) = Just b
+  coerceBool (String x) = readMaybe $ toS x
+  coerceBool _ = Nothing
 
   opts = info (helper <*> pathParser) $
            fullDesc

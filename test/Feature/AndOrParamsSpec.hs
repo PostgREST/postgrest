@@ -105,6 +105,29 @@ spec =
         get "/entities?and=( and ( id.in.( 1, 2, 3 ) , id.eq.3 ) , or ( id.eq.2 , id.eq.3 ) )&select=id" `shouldRespondWith`
           [json|[{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
 
+      context "multiple and/or conditions" $ do
+        it "cannot have zero conditions" $
+          get "/entities?or=()" `shouldRespondWith`
+            [json|{
+              "details": "unexpected \")\" expecting field name (* or [a..z0..9_]), negation operator (not) or logic operator (and, or)",
+              "message": "\"failed to parse logic tree (())\" (line 1, column 4)"
+            }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
+        it "can have a single condition" $ do
+          get "/entities?or=(id.eq.1)&select=id" `shouldRespondWith`
+            [json|[{"id":1}]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?and=(id.eq.1)&select=id" `shouldRespondWith`
+            [json|[{"id":1}]|] { matchHeaders = [matchContentTypeJson] }
+        it "can have three conditions" $ do
+          get "/grandchild_entities?or=(id.eq.1, id.eq.2, id.eq.3)&select=id" `shouldRespondWith`
+            [json|[{"id":1}, {"id":2}, {"id":3}]|] { matchHeaders = [matchContentTypeJson] }
+          get "/grandchild_entities?and=(id.in.(1,2), id.in.(3,1), id.in.(1,4))&select=id" `shouldRespondWith`
+            [json|[{"id":1}]|] { matchHeaders = [matchContentTypeJson] }
+        it "can have four conditions combining and/or" $ do
+          get "/grandchild_entities?or=( id.eq.1, id.eq.2, and(id.in.(1,3), id.in.(2,3)), id.eq.4 )&select=id" `shouldRespondWith`
+            [json|[{"id":1}, {"id":2}, {"id":3}, {"id":4}]|] { matchHeaders = [matchContentTypeJson] }
+          get "/grandchild_entities?and=( id.eq.1, not.or(id.eq.2, id.eq.3), id.in.(1,4), or(id.eq.1, id.eq.4) )&select=id" `shouldRespondWith`
+            [json|[{"id":1}]|] { matchHeaders = [matchContentTypeJson] }
+
     context "used with POST" $
       it "includes related data with filters" $
         request methodPost "/child_entities?entities.or=(id.eq.2,id.eq.3)&select=id,entities{id}"
@@ -145,20 +168,10 @@ spec =
         }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
 
     it "fails on malformed query params and provides meaningful error message" $ do
-      get "/entities?or=()" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \")\" expecting field name (* or [a..z0..9_]), negation operator (not) or logic operator (and, or)",
-          "message": "\"failed to parse logic tree (())\" (line 1, column 4)"
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
       get "/entities?or=)(" `shouldRespondWith`
         [json|{
           "details": "unexpected \")\" expecting \"(\"",
           "message": "\"failed to parse logic tree ()()\" (line 1, column 3)"
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
-      get "/entities?or=(id.eq.1)" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \")\" expecting \",\"",
-          "message": "\"failed to parse logic tree ((id.eq.1))\" (line 1, column 11)"
         }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
       get "/entities?and=(ord(id.eq.1,id.eq.1),id.eq.2)" `shouldRespondWith`
         [json|{

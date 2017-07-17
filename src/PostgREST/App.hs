@@ -232,15 +232,25 @@ app dbStructure conf apiRequest =
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
         (ActionInvoke, TargetProc qi, Just (PayloadJSON payload)) ->
-          case readSqlParts of
+          let proc = M.lookup (qiName qi) allProcs
+              returnsScalar = case proc of
+                Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
+                _ -> False
+              rpcBinaryField = if returnsScalar
+                                 then Right Nothing
+                                 else binaryField contentType =<< fldNames
+              partsField = (,) <$> readSqlParts <*> rpcBinaryField in
+          case partsField of
             Left errorResponse -> return errorResponse
-            Right (q, cq) -> do
+            Right ((q, cq), bField) -> do
               let p = V.head payload
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () $
-                callProc qi p q cq topLevelRange shouldCount singular
-                         paramsAsSingleObject (contentType == CTTextCSV)
+                callProc qi p returnsScalar q cq topLevelRange shouldCount
+                         singular paramsAsSingleObject
+                         (contentType == CTTextCSV)
+                         (contentType == CTOctetStream) bField
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -257,7 +267,7 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti sd = encodeOpenAPI (M.elems $ dbProcs dbStructure) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
+              encodeApi ti sd = encodeOpenAPI (M.elems allProcs) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
           body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
@@ -276,6 +286,7 @@ app dbStructure conf apiRequest =
       filterCol :: Schema -> TableName -> Column -> Bool
       filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
       allPrKeys = dbPrimaryKeys dbStructure
+      allProcs = dbProcs dbStructure
       allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
       shouldCount = iPreferCount apiRequest
       schema = toS $ configSchema conf
@@ -287,7 +298,7 @@ app dbStructure conf apiRequest =
             status = rangeStatus lower upper (toInteger <$> tableTotal)
         in (status, contentRange)
 
-      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) (dbProcs dbStructure) apiRequest
+      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) allProcs apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
@@ -306,7 +317,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
         ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =

@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #889, Allow more than two conditions in a single and/or - @steve-chavez
+- #883, Binary output support for RPC - @steve-chavez
+
+### Fixed
+
+- #896, Boolean env var interpolation in config file - @begriffs
+
+## [0.4.2.0] - 2017-06-11
+
+### Added
+
 - #742, Add connection retrying on startup and SIGHUP - @steve-chavez
 - #652, Add and/or params for complex boolean logic - @steve-chavez
 - #808, Env var interpolation in config file (helps Docker) - @begriffs

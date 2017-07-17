@@ -141,7 +141,9 @@ accessibleProcs =
       qi = QualifiedIdentifier schema name
       pgType = case typ of
         'c' -> Composite qi
-        'p' -> Pseudo name
+        'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
+                 then Composite qi
+                 else Scalar qi
         _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
 
   parseVolatility :: Char -> ProcVolatility

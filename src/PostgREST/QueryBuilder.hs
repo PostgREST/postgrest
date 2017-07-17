@@ -144,42 +144,45 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> SqlQuery -> SqlQuery -> NonnegRange ->
-  Bool -> Bool -> Bool -> Bool -> H.Query () (Maybe ProcResults)
-callProc qi params selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv =
+callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
+  Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
+callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary binaryField =
   unicodeStatement sql HE.unit decodeProc True
   where
-    sql = [qc|
-            WITH {sourceCTEName} AS ({_callSql})
-            SELECT
-              {countResultF} AS total_result_set,
-              pg_catalog.count(_postgrest_t) AS page_total,
-              case
-                when pg_catalog.count(*) > 1 then
-                  {bodyF}
-                else
-                  coalesce(((array_agg(row_to_json(_postgrest_t)))[1]->{_procName})::character varying, {bodyF})
+    sql = 
+     if returnsScalar then [qc|
+       WITH {sourceCTEName} AS ({_callSql})
+       SELECT
+         {countResultF} AS total_result_set,
+         1 AS page_total,
+         {scalarBodyF} as body
+       FROM ({selectQuery}) _postgrest_t;|]
+     else [qc| 
+       WITH {sourceCTEName} AS ({_callSql})
+       SELECT
+         {countResultF} AS total_result_set,
+         pg_catalog.count(_postgrest_t) AS page_total,
+         {bodyF} as body
+       FROM ({selectQuery}) _postgrest_t;|]
 
-              end as body
-            FROM ({selectQuery}) _postgrest_t;
-          |]
-          -- FROM (select * from {sourceCTEName} {limitF range}) t;
-    countResultF = if countTotal then "("<>countQuery<>")" else "null::bigint" :: Text
+    countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _args = if paramsAsJson
                 then insertableValueWithType "json" $ JSON.Object params
                 else intercalate "," $ map _assignment (HM.toList params)
-    _procName = pgFmtLit $ qiName qi
+    _procName = qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
-    _countExpr = if countTotal
-                   then [qc|(select pg_catalog.count(*) from {sourceCTEName})|]
-                   else "null::bigint" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.bytea
+    scalarBodyF
+     | asBinary = asBinaryF _procName
+     | otherwise = "(row_to_json(_postgrest_t)->" <> pgFmtLit _procName <> ")::character varying"
+
     bodyF
      | isSingle = asJsonSingleF
      | asCsv = asCsvF
+     | isJust binaryField = asBinaryF $ fromJust binaryField
      | otherwise = asJsonF
 
 pgFmtIdent :: SqlFragment -> SqlFragment
@@ -449,7 +452,7 @@ pgFmtFilter table (Filter fld (Operation hasNot_ ex)) = notOp <> " " <> case ex 
       Nothing -> emptyValForIn op
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
-pgFmtLogicTree qi (Expr hasNot_ op lt rt) = notOp <> " (" <> pgFmtLogicTree qi lt <> " " <> show op <> " " <> pgFmtLogicTree qi rt <> ")"
+pgFmtLogicTree qi (Expr hasNot_ op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
   where notOp =  if hasNot_ then "NOT" else ""
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
