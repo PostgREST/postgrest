@@ -85,7 +85,7 @@ makeProcParam pd =
     & name     .~ "args"
     & required ?~ True
     & schema   .~ (ParamBody $ Inline $ makeProcSchema pd)
-  , Ref $ Reference $ "preferParams"
+  , Ref $ Reference "preferParams"
   ]
 
 makeParamDefs :: [(Table, [Column], [Text])] -> [(Text, Param)]
