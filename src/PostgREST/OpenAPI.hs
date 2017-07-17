@@ -12,7 +12,9 @@ import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.Maybe                  (fromJust)
 import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
-import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate)
+import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate, append)
+import qualified Data.Text.Lazy              as TL
+import qualified Data.Text.Lazy.Encoding     as TL
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
@@ -22,8 +24,8 @@ import           Data.Swagger
 
 import           PostgREST.ApiRequest        (ContentType(..))
 import           PostgREST.Config            (prettyVersion)
-import           PostgREST.Types             (Table(..), Column(..), PgArg(..),
-                                              Proxy(..), ProcDescription(..), toMime)
+import           PostgREST.Types             (Table(..), Column(..), PgArg(..), ForeignKey(..),
+                                              PrimaryKey(..), Proxy(..), ProcDescription(..), toMime)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -35,23 +37,40 @@ toSwaggerType "boolean"   = SwaggerBoolean
 toSwaggerType "numeric"   = SwaggerNumber
 toSwaggerType _           = SwaggerString
 
-makeTableDef :: (Table, [Column], [Text]) -> (Text, Schema)
-makeTableDef (t, cs, _) =
+makeTableDef :: [PrimaryKey] -> (Table, [Column], [Text]) -> (Text, Schema)
+makeTableDef pks (t, cs, _) =
   let tn = tableName t in
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ .~ SwaggerObject
-        & properties .~ fromList (map makeProperty cs))
+        & properties .~ fromList (map (makeProperty pks) cs))
 
-makeProperty :: Column -> (Text, Referenced Schema)
-makeProperty c = (colName c, Inline u)
+makeProperty :: [PrimaryKey] -> Column -> (Text, Referenced Schema)
+makeProperty pks c = (colName c, Inline s)
   where
-    r = mempty :: Schema
-    s = if null $ colEnum c
-           then r
-           else r & enum_ .~ decode (encode (colEnum c))
-    t = s & type_ .~ toSwaggerType (colType c)
-    u = t & format ?~ colType c & description .~ colDescription c
+    e = if null $ colEnum c then Nothing else decode $ encode $ colEnum c
+    fk ForeignKey{fkCol=Column{colTable=Table{tableName=a}, colName=b}} =
+      intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
+    pk :: Bool
+    pk = any (\p -> pkTable p == colTable c && pkName p == colName c)  pks
+    n = catMaybes
+      [ Just "Note:"
+      , if pk then Just "This is a Primary Key.<pk/>" else Nothing
+      , fk <$> colFK c
+      ]
+    d =
+      if length n > 1 then
+        Just $ append (fromMaybe "" ((`append` "\n\n") <$> colDescription c)) (intercalate "\n" n)
+      else
+        colDescription c
+    s =
+      (mempty :: Schema)
+        & default_ .~ (decode . TL.encodeUtf8 . TL.fromStrict =<< colDefault c)
+        & description .~ d
+        & enum_ .~ e
+        & format ?~ colType c
+        & maxLength .~ (fromIntegral <$> colMaxLen c)
+        & type_ .~ toSwaggerType (colType c)
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -140,28 +159,28 @@ makeParamDefs ti =
   <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) cs
             | (t, cs, _) <- ti
             ]
-  where
-    makeObjectBody :: Text -> (Text, Param)
-    makeObjectBody tn =
-      ("body." <> tn, (mempty :: Param)
-         & name .~ tn
-         & description ?~ tn
-         & required ?~ False
-         & schema .~ ParamBody (Ref (Reference tn)))
 
-    makeRowFilter :: Text -> Column -> (Text, Param)
-    makeRowFilter tn c =
-      (intercalate "." ["rowFilter", tn, colName c], (mempty :: Param)
-        & name .~ colName c
-        & description .~ colDescription c
-        & required ?~ False
-        & schema .~ ParamOther ((mempty :: ParamOtherSchema)
-          & in_ .~ ParamQuery
-          & type_ .~ SwaggerString
-          & format ?~ colType c))
-  
-    makeRowFilters :: Text -> [Column] -> [(Text, Param)]
-    makeRowFilters tn = map (makeRowFilter tn)
+makeObjectBody :: Text -> (Text, Param)
+makeObjectBody tn =
+  ("body." <> tn, (mempty :: Param)
+     & name .~ tn
+     & description ?~ tn
+     & required ?~ False
+     & schema .~ ParamBody (Ref (Reference tn)))
+
+makeRowFilter :: Text -> Column -> (Text, Param)
+makeRowFilter tn c =
+  (intercalate "." ["rowFilter", tn, colName c], (mempty :: Param)
+    & name .~ colName c
+    & description .~ colDescription c
+    & required ?~ False
+    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+      & in_ .~ ParamQuery
+      & type_ .~ SwaggerString
+      & format ?~ colType c))
+
+makeRowFilters :: Text -> [Column] -> [(Text, Param)]
+makeRowFilters tn = map (makeRowFilter tn)
 
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
 makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
@@ -227,8 +246,8 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> Swagger
-postgrestSpec pds ti (s, h, p, b) sd = (mempty :: Swagger)
+postgrestSpec :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> [PrimaryKey] -> Swagger
+postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
   & basePath ?~ unpack b
   & schemes ?~ [s']
   & info .~ ((mempty :: Info)
@@ -239,7 +258,7 @@ postgrestSpec pds ti (s, h, p, b) sd = (mempty :: Swagger)
     & description ?~ "PostgREST Documentation"
     & url .~ URL "https://postgrest.com/en/latest/api.html")
   & host .~ h'
-  & definitions .~ fromList (map makeTableDef ti)
+  & definitions .~ fromList (map (makeTableDef pks) ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
   & produces .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
@@ -249,8 +268,8 @@ postgrestSpec pds ti (s, h, p, b) sd = (mempty :: Swagger)
       h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
       d = fromMaybe "This is a dynamic API generated by PostgREST" sd
 
-encodeOpenAPI :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> LByteString
-encodeOpenAPI pds ti uri sd = encode $ postgrestSpec pds ti uri sd
+encodeOpenAPI :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> [PrimaryKey] ->  LByteString
+encodeOpenAPI pds ti uri sd pks = encode $ postgrestSpec pds ti uri sd pks
 
 {-|
   Test whether a proxy uri is malformed or not.
