@@ -46,7 +46,13 @@ cleanUp(){ pgrStopAll; }
 
 # Unit Test Templates
 readSecretFromFile(){
-  pgrStartRead ./configs/secret-from-file.config "./secrets/$1"
+  case "$1" in
+    *.b64)
+      pgrConfig="base64-secret-from-file.config";;
+    *)
+      pgrConfig="secret-from-file.config";;
+  esac
+  pgrStartRead "./configs/$pgrConfig" "./secrets/$1"
   sleep 1 # leave enough time for the server to start
   if pgrStarted
   then
@@ -72,7 +78,7 @@ psql -l 1>/dev/null 2>/dev/null || bailOut 'postgres is not running'
 
 setUp
 
-totalTests=7
+totalTests=12
 echo "1..$totalTests"
 
 readSecretFromFile word.noeol 'simple (no EOL)'
@@ -82,5 +88,11 @@ readSecretFromFile ascii.txt 'ASCII'
 readSecretFromFile utf8.noeol 'UTF-8 (no EOL)'
 readSecretFromFile utf8.txt 'UTF-8'
 readSecretFromFile binary.noeol 'binary'
+readSecretFromFile binary.eol 'binary (+EOL)'
+
+readSecretFromFile word.b64 'Base64 (simple)'
+readSecretFromFile ascii.b64 'Base64 (ASCII)'
+readSecretFromFile utf8.b64 'Base64 (UTF-8)'
+readSecretFromFile binary.b64 'Base64 (binary)'
 
 cleanUp
