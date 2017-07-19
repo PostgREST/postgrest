@@ -67,7 +67,7 @@ spec = do
 
         let def = r ^? key "definitions" . key "child_entities"
 
-        liftIO $ do
+        liftIO $
 
           def `shouldBe` Just
             [aesonQQ|
@@ -102,7 +102,7 @@ spec = do
                       . key "post"  . key "parameters"
                       . nth 0       . key "schema"
 
-        liftIO $ do
+        liftIO $
           args `shouldBe` Just
             [aesonQQ|
               {
