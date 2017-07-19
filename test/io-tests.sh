@@ -34,6 +34,9 @@ pgrStop(){ kill "$pgrPID" 2>/dev/null; }
 pgrStopAll(){ pkill -f "$(stack path --local-install-root)/bin/postgrest"; }
 
 # Utilities to send HTTP requests to the PostgREST server
+rootStatus(){
+  curl -s -o /dev/null -w '%{http_code}' "http://localhost:$pgrPort/"
+}
 authorsStatus(){
   curl -s -o /dev/null -w '%{http_code}' \
     -H "Authorization: Bearer $( cat "$1" )" \
@@ -53,7 +56,12 @@ readSecretFromFile(){
       pgrConfig="secret-from-file.config";;
   esac
   pgrStartRead "./configs/$pgrConfig" "./secrets/$1"
-  sleep 1 # leave enough time for the server to start
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
   if pgrStarted
   then
     authorsJwt="./secrets/${1%.*}.jwt"
