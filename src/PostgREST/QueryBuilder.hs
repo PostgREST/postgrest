@@ -15,7 +15,7 @@ module PostgREST.QueryBuilder (
     callProc
   , createReadStatement
   , createWriteStatement
-  , getJoinConditions
+  , getJoinFilters
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
@@ -199,25 +199,23 @@ pgFmtLit x =
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
-requestToCountQuery schema (DbRead (Node (Select _ _ conditions logic_ _ _, (mainTbl, _, _)) _)) =
+requestToCountQuery schema (DbRead (Node (Select _ _ logicForest _ _, (mainTbl, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
-    -- logic_ doesn't not need localFilter filtering because it doesn't have VForeignKey vals
-    ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) localConditions ++ map (pgFmtLogicTree qi) logic_))
-      `emptyOnFalse` (null conditions && null logic_)
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) filteredLogic)) `emptyOnFalse` null filteredLogic
    ]
  where
    qi = removeSourceCTESchema schema mainTbl
-   localFilter :: Filter -> Bool
-   localFilter Filter{operation=Operation{expr=(_, val)}} = case val of
-    VText _ -> True
-    VTextL _ -> True
-    VForeignKey _ _ -> False
-   localConditions = filter localFilter conditions
+   -- all foreing key filters are root nodes(see addFilterToLogicForest), only those are filtered
+   nonFKRoot :: LogicTree -> Bool
+   nonFKRoot (Stmnt (Filter _ Operation{expr=(_, VForeignKey _ _)})) = False
+   nonFKRoot (Stmnt _) = True
+   nonFKRoot Expr{} = True
+   filteredLogic = filter nonFKRoot logicForest
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions logic_ ord range, (nodeName, maybeRelation, _)) forest)) =
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest ord range, (nodeName, maybeRelation, _)) forest)) =
   query
   where
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
@@ -227,8 +225,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
       "SELECT ", intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
       "FROM ", intercalate ", " (map (fromQi . toQi) tbls),
       unwords joins,
-      ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
-        `emptyOnFalse` (null conditions && null logic_),
+      ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
       orderF (fromMaybe [] ord),
       if isParent then "" else limitF range
       ]
@@ -261,7 +258,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls conditions 
         replaceTableName _ x = x
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
-              " ON " <> intercalate " AND " ( map (pgFmtFilter qi . replaceTableName local_table_name) (getJoinConditions r) )
+              " ON " <> intercalate " AND " ( map (pgFmtFilter qi . replaceTableName local_table_name) (getJoinFilters r) )
           where subquery = requestToQuery schema True (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias)) forst) (j,s) = (j,sel:s)
       where
@@ -289,7 +286,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)
         ret = if null returnings
                   then ""
                   else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions logic_ returnings)) =
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) logicForest returnings)) =
   case rows V.!? 0 of
     Just obj ->
       let assignments = map
@@ -297,21 +294,19 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) conditions 
       unwords [
         "UPDATE ", fromQi qi,
         " SET " <> intercalate "," assignments <> " ",
-        ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
-          `emptyOnFalse` (null conditions && null logic_),
+        ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
         ]
     Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
-requestToQuery schema _ (DbMutate (Delete mainTbl conditions logic_ returnings)) =
+requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
   query
   where
     qi = QualifiedIdentifier schema mainTbl
     query = unwords [
       "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " (map (pgFmtFilter qi) conditions ++ map (pgFmtLogicTree qi) logic_))
-        `emptyOnFalse` (null conditions && null logic_),
+      ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
       ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
       ]
 
@@ -378,13 +373,13 @@ fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
     n = qiName t
     s = qiSchema t
 
-getJoinConditions :: Relation -> [Filter]
-getJoinConditions (Relation t cols ft fcs typ lt lc1 lc2) =
+getJoinFilters :: Relation -> [Filter]
+getJoinFilters (Relation t cols ft fcs typ lt lc1 lc2) =
   case typ of
     Child  -> zipWith (toFilter tN ftN) cols fcs
     Parent -> zipWith (toFilter tN ftN) cols fcs
     Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
-    Root   -> undefined --error "undefined getJoinConditions"
+    Root   -> undefined --error "undefined getJoinFilters"
   where
     s = if typ == Parent then "" else tableSchema t
     tN = tableName t

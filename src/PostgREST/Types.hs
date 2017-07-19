@@ -184,10 +184,10 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias)
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
 
-data ReadQuery = Select { select::[SelectItem], from::[TableName], flt_::[Filter], logic::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
-                 | Delete { in_::TableName, where_::[Filter], logic::[LogicTree], returning::[FieldName] }
-                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[Filter], logic::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
+                 | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
+                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
