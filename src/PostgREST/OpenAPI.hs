@@ -52,7 +52,7 @@ makeProperty pks c = (colName c, Inline s)
     fk ForeignKey{fkCol=Column{colTable=Table{tableName=a}, colName=b}} =
       intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
     pk :: Bool
-    pk = any (\p -> pkTable p == colTable c && pkName p == colName c)  pks
+    pk = any (\p -> pkTable p == colTable c && pkName p == colName c) pks
     n = catMaybes
       [ Just "Note:"
       , if pk then Just "This is a Primary Key.<pk/>" else Nothing
