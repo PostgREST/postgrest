@@ -9,7 +9,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #889, Allow more than two conditions in a single and/or - @steve-chavez
 - #883, Binary output support for RPC - @steve-chavez
-- #885, Postgres COMMENTs now appear in OpenAPI description - @ldesgoui
 
 ### Fixed
 
