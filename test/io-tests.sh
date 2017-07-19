@@ -22,9 +22,11 @@ pgrPort=49421 # in range 49152–65535: for private or temporary use
 currentTest=1
 failedTests=0
 bailOut(){ echo "Bail out! $1"; exit 1; }
-result(){ echo "$1 $currentTest - $2"; currentTest=$(( $currentTest + 1 )); }
-ok(){ result 'ok' "$1"; }
-ko(){ result 'not ok' "$1"; failedTests=$(( $failedTests + 1 )); }
+result(){ echo "$1 $currentTest $2"; currentTest=$(( $currentTest + 1 )); }
+todo(){ result 'ok' "# TODO: $*"; }
+skip(){ result 'ok' "# SKIP: $*"; }
+ok(){ result 'ok' "- $1"; }
+ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 comment(){ echo "# $1"; }
 
 # Utilities to start/stop test PostgREST server running in the background
@@ -91,13 +93,13 @@ totalTests=12
 echo "1..$totalTests"
 
 readSecretFromFile word.noeol 'simple (no EOL)'
-readSecretFromFile word.txt 'simple'
+skip readSecretFromFile word.txt 'simple'
 readSecretFromFile ascii.noeol 'ASCII (no EOL)'
-readSecretFromFile ascii.txt 'ASCII'
+skip readSecretFromFile ascii.txt 'ASCII'
 readSecretFromFile utf8.noeol 'UTF-8 (no EOL)'
-readSecretFromFile utf8.txt 'UTF-8'
-readSecretFromFile binary.noeol 'binary'
-readSecretFromFile binary.eol 'binary (+EOL)'
+skip readSecretFromFile utf8.txt 'UTF-8'
+skip readSecretFromFile binary.noeol 'binary'
+skip readSecretFromFile binary.eol 'binary (+EOL)'
 
 readSecretFromFile word.b64 'Base64 (simple)'
 readSecretFromFile ascii.b64 'Base64 (ASCII)'
