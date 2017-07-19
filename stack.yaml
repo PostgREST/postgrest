@@ -7,4 +7,6 @@ extra-deps:
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
-  packages: [postgresql, zlib]
+  enable: true
+  pure: false
+  packages: [postgresql, zlib, pkgconfig, pcre, hlint]
