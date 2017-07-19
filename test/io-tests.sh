@@ -20,10 +20,11 @@ pgrPort=49421 # in range 49152–65535: for private or temporary use
 
 # TAP utilities
 currentTest=1
+failedTests=0
 bailOut(){ echo "Bail out! $1"; exit 1; }
 result(){ echo "$1 $currentTest - $2"; currentTest=$(( $currentTest + 1 )); }
 ok(){ result 'ok' "$1"; }
-ko(){ result 'not ok' "$1"; }
+ko(){ result 'not ok' "$1"; failedTests=$(( $failedTests + 1 )); }
 comment(){ echo "# $1"; }
 
 # Utilities to start/stop test PostgREST server running in the background
@@ -104,3 +105,5 @@ readSecretFromFile utf8.b64 'Base64 (UTF-8)'
 readSecretFromFile binary.b64 'Base64 (binary)'
 
 cleanUp
+
+exit $failedTests
