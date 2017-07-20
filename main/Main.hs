@@ -22,7 +22,7 @@ import           Data.ByteString.Base64   (decode)
 import           Data.IORef               (IORef, atomicWriteIORef,
                                            newIORef, readIORef)
 import           Data.String              (IsString (..))
-import           Data.Text                (pack, replace, stripPrefix)
+import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn, readFile)
 import           Data.Time.Clock.POSIX    (getPOSIXTime)
@@ -278,7 +278,7 @@ loadSecretFile conf = extractAndTransform mSecret
     transformString :: Bool -> Text -> IO ByteString
     transformString False t = return . encodeUtf8 $ t
     transformString True t =
-      case decode (encodeUtf8 $ replaceUrlChars t) of
+      case decode (encodeUtf8 $ strip $ replaceUrlChars t) of
         Left errMsg -> panic $ pack errMsg
         Right bs    -> return bs
     setSecret bs = conf {configJwtSecret = Just bs}

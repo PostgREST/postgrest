@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #877, Base64 secret read from a file ending with a newline - @eric-brechemier
 - #896, Boolean env var interpolation in config file - @begriffs
 
 ## [0.4.2.0] - 2017-06-11
