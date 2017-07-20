@@ -278,6 +278,29 @@ and select a single column :code:`?select=bin_data`.
   GET /items?select=bin_data&id=eq.1 HTTP/1.1
   Accept: application/octet-stream
 
+You can also request binary output when calling stored procedures and since they can return a scalar value you are not forced to use :code:`select`
+for this case.
+
+.. code:: sql
+
+  CREATE FUNCTION closest_point(..) RETURNS bytea ..
+
+.. code:: http
+
+  POST /rpc/closest_point HTTP/1.1
+  Accept: application/octet-stream
+
+If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
+
+.. code:: sql
+
+  CREATE FUNCTION overlapping_regions(..) RETURNS SETOF TABLE(geom_twkb bytea, ..) ..
+
+.. code:: http
+
+  POST /rpc/overlapping_regions?select=geom_twkb HTTP/1.1
+  Accept: application/octet-stream
+
 .. note::
 
   If more than one row would be returned the binary results will be concatenated with no delimiter.
