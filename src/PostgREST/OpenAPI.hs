@@ -13,8 +13,6 @@ import           Data.Maybe                  (fromJust)
 import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
 import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate, append)
-import qualified Data.Text.Lazy              as TL
-import qualified Data.Text.Lazy.Encoding     as TL
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
@@ -65,7 +63,7 @@ makeProperty pks c = (colName c, Inline s)
         colDescription c
     s =
       (mempty :: Schema)
-        & default_ .~ (decode . TL.encodeUtf8 . TL.fromStrict =<< colDefault c)
+        & default_ .~ (decode . toS =<< colDefault c)
         & description .~ d
         & enum_ .~ e
         & format ?~ colType c
