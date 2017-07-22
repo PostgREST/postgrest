@@ -165,12 +165,12 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
                     -- (request)        => tasks { ..., users.tasks_users{...} }
                     -- will match
                     -- (relation type)  => many
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
+                    -- (entity)         => users
+                    -- (foriegn entity) => tasks
                     (
                       relType r == Many &&
                       nodeTableName == tableName (relTable r) && -- match relation table name
-                      parentNodeTableName == tableName (relFTable r) && -- && -- match relation foreign table name
+                      parentNodeTableName == tableName (relFTable r) && -- match relation foreign table name
                       rd == tableName (fromJust (relLTable r))
                     ) 
                   )
