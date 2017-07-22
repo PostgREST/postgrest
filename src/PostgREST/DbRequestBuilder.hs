@@ -171,7 +171,7 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
                       relType r == Many &&
                       nodeTableName == tableName (relTable r) && -- match relation table name
                       parentNodeTableName == tableName (relFTable r) && -- && -- match relation foreign table name
-                      rd == (tableName ( fromJust ( relLTable r)))
+                      rd == tableName (fromJust (relLTable r))
                     ) 
                   )
                 ) allRelations
