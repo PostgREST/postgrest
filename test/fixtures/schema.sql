@@ -1215,6 +1215,12 @@ create table grandchild_entities (
   jsonb_col jsonb
 );
 
+-- OpenAPI description tests
+
+comment on table child_entities is 'child_entities comment';
+comment on column child_entities.id is 'child_entities id comment';
+comment on column child_entities.name is 'child_entities name comment';
+
 -- Used for testing that having the same return column name as the proc name
 -- doesn't conflict with the required output, details in #901
 create function test.test() returns table(test text, value int) as $$

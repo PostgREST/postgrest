@@ -27,18 +27,82 @@ spec = do
               (acceptHdrs "application/openapi+json") ""
         `shouldRespondWith` 415
 
-    describe "RPC" $
+    describe "table" $
 
-      it "includes a representative function with parameters" $ do
+      it "includes paths to tables" $ do
         r <- simpleBody <$> get "/"
-        let ref = r ^? key "paths" . key "/rpc/varied_arguments"
-                     . key "post"  . key "parameters"
-                     . nth 1       . key "schema"
-                     . key "$ref"  . _String
-            args = r ^? key "definitions" . key "(rpc) varied_arguments"
+
+        let method s = key "paths" . key "/child_entities" . key s
+            getParameters = r ^? method "get" . key "parameters"
+            postResponse = r ^? method "post" . key "responses" . key "201" . key "description"
+            patchResponse = r ^? method "patch" . key "responses" . key "204" . key "description"
+            deleteResponse = r ^? method "delete" . key "responses" . key "204" . key "description"
 
         liftIO $ do
-          ref `shouldBe` Just "#/definitions/(rpc) varied_arguments"
+
+          getParameters `shouldBe` Just
+            [aesonQQ|
+              [
+                { "$ref": "#/parameters/rowFilter.child_entities.id" },
+                { "$ref": "#/parameters/rowFilter.child_entities.name" },
+                { "$ref": "#/parameters/rowFilter.child_entities.parent_id" },
+                { "$ref": "#/parameters/select" },
+                { "$ref": "#/parameters/order" },
+                { "$ref": "#/parameters/range" },
+                { "$ref": "#/parameters/rangeUnit" },
+                { "$ref": "#/parameters/offset" },
+                { "$ref": "#/parameters/limit" },
+                { "$ref": "#/parameters/preferCount" }
+              ]
+            |]
+
+          postResponse `shouldBe` Just "Created"
+
+          patchResponse `shouldBe` Just "No Content"
+
+          deleteResponse `shouldBe` Just "No Content"
+
+    it "includes definitions to tables" $ do
+        r <- simpleBody <$> get "/"
+
+        let def = r ^? key "definitions" . key "child_entities"
+
+        liftIO $
+
+          def `shouldBe` Just
+            [aesonQQ|
+              {
+                "type": "object",
+                "description": "child_entities comment",
+                "properties": {
+                  "id": {
+                    "description": "child_entities id comment\n\nNote:\nThis is a Primary Key.<pk/>",
+                    "format": "integer",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "description": "child_entities name comment",
+                    "format": "text",
+                    "type": "string"
+                  },
+                  "parent_id": {
+                    "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>",
+                    "format": "integer",
+                    "type": "integer"
+                  }
+                }
+              }
+            |]
+
+    describe "RPC" $
+
+      it "includes body schema for arguments" $ do
+        r <- simpleBody <$> get "/"
+        let args = r ^? key "paths" . key "/rpc/varied_arguments"
+                      . key "post"  . key "parameters"
+                      . nth 0       . key "schema"
+
+        liftIO $
           args `shouldBe` Just
             [aesonQQ|
               {
