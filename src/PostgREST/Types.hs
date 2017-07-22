@@ -182,7 +182,8 @@ type Field = (FieldName, Maybe JsonPath)
 type Alias = Text
 type Cast = Text
 type NodeName = Text
-type SelectItem = (Field, Maybe Cast, Maybe Alias)
+type RelationDetail = Text
+type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
@@ -191,7 +192,7 @@ data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[Logi
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest

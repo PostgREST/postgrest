@@ -56,17 +56,17 @@ lexeme p = ws *> p <* ws
 pReadRequest :: Text -> Parser ReadRequest
 pReadRequest rootNodeName = do
   fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing)) []) fieldTree
+  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing, Nothing)) []) fieldTree
   where
     readQuery = Select [] [rootNodeName] [] Nothing allRange
     treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry (Node fld@((fn, _),_,alias) fldForest) (Node (q, i) rForest) =
+    treeEntry (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
         _  -> Node (q, i) newForest
           where
             newForest =
-              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias)) []) fldForest:rForest
+              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias, relationDetail)) []) fldForest:rForest
 
 pTreePath :: Parser (EmbedPath, Field)
 pTreePath = do
@@ -78,9 +78,9 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree =  try (Node <$> pSimpleSelect <*> between (char '{') (char '}') pFieldForest)
-          <|> try (Node <$> pSimpleSelect <*> between (char '(') (char ')') pFieldForest)
-          <|> Node <$> pSelect <*> pure []
+pFieldTree =  try (Node <$> pRelationSelect <*> between (char '{') (char '}') pFieldForest)
+          <|> try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest)
+          <|> Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
 pStar = toS <$> (string "*" *> pure ("*"::ByteString))
@@ -109,25 +109,27 @@ pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
 aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
 
-pSimpleSelect :: Parser SelectItem
-pSimpleSelect = lexeme $ try ( do
+pRelationSelect :: Parser SelectItem
+pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    return (fld, Nothing, alias)
+    relationDetail <- optionMaybe ( try( char '.' *> pFieldName ) )
+    
+    return (fld, Nothing, alias, relationDetail)
   )
 
-pSelect :: Parser SelectItem
-pSelect = lexeme $
+pFieldSelect :: Parser SelectItem
+pFieldSelect = lexeme $
   try (
     do
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many letter)
-      return (fld, toS <$> cast', alias)
+      return (fld, toS <$> cast', alias, Nothing)
   )
   <|> do
     s <- pStar
-    return ((s, Nothing), Nothing, Nothing)
+    return ((s, Nothing), Nothing, Nothing, Nothing)
 
 pOperation :: Parser Operand -> Parser Operand -> Parser Operation
 pOperation parserVText parserVTextL = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|> Operation False <$> pExpr
