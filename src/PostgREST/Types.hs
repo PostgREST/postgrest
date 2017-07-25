@@ -114,6 +114,12 @@ data QualifiedIdentifier = QualifiedIdentifier {
 
 
 data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
+
+{-|
+  The name 'Relation' here is used with the meaning
+  "What is the relation between the current node and the parent node".
+  It has nothing to do with PostgreSQL referring to tables/views as relations.
+-}
 data Relation = Relation {
   relTable    :: Table
 , relColumns  :: [Column]
@@ -182,6 +188,11 @@ type Field = (FieldName, Maybe JsonPath)
 type Alias = Text
 type Cast = Text
 type NodeName = Text
+
+{-|
+  This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
+  Specifically, it will contain the name of the foreign key or the join table in many to many relations.
+-}
 type RelationDetail = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
