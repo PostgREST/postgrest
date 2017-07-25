@@ -114,6 +114,12 @@ data QualifiedIdentifier = QualifiedIdentifier {
 
 
 data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
+
+{-|
+  The name 'Relation' here is used with the meaning
+  "What is the relation between the current node and the parent node".
+  It has nothing to do with PostgreSQL referring to tables/views as relations.
+-}
 data Relation = Relation {
   relTable    :: Table
 , relColumns  :: [Column]
@@ -182,7 +188,13 @@ type Field = (FieldName, Maybe JsonPath)
 type Alias = Text
 type Cast = Text
 type NodeName = Text
-type SelectItem = (Field, Maybe Cast, Maybe Alias)
+
+{-|
+  This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
+  Specifically, it will contain the name of the foreign key or the join table in many to many relations.
+-}
+type RelationDetail = Text
+type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
@@ -191,7 +203,7 @@ data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[Logi
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest

@@ -257,9 +257,17 @@ spec = do
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
         [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-
+    
+    it "requesting children 2 levels (with relation path fixed)" $
+      get "/clients?id=eq.1&select=id,projects:projects.client_id{id,tasks{id}}" `shouldRespondWith`
+        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+    
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
+        [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+    
+    it "requesting many<->many relation (with relation path fixed)" $
+      get "/tasks?select=id,users:users.users_tasks{id}" `shouldRespondWith`
         [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
 
     it "requesting many<->many relation with rename" $

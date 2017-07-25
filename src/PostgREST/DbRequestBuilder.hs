@@ -91,9 +91,9 @@ augumentRequestWithJoin schema allRels request =
   >>= addJoinFilters schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias)) forest) =
+addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias, relationDetail)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _)) _)) ->
+    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _, _)) _)) ->
       Node <$> readNode' <*> forest'
       where
         forest' = updateForest $ hush node'
@@ -101,10 +101,10 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
         readNode' = addRel readNode <$> rel
         rel :: Either ApiRequestError Relation
         rel = note (NoRelationBetween parentNodeTable name)
-            $ findRelation schema name parentNodeTable
-
+            $ findRelation schema name parentNodeTable relationDetail
             where
-              findRelation s nodeTableName parentNodeTableName =
+              
+              findRelation s nodeTableName parentNodeTableName Nothing =
                 find (\r ->
                   s == tableSchema (relTable r) && -- match schema for relation table
                   s == tableSchema (relFTable r) && -- match schema for relation foriegn table
@@ -141,14 +141,48 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
                     -- addRelation will turn project_id to project so the above condition will match
                   )
                 ) allRelations
-                where n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
-        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias))
-        addRel (query', (n, _, a)) r = (query' {from=fromRelation}, (n, Just r, a))
+              
+              findRelation s nodeTableName parentNodeTableName (Just rd) = 
+                find (\r ->
+                  s == tableSchema (relTable r) && -- match schema for relation table
+                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
+                  (
+
+                    -- (request)        => clients { ..., project.client_id{...} }
+                    -- will match
+                    -- (relation type)  => parent
+                    -- (entity)         => clients  {id}
+                    -- (foriegn entity) => projects {client_id}
+                    (
+                      nodeTableName == tableName (relTable r) && -- match relation table name
+                      parentNodeTableName == tableName (relFTable r) && -- && -- match relation foreign table name
+                      length (relColumns r) == 1 &&
+                      rd == (colName . unsafeHead . relColumns) r
+                    ) 
+                    ||
+
+
+                    -- (request)        => tasks { ..., users.tasks_users{...} }
+                    -- will match
+                    -- (relation type)  => many
+                    -- (entity)         => users
+                    -- (foriegn entity) => tasks
+                    (
+                      relType r == Many &&
+                      nodeTableName == tableName (relTable r) && -- match relation table name
+                      parentNodeTableName == tableName (relFTable r) && -- match relation foreign table name
+                      rd == tableName (fromJust (relLTable r))
+                    ) 
+                  )
+                ) allRelations
+              n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
+        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
+        addRel (query', (n, _, a, _)) r = (query' {from=fromRelation}, (n, Just r, a, Nothing))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
     _ -> n' <$> updateForest (Just (n' forest))
       where
-        n' = Node (query, (name, Just r, alias))
+        n' = Node (query, (name, Just r, alias, Nothing))
         t = Table schema name Nothing True -- !!! TODO find another way to get the table from the query
         r = Relation t [] t [] Root Nothing Nothing Nothing
   where
@@ -156,7 +190,7 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
     updateForest n = mapM (addRelations schema allRelations n) forest
 
 addJoinFilters :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _)) forest) =
+addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) =
   case relation of
     Just Relation{relType=Root} -> Node node  <$> updatedForest -- this is the root node
     Just Relation{relType=Parent} -> Node node <$> updatedForest
@@ -239,7 +273,7 @@ addProperty f (path, a) (Node rn forest) =
         maybeNode = find fnd forst
           where
             fnd :: ReadRequest -> Bool
-            fnd (Node (_,(n,_,_)) _) = n == name
+            fnd (Node (_,(n,_,_,_)) _) = n == name
 
 -- in a relation where one of the tables mathces "TableName"
 -- replace the name to that table with pg_source
@@ -281,7 +315,7 @@ fieldNames (Node (sel, _) forest) =
   map (fst . view _1) (select sel) ++ map colName fks
   where
     fks = concatMap (fromMaybe [] . f) forest
-    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _)) _) = Just cols
+    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _)) _) = Just cols
     f _ = Nothing
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
