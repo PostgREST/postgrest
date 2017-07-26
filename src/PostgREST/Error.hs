@@ -26,7 +26,7 @@ import           PostgREST.Types
 apiRequestError :: ApiRequestError -> Response
 apiRequestError err =
   errorResponse status
-    [(toHeader CTApplicationJSON)] err
+    [toHeader CTApplicationJSON] err
   where
     status =
       case err of
@@ -40,7 +40,7 @@ apiRequestError err =
 
 simpleError :: HT.Status -> [Header] -> Text -> Response
 simpleError status hdrs message =
-  errorResponse status ((toHeader CTApplicationJSON) : hdrs) $
+  errorResponse status (toHeader CTApplicationJSON : hdrs) $
     JSON.object ["message" .= message]
 
 errorResponse :: JSON.ToJSON a => HT.Status -> [Header] -> a -> Response

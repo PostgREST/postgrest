@@ -77,7 +77,6 @@ claims2map = val2map . toJSON
 parseJWK :: ByteString -> JWK
 parseJWK str =
   fromMaybe (hs256jwk str) (decode (toS str) :: Maybe JWK)
- where
 
 {-|
   Internal helper to generate HMAC-SHA256. When the jwt key in the
@@ -87,7 +86,7 @@ parseJWK str =
 hs256jwk :: ByteString -> JWK
 hs256jwk key =
   fromKeyMaterial km
-    & jwkUse .~ (Just Sig)
+    & jwkUse .~ Just Sig
     & jwkAlg .~ (Just $ JWSAlg HS256)
  where
   km = OctKeyMaterial (OctKeyParameters Oct (Base64Octets key))
