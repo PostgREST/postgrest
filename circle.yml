@@ -1,7 +1,16 @@
+machine:
+  services:
+    - docker
+
 dependencies:
   cache_directories:
     - "~/.stack"
     - ".stack-work"
+    - "~/docker"
+    - "~/.centos6-stack"
+    - "~/.centos7-stack"
+    - "~/.ubuntu-stack"
+    - "~/.ubuntui386-stack"
   pre:
     - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
     - sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
@@ -12,6 +21,10 @@ dependencies:
     - stack install hlint packdeps cabal-install
     - stack build --fast -j1
     - stack build --fast --test --no-run-tests
+    - mkdir -p ~/docker ~/.{centos6,centos7,ubuntu,ubuntui386}-stack
+    - bash docker/distro_release/load-or-build-distros.sh
+    - bash docker/distro_release/setup-distros.sh
+    - go get -u github.com/tcnksm/ghr
 
 test:
   override:
@@ -24,3 +37,19 @@ test:
     - stack exec -- cabal check
     - stack haddock --no-haddock-deps
     - stack sdist
+
+deployment:
+  release:
+    tag: /v[0-9]+(\.[0-9]+)*/
+    owner: begriffs
+    commands:
+      - mkdir -p /tmp/bin/{centos6,centos7,ubuntu,ubuntui386}
+      - bash docker/distro_release/build-on-distros.sh
+      - |
+        cd /tmp/bin &&
+        tar cjf postgrest-$CIRCLE_TAG-centos6.tar.xz -C centos6/ postgrest &&
+        tar cjf postgrest-$CIRCLE_TAG-centos7.tar.xz -C centos7/ postgrest &&
+        tar cjf postgrest-$CIRCLE_TAG-ubuntu.tar.xz -C ubuntu/ postgrest &&
+        tar cjf postgrest-$CIRCLE_TAG-ubuntu-x32.tar.xz -C ubuntui386/ postgrest &&
+        rm -rf /tmp/bin/{centos6,centos7,ubuntu,ubuntui386}
+      - START=$(echo $CIRCLE_TAG | cut -c2-); END='## \['; BODY=$(cat CHANGELOG.md | sed -n "/$START/,/$END/p" | egrep -v "\$START|$END"); ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/bin/
