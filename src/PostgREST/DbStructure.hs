@@ -253,7 +253,10 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text
     groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s<>"_"<>t
-    combinations k ns = filter ((k==).length) (subsequences ns)
+    combinations :: Int -> [a] -> [[a]]
+    combinations 0 _  = [ [] ]
+    combinations n xs = [ y:ys | y:xs' <- tails xs
+                               , ys <- combinations (n-1) xs']
     addMirrorRelation [] = []
     addMirrorRelation (rel@(Relation t c ft fc _ lt lc1 lc2):rels') = Relation ft fc t c Many lt lc2 lc1 : rel : addMirrorRelation rels'
     link2Relation [
