@@ -253,6 +253,7 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text
     groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s<>"_"<>t
+    -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
     combinations :: Int -> [a] -> [[a]]
     combinations 0 _  = [ [] ]
     combinations n xs = [ y:ys | y:xs' <- tails xs
