@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #877, Base64 secret read from a file ending with a newline - @eric-brechemier
 - #896, Boolean env var interpolation in config file - @begriffs
 - #885, OpenAPI repetition reduced by using more definitions- @ldesgoui
+- #924, Improve relations initialization time - @9too
 
 ## [0.4.2.0] - 2017-06-11
 
