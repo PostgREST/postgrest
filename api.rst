@@ -27,12 +27,24 @@ You can filter result rows by adding conditions on columns, each condition a que
 
   GET /people?age=lt.13 HTTP/1.1
 
-Adding multiple parameters conjoins the conditions:
+Multiple parameters can be logically conjoined by:
 
 .. code-block:: http
 
   GET /people?age=gte.18&student=is.true HTTP/1.1
 
+Multiple parameters can be logically disjoined by:
+
+.. code-block:: http
+
+  GET /people?or=(age.gte.14,age.lte.18) HTTP/1.1
+
+Complex logic can also be applied:
+
+.. code-block:: http
+
+  GET /people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null)) HTTP/1.1
+ 
 These operators are available:
 
 ============  =============================================
@@ -55,9 +67,9 @@ not           negates another operator, see below
 ============  =============================================
 
 
-To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2`.
+To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
-For more complicated filters (such as those involving disjunctions) you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
+For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
 
 .. code-block:: postgresql
 
@@ -73,10 +85,6 @@ The view will provide a new endpoint:
 .. code-block:: http
 
   GET /fresh_stories HTTP/1.1
-
-.. note::
-
-  We're working to extend the PostgREST query grammar to allow more complicated boolean logic, while continuing to prevent performance problems from arbitrary client queries.
 
 .. _v_filter:
 
@@ -395,7 +403,7 @@ Custom Queries
 
 The PostgREST URL grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and stored procedures to provide richer endpoints. The most common causes for custom endpoints are
 
-* Table unions and OR-conditions in the where clause
+* Table unions
 * More complicated joins than those provided by `Resource Embedding`_
 * Geospatial queries that require an argument, like "points near (lat,lon)"
 * More sophisticated full-text search than a simple use of the :sql:`@@` filter
@@ -466,25 +474,6 @@ Stored procedures can access request headers and cookies by reading GUC variable
 .. code-block:: postgresql
 
   SELECT current_setting('request.header.origin', true);
-
-Complex boolean logic
----------------------
-
-For complex boolean logic you can use stored procedures, an example:
-
-.. code-block:: postgresql
-
-  CREATE FUNCTION key_customers(country TEXT, company TEXT, salary FLOAT) RETURNS SETOF customers AS $$
-    SELECT * FROM customers WHERE (country = $1 AND company = $2) OR salary = $3;
-  $$ LANGUAGE SQL;
-
-Then you can query by doing:
-
-.. code-block:: http
-
-  POST /rpc/key_customers HTTP/1.1
-
-  { "country": "Germany", "company": "Volkswagen", salary": 120000.00 }
 
 Raising Errors
 --------------
