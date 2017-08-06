@@ -114,7 +114,7 @@ readOptions = do
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
-          <*> C.key "pre-request"
+          <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
 
   case mAppConf of
