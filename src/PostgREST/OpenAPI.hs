@@ -6,17 +6,18 @@ module PostgREST.OpenAPI (
   , pickProxy
   ) where
 
+import           Control.Arrow               ((&&&))
 import           Control.Lens
 import           Data.Aeson                  (decode, encode)
 import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
 import           Data.Maybe                  (fromJust)
 import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
-import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate, append)
+import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate, append, dropWhile, breakOn)
 import           Network.URI                 (parseURI, isAbsoluteURI,
                                               URI (..), URIAuth (..))
 
-import           Protolude hiding              ((&), Proxy, get, intercalate)
+import           Protolude hiding              ((&), Proxy, get, intercalate, dropWhile)
 
 import           Data.Swagger
 
@@ -183,9 +184,14 @@ makeRowFilters tn = map (makeRowFilter tn)
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
 makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
   where
+    -- Use first line of table description as summary; rest as description (if present)
+    -- We strip leading newlines from description so that users can include a blank line between summary and description
+    (tSum, tDesc) = fmap fst &&& fmap (dropWhile (=='\n') . snd) $
+                    breakOn "\n" <$> tableDescription t
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
-      & description .~ tableDescription t
+      & summary .~ tSum
+      & description .~ mfilter (/="") tDesc
     getOp = tOp
       & parameters .~ map ref (rs <> ["select", "order", "range", "rangeUnit", "offset", "limit", "preferCount"])
       & at 206 ?~ "Partial Content"
