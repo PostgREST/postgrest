@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #896, Boolean env var interpolation in config file - @begriffs
 - #885, OpenAPI repetition reduced by using more definitions- @ldesgoui
 - #924, Improve relations initialization time - @9too
+- #927, Treat blank pre-request as missing - @begriffs
 
 ## [0.4.2.0] - 2017-06-11
 
