@@ -18,12 +18,15 @@ import qualified Data.Aeson                as JSON
 import           Data.Text                 (unwords)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
+import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.Types
 
 apiRequestError :: ApiRequestError -> Response
-apiRequestError err = errorResponse status err
+apiRequestError err =
+  errorResponse status
+    [toHeader CTApplicationJSON] err
   where
     status =
       case err of
@@ -35,13 +38,14 @@ apiRequestError err = errorResponse status err
         InvalidRange -> HT.status416
         UnknownRelation -> HT.status404
 
-simpleError :: HT.Status -> Text -> Response
-simpleError status message =
-  errorResponse status $ JSON.object ["message" .= message]
+simpleError :: HT.Status -> [Header] -> Text -> Response
+simpleError status hdrs message =
+  errorResponse status (toHeader CTApplicationJSON : hdrs) $
+    JSON.object ["message" .= message]
 
-errorResponse :: JSON.ToJSON a => HT.Status -> a -> Response
-errorResponse status e =
-  responseLBS status [toHeader CTApplicationJSON] $ encodeError e
+errorResponse :: JSON.ToJSON a => HT.Status -> [Header] -> a -> Response
+errorResponse status hdrs e =
+  responseLBS status hdrs $ encodeError e
 
 pgError :: Bool -> P.UsageError -> Response
 pgError authed e =
@@ -71,12 +75,12 @@ singularityError numRows =
 
 binaryFieldError :: Response
 binaryFieldError =
-  simpleError HT.status406 (toS (toMime CTOctetStream) <>
+  simpleError HT.status406 [] (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
 
 connectionLostError :: Response
 connectionLostError =
-  simpleError HT.status503 "Database connection lost, retrying the connection."
+  simpleError HT.status503 [] "Database connection lost, retrying the connection."
 
 encodeError :: JSON.ToJSON a => a -> LByteString
 encodeError = JSON.encode

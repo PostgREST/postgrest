@@ -7,12 +7,11 @@ import qualified Hasql.Pool as P
 
 import PostgREST.DbStructure (getDbStructure)
 import PostgREST.App (postgrest)
-import Control.AutoUpdate
 import Data.Function (id)
 import Data.IORef
-import Data.Time.Clock.POSIX   (getPOSIXTime)
 
 import qualified Feature.AuthSpec
+import qualified Feature.AsymmetricJwtSpec
 import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
@@ -36,19 +35,16 @@ main = do
   setupDb testDbConn
 
   pool <- P.acquire (3, 10, toS testDbConn)
-  -- ask for the OS time at most once per second
-  getTime <- mkAutoUpdate
-    defaultUpdateSettings { updateAction = getPOSIXTime }
-
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ Just $ either (panic.show) id result
-  let withApp      = return $ postgrest (testCfg testDbConn)          refDbStructure pool getTime $ pure ()
-      ltdApp       = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool getTime $ pure ()
-      unicodeApp   = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool getTime $ pure ()
-      proxyApp     = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool getTime $ pure ()
-      noJwtApp     = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool getTime $ pure ()
-      binaryJwtApp = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool getTime $ pure ()
+  let withApp      = return $ postgrest (testCfg testDbConn)          refDbStructure pool $ pure ()
+      ltdApp       = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool $ pure ()
+      unicodeApp   = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool $ pure ()
+      proxyApp     = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool $ pure ()
+      noJwtApp     = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool $ pure ()
+      binaryJwtApp = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool $ pure ()
+      asymJwkApp   = return $ postgrest (testCfgAsymJWK testDbConn)   refDbStructure pool $ pure ()
 
   let reset = resetDb testDbConn
   hspec $ do
@@ -73,6 +69,10 @@ main = do
     -- this test runs with a binary JWT secret
     beforeAll_ reset . before binaryJwtApp $
       describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
+
+    -- this test runs with asymmetric JWK
+    beforeAll_ reset . before asymJwkApp $
+      describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
  where
   specs = map (uncurry describe) [

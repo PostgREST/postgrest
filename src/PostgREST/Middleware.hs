@@ -4,13 +4,13 @@
 
 module PostgREST.Middleware where
 
+import           Crypto.JWT
 import           Data.Aeson                    (Value (..))
 import qualified Data.HashMap.Strict           as M
 import qualified Hasql.Transaction             as H
 
 import           Network.HTTP.Types.Status     (unauthorized401, status500)
-import           Network.Wai                   (Application, Response,
-                                                responseLBS)
+import           Network.Wai                   (Application, Response)
 import           Network.Wai.Middleware.Cors   (cors)
 import           Network.Wai.Middleware.Gzip   (def, gzip)
 import           Network.Wai.Middleware.Static (only, staticPolicy)
@@ -19,7 +19,6 @@ import           PostgREST.ApiRequest          (ApiRequest(..))
 import           PostgREST.Auth                (JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (simpleError)
-import           PostgREST.Types               (ContentType (..), toHeader)
 import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtEnvVar)
 
 import           Protolude                     hiding (concat, null)
@@ -29,9 +28,9 @@ runWithClaims :: AppConfig -> JWTAttempt ->
                  ApiRequest -> H.Transaction Response
 runWithClaims conf eClaims app req =
   case eClaims of
-    JWTExpired -> return $ unauthed "JWT expired"
-    JWTInvalid -> return $ unauthed "JWT invalid"
-    JWTMissingSecret -> return $ simpleError status500 "Server lacks JWT secret"
+    JWTInvalid JWTExpired -> return $ unauthed "JWT expired"
+    JWTInvalid e -> return $ unauthed $ show e
+    JWTMissingSecret -> return $ simpleError status500 [] "Server lacks JWT secret"
     JWTClaims claims -> do
       H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql
       mapM_ H.sql customReqCheck
@@ -47,14 +46,13 @@ runWithClaims conf eClaims app req =
         anon = String . toS $ configAnonRole conf
         customReqCheck = (\f -> "select " <> toS f <> "();") <$> configReqCheck conf
   where
-    unauthed message = responseLBS unauthorized401
-      [ toHeader CTApplicationJSON
-      , ( "WWW-Authenticate"
+    unauthed message = simpleError
+      unauthorized401
+      [( "WWW-Authenticate"
         , "Bearer error=\"invalid_token\", " <>
-          "error_description=\"" <> message <> "\""
-        )
-      ]
-      (toS $ "{\"message\":\""<>message<>"\"}")
+          "error_description=" <> show message
+      )]
+      message
 
 defaultMiddle :: Application -> Application
 defaultMiddle =

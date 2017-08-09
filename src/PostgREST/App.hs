@@ -11,7 +11,6 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
 import           Data.Text                 (intercalate)
-import           Data.Time.Clock.POSIX     (POSIXTime)
 
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as HT
@@ -22,7 +21,6 @@ import           Network.HTTP.Types.Status
 import           Network.HTTP.Types.URI    (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
-import           Web.JWT                   (binarySecret)
 
 import qualified Data.Vector               as V
 import qualified Hasql.Transaction         as H
@@ -35,7 +33,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
                                         , mutuallyAgreeable
                                         , userApiRequest
                                         )
-import           PostgREST.Auth            (jwtClaims, containsRole)
+import           PostgREST.Auth            (jwtClaims, containsRole, parseJWK)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.DbRequestBuilder( readRequest
@@ -63,13 +61,12 @@ import           Data.Function (id)
 import           Protolude              hiding (intercalate, Proxy)
 import           Safe                   (headMay)
 
-postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO POSIXTime ->
-             IO () -> Application
-postgrest conf refDbStructure pool getTime worker =
-  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
+postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO () -> Application
+postgrest conf refDbStructure pool worker =
+  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
+      jwtSecret = parseJWK <$> configJwtSecret conf in
 
   middle $ \ req respond -> do
-    time <- getTime
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure
     case maybeDbStructure of
@@ -78,9 +75,9 @@ postgrest conf refDbStructure pool getTime worker =
         response <- case userApiRequest (configSchema conf) req body of
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
-            let jwtSecret = binarySecret <$> configJwtSecret conf
-                eClaims = jwtClaims jwtSecret (iJWT apiRequest) time
-                authed = containsRole eClaims
+            eClaims <- jwtClaims jwtSecret (toS $ iJWT apiRequest)
+
+            let authed = containsRole eClaims
                 handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
                 txMode = transactionMode dbStructure
                   (iTarget apiRequest) (iAction apiRequest)
@@ -324,7 +321,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> do
           let failed = intercalate ", " $ map (toS . toMime) cAccepts
-          Left $ simpleError status415 $
+          Left $ simpleError status415 [] $
             "None of these Content-Types are available: " <> failed
         Just ct -> Right ct
 
