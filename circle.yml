@@ -22,8 +22,15 @@ dependencies:
     - stack build --fast -j1
     - stack build --fast --test --no-run-tests
     - mkdir -p ~/docker ~/.{centos6,centos7,ubuntu,ubuntui386}-stack
-    - bash docker/distro_release/load-or-build-distros.sh
-    - bash docker/distro_release/setup-distros.sh
+    - chmod +x docker/distro_release/{load-or-build-image,setup-container,build-on-container}.sh
+    - ./docker/distro_release/load-or-build-image.sh centos6
+    - ./docker/distro_release/load-or-build-image.sh centos7
+    - ./docker/distro_release/load-or-build-image.sh ubuntu
+    - ./docker/distro_release/load-or-build-image.sh ubuntui386
+    - ./docker/distro_release/setup-container.sh centos6
+    - ./docker/distro_release/setup-container.sh centos7
+    - ./docker/distro_release/setup-container.sh ubuntu
+    - ./docker/distro_release/setup-container.sh ubuntui386
     - go get -u github.com/tcnksm/ghr
 
 test:
@@ -44,7 +51,10 @@ deployment:
     owner: begriffs
     commands:
       - mkdir -p /tmp/bin/{centos6,centos7,ubuntu,ubuntui386}
-      - bash docker/distro_release/build-on-distros.sh
+      - ./docker/distro_release/build-on-container.sh centos6
+      - ./docker/distro_release/build-on-container.sh centos7
+      - ./docker/distro_release/build-on-container.sh ubuntu
+      - ./docker/distro_release/build-on-container.sh ubuntui386
       - |
         cd /tmp/bin &&
         tar cjf postgrest-$CIRCLE_TAG-centos6.tar.xz -C centos6/ postgrest &&
@@ -52,4 +62,8 @@ deployment:
         tar cjf postgrest-$CIRCLE_TAG-ubuntu.tar.xz -C ubuntu/ postgrest &&
         tar cjf postgrest-$CIRCLE_TAG-ubuntu-x32.tar.xz -C ubuntui386/ postgrest &&
         rm -rf /tmp/bin/{centos6,centos7,ubuntu,ubuntui386}
-      - START=$(echo $CIRCLE_TAG | cut -c2-); END='## \['; BODY=$(cat CHANGELOG.md | sed -n "/$START/,/$END/p" | egrep -v "\$START|$END"); ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/bin/
+      - |
+        START=$(echo $CIRCLE_TAG | cut -c2-)
+        END='## \['
+        BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
+        ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/bin/
