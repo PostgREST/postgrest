@@ -163,7 +163,15 @@ operators = M.fromList [
   ("is", "IS"),
   ("@@", "@@"),
   ("@>", "@>"),
-  ("<@", "<@")]
+  ("<@", "<@"),
+  ("cs", "@>"),
+  ("cd", "<@"),
+  ("ov", "&&"),
+  ("sl", "<<"),
+  ("sr", ">>"),
+  ("nxr", "&<"),
+  ("nxl", "&>"),
+  ("adj", "-|-")]
 data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
 data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
 

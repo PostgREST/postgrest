@@ -56,6 +56,7 @@ GRANT ALL ON TABLE
     , entities
     , child_entities
     , grandchild_entities
+    , ranges
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

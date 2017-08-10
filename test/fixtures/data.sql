@@ -315,6 +315,12 @@ INSERT INTO grandchild_entities VALUES (3, 'grandchild entity 3', 2, null, null,
 INSERT INTO grandchild_entities VALUES (4, '(grandchild,entity,4)', 2, null, null, '{"a": {"b":"foo"}}');
 INSERT INTO grandchild_entities VALUES (5, '(grandchild,entity,5)', 2, null, null, '{"b":"bar"}');
 
+TRUNCATE TABLE ranges CASCADE;
+INSERT INTO ranges VALUES (1, '[1,3]');
+INSERT INTO ranges VALUES (2, '[3,6]');
+INSERT INTO ranges VALUES (3, '[6,9]');
+INSERT INTO ranges VALUES (4, '[9,12]');
+
 --
 -- PostgreSQL database dump complete
 --
