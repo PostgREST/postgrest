@@ -1,8 +1,10 @@
-resolver: lts-8.5
+resolver: lts-9.0
 extra-deps:
   - configurator-ng-0.0.0.1
   - critbit-0.2.0.0
   - hasql-pool-0.4.1
+  - hjsonpointer-1.1.1
+  - hjsonschema-1.5.0.1
   - jose-0.5.0.3
   - Ranged-sets-0.3.0
 ghc-options:
