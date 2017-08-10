@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Module      : PostgREST.QueryBuilder
@@ -149,7 +148,7 @@ callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -
 callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary binaryField =
   unicodeStatement sql HE.unit decodeProc True
   where
-    sql = 
+    sql =
      if returnsScalar then [qc|
        WITH {sourceCTEName} AS ({_callSql})
        SELECT
@@ -157,7 +156,7 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
          1 AS page_total,
          {scalarBodyF} as body
        FROM ({selectQuery}) _postgrest_t;|]
-     else [qc| 
+     else [qc|
        WITH {sourceCTEName} AS ({_callSql})
        SELECT
          {countResultF} AS total_result_set,
