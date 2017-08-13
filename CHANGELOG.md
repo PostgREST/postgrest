@@ -23,6 +23,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #924, Improve relations initialization time - @9too
 - #927, Treat blank pre-request as missing - @begriffs
 
+### Changed
+
+- #938, Deprecate symbol operators with mnemonic names. - @russelldavies
+
 ## [0.4.2.0] - 2017-06-11
 
 ### Added

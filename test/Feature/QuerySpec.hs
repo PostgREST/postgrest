@@ -98,14 +98,28 @@ spec = do
     it "matches with ilike using not operator" $
       get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
 
-    it "matches with tsearch @@" $
-      get "/tsearch?text_search_vector=@@.foo" `shouldRespondWith`
-        [json| [{"text_search_vector":"'bar':2 'foo':1"}] |]
+    it "matches with tsearch fts" $ do
+      get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/tsearch?text_search_vector=fts.possible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      -- TODO: remove in 0.5.0 as deprecated
+      get "/tsearch?text_search_vector=@@.impossible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/tsearch?text_search_vector=@@.possible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "matches with tsearch @@ using not operator" $
-      get "/tsearch?text_search_vector=not.@@.foo" `shouldRespondWith`
-        [json| [{"text_search_vector":"'baz':1 'qux':2"}] |]
+    it "matches with tsearch fts using not operator" $ do
+      get "/tsearch?text_search_vector=not.fts.impossible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      -- TODO: remove in 0.5.0 as deprecated
+      get "/tsearch?text_search_vector=not.@@.impossible" `shouldRespondWith`
+        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
@@ -129,11 +143,17 @@ spec = do
       get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
         [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
 
-    it "matches with @> operator" $
+    it "matches with cs operator" $ do
+      get "/complex_items?select=id&arr_data=cs.{2}" `shouldRespondWith`
+        [str|[{"id":2},{"id":3}]|]
+      -- TODO: remove in 0.5.0 as deprecated
       get "/complex_items?select=id&arr_data=@>.{2}" `shouldRespondWith`
         [str|[{"id":2},{"id":3}]|]
 
-    it "matches with <@ operator" $
+    it "matches with cd operator" $ do
+      get "/complex_items?select=id&arr_data=cd.{1,2,4}" `shouldRespondWith`
+        [str|[{"id":1},{"id":2}]|]
+      -- TODO: remove in 0.5.0 as deprecated
       get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
         [str|[{"id":1},{"id":2}]|]
 
@@ -257,15 +277,15 @@ spec = do
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
         [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-    
+
     it "requesting children 2 levels (with relation path fixed)" $
       get "/clients?id=eq.1&select=id,projects:projects.client_id{id,tasks{id}}" `shouldRespondWith`
         [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-    
+
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
         [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
-    
+
     it "requesting many<->many relation (with relation path fixed)" $
       get "/tasks?select=id,users:users.users_tasks{id}" `shouldRespondWith`
         [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]

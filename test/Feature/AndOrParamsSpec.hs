@@ -70,10 +70,16 @@ spec =
         it "can handle is" $
           get "/entities?and=(name.is.null,arr.is.null)&select=id" `shouldRespondWith`
             [json|[{ "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
-        it "can handle @@" $
+        it "can handle fts" $ do
+          get "/entities?or=(text_search_vector.fts.bar,text_search_vector.fts.baz)&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
+          -- TODO: remove in 0.5.0 as deprecated
           get "/entities?or=(text_search_vector.@@.bar,text_search_vector.@@.baz)&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
-        it "can handle @> and <@" $
+        it "can handle cs and cd" $ do
+          get "/entities?or=(arr.cs.{1,2,3},arr.cd.{1})&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 },{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          -- TODO: remove in 0.5.0 as deprecated
           get "/entities?or=(arr.@>.{1,2,3},arr.<@.{1})&select=id" `shouldRespondWith`
             [json|[{ "id": 1 },{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
 
@@ -108,13 +114,22 @@ spec =
             [json|[{ "id": 1 }]|] { matchHeaders = [matchContentTypeJson] }
 
         context "operators with not" $ do
-          it "eq, @>, like can be negated" $
+          it "eq, cs, like can be negated" $ do
+            get "/entities?and=(arr.not.cs.{1,2,3},and(id.not.eq.2,name.not.like.*3))&select=id" `shouldRespondWith`
+              [json|[{ "id": 1}]|] { matchHeaders = [matchContentTypeJson] }
+            -- TODO: remove in 0.5.0 as deprecated
             get "/entities?and=(arr.not.@>.{1,2,3},and(id.not.eq.2,name.not.like.*3))&select=id" `shouldRespondWith`
               [json|[{ "id": 1}]|] { matchHeaders = [matchContentTypeJson] }
-          it "in, is, @@ can be negated" $
+          it "in, is, fts can be negated" $ do
+            get "/entities?and=(id.not.in.(1,3),and(name.not.is.null,text_search_vector.not.fts.foo))&select=id" `shouldRespondWith`
+              [json|[{ "id": 2}]|] { matchHeaders = [matchContentTypeJson] }
+            -- TODO: remove in 0.5.0 as deprecated
             get "/entities?and=(id.not.in.(1,3),and(name.not.is.null,text_search_vector.not.@@.foo))&select=id" `shouldRespondWith`
               [json|[{ "id": 2}]|] { matchHeaders = [matchContentTypeJson] }
-          it "lt, gte, <@ can be negated" $
+          it "lt, gte, cd can be negated" $ do
+            get "/entities?and=(arr.not.cd.{1},or(id.not.lt.1,id.not.gte.3))&select=id" `shouldRespondWith`
+              [json|[{"id": 2}, {"id": 3}]|] { matchHeaders = [matchContentTypeJson] }
+            -- TODO: remove in 0.5.0 as deprecated
             get "/entities?and=(arr.not.<@.{1},or(id.not.lt.1,id.not.gte.3))&select=id" `shouldRespondWith`
               [json|[{"id": 2}, {"id": 3}]|] { matchHeaders = [matchContentTypeJson] }
           it "gt, lte, ilike can be negated" $

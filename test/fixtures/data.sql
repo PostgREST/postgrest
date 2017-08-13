@@ -246,8 +246,8 @@ INSERT INTO nullable_integer VALUES (NULL);
 --
 
 TRUNCATE TABLE tsearch CASCADE;
-INSERT INTO tsearch VALUES ('''bar'':2 ''foo'':1');
-INSERT INTO tsearch VALUES ('''baz'':1 ''qux'':2');
+INSERT INTO tsearch VALUES (to_tsvector('It''s kind of fun to do the impossible'));
+INSERT INTO tsearch VALUES (to_tsvector('But also fun to do what is possible'));
 
 
 --
