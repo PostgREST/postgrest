@@ -342,7 +342,7 @@ However because a foreign key constraint exists between Films and Directors, we 
 
 .. code-block:: http
 
-  GET /films?select=title,directors(last_name) HTTP/1.1
+  GET /films?select=title,directors(id,last_name) HTTP/1.1
 
 Which would return
 
@@ -351,20 +351,35 @@ Which would return
   [
     { "title": "Workers Leaving The Lumière Factory In Lyon",
       "directors": {
+        "id": 2,
         "last_name": "Lumière"
       }
     },
     { "title": "The Dickson Experimental Sound Film",
       "directors": {
+        "id": 1,
         "last_name": "Dickson"
       }
     },
     { "title": "The Haunted Castle",
       "directors": {
+        "id": 3,
         "last_name": "Méliès"
       }
     }
   ]
+
+The primary key of the table of the resource being embedded must be specified,
+either explicitly, like in the example above, or implicitly through a wildcard.
+
+In this example, since the relationship is a forward relationship, there is
+only one director associated with a film. As the table name is plural it might
+be preferable for it to be singular instead. An table name alias can accomplish
+this:
+
+.. code-block:: http
+
+  GET /films?select=title,director:directors(id,last_name) HTTP/1.1
 
 .. note::
 
@@ -375,6 +390,9 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 .. code-block:: http
 
   GET /directors?select=films(title,year) HTTP/1.1
+
+Here it is not necessary to specify the table's primary key of the embedded
+resource.
 
 .. note::
 
