@@ -47,7 +47,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
-import           Protolude hiding        (from, intercalate, ord, cast)
+import           Protolude hiding        (from, intercalate, ord, cast, replace)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header

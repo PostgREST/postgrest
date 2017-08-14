@@ -1,6 +1,6 @@
 module PostgREST.Parsers where
 
-import           Protolude                     hiding (try, intercalate)
+import           Protolude                     hiding (try, intercalate, replace)
 import           Control.Monad                 ((>>))
 import           Data.Foldable                 (foldl1)
 import qualified Data.HashMap.Strict           as M
@@ -114,7 +114,7 @@ pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
     relationDetail <- optionMaybe ( try( char '.' *> pFieldName ) )
-    
+
     return (fld, Nothing, alias, relationDetail)
   )
 
@@ -184,7 +184,7 @@ pLogicTree = Stmnt <$> try pLogicFilter
     pLogicFilter :: Parser Filter
     pLogicFilter = Filter <$> pField <* pDelimiter <*> pOperation pLogicVText pLogicVTextL
     pNot :: Parser Bool
-    pNot = try (string "not" *> pDelimiter *> pure True) 
+    pNot = try (string "not" *> pDelimiter *> pure True)
            <|> pure False
            <?> "negation operator (not)"
     pLogicOp :: Parser LogicOperator

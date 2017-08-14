@@ -11,7 +11,7 @@ import           PostgREST.DbStructure    (getDbStructure)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema)
-import           Protolude
+import           Protolude hiding         (replace, hPutStrLn)
 
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
