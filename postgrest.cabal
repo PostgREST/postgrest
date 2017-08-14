@@ -72,7 +72,7 @@ library
                      , network-uri
                      , optparse-applicative >= 0.13 && < 0.14
                      , parsec
-                     , protolude
+                     , protolude >= 0.2
                      , Ranged-sets == 0.3.0
                      , regex-tdfa
                      , safe

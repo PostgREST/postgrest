@@ -45,7 +45,7 @@ import           System.IO                   (hPrint)
 import           Text.Heredoc
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
-import           Protolude hiding            (intercalate, (<>))
+import           Protolude hiding            (intercalate, (<>), hPutStrLn)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
