@@ -1220,6 +1220,13 @@ comment on table child_entities is 'child_entities comment';
 comment on column child_entities.id is 'child_entities id comment';
 comment on column child_entities.name is 'child_entities name comment';
 
+comment on table grandchild_entities is
+$$grandchild_entities summary
+
+grandchild_entities description
+that spans
+multiple lines$$;
+
 -- Used for testing that having the same return column name as the proc name
 -- doesn't conflict with the required output, details in #901
 create function test.test() returns table(test text, value int) as $$

@@ -33,12 +33,26 @@ spec = do
         r <- simpleBody <$> get "/"
 
         let method s = key "paths" . key "/child_entities" . key s
+            childGetSummary = r ^? method "get" . key "summary"
+            childGetDescription = r ^? method "get" . key "description"
             getParameters = r ^? method "get" . key "parameters"
             postResponse = r ^? method "post" . key "responses" . key "201" . key "description"
             patchResponse = r ^? method "patch" . key "responses" . key "204" . key "description"
             deleteResponse = r ^? method "delete" . key "responses" . key "204" . key "description"
 
+        let grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
+            grandChildGetSummary = r ^? grandChildGet "summary"
+            grandChildGetDescription = r ^? grandChildGet "description"
+
         liftIO $ do
+
+          childGetSummary `shouldBe` Just "child_entities comment"
+
+          childGetDescription `shouldBe` Nothing
+
+          grandChildGetSummary `shouldBe` Just "grandchild_entities summary"
+
+          grandChildGetDescription `shouldBe` Just "grandchild_entities description\nthat spans\nmultiple lines"
 
           getParameters `shouldBe` Just
             [aesonQQ|

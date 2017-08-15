@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #883, Binary output support for RPC - @steve-chavez
 - #885, Postgres COMMENTs on SCHEMA/TABLE/COLUMN are used for OpenAPI - @ldesgoui
 - #907, Ability to embed using a specific relation when there are multiple between tables - @ruslantalpa
+- #930, Split table comment on newline to get OpenAPI operation summary and description - @daurnimator
 
 ### Fixed
 
