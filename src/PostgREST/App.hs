@@ -37,6 +37,7 @@ import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
+                                           , readRpcRequest
                                            , fieldNames
                                            )
 import           PostgREST.Error           ( simpleError, pgError
@@ -94,7 +95,7 @@ transactionMode structure target action =
     ActionRead -> HT.Read
     ActionInfo -> HT.Read
     ActionInspect -> HT.Read
-    ActionInvoke ->
+    ActionInvoke{isReadOnly=False} ->
       let proc =
             case target of
               (TargetProc qi) -> M.lookup (qiName qi) $
@@ -104,6 +105,7 @@ transactionMode structure target action =
       if v == Stable || v == Immutable
          then HT.Read
          else HT.Write
+    ActionInvoke{isReadOnly=True} -> HT.Read
     _ -> HT.Write
 
 app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
@@ -227,7 +229,10 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke, TargetProc qi, Just (PayloadJSON payload)) ->
+        -- These two are ensured by shouldParsePayload in ApiRequest
+        (ActionInvoke{isReadOnly=False}, _, Nothing) -> pure notFound
+        (ActionInvoke{isReadOnly=True}, _, Just _)   -> pure notFound
+        (ActionInvoke _isReadOnly, TargetProc qi, payload) ->
           let proc = M.lookup (qiName qi) allProcs
               returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
@@ -235,15 +240,17 @@ app dbStructure conf apiRequest =
               rpcBinaryField = if returnsScalar
                                  then Right Nothing
                                  else binaryField contentType =<< fldNames
-              partsField = (,) <$> readSqlParts <*> rpcBinaryField in
-          case partsField of
+              parts = (,,) <$> readSqlParts <*> rpcBinaryField <*> rpcQParams in
+          case parts of
             Left errorResponse -> return errorResponse
-            Right ((q, cq), bField) -> do
-              let p = V.head payload
+            Right ((q, cq), bField, params) -> do
+              let prms | _isReadOnly && isNothing payload = RpcR params
+                       | otherwise = RpcRW $ (V.head . unPayloadJSON .fromJust) payload
+                       -- only (isReadOnly=False, payload=Just _) can happen here the other cases are handled by above top pattern matches
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () $
-                callProc qi p returnsScalar q cq topLevelRange shouldCount
+                callProc qi prms returnsScalar q cq topLevelRange shouldCount
                          singular paramsAsSingleObject
                          (contentType == CTTextCSV)
                          (contentType == CTOctetStream) bField
@@ -298,6 +305,7 @@ app dbStructure conf apiRequest =
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
+      rpcQParams = readRpcRequest apiRequest
       selectQuery = requestToQuery schema False <$> readDbRequest
       mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
@@ -313,7 +321,7 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
         ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionInvoke ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
+        ActionInvoke _ ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
         ActionInspect -> [CTOpenAPI, CTApplicationJSON]
         ActionInfo ->    [CTTextCSV]
     serves sProduces cAccepts =

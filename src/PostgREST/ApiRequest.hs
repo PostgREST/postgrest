@@ -38,7 +38,8 @@ import           PostgREST.Types           ( QualifiedIdentifier (..)
                                            , PayloadJSON(..)
                                            , ContentType(..)
                                            , ApiRequestError(..)
-                                           , toMime)
+                                           , toMime
+                                           , operators)
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
 import qualified Data.CaseInsensitive      as CI
 import           Web.Cookie                (parseCookiesText)
@@ -48,7 +49,7 @@ type RequestBody = BL.ByteString
 -- | Types of things a user wants to do to tables/views/procs
 data Action = ActionCreate | ActionRead
             | ActionUpdate | ActionDelete
-            | ActionInfo   | ActionInvoke
+            | ActionInfo   | ActionInvoke{isReadOnly :: Bool}
             | ActionInspect
             deriving Eq
 -- | The target db object of a user action
@@ -100,12 +101,14 @@ data ApiRequest = ApiRequest {
   , iHeaders :: [(Text, Text)]
   -- | Request Cookies
   , iCookies :: [(Text, Text)]
+  -- | Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
+  , iRpcQParams :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema req reqBody
-  | isTargetingProc && method /= "POST" = Left ActionInappropriate
+  | isTargetingProc && method `notElem` ["GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) undefined payload
   | otherwise = Right ApiRequest {
@@ -118,7 +121,8 @@ userApiRequest schema req reqBody
       , iPreferRepresentation = representation
       , iPreferSingleObjectParameter = singleObject
       , iPreferCount = hasPrefer "count=exact"
-      , iFilters = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
+      , iFilters = filters
+      , iRpcQParams = rpcQParams
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
@@ -132,6 +136,14 @@ userApiRequest schema req reqBody
       , iCookies = fromMaybe [] $ parseCookiesText <$> lookupHeader "Cookie"
       }
  where
+  (filters, rpcQParams) =
+    case action of
+      ActionInvoke{isReadOnly=True} -> (filter (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts,
+                                        filter (liftM2 (&&) (not . isEmbedPath . fst) (not . hasOperator . snd)) flts)
+      _ -> (flts, [])
+  flts = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
+  hasOperator val = foldr ((||) . flip T.isPrefixOf val) False $ (<> ".") <$> M.keys operators
+  isEmbedPath = T.isInfixOf "."
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   payload =
     case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
@@ -150,17 +162,19 @@ userApiRequest schema req reqBody
       ct ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
-  action = case method of
-            "GET"     -> if target == TargetRoot
-                          then ActionInspect
-                          else ActionRead
-            "POST"    -> if isTargetingProc
-                          then ActionInvoke
-                          else ActionCreate
-            "PATCH"   -> ActionUpdate
-            "DELETE"  -> ActionDelete
-            "OPTIONS" -> ActionInfo
-            _         -> ActionInspect
+  action =
+    case method of
+      "GET"      | target == TargetRoot -> ActionInspect
+                 | isTargetingProc -> ActionInvoke{isReadOnly=True}
+                 | otherwise -> ActionRead
+
+      "POST"    -> if isTargetingProc
+                    then ActionInvoke{isReadOnly=False}
+                    else ActionCreate
+      "PATCH"   -> ActionUpdate
+      "DELETE"  -> ActionDelete
+      "OPTIONS" -> ActionInfo
+      _         -> ActionInspect
   target = case path of
               []            -> TargetRoot
               [table]       -> TargetIdent
@@ -168,7 +182,7 @@ userApiRequest schema req reqBody
               ["rpc", proc] -> TargetProc
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke]
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}]
   relevantPayload = if shouldParsePayload
                       then rightToMaybe payload
                       else Nothing

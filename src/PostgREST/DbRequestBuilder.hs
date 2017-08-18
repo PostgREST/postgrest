@@ -3,6 +3,7 @@
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
+, readRpcRequest
 , fieldNames
 ) where
 
@@ -72,10 +73,10 @@ readRequest maxRows allRels allProcs apiRequest  =
 
     relations :: [Relation]
     relations = case action of
-      ActionCreate -> fakeSourceRelations ++ allRels
-      ActionUpdate -> fakeSourceRelations ++ allRels
-      ActionDelete -> fakeSourceRelations ++ allRels
-      ActionInvoke -> fakeSourceRelations ++ allRels
+      ActionCreate   -> fakeSourceRelations ++ allRels
+      ActionUpdate   -> fakeSourceRelations ++ allRels
+      ActionDelete   -> fakeSourceRelations ++ allRels
+      ActionInvoke _ -> fakeSourceRelations ++ allRels
       _       -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
 
@@ -222,9 +223,11 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     logicForest = mapM pRequestLogicTree logFrst
     action = iAction apiRequest
     -- there can be no filters on the root table when we are doing insert/update/delete
-    (flts, logFrst)
-      | action == ActionRead || action == ActionInvoke = (iFilters apiRequest, iLogic apiRequest)
-      | otherwise = join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
+    (flts, logFrst) =
+      case action of
+        ActionInvoke _ -> (iFilters apiRequest, iLogic apiRequest)
+        ActionRead     -> (iFilters apiRequest, iLogic apiRequest)
+        _              -> join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
     orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
@@ -309,6 +312,11 @@ mutateRequest apiRequest fldNames = mapLeft apiRequestError $
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
+
+readRpcRequest :: ApiRequest -> Either Response [RpcQParam]
+readRpcRequest apiRequest = mapLeft apiRequestError rpcQParams
+  where
+    rpcQParams = mapM pRequestRpcQParam $ iRpcQParams apiRequest
 
 fieldNames :: ReadRequest -> [FieldName]
 fieldNames (Node (sel, _) forest) =

@@ -143,7 +143,7 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
+callProc :: QualifiedIdentifier -> RpcParam -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
   Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
 callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary binaryField =
   unicodeStatement sql HE.unit decodeProc True
@@ -165,9 +165,12 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
        FROM ({selectQuery}) _postgrest_t;|]
 
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
-    _args = if paramsAsJson
-                then insertableValueWithType "json" $ JSON.Object params
-                else intercalate "," $ map _assignment (HM.toList params)
+    _args =
+      case params of
+        RpcRW prms -> if paramsAsJson
+                        then insertableValueWithType "json" $ JSON.Object prms
+                        else intercalate "," $ map _assignment (HM.toList prms)
+        RpcR prms -> intercalate "," $ map (_assignment . second JSON.toJSON) prms -- the second toJSON is just for reusing the insertableValue function
     _procName = qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text

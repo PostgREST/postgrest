@@ -208,6 +208,10 @@ type Alias = Text
 type Cast = Text
 type NodeName = Text
 
+-- Rpc query param, only used for GET rpcs
+type RpcQParam = (Text, Text)
+data RpcParam = RpcRW Object | RpcR [RpcQParam]
+
 {-|
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
   Specifically, it will contain the name of the foreign key or the join table in many to many relations.

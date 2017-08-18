@@ -44,8 +44,14 @@ pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
     path = parse pLogicPath ("failed to parser logic path (" ++ toS k ++ ")") $ toS k
     embedPath = fst <$> path
     op = snd <$> path
-    -- Concat op and v to make pLogicTree argument regular, in the form of "op(.,.)"
+    -- Concat op and v to make pLogicTree argument regular, in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
     logicTree = join $ parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") . toS <$> ((<>) <$> op <*> pure v)
+
+pRequestRpcQParam :: (Text, Text) -> Either ApiRequestError RpcQParam
+pRequestRpcQParam (k, v) = mapError $ (,) <$> name <*> val
+  where
+    name = parse pFieldName ("failed to parse rpc arg name (" ++ toS k ++ ")") $ toS k
+    val = toS <$> parse (many anyChar) ("failed to parse rpc arg value (" ++ toS v ++ ")") v
 
 ws :: Parser Text
 ws = toS <$> many (oneOf " \t")

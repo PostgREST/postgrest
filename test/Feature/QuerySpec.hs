@@ -732,11 +732,11 @@ spec = do
         -- TODO: should return info about the function
         request methodOptions "/rpc/sayhello" [] ""
           `shouldRespondWith` 405
-      it "GET fails with 405 on unknown procs" $
+      it "GET fails with 404 on unknown procs" $
         -- TODO: should this be 404?
-        get "/rpc/fake" `shouldRespondWith` 405
-      it "GET with 405 on known procs" $
-        get "/rpc/sayhello" `shouldRespondWith` 405
+        get "/rpc/fake" `shouldRespondWith` 404
+      it "GET with 404 on known procs" $
+        get "/rpc/sayhello" `shouldRespondWith` 404
 
     it "executes the proc exactly once per request" $ do
       post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
