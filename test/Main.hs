@@ -26,6 +26,7 @@ import qualified Feature.SingularSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.ProxySpec
 import qualified Feature.AndOrParamsSpec
+import qualified Feature.RpcSpec
 
 import Protolude
 
@@ -82,6 +83,7 @@ main = do
     , ("Feature.DeleteSpec"       , Feature.DeleteSpec.spec)
     , ("Feature.InsertSpec"       , Feature.InsertSpec.spec)
     , ("Feature.QuerySpec"        , Feature.QuerySpec.spec)
+    , ("Feature.RpcSpec"          , Feature.RpcSpec.spec)
     , ("Feature.RangeSpec"        , Feature.RangeSpec.spec)
     , ("Feature.SingularSpec"     , Feature.SingularSpec.spec)
     , ("Feature.StructureSpec"    , Feature.StructureSpec.spec)
