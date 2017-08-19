@@ -126,6 +126,7 @@ Test-Suite spec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , Feature.AndOrParamsSpec
+                     , Feature.RpcSpec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson
