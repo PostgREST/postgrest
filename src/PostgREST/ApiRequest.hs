@@ -183,9 +183,9 @@ userApiRequest schema req reqBody
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}]
-  relevantPayload = if shouldParsePayload
-                      then rightToMaybe payload
-                      else Nothing
+  relevantPayload | action == ActionInvoke{isReadOnly=True} = Nothing
+                  | shouldParsePayload = rightToMaybe payload
+                  | otherwise = Nothing
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req

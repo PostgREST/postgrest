@@ -229,10 +229,7 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        -- These two are ensured by shouldParsePayload in ApiRequest
-        (ActionInvoke{isReadOnly=False}, _, Nothing) -> pure notFound
-        (ActionInvoke{isReadOnly=True}, _, Just _)   -> pure notFound
-        (ActionInvoke _isReadOnly, TargetProc qi, payload) ->
+        (ActionInvoke _, TargetProc qi, payload) ->
           let proc = M.lookup (qiName qi) allProcs
               returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
@@ -244,9 +241,9 @@ app dbStructure conf apiRequest =
           case parts of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField, params) -> do
-              let prms | _isReadOnly && isNothing payload = RpcR params
-                       | otherwise = RpcRW $ (V.head . unPayloadJSON .fromJust) payload
-                       -- only (isReadOnly=False, payload=Just _) can happen here the other cases are handled by above top pattern matches
+              let prms = case payload of
+                          Just (PayloadJSON pld) -> RpcRW $ V.head pld
+                          Nothing -> RpcR params
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () $
