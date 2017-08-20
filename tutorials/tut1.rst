@@ -146,7 +146,7 @@ Go back to jwt.io and change the payload to
 
   {
     "role": "todo_user",
-    "exp": "<computed epoch value>"
+    "exp": <computed epoch value>
   }
 
 Copy the updated token as before, and save it as a new environment variable.
