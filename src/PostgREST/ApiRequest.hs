@@ -19,7 +19,7 @@ import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
 import qualified Data.List                 as L
-import           Data.List                 (lookup, last)
+import           Data.List                 (lookup, last, partition)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import           Data.Maybe                (fromJust)
@@ -138,8 +138,7 @@ userApiRequest schema req reqBody
  where
   (filters, rpcQParams) =
     case action of
-      ActionInvoke{isReadOnly=True} -> (filter (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts,
-                                        filter (liftM2 (&&) (not . isEmbedPath . fst) (not . hasOperator . snd)) flts)
+      ActionInvoke{isReadOnly=True} -> partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
       _ -> (flts, [])
   flts = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
   hasOperator val = foldr ((||) . flip T.isPrefixOf val) False $ (<> ".") <$> M.keys operators
