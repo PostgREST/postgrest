@@ -47,25 +47,41 @@ Complex logic can also be applied:
  
 These operators are available:
 
-============  =============================================
-abbreviation  meaning
-============  =============================================
-eq            equals
-gte           greater than or equal
-gt            greater than
-lte           less than or equal
-lt            less than
-neq           not equal
-like          LIKE operator (use * in place of %)
-ilike         ILIKE operator (use * in place of %)
-in            one of a list of values e.g. :code:`?a=in.1,2,3` – also supports commas in quoted strings like :code:`?a=in."hi,there","yes,you"`
-is            checking for exact equality (null,true,false)
-@@            full-text search using to_tsquery
-@>            contains e.g. :code:`?tags=@>.{example, new}`
-<@            contained in e.g. :code:`?values=<@{1,2,3}`
-not           negates another operator, see below
-============  =============================================
+============  ===============================================  ===================
+Abbreviation  Meaning                                          Postgres Equivalent
+============  ===============================================  ===================
+eq            equals                                           :code:`=`
+gt            greater than                                     :code:`>`
+gte           greater than or equal                            :code:`>=`
+lt            less than                                        :code:`<`
+lte           less than or equal                               :code:`<=`
+neq           not equal                                        :code:`<>` or :code:`!=`
+like          LIKE operator (use * in place of %)              :code:`LIKE`
+ilike         ILIKE operator (use * in place of %)             :code:`ILIKE`
+in            one of a list of values e.g.                     :code:`IN`
+              :code:`?a=in.1,2,3` – also supports commas
+              in quoted strings like
+              :code:`?a=in."hi,there","yes,you"`
+is            checking for exact equality (null,true,false)    :code:`IS`
+fts           full-text search using to_tsquery                :code:`@@`
+cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
+cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
+ov            overlap (have points in common),                 :code:`&&`
+              e.g. :code:`?period=ov.[2017-01-01,2017-06-30]`
+sl            strictly left of, e.g. :code:`?range=sl.(1,10)`  :code:`<<`
+sr            strictly right of                                :code:`>>`
+nxr           does not extend to the right of,                 :code:`&<`
+              e.g. :code:`?range=nxr.(1,10)`
+nxl           does not extend to the left of                   :code:`&>`
+adj           is adjacent to, e.g. :code:`?range=adj.(1,10)`   :code:`-|-`
+not           negates another operator, see below              :code:`NOT`
+============  ===============================================  ===================
 
+.. note::
+
+  As of PostgREST v0.4.3.0, the symbol operators :code:`@@, @>, <@` have been
+  deprecated in lieu of their mnemonic equivalents. They are still supported
+  but will be removed in v0.5.0.0.
 
 To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
@@ -125,7 +141,7 @@ A full-text search on the computed column:
 
 .. code-block:: http
 
-  GET /people?full_name=@@.Beckett HTTP/1.1
+  GET /people?full_name=fts.Beckett HTTP/1.1
 
 As mentioned, computed columns do not appear in the output by default. However you can include them by listing them in the vertical filtering :code:`select` param:
 
@@ -383,7 +399,7 @@ this:
 
 .. note::
 
-  As of PostgREST v4.1, parens :code:`()` are used rather than brackets :code:`{}` for the list of embedded columns. Brackets are still supported, but are deprecated and will be removed in v5.
+  As of PostgREST v0.4.1.0, parens :code:`()` are used rather than brackets :code:`{}` for the list of embedded columns. Brackets are still supported, but are deprecated and will be removed in v0.5.0.0.
 
 PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
 
@@ -424,7 +440,7 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 * Table unions
 * More complicated joins than those provided by `Resource Embedding`_
 * Geospatial queries that require an argument, like "points near (lat,lon)"
-* More sophisticated full-text search than a simple use of the :sql:`@@` filter
+* More sophisticated full-text search than a simple use of the :sql:`fts` filter
 
 Stored Procedures
 =================
