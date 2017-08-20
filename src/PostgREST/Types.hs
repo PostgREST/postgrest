@@ -161,6 +161,16 @@ operators = M.fromList [
   ("notin", "NOT IN"),
   ("isnot", "IS NOT"),
   ("is", "IS"),
+  ("fts", "@@"),
+  ("cs", "@>"),
+  ("cd", "<@"),
+  ("ov", "&&"),
+  ("sl", "<<"),
+  ("sr", ">>"),
+  ("nxr", "&<"),
+  ("nxl", "&>"),
+  ("adj", "-|-"),
+  -- TODO: these are deprecated and should be removed in v0.5.0.0
   ("@@", "@@"),
   ("@>", "@>"),
   ("<@", "<@")]

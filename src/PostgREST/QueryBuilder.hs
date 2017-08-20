@@ -417,7 +417,9 @@ pgFmtFilter table (Filter fld (Operation hasNot_ ex)) = notOp <> " " <> case ex 
    (op, VText val) -> pgFmtFieldOp op <> " " <> case op of
      "like"  -> unknownLiteral (T.map star val)
      "ilike" -> unknownLiteral (T.map star val)
+     -- TODO: The '@@' was deprecated, remove in v0.5.0.0
      "@@"    -> "to_tsquery(" <> unknownLiteral val <> ") "
+     "fts"   -> "to_tsquery(" <> unknownLiteral val <> ") "
      "is"    -> whiteList val
      "isnot" -> whiteList val
      _       -> unknownLiteral val

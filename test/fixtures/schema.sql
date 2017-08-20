@@ -1214,6 +1214,14 @@ create table grandchild_entities (
   jsonb_col jsonb
 );
 
+-- Table used for testing range operators
+
+create table ranges (
+    id integer primary key,
+    range numrange
+);
+
+
 -- OpenAPI description tests
 
 comment on table child_entities is 'child_entities comment';

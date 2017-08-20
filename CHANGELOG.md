@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #885, Postgres COMMENTs on SCHEMA/TABLE/COLUMN are used for OpenAPI - @ldesgoui
 - #907, Ability to embed using a specific relation when there are multiple between tables - @ruslantalpa
 - #930, Split table comment on newline to get OpenAPI operation summary and description - @daurnimator
+- #938, Support for range operators - @russelldavies
 
 ### Fixed
 
@@ -21,6 +22,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #885, OpenAPI repetition reduced by using more definitions- @ldesgoui
 - #924, Improve relations initialization time - @9too
 - #927, Treat blank pre-request as missing - @begriffs
+
+### Changed
+
+- #938, Deprecate symbol operators with mnemonic names. - @russelldavies
 
 ## [0.4.2.0] - 2017-06-11
 
