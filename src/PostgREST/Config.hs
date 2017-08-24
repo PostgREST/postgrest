@@ -108,7 +108,7 @@ readOptions = do
           <*> C.key "db-anon-role"
           <*> C.key "server-proxy-uri"
           <*> C.key "db-schema"
-          <*> (fromMaybe "*4" <$> C.key "server-host")
+          <*> (fromMaybe "*4" . mfilter (/= "") <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
