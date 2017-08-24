@@ -17,8 +17,7 @@ then
 fi
 
 BASEPATH=$( cd $(dirname $0) ; pwd -P )
-#Remove database path from the connection uri
-URI=$(echo $1 | cut -d'/' -f1-3)
+URI="$1"
 DB=$2
 
 PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xq >/dev/null -c 'select rolcreatedb from pg_authid where rolname = current_user;' 2>/dev/null
