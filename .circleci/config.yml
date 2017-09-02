@@ -15,11 +15,11 @@ build-distro-bin: &build-distro-bin
     - run:
         name: load or build docker image
         command: |
-          if [[ -e ~/$CIRCLE_JOB.tar ]]; then
-            docker load -i ~/$CIRCLE_JOB.tar
+          if [[ -e ~/image.tar ]]; then
+            docker load -i ~/image.tar
           else
             docker build --rm=false -t $CIRCLE_JOB -f docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/
-            docker save $CIRCLE_JOB > ~/$CIRCLE_JOB.tar
+            docker save $CIRCLE_JOB > ~/image.tar
           fi
     - run:
         name: build binary
@@ -43,7 +43,7 @@ build-distro-bin: &build-distro-bin
           - bin/*
     - save_cache:
         paths:
-          - ~/{{ .Environment.CIRCLE_JOB }}.tar
+          - ~/image.tar
         key: v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
     - save_cache:
         paths:
