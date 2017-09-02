@@ -126,6 +126,16 @@ jobs:
             END='## \['
             BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
             ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/workspace/bin
+      - setup_remote_docker
+      - run:
+          name: publish docker image
+          command: |
+            docker build --build-arg POSTGREST_VERSION=$CIRCLE_TAG -t postgrest ./docker/
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker tag postgrest postgrest/postgrest:$CIRCLE_TAG
+            docker push postgrest/postgrest:$CIRCLE_TAG
+            docker tag postgrest postgrest/postgrest:latest
+            docker push postgrest/postgrest:latest
 
 workflows:
   version: 2
