@@ -13,6 +13,8 @@ test: off
 
 skip_non_tags: true
 
+skip_branch_with_pr: true
+
 branches:
   only:
     - master
