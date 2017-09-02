@@ -6,6 +6,7 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
+import           Data.Aeson                (toJSON)
 import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
@@ -229,7 +230,7 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke _, TargetProc qi, payload) ->
+        (ActionInvoke _isReadOnly, TargetProc qi, payload) ->
           let proc = M.lookup (qiName qi) allProcs
               returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
@@ -242,15 +243,15 @@ app dbStructure conf apiRequest =
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField, params) -> do
               let prms = case payload of
-                          Just (PayloadJSON pld) -> RpcRW $ V.head pld
-                          Nothing -> RpcR params
+                          Just (PayloadJSON pld) -> V.head pld
+                          Nothing -> M.fromList $ second toJSON <$> params -- toJSON is just for reusing the callProc function
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () $
                 callProc qi prms returnsScalar q cq topLevelRange shouldCount
                          singular paramsAsSingleObject
                          (contentType == CTTextCSV)
-                         (contentType == CTOctetStream) bField
+                         (contentType == CTOctetStream) _isReadOnly bField
               let (tableTotal, queryTotal, body) =
                     fromMaybe (Just 0, 0, "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal

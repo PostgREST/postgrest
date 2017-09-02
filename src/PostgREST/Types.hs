@@ -210,7 +210,6 @@ type NodeName = Text
 
 -- Rpc query param, only used for GET rpcs
 type RpcQParam = (Text, Text)
-data RpcParam = RpcRW Object | RpcR [RpcQParam]
 
 {-|
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
