@@ -36,7 +36,7 @@ build-distro-bin: &build-distro-bin
         command: |
           mkdir -p /tmp/workspace/bin
           cd /tmp/workspace/bin
-          tar cjf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
+          tar cvJf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
     - persist_to_workspace:
         root: /tmp/workspace
         paths:
@@ -125,7 +125,7 @@ jobs:
             START=$(echo $CIRCLE_TAG | cut -c2-)
             END='## \['
             BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
-            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace v0.4.3.0 /tmp/workspace/bin
+            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/workspace/bin
 
 workflows:
   version: 2
