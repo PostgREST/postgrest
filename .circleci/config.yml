@@ -1,0 +1,188 @@
+version: 2
+
+build-distro-bin: &build-distro-bin
+  machine: true
+  steps:
+    - checkout
+    # cannot interpolate env var and use as a cache key so just copy the Dockerfile to another filename
+    - run: cp docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/Dockerfile
+    - restore_cache:
+        keys:
+        - v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
+    - restore_cache:
+        keys:
+        - v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+    - run:
+        name: load or build docker image
+        command: |
+          if [[ -e ~/image.tar ]]; then
+            docker load -i ~/image.tar
+          else
+            docker build --rm=false -t $CIRCLE_JOB -f docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/
+            docker save $CIRCLE_JOB > ~/image.tar
+          fi
+    - run:
+        name: build binary
+        command: |
+          docker run -it \
+            -v $HOME/.stack:/root/.stack \
+            -v $(pwd):/source \
+            -v $HOME/bin/:/root/.local/bin/ \
+            $CIRCLE_JOB build --allow-different-user --install-ghc --copy-bins
+          # volumes owned by root if chown is not done the save_cache step fails silently
+          sudo chown -R circleci:circleci ~/.stack .stack-work
+    - run:
+        name: compress binary
+        command: |
+          mkdir -p /tmp/workspace/bin
+          cd /tmp/workspace/bin
+          tar cvJf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
+    - persist_to_workspace:
+        root: /tmp/workspace
+        paths:
+          - bin/*
+    - save_cache:
+        paths:
+          - ~/image.tar
+        key: v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
+    - save_cache:
+        paths:
+          - "~/.stack"
+          - ".stack-work"
+        key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+
+jobs:
+  build-test:
+    machine: true
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install libgmp-dev
+            sudo apt-get install --only-upgrade binutils
+            stack setup
+            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
+            stack install hlint packdeps cabal-install
+      - run:
+          name: build src and tests
+          command: |
+            stack build --fast -j1
+            stack build --fast --test --no-run-tests
+      - run:
+          name: run tests
+          command: |
+            sudo service postgresql start
+            POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+            test/io-tests.sh
+      - run:
+          name: run linter
+          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
+      - run:
+          name: extra checks
+          command: |
+            stack exec -- cabal update
+            stack exec --no-ghc-package-path -- cabal install --only-d --dry-run
+            stack exec -- packdeps *.cabal || true
+            stack exec -- cabal check
+            stack haddock --no-haddock-deps
+            stack sdist
+      - save_cache:
+          paths:
+            - "~/.stack"
+            - ".stack-work"
+          key: v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+
+  centos6:
+    <<: *build-distro-bin
+
+  centos7:
+    <<: *build-distro-bin
+
+  ubuntu:
+    <<: *build-distro-bin
+
+  ubuntui386:
+    <<: *build-distro-bin
+
+  release:
+    docker:
+      - image: circleci/golang:1.8
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - checkout
+      - run:
+          name: add body and tars to github release
+          command: |
+            go get -u github.com/tcnksm/ghr
+            START=$(echo $CIRCLE_TAG | cut -c2-)
+            END='## \['
+            BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
+            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/workspace/bin
+      - setup_remote_docker
+      - run:
+          name: publish docker image
+          command: |
+            docker build --build-arg POSTGREST_VERSION=$CIRCLE_TAG -t postgrest ./docker/
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker tag postgrest postgrest/postgrest:$CIRCLE_TAG
+            docker push postgrest/postgrest:$CIRCLE_TAG
+            docker tag postgrest postgrest/postgrest:latest
+            docker push postgrest/postgrest:latest
+
+workflows:
+  version: 2
+  build-test-release:
+    jobs:
+      - build-test:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+      - centos6:
+          requires:
+            - build-test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - centos7:
+          requires:
+            - build-test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - ubuntu:
+          requires:
+            - build-test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - ubuntui386:
+          requires:
+            - build-test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - release:
+          requires:
+            - centos6
+            - centos7
+            - ubuntu
+            - ubuntui386
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/

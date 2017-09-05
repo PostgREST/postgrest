@@ -1,0 +1,64 @@
+language: generic
+
+sudo: false
+
+os:
+- osx
+
+cache:
+  timeout: 1000
+  directories:
+    - $HOME/.stack
+    - $HOME/.local/bin
+
+before_install:
+- mkdir -p "$HOME/.local/bin"
+- export PATH="$PATH:$HOME/.local/bin"
+
+install:
+- |
+  if test -f "$HOME/.local/bin/stack"
+    then
+      echo 'Stack is already installed.'
+    else
+      echo "Installing Stack..."
+      travis_retry curl -L https://www.stackage.org/stack/osx-x86_64 > stack.tar.gz
+      gunzip stack.tar.gz
+      tar -x -f stack.tar --strip-components 1
+      mv stack "$HOME/.local/bin/"
+      rm stack.tar
+  fi
+- |
+  if test -f "$HOME/.local/bin/ghr"
+  then
+    echo 'ghr is already installed.'
+  else
+    echo "Installing ghr..."
+    travis_retry curl -L https://github.com/tcnksm/ghr/releases/download/v0.5.4/ghr_v0.5.4_darwin_386.zip > ghr.zip
+    unzip ghr.zip -d "$HOME/.local/bin"
+    rm ghr.zip
+  fi
+
+script:
+- gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || true
+- |
+  if test ! "$TRAVIS_TAG"
+  then
+    echo 'No tag pushed. Skipping build.'
+  else
+    stack build --no-terminal --copy-bins --local-bin-path .
+  fi
+- |
+  if test ! "$TRAVIS_TAG"
+  then
+    echo 'No tag pushed. Skipping release.'
+  else
+    OWNER="$(echo "$TRAVIS_REPO_SLUG" | cut -f1 -d/)"
+    REPO="$(echo "$TRAVIS_REPO_SLUG" | cut -f2 -d/)"
+    START=$(echo $TRAVIS_TAG | cut -c2-)
+    END='## \['
+    BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
+    strip postgrest
+    tar cjf postgrest-$TRAVIS_TAG-osx.tar.xz postgrest
+    ghr -t $GITHUB_TOKEN -u $OWNER -r $REPO -b "$BODY"--replace $TRAVIS_TAG postgrest-$TRAVIS_TAG-osx.tar.xz
+  fi
