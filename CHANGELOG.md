@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #887, #601, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
+
 ### Fixed
 
 ## [0.4.3.0] - 2017-09-06

@@ -208,7 +208,7 @@ requestToCountQuery schema (DbRead (Node (Select _ _ logicForest _ _, (mainTbl, 
    qi = removeSourceCTESchema schema mainTbl
    -- all foreing key filters are root nodes(see addFilterToLogicForest), only those are filtered
    nonFKRoot :: LogicTree -> Bool
-   nonFKRoot (Stmnt (Filter _ Operation{expr=(_, VForeignKey _ _)})) = False
+   nonFKRoot (Stmnt (Filter _ (OpExpr _ (Join _ _)))) = False
    nonFKRoot (Stmnt _) = True
    nonFKRoot Expr{} = True
    filteredLogic = filter nonFKRoot logicForest
@@ -253,7 +253,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
       where
         node_name = fromMaybe name alias
         local_table_name = table <> "_" <> node_name
-        replaceTableName localTableName (Filter a (Operation b (c, VForeignKey (QualifiedIdentifier "" _) d))) = Filter a (Operation b (c, VForeignKey (QualifiedIdentifier "" localTableName) d))
+        replaceTableName localTableName (Filter a (OpExpr b (Join (QualifiedIdentifier "" _) c))) = Filter a (OpExpr b (Join (QualifiedIdentifier "" localTableName) c))
         replaceTableName _ x = x
         sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
         joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
@@ -385,7 +385,7 @@ getJoinFilters (Relation t cols ft fcs typ lt lc1 lc2) =
     ftN = tableName ft
     ltN = fromMaybe "" (tableName <$> lt)
     toFilter :: Text -> Text -> Column -> Column -> Filter
-    toFilter tb ftb c fc = Filter (colName c, Nothing) (Operation False ("=", VForeignKey (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
+    toFilter tb ftb c fc = Filter (colName c, Nothing) (OpExpr False (Join (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
 unicodeStatement = H.statement . T.encodeUtf8
@@ -413,19 +413,25 @@ pgFmtSelectItem table (f@(_, jp), Nothing, alias, _) = pgFmtField table f <> pgF
 pgFmtSelectItem table (f@(_, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
-pgFmtFilter table (Filter fld (Operation hasNot_ ex)) = notOp <> " " <> case ex of
-   (op, VText val) -> pgFmtFieldOp op <> " " <> case op of
-     "like"  -> unknownLiteral (T.map star val)
-     "ilike" -> unknownLiteral (T.map star val)
-     -- TODO: The '@@' was deprecated, remove in v0.5.0.0
-     "@@"    -> "to_tsquery(" <> unknownLiteral val <> ") "
-     "fts"   -> "to_tsquery(" <> unknownLiteral val <> ") "
-     "is"    -> whiteList val
-     "isnot" -> whiteList val
-     _       -> unknownLiteral val
-   (op, VTextL vals) -> pgFmtIn op vals -- in and notin
-   (op, VForeignKey fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName})) ->
-     pgFmtField fQi fld <> " " <> sqlOperator op <> " " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
+pgFmtFilter table (Filter fld (OpExpr hasNot_ oper)) = notOp <> " " <> case oper of
+   Op op val  -> pgFmtFieldOp op <> " " <> case op of
+     "like"   -> unknownLiteral (T.map star val)
+     "ilike"  -> unknownLiteral (T.map star val)
+     "is"     -> whiteList val
+     "isnot"  -> whiteList val
+     _        -> unknownLiteral val
+
+   In op vals -> pgFmtIn op vals -- in and notin
+
+   Fts mode lang val ->
+     pgFmtFieldOp "fts" <> " " <> case mode of
+       Normal -> "to_tsquery("
+       Plain  -> "plainto_tsquery("
+       Phrase -> "phraseto_tsquery("
+     <> maybe "" (flip (<>) ", " . pgFmtLit) lang <> unknownLiteral val <> ") "
+
+   Join fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
+     pgFmtField fQi fld <> " = " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
  where
    pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
    sqlOperator o = HM.lookupDefault "=" o operators

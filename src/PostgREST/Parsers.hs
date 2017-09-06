@@ -1,6 +1,6 @@
 module PostgREST.Parsers where
 
-import           Protolude                     hiding (try, intercalate, replace)
+import           Protolude                     hiding (try, intercalate, replace, option)
 import           Control.Monad                 ((>>))
 import           Data.Foldable                 (foldl1)
 import qualified Data.HashMap.Strict           as M
@@ -21,7 +21,7 @@ pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
-    oper = parse (pOperation pVText pVTextL) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = parse (pOpExpr pSingleVal pListVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -96,7 +96,6 @@ pFieldName = do
     dash :: Parser Char
     dash = isDash *> pure '-'
 
-
 pJsonPathStep :: Parser Text
 pJsonPathStep = toS <$> try (string "->" *> pFieldName)
 
@@ -131,26 +130,36 @@ pFieldSelect = lexeme $
     s <- pStar
     return ((s, Nothing), Nothing, Nothing, Nothing)
 
-pOperation :: Parser Operand -> Parser Operand -> Parser Operation
-pOperation parserVText parserVTextL = try ( string "not" *> pDelimiter *> (Operation True <$> pExpr)) <|> Operation False <$> pExpr
+pOpExpr :: Parser Text -> Parser [Text] -> Parser OpExpr
+pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
-    pExpr :: Parser (Operator, Operand)
-    pExpr =
-          ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys notInOps)) <*> parserVText)
-      <|> ((,) <$> (toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys inOps)) <*> parserVTextL)
+    pOperation :: Parser Operation
+    pOperation =
+          Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
+      <|> In . toS <$> (string "in" <* pDelimiter) <*> pLVal
+      <|> In . toS <$> (string "notin" <* pDelimiter) <*> pLVal
+      <|> pFts
       <?> "operator (eq, gt, ...)"
-    inOps = M.filterWithKey (const . flip elem ["in", "notin"]) operators
-    notInOps = M.difference operators inOps
+    pFts = do
+      mode <- option Normal $
+              try (string "phrase" *> pDelimiter *> pure Phrase)
+          <|> try (string "plain" *> pDelimiter *> pure Plain)
 
-pVText :: Parser Operand
-pVText = VText . toS <$> many anyChar
+      lang <- try (Just <$> manyTill (letter <|> digit <|> oneOf "_") (try (string ".fts") <|> try (string ".@@")) <* pDelimiter) -- TODO: '@@' deprecated
+          <|> try (string "fts" *> pDelimiter) *> pure Nothing
+          <|> try (string "@@" *> pDelimiter)  *> pure Nothing -- TODO: '@@' deprecated
+      Fts mode (toS <$> lang) <$> pSVal
+    ops = M.filterWithKey (const . flip notElem ["in", "notin", "fts", "@@"]) operators -- TODO: '@@' deprecated
 
-pVTextL :: Parser Operand
-pVTextL =     VTextL <$> try (lexeme (char '(') *> pVTextLElement `sepBy1` char ',' <* lexeme (char ')'))
-          <|> VTextL <$> lexeme pVTextLElement `sepBy1` char ','
+pSingleVal :: Parser Text
+pSingleVal = toS <$> many anyChar
 
-pVTextLElement :: Parser Text
-pVTextLElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
+pListVal :: Parser [Text]
+pListVal =    try (lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')'))
+          <|> lexeme pListElement `sepBy1` char ','
+
+pListElement :: Parser Text
+pListElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
 
 pQuotedValue :: Parser Text
 pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",)"))
@@ -182,7 +191,7 @@ pLogicTree = Stmnt <$> try pLogicFilter
              <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
-    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOperation pLogicVText pLogicVTextL
+    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal pLogicListVal
     pNot :: Parser Bool
     pNot = try (string "not" *> pDelimiter *> pure True)
            <|> pure False
@@ -192,8 +201,8 @@ pLogicTree = Stmnt <$> try pLogicFilter
                <|> string "or" *> pure Or
                <?> "logic operator (and, or)"
 
-pLogicVText :: Parser Operand
-pLogicVText = VText <$> (try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)")))
+pLogicSingleVal :: Parser Text
+pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
     pPgArray :: Parser Text
     pPgArray =  do
@@ -202,8 +211,8 @@ pLogicVText = VText <$> (try pQuotedValue <|> try pPgArray <|> (toS <$> many (no
       c <- string "}"
       toS <$> pure (a ++ b ++ c)
 
-pLogicVTextL :: Parser Operand
-pLogicVTextL = VTextL <$> (lexeme (char '(') *> pVTextLElement `sepBy1` char ',' <* lexeme (char ')'))
+pLogicListVal :: Parser [Text]
+pLogicListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
