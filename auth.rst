@@ -204,6 +204,16 @@ An external service like `Auth0 <https://auth0.com/>`_ can do the hard work tran
 
 To use Auth0, copy its client secret into your PostgREST configuration file as the :code:`jwt-secret`. (Old-style Auth0 secrets are Base64 encoded. For these secrets set :code:`secret-is-base64` to :code:`true`, or just refresh the Auth0 secret.) You can find the secret in the client settings of the Auth0 management console.
 
+.. note::
+
+  Make sure OIDC-conformant is toggled off.
+
+  A recent Auth0 change sets it on by default. Turn it `off` here:
+
+  Clients > `Your App` > Settings > Show Advanced Settings > OAuth > OIDC Conformant
+
+  Ensure also that your client application does not pass in any `audience` configuration.
+
 Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write a rule that will extract the role from the user metadata and include a :code:`role` claim in the payload of our user object. Afterwards, in your Auth0Lock code, include the :code:`role` claim in your `scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->`_.
 
 .. code:: javascript
