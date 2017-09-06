@@ -53,7 +53,14 @@ build-distro-bin: &build-distro-bin
 
 jobs:
   build-test:
-    machine: true
+    docker:
+      - image: circleci/buildpack-deps:trusty
+        environment:
+          - PGHOST=localhost
+      - image: circleci/postgres:9.6.2
+        environment:
+          - POSTGRES_USER=circleci
+          - POSTGRES_DB=circleci
     steps:
       - checkout
       - restore_cache:
@@ -65,8 +72,9 @@ jobs:
             curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
             sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
             sudo apt-get update
-            sudo apt-get install libgmp-dev
-            sudo apt-get install --only-upgrade binutils
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y --only-upgrade binutils
+            sudo apt-get install -y postgresql-client
             stack setup
             rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
             stack install hlint packdeps cabal-install
@@ -78,7 +86,6 @@ jobs:
       - run:
           name: run tests
           command: |
-            sudo service postgresql start
             POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
             test/io-tests.sh
       - run:
