@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #887, #601, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
+- #328, Allow doing GET on rpc - @steve-chavez
 
 ### Fixed
 
@@ -24,7 +25,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #907, Ability to embed using a specific relation when there are multiple between tables - @ruslantalpa
 - #930, Split table comment on newline to get OpenAPI operation summary and description - @daurnimator
 - #938, Support for range operators - @russelldavies
-- #328, Allow doing GET on rpc - @steve-chavez
 
 ### Fixed
 
