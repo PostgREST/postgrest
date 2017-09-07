@@ -413,15 +413,19 @@ pgFmtSelectItem table (f@(_, jp), Nothing, alias, _) = pgFmtField table f <> pgF
 pgFmtSelectItem table (f@(_, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
-pgFmtFilter table (Filter fld (OpExpr hasNot_ oper)) = notOp <> " " <> case oper of
+pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      "like"   -> unknownLiteral (T.map star val)
      "ilike"  -> unknownLiteral (T.map star val)
      "is"     -> whiteList val
-     "isnot"  -> whiteList val
      _        -> unknownLiteral val
 
-   In op vals -> pgFmtIn op vals -- in and notin
+   In vals -> pgFmtField table fld <> " " <>
+    let emptyValForIn = "= any('{}') " in -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"
+    case ((&&) (length vals == 1) . T.null) <$> headMay vals of
+      Just False -> sqlOperator "in" <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+      Just True  -> emptyValForIn
+      Nothing    -> emptyValForIn
 
    Fts mode lang val ->
      pgFmtFieldOp "fts" <> " " <> case mode of
@@ -435,27 +439,17 @@ pgFmtFilter table (Filter fld (OpExpr hasNot_ oper)) = notOp <> " " <> case oper
  where
    pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
    sqlOperator o = HM.lookupDefault "=" o operators
-   notOp = if hasNot_ then "NOT" else ""
+   notOp = if hasNot then "NOT" else ""
    star c = if c == '*' then '%' else c
    unknownLiteral = (<> "::unknown ") . pgFmtLit
    whiteList :: Text -> SqlFragment
    whiteList v = fromMaybe
      (toS (pgFmtLit v) <> "::unknown ")
      (find ((==) . toLower $ v) ["null","true","false"])
-   pgFmtIn :: Operator -> [Text] -> SqlFragment
-   pgFmtIn op vals =
-    -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"
-    let emptyValForIn o = (if "not" `isInfixOf` o then "NOT " else "") -- handle case of "notin" operator
-                          <> pgFmtField table fld <> " = any('{}') " in
-    case T.null <$> headMay vals of
-      Just isNull -> if isNull && length vals == 1
-                        then emptyValForIn op
-                        else pgFmtFieldOp op <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
-      Nothing -> emptyValForIn op
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
-pgFmtLogicTree qi (Expr hasNot_ op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
-  where notOp =  if hasNot_ then "NOT" else ""
+pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
+  where notOp =  if hasNot then "NOT" else ""
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: Maybe JsonPath -> SqlFragment

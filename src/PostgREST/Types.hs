@@ -158,8 +158,6 @@ operators = M.fromList [
   ("like", "LIKE"),
   ("ilike", "ILIKE"),
   ("in", "IN"),
-  ("notin", "NOT IN"),
-  ("isnot", "IS NOT"),
   ("is", "IS"),
   ("fts", "@@"),
   ("cs", "@>"),
@@ -176,13 +174,17 @@ operators = M.fromList [
   ("<@", "<@")]
 
 data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
-data Operation = Op Operator Text |
-                 In Operator [Text] |
-                 Fts FtsMode (Maybe Language) Text |
+data Operation = Op Operator SingleVal |
+                 In ListVal |
+                 Fts FtsMode (Maybe Language) SingleVal |
                  Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
 
 data FtsMode = Normal | Plain | Phrase deriving (Eq, Show)
 type Language = Text
+-- | Represents a single value in a filter, e.g. id=eq.singleval
+type SingleVal = Text
+-- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)
+type ListVal = [Text]
 
 data LogicOperator = And | Or deriving Eq
 instance Show LogicOperator where

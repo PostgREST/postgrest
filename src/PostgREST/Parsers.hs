@@ -78,7 +78,7 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 
 pFieldTree :: Parser (Tree SelectItem)
-pFieldTree =  try (Node <$> pRelationSelect <*> between (char '{') (char '}') pFieldForest)
+pFieldTree =  try (Node <$> pRelationSelect <*> between (char '{') (char '}') pFieldForest) -- TODO: "{}" deprecated
           <|> try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest)
           <|> Node <$> pFieldSelect <*> pure []
 
@@ -130,14 +130,13 @@ pFieldSelect = lexeme $
     s <- pStar
     return ((s, Nothing), Nothing, Nothing, Nothing)
 
-pOpExpr :: Parser Text -> Parser [Text] -> Parser OpExpr
+pOpExpr :: Parser SingleVal -> Parser ListVal -> Parser OpExpr
 pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
     pOperation :: Parser Operation
     pOperation =
           Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
-      <|> In . toS <$> (string "in" <* pDelimiter) <*> pLVal
-      <|> In . toS <$> (string "notin" <* pDelimiter) <*> pLVal
+      <|> In <$> (string "in" *> pDelimiter *> pLVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
     pFts = do
@@ -149,14 +148,14 @@ pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOper
           <|> try (string "fts" *> pDelimiter) *> pure Nothing
           <|> try (string "@@" *> pDelimiter)  *> pure Nothing -- TODO: '@@' deprecated
       Fts mode (toS <$> lang) <$> pSVal
-    ops = M.filterWithKey (const . flip notElem ["in", "notin", "fts", "@@"]) operators -- TODO: '@@' deprecated
+    ops = M.filterWithKey (const . flip notElem ["in", "fts", "@@"]) operators -- TODO: '@@' deprecated
 
-pSingleVal :: Parser Text
+pSingleVal :: Parser SingleVal
 pSingleVal = toS <$> many anyChar
 
-pListVal :: Parser [Text]
+pListVal :: Parser ListVal
 pListVal =    try (lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')'))
-          <|> lexeme pListElement `sepBy1` char ','
+          <|> lexeme pListElement `sepBy1` char ',' -- TODO: "in.3,4,5" deprecated, parens e.g. "in.(3,4,5)" should be used
 
 pListElement :: Parser Text
 pListElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
@@ -201,9 +200,10 @@ pLogicTree = Stmnt <$> try pLogicFilter
                <|> string "or" *> pure Or
                <?> "logic operator (and, or)"
 
-pLogicSingleVal :: Parser Text
+pLogicSingleVal :: Parser SingleVal
 pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
+    -- TODO: "{}" deprecated, after removal pPgArray can be removed
     pPgArray :: Parser Text
     pPgArray =  do
       a <- string "{"
@@ -211,7 +211,7 @@ pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",
       c <- string "}"
       toS <$> pure (a ++ b ++ c)
 
-pLogicListVal :: Parser [Text]
+pLogicListVal :: Parser ListVal
 pLogicListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pLogicPath :: Parser (EmbedPath, Text)

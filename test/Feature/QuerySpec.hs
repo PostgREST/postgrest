@@ -55,11 +55,6 @@ spec = do
         `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
         { matchHeaders = ["Content-Range" <:> "0-2/*"] }
 
-    it "matches items NOT IN" $
-      get "/items?id=notin.2,4,6,7,8,9,10,11,12,13,14,15"
-        `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
-        { matchHeaders = ["Content-Range" <:> "0-2/*"] }
-
     it "matches items NOT IN using not operator" $
       get "/items?id=not.in.2,4,6,7,8,9,10,11,12,13,14,15"
         `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
@@ -892,16 +887,13 @@ spec = do
           , matchHeaders = []
           }
 
-  describe "values with quotes in IN and NOTIN operators" $ do
+  describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
-        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
@@ -913,9 +905,6 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"Williams, Mary"},{"name":"David White"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",David White,\"Williams, Mary\",Larry Thompson" `shouldRespondWith`
-        [json| [{"name":"Smith, Joseph"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "checks well formed quoted values" $ do
@@ -953,10 +942,6 @@ spec = do
         get "/items_with_different_col_types?time_data=in." `shouldRespondWith`
           [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
-    it "returns all results for notin when no value is present" $
-      get "/items_with_different_col_types?int_data=notin.&select=int_data" `shouldRespondWith`
-        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
-
     it "returns all results for not.in when no value is present" $
       get "/items_with_different_col_types?int_data=not.in.&select=int_data" `shouldRespondWith`
         [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
@@ -972,9 +957,7 @@ spec = do
       get "/items_with_different_col_types?int_data=in.()" `shouldRespondWith`
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
-    it "returns all results when the notin value is empty between parentheses" $ do
-      get "/items_with_different_col_types?int_data=notin.()&select=int_data" `shouldRespondWith`
-        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+    it "returns all results when the not.in value is empty between parentheses" $
       get "/items_with_different_col_types?int_data=not.in.()&select=int_data" `shouldRespondWith`
         [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
 
