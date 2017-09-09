@@ -73,6 +73,12 @@ spec =
         it "can handle fts" $ do
           get "/entities?or=(text_search_vector.fts.bar,text_search_vector.fts.baz)&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?or=(text_search_vector.phrase.german.fts.Art%20Spass, text_search_vector.plain.french.fts.amusant%20impossible, text_search_vector.english.fts.impossible)" `shouldRespondWith`
+            [json|[
+              {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
+              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
+              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
+            ]|] { matchHeaders = [matchContentTypeJson] }
           -- TODO: remove in 0.5.0 as deprecated
           get "/entities?or=(text_search_vector.@@.bar,text_search_vector.@@.baz)&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }

@@ -55,11 +55,6 @@ spec = do
         `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
         { matchHeaders = ["Content-Range" <:> "0-2/*"] }
 
-    it "matches items NOT IN" $
-      get "/items?id=notin.2,4,6,7,8,9,10,11,12,13,14,15"
-        `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
-        { matchHeaders = ["Content-Range" <:> "0-2/*"] }
-
     it "matches items NOT IN using not operator" $
       get "/items?id=not.in.2,4,6,7,8,9,10,11,12,13,14,15"
         `shouldRespondWith` [json| [{"id":1},{"id":3},{"id":5}] |]
@@ -98,29 +93,107 @@ spec = do
     it "matches with ilike using not operator" $
       get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
 
-    it "matches with tsearch fts" $ do
-      get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/tsearch?text_search_vector=fts.possible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
-        { matchHeaders = [matchContentTypeJson] }
-      -- TODO: remove in 0.5.0 as deprecated
-      get "/tsearch?text_search_vector=@@.impossible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/tsearch?text_search_vector=@@.possible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
-        { matchHeaders = [matchContentTypeJson] }
+    describe "Full text search operator" $ do
+      it "finds matches with to_tsquery" $
+        get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`
+          [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "matches with tsearch fts using not operator" $ do
-      get "/tsearch?text_search_vector=not.fts.impossible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
-        { matchHeaders = [matchContentTypeJson] }
+      it "can use lexeme boolean operators(&=%26, |=%7C, !) in to_tsquery" $ do
+        get "/tsearch?text_search_vector=fts.fun%26possible" `shouldRespondWith`
+          [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=fts.impossible%7Cpossible" `shouldRespondWith`
+          [json| [
+          {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+          {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=fts.fun%26!possible" `shouldRespondWith`
+          [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "finds matches with plainto_tsquery" $
+        get "/tsearch?text_search_vector=plain.fts.The%20Fat%20Rats" `shouldRespondWith`
+          [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "finds matches with phraseto_tsquery" $
+        get "/tsearch?text_search_vector=phrase.fts.The%20Fat%20Cats" `shouldRespondWith`
+          [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "finds matches with different dictionaries" $ do
+        get "/tsearch?text_search_vector=french.fts.amusant" `shouldRespondWith`
+          [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=plain.french.fts.amusant%20impossible" `shouldRespondWith`
+          [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=phrase.german.fts.Art%20Spass" `shouldRespondWith`
+          [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can be negated with not operator" $ do
+        get "/tsearch?text_search_vector=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.english.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.plain.fts.The%20Fat%20Rats" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.phrase.english.fts.The%20Fat%20Cats" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
       -- TODO: remove in 0.5.0 as deprecated
-      get "/tsearch?text_search_vector=not.@@.impossible" `shouldRespondWith`
-        [json| [{"text_search_vector": "'also':2 'fun':3 'possibl':8" }] |]
-        { matchHeaders = [matchContentTypeJson] }
+      it "Deprecated @@ operator, pending to remove" $ do
+        get "/tsearch?text_search_vector=@@.impossible" `shouldRespondWith`
+          [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=plain.@@.The%20Fat%20Rats" `shouldRespondWith`
+          [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=phrase.@@.The%20Fat%20Cats" `shouldRespondWith`
+          [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.english.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.plain.@@.The%20Fat%20Rats" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.phrase.english.@@.The%20Fat%20Cats" `shouldRespondWith`
+          [json| [
+            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`
@@ -709,7 +782,7 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected end of input expecting operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 2)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -814,16 +887,13 @@ spec = do
           , matchHeaders = []
           }
 
-  describe "values with quotes in IN and NOTIN operators" $ do
+  describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
-        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
@@ -835,9 +905,6 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\"" `shouldRespondWith`
         [json| [{"name":"Williams, Mary"},{"name":"David White"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=notin.\"Hebdon, John\",David White,\"Williams, Mary\",Larry Thompson" `shouldRespondWith`
-        [json| [{"name":"Smith, Joseph"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "checks well formed quoted values" $ do
@@ -875,10 +942,6 @@ spec = do
         get "/items_with_different_col_types?time_data=in." `shouldRespondWith`
           [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
-    it "returns all results for notin when no value is present" $
-      get "/items_with_different_col_types?int_data=notin.&select=int_data" `shouldRespondWith`
-        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
-
     it "returns all results for not.in when no value is present" $
       get "/items_with_different_col_types?int_data=not.in.&select=int_data" `shouldRespondWith`
         [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
@@ -894,9 +957,7 @@ spec = do
       get "/items_with_different_col_types?int_data=in.()" `shouldRespondWith`
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
-    it "returns all results when the notin value is empty between parentheses" $ do
-      get "/items_with_different_col_types?int_data=notin.()&select=int_data" `shouldRespondWith`
-        [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
+    it "returns all results when the not.in value is empty between parentheses" $
       get "/items_with_different_col_types?int_data=not.in.()&select=int_data" `shouldRespondWith`
         [json| [{int_data: 1}] |] { matchHeaders = [matchContentTypeJson] }
 

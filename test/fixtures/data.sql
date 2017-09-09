@@ -248,7 +248,9 @@ INSERT INTO nullable_integer VALUES (NULL);
 TRUNCATE TABLE tsearch CASCADE;
 INSERT INTO tsearch VALUES (to_tsvector('It''s kind of fun to do the impossible'));
 INSERT INTO tsearch VALUES (to_tsvector('But also fun to do what is possible'));
-
+INSERT INTO tsearch VALUES (to_tsvector('Fat cats ate rats'));
+INSERT INTO tsearch VALUES (to_tsvector('french', 'C''est un peu amusant de faire l''impossible'));
+INSERT INTO tsearch VALUES (to_tsvector('german', 'Es ist eine Art Spaß, das Unmögliche zu machen')); 
 
 --
 -- Data for Name: users_projects; Type: TABLE DATA; Schema: test; Owner: -

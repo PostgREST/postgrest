@@ -158,8 +158,6 @@ operators = M.fromList [
   ("like", "LIKE"),
   ("ilike", "ILIKE"),
   ("in", "IN"),
-  ("notin", "NOT IN"),
-  ("isnot", "IS NOT"),
   ("is", "IS"),
   ("fts", "@@"),
   ("cs", "@>"),
@@ -174,8 +172,19 @@ operators = M.fromList [
   ("@@", "@@"),
   ("@>", "@>"),
   ("<@", "<@")]
-data Operation = Operation{ hasNot::Bool, expr::(Operator, Operand) } deriving (Eq, Show)
-data Operand = VText Text | VTextL [Text] | VForeignKey QualifiedIdentifier ForeignKey deriving (Show, Eq)
+
+data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
+data Operation = Op Operator SingleVal |
+                 In ListVal |
+                 Fts FtsMode (Maybe Language) SingleVal |
+                 Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
+
+data FtsMode = Normal | Plain | Phrase deriving (Eq, Show)
+type Language = Text
+-- | Represents a single value in a filter, e.g. id=eq.singleval
+type SingleVal = Text
+-- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)
+type ListVal = [Text]
 
 data LogicOperator = And | Or deriving Eq
 instance Show LogicOperator where
@@ -207,7 +216,7 @@ type RelationDetail = Text
 type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
-data Filter = Filter { field::Field, operation::Operation } deriving (Show, Eq)
+data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
 
 data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
