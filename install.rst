@@ -19,7 +19,7 @@ The release page has precompiled binaries for Mac OS X, Windows, and several Lin
 PostgreSQL dependency
 =====================
 
-To use PostgREST you will need an underlying database (PostgreSQL version 9.3 or greater is required). You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development.
+To use PostgREST you will need an underlying database (PostgreSQL version 9.5 or greater is required). You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development.
 
 * `Instructions for OS X <http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/>`_
 * `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
