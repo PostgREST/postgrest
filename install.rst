@@ -16,30 +16,6 @@ The release page has precompiled binaries for Mac OS X, Windows, and several Lin
 
   # You should see a usage help message
 
-Homebrew
-========
-
-You can use the Homebrew package manager to install PostgREST on Mac
-
-.. code-block:: bash
-
-  # Ensure brew is up to date
-  brew update
-
-  # Check for any problems with brew's setup
-  brew doctor
-
-  # Install the postgrest package
-  brew install postgrest
-
-This will automatically install PostgreSQL as a dependency. The process tends to take up to 15 minutes to install the package and its dependencies.
-
-After installation completes, the tool is added to your $PATH and can be used from anywhere with:
-
-.. code-block:: bash
-
-  postgrest --help
-
 PostgreSQL dependency
 =====================
 
@@ -48,6 +24,82 @@ To use PostgREST you will need an underlying database (PostgreSQL version 9.3 or
 * `Instructions for OS X <http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/>`_
 * `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
 * `Installer for Windows <http://www.enterprisedb.com/products-services-training/pgdownload#windows>`_
+
+Docker
+======
+
+The official PostgREST Docker image consults an internal :code:`/etc/postgrest.conf` file. To customize this file you can either mount a replacement configuration file into the container, or use environment variables. The environment variables will be interpolated into the default config file.
+
+These variables match the options shown in our :ref:`configuration` section, except they are capitalized, have a prefix, and use underscores. To get a list of the available environment variables, run this:
+
+.. code-block:: bash
+
+  docker inspect -f "{{.Config.Env}}" postgrest/postgrest
+
+There are two ways to run the PostgREST container: with an existing external database, or through docker-compose.
+
+Containerized PostgREST with native PostgreSQL
+----------------------------------------------
+
+The first way to run PostgREST in Docker is to connect it to an existing native database on the host.
+
+.. code-block:: bash
+
+  # Pull the official image
+  docker pull postgrest/postgrest
+
+  # Run the server
+  docker run --rm --net=host -p 3000:3000 \
+    -e PGRST_DB_URI="postgres://postgres@localhost/postgres" \
+    -e PGRST_DB_ANON_ROLE="postgres" \
+    postgrest/postgrest
+
+The database connection string above is just an example. Adjust the role and password as necessary. You may need to edit PostgreSQL's :code:`pg_hba.conf` to grant the user local login access.
+
+.. note::
+
+  Docker on Mac does not support the :code:`--net=host` flag. Instead you'll need to create an IP address alias to the host. Requests for the IP address from inside the container are unable to resolve and fall back to resolution by the host.
+
+  .. code-block:: bash
+
+    sudo ifconfig lo0 10.0.0.10 alias
+
+  You should then use 10.0.0.10 as the host in your database connection string. Also remember to include the IP address in the :code:`listen_address` within postgresql.conf. For instance:
+
+  .. code-block:: bash
+
+    listen_addresses = 'localhost,10.0.0.10'
+
+Containerized PostgREST *and* db with docker-compose
+----------------------------------------------------
+
+To avoid having to install the database at all, you can run both it and the server in containers and link them together with docker-compose. Use this configuration:
+
+.. code-block:: yaml
+
+  # docker-compose.yml
+
+  server:
+    image: postgrest/postgrest
+    ports:
+      - "3000:3000"
+    links:
+      - db:db
+    environment:
+      PGRST_DB_URI: postgres://app_user:password@db:5432/app_db
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: app_user
+
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: password
+
+Go into the directory where you saved this file and run :code:`docker-compose up`. You will see the logs of both the database and PostgREST, and be able to access the latter on port 3000.
 
 .. _build_source:
 
