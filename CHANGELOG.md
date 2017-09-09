@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #968, Treat blank proxy uri as missing - @begriffs
+
 ## [0.4.3.0] - 2017-09-06
 
 ### Added

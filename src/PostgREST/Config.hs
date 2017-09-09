@@ -106,7 +106,7 @@ readOptions = do
         AppConfig <$>
             C.key "db-uri"
           <*> C.key "db-anon-role"
-          <*> C.key "server-proxy-uri"
+          <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
           <*> C.key "db-schema"
           <*> (fromMaybe "*4" . mfilter (/= "") <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
