@@ -336,6 +336,23 @@ If the stored procedure returns non-scalar values, you need to do a :code:`selec
 
   If more than one row would be returned the binary results will be concatenated with no delimiter.
 
+Unicode Support
+===============
+
+PostgREST supports unicode in schemas, tables, columns and values. To access a table with unicode name, use percent encoding.
+
+To request this:
+
+.. code-block:: html
+
+  http://localhost:3000/موارد
+
+Do this:
+
+.. code-block:: html
+
+  http://localhost:3000/%D9%85%D9%88%D8%A7%D8%B1%D8%AF
+
 .. _resource_embedding:
 
 Resource Embedding
