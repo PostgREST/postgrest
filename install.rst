@@ -16,6 +16,15 @@ The release page has precompiled binaries for Mac OS X, Windows, and several Lin
 
   # You should see a usage help message
 
+.. note::
+
+  If you see a dialog box like this on Windows, it may be that the :code:`pg_config` program is not in your system path.
+
+  .. image:: _static/win-err-dialog.png
+
+  It usually lives in :code:`C:\Program Files\PostgreSQL\<version>\bin`. See this `article <https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/>`_ about how to modify the system path.
+
+
 PostgreSQL dependency
 =====================
 
