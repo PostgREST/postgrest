@@ -63,7 +63,7 @@ in            one of a list of values e.g.                     :code:`IN`
               in quoted strings like
               :code:`?a=in."hi,there","yes,you"`
 is            checking for exact equality (null,true,false)    :code:`IS`
-fts           full-text search using to_tsquery                :code:`@@`
+fts           :ref:`fts` using to_tsquery                      :code:`@@`
 cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
 cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
 ov            overlap (have points in common),                 :code:`&&`
@@ -101,6 +101,30 @@ The view will provide a new endpoint:
 .. code-block:: http
 
   GET /fresh_stories HTTP/1.1
+
+.. _fts:
+
+Full-Text Search
+~~~~~~~~~~~~~~~~
+
+The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`ts_vector`, unsurprisingly of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The follow examples illustrate the possibilities.
+
+.. code-block:: http
+
+  # Use language in fts query
+  GET /tsearch?ts_vector=french.fts.amusant
+
+  # Use plainto_tsquery and phraseto_tsquery
+  GET /tsearch?ts_vector=plain.fts.The%20Fat%20Cats
+  GET /tsearch?ts_vector=phrase.fts.The%20Fat%20Rats
+
+  # Combine both
+  GET /tsearch?ts_vector=phrase.english.fts.The%20Fat%20Cats
+
+  # "not" also working
+  GET /tsearch?ts_vector=not.phrase.english.fts.The%20Fat%20Cats
+
+Using phrase search mode requires PostgreSQL of version at least 9.6 and will raise an error in earlier versions of the database.
 
 .. _v_filter:
 
