@@ -121,6 +121,14 @@ Nginx rate limiting is general and indescriminate. To rate limit each authentica
 Debugging
 =========
 
+Server Version
+--------------
+
+When debugging a problem it's important to verify the PostgREST version. At any time you can make a request to the running server and determine exactly which version is deployed. Look for the :code:`Server` HTTP response header, which contains the version number.
+
+HTTP Requests
+-------------
+
 The PostgREST server logs basic request information to stdout, including the requesting IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
 
 A great way to inspect incoming HTTP requests including headers and query params is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
@@ -130,7 +138,10 @@ A great way to inspect incoming HTTP requests including headers and query params
   # sudo access is necessary for watching the network
   sudo ngrep -d lo0 port 3000
 
-The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the `Configuration`_ section. The ngrep output isn't particularly pretty, but it's legible. Note the :code:`Server` response header as well which identifies the version of server. This is important when submitting bug reports.
+The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the :ref:`configuration` section. The ngrep output isn't particularly pretty, but it's legible.
+
+Database Logs
+-------------
 
 Once you've verified that requests are as you expect, you can get more information about the server operations by watching the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below. Find :code:`postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command :code:`show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
 
