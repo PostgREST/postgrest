@@ -22,7 +22,7 @@ import           Protolude hiding              ((&), Proxy, get, intercalate, dr
 import           Data.Swagger
 
 import           PostgREST.ApiRequest        (ContentType(..))
-import           PostgREST.Config            (prettyVersion)
+import           PostgREST.Config            (prettyVersion, docsVersion)
 import           PostgREST.Types             (Table(..), Column(..), PgArg(..), ForeignKey(..),
                                               PrimaryKey(..), Proxy(..), ProcDescription(..), toMime)
 
@@ -260,7 +260,7 @@ postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
       & description ?~ d)
   & externalDocs ?~ ((mempty :: ExternalDocs)
     & description ?~ "PostgREST Documentation"
-    & url .~ URL "https://postgrest.com/en/latest/api.html")
+    & url .~ URL ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
   & host .~ h'
   & definitions .~ fromList (map (makeTableDef pks) ti)
   & parameters .~ fromList (makeParamDefs ti)

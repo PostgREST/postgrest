@@ -4,7 +4,9 @@ import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Network.HTTP.Types
 
+import PostgREST.Config (docsVersion)
 import Control.Lens ((^?))
+import Data.Aeson.Types (Value (..))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 
@@ -107,6 +109,13 @@ spec = do
                 }
               }
             |]
+
+    it "includes postgrest.com current version api docs" $ do
+        r <- simpleBody <$> get "/"
+
+        let docsUrl = r ^? key "externalDocs" . key "url"
+
+        liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
 
     describe "RPC" $
 
