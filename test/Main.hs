@@ -27,6 +27,7 @@ import qualified Feature.UnicodeSpec
 import qualified Feature.ProxySpec
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.RpcSpec
+import qualified Feature.NonexistentSchemaSpec
 
 import Protolude
 
@@ -39,13 +40,14 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ Just $ either (panic.show) id result
-  let withApp      = return $ postgrest (testCfg testDbConn)          refDbStructure pool $ pure ()
-      ltdApp       = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool $ pure ()
-      unicodeApp   = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool $ pure ()
-      proxyApp     = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool $ pure ()
-      noJwtApp     = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool $ pure ()
-      binaryJwtApp = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool $ pure ()
-      asymJwkApp   = return $ postgrest (testCfgAsymJWK testDbConn)   refDbStructure pool $ pure ()
+  let withApp                = return $ postgrest (testCfg testDbConn)          refDbStructure pool $ pure ()
+      ltdApp                 = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool $ pure ()
+      unicodeApp             = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool $ pure ()
+      proxyApp               = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool $ pure ()
+      noJwtApp               = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool $ pure ()
+      binaryJwtApp           = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool $ pure ()
+      asymJwkApp             = return $ postgrest (testCfgAsymJWK testDbConn)   refDbStructure pool $ pure ()
+      nonexistentSchemaApp   = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
 
   let reset = resetDb testDbConn
   hspec $ do
@@ -75,17 +77,22 @@ main = do
     beforeAll_ reset . before asymJwkApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
+    -- this test runs with a nonexistent db-schema
+    beforeAll_ reset . before nonexistentSchemaApp $
+      describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
+
  where
   specs = map (uncurry describe) [
-      ("Feature.AuthSpec"         , Feature.AuthSpec.spec)
-    , ("Feature.ConcurrentSpec"   , Feature.ConcurrentSpec.spec)
-    , ("Feature.CorsSpec"         , Feature.CorsSpec.spec)
-    , ("Feature.DeleteSpec"       , Feature.DeleteSpec.spec)
-    , ("Feature.InsertSpec"       , Feature.InsertSpec.spec)
-    , ("Feature.QuerySpec"        , Feature.QuerySpec.spec)
-    , ("Feature.RpcSpec"          , Feature.RpcSpec.spec)
-    , ("Feature.RangeSpec"        , Feature.RangeSpec.spec)
-    , ("Feature.SingularSpec"     , Feature.SingularSpec.spec)
-    , ("Feature.StructureSpec"    , Feature.StructureSpec.spec)
-    , ("Feature.AndOrParamsSpec"  , Feature.AndOrParamsSpec.spec)
+      ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
+    , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
+    , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
+    , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
+    , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
+    , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
+    , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
+    , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
+    , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
+    , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
+    , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
+    , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
     ]

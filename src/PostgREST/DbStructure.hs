@@ -171,7 +171,7 @@ accessibleProcs =
 
 schemaDescription :: H.Query Schema (Maybe Text)
 schemaDescription =
-    H.statement sql (HE.value HE.text) (HD.singleRow $ HD.nullableValue HD.text) True
+    H.statement sql (HE.value HE.text) (join <$> HD.maybeRow (HD.nullableValue HD.text)) True
   where
     sql = [q|
       select

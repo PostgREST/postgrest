@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #968, Treat blank proxy uri as missing - @begriffs
 - #933, OpenAPI externals docs url to current version - @steve-chavez
+- #962, OpenAPI don't err on nonexistent schema - @steve-chavez
 
 ## [0.4.3.0] - 2017-09-06
 
