@@ -6,6 +6,7 @@
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
+, accessibleProcs
 , schemaDescription
 ) where
 
@@ -35,7 +36,7 @@ getDbStructure schema = do
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
-  procs <- H.query schema accessibleProcs
+  procs <- H.query schema allProcs
 
   let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
       cols' = addForeignKeys rels' cols
@@ -100,59 +101,64 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
+decodeProcs :: HD.Result (M.HashMap Text ProcDescription)
+decodeProcs =
+  M.fromList . map addName <$> HD.rowsList tblRow
+  where
+    tblRow = ProcDescription
+              <$> HD.value HD.text
+              <*> HD.nullableValue HD.text
+              <*> (parseArgs <$> HD.value HD.text)
+              <*> (parseRetType
+                  <$> HD.value HD.text
+                  <*> HD.value HD.text
+                  <*> HD.value HD.bool
+                  <*> HD.value HD.char)
+              <*> (parseVolatility <$> HD.value HD.char)
+
+    addName :: ProcDescription -> (Text, ProcDescription)
+    addName pd = (pdName pd, pd)
+
+    parseArgs :: Text -> [PgArg]
+    parseArgs = mapMaybe (parseArg . strip) . split (==',')
+
+    parseArg :: Text -> Maybe PgArg
+    parseArg a =
+      let (body, def) = breakOn " DEFAULT " a
+          (name, typ) = breakOn " " body in
+      if T.null typ
+         then Nothing
+         else Just $
+           PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+
+    parseRetType :: Text -> Text -> Bool -> Char -> RetType
+    parseRetType schema name isSetOf typ
+      | isSetOf   = SetOf pgType
+      | otherwise = Single pgType
+      where
+        qi = QualifiedIdentifier schema name
+        pgType = case typ of
+          'c' -> Composite qi
+          'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
+                   then Composite qi
+                   else Scalar qi
+          _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+
+    parseVolatility :: Char -> ProcVolatility
+    parseVolatility v | v == 'i' = Immutable
+                      | v == 's' = Stable
+                      | otherwise = Volatile -- only 'v' can happen here
+
+allProcs :: H.Query Schema (M.HashMap Text ProcDescription)
+allProcs = H.statement (toS procsSqlQuery) (HE.value HE.text) decodeProcs True
+
 accessibleProcs :: H.Query Schema (M.HashMap Text ProcDescription)
-accessibleProcs =
-  H.statement sql (HE.value HE.text)
-    (M.fromList . map addName <$>
-      HD.rowsList (
-        ProcDescription <$> HD.value HD.text
-                        <*> HD.nullableValue HD.text
-                        <*> (parseArgs <$> HD.value HD.text)
-                        <*> (parseRetType <$>
-                            HD.value HD.text <*>
-                            HD.value HD.text <*>
-                            HD.value HD.bool <*>
-                            HD.value HD.char)
-                        <*> (parseVolatility <$>
-                            HD.value HD.char)
-      )
-    ) True
- where
-  addName :: ProcDescription -> (Text, ProcDescription)
-  addName pd = (pdName pd, pd)
+accessibleProcs = H.statement (toS sql) (HE.value HE.text) decodeProcs True
+  where
+    sql = procsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
-  parseArgs :: Text -> [PgArg]
-  parseArgs = mapMaybe (parseArg . strip) . split (==',')
-
-  parseArg :: Text -> Maybe PgArg
-  parseArg a =
-    let (body, def) = breakOn " DEFAULT " a
-        (name, typ) = breakOn " " body in
-    if T.null typ
-       then Nothing
-       else Just $
-         PgArg (dropAround (== '"') name) (strip typ) (T.null def)
-
-  parseRetType :: Text -> Text -> Bool -> Char -> RetType
-  parseRetType schema name isSetOf typ
-    | isSetOf   = SetOf pgType
-    | otherwise = Single pgType
-    where
-      qi = QualifiedIdentifier schema name
-      pgType = case typ of
-        'c' -> Composite qi
-        'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
-                 then Composite qi
-                 else Scalar qi
-        _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
-
-  parseVolatility :: Char -> ProcVolatility
-  parseVolatility 'i' = Immutable
-  parseVolatility 's' = Stable
-  parseVolatility 'v' = Volatile
-  parseVolatility _   = Volatile -- should not happen, but be pessimistic
-
-  sql = [q|
+procsSqlQuery :: SqlQuery
+procsSqlQuery = [q|
   SELECT p.proname as "proc_name",
          d.description as "proc_description",
          pg_get_function_arguments(p.oid) as "args",
@@ -167,7 +173,8 @@ accessibleProcs =
     JOIN pg_namespace tn ON tn.oid = t.typnamespace
     LEFT JOIN pg_class comp ON comp.oid = t.typrelid
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
-  WHERE  pn.nspname = $1|]
+  WHERE  pn.nspname = $1
+|]
 
 schemaDescription :: H.Query Schema (Maybe Text)
 schemaDescription =

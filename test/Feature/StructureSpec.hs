@@ -29,7 +29,14 @@ spec = do
               (acceptHdrs "application/openapi+json") ""
         `shouldRespondWith` 415
 
-    describe "table" $
+    it "includes postgrest.com current version api docs" $ do
+      r <- simpleBody <$> get "/"
+
+      let docsUrl = r ^? key "externalDocs" . key "url"
+
+      liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
+
+    describe "table" $ do
 
       it "includes paths to tables" $ do
         r <- simpleBody <$> get "/"
@@ -78,7 +85,7 @@ spec = do
 
           deleteResponse `shouldBe` Just "No Content"
 
-    it "includes definitions to tables" $ do
+      it "includes definitions to tables" $ do
         r <- simpleBody <$> get "/"
 
         let def = r ^? key "definitions" . key "child_entities"
@@ -110,14 +117,21 @@ spec = do
               }
             |]
 
-    it "includes postgrest.com current version api docs" $ do
+      it "doesn't include privileged table for anonymous" $ do
         r <- simpleBody <$> get "/"
+        let tablePath = r ^? key "paths" . key "/authors_only"
 
-        let docsUrl = r ^? key "externalDocs" . key "url"
+        liftIO $ tablePath `shouldBe` Nothing
 
-        liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
+      it "includes table if user has permission" $ do
+        let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"
+        r <- simpleBody <$> request methodGet "/" [auth] ""
+        let tableTag = r ^? key "paths" . key "/authors_only"
+                      . key "post"  . key "tags"
+                      . nth 0
+        liftIO $ tableTag `shouldBe` Just [aesonQQ|"authors_only"|]
 
-    describe "RPC" $
+    describe "RPC" $ do
 
       it "includes body schema for arguments" $ do
         r <- simpleBody <$> get "/"
@@ -170,6 +184,21 @@ spec = do
                 "type": "object"
               }
             |]
+
+      it "doesn't include privileged function for anonymous" $ do
+        r <- simpleBody <$> get "/"
+        let funcPath = r ^? key "paths" . key "/rpc/privileged_hello"
+
+        liftIO $ funcPath `shouldBe` Nothing
+
+      it "includes function if user has permission" $ do
+        let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"
+        r <- simpleBody <$> request methodGet "/" [auth] ""
+        let funcTag = r ^? key "paths" . key "/rpc/privileged_hello"
+                      . key "post"  . key "tags"
+                      . nth 0
+
+        liftIO $ funcTag `shouldBe` Just [aesonQQ|"(rpc) privileged_hello"|]
 
   describe "Allow header" $ do
 

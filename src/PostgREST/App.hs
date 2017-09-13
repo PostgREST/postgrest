@@ -268,8 +268,8 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti sd = encodeOpenAPI (M.elems allProcs) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
-          body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription
+              encodeApi ti sd procs = encodeOpenAPI (M.elems procs) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
+          body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription <*> H.query schema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
         _ -> return notFound

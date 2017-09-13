@@ -74,3 +74,6 @@ GRANT ALL ON TABLE authors_only TO postgrest_test_author;
 GRANT SELECT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
 GRANT INSERT (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
 GRANT UPDATE (article_id, user_id) ON TABLE limited_article_stars TO postgrest_test_anonymous;
+
+REVOKE EXECUTE ON FUNCTION privileged_hello(text) FROM PUBLIC; -- All functions are available to every role(PUBLIC) by default
+GRANT EXECUTE ON FUNCTION privileged_hello(text) TO postgrest_test_author;
