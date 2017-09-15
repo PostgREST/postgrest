@@ -59,6 +59,7 @@ data AppConfig = AppConfig {
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
+  , configJwtAudience       :: Maybe Text
 
   , configPool              :: Int
   , configMaxRows           :: Maybe Integer
@@ -117,6 +118,7 @@ readOptions = do
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
+          <*> (mfilter (/= "") <$> C.key "jwt-aud")
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
@@ -177,6 +179,7 @@ readOptions = do
         |## (use "@filename" to load from separate file)
         |# jwt-secret = "foo"
         |# secret-is-base64 = false
+        |# jwt-aud = "yourkeycloakrealm"
         |
         |## limit rows in response
         |# max-rows = 1000
