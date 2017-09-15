@@ -48,7 +48,7 @@ jwtClaims secret audience payload =
   case secret of
     Nothing -> return JWTMissingSecret
     Just jwk -> do
-      let validation = set audiencePredicate (==  audience) defaultJWTValidationSettings
+      let validation = set audiencePredicate (==  fromString audience) defaultJWTValidationSettings
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
         validateJWSJWT validation jwk jwt
