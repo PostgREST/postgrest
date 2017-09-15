@@ -68,7 +68,7 @@ _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
   AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
             -- Jwt settings
-            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False
+            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False ""
             -- Connection Modifiers
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
