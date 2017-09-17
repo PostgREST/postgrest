@@ -14,12 +14,10 @@ module PostgREST.QueryBuilder (
     callProc
   , createReadStatement
   , createWriteStatement
-  , getJoinFilters
   , pgFmtIdent
   , pgFmtLit
   , requestToQuery
   , requestToCountQuery
-  , sourceCTEName
   , unquoted
   , ResultsWithCount
   , pgFmtEnvVar
@@ -255,15 +253,12 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just r@Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (joi:j,sel:s)
       where
-        node_name = fromMaybe name alias
-        local_table_name = table <> "_" <> node_name
-        replaceTableName localTableName (Filter a (OpExpr b (Join (QualifiedIdentifier "" _) c))) = Filter a (OpExpr b (Join (QualifiedIdentifier "" localTableName) c))
-        replaceTableName _ x = x
-        sel = "row_to_json(" <> pgFmtIdent local_table_name <> ".*) AS " <> pgFmtIdent node_name
-        joi = " LEFT OUTER JOIN ( " <> subquery <> " ) AS " <> pgFmtIdent local_table_name  <>
-              " ON " <> intercalate " AND " ( map (pgFmtFilter qi . replaceTableName local_table_name) (getJoinFilters r) )
+        aliasOrName = fromMaybe name alias
+        localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
+        sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
+        joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE "
           where subquery = requestToQuery schema True (DbRead (Node n forst))
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (j,sel:s)
       where
@@ -314,9 +309,6 @@ requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
       ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
       ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
       ]
-
-sourceCTEName :: SqlFragment
-sourceCTEName = "pg_source"
 
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
 removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
@@ -377,21 +369,6 @@ fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
     s = qiSchema t
-
-getJoinFilters :: Relation -> [Filter]
-getJoinFilters (Relation t cols ft fcs typ lt lc1 lc2) =
-  case typ of
-    Child  -> zipWith (toFilter tN ftN) cols fcs
-    Parent -> zipWith (toFilter tN ftN) cols fcs
-    Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
-    Root   -> undefined --error "undefined getJoinFilters"
-  where
-    s = if typ == Parent then "" else tableSchema t
-    tN = tableName t
-    ftN = tableName ft
-    ltN = fromMaybe "" (tableName <$> lt)
-    toFilter :: Text -> Text -> Column -> Column -> Filter
-    toFilter tb ftb c fc = Filter (colName c, Nothing) (OpExpr False (Join (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
 unicodeStatement = H.statement . T.encodeUtf8

@@ -31,7 +31,6 @@ import           PostgREST.ApiRequest   ( ApiRequest(..)
 import           PostgREST.Error           (apiRequestError)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange)
-import           PostgREST.QueryBuilder (getJoinFilters, sourceCTEName)
 import           PostgREST.Types
 
 import           Protolude                hiding (from, dropWhile, drop)
@@ -194,7 +193,7 @@ addJoinFilters :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) =
   case relation of
     Just Relation{relType=Root} -> Node node  <$> updatedForest -- this is the root node
-    Just Relation{relType=Parent} -> Node node <$> updatedForest
+    Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
       let rq = augmentQuery rel in
@@ -204,6 +203,21 @@ addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) 
     updatedForest = mapM (addJoinFilters schema) forest
     augmentQuery rel = foldr addFilterToReadQuery query (getJoinFilters rel)
     addFilterToReadQuery flt rq@Select{where_=lf} = rq{where_=addFilterToLogicForest flt lf}::ReadQuery
+
+getJoinFilters :: Relation -> [Filter]
+getJoinFilters (Relation t cols ft fcs typ lt lc1 lc2) =
+  case typ of
+    Child  -> zipWith (toFilter tN ftN) cols fcs
+    Parent -> zipWith (toFilter tN ftN) cols fcs
+    Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
+    Root   -> undefined --error "undefined getJoinFilters"
+  where
+    s = if typ == Parent then "" else tableSchema t
+    tN = tableName t
+    ftN = tableName ft
+    ltN = fromMaybe "" (tableName <$> lt)
+    toFilter :: Text -> Text -> Column -> Column -> Filter
+    toFilter tb ftb c fc = Filter (colName c, Nothing) (OpExpr False (Join (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
