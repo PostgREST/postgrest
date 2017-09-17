@@ -1096,6 +1096,12 @@ CREATE FUNCTION getproject(id int) RETURNS SETOF projects
     SELECT * FROM test.projects WHERE id = $1;
 $_$;
 
+CREATE FUNCTION get_projects_below(id int) RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects WHERE id < $1;
+$_$;
+
 CREATE FUNCTION getallprojects() RETURNS SETOF projects
     LANGUAGE sql
     AS $_$

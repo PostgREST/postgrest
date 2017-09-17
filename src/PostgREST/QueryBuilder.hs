@@ -144,8 +144,8 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
 
 type ProcResults = (Maybe Int64, Int64, ByteString)
 callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
-  Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
-callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary binaryField =
+  Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
+callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql =
@@ -165,7 +165,7 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
        FROM ({selectQuery}) _postgrest_t;|]
 
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
-    _args = if paramsAsJson
+    _args = if paramsAsJson && not isReadOnly
                 then insertableValueWithType "json" $ JSON.Object params
                 else intercalate "," $ map _assignment (HM.toList params)
     _procName = qiName qi

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #887, #601, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
+- #328, Allow doing GET on rpc - @steve-chavez
 
 ### Fixed
 
