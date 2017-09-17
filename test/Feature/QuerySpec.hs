@@ -281,6 +281,39 @@ spec = do
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
 
+    it "requesting parent without specifying primary key" $ do
+      get "/projects?select=name,client{name}" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7","client":{"name": "Microsoft"}},
+          {"name":"Windows 10","client":{"name": "Microsoft"}},
+          {"name":"IOS","client":{"name": "Apple"}},
+          {"name":"OSX","client":{"name": "Apple"}},
+          {"name":"Orphan","client":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/articleStars?select=createdAt,article{owner},user{name}&limit=1" `shouldRespondWith`
+        [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "requesting parent and renaming primary key" $
+      get "/projects?select=name,client{clientId:id,name}" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7","client":{"name": "Microsoft", "clientId": 1}},
+          {"name":"Windows 10","client":{"name": "Microsoft", "clientId": 1}},
+          {"name":"IOS","client":{"name": "Apple", "clientId": 2}},
+          {"name":"OSX","client":{"name": "Apple", "clientId": 2}},
+          {"name":"Orphan","client":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "requesting parent and specifying/renaming one key of the composite primary key" $ do
+      get "/comments?select=*,users_tasks{userId:user_id}" `shouldRespondWith`
+        [json|[{"id":1,"commenter_id":1,"user_id":2,"task_id":6,"content":"Needs to be delivered ASAP","users_tasks":{"userId": 2}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/comments?select=*,users_tasks{taskId:task_id}" `shouldRespondWith`
+        [json|[{"id":1,"commenter_id":1,"user_id":2,"task_id":6,"content":"Needs to be delivered ASAP","users_tasks":{"taskId": 6}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
     it "embed data with two fk pointing to the same table" $
       get "/orders?id=eq.1&select=id, name, billing_address_id{id}, shipping_address_id{id}" `shouldRespondWith`
         [str|[{"id":1,"name":"order 1","billing_address_id":{"id":1},"shipping_address_id":{"id":2}}]|]

@@ -277,3 +277,6 @@ data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
 } deriving (Eq, Ord, Show)
+
+sourceCTEName :: SqlFragment
+sourceCTEName = "pg_source"
