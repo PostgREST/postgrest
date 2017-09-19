@@ -13,6 +13,7 @@ import Data.IORef
 import qualified Feature.AuthSpec
 import qualified Feature.AsymmetricJwtSpec
 import qualified Feature.BinaryJwtSecretSpec
+import qualified Feature.AudienceJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
@@ -40,14 +41,15 @@ main = do
 
   result <- P.use pool $ getDbStructure "test"
   refDbStructure <- newIORef $ Just $ either (panic.show) id result
-  let withApp                = return $ postgrest (testCfg testDbConn)          refDbStructure pool $ pure ()
-      ltdApp                 = return $ postgrest (testLtdRowsCfg testDbConn)   refDbStructure pool $ pure ()
-      unicodeApp             = return $ postgrest (testUnicodeCfg testDbConn)   refDbStructure pool $ pure ()
-      proxyApp               = return $ postgrest (testProxyCfg testDbConn)     refDbStructure pool $ pure ()
-      noJwtApp               = return $ postgrest (testCfgNoJWT testDbConn)     refDbStructure pool $ pure ()
-      binaryJwtApp           = return $ postgrest (testCfgBinaryJWT testDbConn) refDbStructure pool $ pure ()
-      asymJwkApp             = return $ postgrest (testCfgAsymJWK testDbConn)   refDbStructure pool $ pure ()
-      nonexistentSchemaApp   = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
+  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool $ pure ()
+      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool $ pure ()
+      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool $ pure ()
+      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool $ pure ()
+      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool $ pure ()
+      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool $ pure ()
+      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool $ pure ()
+      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool $ pure ()
+      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
 
   let reset = resetDb testDbConn
   hspec $ do
@@ -72,6 +74,10 @@ main = do
     -- this test runs with a binary JWT secret
     beforeAll_ reset . before binaryJwtApp $
       describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
+
+    -- this test runs with a binary JWT secret and an audience claim
+    beforeAll_ reset . before audJwtApp $
+      describe "Feature.AudienceJwtSecretSpec" Feature.AudienceJwtSecretSpec.spec
 
     -- this test runs with asymmetric JWK
     beforeAll_ reset . before asymJwkApp $

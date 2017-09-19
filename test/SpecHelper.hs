@@ -95,6 +95,13 @@ testCfgBinaryJWT testDbConn = (testCfg testDbConn) {
       "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU="
   }
 
+testCfgAudienceJWT :: Text -> AppConfig
+testCfgAudienceJWT testDbConn = (testCfg testDbConn) {
+    configJwtSecret = Just . B64.decodeLenient $
+      "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=",
+    configJwtAudience = "youraudience"
+  }
+
 testCfgAsymJWK :: Text -> AppConfig
 testCfgAsymJWK testDbConn = (testCfg testDbConn) {
     configJwtSecret = Just $ encodeUtf8
