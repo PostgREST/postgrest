@@ -176,10 +176,14 @@ operators = M.fromList [
 data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
 data Operation = Op Operator SingleVal |
                  In ListVal |
-                 Fts FtsMode (Maybe Language) SingleVal |
+                 Fts (Maybe FtsMode) (Maybe Language) SingleVal |
                  Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
 
-data FtsMode = Normal | Plain | Phrase deriving (Eq, Show)
+data FtsMode =  Plain | Phrase deriving Eq
+instance Show FtsMode where
+  show Plain  = "plain"
+  show Phrase = "phrase"
+
 type Language = Text
 -- | Represents a single value in a filter, e.g. id=eq.singleval
 type SingleVal = Text

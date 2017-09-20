@@ -1250,6 +1250,10 @@ $$ language sql;
 create function test.privileged_hello(name text) returns text as $$
   select 'Privileged hello to ' || $1;
 $$ language sql;
+
+create function test.get_tsearch() returns setof test.tsearch AS $$
+  SELECT * FROM test.tsearch;
+$$ language sql;
 --
 -- PostgreSQL database dump complete
 --

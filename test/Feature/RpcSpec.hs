@@ -286,3 +286,38 @@ spec =
         get "/rpc/get_projects_below?id=5&id=gt.2&select=id" `shouldRespondWith`
           [json|[{ "id": 3 }, { "id": 4 }]|]
           { matchHeaders = [matchContentTypeJson] }
+
+      it "should work with filters that have the not operator" $ do
+        get "/rpc/get_projects_below?id=5&id=not.gt.2&select=id" `shouldRespondWith`
+          [json|[{ "id": 1 }, { "id": 2 }]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_projects_below?id=5&id=not.in.(1,3)&select=id" `shouldRespondWith`
+          [json|[{ "id": 2 }, { "id": 4 }]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "should work with filters that use the plain/phrase with language fts operator" $ do
+        get "/rpc/get_tsearch?text_search_vector=english.fts.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=plain.fts.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=phrase.english.fts.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=not.english.fts.fun%7Crat" `shouldRespondWith`
+          [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        -- TODO: '@@' deprecated
+        get "/rpc/get_tsearch?text_search_vector=english.@@.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=plain.@@.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=phrase.english.@@.impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=not.english.@@.fun%7Crat" `shouldRespondWith`
+          [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
+          { matchHeaders = [matchContentTypeJson] }

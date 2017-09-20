@@ -39,7 +39,8 @@ import           PostgREST.Types           ( QualifiedIdentifier (..)
                                            , ContentType(..)
                                            , ApiRequestError(..)
                                            , toMime
-                                           , operators)
+                                           , operators
+                                           , FtsMode(..))
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
 import qualified Data.CaseInsensitive      as CI
 import           Web.Cookie                (parseCookiesText)
@@ -141,8 +142,16 @@ userApiRequest schema req reqBody
       ActionInvoke{isReadOnly=True} -> partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
       _ -> (flts, [])
   flts = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
-  hasOperator val = foldr ((||) . flip T.isPrefixOf val) False $ (<> ".") <$> M.keys operators
+  hasOperator val = foldr ((||) . flip T.isPrefixOf val) False ((<> ".") <$> (M.keys operators ++ ["not", show Plain, show Phrase]))
+                    || hasLanguageFts val
   isEmbedPath = T.isInfixOf "."
+  -- handle "?tsv=english.fts.possible" case
+  hasLanguageFts val = case T.splitOn "." val of
+    [_, "fts", _] -> True
+    [_, "fts"]    -> True
+    [_, "@@", _]  -> True -- TODO: '@@' deprecated
+    [_, "@@"]     -> True
+    _             -> False
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   payload =
     case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
