@@ -4,6 +4,7 @@ import           Protolude
 import qualified GHC.Show
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.CaseInsensitive as CI
 import qualified Data.HashMap.Strict  as M
 import           Data.Tree
 import qualified Data.Vector          as V
@@ -215,6 +216,22 @@ type NodeName = Text
 
 -- Rpc query param, only used for GET rpcs
 type RpcQParam = (Text, Text)
+
+{-|
+  Custom guc header, it's obtained by parsing the json in a:
+  `SET LOCAL "response.headers" = '[{"Set-Cookie": ".."}]'
+-}
+newtype GucHeader = GucHeader (Text, Text)
+
+instance FromJSON GucHeader where
+  parseJSON (Object o) = case headMay (M.toList o) of
+    Just (k, String s) | M.size o == 1 -> pure $ GucHeader (k, s)
+                       | otherwise     -> mzero
+    _ -> mzero
+  parseJSON _          = mzero
+
+toHeaders :: [GucHeader] -> [Header]
+toHeaders = map $ \(GucHeader (k, v)) -> (CI.mk $ toS k, toS v)
 
 {-|
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.

@@ -1306,6 +1306,32 @@ begin
   raise sqlstate 'PT40A' using message = 'Wrong';
 end;
 $$ language plpgsql;
+
+create or replace function test.get_projects_and_guc_headers() returns setof test.projects as $$
+  set local "response.headers" = '[{"X-Test": "key1=val1; someValue; key2=val2"}, {"X-Test-2": "key1=val1"}]';
+  select * from test.projects;
+$$ language sql;
+
+create or replace function test.get_int_and_guc_headers(num int) returns integer as $$
+  set local "response.headers" = '[{"X-Test":"key1=val1; someValue; key2=val2"},{"X-Test-2":"key1=val1"}]';
+  select num;
+$$ language sql;
+
+create or replace function test.bad_guc_headers_1() returns void as $$
+  set local "response.headers" = '{"X-Test": "invalid structure for headers"}';
+$$ language sql;
+
+create or replace function test.bad_guc_headers_2() returns void as $$
+  set local "response.headers" = '["invalid", "structure", "for", "headers"]';
+$$ language sql;
+
+create or replace function test.bad_guc_headers_3() returns void as $$
+  set local "response.headers" = '{"X-Test": "invalid", "X-Test-2": "structure", "X-Test-3": "for headers"}';
+$$ language sql;
+
+create or replace function test.set_cookie_twice() returns void as $$
+  set local "response.headers" = '[{"Set-Cookie": "sessionid=38afes7a8; HttpOnly; Path=/"}, {"Set-Cookie": "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"}]';
+$$ language sql;
 --
 -- PostgreSQL database dump complete
 --

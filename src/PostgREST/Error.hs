@@ -10,6 +10,7 @@ module PostgREST.Error (
 , binaryFieldError
 , connectionLostError
 , encodeError
+, gucHeadersError
 ) where
 
 import           Protolude
@@ -78,6 +79,11 @@ binaryFieldError :: Response
 binaryFieldError =
   simpleError HT.status406 [] (toS (toMime CTOctetStream) <>
   " requested but a single column was not selected")
+
+gucHeadersError :: Response
+gucHeadersError =
+ simpleError HT.status500 []
+ "response.headers guc must be a JSON array composed of objects with a single key and a string value"
 
 connectionLostError :: Response
 connectionLostError =
