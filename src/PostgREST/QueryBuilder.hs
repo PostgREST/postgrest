@@ -142,10 +142,10 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF
 
-type ProcResults = (Maybe Int64, Int64, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> NonnegRange ->
+type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
+callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery ->
   Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
-callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField =
+callProc qi params returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql =
@@ -154,14 +154,16 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
        SELECT
          {countResultF} AS total_result_set,
          1 AS page_total,
-         {scalarBodyF} as body
+         {scalarBodyF} AS body,
+         {responseHeaders} AS headers
        FROM ({selectQuery}) _postgrest_t;|]
      else [qc|
        WITH {sourceCTEName} AS (select * from {fromQi qi}({_args}))
        SELECT
          {countResultF} AS total_result_set,
          pg_catalog.count(_postgrest_t) AS page_total,
-         {bodyF} as body
+         {bodyF} AS body,
+         {responseHeaders} AS headers
        FROM ({selectQuery}) _postgrest_t;|]
 
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
@@ -170,9 +172,10 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
                 else intercalate "," $ map _assignment (HM.toList params)
     _procName = qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
+    responseHeaders = "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
     decodeProc = HD.maybeRow procRow
-    procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                   <*> HD.value HD.bytea
+    procRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
+                    <*> HD.value HD.bytea <*> HD.value HD.bytea
     scalarBodyF
      | asBinary = asBinaryF _procName
      | otherwise = "(row_to_json(_postgrest_t)->" <> pgFmtLit _procName <> ")::character varying"

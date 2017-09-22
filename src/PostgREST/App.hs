@@ -6,7 +6,7 @@ module PostgREST.App (
 ) where
 
 import           Control.Applicative
-import           Data.Aeson                (toJSON)
+import           Data.Aeson                (toJSON, eitherDecode)
 import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
@@ -44,7 +44,7 @@ import           PostgREST.DbRequestBuilder( readRequest
 import           PostgREST.Error           ( simpleError, pgError
                                            , apiRequestError
                                            , singularityError, binaryFieldError
-                                           , connectionLostError
+                                           , connectionLostError, gucHeadersError
                                            )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
@@ -248,18 +248,22 @@ app dbStructure conf apiRequest =
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
               row <- H.query () $
-                callProc qi prms returnsScalar q cq topLevelRange shouldCount
+                callProc qi prms returnsScalar q cq shouldCount
                          singular paramsAsSingleObject
                          (contentType == CTTextCSV)
                          (contentType == CTOctetStream) _isReadOnly bField
-              let (tableTotal, queryTotal, body) =
-                    fromMaybe (Just 0, 0, "[]") row
+              let (tableTotal, queryTotal, body, jsonHeaders) =
+                    fromMaybe (Just 0, 0, "[]", "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
-              if singular && queryTotal /= 1
-                then do
-                  HT.condemn
-                  return $ singularityError (toInteger queryTotal)
-                else return $ responseLBS status [toHeader contentType, contentRange] (toS body)
+                  decodedHeaders = first toS $ eitherDecode $ toS jsonHeaders :: Either Text [GucHeader]
+              case decodedHeaders of
+                Left _ -> return gucHeadersError
+                Right hs ->
+                  if singular && queryTotal /= 1
+                    then do
+                      HT.condemn
+                      return $ singularityError (toInteger queryTotal)
+                    else return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs) (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf

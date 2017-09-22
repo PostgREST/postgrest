@@ -286,6 +286,41 @@ spec =
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
       get "/rpc/raise_bad_pt" `shouldRespondWith` 500
 
+    context "GUC headers" $ do
+      it "succeeds setting the headers" $ do
+        get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
+          `shouldRespondWith` [json|[{"id": 2}]|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        get "/rpc/get_int_and_guc_headers?num=1"
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+
+      it "fails when setting headers with wrong json structure" $ do
+        get "/rpc/bad_guc_headers_1" `shouldRespondWith` 500
+        get "/rpc/bad_guc_headers_2" `shouldRespondWith` 500
+        get "/rpc/bad_guc_headers_3" `shouldRespondWith` 500
+        post "/rpc/bad_guc_headers_1" [json|{}|] `shouldRespondWith` 500
+
+      it "can set the same http header twice" $
+        get "/rpc/set_cookie_twice"
+          `shouldRespondWith` "null"
+          {matchHeaders = [
+              matchContentTypeJson,
+              "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/",
+              "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"]}
+
     context "only for POST rpc" $ do
       context "expects a single json object" $ do
         it "does not expand posted json into parameters" $
