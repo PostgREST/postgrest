@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #907, Ability to embed using a specific relation when there are multiple between tables - @ruslantalpa
 - #930, Split table comment on newline to get OpenAPI operation summary and description - @daurnimator
 - #938, Support for range operators - @russelldavies
+- #955, Support configurable aud claim - @statik
 
 ### Fixed
 
