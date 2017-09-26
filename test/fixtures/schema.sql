@@ -1292,6 +1292,20 @@ $$ language sql;
 create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bool DEFAULT true) AS $$
   select num, str, b;
 $$ language sql;
+
+create or replace function test.raise_pt402() returns void as $$
+begin
+  raise sqlstate 'PT402' using message = 'Payment Required',
+                               detail = 'Quota exceeded',
+                               hint = 'Upgrade your plan';
+end;
+$$ language plpgsql;
+
+create or replace function test.raise_bad_pt() returns void as $$
+begin
+  raise sqlstate 'PT40A' using message = 'Wrong';
+end;
+$$ language plpgsql;
 --
 -- PostgreSQL database dump complete
 --

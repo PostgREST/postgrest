@@ -276,6 +276,16 @@ spec =
         get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
           [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
 
+    it "can map a RAISE error code and message to a http status" $
+      get "/rpc/raise_pt402"
+        `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded" }|]
+        { matchStatus  = 402
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "defaults to status 500 if RAISE code is PT not followed by a number" $
+      get "/rpc/raise_bad_pt" `shouldRespondWith` 500
+
     context "only for POST rpc" $ do
       context "expects a single json object" $ do
         it "does not expand posted json into parameters" $
