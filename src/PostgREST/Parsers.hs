@@ -146,7 +146,7 @@ pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOper
       <|> pFts
       <?> "operator (eq, gt, ...)"
     pFts = do
-      mode <- optionMaybe $
+      mode <- option Normal $
               try (string (show Phrase) *> pDelimiter *> pure Phrase)
           <|> try (string (show Plain) *> pDelimiter *> pure Plain)
 

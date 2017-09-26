@@ -429,9 +429,9 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
 
    Fts mode lang val ->
      pgFmtFieldOp "fts" <> " " <> case mode of
-       Just Plain  -> "plainto_tsquery("
-       Just Phrase -> "phraseto_tsquery("
-       Nothing     -> "to_tsquery("
+       Normal -> "to_tsquery("
+       Plain  -> "plainto_tsquery("
+       Phrase -> "phraseto_tsquery("
      <> maybe "" (flip (<>) ", " . pgFmtLit) lang <> unknownLiteral val <> ") "
 
    Join fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
