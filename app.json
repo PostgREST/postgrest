@@ -43,6 +43,10 @@
       "required": false,
       "value": "false"
     },
+    "JWT_AUD": {
+      "description": "The audience that should be validated if the JWT token contains an aud claim",
+      "required": false
+    },
     "MAX_ROWS": {
       "description": "A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure",
       "required": false

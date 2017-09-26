@@ -76,7 +76,7 @@ postgrest conf refDbStructure pool worker =
         response <- case userApiRequest (configSchema conf) req body of
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
-            eClaims <- jwtClaims jwtSecret (toS $ iJWT apiRequest)
+            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest)
 
             let authed = containsRole eClaims
                 handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
