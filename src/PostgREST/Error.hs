@@ -22,6 +22,7 @@ import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.Types
+import           Text.Read                 (readMaybe)
 
 apiRequestError :: ApiRequestError -> Response
 apiRequestError err =
@@ -109,11 +110,17 @@ instance JSON.ToJSON P.UsageError where
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.Error where
-  toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
-    "code" .= (toS c::Text),
-    "message" .= (toS m::Text),
-    "details" .= (fmap toS d::Maybe Text),
-    "hint" .= (fmap toS h::Maybe Text)]
+  toJSON (H.ResultError (H.ServerError c m d h)) = case toS c of
+    'P':'T':_ ->
+      JSON.object [
+        "details" .= (fmap toS d::Maybe Text),
+        "hint" .= (fmap toS h::Maybe Text)]
+    _ ->
+      JSON.object [
+        "code" .= (toS c::Text),
+        "message" .= (toS m::Text),
+        "details" .= (fmap toS d::Maybe Text),
+        "hint" .= (fmap toS h::Maybe Text)]
   toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
     "message" .= (m::Text)]
   toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
@@ -138,7 +145,7 @@ instance JSON.ToJSON H.Error where
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
 httpStatus _ (P.ConnectionError _) = HT.status503
-httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
+httpStatus authed (P.SessionError (H.ResultError (H.ServerError c m _ _))) =
   case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
@@ -166,6 +173,7 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c _ _ _))) =
     "42883"   -> HT.status404 -- undefined function
     "42P01"   -> HT.status404 -- undefined table
     "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
+    'P':'T':n -> fromMaybe HT.status500 (HT.mkStatus <$> readMaybe n <*> pure m)
     _         -> HT.status400
 httpStatus _ (P.SessionError (H.ResultError _)) = HT.status500
 httpStatus _ (P.SessionError (H.ClientError _)) = HT.status503
