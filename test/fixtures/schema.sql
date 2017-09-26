@@ -1247,6 +1247,9 @@ create function test.test() returns table(test text, value int) as $$
   values ('hello', 1);
 $$ language sql;
 
+create function test.privileged_hello(name text) returns text as $$
+  select 'Privileged hello to ' || $1;
+$$ language sql;
 --
 -- PostgreSQL database dump complete
 --

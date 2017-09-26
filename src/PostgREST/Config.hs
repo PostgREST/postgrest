@@ -14,6 +14,7 @@ turned in configurable behaviour if needed.
 Other hardcoded options such as the minimum version number also belong here.
 -}
 module PostgREST.Config ( prettyVersion
+                        , docsVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
@@ -33,7 +34,7 @@ import           Data.Configurator.Types     (Value(..))
 import           Data.List                   (lookup)
 import           Data.Monoid
 import           Data.Scientific             (floatingOrInteger)
-import           Data.Text                   (strip, intercalate, lines)
+import           Data.Text                   (strip, intercalate, lines, dropAround)
 import           Data.Text.Encoding          (encodeUtf8)
 import           Data.Text.IO                (hPutStrLn)
 import           Data.Version                (versionBranch)
@@ -91,6 +92,10 @@ corsPolicy req = case lookup "origin" headers of
 -- | User friendly version number
 prettyVersion :: Text
 prettyVersion = intercalate "." $ map show $ versionBranch version
+
+-- | Version number used in docs
+docsVersion :: Text
+docsVersion = "v" <> dropAround (== '.') (dropAround (/= '.') prettyVersion)
 
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig

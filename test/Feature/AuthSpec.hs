@@ -1,6 +1,5 @@
 module Feature.AuthSpec where
 
--- {{{ Imports
 import Text.Heredoc
 import Test.Hspec
 import Test.Hspec.Wai
@@ -11,7 +10,6 @@ import SpecHelper
 import Network.Wai (Application)
 
 import Protolude hiding (get)
--- }}}
 
 spec :: SpecWith Application
 spec = describe "authorization" $ do
@@ -37,6 +35,17 @@ spec = describe "authorization" $ do
           "message":"permission denied for relation private_table"} |]
       { matchStatus = 403
       , matchHeaders = []
+      }
+
+  it "denies execution on functions that anonymous does not own" $
+    post "/rpc/privileged_hello" [json|{"name": "anonymous"}|] `shouldRespondWith` 401
+
+  it "allows execution on a function that postgrest_test_author owns" $
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA" in
+    request methodPost "/rpc/privileged_hello" [auth] [json|{"name": "jdoe"}|]
+      `shouldRespondWith` [json|"Privileged hello to jdoe"|]
+      { matchStatus = 200
+      , matchHeaders = [matchContentTypeJson]
       }
 
   it "returns jwt functions as jwt tokens" $
