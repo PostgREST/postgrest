@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #933, OpenAPI externals docs url to current version - @steve-chavez
 - #962, OpenAPI don't err on nonexistent schema - @steve-chavez
 - #954, make OpenAPI rpc output dependent on user privileges - @steve-chavez
+- #955, Support configurable aud claim - @statik
 
 ## [0.4.3.0] - 2017-09-06
 
@@ -28,7 +29,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #907, Ability to embed using a specific relation when there are multiple between tables - @ruslantalpa
 - #930, Split table comment on newline to get OpenAPI operation summary and description - @daurnimator
 - #938, Support for range operators - @russelldavies
-- #955, Support configurable aud claim - @statik
 
 ### Fixed
 
