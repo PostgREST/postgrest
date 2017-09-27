@@ -232,10 +232,7 @@ main = do
          refIsWorkerOn)
 
 chomp :: ByteString -> ByteString
-chomp bs =
-  case BS.stripSuffix "\n" bs of
-    Nothing -> bs
-    Just rest -> rest
+chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
 
 {-|
   The purpose of this function is to load the JWT secret from a file if
@@ -276,7 +273,7 @@ loadSecretFile conf = extractAndTransform mSecret
     --
     -- Turns the Base64url encoded JWT into Base64
     transformString :: Bool -> ByteString -> IO ByteString
-    transformString False t = return $ t
+    transformString False t = return t
     transformString True t =
       case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 t of
         Left errMsg -> panic $ pack errMsg
