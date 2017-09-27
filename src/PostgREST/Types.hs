@@ -179,8 +179,13 @@ data Operation = Op Operator SingleVal |
                  Fts FtsMode (Maybe Language) SingleVal |
                  Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
 
-data FtsMode = Normal | Plain | Phrase deriving (Eq, Show)
+data FtsMode =  Normal | Plain | Phrase deriving Eq
+instance Show FtsMode where
+  show Normal = mzero
+  show Plain  = "plain"
+  show Phrase = "phrase"
 type Language = Text
+
 -- | Represents a single value in a filter, e.g. id=eq.singleval
 type SingleVal = Text
 -- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)

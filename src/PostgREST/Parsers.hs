@@ -147,8 +147,8 @@ pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOper
       <?> "operator (eq, gt, ...)"
     pFts = do
       mode <- option Normal $
-              try (string "phrase" *> pDelimiter *> pure Phrase)
-          <|> try (string "plain" *> pDelimiter *> pure Plain)
+              try (string (show Phrase) *> pDelimiter *> pure Phrase)
+          <|> try (string (show Plain) *> pDelimiter *> pure Plain)
 
       lang <- try (Just <$> manyTill (letter <|> digit <|> oneOf "_") (try (string ".fts") <|> try (string ".@@")) <* pDelimiter) -- TODO: '@@' deprecated
           <|> try (string "fts" *> pDelimiter) *> pure Nothing
