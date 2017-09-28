@@ -231,9 +231,6 @@ main = do
          refDbStructure
          refIsWorkerOn)
 
-chomp :: ByteString -> ByteString
-chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
-
 {-|
   The purpose of this function is to load the JWT secret from a file if
   configJwtSecret is actually a filepath and replaces some characters if the JWT
@@ -270,6 +267,8 @@ loadSecretFile conf = extractAndTransform mSecret
       case stripPrefix "@" secret of
         Nothing       -> return . encodeUtf8 $ secret
         Just filename -> chomp <$> BS.readFile (toS filename)
+      where
+        chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
     --
     -- Turns the Base64url encoded JWT into Base64
     transformString :: Bool -> ByteString -> IO ByteString
