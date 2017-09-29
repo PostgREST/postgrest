@@ -116,20 +116,12 @@ spec = do
           [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "finds matches with phraseto_tsquery" $
-        get "/tsearch?text_search_vector=phrase.fts.The%20Fat%20Cats" `shouldRespondWith`
-          [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-
       it "finds matches with different dictionaries" $ do
         get "/tsearch?text_search_vector=french.fts.amusant" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
         get "/tsearch?text_search_vector=plain.french.fts.amusant%20impossible" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=phrase.german.fts.Art%20Spass" `shouldRespondWith`
-          [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "can be negated with not operator" $ do
@@ -150,13 +142,6 @@ spec = do
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.phrase.english.fts.The%20Fat%20Cats" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
 
       -- TODO: remove in 0.5.0 as deprecated
       it "Deprecated @@ operator, pending to remove" $ do
@@ -165,9 +150,6 @@ spec = do
           { matchHeaders = [matchContentTypeJson] }
         get "/tsearch?text_search_vector=plain.@@.The%20Fat%20Rats" `shouldRespondWith`
           [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=phrase.@@.The%20Fat%20Cats" `shouldRespondWith`
-          [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
         get "/tsearch?text_search_vector=not.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
           [json| [
@@ -180,13 +162,6 @@ spec = do
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
         get "/tsearch?text_search_vector=not.plain.@@.The%20Fat%20Rats" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.phrase.english.@@.The%20Fat%20Cats" `shouldRespondWith`
           [json| [
             {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
             {"text_search_vector": "'also':2 'fun':3 'possibl':8"},

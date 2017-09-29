@@ -119,6 +119,7 @@ Test-Suite spec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
                      , Feature.NoJwtSpec
+                     , Feature.PgVersion96Spec
                      , Feature.ProxySpec
                      , Feature.QueryLimitedSpec
                      , Feature.QuerySpec

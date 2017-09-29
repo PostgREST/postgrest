@@ -19,11 +19,12 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
-                        , PgVersion (..)
+                        , pgVersion96
                         , AppConfig (..)
                         )
        where
 
+import           PostgREST.Types             (PgVersion(..))
 import           Control.Applicative
 import           Control.Monad                (fail)
 import           Control.Lens                 (preview)
@@ -211,11 +212,9 @@ pathParser =
     metavar "FILENAME" <>
     help "Path to configuration file"
 
-data PgVersion = PgVersion {
-  pgvNum  :: Int32
-, pgvName :: Text
-}
-
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
 minimumPgVersion = PgVersion 90300 "9.3"
+
+pgVersion96 :: PgVersion
+pgVersion96 = PgVersion 90600 "9.6"

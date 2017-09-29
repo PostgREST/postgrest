@@ -5,13 +5,12 @@ module Main where
 
 import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
-                                           PgVersion (..),
                                            minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
-import           PostgREST.Types          (DbStructure, Schema)
+import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
 import           Protolude                hiding (hPutStrLn, replace)
 
 import           Control.Retry            (RetryStatus, capDelay,
@@ -25,10 +24,7 @@ import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn)
-import qualified Hasql.Decoders           as HD
-import qualified Hasql.Encoders           as HE
 import qualified Hasql.Pool               as P
-import qualified Hasql.Query              as H
 import qualified Hasql.Session            as H
 import           Network.Wai.Handler.Warp (defaultSettings,
                                            runSettings, setHost,
@@ -39,19 +35,6 @@ import           System.IO                (BufferMode (..),
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
-
-{-|
-	Used by connectionWorker to know if it should throw an error and kill the
-  main thread.
--}
-isServerVersionSupported :: H.Session Bool
-isServerVersionSupported = do
-  ver <- H.query () pgVersion
-  return $ ver >= pgvNum minimumPgVersion
- where
-  pgVersion =
-    H.statement "SELECT current_setting('server_version_num')::integer"
-      HE.unit (HD.singleRow $ HD.value HD.int4) False
 
 {-|
   The purpose of this worker is to fill the refDbStructure created in 'main'
@@ -72,7 +55,7 @@ isServerVersionSupported = do
      goes back to 1, otherwise it finishes his work successfully.
 -}
 connectionWorker
-  :: ThreadId -- ^ This thread is killed if 'isServerVersionSupported' returns false
+  :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
@@ -90,13 +73,13 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
       connected <- connectingSucceeded pool
       when connected $ do
         result <- P.use pool $ do
-          supported <- isServerVersionSupported
-          unless supported $ liftIO $ do
+          actualPgVersion <- getPgVersion
+          unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
             hPutStrLn stderr
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
-          dbStructure <- getDbStructure schema
+          dbStructure <- getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
           Left e -> do
@@ -106,7 +89,6 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
           Right _ -> do
             atomicWriteIORef refIsWorkerOn False
             putStrLn ("Connection successful" :: Text)
-
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
