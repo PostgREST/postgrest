@@ -77,6 +77,7 @@ server-host       String  \*4
 server-port       Int     3000
 server-proxy-uri  String
 jwt-secret        String
+jwt-aud           String
 secret-is-base64  Bool    False
 max-rows          Int     ∞
 pre-request       String
@@ -121,7 +122,9 @@ server-proxy-uri
   }
 
 jwt-secret
-  The secret used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded.
+  The secret or `JSON Web Key (JWK) <https://tools.ietf.org/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded.
+jwt-aud
+  Specifies the `JWT audience claim <https://tools.ietf.org/html/rfc7519#section-4.1.3>`_. If this claim is present in the client provided JWT then you must set this to the same value as in the JWT, otherwise verifying the JWT will fail.
 secret-is-base64
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 max-rows
