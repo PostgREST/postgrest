@@ -31,6 +31,7 @@ import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
 
+import           PostgREST.Config        (pgVersion96)
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
 import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
@@ -143,9 +144,9 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery ->
-  Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> H.Query () (Maybe ProcResults)
-callProc qi params returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField =
+callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> Bool ->
+  Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> H.Query () (Maybe ProcResults)
+callProc qi params returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField pgVer =
   unicodeStatement sql HE.unit decodeProc True
   where
     sql =
@@ -155,7 +156,7 @@ callProc qi params returnsScalar selectQuery countQuery countTotal isSingle para
          {countResultF} AS total_result_set,
          1 AS page_total,
          {scalarBodyF} AS body,
-         {responseHeaders} AS headers
+         {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
      else [qc|
        WITH {sourceCTEName} AS (select * from {fromQi qi}({_args}))
@@ -163,7 +164,7 @@ callProc qi params returnsScalar selectQuery countQuery countTotal isSingle para
          {countResultF} AS total_result_set,
          pg_catalog.count(_postgrest_t) AS page_total,
          {bodyF} AS body,
-         {responseHeaders} AS headers
+         {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
 
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
@@ -172,7 +173,10 @@ callProc qi params returnsScalar selectQuery countQuery countTotal isSingle para
                 else intercalate "," $ map _assignment (HM.toList params)
     _procName = qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    responseHeaders = "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
+    responseHeaders =
+      if pgVer >= pgVersion96
+        then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
+        else "'[]'" :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                     <*> HD.value HD.bytea <*> HD.value HD.bytea

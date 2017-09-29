@@ -8,6 +8,7 @@ module PostgREST.DbStructure (
 , accessibleTables
 , accessibleProcs
 , schemaDescription
+, getPgVersion
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -29,8 +30,8 @@ import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
 
-getDbStructure :: Schema -> H.Session DbStructure
-getDbStructure schema = do
+getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
+getDbStructure schema pgVer = do
   tabs <- H.query () allTables
   cols <- H.query () $ allColumns tabs
   syns <- H.query () $ allSynonyms cols
@@ -48,6 +49,7 @@ getDbStructure schema = do
     , dbRelations = rels'
     , dbPrimaryKeys = keys'
     , dbProcs = procs
+    , pgVersion = pgVer
     }
 
 decodeTables :: HD.Result [Table]
@@ -706,3 +708,9 @@ synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
     col1 = findCol s1 t1 c1
     col2 = findCol s2 t2 c2
     findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
+
+getPgVersion :: H.Session PgVersion
+getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
+  where
+    sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
+    versionRow = HD.singleRow $ PgVersion <$> HD.value HD.int4 <*> HD.value HD.text

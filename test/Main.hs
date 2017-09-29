@@ -5,8 +5,10 @@ import SpecHelper
 
 import qualified Hasql.Pool as P
 
-import PostgREST.DbStructure (getDbStructure)
 import PostgREST.App (postgrest)
+import PostgREST.Config (pgVersion96)
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Types (DbStructure(..))
 import Data.Function (id)
 import Data.IORef
 
@@ -29,6 +31,7 @@ import qualified Feature.ProxySpec
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.RpcSpec
 import qualified Feature.NonexistentSchemaSpec
+import qualified Feature.PgVersion96Spec
 
 import Protolude
 
@@ -39,8 +42,12 @@ main = do
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
-  result <- P.use pool $ getDbStructure "test"
-  refDbStructure <- newIORef $ Just $ either (panic.show) id result
+  result <- P.use pool $ getDbStructure "test" =<< getPgVersion
+
+  dbStructure <- pure $ either (panic.show) id result
+
+  refDbStructure <- newIORef $ Just dbStructure
+
   let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool $ pure ()
       ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool $ pure ()
       unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool $ pure ()
@@ -52,6 +59,25 @@ main = do
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
 
   let reset = resetDb testDbConn
+      actualPgVersion = pgVersion dbStructure
+      pg96spec | actualPgVersion >= pgVersion96 = [("Feature.PgVersion96Spec"  , Feature.PgVersion96Spec.spec)]
+               | otherwise = []
+
+      specs = uncurry describe <$> [
+          ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
+        , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
+        , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
+        , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
+        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
+        , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
+        , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
+        , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
+        , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
+        , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
+        , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
+        , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
+        ] ++ pg96spec
+
   hspec $ do
     mapM_ (beforeAll_ reset . before withApp) specs
 
@@ -86,19 +112,3 @@ main = do
     -- this test runs with a nonexistent db-schema
     beforeAll_ reset . before nonexistentSchemaApp $
       describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
-
- where
-  specs = map (uncurry describe) [
-      ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
-    , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
-    , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
-    , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
-    , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
-    , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
-    , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
-    , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
-    , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
-    , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
-    , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
-    , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
-    ]

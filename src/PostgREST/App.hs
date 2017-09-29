@@ -84,11 +84,8 @@ postgrest conf refDbStructure pool worker =
                   (iTarget apiRequest) (iAction apiRequest)
             response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
             return $ either (pgError authed) identity response
-        when (isResponse503 response) worker
+        when (responseStatus response == status503) worker
         respond response
-
-isResponse503 :: Response -> Bool
-isResponse503 resp = statusCode (responseStatus resp) == 503
 
 transactionMode :: DbStructure -> Target -> Action -> H.Mode
 transactionMode structure target action =
@@ -252,6 +249,7 @@ app dbStructure conf apiRequest =
                          singular paramsAsSingleObject
                          (contentType == CTTextCSV)
                          (contentType == CTOctetStream) _isReadOnly bField
+                         (pgVersion dbStructure)
               let (tableTotal, queryTotal, body, jsonHeaders) =
                     fromMaybe (Just 0, 0, "[]", "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal

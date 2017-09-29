@@ -31,6 +31,7 @@ data DbStructure = DbStructure {
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
 , dbProcs       :: M.HashMap Text ProcDescription
+, pgVersion     :: PgVersion
 } deriving (Show, Eq)
 
 data PgArg = PgArg {
@@ -271,3 +272,8 @@ toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTOctetStream     = "application/octet-stream"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
+
+data PgVersion = PgVersion {
+  pgvNum  :: Int32
+, pgvName :: Text
+} deriving (Eq, Ord, Show)
