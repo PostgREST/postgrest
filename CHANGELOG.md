@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #876, Read secret files as binary, discard final LF if any - @eric-brechemier
 - #968, Treat blank proxy uri as missing - @begriffs
 - #933, OpenAPI externals docs url to current version - @steve-chavez
 - #962, OpenAPI don't err on nonexistent schema - @steve-chavez

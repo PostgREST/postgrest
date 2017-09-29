@@ -93,13 +93,13 @@ totalTests=12
 echo "1..$totalTests"
 
 readSecretFromFile word.noeol 'simple (no EOL)'
-skip readSecretFromFile word.txt 'simple'
+readSecretFromFile word.txt 'simple'
 readSecretFromFile ascii.noeol 'ASCII (no EOL)'
-skip readSecretFromFile ascii.txt 'ASCII'
+readSecretFromFile ascii.txt 'ASCII'
 readSecretFromFile utf8.noeol 'UTF-8 (no EOL)'
-skip readSecretFromFile utf8.txt 'UTF-8'
-skip readSecretFromFile binary.noeol 'binary'
-skip readSecretFromFile binary.eol 'binary (+EOL)'
+readSecretFromFile utf8.txt 'UTF-8'
+readSecretFromFile binary.noeol 'binary'
+readSecretFromFile binary.eol 'binary (+EOL)'
 
 readSecretFromFile word.b64 'Base64 (simple)'
 readSecretFromFile ascii.b64 'Base64 (ASCII)'

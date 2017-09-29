@@ -16,13 +16,14 @@ import           Protolude hiding         (replace, hPutStrLn)
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
                                            retrying, rsPreviousDelay)
-import           Data.ByteString.Base64   (decode)
 import           Data.IORef               (IORef, atomicWriteIORef,
                                            newIORef, readIORef)
 import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
-import           Data.Text.IO             (hPutStrLn, readFile)
+import           Data.Text.IO             (hPutStrLn)
+import qualified Data.ByteString.Base64   as B64
+import qualified Data.ByteString          as BS
 import qualified Hasql.Decoders           as HD
 import qualified Hasql.Encoders           as HE
 import qualified Hasql.Pool               as P
@@ -264,14 +265,16 @@ loadSecretFile conf = extractAndTransform mSecret
       fmap setSecret $
       transformString isB64 =<<
       case stripPrefix "@" secret of
-        Nothing       -> return secret
-        Just filename -> readFile (toS filename)
+        Nothing       -> return . encodeUtf8 $ secret
+        Just filename -> chomp <$> BS.readFile (toS filename)
+      where
+        chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
     --
     -- Turns the Base64url encoded JWT into Base64
-    transformString :: Bool -> Text -> IO ByteString
-    transformString False t = return . encodeUtf8 $ t
+    transformString :: Bool -> ByteString -> IO ByteString
+    transformString False t = return t
     transformString True t =
-      case decode (encodeUtf8 $ strip $ replaceUrlChars t) of
+      case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 t of
         Left errMsg -> panic $ pack errMsg
         Right bs    -> return bs
     setSecret bs = conf {configJwtSecret = Just bs}
