@@ -245,7 +245,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
+           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>".*))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
@@ -262,7 +262,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
-           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>"))) "
+           <> "SELECT array_to_json(array_agg(row_to_json("<>pgFmtIdent table<>".*))) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
