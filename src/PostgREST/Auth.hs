@@ -42,20 +42,19 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> Text -> BL.ByteString  -> IO JWTAttempt
+jwtClaims :: Maybe JWK -> StringOrURI -> BL.ByteString  -> IO JWTAttempt
 jwtClaims _ "" "" = return $ JWTClaims M.empty
 jwtClaims secret audience payload =
   case secret of
     Nothing -> return JWTMissingSecret
-    Just jwk -> do
-      let validation = set audiencePredicate (==  fromString audience) defaultJWTValidationSettings
+    Just k -> do
+      let validation = defaultJWTValidationSettings (== audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
-        validateJWSJWT validation jwk jwt
-        return jwt
+        verifyClaims validation k jwt
       return $ case eJwt of
         Left e -> JWTInvalid e
-        Right jwt -> JWTClaims . claims2map . jwtClaimsSet $ jwt
+        Right jwt -> JWTClaims . claims2map $ jwt
 
 {-|
   Whether a response from jwtClaims contains a role claim
@@ -89,4 +88,4 @@ hs256jwk key =
     & jwkUse .~ Just Sig
     & jwkAlg .~ (Just $ JWSAlg HS256)
  where
-  km = OctKeyMaterial (OctKeyParameters Oct (Base64Octets key))
+  km = OctKeyMaterial (OctKeyParameters (Base64Octets key))

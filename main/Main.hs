@@ -2,6 +2,7 @@
 
 module Main where
 
+
 import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
                                            PgVersion (..),
@@ -11,19 +12,19 @@ import           PostgREST.DbStructure    (getDbStructure)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema)
-import           Protolude hiding         (replace, hPutStrLn)
+import           Protolude                hiding (hPutStrLn, replace)
 
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
                                            retrying, rsPreviousDelay)
+import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Base64   as B64
 import           Data.IORef               (IORef, atomicWriteIORef,
                                            newIORef, readIORef)
 import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn)
-import qualified Data.ByteString.Base64   as B64
-import qualified Data.ByteString          as BS
 import qualified Hasql.Decoders           as HD
 import qualified Hasql.Encoders           as HE
 import qualified Hasql.Pool               as P

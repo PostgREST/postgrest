@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
@@ -23,30 +24,37 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import           System.IO.Error             (IOError)
 import           Control.Applicative
-import qualified Data.ByteString             as B
-import qualified Data.ByteString.Char8       as BS
-import qualified Data.CaseInsensitive        as CI
-import qualified Data.Configurator           as C
-import qualified Data.Configurator.Parser    as C
-import           Data.Configurator.Types     (Value(..))
-import           Data.List                   (lookup)
+import           Control.Lens                 (preview)
+import           Control.Monad                (fail)
+import           Crypto.JWT                   (StringOrURI,
+                                               stringOrUri)
+import qualified Data.ByteString              as B
+import qualified Data.ByteString.Char8        as BS
+import qualified Data.CaseInsensitive         as CI
+import qualified Data.Configurator            as C
+import qualified Data.Configurator.Parser     as C
+import           Data.Configurator.Types      as C
+import           Data.List                    (lookup)
 import           Data.Monoid
-import           Data.Scientific             (floatingOrInteger)
-import           Data.Text                   (strip, intercalate, lines, dropAround)
-import           Data.Text.Encoding          (encodeUtf8)
-import           Data.Text.IO                (hPutStrLn)
-import           Data.Version                (versionBranch)
+import           Data.Scientific              (floatingOrInteger)
+import           Data.Text                    (dropAround,
+                                               intercalate, lines,
+                                               strip)
+import           Data.Text.Encoding           (encodeUtf8)
+import           Data.Text.IO                 (hPutStrLn)
+import           Data.Version                 (versionBranch)
 import           Network.Wai
-import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import           Options.Applicative hiding  (str)
-import           Paths_postgrest             (version)
-import           System.IO                   (hPrint)
+import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
+import           Options.Applicative          hiding (str)
+import           Paths_postgrest              (version)
+import           Protolude                    hiding (hPutStrLn,
+                                               intercalate, (<>))
+import           System.IO                    (hPrint)
+import           System.IO.Error              (IOError)
 import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
-import           Protolude hiding            (intercalate, (<>), hPutStrLn)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -59,7 +67,7 @@ data AppConfig = AppConfig {
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
-  , configJwtAudience       :: Text
+  , configJwtAudience       :: StringOrURI
 
   , configPool              :: Int
   , configMaxRows           :: Maybe Integer
@@ -108,7 +116,7 @@ readOptions = do
     (C.readConfig =<< C.load [C.Required cfgPath])
     configNotfoundHint
 
-  let (mAppConf, errs) = flip C.runParserA conf $
+  let (mAppConf, errs) = flip C.runParserM conf $
         AppConfig <$>
             C.key "db-uri"
           <*> C.key "db-anon-role"
@@ -118,7 +126,7 @@ readOptions = do
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
-          <*> (fromMaybe "" <$> C.key "jwt-aud")
+          <*> parseJwtAudience "jwt-aud"
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
@@ -132,15 +140,21 @@ readOptions = do
       return appConf
 
  where
+  parseJwtAudience :: Name -> C.ConfigParserM StringOrURI
+  parseJwtAudience k =
+    preview stringOrUri . fromMaybe ("" :: Text) <$> C.key k >>= \case
+      Nothing -> fail "Invalid Jwt audience. Check your configuration."
+      Just s -> pure s
+
   coerceInt :: (Read i, Integral i) => Value -> Maybe i
   coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
   coerceInt (String x) = readMaybe $ toS x
-  coerceInt _ = Nothing
+  coerceInt _          = Nothing
 
   coerceBool ::  Value -> Maybe Bool
-  coerceBool (Bool b) = Just b
+  coerceBool (Bool b)   = Just b
   coerceBool (String x) = readMaybe $ toS x
-  coerceBool _ = Nothing
+  coerceBool _          = Nothing
 
   opts = info (helper <*> pathParser) $
            fullDesc
