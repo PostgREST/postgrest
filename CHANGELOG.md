@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #962, OpenAPI don't err on nonexistent schema - @steve-chavez
 - #954, make OpenAPI rpc output dependent on user privileges - @steve-chavez
 - #955, Support configurable aud claim - @statik
+- Fix embedded column conflicts table name - @grotsev
 
 ## [0.4.3.0] - 2017-09-06
 
