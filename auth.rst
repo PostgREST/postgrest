@@ -171,7 +171,7 @@ Next write a stored procedure that returns the token. The one below returns a to
       LANGUAGE sql
       AS $$
     SELECT sign(
-      row_to_json(r), 'mysecret'
+      row_to_json(r), 'reallyreallyreallyreallyverysafe'
     ) AS token
     FROM (
       SELECT
@@ -189,7 +189,7 @@ PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`
   .. code-block:: postgres
 
     -- run this once
-    ALTER DATABASE mydb SET "app.jwt_secret" TO '!!secret!!';
+    ALTER DATABASE mydb SET "app.jwt_secret" TO 'reallyreallyreallyreallyverysafe';
 
     -- then all functions can refer to app.jwt_secret
     SELECT sign(
@@ -364,7 +364,7 @@ In the previous section we created an internal table to store user information. 
 Logins
 ~~~~~~
 
-As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure secret of your choosing.
+As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure (at least thirty-two character) secret of your choosing.
 
 .. code:: plpgsql
 
@@ -383,7 +383,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
     end if;
 
     select sign(
-        row_to_json(r), 'mysecret'
+        row_to_json(r), 'reallyreallyreallyreallyverysafe'
       ) as token
       from (
         select _role as role, login.email as email,
@@ -402,12 +402,12 @@ An API request to call this function would look like:
 
   { "email": "foo@bar.com", "pass": "foobar" }
 
-The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`mysecret` as specified in the SQL code above. You'll want to change this secret in your app!)
+The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`reallyreallyreallyreallyverysafe` as specified in the SQL code above. You'll want to change this secret in your app!)
 
 .. code:: json
 
   {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicm9sZSI6ImF1dGhvciJ9.fpf3_ERi5qbWOE5NPzvauJgvulm0zkIG9xSm2w5zmdw"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicGFzcyI6ImZvb2JhciJ9.37066TTRlh-1hXhnA9oO9Pj6lgL6zFuJU0iCHhuCFno"
   }
 
 Permissions

@@ -116,7 +116,7 @@ Next we apply the zone to certain routes, like a hypothetical stored procedure c
 
 The burst argument tells Nginx to start dropping requests if more than five queue up from a specific IP.
 
-Nginx rate limiting is general and indescriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
+Nginx rate limiting is general and indiscriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
 
 Debugging
 =========

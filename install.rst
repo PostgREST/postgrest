@@ -3,7 +3,7 @@ Binary Release
 
 [ `Download from release page <https://github.com/begriffs/postgrest/releases/latest>`_ ]
 
-The release page has precompiled binaries for Mac OS X, Windows, and several Linux distros. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
+The release page has pre-compiled binaries for Mac OS X, Windows, and several Linux distributions. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
 
 .. code-block:: bash
 
@@ -122,7 +122,7 @@ server-proxy-uri
   }
 
 jwt-secret
-  The secret or `JSON Web Key (JWK) <https://tools.ietf.org/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded.
+  The secret or `JSON Web Key (JWK) <https://tools.ietf.org/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. For security the key must be at least thirty-two characters long. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded.
 jwt-aud
   Specifies the `JWT audience claim <https://tools.ietf.org/html/rfc7519#section-4.1.3>`_. If this claim is present in the client provided JWT then you must set this to the same value as in the JWT, otherwise verifying the JWT will fail.
 secret-is-base64
@@ -135,7 +135,7 @@ pre-request
 Running the Server
 ------------------
 
-PostgREST outputs basic request logging to stdout. When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a logfile or to the syslog:
+PostgREST outputs basic request logging to stdout. When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a log file or to the syslog:
 
 .. code-block:: bash
 
@@ -276,7 +276,7 @@ The script expects the following parameters:
 
   test/create_test_db connection_uri database_name [test_db_user] [test_db_user_password]
 
-Use the `connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ to specify the user, password, host, and port. Do not provide the database in the connection URI. The Postgres role you are using to connect must be capable of creating new databases.
+Use the `connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ to specify the user, password, host, and port. Do not provide the database in the connection URI. The PostgreSQL role you are using to connect must be capable of creating new databases.
 
 The :code:`database_name` is the name of the database that :code:`stack test` will connect to. If the database of the same name already exists on the server, the script will first drop it and then re-create it.
 
@@ -288,7 +288,7 @@ Optionally, if specifying an existing user to be used for the test connection, o
 
 The script will return the db uri to use in the tests--this uri corresponds to the :code:`db-uri` parameter in the configuration file that one would use in production.
 
-Generating the user and the password allows one to create the database and run the tests against any postgres server without any modifications to the server. (Such as allowing accounts without a passoword or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
+Generating the user and the password allows one to create the database and run the tests against any PostgreSQL server without any modifications to the server. (Such as allowing accounts without a password or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
 
 Running the Tests
 ~~~~~~~~~~~~~~~~~
@@ -321,7 +321,7 @@ This connection assumes the test server on the :code:`localhost:code:` with the 
 Destroying the Database
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The test database will remain after the test, together with four new roles created on the postgres server. To permanently erase the created database and the roles, run the script :code:`test/delete_test_database`, using the same superuser role used for creating the database:
+The test database will remain after the test, together with four new roles created on the PostgreSQL server. To permanently erase the created database and the roles, run the script :code:`test/delete_test_database`, using the same superuser role used for creating the database:
 
 .. code:: bash
 
@@ -339,7 +339,7 @@ For example, if local development is on a mac with Docker for Mac installed:
   $ docker run --name db-scripting-test -e POSTGRES_PASSWORD=pwd -p 5434:5432 -d postgres
   $ POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@localhost:5434" test_db) stack test
 
-Additionally, if one creates a docker container to run stack test (this is necessary on MacOS Sierra with GHC below 8.0.1, where :code:`stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed Postgres.app.
+Additionally, if one creates a docker container to run stack test (this is necessary on Mac OS Sierra with GHC below 8.0.1, where :code:`stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed PostgreSQL app.
 
 Build the test container with :code:`test/Dockerfile.test`:
 
@@ -357,7 +357,7 @@ Linked containers:
   $ docker run --name pg -e POSTGRES_PASSWORD=pwd  -d postgres
   $ docker run --rm -it -v `pwd`:`pwd` -v ~/.stack-linux:/root/.stack --link pg:pg -w="`pwd`" -v `pwd`/.stack-work-docker:`pwd`/.stack-work pgst-test bash -c "POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@pg" test_db) stack test"
 
-Stack test in Docker for Mac, Postgres.app on mac:
+Stack test in Docker for Mac, PostgreSQL app on mac:
 
 .. code:: bash
 

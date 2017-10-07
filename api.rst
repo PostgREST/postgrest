@@ -47,9 +47,9 @@ Complex logic can also be applied:
  
 These operators are available:
 
-============  ===============================================  ===================
-Abbreviation  Meaning                                          Postgres Equivalent
-============  ===============================================  ===================
+============  ===============================================  =====================
+Abbreviation  Meaning                                          PostgreSQL Equivalent
+============  ===============================================  =====================
 eq            equals                                           :code:`=`
 gt            greater than                                     :code:`>`
 gte           greater than or equal                            :code:`>=`
@@ -75,7 +75,7 @@ nxr           does not extend to the right of,                 :code:`&<`
 nxl           does not extend to the left of                   :code:`&>`
 adj           is adjacent to, e.g. :code:`?range=adj.(1,10)`   :code:`-|-`
 not           negates another operator, see below              :code:`NOT`
-============  ===============================================  ===================
+============  ===============================================  =====================
 
 .. note::
 
@@ -131,7 +131,7 @@ Using phrase search mode requires PostgreSQL of version at least 9.6 and will ra
 Vertical Filtering (Columns)
 ----------------------------
 
-When certain columns are wide (such as those holding binary data), it is more efficient for the server to withold them in a response. The client can specify which columns are required using the :sql:`select` parameter.
+When certain columns are wide (such as those holding binary data), it is more efficient for the server to withhold them in a response. The client can specify which columns are required using the :sql:`select` parameter.
 
 .. code-block:: http
 
@@ -434,7 +434,7 @@ Which would return
   ]
 
 The primary key of the table of the resource being embedded must be specified,
-either explicitly, like in the example above, or implicitly through a wildcard.
+either explicitly, like in the example above, or implicitly through a wild card.
 
 In this example, since the relationship is a forward relationship, there is
 only one director associated with a film. As the table name is plural it might
@@ -487,7 +487,7 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 
 * Table unions
 * More complicated joins than those provided by `Resource Embedding`_
-* Geospatial queries that require an argument, like "points near (lat,lon)"
+* Geo-spatial queries that require an argument, like "points near (lat,lon)"
 * More sophisticated full-text search than a simple use of the :sql:`fts` filter
 
 Stored Procedures
@@ -635,7 +635,7 @@ Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 Bulk Insert
 -----------
 
-Bulk insert works exactly like single row insert except that you provide either a JSON array of objects having uniform keys, or lines in CSV format. This not only minimizes the HTTP requests required but uses a single INSERT statement on the backend for efficiency. Note that using CSV requires less parsing on the server and is much faster.
+Bulk insert works exactly like single row insert except that you provide either a JSON array of objects having uniform keys, or lines in CSV format. This not only minimizes the HTTP requests required but uses a single INSERT statement on the back-end for efficiency. Note that using CSV requires less parsing on the server and is much faster.
 
 To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
 
@@ -726,7 +726,7 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | 54*                      | 413                     | too complex                     |
 +--------------------------+-------------------------+---------------------------------+
-| 55*                      | 500                     | obj not in prereq state         |
+| 55*                      | 500                     | obj not in prerequisite state   |
 +--------------------------+-------------------------+---------------------------------+
 | 57*                      | 500                     | operator intervention           |
 +--------------------------+-------------------------+---------------------------------+
@@ -746,7 +746,8 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | 42P01                    | 404                     | undefined table                 |
 +--------------------------+-------------------------+---------------------------------+
-| 42501                    | if authed 403, else 401 | insufficient privileges         |
+| 42501                    | | if authenticated 403, | insufficient privileges         |
+|                          | | else 401              |                                 |
 +--------------------------+-------------------------+---------------------------------+
 | other                    | 500                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
