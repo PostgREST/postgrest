@@ -1254,6 +1254,24 @@ $$ language sql;
 create function test.get_tsearch() returns setof test.tsearch AS $$
   SELECT * FROM test.tsearch;
 $$ language sql;
+
+create table test.being (
+  being int primary key not null
+);
+
+create table test.descendant (
+  descendant int primary key not null,
+  being int references test.being(being)
+);
+
+create table test.part (
+  part int primary key not null
+);
+
+create table test.being_part (
+  being int not null references test.being(being),
+  part int not null references test.part(part)
+);
 --
 -- PostgreSQL database dump complete
 --
