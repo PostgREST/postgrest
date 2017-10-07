@@ -200,6 +200,22 @@ spec = do
 
         liftIO $ funcTag `shouldBe` Just [aesonQQ|"(rpc) privileged_hello"|]
 
+      it "doesn't include OUT params of function as required parameters" $ do
+        r <- simpleBody <$> get "/"
+        let params = r ^? key "paths" . key "/rpc/many_out_params"
+                        . key "post" . key "parameters" .  nth 0
+                        . key "schema". key "required"
+
+        liftIO $ params `shouldBe` Nothing
+
+      it "includes INOUT params(with no DEFAULT) of function as required parameters" $ do
+        r <- simpleBody <$> get "/"
+        let params = r ^? key "paths" . key "/rpc/many_inout_params"
+                        . key "post" . key "parameters" .  nth 0
+                        . key "schema". key "required"
+
+        liftIO $ params `shouldBe` Just [aesonQQ|["num", "str"]|]
+
   describe "Allow header" $ do
 
     it "includes read/write verbs for writeable table" $ do

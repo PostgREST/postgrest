@@ -19,7 +19,7 @@ import qualified Data.HashMap.Strict           as M
 import           Data.List                     (elemIndex)
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
-                                                breakOn, dropAround)
+                                                breakOn, dropAround, splitOn)
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
@@ -120,11 +120,12 @@ decodeProcs =
     addName pd = (pdName pd, pd)
 
     parseArgs :: Text -> [PgArg]
-    parseArgs = mapMaybe (parseArg . strip) . split (==',')
+    parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
 
     parseArg :: Text -> Maybe PgArg
     parseArg a =
-      let (body, def) = breakOn " DEFAULT " a
+      let arg = lastDef "" $ splitOn "INOUT " a
+          (body, def) = breakOn " DEFAULT " arg
           (name, typ) = breakOn " " body in
       if T.null typ
          then Nothing

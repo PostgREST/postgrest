@@ -1272,6 +1272,14 @@ create table test.being_part (
   being int not null references test.being(being),
   part int not null references test.part(part)
 );
+
+create function test.many_out_params(OUT my_json pg_catalog.json, OUT num int, OUT str text) AS $$
+  select '{"a": 1, "b": "two"}'::json, 3, 'four'::text;
+$$ language sql;
+
+create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bool DEFAULT true) AS $$
+  select num, str, b;
+$$ language sql;
 --
 -- PostgreSQL database dump complete
 --
