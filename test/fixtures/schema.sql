@@ -1273,8 +1273,20 @@ create table test.being_part (
   part int not null references test.part(part)
 );
 
+create function test.single_out_param(num int, OUT num_plus_one int) AS $$
+  select num + 1;
+$$ language sql;
+
+create function test.single_json_out_param(a int, b text, OUT my_json pg_catalog.json) AS $$
+  select json_build_object('a', a, 'b', b);
+$$ language sql;
+
 create function test.many_out_params(OUT my_json pg_catalog.json, OUT num int, OUT str text) AS $$
   select '{"a": 1, "b": "two"}'::json, 3, 'four'::text;
+$$ language sql;
+
+create function test.single_inout_param(INOUT num int) AS $$
+  select num + 1;
 $$ language sql;
 
 create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bool DEFAULT true) AS $$

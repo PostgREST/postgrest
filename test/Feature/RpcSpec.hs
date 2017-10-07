@@ -257,6 +257,25 @@ spec =
       get "/rpc/test" `shouldRespondWith`
         [json|[{"test":"hello","value":1}]|] { matchHeaders = [matchContentTypeJson] }
 
+    context "procs with OUT/INOUT params" $ do
+      it "returns a scalar result when there is a single OUT param" $ do
+        get "/rpc/single_out_param?num=5" `shouldRespondWith`
+          [json|6|] { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/single_json_out_param?a=1&b=two" `shouldRespondWith`
+          [json|{"a": 1, "b": "two"}|] { matchHeaders = [matchContentTypeJson] }
+
+      it "returns a scalar result when there is a single INOUT param" $
+        get "/rpc/single_inout_param?num=2" `shouldRespondWith`
+          [json|3|] { matchHeaders = [matchContentTypeJson] }
+
+      it "returns a row result when there are many OUT params" $
+        get "/rpc/many_out_params" `shouldRespondWith`
+          [json|[{"my_json":{"a": 1, "b": "two"},"num":3,"str":"four"}]|] { matchHeaders = [matchContentTypeJson] }
+
+      it "returns a row result when there are many INOUT params" $
+        get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
+          [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
+
     context "only for POST rpc" $ do
       context "expects a single json object" $ do
         it "does not expand posted json into parameters" $
