@@ -323,6 +323,17 @@ INSERT INTO ranges VALUES (2, '[3,6]');
 INSERT INTO ranges VALUES (3, '[6,9]');
 INSERT INTO ranges VALUES (4, '[9,12]');
 
+TRUNCATE TABLE being CASCADE;
+INSERT INTO being VALUES (1), (2), (3), (4);
+
+TRUNCATE TABLE descendant CASCADE;
+INSERT INTO descendant VALUES (1,1), (2,1), (3,1), (4,2);
+
+TRUNCATE TABLE part CASCADE;
+INSERT INTO part VALUES (1), (2), (3), (4);
+
+TRUNCATE TABLE being_part CASCADE;
+INSERT INTO being_part VALUES (1,1), (2,1), (3,2), (4,3);
 --
 -- PostgreSQL database dump complete
 --

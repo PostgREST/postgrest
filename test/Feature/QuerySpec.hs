@@ -768,3 +768,13 @@ spec = do
       it "works with brackets" $
         get "/entities?id=eq.2&select=id,child_entities{id}" `shouldRespondWith`
           [json| [{"id": 2, "child_entities": [{"id": 3}]}] |] { matchHeaders = [matchContentTypeJson] }
+
+  context "Embedding when column name = table name" $ do
+    it "works with child embeds" $
+      get "/being?select=*,descendant(*)&limit=1" `shouldRespondWith`
+        [json|[{"being":1,"descendant":[{"descendant":1,"being":1},{"descendant":2,"being":1},{"descendant":3,"being":1}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+    it "works with many to many embeds" $
+      get "/being?select=*,part(*)&limit=1" `shouldRespondWith`
+        [json|[{"being":1,"part":[{"part":1}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
