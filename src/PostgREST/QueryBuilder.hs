@@ -150,14 +150,14 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
   where
     sql =
      if returnsScalar then [qc|
-       WITH {sourceCTEName} AS ({_callSql})
+       WITH {sourceCTEName} AS (select {fromQi qi}({_args}))
        SELECT
          {countResultF} AS total_result_set,
          1 AS page_total,
          {scalarBodyF} as body
        FROM ({selectQuery}) _postgrest_t;|]
      else [qc|
-       WITH {sourceCTEName} AS ({_callSql})
+       WITH {sourceCTEName} AS (select * from {fromQi qi}({_args}))
        SELECT
          {countResultF} AS total_result_set,
          pg_catalog.count(_postgrest_t) AS page_total,
@@ -170,7 +170,6 @@ callProc qi params returnsScalar selectQuery countQuery _ countTotal isSingle pa
                 else intercalate "," $ map _assignment (HM.toList params)
     _procName = qiName qi
     _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
-    _callSql = [qc|select * from {fromQi qi}({_args}) |] :: Text
     decodeProc = HD.maybeRow procRow
     procRow = (,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
                    <*> HD.value HD.bytea
