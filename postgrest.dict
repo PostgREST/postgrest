@@ -21,6 +21,7 @@ ILIKE
 IP
 JS
 JSON
+JWK
 JWT
 Logins
 MVCC
@@ -69,6 +70,7 @@ cryptographically
 csv
 disjoined
 eq
+filename
 fts
 grantor
 gte
@@ -101,6 +103,7 @@ pgSQL
 pgcrypto
 pgjwt
 pre
+reallyreallyreallyreallyverysafe
 refactor
 requester's
 savepoint

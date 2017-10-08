@@ -152,7 +152,7 @@ To make an authenticated request the client must include an :code:`Authorization
 JWT Generation
 --------------
 
-You can create a valid JWT either from inside your database or via an external service. Each token is cryptographically signed with a secret passphrase -- the signer and verifier share the secret. Hence any service that shares a passphrase with a PostgREST server can create valid JWT. (PostgREST currently supports only the HMAC-SHA256 signing algorithm.)
+You can create a valid JWT either from inside your database or via an external service. Each token is cryptographically signed with a secret key. In the case of symmetric cryptography the signer and verifier share the same secret passphrase. In asymmetric cryptography the signer uses the private key and the verifier the public key. PostgREST supports both symmetric and asymmetric cryptography.
 
 JWT from SQL
 ~~~~~~~~~~~~
@@ -237,6 +237,44 @@ Our code requires a database role in the JWT. To add it you need to save the dat
       responseType: 'token'
     }
   })
+
+.. _asym_keys:
+
+Asymmetric Keys
+~~~~~~~~~~~~~~~
+
+As described in the :ref:`configuration` section, PostgREST accepts a ``jwt-secret`` config file parameter. If it is set to a simple string value like "reallyreallyreallyreallyverysafe" then PostgREST interprets it as an HMAC-SHA256 passphrase. However you can also specify a literal JWT key JSON value. For example, you can use an RSA-256 public key such as:
+
+.. code-block:: json
+
+  {
+    "alg":"RS256",
+    "e":"AQAB",
+    "key_ops":["verify"],
+    "kty":"RSA",
+    "n":"9zKNYTaYGfGm1tBMpRT6FxOYrM720GhXdettc02uyakYSEHU2IJz90G_MLlEl4-WWWYoS_QKFupw3s7aPYlaAjamG22rAnvWu-rRkP5sSSkKvud_IgKL4iE6Y2WJx2Bkl1XUFkdZ8wlEUR6O1ft3TS4uA-qKifSZ43CahzAJyUezOH9shI--tirC028lNg767ldEki3WnVr3zokSujC9YJ_9XXjw2hFBfmJUrNb0-wldvxQbFU8RPXip-GQ_JPTrCTZhrzGFeWPvhA6Rqmc3b1PhM9jY7Dur1sjYWYVyXlFNCK3c-6feo5WlRfe1aCWmwZQh6O18eTmLeT4nWYkDzQ"
+  }
+
+Just pass it in as a single line string, escaping the quotes:
+
+.. code-block:: ini
+
+  jwt-secret = "{ \"alg\":\"RS256\", … }"
+
+To generate such a public/private key pair use a utility like `latchset/jose <https://github.com/latchset/jose>`_.
+
+.. code-block:: bash
+
+  jose jwk gen -i '{"alg": "RS256"}' -o rsa.jwk
+  jose jwk pub -i rsa.jwk -o rsa.jwk.pub
+
+  # now rsa.jwk.pub contains the desired JSON object
+
+You can specify the literal value as we saw earlier, or reference a filename to load the JWK from a file:
+
+.. code-block:: ini
+
+  jwt-secret = "@rsa.jwk.pub"
 
 JWT security
 ~~~~~~~~~~~~
