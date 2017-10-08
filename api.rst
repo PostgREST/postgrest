@@ -678,9 +678,19 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 OpenAPI Support
 ===============
 
-Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads.
+Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on a table, column, or function. For instance,
 
-You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, provides guidance with request headers and example request bodies.
+.. code-block:: sql
+
+  COMMENT ON TABLE monotremes IS
+    'Freakish mammals lay the best eggs for breakfast';
+
+  COMMENT ON COLUMN monotremes.has_venomous_claw IS
+    'Sometimes breakfast is not worth it';
+
+These unsavory comments will appear in the generated JSON as the fields ``definitions.monotremes.description`` and ``definitions.monotremes.properties.has_venomous_claw.description``.
+
+You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
 .. note::
 
