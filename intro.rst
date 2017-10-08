@@ -62,6 +62,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 * `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
 * `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
 * `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
+* `daurnimator/pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
 
 Example Apps
 ------------
@@ -86,6 +87,7 @@ Example Apps
 In Production
 -------------
 
+* `Moat <https://moat.com/>`_
 * `Catarse <https://www.catarse.me/>`_
 * `iAdvize <http://iadvize.com/>`_
 * `Redsmin <https://www.redsmin.com/>`_
@@ -98,12 +100,13 @@ In Production
 Extensions
 ----------
 
-* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
 * `diogob/postgrest-ws <https://github.com/diogob/postgrest-ws>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
+* `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
+* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
 
 Commercial
 ---------------
