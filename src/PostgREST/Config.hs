@@ -117,8 +117,8 @@ readOptions = do
     configNotfoundHint
 
   let (mAppConf, errs) = flip C.runParserM conf $
-        AppConfig <$>
-            C.key "db-uri"
+        AppConfig
+          <$> C.key "db-uri"
           <*> C.key "db-anon-role"
           <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
           <*> C.key "db-schema"
@@ -139,68 +139,68 @@ readOptions = do
     Just appConf ->
       return appConf
 
- where
-  parseJwtAudience :: Name -> C.ConfigParserM StringOrURI
-  parseJwtAudience k =
-    preview stringOrUri . fromMaybe ("" :: Text) <$> C.key k >>= \case
-      Nothing -> fail "Invalid Jwt audience. Check your configuration."
-      Just s -> pure s
+  where
+    parseJwtAudience :: Name -> C.ConfigParserM StringOrURI
+    parseJwtAudience k =
+      preview stringOrUri . fromMaybe ("" :: Text) <$> C.key k >>= \case
+        Nothing -> fail "Invalid Jwt audience. Check your configuration."
+        Just s -> pure s
 
-  coerceInt :: (Read i, Integral i) => Value -> Maybe i
-  coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
-  coerceInt (String x) = readMaybe $ toS x
-  coerceInt _          = Nothing
+    coerceInt :: (Read i, Integral i) => Value -> Maybe i
+    coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
+    coerceInt (String x) = readMaybe $ toS x
+    coerceInt _          = Nothing
 
-  coerceBool ::  Value -> Maybe Bool
-  coerceBool (Bool b)   = Just b
-  coerceBool (String x) = readMaybe $ toS x
-  coerceBool _          = Nothing
+    coerceBool ::  Value -> Maybe Bool
+    coerceBool (Bool b)   = Just b
+    coerceBool (String x) = readMaybe $ toS x
+    coerceBool _          = Nothing
 
-  opts = info (helper <*> pathParser) $
-           fullDesc
-           <> progDesc (
-               "PostgREST "
-               <> toS prettyVersion
-               <> " / create a REST API to an existing Postgres database"
-             )
-           <> footerDoc (Just $
-               text "Example Config File:"
-               L.<> nest 2 (hardline L.<> exampleCfg)
-             )
+    opts = info (helper <*> pathParser) $
+             fullDesc
+             <> progDesc (
+                 "PostgREST "
+                 <> toS prettyVersion
+                 <> " / create a REST API to an existing Postgres database"
+               )
+             <> footerDoc (Just $
+                 text "Example Config File:"
+                 L.<> nest 2 (hardline L.<> exampleCfg)
+               )
 
-  parserPrefs = prefs showHelpOnError
+    parserPrefs = prefs showHelpOnError
 
-  configNotfoundHint :: IOError -> IO a
-  configNotfoundHint e = do
-    hPutStrLn stderr $
-      "Cannot open config file:\n\t" <> show e
-    exitFailure
+    configNotfoundHint :: IOError -> IO a
+    configNotfoundHint e = do
+      hPutStrLn stderr $
+        "Cannot open config file:\n\t" <> show e
+      exitFailure
 
-  exampleCfg :: Doc
-  exampleCfg = vsep . map (text . toS) . lines $
-    [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-        |db-schema = "public"
-        |db-anon-role = "postgres"
-        |db-pool = 10
-        |
-        |server-host = "*4"
-        |server-port = 3000
-        |
-        |## base url for swagger output
-        |# server-proxy-uri = ""
-        |
-        |## choose a secret to enable JWT auth
-        |## (use "@filename" to load from separate file)
-        |# jwt-secret = "foo"
-        |# secret-is-base64 = false
-        |# jwt-aud = "your_audience_claim"
-        |
-        |## limit rows in response
-        |# max-rows = 1000
-        |
-        |## stored proc to exec immediately after auth
-        |# pre-request = "stored_proc_name"
-        |]
+    exampleCfg :: Doc
+    exampleCfg = vsep . map (text . toS) . lines $
+      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+          |db-schema = "public"
+          |db-anon-role = "postgres"
+          |db-pool = 10
+          |
+          |server-host = "*4"
+          |server-port = 3000
+          |
+          |## base url for swagger output
+          |# server-proxy-uri = ""
+          |
+          |## choose a secret to enable JWT auth
+          |## (use "@filename" to load from separate file)
+          |# jwt-secret = "foo"
+          |# secret-is-base64 = false
+          |# jwt-aud = "your_audience_claim"
+          |
+          |## limit rows in response
+          |# max-rows = 1000
+          |
+          |## stored proc to exec immediately after auth
+          |# pre-request = "stored_proc_name"
+          |]
 
 pathParser :: Parser FilePath
 pathParser =
