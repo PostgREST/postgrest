@@ -143,7 +143,6 @@ Test-Suite spec
                      , hasql
                      , hasql-pool
                      , heredoc
-                     , hjsonpointer
                      , hjsonschema >= 1.6
                      , hspec
                      , hspec-wai >= 0.7.0
