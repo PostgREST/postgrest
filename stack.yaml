@@ -3,7 +3,6 @@ extra-deps:
   - configurator-ng-0.0.0.1
   - critbit-0.2.0.0
   - hasql-pool-0.4.1
-  - hjsonpointer-1.1.1
   - jose-0.5.0.3
   - Ranged-sets-0.3.0
   - protolude-0.2
