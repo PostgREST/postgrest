@@ -42,16 +42,16 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> StringOrURI -> BL.ByteString  -> IO JWTAttempt
-jwtClaims _ "" "" = return $ JWTClaims M.empty
+jwtClaims :: Maybe JWK -> Maybe StringOrURI -> BL.ByteString  -> IO JWTAttempt
+jwtClaims _ Nothing "" = return $ JWTClaims M.empty
 jwtClaims secret audience payload =
   case secret of
     Nothing -> return JWTMissingSecret
-    Just k -> do
-      let validation = defaultJWTValidationSettings (== audience)
+    Just s -> do
+      let validation = defaultJWTValidationSettings (maybe (const True) (==) audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
-        verifyClaims validation k jwt
+        verifyClaims validation s jwt
       return $ case eJwt of
         Left e -> JWTInvalid e
         Right jwt -> JWTClaims . claims2map $ jwt

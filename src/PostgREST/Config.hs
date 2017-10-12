@@ -25,8 +25,8 @@ module PostgREST.Config ( prettyVersion
        where
 
 import           Control.Applicative
-import           Control.Lens                 (preview)
 import           Control.Monad                (fail)
+import           Control.Lens                 (preview)
 import           Crypto.JWT                   (StringOrURI,
                                                stringOrUri)
 import qualified Data.ByteString              as B
@@ -38,6 +38,7 @@ import           Data.Configurator.Types      as C
 import           Data.List                    (lookup)
 import           Data.Monoid
 import           Data.Scientific              (floatingOrInteger)
+import           Data.String                  (String)
 import           Data.Text                    (dropAround,
                                                intercalate, lines,
                                                strip)
@@ -67,7 +68,7 @@ data AppConfig = AppConfig {
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
-  , configJwtAudience       :: StringOrURI
+  , configJwtAudience       :: Maybe StringOrURI
 
   , configPool              :: Int
   , configMaxRows           :: Maybe Integer
@@ -140,11 +141,13 @@ readOptions = do
       return appConf
 
   where
-    parseJwtAudience :: Name -> C.ConfigParserM StringOrURI
+    parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
-      preview stringOrUri . fromMaybe ("" :: Text) <$> C.key k >>= \case
-        Nothing -> fail "Invalid Jwt audience. Check your configuration."
-        Just s -> pure s
+      C.key k >>= \case
+        Nothing -> pure Nothing -- no audience in config file
+        Just aud -> case preview stringOrUri (aud :: String) of
+          Nothing -> fail "Invalid Jwt audience. Check your configuration."
+          aud' -> pure aud'
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
