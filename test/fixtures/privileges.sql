@@ -81,3 +81,5 @@ GRANT UPDATE (article_id, user_id) ON TABLE limited_article_stars TO postgrest_t
 
 REVOKE EXECUTE ON FUNCTION privileged_hello(text) FROM PUBLIC; -- All functions are available to every role(PUBLIC) by default
 GRANT EXECUTE ON FUNCTION privileged_hello(text) TO postgrest_test_author;
+
+GRANT USAGE ON SCHEMA test TO postgrest_test_default_role;

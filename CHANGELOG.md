@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #828, Fix computed column only working in public schema - @steve-chavez
+
+### Changed
+
+- Computed columns now only work if they belong to the db-schema - @steve-chavez
+
 ## [0.4.4.0] - 2018-01-08
 
 ### Added

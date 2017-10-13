@@ -4,7 +4,6 @@ set client_min_messages to warning;
 DROP SCHEMA IF EXISTS jwt CASCADE;
 CREATE SCHEMA jwt;
 
-
 CREATE OR REPLACE FUNCTION jwt.url_encode(data bytea) RETURNS text LANGUAGE sql AS $$
     SELECT translate(encode(data, 'base64'), E'+/=\n', '-_');
 $$;
@@ -31,7 +30,7 @@ WITH
       WHEN algorithm = 'HS384' THEN 'sha384'
       WHEN algorithm = 'HS512' THEN 'sha512'
       ELSE '' END)  -- hmac throws error
-SELECT jwt.url_encode(hmac(signables, secret, (select * FROM alg)));
+SELECT jwt.url_encode(public.hmac(signables, secret, (select * FROM alg)));
 $$;
 
 
