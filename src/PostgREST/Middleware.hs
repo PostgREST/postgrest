@@ -32,7 +32,7 @@ runWithClaims conf eClaims app req =
     JWTInvalid e -> return $ unauthed $ show e
     JWTMissingSecret -> return $ simpleError status500 [] "Server lacks JWT secret"
     JWTClaims claims -> do
-      H.sql $ toS.mconcat $ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql
+      H.sql $ toS.mconcat $ setSchemaSql ++ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql
       mapM_ H.sql customReqCheck
       app req
       where
@@ -41,6 +41,7 @@ runWithClaims conf eClaims app req =
         claimsSql = map (pgFmtEnvVar "request.jwt.claim.") [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
         setRoleSql = maybeToList $
           (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
+        setSchemaSql = ["set schema " <> pgFmtLit (configSchema conf) <> ";"] :: [Text]
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)
         anon = String . toS $ configAnonRole conf

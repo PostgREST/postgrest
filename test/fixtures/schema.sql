@@ -112,16 +112,19 @@ CREATE TABLE items (
 );
 
 
-SET search_path = public, pg_catalog;
-
---
--- Name: always_true(test.items); Type: FUNCTION; Schema: public; Owner: -
---
-
 CREATE FUNCTION always_true(test.items) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
 
+CREATE FUNCTION anti_id(test.items) RETURNS bigint
+    LANGUAGE sql STABLE
+    AS $_$ SELECT $1.id * -1 $_$;
+
+SET search_path = public, pg_catalog;
+
+CREATE FUNCTION always_false(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT false $$;
 
 create table public_consumers (
     id                  serial             not null unique,
@@ -135,16 +138,6 @@ create table public_orders (
     number              integer            not null,
     primary key (id)
 );
-
---
--- Name: anti_id(test.items); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION anti_id(test.items) RETURNS bigint
-    LANGUAGE sql STABLE
-    AS $_$ SELECT $1.id * -1 $_$;
-
-
 
 SET search_path = تست, pg_catalog;
 

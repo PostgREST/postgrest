@@ -173,7 +173,7 @@ spec = do
                     "type": "string"
                   },
                   "enum": {
-                    "format": "test.enum_menagerie_type",
+                    "format": "enum_menagerie_type",
                     "type": "string"
                   },
                   "integer": {
