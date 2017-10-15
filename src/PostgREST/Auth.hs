@@ -18,16 +18,12 @@ module PostgREST.Auth (
   , parseJWK
   ) where
 
-import           Protolude        hiding ((&))
-import           Control.Lens
-import           Data.Aeson              (Value (..), decode, toJSON)
-import qualified Data.ByteString.Lazy    as BL
-import qualified Data.HashMap.Strict     as M
+import           Control.Lens.Operators
+import           Data.Aeson             (Value (..), decode, toJSON)
+import qualified Data.HashMap.Strict    as M
+import           Protolude
 
-import           Crypto.JOSE.Compact
-import           Crypto.JOSE.JWK
-import           Crypto.JOSE.JWS
-import           Crypto.JOSE.Types
+import qualified Crypto.JOSE.Types      as JOSE.Types
 import           Crypto.JWT
 
 {-|
@@ -42,27 +38,26 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> Text -> BL.ByteString  -> IO JWTAttempt
-jwtClaims _ "" "" = return $ JWTClaims M.empty
+jwtClaims :: Maybe JWK -> Maybe StringOrURI -> LByteString  -> IO JWTAttempt
+jwtClaims _ Nothing "" = return $ JWTClaims M.empty
 jwtClaims secret audience payload =
   case secret of
     Nothing -> return JWTMissingSecret
-    Just jwk -> do
-      let validation = set audiencePredicate (==  fromString audience) defaultJWTValidationSettings
+    Just s -> do
+      let validation = defaultJWTValidationSettings (maybe (const True) (==) audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
-        validateJWSJWT validation jwk jwt
-        return jwt
+        verifyClaims validation s jwt
       return $ case eJwt of
-        Left e -> JWTInvalid e
-        Right jwt -> JWTClaims . claims2map . jwtClaimsSet $ jwt
+        Left e    -> JWTInvalid e
+        Right jwt -> JWTClaims . claims2map $ jwt
 
 {-|
   Whether a response from jwtClaims contains a role claim
 -}
 containsRole :: JWTAttempt -> Bool
 containsRole (JWTClaims claims) = M.member "role" claims
-containsRole _ = False
+containsRole _                  = False
 
 {-|
   Internal helper used to turn JWT ClaimSet into something
@@ -72,7 +67,7 @@ claims2map :: ClaimsSet -> M.HashMap Text Value
 claims2map = val2map . toJSON
  where
   val2map (Object o) = o
-  val2map _ = M.empty
+  val2map _          = M.empty
 
 parseJWK :: ByteString -> JWK
 parseJWK str =
@@ -89,4 +84,4 @@ hs256jwk key =
     & jwkUse .~ Just Sig
     & jwkAlg .~ (Just $ JWSAlg HS256)
  where
-  km = OctKeyMaterial (OctKeyParameters Oct (Base64Octets key))
+  km = OctKeyMaterial (OctKeyParameters (JOSE.Types.Base64Octets key))

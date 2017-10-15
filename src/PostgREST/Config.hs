@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
@@ -23,30 +24,38 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import           System.IO.Error             (IOError)
 import           Control.Applicative
-import qualified Data.ByteString             as B
-import qualified Data.ByteString.Char8       as BS
-import qualified Data.CaseInsensitive        as CI
-import qualified Data.Configurator           as C
-import qualified Data.Configurator.Parser    as C
-import           Data.Configurator.Types     (Value(..))
-import           Data.List                   (lookup)
+import           Control.Monad                (fail)
+import           Control.Lens                 (preview)
+import           Crypto.JWT                   (StringOrURI,
+                                               stringOrUri)
+import qualified Data.ByteString              as B
+import qualified Data.ByteString.Char8        as BS
+import qualified Data.CaseInsensitive         as CI
+import qualified Data.Configurator            as C
+import qualified Data.Configurator.Parser     as C
+import           Data.Configurator.Types      as C
+import           Data.List                    (lookup)
 import           Data.Monoid
-import           Data.Scientific             (floatingOrInteger)
-import           Data.Text                   (strip, intercalate, lines, dropAround)
-import           Data.Text.Encoding          (encodeUtf8)
-import           Data.Text.IO                (hPutStrLn)
-import           Data.Version                (versionBranch)
+import           Data.Scientific              (floatingOrInteger)
+import           Data.String                  (String)
+import           Data.Text                    (dropAround,
+                                               intercalate, lines,
+                                               strip)
+import           Data.Text.Encoding           (encodeUtf8)
+import           Data.Text.IO                 (hPutStrLn)
+import           Data.Version                 (versionBranch)
 import           Network.Wai
-import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import           Options.Applicative hiding  (str)
-import           Paths_postgrest             (version)
-import           System.IO                   (hPrint)
+import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
+import           Options.Applicative          hiding (str)
+import           Paths_postgrest              (version)
+import           Protolude                    hiding (hPutStrLn,
+                                               intercalate, (<>))
+import           System.IO                    (hPrint)
+import           System.IO.Error              (IOError)
 import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
-import           Protolude hiding            (intercalate, (<>), hPutStrLn)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -59,7 +68,7 @@ data AppConfig = AppConfig {
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
-  , configJwtAudience       :: Text
+  , configJwtAudience       :: Maybe StringOrURI
 
   , configPool              :: Int
   , configMaxRows           :: Maybe Integer
@@ -108,9 +117,9 @@ readOptions = do
     (C.readConfig =<< C.load [C.Required cfgPath])
     configNotfoundHint
 
-  let (mAppConf, errs) = flip C.runParserA conf $
-        AppConfig <$>
-            C.key "db-uri"
+  let (mAppConf, errs) = flip C.runParserM conf $
+        AppConfig
+          <$> C.key "db-uri"
           <*> C.key "db-anon-role"
           <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
           <*> C.key "db-schema"
@@ -118,7 +127,7 @@ readOptions = do
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
-          <*> (fromMaybe "" <$> C.key "jwt-aud")
+          <*> parseJwtAudience "jwt-aud"
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
@@ -131,62 +140,70 @@ readOptions = do
     Just appConf ->
       return appConf
 
- where
-  coerceInt :: (Read i, Integral i) => Value -> Maybe i
-  coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
-  coerceInt (String x) = readMaybe $ toS x
-  coerceInt _ = Nothing
+  where
+    parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
+    parseJwtAudience k =
+      C.key k >>= \case
+        Nothing -> pure Nothing -- no audience in config file
+        Just aud -> case preview stringOrUri (aud :: String) of
+          Nothing -> fail "Invalid Jwt audience. Check your configuration."
+          aud' -> pure aud'
 
-  coerceBool ::  Value -> Maybe Bool
-  coerceBool (Bool b) = Just b
-  coerceBool (String x) = readMaybe $ toS x
-  coerceBool _ = Nothing
+    coerceInt :: (Read i, Integral i) => Value -> Maybe i
+    coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
+    coerceInt (String x) = readMaybe $ toS x
+    coerceInt _          = Nothing
 
-  opts = info (helper <*> pathParser) $
-           fullDesc
-           <> progDesc (
-               "PostgREST "
-               <> toS prettyVersion
-               <> " / create a REST API to an existing Postgres database"
-             )
-           <> footerDoc (Just $
-               text "Example Config File:"
-               L.<> nest 2 (hardline L.<> exampleCfg)
-             )
+    coerceBool ::  Value -> Maybe Bool
+    coerceBool (Bool b)   = Just b
+    coerceBool (String x) = readMaybe $ toS x
+    coerceBool _          = Nothing
 
-  parserPrefs = prefs showHelpOnError
+    opts = info (helper <*> pathParser) $
+             fullDesc
+             <> progDesc (
+                 "PostgREST "
+                 <> toS prettyVersion
+                 <> " / create a REST API to an existing Postgres database"
+               )
+             <> footerDoc (Just $
+                 text "Example Config File:"
+                 L.<> nest 2 (hardline L.<> exampleCfg)
+               )
 
-  configNotfoundHint :: IOError -> IO a
-  configNotfoundHint e = do
-    hPutStrLn stderr $
-      "Cannot open config file:\n\t" <> show e
-    exitFailure
+    parserPrefs = prefs showHelpOnError
 
-  exampleCfg :: Doc
-  exampleCfg = vsep . map (text . toS) . lines $
-    [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-        |db-schema = "public"
-        |db-anon-role = "postgres"
-        |db-pool = 10
-        |
-        |server-host = "*4"
-        |server-port = 3000
-        |
-        |## base url for swagger output
-        |# server-proxy-uri = ""
-        |
-        |## choose a secret to enable JWT auth
-        |## (use "@filename" to load from separate file)
-        |# jwt-secret = "foo"
-        |# secret-is-base64 = false
-        |# jwt-aud = "your_audience_claim"
-        |
-        |## limit rows in response
-        |# max-rows = 1000
-        |
-        |## stored proc to exec immediately after auth
-        |# pre-request = "stored_proc_name"
-        |]
+    configNotfoundHint :: IOError -> IO a
+    configNotfoundHint e = do
+      hPutStrLn stderr $
+        "Cannot open config file:\n\t" <> show e
+      exitFailure
+
+    exampleCfg :: Doc
+    exampleCfg = vsep . map (text . toS) . lines $
+      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+          |db-schema = "public"
+          |db-anon-role = "postgres"
+          |db-pool = 10
+          |
+          |server-host = "*4"
+          |server-port = 3000
+          |
+          |## base url for swagger output
+          |# server-proxy-uri = ""
+          |
+          |## choose a secret to enable JWT auth
+          |## (use "@filename" to load from separate file)
+          |# jwt-secret = "foo"
+          |# secret-is-base64 = false
+          |# jwt-aud = "your_audience_claim"
+          |
+          |## limit rows in response
+          |# max-rows = 1000
+          |
+          |## stored proc to exec immediately after auth
+          |# pre-request = "stored_proc_name"
+          |]
 
 pathParser :: Parser FilePath
 pathParser =

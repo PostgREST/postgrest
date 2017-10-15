@@ -66,7 +66,7 @@ library
                      , http-types
                      , insert-ordered-containers
                      , interpolatedstring-perl6
-                     , jose < 0.6
+                     , jose >= 0.6
                      , lens
                      , lens-aeson
                      , network-uri
@@ -110,7 +110,8 @@ Test-Suite spec
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   Hs-Source-Dirs:      test
   Main-Is:             Main.hs
-  Other-Modules:       Feature.AuthSpec
+  Other-Modules:       Feature.AudienceJwtSecretSpec
+                     , Feature.AuthSpec
                      , Feature.AsymmetricJwtSpec
                      , Feature.BinaryJwtSecretSpec
                      , Feature.ConcurrentSpec

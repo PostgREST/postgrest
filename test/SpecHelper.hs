@@ -68,7 +68,7 @@ _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
   AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
             -- Jwt settings
-            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False ""
+            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
@@ -99,7 +99,7 @@ testCfgAudienceJWT :: Text -> AppConfig
 testCfgAudienceJWT testDbConn = (testCfg testDbConn) {
     configJwtSecret = Just . B64.decodeLenient $
       "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=",
-    configJwtAudience = "youraudience"
+    configJwtAudience = Just "youraudience"
   }
 
 testCfgAsymJWK :: Text -> AppConfig
