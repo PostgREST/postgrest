@@ -288,23 +288,23 @@ spec =
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
       get "/rpc/raise_bad_pt" `shouldRespondWith` 500
 
-    context "only for POST rpc" $ do
-      context "expects a single json object" $ do
-        it "does not expand posted json into parameters" $
-          request methodPost "/rpc/singlejsonparam"
-            [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
-            [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
-            { matchHeaders = [matchContentTypeJson] }
+    context "expects a single json object" $ do
+      it "does not expand posted json into parameters" $
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
+          [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
+          { matchHeaders = [matchContentTypeJson] }
 
-        it "accepts parameters from an html form" $
-          request methodPost "/rpc/singlejsonparam"
-            [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
-            ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
-             "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
-            [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
-                   , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
-                   { matchHeaders = [matchContentTypeJson] }
+      it "accepts parameters from an html form" $
+        request methodPost "/rpc/singlejsonparam"
+          [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
+          ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
+           "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
+          [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
+                 , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
+                 { matchHeaders = [matchContentTypeJson] }
 
+    context "only for POST rpc" $
       it "gives a parse filter error if GET style proc args are specified" $
         post "/rpc/sayhello?name=John" [json|{}|] `shouldRespondWith` 400
 
