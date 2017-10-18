@@ -142,14 +142,20 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
     | otherwise = asJsonF
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
-callProc :: QualifiedIdentifier -> JSON.Object -> Bool -> SqlQuery -> SqlQuery -> Bool ->
-  Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> H.Query () (Maybe ProcResults)
-callProc qi params returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField pgVer =
-  unicodeStatement sql HE.unit decodeProc True
+callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
+            Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+            H.Query JSON.Value (Maybe ProcResults)
+callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField pgVer =
+  unicodeStatement sql (HE.value HE.json) decodeProc True
   where
     sql =
      if returnsScalar then [qc|
-       WITH {sourceCTEName} AS (select {fromQi qi}({_args}))
+       WITH _args_record AS (
+         {argsRecord}
+       ),
+       {sourceCTEName} AS (
+         SELECT {fromQi qi}({args})
+       )
        SELECT
          {countResultF} AS total_result_set,
          1 AS page_total,
@@ -157,7 +163,12 @@ callProc qi params returnsScalar selectQuery countQuery countTotal isSingle para
          {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
      else [qc|
-       WITH {sourceCTEName} AS (select * from {fromQi qi}({_args}))
+       WITH _args_record AS (
+         {argsRecord}
+       ),
+       {sourceCTEName} AS (
+         SELECT * FROM {fromQi qi}({args})
+       )
        SELECT
          {countResultF} AS total_result_set,
          pg_catalog.count(_postgrest_t) AS page_total,
@@ -165,12 +176,14 @@ callProc qi params returnsScalar selectQuery countQuery countTotal isSingle para
          {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
 
+    (argsRecord, args) | paramsAsJson && not isReadOnly  = ("SELECT NULL", "$1")
+                       | null pgArgs = ("SELECT NULL", "")
+                       | otherwise = (
+                           "SELECT * FROM json_to_record($1) AS _(" <> intercalate ", " ((\a -> pgaName a <> " " <> pgaType a) <$> pgArgs) <> ")",
+                           intercalate ", " ((\a -> pgaName a <> " := (SELECT " <> pgaName a <> " FROM _args_record)") <$> pgArgs)
+                         )
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
-    _args = if paramsAsJson && not isReadOnly
-                then insertableValueWithType "json" $ JSON.Object params
-                else intercalate "," $ map _assignment (HM.toList params)
     _procName = qiName qi
-    _assignment (n,v) = pgFmtIdent n <> ":=" <> insertableValue v
     responseHeaders =
       if pgVer >= pgVersion96
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
@@ -379,10 +392,6 @@ emptyOnFalse val cond = if cond then "" else val
 insertableValue :: JSON.Value -> SqlFragment
 insertableValue JSON.Null = "null"
 insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
-
-insertableValueWithType :: Text -> JSON.Value -> SqlFragment
-insertableValueWithType t v =
-  pgFmtLit (unquoted v) <> "::" <> t
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"

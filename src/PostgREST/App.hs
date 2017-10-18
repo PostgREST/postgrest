@@ -241,11 +241,12 @@ app dbStructure conf apiRequest =
             Right ((q, cq), bField, params) -> do
               let prms = case payload of
                           Just (PayloadJSON pld) -> V.head pld
-                          Nothing -> M.fromList $ second toJSON <$> params -- toJSON is just for reusing the callProc function
+                          Nothing -> M.fromList $ second toJSON <$> params
                   singular = contentType == CTSingularJSON
                   paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
-              row <- H.query () $
-                callProc qi prms returnsScalar q cq shouldCount
+                  specifiedPgArgs = filter (flip M.member prms . pgaName) $ fromMaybe [] (pdArgs <$> proc)
+              row <- H.query (toJSON prms) $
+                callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular paramsAsSingleObject
                          (contentType == CTTextCSV)
                          (contentType == CTOctetStream) _isReadOnly bField

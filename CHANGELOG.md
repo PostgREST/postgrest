@@ -10,10 +10,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - #828, Fix computed column only working in public schema - @steve-chavez
+- #925, Avoid RPC high memory usage by using parametrized query - @steve-chavez
 
 ### Changed
 
 - Computed columns now only work if they belong to the db-schema - @steve-chavez
+- To use RPC now the `json_to_record/json_to_recordset` functions are needed, these are available starting from PostgreSQL 9.4 - @steve-chavez
 
 ## [0.4.4.0] - 2018-01-08
 
