@@ -302,11 +302,10 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)
 requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) logicForest returnings)) =
   case rows V.!? 0 of
     Just obj ->
-      let assignments = map
-            (\(k,v) -> pgFmtIdent k <> "=" <> insertableValue v) $ HM.toList obj in
+      let cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> HM.keys obj) in
       unwords [
         "UPDATE ", fromQi qi,
-        " SET " <> intercalate "," assignments <> " ",
+        " SET " <> cols <> " FROM (SELECT * FROM json_populate_recordset(null::" <> fromQi qi <> ", $1)) _ ",
         ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
         ]
@@ -388,10 +387,6 @@ unicodeStatement = H.statement . T.encodeUtf8
 
 emptyOnFalse :: Text -> Bool -> Text
 emptyOnFalse val cond = if cond then "" else val
-
-insertableValue :: JSON.Value -> SqlFragment
-insertableValue JSON.Null = "null"
-insertableValue v = (<> "::unknown") . pgFmtLit $ unquoted v
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
