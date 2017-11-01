@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- #887, #601, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
+- #887, #601, #1007, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
 - #328, Allow doing GET on rpc - @steve-chavez
 - #917, Add ability to map RAISE errorcode/message to http status - @steve-chavez
 - #940, Add ability to map GUC to http response headers - @steve-chavez

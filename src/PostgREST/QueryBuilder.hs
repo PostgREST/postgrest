@@ -433,12 +433,12 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
       Just True  -> emptyValForIn
       Nothing    -> emptyValForIn
 
-   Fts mode lang val ->
-     pgFmtFieldOp "fts" <> " " <> case mode of
-       Normal -> "to_tsquery("
-       Plain  -> "plainto_tsquery("
-       Phrase -> "phraseto_tsquery("
-     <> maybe "" (flip (<>) ", " . pgFmtLit) lang <> unknownLiteral val <> ") "
+   Fts op lang val ->
+     pgFmtFieldOp op
+       <> "("
+       <> maybe "" ((<> ", ") . pgFmtLit) lang
+       <> unknownLiteral val
+       <> ") "
 
    Join fQi (ForeignKey Column{colTable=Table{tableName=fTableName}, colName=fColName}) ->
      pgFmtField fQi fld <> " = " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) fTableName) fColName
