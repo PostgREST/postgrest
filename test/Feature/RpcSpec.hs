@@ -325,22 +325,19 @@ spec =
           { matchHeaders = [matchContentTypeJson] }
 
       it "should work with filters that use the plain with language fts operator" $ do
-        get "/rpc/get_tsearch?text_search_vector=english.fts.impossible" `shouldRespondWith`
+        get "/rpc/get_tsearch?text_search_vector=fts(english).impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=plain.fts.impossible" `shouldRespondWith`
+        get "/rpc/get_tsearch?text_search_vector=plfts.impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=not.english.fts.fun%7Crat" `shouldRespondWith`
+        get "/rpc/get_tsearch?text_search_vector=not.fts(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
         -- TODO: '@@' deprecated
-        get "/rpc/get_tsearch?text_search_vector=english.@@.impossible" `shouldRespondWith`
+        get "/rpc/get_tsearch?text_search_vector=@@(english).impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=plain.@@.impossible" `shouldRespondWith`
-          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=not.english.@@.fun%7Crat" `shouldRespondWith`
+        get "/rpc/get_tsearch?text_search_vector=not.@@(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }

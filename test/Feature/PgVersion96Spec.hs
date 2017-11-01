@@ -49,17 +49,17 @@ spec =
 
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $
-        get "/tsearch?text_search_vector=phrase.fts.The%20Fat%20Cats" `shouldRespondWith`
+        get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
           [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "finds matches with different dictionaries" $
-        get "/tsearch?text_search_vector=phrase.german.fts.Art%20Spass" `shouldRespondWith`
+        get "/tsearch?text_search_vector=phfts(german).Art%20Spass" `shouldRespondWith`
           [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "can be negated with not operator" $
-        get "/tsearch?text_search_vector=not.phrase.english.fts.The%20Fat%20Cats" `shouldRespondWith`
+        get "/tsearch?text_search_vector=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
           [json| [
             {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
             {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
@@ -68,32 +68,14 @@ spec =
           { matchHeaders = [matchContentTypeJson] }
 
       it "can be used with or query param" $
-        get "/tsearch?or=(text_search_vector.phrase.german.fts.Art%20Spass, text_search_vector.phrase.french.fts.amusant, text_search_vector.english.fts.impossible)" `shouldRespondWith`
+        get "/tsearch?or=(text_search_vector.phfts(german).Art%20Spass, text_search_vector.phfts(french).amusant, text_search_vector.fts(english).impossible)" `shouldRespondWith`
           [json|[
             {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
           ]|] { matchHeaders = [matchContentTypeJson] }
 
-      -- TODO: remove in 0.5.0 as deprecated
-      it "Deprecated @@ operator, pending to remove" $ do
-        get "/tsearch?text_search_vector=phrase.@@.The%20Fat%20Cats" `shouldRespondWith`
-          [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.phrase.english.@@.The%20Fat%20Cats" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-
-    context "GET rpc" $
-      it "should work with phrase fts" $ do
-        get "/rpc/get_tsearch?text_search_vector=phrase.english.fts.impossible" `shouldRespondWith`
-          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        -- TODO: '@@' deprecated
-        get "/rpc/get_tsearch?text_search_vector=phrase.english.@@.impossible" `shouldRespondWith`
+      it "should work when used with GET RPC" $
+        get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
