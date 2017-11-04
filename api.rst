@@ -618,7 +618,7 @@ On the other end of the spectrum you can get the full created object back in the
 
   Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
 
-To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an exmaple query setting the :code:`category` column to child for all people below a certain age.
+To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
 
 .. code:: HTTP
 
