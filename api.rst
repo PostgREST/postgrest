@@ -59,9 +59,9 @@ neq           not equal                                        :code:`<>` or :co
 like          LIKE operator (use * in place of %)              :code:`LIKE`
 ilike         ILIKE operator (use * in place of %)             :code:`ILIKE`
 in            one of a list of values e.g.                     :code:`IN`
-              :code:`?a=in.1,2,3` – also supports commas
+              :code:`?a=in.(1,2,3)` – also supports commas
               in quoted strings like
-              :code:`?a=in."hi,there","yes,you"`
+              :code:`?a=in.("hi,there","yes,you")`
 is            checking for exact equality (null,true,false)    :code:`IS`
 fts           :ref:`fts` using to_tsquery                      :code:`@@`
 cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
@@ -475,7 +475,7 @@ This sorts the list of actors in each film but does *not* change the order of th
 
 .. code-block:: http
 
-  GET /films?select=*,roles(*)&roles.character=in.Chico,Harpo,Groucho HTTP/1.1
+  GET /films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho) HTTP/1.1
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
