@@ -2,12 +2,12 @@
 module PostgREST.Types where
 import           Protolude
 import qualified GHC.Show
-import           Data.Aeson
+import qualified Data.Aeson           as JSON
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.CaseInsensitive as CI
 import qualified Data.HashMap.Strict  as M
+import qualified Data.Set                  as S
 import           Data.Tree
-import qualified Data.Vector          as V
 import           PostgREST.RangeQuery (NonnegRange)
 import           Network.HTTP.Types.Header (hContentType, Header)
 
@@ -59,7 +59,6 @@ type Schema = Text
 type TableName = Text
 type SqlQuery = Text
 type SqlFragment = Text
-type RequestBody = BL.ByteString
 
 data Table = Table {
   tableSchema      :: Schema
@@ -133,13 +132,23 @@ data Relation = Relation {
 , relLCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
--- | An array of JSON objects that has been verified to have
--- the same keys in every object
-newtype PayloadJSON = PayloadJSON (V.Vector Object)
-  deriving (Show, Eq)
+-- | Cached attributes of a JSON payload
+data PayloadJSON = PayloadJSON {
+-- | This is the raw ByteString that comes from the request body.
+-- We cache this instead of an Aeson Value because it was detected that for large payloads the encoding
+-- had high memory usage, see #1005 for more details
+  pjRaw     :: BL.ByteString
+, pjType    :: PJType
+-- | Keys of the object or if it's an array these keys are guaranteed to be the same across all its objects
+, pjKeys    :: S.Set Text
+} deriving (Show, Eq)
 
-unPayloadJSON :: PayloadJSON -> V.Vector Object
-unPayloadJSON (PayloadJSON objs) = objs
+data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)
+
+-- | e.g. whether it is []/{} or not
+pjIsEmpty :: PayloadJSON -> Bool
+pjIsEmpty (PayloadJSON _ PJObject keys) = S.size keys == 0
+pjIsEmpty (PayloadJSON _ (PJArray l) _) = l == 0
 
 data Proxy = Proxy {
   proxyScheme     :: Text
@@ -224,10 +233,10 @@ type RpcQParam = (Text, Text)
 -}
 newtype GucHeader = GucHeader (Text, Text)
 
-instance FromJSON GucHeader where
-  parseJSON (Object o) = case headMay (M.toList o) of
-    Just (k, String s) | M.size o == 1 -> pure $ GucHeader (k, s)
-                       | otherwise     -> mzero
+instance JSON.FromJSON GucHeader where
+  parseJSON (JSON.Object o) = case headMay (M.toList o) of
+    Just (k, JSON.String s) | M.size o == 1 -> pure $ GucHeader (k, s)
+                            | otherwise     -> mzero
     _ -> mzero
   parseJSON _          = mzero
 
