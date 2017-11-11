@@ -31,14 +31,13 @@ import qualified Data.Aeson              as JSON
 
 import           PostgREST.Config        (pgVersion96)
 import           PostgREST.RangeQuery    (NonnegRange, rangeLimit, rangeOffset, allRange)
-import           Data.Functor.Contravariant (contramap)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Maybe
+import qualified Data.Set                as S
 import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower)
 import qualified Data.Text as T          (map, takeWhile, null)
 import qualified Data.Text.Encoding as T
 import           Data.Tree               (Tree(..))
-import qualified Data.Vector as V
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (qc)
 import qualified Data.ByteString.Char8   as BS
@@ -76,14 +75,6 @@ decodeStandardMay :: HD.Result (Maybe ResultsWithCount)
 decodeStandardMay =
   HD.maybeRow standardRow
 
-{-| JSON and CSV payloads from the client are given to us as
-    PayloadJSON (objects who all have the same keys),
-    and we turn this into an old fasioned JSON array
--}
-encodeUniformObjs :: HE.Params PayloadJSON
-encodeUniformObjs =
-  contramap (JSON.Array . V.map JSON.Object . unPayloadJSON) (HE.value HE.json)
-
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
                        H.Query () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
@@ -105,11 +96,12 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
     | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF
 
+
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
-                        H.Query PayloadJSON (Maybe ResultsWithCount)
+                        H.Query ByteString (Maybe ResultsWithCount)
 createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys =
-  unicodeStatement sql encodeUniformObjs decodeStandardMay True
+  unicodeStatement sql (HE.value HE.unknown) decodeStandardMay True
 
  where
   sql = case rep of
@@ -143,16 +135,14 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
 callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
-            Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
-            H.Query JSON.Value (Maybe ProcResults)
-callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsJson asCsv asBinary isReadOnly binaryField pgVer =
-  unicodeStatement sql (HE.value HE.json) decodeProc True
+            Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool -> PgVersion ->
+            H.Query ByteString (Maybe ProcResults)
+callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary isReadOnly binaryField isObject pgVer =
+  unicodeStatement sql (HE.value HE.unknown) decodeProc True
   where
     sql =
      if returnsScalar then [qc|
-       WITH _args_record AS (
-         {argsRecord}
-       ),
+       WITH {argsRecord},
        {sourceCTEName} AS (
          SELECT {fromQi qi}({args})
        )
@@ -163,9 +153,7 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
          {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
      else [qc|
-       WITH _args_record AS (
-         {argsRecord}
-       ),
+       WITH {argsRecord},
        {sourceCTEName} AS (
          SELECT * FROM {fromQi qi}({args})
        )
@@ -176,11 +164,14 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
          {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
 
-    (argsRecord, args) | paramsAsJson && not isReadOnly  = ("SELECT NULL", "$1")
-                       | null pgArgs = ("SELECT NULL", "")
+    (argsRecord, args) | paramsAsSingleObject && not isReadOnly  = ("_args_record AS (SELECT NULL)", "$1::json")
+                       | null pgArgs = (ignoredBody, "")
                        | otherwise = (
-                           "SELECT * FROM json_to_record($1) AS _(" <> intercalate ", " ((\a -> pgaName a <> " " <> pgaType a) <$> pgArgs) <> ")",
-                           intercalate ", " ((\a -> pgaName a <> " := (SELECT " <> pgaName a <> " FROM _args_record)") <$> pgArgs)
+                           "_args_record AS ( "<>
+                             "SELECT * FROM " <> (if isObject then "json_to_record" else "json_to_recordset") <>
+                             "($1) AS _(" <> intercalate ", " ((\a -> pgaName a <> " " <> pgaType a) <$> pgArgs) <> ")" <>
+                           ")"
+                         , intercalate ", " ((\a -> pgaName a <> " := (SELECT " <> pgaName a <> " FROM _args_record)") <$> pgArgs)
                          )
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _procName = qiName qi
@@ -284,43 +275,55 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = undefined
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON rows) returnings)) =
-  insInto <> vals <> ret
-  where qi = QualifiedIdentifier schema mainTbl
-        cols = map pgFmtIdent $ fromMaybe [] (HM.keys <$> (rows V.!? 0))
-        colsString = intercalate ", " cols
-        insInto = unwords [ "INSERT INTO" , fromQi qi,
-            if T.null colsString then "" else "(" <> colsString <> ")"
-          ]
-        vals = unwords $
-          if T.null colsString
-            then if V.null rows then ["SELECT null WHERE false"] else ["DEFAULT VALUES"]
-            else ["SELECT", colsString, "FROM json_populate_recordset(null::" , fromQi qi, ", $1)"]
-        ret = if null returnings
-                  then ""
-                  else unwords [" RETURNING ", intercalate ", " (map (pgFmtColumn qi) returnings)]
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON rows) logicForest returnings)) =
-  case rows V.!? 0 of
-    Just obj ->
-      let cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> HM.keys obj) in
+requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ pType keys) returnings)) =
+  unwords [
+    ("WITH " <> ignoredBody) `emptyOnFalse` not payloadIsEmpty,
+    "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ") ",
+    case (pType, payloadIsEmpty) of
+      (PJArray _, True) -> "SELECT null WHERE false"
+      (PJObject, True)  -> "DEFAULT VALUES"
+      _ -> unwords [
+        "SELECT " <> cols <> " FROM ",
+        case pType of
+          PJObject  -> "json_populate_record"
+          PJArray _ -> "json_populate_recordset", "(null::", fromQi qi, ", $1) "],
+    ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
+    ]
+  where
+    qi = QualifiedIdentifier schema mainTbl
+    cols = intercalate ", " $ pgFmtIdent <$> S.toList keys
+    payloadIsEmpty = pjIsEmpty p
+requestToQuery schema _ (DbMutate (Update mainTbl p@(PayloadJSON _ pType keys) logicForest returnings)) =
+  if pjIsEmpty p
+    then "WITH " <> ignoredBody <> "SELECT ''"
+    else
       unwords [
-        "UPDATE ", fromQi qi,
-        " SET " <> cols <> " FROM (SELECT * FROM json_populate_recordset(null::" <> fromQi qi <> ", $1)) _ ",
+        "UPDATE " <> fromQi qi <> " SET " <> cols,
+        "FROM (SELECT * FROM ",
+        case pType of
+           PJObject  -> " json_populate_record"
+           PJArray _ -> " json_populate_recordset", "(null::", fromQi qi, ", $1)) _ ",
         ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
         ]
-    Nothing -> undefined
   where
     qi = QualifiedIdentifier schema mainTbl
+    cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList keys)
 requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
-  query
+  unwords [
+    "WITH " <> ignoredBody,
+    "DELETE FROM ", fromQi qi,
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
+    ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
+    ]
   where
     qi = QualifiedIdentifier schema mainTbl
-    query = unwords [
-      "DELETE FROM ", fromQi qi,
-      ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
-      ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
-      ]
+
+-- Due to the use of the `unknown` encoder we need to cast '$1' when the value is not used in the main query
+-- otherwise the query will err with a `could not determine data type of parameter $1`.
+-- This happens because `unknown` relies on the context to determine the value type.
+ignoredBody :: SqlFragment
+ignoredBody = "ignored_body AS (SELECT $1::text) "
 
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
 removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl

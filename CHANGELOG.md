@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - #828, Fix computed column only working in public schema - @steve-chavez
-- #925, Avoid RPC high memory usage by using parametrized query - @steve-chavez
+- #925, Fix RPC high memory usage by using parametrized query and avoiding json encoding - @steve-chavez
 
 ### Changed
 
