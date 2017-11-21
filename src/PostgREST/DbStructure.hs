@@ -33,7 +33,7 @@ import           Unsafe (unsafeHead)
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
   tabs <- H.query () allTables
-  cols <- H.query () $ allColumns tabs
+  cols <- H.query schema $ allColumns tabs
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
@@ -321,9 +321,9 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> H.Query () [Column]
+allColumns :: [Table] -> H.Query Schema [Column]
 allColumns tabs =
-  H.statement sql HE.unit (decodeColumns tabs) True
+  H.statement sql (HE.value HE.text) (decodeColumns tabs) True
  where
   sql = [q|
     SELECT DISTINCT
@@ -431,7 +431,7 @@ allColumns tabs =
                JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
                LEFT JOIN (pg_collation co
                JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
-            WHERE NOT pg_is_other_temp_schema(nc.oid) AND a.attnum > 0 AND NOT a.attisdropped AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+            WHERE NOT pg_is_other_temp_schema(nc.oid) AND a.attnum > 0 AND NOT a.attisdropped AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"])) AND nc.nspname = $1
               /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
         SELECT
