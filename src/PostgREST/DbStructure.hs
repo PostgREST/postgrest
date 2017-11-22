@@ -552,7 +552,10 @@ allPrimaryKeys tabs =
  where
   sql = [q|
     /*
-    -- CTE to replace information_schema.table_constraints to remove owner limit
+    -- CTE based on information_schema.columns 
+    -- changed:
+    -- remove the owner filter
+    -- limit columns to the ones in the api schema or PK/FK columns
     */
     WITH tc AS (
         SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
