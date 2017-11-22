@@ -364,7 +364,10 @@ allColumns tabs =
                AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
         ),
         /*
-        -- CTE based on information_schema.columns to remove the owner filter
+        -- CTE based on information_schema.columns 
+        -- changed:
+        -- remove the owner filter
+        -- limit columns to the ones in the api schema or PK/FK columns
         */
         columns AS (
             SELECT current_database()::information_schema.sql_identifier AS table_catalog,
@@ -552,10 +555,7 @@ allPrimaryKeys tabs =
  where
   sql = [q|
     /*
-    -- CTE based on information_schema.columns 
-    -- changed:
-    -- remove the owner filter
-    -- limit columns to the ones in the api schema or PK/FK columns
+    -- CTE to replace information_schema.table_constraints to remove owner limit
     */
     WITH tc AS (
         SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
