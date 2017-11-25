@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #955, Support configurable aud claim - @statik
 - #996, Fix embedded column conflicts table name - @grotsev
 - #974, Fix RPC error when function has single OUT param - @steve-chavez
+- #1021, Reduce join size in allColumns for faster program start - @nextstopsun
 
 ## [0.4.3.0] - 2017-09-06
 

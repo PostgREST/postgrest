@@ -364,7 +364,7 @@ allColumns tabs =
                AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
         ),
         /*
-        -- CTE based on information_schema.columns 
+        -- CTE based on information_schema.columns
         -- changed:
         -- remove the owner filter
         -- limit columns to the ones in the api schema or PK/FK columns
@@ -458,7 +458,7 @@ allColumns tabs =
                JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
                LEFT JOIN (pg_collation co
                JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
-            WHERE                 
+            WHERE
                 NOT pg_is_other_temp_schema(nc.oid)
                 AND a.attnum > 0
                 AND NOT a.attisdropped
