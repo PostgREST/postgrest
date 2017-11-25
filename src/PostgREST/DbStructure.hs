@@ -33,7 +33,7 @@ import           Unsafe (unsafeHead)
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
   tabs <- H.query () allTables
-  cols <- H.query () $ allColumns tabs
+  cols <- H.query schema $ allColumns tabs
   syns <- H.query () $ allSynonyms cols
   rels <- H.query () $ allRelations tabs cols
   keys <- H.query () $ allPrimaryKeys tabs
@@ -321,9 +321,9 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> H.Query () [Column]
+allColumns :: [Table] -> H.Query Schema [Column]
 allColumns tabs =
-  H.statement sql HE.unit (decodeColumns tabs) True
+  H.statement sql (HE.value HE.text) (decodeColumns tabs) True
  where
   sql = [q|
     SELECT DISTINCT
@@ -341,9 +341,35 @@ allColumns tabs =
         array_to_string(enum_info.vals, ',') AS enum
     FROM (
         /*
-        -- CTE based on information_schema.columns to remove the owner filter
+        -- CTE based on pg_catalog to get only Primary and Foreign key columns outside api schema
         */
-        WITH columns AS (
+        WITH key_columns AS (
+             SELECT
+               r.oid AS r_oid,
+               c.oid AS c_oid,
+               n.nspname,
+               c.relname,
+               r.conname,
+               r.contype,
+               unnest(r.conkey) AS conkey
+             FROM
+               pg_catalog.pg_constraint r,
+               pg_catalog.pg_class c,
+               pg_catalog.pg_namespace n
+             WHERE
+               r.contype IN ('f', 'p')
+               AND c.relkind IN ('r', 'v', 'f', 'mv')
+               AND r.conrelid = c.oid
+               AND c.relnamespace = n.oid
+               AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
+        ),
+        /*
+        -- CTE based on information_schema.columns 
+        -- changed:
+        -- remove the owner filter
+        -- limit columns to the ones in the api schema or PK/FK columns
+        */
+        columns AS (
             SELECT current_database()::information_schema.sql_identifier AS table_catalog,
                 nc.nspname::information_schema.sql_identifier AS table_schema,
                 c.relname::information_schema.sql_identifier AS table_name,
@@ -421,6 +447,7 @@ allColumns tabs =
                     ELSE 'NO'::text
                 END::information_schema.yes_or_no AS is_updatable
             FROM pg_attribute a
+               LEFT JOIN key_columns kc ON kc.conkey = a.attnum AND kc.c_oid = a.attrelid
                LEFT JOIN pg_catalog.pg_description AS d ON d.objoid = a.attrelid and d.objsubid = a.attnum
                LEFT JOIN pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
                JOIN (pg_class c
@@ -431,7 +458,12 @@ allColumns tabs =
                JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
                LEFT JOIN (pg_collation co
                JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
-            WHERE NOT pg_is_other_temp_schema(nc.oid) AND a.attnum > 0 AND NOT a.attisdropped AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+            WHERE                 
+                NOT pg_is_other_temp_schema(nc.oid)
+                AND a.attnum > 0
+                AND NOT a.attisdropped
+                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+                AND (nc.nspname = $1 OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
               /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
         SELECT
