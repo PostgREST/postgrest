@@ -91,9 +91,15 @@ createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe Fie
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
   unicodeStatement sql HE.unit decodeStandard False
  where
-  sql = [qc|
-      WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
-      FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
+  sql =
+    if asCsv
+      then [qc|
+        WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
+        FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
+      else [qc|
+        SELECT {cols}
+        FROM ({selectQuery}) _postgrest_t |]
+
   countResultF = if countTotal then "("<>countQuery<>")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
@@ -328,19 +334,19 @@ unquoted (JSON.Number n) =
 unquoted (JSON.Bool b) = show b
 unquoted v = toS $ JSON.encode v
 
--- private functions
 asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
-    asCsvHeaderF =
-      "(SELECT coalesce(string_agg(a.k, ','), '')" <>
-      "  FROM (" <>
-      "    SELECT json_object_keys(r)::TEXT as k" <>
-      "    FROM ( " <>
-      "      SELECT row_to_json(hh) as r from " <> sourceCTEName <> " as hh limit 1" <>
-      "    ) s" <>
-      "  ) a" <>
-      ")"
+    asCsvHeaderF = [qc|
+      (SELECT coalesce(string_agg(keys.name, ','), '')
+        FROM (
+          SELECT json_object_keys(sample)::text as name
+          FROM (
+            SELECT row_to_json(_) AS sample FROM {sourceCTEName} AS _ limit 1
+          ) _
+        ) keys
+      )
+    |]
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
 asJsonF :: SqlFragment
