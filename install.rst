@@ -34,6 +34,8 @@ To use PostgREST you will need an underlying database (PostgreSQL version 9.5 or
 * `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
 * `Installer for Windows <http://www.enterprisedb.com/products-services-training/pgdownload#windows>`_
 
+On Windows, PostgREST will fail to run unless the PostgreSQL binaries are on the system path. To test whether this is the case, run ``pg_config`` from the command line. You should see it output a list of paths.
+
 .. _configuration:
 
 Configuration
