@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #328, Allow doing GET on rpc - @steve-chavez
 - #917, Add ability to map RAISE errorcode/message to http status - @steve-chavez
 - #940, Add ability to map GUC to http response headers - @steve-chavez
+- Faster queries using json_agg - @ruslantalpa
 
 ### Fixed
 
