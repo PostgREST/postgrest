@@ -85,9 +85,11 @@ spec = do
 
     it "matches with ilike" $ do
       get "/simple_pk?k=ilike.xy*&order=extra.asc" `shouldRespondWith`
-        [str|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        [json|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        { matchHeaders = [matchContentTypeJson] }
       get "/simple_pk?k=ilike.*YY*&order=extra.asc" `shouldRespondWith`
-        [str|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        [json|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches with ilike using not operator" $
       get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
@@ -188,21 +190,26 @@ spec = do
 
     it "matches filtering nested items" $
       get "/clients?select=id,projects{id,tasks{id,name}}&projects.tasks.name=like.Design*" `shouldRespondWith`
-        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
+        [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches with cs operator" $ do
       get "/complex_items?select=id&arr_data=cs.{2}" `shouldRespondWith`
-        [str|[{"id":2},{"id":3}]|]
+        [json|[{"id":2},{"id":3}]|]
+        { matchHeaders = [matchContentTypeJson] }
       -- TODO: remove in 0.5.0 as deprecated
       get "/complex_items?select=id&arr_data=@>.{2}" `shouldRespondWith`
-        [str|[{"id":2},{"id":3}]|]
+        [json|[{"id":2},{"id":3}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "matches with cd operator" $ do
       get "/complex_items?select=id&arr_data=cd.{1,2,4}" `shouldRespondWith`
-        [str|[{"id":1},{"id":2}]|]
+        [json|[{"id":1},{"id":2}]|]
+        { matchHeaders = [matchContentTypeJson] }
       -- TODO: remove in 0.5.0 as deprecated
       get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
-        [str|[{"id":1},{"id":2}]|]
+        [json|[{"id":1},{"id":2}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
 
   describe "Shaping response with select parameter" $ do
@@ -289,7 +296,8 @@ spec = do
 
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "embed data with two fk pointing to the same table" $
       get "/orders?id=eq.1&select=id, name, billing_address_id{id}, shipping_address_id{id}" `shouldRespondWith`
@@ -298,7 +306,8 @@ spec = do
 
     it "requesting parents and children while renaming them" $
       get "/projects?id=eq.1&select=myId:id, name, project_client:client_id{*}, project_tasks:tasks{id, name}" `shouldRespondWith`
-        [str|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        [json|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parents two levels up while using FK to specify the link" $
       get "/tasks?id=eq.1&select=id,name,project:project_id{id,name,client:client_id{id,name}}" `shouldRespondWith`
@@ -315,7 +324,8 @@ spec = do
 
     it "rows with missing parents are included" $
       get "/projects?id=in.1,5&select=id,clients{id}" `shouldRespondWith`
-        [str|[{"id":1,"clients":{"id":1}},{"id":5,"clients":null}]|]
+        [json|[{"id":1,"clients":{"id":1}},{"id":5,"clients":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "rows with no children return [] instead of null" $
       get "/projects?id=in.5&select=id,tasks{id}" `shouldRespondWith`
@@ -323,53 +333,70 @@ spec = do
 
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects{id,tasks{id}}" `shouldRespondWith`
-        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+        [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting children 2 levels (with relation path fixed)" $
       get "/clients?id=eq.1&select=id,projects:projects.client_id{id,tasks{id}}" `shouldRespondWith`
-        [str|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+        [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
-        [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+        [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting many<->many relation (with relation path fixed)" $
       get "/tasks?select=id,users:users.users_tasks{id}" `shouldRespondWith`
-        [str|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+        [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting many<->many relation with rename" $
       get "/tasks?id=eq.1&select=id,theUsers:users{id}" `shouldRespondWith`
-        [str|[{"id":1,"theUsers":[{"id":1},{"id":3}]}]|]
+        [json|[{"id":1,"theUsers":[{"id":1},{"id":3}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
 
     it "requesting many<->many relation reverse" $
       get "/users?select=id,tasks{id}" `shouldRespondWith`
-        [str|[{"id":1,"tasks":[{"id":1},{"id":2},{"id":3},{"id":4}]},{"id":2,"tasks":[{"id":5},{"id":6},{"id":7}]},{"id":3,"tasks":[{"id":1},{"id":5}]}]|]
+        [json|[{"id":1,"tasks":[{"id":1},{"id":2},{"id":3},{"id":4}]},{"id":2,"tasks":[{"id":5},{"id":6},{"id":7}]},{"id":3,"tasks":[{"id":1},{"id":5}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parents and children on views" $
       get "/projects_view?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parents and children on views with renamed keys" $
       get "/projects_view_alt?t_id=eq.1&select=t_id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
-        [str|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        [json|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`
-        [str|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
+        [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
       get "/articles?id=eq.1&select=id,articleStars{users{*}}" `shouldRespondWith`
-        [str|[{"id":1,"articleStars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+        [json|[{"id":1,"articleStars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
-    it "can select by column name" $
-      get "/projects?id=in.1,3&select=id,name,client_id,client_id{id,name}" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","client_id":1,"client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client_id":{"id":2,"name":"Apple"}}]|]
+    it "can embed by FK column name" $
+      get "/projects?id=in.1,3&select=id,name,client_id{id,name}" `shouldRespondWith`
+        [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+    
+    it "can embed by FK column name and select the FK value at the same time, if aliased" $
+      get "/projects?id=in.1,3&select=id,name,client_id,client:client_id{id,name}" `shouldRespondWith`
+        [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "can select by column name sans id" $
       get "/projects?id=in.1,3&select=id,name,client_id,client{id,name}" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
+        [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "can detect fk relations through views to tables in the public schema" $
       get "/consumers_view?select=*,orders_view{*}" `shouldRespondWith` 200
@@ -441,15 +468,18 @@ spec = do
 
     it "ordering embeded entities" $
       get "/projects?id=eq.1&select=id, name, tasks{id, name}&tasks.order=name.asc" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+        [json|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "ordering embeded entities with alias" $
       get "/projects?id=eq.1&select=id, name, the_tasks:tasks{id, name}&tasks.order=name.asc" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","the_tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+        [json|[{"id":1,"name":"Windows 7","the_tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "ordering embeded entities, two levels" $
       get "/projects?id=eq.1&select=id, name, tasks{id, name, users{id, name}}&tasks.order=name.asc&tasks.users.order=name.desc" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7","users":[{"id":1,"name":"Angela Martin"}]},{"id":1,"name":"Design w7","users":[{"id":3,"name":"Dwight Schrute"},{"id":1,"name":"Angela Martin"}]}]}]|]
+        [json|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7","users":[{"id":1,"name":"Angela Martin"}]},{"id":1,"name":"Design w7","users":[{"id":3,"name":"Dwight Schrute"},{"id":1,"name":"Angela Martin"}]}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "ordering embeded parents does not break things" $
       get "/projects?id=eq.1&select=id, name, clients{id, name}&clients.order=name.asc" `shouldRespondWith`
