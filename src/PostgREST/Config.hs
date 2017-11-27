@@ -148,6 +148,7 @@ readOptions = do
         Nothing -> pure Nothing -- no audience in config file
         Just aud -> case preview stringOrUri (aud :: String) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
+          (Just "") -> pure Nothing
           aud' -> pure aud'
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i

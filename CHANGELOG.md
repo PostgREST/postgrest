@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #996, Fix embedded column conflicts table name - @grotsev
 - #974, Fix RPC error when function has single OUT param - @steve-chavez
 - #1021, Reduce join size in allColumns for faster program start - @nextstopsun
+- #1016, Fix anonymous requests when configured with jwt-aud - @ruslantalpa
 
 ## [0.4.3.0] - 2017-09-06
 
