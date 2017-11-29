@@ -434,7 +434,9 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
       Nothing    -> emptyValForIn
 
    Fts op lang val ->
-     pgFmtFieldOp op
+       maybe (\x -> x) (\l fmtfld -> "to_tsvector(" <> pgFmtLit l <> ", " <> fmtfld <> ")") lang (pgFmtField table fld)
+       <> " "
+       <> sqlOperator op
        <> "("
        <> maybe "" ((<> ", ") . pgFmtLit) lang
        <> unknownLiteral val
