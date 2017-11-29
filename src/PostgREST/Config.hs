@@ -46,7 +46,7 @@ import           Data.Text                    (dropAround,
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.IO                 (hPutStrLn)
 import           Data.Version                 (versionBranch)
-import           Development.GitRev
+import           Development.GitRev           (gitHash)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
