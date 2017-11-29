@@ -51,6 +51,7 @@ Client-Side Libraries
 * `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
 * `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
 * `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
+* `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over Postgrest.
 
 External Notification
 ---------------------
