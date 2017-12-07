@@ -38,7 +38,6 @@ import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
-                                           , readRpcRequest
                                            , fieldNames
                                            )
 import           PostgREST.Error           ( simpleError, pgError
@@ -79,35 +78,44 @@ postgrest conf refDbStructure pool worker =
             eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest)
 
             let authed = containsRole eClaims
-                handleReq = runWithClaims conf eClaims (app dbStructure conf) apiRequest
-                txMode = transactionMode dbStructure
-                  (iTarget apiRequest) (iAction apiRequest)
+                proc = case (iTarget apiRequest, iPayload apiRequest, iPreferSingleObjectParameter apiRequest) of
+                  (TargetProc qi, Just PayloadJSON{pjKeys=pKeys}, s) -> findProc qi pKeys s $ dbProcs dbStructure
+                  _ -> Nothing
+                handleReq = runWithClaims conf eClaims (app dbStructure proc conf) apiRequest
+                txMode = transactionMode proc (iAction apiRequest)
             response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
             return $ either (pgError authed) identity response
         when (responseStatus response == status503) worker
         respond response
 
-transactionMode :: DbStructure -> Target -> Action -> H.Mode
-transactionMode structure target action =
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> M.HashMap Text [ProcDescription] -> Maybe ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs =
+  let procs = M.lookup (qiName qi) allProcs in
+ -- Handle overloaded functions case
+  join $ (case length <$> procs of
+    Just 1 -> headMay -- if it's not an overloaded function then immediatly get the ProcDescription
+    _ -> find (\x ->
+           if paramsAsSingleObject
+             then length (pdArgs x) == 1 -- if the arg is not of json type let the db give the err
+             else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs x))
+  ) <$> procs
+
+transactionMode :: Maybe ProcDescription -> Action -> H.Mode
+transactionMode proc action =
   case action of
     ActionRead -> HT.Read
     ActionInfo -> HT.Read
     ActionInspect -> HT.Read
     ActionInvoke{isReadOnly=False} ->
-      let proc =
-            case target of
-              (TargetProc qi) -> M.lookup (qiName qi) $
-                                   dbProcs structure
-              _               -> Nothing
-          v = fromMaybe Volatile $ pdVolatility <$> proc in
+      let v = fromMaybe Volatile $ pdVolatility <$> proc in
       if v == Stable || v == Immutable
          then HT.Read
          else HT.Write
     ActionInvoke{isReadOnly=True} -> HT.Read
     _ -> HT.Write
 
-app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
-app dbStructure conf apiRequest =
+app :: DbStructure -> Maybe ProcDescription -> AppConfig -> ApiRequest -> H.Transaction Response
+app dbStructure proc conf apiRequest =
   case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
@@ -140,13 +148,13 @@ app dbStructure conf apiRequest =
           case mutateSqlParts of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let (isSingle, rows) = case pType of
-                                       PJArray len -> (len == 1, len)
-                                       PJObject -> (True, 1)
+              let (isSingle, nRows) = case pType of
+                                        PJArray len -> (len == 1, len)
+                                        PJObject -> (True, 1)
               if contentType == CTSingularJSON
                  && not isSingle
                  && iPreferRepresentation apiRequest == Full
-                then return $ singularityError (toInteger rows)
+                then return $ singularityError (toInteger nRows)
                 else do
                   let pKeys = map pkName $ filter (filterPk schema table) allPrKeys -- would it be ok to move primary key detection in the query itself?
                       stm = createWriteStatement sq mq
@@ -163,7 +171,7 @@ app dbStructure conf apiRequest =
                             then Just $ toHeader contentType
                             else Nothing
                         , Just . contentRangeH 1 0 $
-                            toInteger <$> if shouldCount then Just rows else Nothing
+                            toInteger <$> if shouldCount then Just nRows else Nothing
                         ]
 
                   return . responseLBS status201 headers $
@@ -228,31 +236,28 @@ app dbStructure conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke _isReadOnly, TargetProc qi, payload) ->
-          let proc = M.lookup (qiName qi) allProcs
-              returnsScalar = case proc of
+        (ActionInvoke _, TargetProc qi, Just (PayloadJSON payload pType pKeys)) ->
+          let returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
                 _ -> False
               rpcBinaryField = if returnsScalar
                                  then Right Nothing
                                  else binaryField contentType =<< fldNames
-              parts = (,,) <$> readSqlParts <*> rpcBinaryField <*> rpcQParams in
+              parts = (,) <$> readSqlParts <*> rpcBinaryField in
           case parts of
             Left errorResponse -> return errorResponse
-            Right ((q, cq), bField, params) -> do
-              let (prms, keys, isObject) = case payload of
-                          Just (PayloadJSON p (PJArray _) ks) -> (p, ks, False)
-                          Just (PayloadJSON p PJObject ks)  -> (p, ks, True)
-                          Nothing -> (JSON.encode $ M.fromList $ second JSON.toJSON <$> params, S.fromList $ fst <$> params, True)
+            Right ((q, cq), bField) -> do
+              let isObject = case pType of
+                                PJObject  -> True
+                                PJArray _ -> False
                   singular = contentType == CTSingularJSON
-                  paramsAsSingleObject = iPreferSingleObjectParameter apiRequest
-                  specifiedPgArgs = filter (flip S.member keys . pgaName) $ fromMaybe [] (pdArgs <$> proc)
-              row <- H.query (toS prms) $
+                  specifiedPgArgs = filter ((`S.member` pKeys) . pgaName) $ fromMaybe [] (pdArgs <$> proc)
+              row <- H.query (toS payload) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
-                         singular paramsAsSingleObject
+                         singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
-                         (contentType == CTOctetStream) _isReadOnly bField
-                         isObject (pgVersion dbStructure)
+                         (contentType == CTOctetStream) bField isObject
+                         (pgVersion dbStructure)
               let (tableTotal, queryTotal, body, jsonHeaders) =
                     fromMaybe (Just 0, 0, "[]", "[]") row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
@@ -273,7 +278,7 @@ app dbStructure conf apiRequest =
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
-              encodeApi ti sd procs = encodeOpenAPI (M.elems procs) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
+              encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd (dbPrimaryKeys dbStructure)
           body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription <*> H.query schema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
@@ -292,7 +297,6 @@ app dbStructure conf apiRequest =
       filterCol :: Schema -> TableName -> Column -> Bool
       filterCol sc tb Column{colTable=Table{tableSchema=s, tableName=t}} = s==sc && t==tb
       allPrKeys = dbPrimaryKeys dbStructure
-      allProcs = dbProcs dbStructure
       allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
       shouldCount = iPreferCount apiRequest
       schema = toS $ configSchema conf
@@ -304,11 +308,10 @@ app dbStructure conf apiRequest =
             status = rangeStatus lower upper (toInteger <$> tableTotal)
         in (status, contentRange)
 
-      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) allProcs apiRequest
+      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) proc apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       mutateDbRequest = DbMutate <$> (mutateRequest apiRequest =<< fldNames)
-      rpcQParams = readRpcRequest apiRequest
       selectQuery = requestToQuery schema False <$> readDbRequest
       mutateQuery = requestToQuery schema False <$> mutateDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest

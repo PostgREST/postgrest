@@ -103,9 +103,10 @@ decodeSynonyms cols =
     <*> HD.value HD.text <*> HD.value HD.text
     <*> HD.value HD.text <*> HD.value HD.text
 
-decodeProcs :: HD.Result (M.HashMap Text ProcDescription)
+decodeProcs :: HD.Result (M.HashMap Text [ProcDescription])
 decodeProcs =
-  M.fromList . map addName <$> HD.rowsList tblRow
+  -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
+  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addName) <$> HD.rowsList tblRow
   where
     tblRow = ProcDescription
               <$> HD.value HD.text
@@ -152,10 +153,10 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: H.Query Schema (M.HashMap Text ProcDescription)
+allProcs :: H.Query Schema (M.HashMap Text [ProcDescription])
 allProcs = H.statement (toS procsSqlQuery) (HE.value HE.text) decodeProcs True
 
-accessibleProcs :: H.Query Schema (M.HashMap Text ProcDescription)
+accessibleProcs :: H.Query Schema (M.HashMap Text [ProcDescription])
 accessibleProcs = H.statement (toS sql) (HE.value HE.text) decodeProcs True
   where
     sql = procsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"

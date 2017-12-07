@@ -3,7 +3,6 @@
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
-, readRpcRequest
 , fieldNames
 ) where
 
@@ -37,8 +36,8 @@ import           Protolude                hiding (from, dropWhile, drop)
 import           Text.Regex.TDFA         ((=~))
 import           Unsafe                  (unsafeHead)
 
-readRequest :: Maybe Integer -> [Relation] -> M.HashMap Text ProcDescription -> ApiRequest -> Either Response ReadRequest
-readRequest maxRows allRels allProcs apiRequest  =
+readRequest :: Maybe Integer -> [Relation] -> Maybe ProcDescription -> ApiRequest -> Either Response ReadRequest
+readRequest maxRows allRels proc apiRequest  =
   mapLeft apiRequestError $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
@@ -48,13 +47,12 @@ readRequest maxRows allRels allProcs apiRequest  =
       let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
-        (TargetProc  (QualifiedIdentifier s proc) ) -> Just (s, tName)
+        (TargetProc  (QualifiedIdentifier s pName) ) -> Just (s, tName)
           where
-            retType = pdReturnType <$> M.lookup proc allProcs
-            tName = case retType of
+            tName = case pdReturnType <$> proc of
               Just (SetOf (Composite qi)) -> qiName qi
               Just (Single (Composite qi)) -> qiName qi
-              _ -> proc
+              _ -> pName
 
         _ -> Nothing
 
@@ -326,11 +324,6 @@ mutateRequest apiRequest fldNames = mapLeft apiRequestError $
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
-
-readRpcRequest :: ApiRequest -> Either Response [RpcQParam]
-readRpcRequest apiRequest = mapLeft apiRequestError rpcQParams
-  where
-    rpcQParams = mapM pRequestRpcQParam $ iRpcQParams apiRequest
 
 fieldNames :: ReadRequest -> [FieldName]
 fieldNames (Node (sel, _) forest) =
