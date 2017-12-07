@@ -275,8 +275,14 @@ spec =
           [json|[{"my_json":{"a": 1, "b": "two"},"num":3,"str":"four"}]|] { matchHeaders = [matchContentTypeJson] }
 
       it "returns a row result when there are many INOUT params" $
-        get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
-          [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/many_inout_params?num=1&str=two&b=false" `shouldRespondWith`
+          [json| [{"num":1,"str":"two","b":false}]|] { matchHeaders = [matchContentTypeJson] }
+
+    it "can handle procs with args that have a DEFAULT value" $ do
+      get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
+        [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/three_defaults?b=4" `shouldRespondWith`
+        [json|8|] { matchHeaders = [matchContentTypeJson] }
 
     it "can map a RAISE error code and message to a http status" $
       get "/rpc/raise_pt402"
@@ -291,7 +297,7 @@ spec =
     context "expects a single json object" $ do
       it "does not expand posted json into parameters" $
         request methodPost "/rpc/singlejsonparam"
-          [("Prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
+          [("prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
           [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -303,6 +309,25 @@ spec =
           [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
                  , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
                  { matchHeaders = [matchContentTypeJson] }
+
+      it "works with GET" $
+        request methodGet "/rpc/singlejsonparam?p1=1&p2=text" [("Prefer","params=single-object")] ""
+          `shouldRespondWith` [json|{ "p1": "1", "p2": "text"}|]
+          { matchHeaders = [matchContentTypeJson] }
+
+    it "should work with an overloaded function" $ do
+      get "/rpc/overloaded" `shouldRespondWith`
+        [json|[{ "overloaded": 1 },
+               { "overloaded": 2 },
+               { "overloaded": 3 }]|]
+        { matchHeaders = [matchContentTypeJson] }
+      request methodPost "/rpc/overloaded" [("Prefer","params=single-object")]
+        [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
+       `shouldRespondWith`
+        [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
+      get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [str|"123"|]
 
     context "only for POST rpc" $
       it "gives a parse filter error if GET style proc args are specified" $

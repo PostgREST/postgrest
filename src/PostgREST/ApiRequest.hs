@@ -95,8 +95,6 @@ data ApiRequest = ApiRequest {
   , iHeaders :: [(Text, Text)]
   -- | Request Cookies
   , iCookies :: [(Text, Text)]
-  -- | Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
-  , iRpcQParams :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -116,7 +114,6 @@ userApiRequest schema req reqBody
       , iPreferSingleObjectParameter = singleObject
       , iPreferCount = hasPrefer "count=exact"
       , iFilters = filters
-      , iRpcQParams = rpcQParams
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
@@ -130,6 +127,7 @@ userApiRequest schema req reqBody
       , iCookies = fromMaybe [] $ parseCookiesText <$> lookupHeader "Cookie"
       }
  where
+  -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
   (filters, rpcQParams) =
     case action of
       ActionInvoke{isReadOnly=True} -> partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
@@ -141,20 +139,22 @@ userApiRequest schema req reqBody
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
   payload =
-    case decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type" of
-      CTApplicationJSON ->
-        note "All object keys must match" . consPayloadJSON reqBody
+    case (decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type", action) of
+      (_, ActionInvoke{isReadOnly=True}) ->
+        Right $ PayloadJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) PJObject (S.fromList $ fst <$> rpcQParams)
+      (CTApplicationJSON, _) ->
+        note "All object keys must match" . payloadAttributes reqBody
           =<< if BL.null reqBody && isTargetingProc
                then Right emptyObject
                else JSON.eitherDecode reqBody
-      CTTextCSV -> do
+      (CTTextCSV, _) -> do
         json <- csvToJson <$> CSV.decodeByName reqBody
-        note "All lines must have same number of fields" $ consPayloadJSON (JSON.encode json) json
-      CTOther "application/x-www-form-urlencoded" ->
+        note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
+      (CTOther "application/x-www-form-urlencoded", _) ->
         let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
         Right $ PayloadJSON (JSON.encode json) PJObject keys
-      ct ->
+      (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
   action =
@@ -177,9 +177,8 @@ userApiRequest schema req reqBody
               ["rpc", proc] -> TargetProc
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}]
-  relevantPayload | action == ActionInvoke{isReadOnly=True} = Nothing
-                  | shouldParsePayload = rightToMaybe payload
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
+  relevantPayload | shouldParsePayload = rightToMaybe payload
                   | otherwise = Nothing
   path            = pathInfo req
   method          = requestMethod req
@@ -274,8 +273,8 @@ csvToJson (_, vals) =
           else JSON.String $ toS str
       )
 
-consPayloadJSON :: BL.ByteString -> JSON.Value -> Maybe PayloadJSON
-consPayloadJSON raw json =
+payloadAttributes :: RequestBody -> JSON.Value -> Maybe PayloadJSON
+payloadAttributes raw json =
   -- Test that Array contains only Objects having the same keys
   case json of
     JSON.Array arr ->

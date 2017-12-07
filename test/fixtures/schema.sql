@@ -1325,6 +1325,23 @@ $$ language sql;
 create or replace function test.set_cookie_twice() returns void as $$
   set local "response.headers" = '[{"Set-Cookie": "sessionid=38afes7a8; HttpOnly; Path=/"}, {"Set-Cookie": "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"}]';
 $$ language sql;
---
--- PostgreSQL database dump complete
---
+
+create or replace function test.three_defaults(a int default 1, b int default 2, c int default 3) returns int as $$
+select a + b + c
+$$ language sql;
+
+create or replace function test.overloaded() returns setof int as $$
+  values (1), (2), (3);
+$$ language sql;
+
+create or replace function test.overloaded(pg_catalog.json) returns table(x int, y text) as $$
+  select * from json_to_recordset($1) as r(x int, y text);
+$$ language sql;
+
+create or replace function test.overloaded(a int, b int) returns int as $$
+  select a + b
+$$ language sql;
+
+create or replace function test.overloaded(a text, b text, c text) returns text as $$
+  select a || b || c
+$$ language sql;

@@ -30,7 +30,8 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
-, dbProcs       :: M.HashMap Text ProcDescription
+-- ProcDescription is a list because a function can be overloaded
+, dbProcs       :: M.HashMap Text [ProcDescription]
 , pgVersion     :: PgVersion
 } deriving (Show, Eq)
 
@@ -38,14 +39,14 @@ data PgArg = PgArg {
   pgaName :: Text
 , pgaType :: Text
 , pgaReq  :: Bool
-} deriving (Show, Eq)
+} deriving (Show, Eq, Ord)
 
-data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show)
+data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
 
-data RetType = Single PgType | SetOf PgType deriving (Eq, Show)
+data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord)
 
 data ProcVolatility = Volatile | Stable | Immutable
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 data ProcDescription = ProcDescription {
   pdName        :: Text
@@ -54,6 +55,13 @@ data ProcDescription = ProcDescription {
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
 } deriving (Show, Eq)
+
+-- Order by least number of args in the case of overloaded functions
+instance Ord ProcDescription where
+  ProcDescription name1 des1 args1 rt1 vol1 `compare` ProcDescription name2 des2 args2 rt2 vol2
+    | name1 == name2 && length args1 < length args2  = LT
+    | name1 == name2 && length args1 > length args2  = GT
+    | otherwise = (name1, des1, args1, rt1, vol1) `compare` (name2, des2, args2, rt2, vol2)
 
 type Schema = Text
 type TableName = Text
@@ -111,7 +119,7 @@ data OrderTerm = OrderTerm {
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
 , qiName   :: TableName
-} deriving (Show, Eq)
+} deriving (Show, Eq, Ord)
 
 
 data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
