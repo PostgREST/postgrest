@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
@@ -42,15 +42,16 @@ import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
 import           Data.Text                    (dropAround,
                                                intercalate, lines,
-                                               strip)
+                                               strip, take)
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.IO                 (hPutStrLn)
 import           Data.Version                 (versionBranch)
+import           Development.GitRev           (gitHash)
 import           Network.Wai
 import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
-import           Protolude                    hiding (hPutStrLn,
+import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
 import           System.IO                    (hPrint)
 import           System.IO.Error              (IOError)
@@ -102,7 +103,9 @@ corsPolicy req = case lookup "origin" headers of
 
 -- | User friendly version number
 prettyVersion :: Text
-prettyVersion = intercalate "." $ map show $ versionBranch version
+prettyVersion =
+  intercalate "." (map show $ versionBranch version)
+  <> " (" <> take 7 $(gitHash) <> ")"
 
 -- | Version number used in docs
 docsVersion :: Text
