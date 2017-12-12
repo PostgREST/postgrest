@@ -112,9 +112,11 @@ spec =
     context "foreign entities embedding" $ do
       it "can embed if related tables are in the exposed schema" $ do
         post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
         get "/rpc/getproject?id=1&select=id,name,client{id},tasks{id}" `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
       it "cannot embed if the related table is not in the exposed schema" $ do
         post "/rpc/single_article?select=*,article_stars{*}" [json|{ "id": 1}|]
