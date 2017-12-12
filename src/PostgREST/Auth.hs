@@ -39,7 +39,7 @@ data JWTAttempt = JWTInvalid JWTError
   of JWT claims.
 -}
 jwtClaims :: Maybe JWK -> Maybe StringOrURI -> LByteString  -> IO JWTAttempt
-jwtClaims _ Nothing "" = return $ JWTClaims M.empty
+jwtClaims _ _ "" = return $ JWTClaims M.empty
 jwtClaims secret audience payload =
   case secret of
     Nothing -> return JWTMissingSecret
