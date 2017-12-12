@@ -58,6 +58,7 @@ library
                      , containers
                      , contravariant
                      , either
+                     , gitrev
                      , hasql
                      , hasql-pool == 0.4.1
                      , hasql-transaction == 0.5

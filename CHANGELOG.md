@@ -7,10 +7,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- #887, #601, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
+- #887, #601, #1007, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
 - #328, Allow doing GET on rpc - @steve-chavez
 - #917, Add ability to map RAISE errorcode/message to http status - @steve-chavez
 - #940, Add ability to map GUC to http response headers - @steve-chavez
+- #1022, Include git sha in version report - @begriffs
 
 ### Fixed
 
@@ -23,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #996, Fix embedded column conflicts table name - @grotsev
 - #974, Fix RPC error when function has single OUT param - @steve-chavez
 - #1021, Reduce join size in allColumns for faster program start - @nextstopsun
+- #411, Remove the need for pk in &select for parent embed - @steve-chavez
 - #1016, Fix anonymous requests when configured with jwt-aud - @ruslantalpa
 
 ## [0.4.3.0] - 2017-09-06
