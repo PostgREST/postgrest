@@ -145,16 +145,14 @@ pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOper
       <|> In <$> (string "in" *> pDelimiter *> pLVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
-    pFts = do
-      mode <- option Normal $
-              try (string (show Phrase) *> pDelimiter *> pure Phrase)
-          <|> try (string (show Plain) *> pDelimiter *> pure Plain)
 
-      lang <- try (Just <$> manyTill (letter <|> digit <|> oneOf "_") (try (string ".fts") <|> try (string ".@@")) <* pDelimiter) -- TODO: '@@' deprecated
-          <|> try (string "fts" *> pDelimiter) *> pure Nothing
-          <|> try (string "@@" *> pDelimiter)  *> pure Nothing -- TODO: '@@' deprecated
-      Fts mode (toS <$> lang) <$> pSVal
-    ops = M.filterWithKey (const . flip notElem ["in", "fts", "@@"]) operators -- TODO: '@@' deprecated
+    pFts = do
+      op   <- foldl1 (<|>) (try . string . toS <$> ftsOps)
+      lang <- optionMaybe $ try (between (char '(') (char ')') (many (letter <|> digit <|> oneOf "_")))
+      pDelimiter >> Fts (toS op) (toS <$> lang) <$> pSVal
+
+    ops = M.filterWithKey (const . flip notElem ("in":ftsOps)) operators
+    ftsOps = M.keys ftsOperators
 
 pSingleVal :: Parser SingleVal
 pSingleVal = toS <$> many anyChar

@@ -150,7 +150,7 @@ data Proxy = Proxy {
 
 type Operator = Text
 operators :: M.HashMap Operator SqlFragment
-operators = M.fromList [
+operators = M.union (M.fromList [
   ("eq", "="),
   ("gte", ">="),
   ("gt", ">"),
@@ -161,7 +161,6 @@ operators = M.fromList [
   ("ilike", "ILIKE"),
   ("in", "IN"),
   ("is", "IS"),
-  ("fts", "@@"),
   ("cs", "@>"),
   ("cd", "<@"),
   ("ov", "&&"),
@@ -171,21 +170,22 @@ operators = M.fromList [
   ("nxl", "&>"),
   ("adj", "-|-"),
   -- TODO: these are deprecated and should be removed in v0.5.0.0
-  ("@@", "@@"),
   ("@>", "@>"),
-  ("<@", "<@")]
+  ("<@", "<@")]) ftsOperators
+
+ftsOperators :: M.HashMap Operator SqlFragment
+ftsOperators = M.fromList [
+  ("@@", "@@ to_tsquery"), -- TODO: '@@' deprecated
+  ("fts", "@@ to_tsquery"),
+  ("plfts", "@@ plainto_tsquery"),
+  ("phfts", "@@ phraseto_tsquery")
+  ]
 
 data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
 data Operation = Op Operator SingleVal |
                  In ListVal |
-                 Fts FtsMode (Maybe Language) SingleVal |
+                 Fts Operator (Maybe Language) SingleVal |
                  Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
-
-data FtsMode =  Normal | Plain | Phrase deriving Eq
-instance Show FtsMode where
-  show Normal = mzero
-  show Plain  = "plain"
-  show Phrase = "phrase"
 type Language = Text
 
 -- | Represents a single value in a filter, e.g. id=eq.singleval
@@ -277,3 +277,6 @@ data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
 } deriving (Eq, Ord, Show)
+
+sourceCTEName :: SqlFragment
+sourceCTEName = "pg_source"

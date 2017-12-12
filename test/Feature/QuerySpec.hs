@@ -114,15 +114,15 @@ spec = do
           { matchHeaders = [matchContentTypeJson] }
 
       it "finds matches with plainto_tsquery" $
-        get "/tsearch?text_search_vector=plain.fts.The%20Fat%20Rats" `shouldRespondWith`
+        get "/tsearch?text_search_vector=plfts.The%20Fat%20Rats" `shouldRespondWith`
           [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "finds matches with different dictionaries" $ do
-        get "/tsearch?text_search_vector=french.fts.amusant" `shouldRespondWith`
+        get "/tsearch?text_search_vector=fts(french).amusant" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=plain.french.fts.amusant%20impossible" `shouldRespondWith`
+        get "/tsearch?text_search_vector=plfts(french).amusant%20impossible" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -132,12 +132,12 @@ spec = do
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.english.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
+        get "/tsearch?text_search_vector=not.fts(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
           [json| [
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.plain.fts.The%20Fat%20Rats" `shouldRespondWith`
+        get "/tsearch?text_search_vector=not.plfts.The%20Fat%20Rats" `shouldRespondWith`
           [json| [
             {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
             {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
@@ -150,23 +150,13 @@ spec = do
         get "/tsearch?text_search_vector=@@.impossible" `shouldRespondWith`
           [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=plain.@@.The%20Fat%20Rats" `shouldRespondWith`
-          [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
         get "/tsearch?text_search_vector=not.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
           [json| [
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.english.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
+        get "/tsearch?text_search_vector=not.@@(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
           [json| [
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.plain.@@.The%20Fat%20Rats" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
@@ -297,6 +287,39 @@ spec = do
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients{*}, tasks{id, name}" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "requesting parent without specifying primary key" $ do
+      get "/projects?select=name,client{name}" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7","client":{"name": "Microsoft"}},
+          {"name":"Windows 10","client":{"name": "Microsoft"}},
+          {"name":"IOS","client":{"name": "Apple"}},
+          {"name":"OSX","client":{"name": "Apple"}},
+          {"name":"Orphan","client":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/articleStars?select=createdAt,article{owner},user{name}&limit=1" `shouldRespondWith`
+        [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "requesting parent and renaming primary key" $
+      get "/projects?select=name,client{clientId:id,name}" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7","client":{"name": "Microsoft", "clientId": 1}},
+          {"name":"Windows 10","client":{"name": "Microsoft", "clientId": 1}},
+          {"name":"IOS","client":{"name": "Apple", "clientId": 2}},
+          {"name":"OSX","client":{"name": "Apple", "clientId": 2}},
+          {"name":"Orphan","client":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "requesting parent and specifying/renaming one key of the composite primary key" $ do
+      get "/comments?select=*,users_tasks{userId:user_id}" `shouldRespondWith`
+        [json|[{"id":1,"commenter_id":1,"user_id":2,"task_id":6,"content":"Needs to be delivered ASAP","users_tasks":{"userId": 2}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/comments?select=*,users_tasks{taskId:task_id}" `shouldRespondWith`
+        [json|[{"id":1,"commenter_id":1,"user_id":2,"task_id":6,"content":"Needs to be delivered ASAP","users_tasks":{"taskId": 6}}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "embed data with two fk pointing to the same table" $
@@ -578,7 +601,7 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected end of input expecting operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 2)"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }

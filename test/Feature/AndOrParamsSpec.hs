@@ -73,7 +73,7 @@ spec =
         it "can handle fts" $ do
           get "/entities?or=(text_search_vector.fts.bar,text_search_vector.fts.baz)&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
-          get "/tsearch?or=(text_search_vector.plain.german.fts.Art%20Spass, text_search_vector.plain.french.fts.amusant%20impossible, text_search_vector.english.fts.impossible)" `shouldRespondWith`
+          get "/tsearch?or=(text_search_vector.plfts(german).Art%20Spass, text_search_vector.plfts(french).amusant%20impossible, text_search_vector.fts(english).impossible)" `shouldRespondWith`
             [json|[
               {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
               {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
