@@ -61,6 +61,7 @@ GRANT ALL ON TABLE
     , descendant
     , being_part
     , part
+    , leak
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
@@ -69,6 +70,7 @@ GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq
     , items_id_seq
     , callcounter_count
+    , leak_id_seq
 TO postgrest_test_anonymous;
 
 -- Privileges for non anonymous users

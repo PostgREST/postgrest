@@ -138,6 +138,50 @@ jobs:
           name: run tests
           command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
 
+  build-prof-test:
+    docker:
+      - image: circleci/buildpack-deps:trusty
+        environment:
+          - PGHOST=localhost
+          - TERM=xterm
+      - image: circleci/postgres:9.6.2
+        environment:
+          - POSTGRES_USER=circleci
+          - POSTGRES_DB=circleci
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y postgresql-client
+            stack setup
+      - run:
+          name: build with profiling enabled
+          command: |
+            stack build --profile -j1
+      - run:
+          name: run memory usage tests
+          command: |
+            test/create_test_db "postgres://circleci@localhost" postgrest_test
+            psql "postgres:///postgrest_test" -f test/fixtures/database.sql
+            psql "postgres:///postgrest_test" -f test/fixtures/roles.sql
+            psql "postgres:///postgrest_test" -f test/fixtures/schema.sql
+            psql "postgres:///postgrest_test" -f test/fixtures/jwt.sql
+            psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
+            test/memory-tests.sh
+      - save_cache:
+          paths:
+            - "~/.stack"
+            - ".stack-work"
+          key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+
   centos6:
     <<: *build-distro-bin
 
@@ -188,10 +232,15 @@ workflows:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
+      - build-prof-test:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
       - centos6:
           requires:
             - build-test
             - build-test-9.6
+            - build-prof-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
@@ -201,6 +250,7 @@ workflows:
           requires:
             - build-test
             - build-test-9.6
+            - build-prof-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
@@ -210,6 +260,7 @@ workflows:
           requires:
             - build-test
             - build-test-9.6
+            - build-prof-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
@@ -219,6 +270,7 @@ workflows:
           requires:
             - build-test
             - build-test-9.6
+            - build-prof-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
