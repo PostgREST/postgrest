@@ -97,6 +97,7 @@ In Production
 * `OpenBooking <http://openbooking.ch>`_
 * `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
 * `eGull <http://www.egull.co>`_
+* `Elyios <https://elyios.com>`_
 
 Extensions
 ----------
