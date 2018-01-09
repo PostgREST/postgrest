@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+### Fixed
+
+## [0.4.4.0] - 2018-01-08
+
+### Added
+
 - #887, #601, #1007, Allow specifying dictionary and plain/phrase tsquery in full text search - @steve-chavez
 - #328, Allow doing GET on rpc - @steve-chavez
 - #917, Add ability to map RAISE errorcode/message to http status - @steve-chavez
