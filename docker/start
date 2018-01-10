@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+if [[ $PGRST_DB_URI_FILE != "" ]]; then 
+    DB_URI=$(<$PGRST_DB_URI_FILE); 
+else
+    DB_URI=${PGRST_DB_URI};
+fi
+
+if [[ $PGRST_JWT_SECRET_FILE != "" ]]; then 
+    JWT_SECRET=$(<$PGRST_JWT_SECRET_FILE); 
+else
+    JWT_SECRET=${PGRST_JWT_SECRET};
+fi
+
+CONF=/etc/postgrest-secrets.conf
+touch $CONF
+cat > $CONF <<-EOS
+db-uri = "${DB_URI}"
+db-schema = "${PGRST_DB_SCHEMA}"
+db-anon-role = "${PGRST_DB_ANON_ROLE}"
+db-pool = "${PGRST_DB_POOL}"
+
+server-host = "${PGRST_SERVER_HOST}"
+server-port = "${PGRST_SERVER_PORT}"
+
+server-proxy-uri = "${PGRST_SERVER_PROXY_URI}"
+jwt-secret = "${JWT_SECRET}"
+secret-is-base64 = "${PGRST_SECRET_IS_BASE64}"
+jwt-aud = "${PGRST_JWT_AUD}"
+
+max-rows = "${PGRST_MAX_ROWS}"
+pre-request = "${PGRST_PRE_REQUEST}"
+EOS
+
+exec postgrest /etc/postgrest-secrets.conf

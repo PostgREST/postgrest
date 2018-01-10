@@ -21,10 +21,10 @@ RUN BUILD_DEPS="curl ca-certificates xz-utils" && \
     apt-get -qq clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY postgrest.conf /etc/postgrest.conf
-
+COPY start .
 
 ENV PGRST_DB_URI= \
+    PGRST_DB_URI_FILE= \
     PGRST_DB_SCHEMA=public \
     PGRST_DB_ANON_ROLE= \
     PGRST_DB_POOL=100 \
@@ -32,13 +32,12 @@ ENV PGRST_DB_URI= \
     PGRST_SERVER_PORT=3000 \
     PGRST_SERVER_PROXY_URI= \
     PGRST_JWT_SECRET= \
+    PGRST_JWT_SECRET_FILE= \
     PGRST_SECRET_IS_BASE64=false \
     PGRST_JWT_AUD= \
     PGRST_MAX_ROWS= \
     PGRST_PRE_REQUEST=
 
-# PostgREST reads /etc/postgrest.conf so map the configuration
-# file in when you run this container
-CMD exec postgrest /etc/postgrest.conf
+CMD ./start
 
 EXPOSE 3000
