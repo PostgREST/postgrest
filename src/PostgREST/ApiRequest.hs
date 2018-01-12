@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
@@ -278,21 +279,21 @@ payloadAttributes raw json =
   -- Test that Array contains only Objects having the same keys
   case json of
     JSON.Array arr ->
-      let objs :: V.Vector JSON.Object
-          objs = foldr -- filter non-objects, map to raw objects
-                   (\val result -> case val of
-                      JSON.Object o -> V.cons o result
-                      _ -> result)
-                   V.empty arr
-          keysPerObj = V.map (S.fromList . M.keys) objs
-          canonicalKeys = fromMaybe S.empty $ keysPerObj V.!? 0
-          areKeysUniform = all (==canonicalKeys) keysPerObj
-          arrLength = V.length arr in
-      if (V.length objs == arrLength) && areKeysUniform
-        then Just $ PayloadJSON raw (PJArray arrLength) canonicalKeys
-        else Nothing
+      case arr V.!? 0 of
+        Just (JSON.Object o) ->
+          let canonicalKeys = S.fromList $ M.keys o
+              areKeysUniform = all (\case
+                JSON.Object x -> S.fromList (M.keys x) == canonicalKeys
+                _ -> False) arr in
+          if areKeysUniform
+            then Just $ PayloadJSON raw (PJArray $ V.length arr) canonicalKeys
+            else Nothing
+        Just _ -> Nothing
+        Nothing -> Just emptyPJArray
 
     JSON.Object o -> Just $ PayloadJSON raw PJObject (S.fromList $ M.keys o)
 
     -- truncate everything else to an empty array.
-    _ -> Just $ PayloadJSON (JSON.encode emptyArray) (PJArray 0) S.empty
+    _ -> Just emptyPJArray
+  where
+    emptyPJArray = PayloadJSON (JSON.encode emptyArray) (PJArray 0) S.empty

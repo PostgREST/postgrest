@@ -62,6 +62,7 @@ GRANT ALL ON TABLE
     , being_part
     , part
     , leak
+    , perf_articles
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

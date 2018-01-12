@@ -1351,4 +1351,9 @@ create table test.leak(
   blob bytea
 );
 
-CREATE FUNCTION test.leak(blob bytea) RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;
+create function test.leak(blob bytea) returns void as $$ begin end; $$ language plpgsql;
+
+create table test.perf_articles(
+  id integer not null,
+  body text not null
+);
