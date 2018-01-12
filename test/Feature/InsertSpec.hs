@@ -49,6 +49,12 @@ spec = do
           , matchHeaders = [matchContentTypeJson]
           }
 
+    context "non uniform json array" $ do
+      it "rejects json array that isn't exclusivily composed of objects" $
+        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |] `shouldRespondWith` 400
+      it "rejects json array that has objects with different keys" $
+        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |] `shouldRespondWith` 400
+
     context "requesting full representation" $ do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients{id,name}"
