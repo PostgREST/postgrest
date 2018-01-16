@@ -1357,3 +1357,17 @@ create table test.perf_articles(
   id integer not null,
   body text not null
 );
+
+create table test.employees(
+  first_name text,
+  last_name text,
+  salary money,
+  company text,
+  occupation text,
+  primary key(first_name, last_name)
+);
+
+create table test.tiobe_pls(
+  name text primary key,
+  rank smallint
+);

@@ -132,6 +132,7 @@ Test-Suite spec
                      , Feature.AndOrParamsSpec
                      , Feature.RpcSpec
                      , Feature.NonexistentSchemaSpec
+                     , Feature.UpsertSpec
                      , SpecHelper
                      , TestTypes
   Build-Depends:       aeson

@@ -25,6 +25,8 @@ data ApiRequestError = ActionInappropriate
                      | UnsupportedVerb
                      deriving (Show, Eq)
 
+data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving (Eq, Show)
+
 data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]
@@ -262,7 +264,7 @@ type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
 
 data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
+data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, pkCols::[Text], onConflict:: Maybe PreferResolution, returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
