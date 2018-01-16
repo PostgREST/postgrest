@@ -334,6 +334,12 @@ INSERT INTO part VALUES (1), (2), (3), (4);
 
 TRUNCATE TABLE being_part CASCADE;
 INSERT INTO being_part VALUES (1,1), (2,1), (3,2), (4,3);
---
--- PostgreSQL database dump complete
---
+
+TRUNCATE TABLE employees CASCADE;
+INSERT INTO employees VALUES
+  ('Frances M.', 'Roe', '24000', 'One-Up Realty', 'Author'),
+  ('Daniel B.', 'Lyon', '36000', 'Dubrow''s Cafeteria', 'Packer'),
+  ('Edwin S.', 'Smith', '48000', 'Pro Garden Management', 'Marine biologist');
+
+TRUNCATE TABLE tiobe_pls CASCADE;
+INSERT INTO tiobe_pls VALUES ('Java', 1), ('C', 2), ('Python', 4);

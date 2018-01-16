@@ -302,21 +302,22 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
   | otherwise = Nothing
 
-mutateRequest :: ApiRequest -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest fldNames = mapLeft apiRequestError $
+mutateRequest :: ApiRequest -> [PrimaryKey] -> [FieldName] -> Either Response MutateRequest
+mutateRequest apiRequest pks fldNames = mapLeft apiRequestError $
   case action of
-    ActionCreate -> Right $ Insert rootTableName payload returnings
+    ActionCreate -> Right $ Insert rootTableName payload pkCols_ (iPreferResolution apiRequest) returnings
     ActionUpdate -> Update rootTableName <$> pure payload <*> combinedLogic <*> pure returnings
     ActionDelete -> Delete rootTableName <$> combinedLogic <*> pure returnings
-    _        -> Left UnsupportedVerb
+    _            -> Left UnsupportedVerb
   where
     action = iAction apiRequest
     payload = fromJust $ iPayload apiRequest
-    rootTableName = -- TODO: Make it safe
-      let target = iTarget apiRequest in
-      case target of
-        (TargetIdent (QualifiedIdentifier _ t) ) -> t
+    (schema, rootTableName) = -- TODO: Make it safe
+      case iTarget apiRequest of
+        TargetIdent (QualifiedIdentifier s t) -> (s, t)
         _ -> undefined
+    pkCols_ = pkName <$> filter (filterPk schema rootTableName) pks
+    filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
     filters = map snd <$> mapM pRequestFilter mutateFilters
     logic = map snd <$> mapM pRequestLogicTree logicFilters

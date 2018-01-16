@@ -55,7 +55,7 @@ data Target = TargetIdent QualifiedIdentifier
             deriving Eq
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
-                          --
+
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
@@ -80,6 +80,8 @@ data ApiRequest = ApiRequest {
   , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
   , iPreferCount :: Bool
+  -- | Whether the client wants to UPSERT or ignore records on PK conflict
+  , iPreferResolution :: Maybe PreferResolution
   -- | Filters on the result ("id", "eq.10")
   , iFilters :: [(Text, Text)]
   -- | &and and &or parameters used for complex boolean logic
@@ -114,6 +116,9 @@ userApiRequest schema req reqBody
       , iPreferRepresentation = representation
       , iPreferSingleObjectParameter = singleObject
       , iPreferCount = hasPrefer "count=exact"
+      , iPreferResolution = if hasPrefer "resolution=merge-duplicates" then Just MergeDuplicates
+                            else if hasPrefer "resolution=ignore-duplicates" then Just IgnoreDuplicates
+                            else Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams

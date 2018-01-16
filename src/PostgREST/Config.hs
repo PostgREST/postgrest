@@ -19,6 +19,7 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
+                        , pgVersion95
                         , pgVersion96
                         , AppConfig (..)
                         )
@@ -231,3 +232,6 @@ minimumPgVersion = PgVersion 90400 "9.4"
 
 pgVersion96 :: PgVersion
 pgVersion96 = PgVersion 90600 "9.6"
+
+pgVersion95 :: PgVersion
+pgVersion95 = PgVersion 90500 "9.5"
