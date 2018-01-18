@@ -8,27 +8,30 @@ import Network.HTTP.Types
 import SpecHelper
 import Network.Wai (Application)
 
-import Protolude hiding (get)
+import Protolude hiding (get, put)
+import Text.Heredoc
 
 spec :: SpecWith Application
 spec =
-  describe "UPSERT" $
-    context "POST with Prefer headers" $ do
+  describe "UPSERT" $ do
+    context "with POST" $ do
       context "when Prefer: resolution=merge-duplicates is specified" $ do
-        it "does upsert on pk conflict" $
+        it "INSERTs and UPDATEs rows on pk conflict" $
           request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json| [
               { "name": "Javascript", "rank": 6 },
-              { "name": "Java", "rank": 5 }
+              { "name": "Java", "rank": 2 },
+              { "name": "C", "rank": 1 }
             ]|] `shouldRespondWith` [json| [
               { "name": "Javascript", "rank": 6 },
-              { "name": "Java", "rank": 5 }
+              { "name": "Java", "rank": 2 },
+              { "name": "C", "rank": 1 }
             ]|]
             { matchStatus = 201
             , matchHeaders = [matchContentTypeJson]
             }
 
-        it "does upsert on composite pk conflict" $
+        it "INSERTs and UPDATEs row on composite pk conflict" $
           request methodPost "/employees" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json| [
               { "first_name": "Frances M.", "last_name": "Roe", "salary": "30000" },
@@ -42,7 +45,7 @@ spec =
             }
 
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
-        it "ignores records on pk conflict" $ do
+        it "INSERTs and ignores rows on pk conflict" $
           request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
             [json|[
               { "name": "PHP", "rank": 9 },
@@ -53,11 +56,8 @@ spec =
             { matchStatus = 201
             , matchHeaders = [matchContentTypeJson]
             }
-          get "/tiobe_pls?rank=gte.9" `shouldRespondWith`
-            [json| [{ "name": "PHP", "rank": 9 }] |]
-            { matchHeaders = [matchContentTypeJson] }
 
-        it "ignores records on composite pk conflict" $ do
+        it "INSERTs and ignores rows on composite pk conflict" $
           request methodPost "/employees" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
             [json|[
               { "first_name": "Daniel B.", "last_name": "Lyon", "salary": "72000", "company": null, "occupation": null },
@@ -68,6 +68,118 @@ spec =
             { matchStatus = 201
             , matchHeaders = [matchContentTypeJson]
             }
-          get "/employees?first_name=eq.Daniel B.&last_name=eq.Lyon" `shouldRespondWith`
-            [json| [{ "first_name": "Daniel B.", "last_name": "Lyon", "salary": "$36,000.00", "company": "Dubrow's Cafeteria", "occupation": "Packer" }] |]
+
+      it "succeeds if the table has only PK cols and no other cols" $ do
+        request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+          [json|[ { "id": 1 }, { "id": 2 }, { "id": 3} ]|]
+          `shouldRespondWith`
+          [json|[ { "id": 3} ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+        request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+          [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
+          `shouldRespondWith`
+          [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+
+      it "succeeds and ignores the Prefer: resolution header if the table has no PK" $
+        request methodPost "/no_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+          [json|[ { "a": "1", "b": "0" } ]|]
+          `shouldRespondWith`
+          [json|[ { "a": "1", "b": "0" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+
+    context "with PUT" $ do
+      context "Restrictions" $ do
+        it "fails if Range is specified" $
+          request methodPut "/tiobe_pls?name=eq.Javascript" [("Range", "0-5")]
+            [str| [ { "name": "Javascript", "rank": 1 } ]|] `shouldRespondWith` 400
+
+        it "fails if limit is specified" $
+          put "/tiobe_pls?name=eq.Javascript&limit=1"
+            [str| [ { "name": "Javascript", "rank": 1 } ]|] `shouldRespondWith` 400
+
+        it "fails if offset is specified" $
+          put "/tiobe_pls?name=eq.Javascript&offset=1"
+            [str| [ { "name": "Javascript", "rank": 1 } ]|] `shouldRespondWith` 400
+
+        it "fails if the payload has more than one row" $
+          put "/tiobe_pls?name=eq.Go"
+            [str| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ]|] `shouldRespondWith` 400
+
+        it "fails if not all columns are specified" $ do
+          put "/tiobe_pls?name=eq.Go"
+            [str| [ { "name": "Go" } ]|] `shouldRespondWith` 400
+          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000" } ]|] `shouldRespondWith` 400
+
+        it "rejects every other filter than pk cols eq's" $ do
+          put "/tiobe_pls?rank=eq.19" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 405
+          put "/tiobe_pls?id=not.eq.Java" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 405
+          put "/tiobe_pls?id=in.(Go)" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 405
+          put "/tiobe_pls?and=(id.eq.Go)" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 405
+
+        it "fails if not all composite key cols are specified as eq filters" $ do
+          put "/employees?first_name=eq.Susan"
+            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            `shouldRespondWith` 405
+          put "/employees?last_name=eq.Heidt"
+            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            `shouldRespondWith` 405
+
+      it "fails if the uri primary key doesn't match the payload primary key" $ do
+        put "/tiobe_pls?name=eq.MATLAB"
+          [str| [ { "name": "Perl", "rank": 17 } ]|] `shouldRespondWith` 400
+        put "/employees?first_name=eq.Wendy&last_name=eq.Anderson"
+          [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|] `shouldRespondWith` 400
+
+      it "fails if the table has no PK" $
+        put "/no_pk?a=eq.one&b=eq.two" [str| [ { "a": "one", "b": "two" } ]|] `shouldRespondWith` 405
+
+      context "Inserting row" $ do
+        it "succeeds on table with single pk col" $ do
+          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` "[]"
+          put "/tiobe_pls?name=eq.Go" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 204
+          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
+
+        it "succeeds on table with composite pk" $ do
+          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            `shouldRespondWith` "[]"
+          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            `shouldRespondWith` 204
+          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            `shouldRespondWith`
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             { matchHeaders = [matchContentTypeJson] }
+
+        it "succeeds if the table has only PK cols and no other cols" $ do
+          get "/only_pk?id=eq.10" `shouldRespondWith` "[]"
+          put "/only_pk?id=eq.10" [str|[ { "id": 10 } ]|] `shouldRespondWith` 204
+          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
+
+      context "Updating row" $ do
+        it "succeeds on table with single pk col" $ do
+          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json|[ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
+          put "/tiobe_pls?name=eq.Go" [str| [ { "name": "Go", "rank": 13 } ]|] `shouldRespondWith` 204
+          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 13 } ]|] { matchHeaders = [matchContentTypeJson] }
+
+        it "succeeds on table with composite pk" $ do
+          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            `shouldRespondWith`
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            { matchHeaders = [matchContentTypeJson] }
+          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
+            `shouldRespondWith` 204
+          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+            `shouldRespondWith`
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$60,000.00", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "succeeds if the table has only PK cols and no other cols" $ do
+          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
+          put "/only_pk?id=eq.10" [str|[ { "id": 10 } ]|] `shouldRespondWith` 204
+          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
+
+      it "works with return=representation and vnd.pgrst.object+json" $
+        request methodPut "/tiobe_pls?name=eq.Ruby"
+          [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
+          [str| [ { "name": "Ruby", "rank": 11 } ]|]
+          `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|] { matchHeaders = [matchContentTypeSingular] }

@@ -42,10 +42,10 @@ import           Web.Cookie                (parseCookiesText)
 type RequestBody = BL.ByteString
 
 -- | Types of things a user wants to do to tables/views/procs
-data Action = ActionCreate | ActionRead
-            | ActionUpdate | ActionDelete
-            | ActionInfo   | ActionInvoke{isReadOnly :: Bool}
-            | ActionInspect
+data Action = ActionCreate  | ActionRead
+            | ActionUpdate  | ActionDelete
+            | ActionInfo    | ActionInvoke{isReadOnly :: Bool}
+            | ActionInspect | ActionSingleUpsert
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
@@ -173,6 +173,7 @@ userApiRequest schema req reqBody
                     then ActionInvoke{isReadOnly=False}
                     else ActionCreate
       "PATCH"   -> ActionUpdate
+      "PUT"     -> ActionSingleUpsert
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect
@@ -183,7 +184,7 @@ userApiRequest schema req reqBody
               ["rpc", proc] -> TargetProc
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
   relevantPayload | shouldParsePayload = rightToMaybe payload
                   | otherwise = Nothing
   path            = pathInfo req

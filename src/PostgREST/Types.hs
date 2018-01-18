@@ -23,6 +23,7 @@ data ApiRequestError = ActionInappropriate
                      | UnknownRelation
                      | NoRelationBetween Text Text
                      | UnsupportedVerb
+                     | InvalidFilters
                      deriving (Show, Eq)
 
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving (Eq, Show)
@@ -36,6 +37,14 @@ data DbStructure = DbStructure {
 , dbProcs       :: M.HashMap Text [ProcDescription]
 , pgVersion     :: PgVersion
 } deriving (Show, Eq)
+
+-- TODO Table could hold references to all its Columns
+tableCols :: DbStructure -> Schema -> TableName -> [Column]
+tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
+
+-- TODO Table could hold references to all its PrimaryKeys
+tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
+tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
 
 data PgArg = PgArg {
   pgaName :: Text
@@ -264,7 +273,7 @@ type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
 
 data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, pkCols::[Text], onConflict:: Maybe PreferResolution, returning::[FieldName] }
+data MutateQuery = Insert { in_::TableName, insPkCols::[Text], qPayload::PayloadJSON, onConflict:: Maybe PreferResolution, where_::[LogicTree], returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))

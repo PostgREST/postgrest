@@ -65,6 +65,7 @@ GRANT ALL ON TABLE
     , perf_articles
     , employees
     , tiobe_pls
+    , only_pk
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

@@ -343,3 +343,6 @@ INSERT INTO employees VALUES
 
 TRUNCATE TABLE tiobe_pls CASCADE;
 INSERT INTO tiobe_pls VALUES ('Java', 1), ('C', 2), ('Python', 4);
+
+TRUNCATE TABLE only_pk CASCADE;
+INSERT INTO only_pk VALUES (1), (2);
