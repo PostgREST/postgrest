@@ -275,7 +275,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = undefined
-requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ pType keys) _pkCols _onConflict returnings)) =
+requestToQuery schema _ (DbMutate (Insert mainTbl pkCols p@(PayloadJSON _ pType pKeys) onConflct logicForest returnings)) =
   unwords [
     ("WITH " <> ignoredBody) `emptyOnFalse` not payloadIsEmpty,
     "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ") ",
@@ -283,21 +283,23 @@ requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ pType keys) _
       (PJArray _, True) -> "SELECT null WHERE false"
       (PJObject, True)  -> "DEFAULT VALUES"
       _ -> unwords [
-        "SELECT " <> cols <> " FROM ",
+        "SELECT " <> cols <> " FROM",
         case pType of
           PJObject  -> "json_populate_record"
-          PJArray _ -> "json_populate_recordset", "(null::", fromQi qi, ", $1)"],
-    case _onConflict of
-      Just IgnoreDuplicates  -> "ON CONFLICT(" <> intercalate ", " _pkCols <> ") DO NOTHING "
-      Just MergeDuplicates -> "ON CONFLICT(" <> intercalate ", " _pkCols <> ") DO UPDATE SET " <>
-                               intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList (keys `S.difference` S.fromList _pkCols))
-
-      Nothing -> "",
-    ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
-    ]
+          PJArray _ -> "json_populate_recordset", "(null::", fromQi qi, ", $1) _",
+        -- Only used for PUT
+        ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> logicForest)) `emptyOnFalse` null logicForest],
+    maybe "" (\x -> (
+      "ON CONFLICT(" <> intercalate ", " pkCols <> ") " <> case x of
+      IgnoreDuplicates ->
+        "DO NOTHING"
+      MergeDuplicates  ->
+        "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList pKeys)
+    ) `emptyOnFalse` null pkCols) onConflct,
+    ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings]
   where
     qi = QualifiedIdentifier schema mainTbl
-    cols = intercalate ", " $ pgFmtIdent <$> S.toList keys
+    cols = intercalate ", " $ pgFmtIdent <$> S.toList pKeys
     payloadIsEmpty = pjIsEmpty p
 requestToQuery schema _ (DbMutate (Update mainTbl p@(PayloadJSON _ pType keys) logicForest returnings)) =
   if pjIsEmpty p

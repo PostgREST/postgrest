@@ -631,6 +631,9 @@ CREATE TABLE no_pk (
     b character varying
 );
 
+CREATE TABLE only_pk (
+    id integer primary key
+);
 
 --
 -- Name: nullable_integer; Type: TABLE; Schema: test; Owner: -

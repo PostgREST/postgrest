@@ -63,10 +63,9 @@ main = do
       reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
 
       actualPgVersion = pgVersion dbStructure
-      upsertSpec | actualPgVersion >= pgVersion95 = [("Feature.UpsertSpec", Feature.UpsertSpec.spec)]
-                 | otherwise = []
-      pg96spec | actualPgVersion >= pgVersion96 = [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec)]
-               | otherwise = []
+      extraSpecs =
+        [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
+        [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
 
       specs = uncurry describe <$> [
           ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
@@ -81,7 +80,7 @@ main = do
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
         , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
-        ] ++ pg96spec ++ upsertSpec
+        ] ++ extraSpecs
 
   hspec $ do
     mapM_ (beforeAll_ reset . before withApp) specs

@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DuplicateRecordFields    #-}
+{-# LANGUAGE LambdaCase #-}
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
@@ -13,6 +14,7 @@ import           Control.Lens.Tuple        (_1)
 import qualified Data.ByteString.Char8     as BS
 import           Data.List                 (delete)
 import           Data.Maybe                (fromJust)
+import qualified Data.Set                  as S
 import           Data.Text                 (isInfixOf)
 import           Data.Tree
 import           Data.Either.Combinators   (mapLeft)
@@ -302,22 +304,27 @@ toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
   | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
   | otherwise = Nothing
 
-mutateRequest :: ApiRequest -> [PrimaryKey] -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest pks fldNames = mapLeft apiRequestError $
+mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
+mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
   case action of
-    ActionCreate -> Right $ Insert rootTableName payload pkCols_ (iPreferResolution apiRequest) returnings
-    ActionUpdate -> Update rootTableName <$> pure payload <*> combinedLogic <*> pure returnings
-    ActionDelete -> Delete rootTableName <$> combinedLogic <*> pure returnings
+    ActionCreate -> Right $ Insert tName pkCols payload (iPreferResolution apiRequest) [] returnings
+    ActionUpdate -> Update tName payload <$> combinedLogic <*> pure returnings
+    ActionSingleUpsert ->
+      (\flts ->
+        if null (iLogic apiRequest) &&
+           S.fromList (fst <$> iFilters apiRequest) == S.fromList pkCols &&
+           not (null (S.fromList pkCols)) &&
+           all (\case
+              Filter _ (OpExpr False (Op "eq" _)) -> True
+              _ -> False) flts
+          then Insert tName pkCols payload (Just MergeDuplicates) <$> combinedLogic <*> pure returnings
+        else
+          Left InvalidFilters) =<< filters
+    ActionDelete -> Delete tName <$> combinedLogic <*> pure returnings
     _            -> Left UnsupportedVerb
   where
     action = iAction apiRequest
     payload = fromJust $ iPayload apiRequest
-    (schema, rootTableName) = -- TODO: Make it safe
-      case iTarget apiRequest of
-        TargetIdent (QualifiedIdentifier s t) -> (s, t)
-        _ -> undefined
-    pkCols_ = pkName <$> filter (filterPk schema rootTableName) pks
-    filterPk sc table pk = sc == (tableSchema . pkTable) pk && table == (tableName . pkTable) pk
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
     filters = map snd <$> mapM pRequestFilter mutateFilters
     logic = map snd <$> mapM pRequestLogicTree logicFilters
