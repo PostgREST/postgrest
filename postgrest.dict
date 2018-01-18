@@ -23,6 +23,7 @@ JS
 JSON
 JWK
 JWT
+Kinesis
 Logins
 MVCC
 Mithril
@@ -98,10 +99,12 @@ ov
 param
 params
 passphrase
-postgrest
 pgSQL
 pgcrypto
 pgjwt
+phfts
+plfts
+postgrest
 pre
 reallyreallyreallyreallyverysafe
 refactor

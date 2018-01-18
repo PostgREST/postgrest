@@ -27,23 +27,28 @@ Step 2. Make a Secret
 
 Clients authenticate with the API using JSON Web Tokens. These are JSON objects which are cryptographically signed using a password known to only us and the server. Because clients do not know the password, they cannot tamper with the contents of their tokens. PostgREST will detect counterfeit tokens and will reject them.
 
-Let's create a password and provide it to PostgREST. Think of a nice long one, or use a tool to generate it.
+Let's create a password and provide it to PostgREST. Think of a nice long one, or use a tool to generate it. **Your password must be at least 32 characters long.**
 
 .. note::
 
-  The `OpenSSL toolkit <https://www.openssl.org/>`_ provides an easy way to generate a secure password. If you have it installed, run
+  Unix tools can generate a nice password for you:
 
   .. code-block:: bash
 
-    openssl rand -base64 32
+    # Allow "tr" to process non-utf8 byte sequences
+    export LC_CTYPE=C
+
+    # read random bytes and keep only alphanumerics
+    < /dev/urandom tr -dc A-Za-z0-9 | head -c32
 
 Open the :code:`tutorial.conf` (created in the previous tutorial) and add a line with the password:
 
 .. code-block:: ini
 
-  # add this line to tutorial.conf
+  # PASSWORD MUST BE AT LEAST 32 CHARS LONG
+  # add this line to tutorial.conf:
 
-  jwt-secret = "<the password you created>"
+  jwt-secret = "<the password you made>"
 
 If the PostgREST server is still running from the previous tutorial, restart it to load the updated configuration file.
 
@@ -57,7 +62,7 @@ Ordinarily your own code in the database or in another server will create and si
 
    How to create a token at https://jwt.io
 
-Remember to fill in the password you generated rather than the word :code:`secret`. After you have filled in the password and payload, the encoded data on the left will update. Copy the encoded token.
+**Remember to fill in the password you generated rather than the word "secret".** After you have filled in the password and payload, the encoded data on the left will update. Copy the encoded token.
 
 .. note::
 

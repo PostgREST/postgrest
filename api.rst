@@ -64,6 +64,8 @@ in            one of a list of values e.g.                     :code:`IN`
               :code:`?a=in.("hi,there","yes,you")`
 is            checking for exact equality (null,true,false)    :code:`IS`
 fts           :ref:`fts` using to_tsquery                      :code:`@@`
+plfts         :ref:`fts` using plainto_tsquery                 :code:`@@`
+phfts         :ref:`fts` using phraseto_tsquery                :code:`@@`
 cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
 cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
 ov            overlap (have points in common),                 :code:`&&`
@@ -107,22 +109,22 @@ The view will provide a new endpoint:
 Full-Text Search
 ~~~~~~~~~~~~~~~~
 
-The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`ts_vector`, unsurprisingly of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The follow examples illustrate the possibilities.
+The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The follow examples illustrate the possibilities.
 
 .. code-block:: http
 
   # Use language in fts query
-  GET /tsearch?ts_vector=french.fts.amusant
+  GET /tsearch?my_tsv=fts(french).amusant
 
   # Use plainto_tsquery and phraseto_tsquery
-  GET /tsearch?ts_vector=plain.fts.The%20Fat%20Cats
-  GET /tsearch?ts_vector=phrase.fts.The%20Fat%20Rats
+  GET /tsearch?my_tsv=plfts.The%20Fat%20Cats
+  GET /tsearch?my_tsv=phfts.The%20Fat%20Rats
 
   # Combine both
-  GET /tsearch?ts_vector=phrase.english.fts.The%20Fat%20Cats
+  GET /tsearch?my_tsv=phfts(english).The%20Fat%20Cats
 
   # "not" also working
-  GET /tsearch?ts_vector=not.phrase.english.fts.The%20Fat%20Cats
+  GET /tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats
 
 Using phrase search mode requires PostgreSQL of version at least 9.6 and will raise an error in earlier versions of the database.
 
@@ -433,9 +435,6 @@ Which would return
     }
   ]
 
-The primary key of the table of the resource being embedded must be specified,
-either explicitly, like in the example above, or implicitly through a wild card.
-
 In this example, since the relationship is a forward relationship, there is
 only one director associated with a film. As the table name is plural it might
 be preferable for it to be singular instead. An table name alias can accomplish
@@ -454,9 +453,6 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 .. code-block:: http
 
   GET /directors?select=films(title,year) HTTP/1.1
-
-Here it is not necessary to specify the table's primary key of the embedded
-resource.
 
 .. note::
 
@@ -493,13 +489,13 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 Stored Procedures
 =================
 
-Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports only POST which executes the function.
+Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports POST (and in some cases GET) to execute the function.
 
 .. code:: http
 
   POST /rpc/function_name HTTP/1.1
 
-Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations). However procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas.
+Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations). However procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas. Stable and immutable functions can be called with the HTTP GET verb if desired.
 
 Procedures must be used with `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
 
@@ -520,7 +516,13 @@ The client can call it by posting an object like
 
   { "a": 1, "b": 2 }
 
-The keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+Because ``add_them`` is declared IMMUTABLE, we can alternately call the function with a GET request:
+
+.. code:: http
+
+  GET /rpc/add_them?a=1&b=2 HTTP/1.1
+
+For POST and GET the keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
 
 .. note::
 
@@ -546,8 +548,6 @@ By default, a function is executed with the privileges of the user who calls it.
 
   Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
 
-  We are considering allowing GET requests for functions that are marked non-volatile. Allowing GET is important for HTTP caching. However we still must decide how to pass function parameters since request bodies are not allowed. Also some query string arguments are already reserved for shaping/filtering the output.
-
 Accessing Request Headers/Cookies
 ---------------------------------
 
@@ -557,10 +557,10 @@ Stored procedures can access request headers and cookies by reading GUC variable
 
   SELECT current_setting('request.header.origin', true);
 
-Raising Errors
---------------
+Errors and HTTP Status Codes
+----------------------------
 
-Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always errors:
+Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
 
 .. code-block:: postgresql
 
@@ -585,7 +585,39 @@ Calling the function returns HTTP 400 with the body
     "code":"P0001"
   }
 
-You can customize the HTTP status code by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
+One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
+
+For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise 'PT402':
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PT402' using
+    message = 'Payment Required',
+    detail = 'Quota exceeded',
+    hint = 'Upgrade your plan';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+
+  {"hint":"Upgrade your plan","details":"Quota exceeded"}
+
+Setting Response Headers
+------------------------
+
+PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
+
+.. code-block:: sql
+
+  -- tell client to cache response for two days
+
+  SET LOCAL "response.headers" =
+    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
+
+Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
 Insertions / Updates
 ====================
