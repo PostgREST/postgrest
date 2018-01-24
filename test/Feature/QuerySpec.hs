@@ -413,7 +413,7 @@ spec = do
       get "/projects?id=in.1,3&select=id,name,client_id{id,name}" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
         { matchHeaders = [matchContentTypeJson] }
-    
+
     it "can embed by FK column name and select the FK value at the same time, if aliased" $
       get "/projects?id=in.1,3&select=id,name,client_id,client:client_id{id,name}" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
@@ -515,6 +515,14 @@ spec = do
       get "/projects?id=eq.1&select=id, name, client{id, name}&client.order=name.asc" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}]|]
 
+    it "with error when ordering direction is misspelled" $
+      get "/items?order=id.wrong" `shouldRespondWith` 400
+
+    it "with error when ordering nulls is misspelled" $
+      get "/items?order=id.desc.wrong" `shouldRespondWith` 400
+
+    it "with error when ordering nulls correct but ordering direction is misspelled" $
+      get "/items?order=id.nullslast.wrong" `shouldRespondWith` 400
 
 
   describe "Accept headers" $ do
