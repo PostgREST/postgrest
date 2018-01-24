@@ -119,6 +119,7 @@ instance Monoid OrderTerm where
   mempty = OrderTerm (mempty, mempty) Nothing Nothing
   OrderTerm nt (Just nd) Nothing `mappend` OrderTerm mt Nothing (Just mn) = OrderTerm (nt `mappend` mt) (Just nd) (Just mn)
   OrderTerm nt Nothing (Just nn) `mappend` OrderTerm mt (Just md) Nothing = OrderTerm (nt `mappend` mt) (Just md) (Just nn)
+  OrderTerm{} `mappend` OrderTerm{} = mempty
 
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
