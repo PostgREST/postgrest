@@ -117,6 +117,9 @@ data OrderTerm = OrderTerm {
 } deriving (Show, Eq)
 instance Monoid OrderTerm where
   mempty = OrderTerm (mempty, mempty) Nothing Nothing
+  OrderTerm ("",Nothing) Nothing nn  `mappend` OrderTerm tm Nothing Nothing = OrderTerm tm Nothing nn
+  OrderTerm nt Nothing Nothing `mappend` OrderTerm mt Nothing (Just mn) = OrderTerm (nt `mappend` mt) Nothing (Just mn)
+  OrderTerm nt (Just nd) Nothing `mappend` OrderTerm mt Nothing Nothing = OrderTerm (nt `mappend` mt) (Just nd) Nothing
   OrderTerm nt (Just nd) Nothing `mappend` OrderTerm mt Nothing (Just mn) = OrderTerm (nt `mappend` mt) (Just nd) (Just mn)
   OrderTerm nt Nothing (Just nn) `mappend` OrderTerm mt (Just md) Nothing = OrderTerm (nt `mappend` mt) (Just md) (Just nn)
   OrderTerm{} `mappend` OrderTerm{} = mempty

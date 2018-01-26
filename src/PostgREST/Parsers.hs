@@ -172,12 +172,12 @@ pOrderTerm =
   try ( do
     c <- pField
     let pDirectionNulls =
-               try(string "asc"        $> OrderTerm c (Just OrderAsc) Nothing)
-           <|> try(string "desc"       $> OrderTerm c (Just OrderDesc) Nothing)
-           <|> try(string "nullslast"  $> OrderTerm c Nothing (Just OrderNullsLast))
-           <|> try(string "nullsfirst" $> OrderTerm c Nothing (Just OrderNullsFirst))
-    ords <-  pDelimiter *> pDirectionNulls `sepBy1` char '.'
-    return $ foldl1 mappend ords
+               try(string "asc"        $> OrderTerm mempty (Just OrderAsc) Nothing)
+           <|> try(string "desc"       $> OrderTerm mempty (Just OrderDesc) Nothing)
+           <|> try(string "nullslast"  $> OrderTerm mempty Nothing (Just OrderNullsLast))
+           <|> try(string "nullsfirst" $> OrderTerm mempty Nothing (Just OrderNullsFirst))
+    ords <-  pDelimiter *> pDirectionNulls `sepBy1` char '.' <|> pure []
+    return $ foldr mappend (OrderTerm c Nothing Nothing) ords
   )
 
 pLogicTree :: Parser LogicTree
