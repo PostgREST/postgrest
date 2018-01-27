@@ -26,7 +26,10 @@ data ApiRequestError = ActionInappropriate
                      | InvalidFilters
                      deriving (Show, Eq)
 
-data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving (Eq, Show)
+data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
+instance Show PreferResolution where
+  show MergeDuplicates  = "resolution=merge-duplicates"
+  show IgnoreDuplicates = "resolution=ignore-duplicates"
 
 data DbStructure = DbStructure {
   dbTables      :: [Table]

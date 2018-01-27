@@ -157,10 +157,10 @@ app dbStructure proc conf apiRequest =
                  && iPreferRepresentation apiRequest == Full
                 then return $ singularityError (toInteger nRows)
                 else do
-                  let stm = createWriteStatement sq mq
+                  let pkCols = tablePKCols dbStructure tSchema tName
+                      stm = createWriteStatement sq mq
                         (contentType == CTSingularJSON) isSingle
-                        (contentType == CTTextCSV) (iPreferRepresentation apiRequest)
-                        (tablePKCols dbStructure tSchema tName)
+                        (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
                   row <- H.query (toS pjRaw) stm
                   let (_, _, fs, body) = extractQueryResult row
                       headers = catMaybes [
@@ -172,6 +172,9 @@ app dbStructure proc conf apiRequest =
                             else Nothing
                         , Just . contentRangeH 1 0 $
                             toInteger <$> if shouldCount then Just nRows else Nothing
+                        , if null pkCols
+                            then Nothing
+                            else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
                         ]
 
                   return . responseLBS status201 headers $
