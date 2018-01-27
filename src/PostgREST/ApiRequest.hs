@@ -116,8 +116,8 @@ userApiRequest schema req reqBody
       , iPreferRepresentation = representation
       , iPreferSingleObjectParameter = singleObject
       , iPreferCount = hasPrefer "count=exact"
-      , iPreferResolution = if hasPrefer "resolution=merge-duplicates" then Just MergeDuplicates
-                            else if hasPrefer "resolution=ignore-duplicates" then Just IgnoreDuplicates
+      , iPreferResolution = if hasPrefer (show MergeDuplicates) then Just MergeDuplicates
+                            else if hasPrefer (show IgnoreDuplicates) then Just IgnoreDuplicates
                             else Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]

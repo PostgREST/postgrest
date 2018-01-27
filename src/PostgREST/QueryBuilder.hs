@@ -121,7 +121,7 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(_postgrest_t) AS page_total",
       if wantHdrs
-         then locationF pKeys
+         then "coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")"
          else noLocationF <> " AS header",
       if rep == Full
          then bodyF <> " AS body"
@@ -278,7 +278,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
 requestToQuery schema _ (DbMutate (Insert mainTbl pkCols p@(PayloadJSON _ pType pKeys) onConflct logicForest returnings)) =
   unwords [
     ("WITH " <> ignoredBody) `emptyOnFalse` not payloadIsEmpty,
-    "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ") ",
+    "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ")",
     case (pType, payloadIsEmpty) of
       (PJArray _, True) -> "SELECT null WHERE false"
       (PJObject, True)  -> "DEFAULT VALUES"
@@ -369,16 +369,12 @@ asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
 
 locationF :: [Text] -> SqlFragment
-locationF pKeys =
-    "(" <>
-    " WITH s AS (SELECT row_to_json(ss) as r from " <> sourceCTEName <> " as ss  limit 1)" <>
-    " SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))" <>
-    " FROM s, json_each_text(s.r) AS json_data" <>
-    (
-      if null pKeys
-      then ""
-      else " WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')"
-    ) <> ")"
+locationF pKeys = [qc|(
+  WITH data AS (SELECT row_to_json(_) AS row FROM {sourceCTEName} AS _ LIMIT 1)
+  SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
+  FROM data CROSS JOIN json_each_text(data.row) AS json_data
+  {("WHERE json_data.key IN ('" <> intercalate "','" pKeys <> "')") `emptyOnFalse` null pKeys}
+)|]
 
 limitF :: NonnegRange -> SqlFragment
 limitF r  = if r == allRange
