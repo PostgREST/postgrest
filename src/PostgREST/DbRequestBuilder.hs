@@ -31,7 +31,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..)
                                         )
 import           PostgREST.Error           (apiRequestError)
 import           PostgREST.Parsers
-import           PostgREST.RangeQuery      (NonnegRange, restrictRange)
+import           PostgREST.RangeQuery      (NonnegRange, restrictRange, allRange)
 import           PostgREST.Types
 
 import           Protolude                hiding (from, dropWhile, drop)
@@ -43,8 +43,10 @@ readRequest maxRows allRels proc apiRequest  =
   mapLeft apiRequestError $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
-  parseReadRequest
+  addFiltersOrdersRanges apiRequest <*>
+  (buildReadRequest <$> pRequestSelect (iSelect apiRequest))
   where
+    action = iAction apiRequest
     (schema, rootTableName) = fromJust $ -- Make it safe
       let target = iTarget apiRequest in
       case target of
@@ -58,17 +60,17 @@ readRequest maxRows allRels proc apiRequest  =
 
         _ -> Nothing
 
-    action :: Action
-    action = iAction apiRequest
-
-    parseReadRequest :: Either ApiRequestError ReadRequest
-    parseReadRequest = addFiltersOrdersRanges apiRequest <*>
-      pRequestSelect rootName selStr
+    buildReadRequest :: [Tree SelectItem] -> ReadRequest
+    buildReadRequest fieldTree =
+      let rootNodeName = if action == ActionRead then rootTableName else sourceCTEName in
+      foldr treeEntry (Node (Select [] [rootNodeName] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing)) []) fieldTree
       where
-        selStr = iSelect apiRequest
-        rootName = if action == ActionRead
-          then rootTableName
-          else sourceCTEName
+        treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
+        treeEntry (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
+          case fldForest of
+            [] -> Node (q {select=fld:select q}, i) rForest
+            _  -> Node (q, i) $
+                  foldr treeEntry (Node (Select [] [fn] [] [] [] allRange, (fn, Nothing, alias, relationDetail)) []) fldForest:rForest
 
     relations :: [Relation]
     relations = case action of
@@ -77,7 +79,19 @@ readRequest maxRows allRels proc apiRequest  =
       ActionDelete   -> fakeSourceRelations ++ allRels
       ActionInvoke _ -> fakeSourceRelations ++ allRels
       _       -> allRels
-      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels -- see comment in toSourceRelation
+      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels
+
+-- in a relation where one of the tables matches "TableName"
+-- replace the name to that table with pg_source
+-- this "fake" relations is needed so that in a mutate query
+-- we can look a the "returning *" part which is wrapped with a "with"
+-- as just another table that has relations with other tables
+toSourceRelation :: TableName -> Relation -> Maybe Relation
+toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
+  | mt == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
+  | Just mt == (tableName <$> rt) = Just $ r {relLinkTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
+  | otherwise = Nothing
 
 treeRestrictRange :: Maybe Integer -> ReadRequest -> Either ApiRequestError ReadRequest
 treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` request
@@ -88,7 +102,7 @@ treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` re
 augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either ApiRequestError ReadRequest
 augumentRequestWithJoin schema allRels request =
   addRelations schema allRels Nothing request
-  >>= addJoinFilters schema
+  >>= addJoinConditions schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias, relationDetail)) forest) =
@@ -171,7 +185,7 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
                       relType r == Many &&
                       nodeTableName == tableName (relTable r) && -- match relation table name
                       parentNodeTableName == tableName (relFTable r) && -- match relation foreign table name
-                      rd == tableName (fromJust (relLTable r))
+                      rd == tableName (fromJust (relLinkTable r))
                     ) 
                   )
                 ) allRelations
@@ -189,35 +203,35 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest n = mapM (addRelations schema allRelations n) forest
 
-addJoinFilters :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinFilters schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) =
+addJoinConditions :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
+addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) =
   case relation of
     Just Relation{relType=Root} -> Node node  <$> updatedForest -- this is the root node
     Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
-    Just rel@Relation{relType=Many, relLTable=(Just linkTable)} ->
+    Just rel@Relation{relType=Many, relLinkTable=(Just linkTable)} ->
       let rq = augmentQuery rel in
       Node (rq{from=tableName linkTable:from rq}, nodeProps) <$> updatedForest
     _ -> Left UnknownRelation
   where
-    updatedForest = mapM (addJoinFilters schema) forest
-    augmentQuery rel = foldr addFilterToReadQuery query (getJoinFilters rel)
-    addFilterToReadQuery flt rq@Select{where_=lf} = rq{where_=addFilterToLogicForest flt lf}::ReadQuery
+    updatedForest = mapM (addJoinConditions schema) forest
+    augmentQuery rel = foldr addJoinCondToReadQuery query (getJoinConds rel)
+    addJoinCondToReadQuery jc rq@Select{joinConds=jcs} = rq{joinConds=jc:jcs}::ReadQuery
 
-getJoinFilters :: Relation -> [Filter]
-getJoinFilters (Relation t cols ft fcs typ lt lc1 lc2) =
+getJoinConds :: Relation -> [JoinCond]
+getJoinConds (Relation t cols ft fcs typ lt lc1 lc2) =
   case typ of
-    Child  -> zipWith (toFilter tN ftN) cols fcs
-    Parent -> zipWith (toFilter tN ftN) cols fcs
-    Many   -> zipWith (toFilter tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toFilter ftN ltN) fcs (fromMaybe [] lc2)
-    Root   -> undefined --error "undefined getJoinFilters"
+    Child  -> zipWith (toJoinCond tN ftN) cols fcs
+    Parent -> zipWith (toJoinCond tN ftN) cols fcs
+    Many   -> zipWith (toJoinCond tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCond ftN ltN) fcs (fromMaybe [] lc2)
+    Root   -> undefined
   where
     s = if typ == Parent then "" else tableSchema t
     tN = tableName t
     ftN = tableName ft
     ltN = fromMaybe "" (tableName <$> lt)
-    toFilter :: Text -> Text -> Column -> Column -> Filter
-    toFilter tb ftb c fc = Filter (colName c, Nothing) (OpExpr False (Join (QualifiedIdentifier s tb) (ForeignKey fc{colTable=(colTable fc){tableName=ftb}})))
+    toJoinCond :: Text -> Text -> Column -> Column -> JoinCond
+    toJoinCond tb ftb c fc = JoinCond (QualifiedIdentifier s tb, colName c) (QualifiedIdentifier s ftb, colName fc)
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
@@ -254,7 +268,7 @@ addFilter :: (EmbedPath, Filter) -> ReadRequest -> ReadRequest
 addFilter = addProperty addFilterToNode
 
 addOrderToNode :: [OrderTerm] -> ReadRequest -> ReadRequest
-addOrderToNode o (Node (q,i) f) = Node (q{order=Just o}, i) f
+addOrderToNode o (Node (q,i) f) = Node (q{order=o}, i) f
 
 addOrder :: (EmbedPath, [OrderTerm]) -> ReadRequest -> ReadRequest
 addOrder = addProperty addOrderToNode
@@ -291,18 +305,6 @@ addProperty f (path, a) (Node rn forest) =
           where
             fnd :: ReadRequest -> Bool
             fnd (Node (_,(n,_,_,_)) _) = n == name
-
--- in a relation where one of the tables mathces "TableName"
--- replace the name to that table with pg_source
--- this "fake" relations is needed so that in a mutate query
--- we can look a the "returning *" part which is wrapped with a "with"
--- as just another table that has relations with other tables
-toSourceRelation :: TableName -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
-  | mt == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
-  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
-  | Just mt == (tableName <$> rt) = Just $ r {relLTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
-  | otherwise = Nothing
 
 mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
