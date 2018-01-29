@@ -10,10 +10,10 @@ stgrest:
     PGRST_DB_ANON_ROLE: app_user
 
 postgres:
-  image: postgres
+  image: postgres:9
   ports:
     - "5432:5432"
   environment:
-    POSTGRES_DB: app_db
-    POSTGRES_USER: app_user
+    POSTGRES_DB: postgrest_test
+    POSTGRES_USER: postgrest_test
     POSTGRES_PASSWORD: password

@@ -518,6 +518,9 @@ spec = do
     it "with error when ordering direction is misspelled" $
       get "/items?order=id.wrong" `shouldRespondWith` 400
 
+    it "with error when ordering direction is not exact" $
+      get "/items?order=id.desc2" `shouldRespondWith` 400
+
     it "with error when ordering nulls is misspelled" $
       get "/items?order=id.desc.wrong" `shouldRespondWith` 400
 

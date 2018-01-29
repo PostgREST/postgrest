@@ -172,11 +172,11 @@ pOrderTerm =
   try ( do
     c <- pField
     let pDirectionNulls =
-               try(string "asc"        $> OrderTerm mempty (Just OrderAsc) Nothing)
-           <|> try(string "desc"       $> OrderTerm mempty (Just OrderDesc) Nothing)
-           <|> try(string "nullslast"  $> OrderTerm mempty Nothing (Just OrderNullsLast))
-           <|> try(string "nullsfirst" $> OrderTerm mempty Nothing (Just OrderNullsFirst))
-    ords <-  pDelimiter *> pDirectionNulls `sepBy1` char '.' <|> pure []
+               try(string "asc"        <* notFollowedBy (noneOf ".") $> OrderTerm mempty (Just OrderAsc) Nothing)
+           <|> try(string "desc"       <* notFollowedBy (noneOf ".") $> OrderTerm mempty (Just OrderDesc) Nothing)
+           <|> try(string "nullslast"  <* notFollowedBy (noneOf ".") $> OrderTerm mempty Nothing (Just OrderNullsLast))
+           <|> try(string "nullsfirst" <* notFollowedBy (noneOf ".") $> OrderTerm mempty Nothing (Just OrderNullsFirst))
+    ords <-  try $ pDelimiter *> pDirectionNulls `sepBy1` char '.' <|> pure []
     return $ foldr mappend (OrderTerm c Nothing Nothing) ords
   )
 
