@@ -1374,3 +1374,19 @@ create table test.tiobe_pls(
   name text primary key,
   rank smallint
 );
+
+create table test.family_tree (
+  id text not null primary key,
+  name text not null,
+  parent text
+);
+alter table only test.family_tree add constraint pptr foreign key (parent) references test.family_tree(id);
+
+create table test.organizations (
+  id integer primary key,
+  name text,
+  referee integer,
+  auditor integer
+);
+alter table only test.organizations add constraint pptr1 foreign key (referee) references test.organizations(id);
+alter table only test.organizations add constraint pptr2 foreign key (auditor) references test.organizations(id);
