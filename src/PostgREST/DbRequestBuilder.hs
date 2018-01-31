@@ -60,17 +60,21 @@ readRequest maxRows allRels proc apiRequest  =
 
         _ -> Nothing
 
+    -- Build tree with a Level attribute so when an embed occurs and the parent node has the same name as the child we can differentiate them by having
+    -- an alias like "node_lvl", this is related to issue #987.
     buildReadRequest :: [Tree SelectItem] -> ReadRequest
     buildReadRequest fieldTree =
-      let rootNodeName = if action == ActionRead then rootTableName else sourceCTEName in
-      foldr treeEntry (Node (Select [] [rootNodeName] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing)) []) fieldTree
+      let rootLvl = 1
+          rootNodeName = if action == ActionRead then rootTableName else sourceCTEName in
+      foldr (treeEntry rootLvl) (Node (Select [] [rootNodeName] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing, rootLvl)) []) fieldTree
       where
-        treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
-        treeEntry (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
+        treeEntry :: Level -> Tree SelectItem -> ReadRequest -> ReadRequest
+        treeEntry lvl (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
+          let nxtLvl = succ lvl in
           case fldForest of
             [] -> Node (q {select=fld:select q}, i) rForest
             _  -> Node (q, i) $
-                  foldr treeEntry (Node (Select [] [fn] [] [] [] allRange, (fn, Nothing, alias, relationDetail)) []) fldForest:rForest
+                  foldr (treeEntry nxtLvl) (Node (Select [] [fn] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtLvl)) []) fldForest:rForest
 
     relations :: [Relation]
     relations = case action of
@@ -105,9 +109,9 @@ augumentRequestWithJoin schema allRels request =
   >>= addJoinConditions schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias, relationDetail)) forest) =
+addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias, relationDetail, level)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentNodeTable]}, (_, _, _, _)) _)) ->
+    (Just (Node (Select{from=[parentNodeTable]}, _) _)) ->
       Node <$> readNode' <*> forest'
       where
         forest' = updateForest $ hush node'
@@ -190,13 +194,13 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
                   )
                 ) allRelations
               n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
-        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
-        addRel (query', (n, _, a, _)) r = (query' {from=fromRelation}, (n, Just r, a, Nothing))
+        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Level)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Level))
+        addRel (query', (n, _, a, _, lvl)) r = (query' {from=fromRelation}, (n, Just r, a, Nothing, lvl))
           where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
 
     _ -> n' <$> updateForest (Just (n' forest))
       where
-        n' = Node (query, (name, Just r, alias, Nothing))
+        n' = Node (query, (name, Just r, alias, Nothing, level))
         t = Table schema name Nothing True -- !!! TODO find another way to get the table from the query
         r = Relation t [] t [] Root Nothing Nothing Nothing
   where
@@ -204,7 +208,7 @@ addRelations schema allRelations parentNode (Node readNode@(query, (name, _, ali
     updateForest n = mapM (addRelations schema allRelations n) forest
 
 addJoinConditions :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _)) forest) =
+addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _, lvl)) forest) =
   case relation of
     Just Relation{relType=Root} -> Node node  <$> updatedForest -- this is the root node
     Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
@@ -215,23 +219,31 @@ addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _)) fores
     _ -> Left UnknownRelation
   where
     updatedForest = mapM (addJoinConditions schema) forest
-    augmentQuery rel = foldr addJoinCondToReadQuery query (getJoinConds rel)
-    addJoinCondToReadQuery jc rq@Select{joinConds=jcs} = rq{joinConds=jc:jcs}::ReadQuery
+    augmentQuery rel = foldr addJoinCondToReadQuery query (getJoinConds lvl rel)
+    addJoinCondToReadQuery jc rq@Select{joinConds=jcs} = rq{joinConds=jc:jcs}
 
-getJoinConds :: Relation -> [JoinCond]
-getJoinConds (Relation t cols ft fcs typ lt lc1 lc2) =
+getJoinConds :: Integer -> Relation -> [JoinCond]
+getJoinConds level (Relation t cols ft fcs typ lt lc1 lc2) =
   case typ of
-    Child  -> zipWith (toJoinCond tN ftN) cols fcs
-    Parent -> zipWith (toJoinCond tN ftN) cols fcs
-    Many   -> zipWith (toJoinCond tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCond ftN ltN) fcs (fromMaybe [] lc2)
+    -- JoinCond needs the Level attr to know the tables aliases
+    -- The level depends on the sql query structure
+    -- Child has the embed as:
+    -- SELECT .., COALESCE(SELECT .. FROM ch AS ch_lvl_2 WHERE ch_lvl_2.col = p_lvl_1.col) FROM p AS p_lvl_1
+    -- Parent has similar structure regarding the levels
+    -- Many has the embed as:
+    -- SELECT .., COALESCE(SELECT .. FROM ch AS ch_lvl_2, gch AS gch_lvl_2 WHERE ch_lvl_2.col = gch_lvl_2.col AND p_lvl_1.acol = ch_lvl_2.acol)
+    -- FROM p AS p_lvl_1
+    Child  -> zipWith (toJoinCond (tN, level) (ftN, level - 1)) cols fcs
+    Parent -> zipWith (toJoinCond (tN, level) (ftN, level - 1)) cols fcs
+    Many   -> zipWith (toJoinCond (tN, level) (ltN, level)) cols (fromMaybe [] lc1) ++ zipWith (toJoinCond (ftN, level - 1) (ltN, level)) fcs (fromMaybe [] lc2)
     Root   -> undefined
   where
     s = if typ == Parent then "" else tableSchema t
     tN = tableName t
     ftN = tableName ft
     ltN = fromMaybe "" (tableName <$> lt)
-    toJoinCond :: Text -> Text -> Column -> Column -> JoinCond
-    toJoinCond tb ftb c fc = JoinCond (QualifiedIdentifier s tb, colName c) (QualifiedIdentifier s ftb, colName fc)
+    toJoinCond :: (Text, Integer) -> (Text, Integer) -> Column -> Column -> JoinCond
+    toJoinCond (tb, tLvl) (ftb, fLvl) c fc = JoinCond (QualifiedIdentifier s tb, colName c, tLvl) (QualifiedIdentifier s ftb, colName fc, fLvl)
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
@@ -304,7 +316,7 @@ addProperty f (path, a) (Node rn forest) =
         maybeNode = find fnd forst
           where
             fnd :: ReadRequest -> Bool
-            fnd (Node (_,(n,_,_,_)) _) = n == name
+            fnd (Node (_,(n,_,_,_,_)) _) = n == name
 
 mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
@@ -340,7 +352,7 @@ fieldNames (Node (sel, _) forest) =
   map (fst . view _1) (select sel) ++ map colName fks
   where
     fks = concatMap (fromMaybe [] . f) forest
-    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _)) _) = Just cols
+    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _) = Just cols
     f _ = Nothing
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree

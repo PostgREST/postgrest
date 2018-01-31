@@ -346,3 +346,16 @@ INSERT INTO tiobe_pls VALUES ('Java', 1), ('C', 2), ('Python', 4);
 
 TRUNCATE TABLE only_pk CASCADE;
 INSERT INTO only_pk VALUES (1), (2);
+
+TRUNCATE TABLE family_tree CASCADE;
+INSERT INTO family_tree VALUES ('1', 'Parental Unit', NULL);
+INSERT INTO family_tree VALUES ('2', 'Kid One', '1');
+INSERT INTO family_tree VALUES ('3', 'Kid Two', '1');
+INSERT INTO family_tree VALUES ('4', 'Grandkid One', '2');
+INSERT INTO family_tree VALUES ('5', 'Grandkid Two', '3');
+
+TRUNCATE TABLE organizations CASCADE;
+INSERT INTO organizations VALUES (1, 'Referee Org', null, null);
+INSERT INTO organizations VALUES (2, 'Auditor Org', null, null);
+INSERT INTO organizations VALUES (3, 'Acme', 1, 2);
+INSERT INTO organizations VALUES (4, 'Umbrella', 1, 2);

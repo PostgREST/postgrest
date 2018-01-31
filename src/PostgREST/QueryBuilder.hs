@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE DuplicateRecordFields    #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Module      : PostgREST.QueryBuilder
@@ -206,7 +208,7 @@ pgFmtLit x =
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = undefined
-requestToCountQuery schema (DbRead (Node (Select _ _ logicForest _ _ _, (mainTbl, _, _, _)) _)) =
+requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(*)",
    "FROM ", fromQi qi,
@@ -216,15 +218,15 @@ requestToCountQuery schema (DbRead (Node (Select _ _ logicForest _ _ _, (mainTbl
    qi = removeSourceCTESchema schema mainTbl
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest joinConds_ ordts range, (nodeName, maybeRelation, _, _)) forest)) =
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest joinConds_ ordts range, (nodeName, maybeRelation, _, _, level)) forest)) =
   query
   where
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
-    qi = removeSourceCTESchema schema mainTbl
-    toQi = removeSourceCTESchema schema
+    tableAlias tbl = tbl <> "_" <> show level
+    qi = QualifiedIdentifier "" $ tableAlias mainTbl
     query = unwords [
       "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-      "FROM " <> intercalate ", " (map (fromQi . toQi) tbls),
+      "FROM " <> intercalate ", " (map (\t -> fromQi (removeSourceCTESchema schema t) <> " AS " <> pgFmtIdent (tableAlias t)) tbls),
       unwords joins,
       ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCond joinConds_))
         `emptyOnFalse` (null logicForest && null joinConds_),
@@ -234,21 +236,21 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     (joins, selects) = foldr getQueryParts ([],[]) forest
 
     getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE(("
            <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
            where subquery = requestToQuery schema False (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (joi:j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (joi:j,sel:s)
       where
         aliasOrName = fromMaybe name alias
         localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
         sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
         joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE "
           where subquery = requestToQuery schema True (DbRead (Node n forst))
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _)) forst) (j,s) = (j,sel:s)
+    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
@@ -422,8 +424,10 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      (find ((==) . toLower $ v) ["null","true","false"])
 
 pgFmtJoinCond :: JoinCond -> SqlFragment
-pgFmtJoinCond (JoinCond (qi, cName) (fQi, fcName)) =
-  pgFmtColumn (removeSourceCTESchema (qiSchema qi) (qiName qi)) cName <> " = " <> pgFmtColumn (removeSourceCTESchema (qiSchema fQi) (qiName fQi)) fcName
+pgFmtJoinCond (JoinCond (qi, cName, lvl) (fQi, fcName, fLvl)) =
+  let qiAlias = QualifiedIdentifier "" (qiName qi <> "_" <> show lvl)
+      fQiAlias = QualifiedIdentifier "" (qiName fQi <> "_" <> show fLvl) in
+  pgFmtColumn qiAlias cName <> " = " <> pgFmtColumn fQiAlias fcName
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
 pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"

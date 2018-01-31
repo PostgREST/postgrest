@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #828, Fix computed column only working in public schema - @steve-chavez
 - #925, Fix RPC high memory usage by using parametrized query and avoiding json encoding - @steve-chavez
+- #987, Fix embedding with self-reference foreign key - @steve-chavez
 
 ### Changed
 
