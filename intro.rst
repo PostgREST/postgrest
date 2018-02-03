@@ -58,6 +58,7 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
 
+* `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
 * `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
 * `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
@@ -102,7 +103,6 @@ In Production
 Extensions
 ----------
 
-* `diogob/postgrest-ws <https://github.com/diogob/postgrest-ws>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
