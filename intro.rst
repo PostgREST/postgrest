@@ -138,6 +138,15 @@ Testimonials
 
   -- Simone Scarduzio
 
+  "I like the fact that PostgREST does one thing, and one thing well.
+  While PostgREST takes care of bridging the gap between our HTTP server
+  and PostgreSQL database, we can focus on the development of our API in
+  a single language: SQL. This puts the database in the center of our
+  architecture, and pushed us to improve our skills in SQL programming
+  and database design."
+
+  -- Eric Bréchemier, Data Engineer, eGull SAS
+
 Getting Support
 ################
 
