@@ -83,8 +83,11 @@ If everything is working correctly it will print out its version and information
     </details>
     <details>
       <summary>Windows</summary>
-      <p>It isn't fun. Learn more <a href="https://stackoverflow.com/questions/38341725/how-to-install-libpq-dev-package-for-windows">here</a>.</p>
-      <p>It might be easier to execute PostgREST in its own Docker image as well.</p>
+        <p>All of the DLL files that are required to run PostgREST are available in the windows installation of PostgreSQL server. 
+        Once installed they are found in the BIN folder, e.g: C:\Program Files\PostgreSQL\10\bin. Add this directory to your PATH 
+        variable. Run the following from an administrative command prompt (adjusting the actual BIN path as necessary of course)
+          <pre>setx /m PATH "%PATH%;C:\Program Files\PostgreSQL\10\bin"</pre>
+        </p>
     </details>
     </p>
 
