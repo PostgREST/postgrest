@@ -317,7 +317,7 @@ allTables =
           AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind IN ('v','r','m')
+    WHERE c.relkind IN ('v','r','m','f')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
