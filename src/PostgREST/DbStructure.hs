@@ -9,6 +9,7 @@ module PostgREST.DbStructure (
 , accessibleProcs
 , schemaDescription
 , getPgVersion
+, fillSessionWithEnvironment
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -18,10 +19,13 @@ import qualified Hasql.Query                   as H
 import           Control.Applicative
 import qualified Data.HashMap.Strict           as M
 import           Data.List                     (elemIndex)
+import qualified Data.List                     as List
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
-                                                breakOn, dropAround, splitOn)
+                                                breakOn, dropAround,
+                                                splitOn, pack)
 import qualified Data.Text                     as T
+import qualified Data.String                   as S
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
@@ -29,6 +33,8 @@ import           Text.InterpolatedString.Perl6 (q)
 import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
+
+import           Contravariant.Extras          (contrazip2)
 
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
@@ -715,7 +721,7 @@ allSynonyms cols =
                 select case when match is not null then coalesce(match[8], match[7], match[4]) end
                 from regexp_matches(
                     CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
+                    -- CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
                     'nsi'
                 ) match
             ) as view_column_name
@@ -747,3 +753,14 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> HD.value HD.int4 <*> HD.value HD.text
+
+fillSessionWithEnvironment :: [(S.String, S.String)] -> H.Session ()
+fillSessionWithEnvironment envVars =
+    -- combine all environment-setting SQL queries into one session
+    List.foldr (>>) (return ()) $ List.map buildQueryForEnvVar envVars
+  where
+    buildQueryForEnvVar (k, v) =
+      let stmt = H.statement "SELECT set_config($1, $2, false)" encodeKeyValue HD.unit False
+      in H.query (pack ("app.env." ++ k), pack v) stmt
+    -- take a (key, value) pair and encode as one value to later bind to the query
+    encodeKeyValue = contrazip2 (HE.value HE.text) (HE.value HE.text)

@@ -7,7 +7,7 @@ import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
                                            minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion, fillSessionWithEnvironment)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
@@ -32,6 +32,7 @@ import           Network.Wai.Handler.Warp (defaultSettings,
                                            setTimeout)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
+import           System.Environment       (getEnvironment)
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
@@ -69,10 +70,12 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   where
     work = do
       atomicWriteIORef refDbStructure Nothing
+      environ <- getEnvironment
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectingSucceeded pool
       when connected $ do
         result <- P.use pool $ do
+          fillSessionWithEnvironment environ
           actualPgVersion <- getPgVersion
           unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
             hPutStrLn stderr
