@@ -756,7 +756,7 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
 
 fillSessionWithEnvironment :: [(S.String, S.String)] -> H.Session ()
 fillSessionWithEnvironment envVars =
-    -- combine all environment-setting SQL queries into one session
+    -- combine all environment-setting SQL queries into one Hasql.Session
     List.foldr (>>) (return ()) $ List.map buildQueryForEnvVar envVars
   where
     buildQueryForEnvVar (k, v) =
