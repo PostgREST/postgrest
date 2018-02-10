@@ -721,7 +721,7 @@ allSynonyms cols =
                 select case when match is not null then coalesce(match[8], match[7], match[4]) end
                 from regexp_matches(
                     CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-                    -- CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
+                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
                     'nsi'
                 ) match
             ) as view_column_name
