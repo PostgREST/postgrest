@@ -33,6 +33,7 @@ import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
 
+import           Data.Functor.Contravariant    (contramap)
 import           Contravariant.Extras          (contrazip2)
 
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
@@ -755,16 +756,14 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
 
 fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
 fillSessionWithSettings settings =
-    -- combine all environment-setting SQL queries into one Hasql.Session
-    sequence_ $ List.map buildSetConfigQuery settings
+    -- Send all of the config settings to the set_config function, using pgsql's `unnest` to transform arrays of values
+    H.query settings $ H.statement "SELECT set_config(unnest($1), unnest($2), false)" encoder HD.unit False
+  
   where
-    buildSetConfigQuery :: (Text, Text) -> H.Session ()
-    buildSetConfigQuery keyValue =
-      let
-        stmt = H.statement "SELECT set_config($1, $2, false)" encodeKeyValue HD.unit False
-      in
-        -- the key in this (key, value) pair should already be qualified as a
-        -- PostgreSQL session-local name, e.g. `app.settings.[variable]`
-        H.query keyValue stmt
-    -- take a (key, value) pair and encode as one value to later bind to the query
-    encodeKeyValue = contrazip2 (HE.value HE.text) (HE.value HE.text)
+    -- Take a list of (key, value) pairs and encode each as an array to later bind to the query
+    -- see Insert Many section at https://hackage.haskell.org/package/hasql-1.1.1/docs/Hasql-Encoders.html
+    encoder = contramap List.unzip $ contrazip2 (vector HE.text) (vector HE.text)
+      where
+        vector value =
+          HE.value $ HE.array $ HE.arrayDimension foldl' $ HE.arrayValue value
+
