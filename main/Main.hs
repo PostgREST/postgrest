@@ -7,7 +7,8 @@ import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
                                            minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion, fillSessionWithEnvironment)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion,
+                                           fillSessionWithSettings)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
@@ -32,7 +33,7 @@ import           Network.Wai.Handler.Warp (defaultSettings,
                                            setTimeout)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
-import           System.Environment       (getEnvironment)
+
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
@@ -59,10 +60,11 @@ connectionWorker
   :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
+  -> [(Text, Text)] -- ^ Settings or Environment passed in through the config
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schema environ refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -70,12 +72,11 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   where
     work = do
       atomicWriteIORef refDbStructure Nothing
-      environ <- getEnvironment
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectingSucceeded pool
       when connected $ do
         result <- P.use pool $ do
-          fillSessionWithEnvironment environ
+          fillSessionWithSettings environ
           actualPgVersion <- getPgVersion
           unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
             hPutStrLn stderr
@@ -176,6 +177,7 @@ main = do
     mainTid
     pool
     (configSchema conf)
+    (configSettings conf)
     refDbStructure
     refIsWorkerOn
   --
@@ -198,6 +200,7 @@ main = do
               mainTid
               pool
               (configSchema conf)
+              (configSettings conf)
               refDbStructure
               refIsWorkerOn
     ) Nothing
@@ -214,6 +217,7 @@ main = do
          mainTid
          pool
          (configSchema conf)
+         (configSettings conf)
          refDbStructure
          refIsWorkerOn)
 

@@ -76,6 +76,7 @@ data AppConfig = AppConfig {
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
+  , configSettings          :: [(Text, Text)]
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -136,6 +137,7 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
+          <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
 
   case mAppConf of
     Nothing -> do
@@ -145,6 +147,13 @@ readOptions = do
       return appConf
 
   where
+    parsedPairToTextPair :: (Name, Value) -> (Text, Text)
+    parsedPairToTextPair (k, v) = (k, newValue)
+      where
+        newValue = case v of
+          String textVal -> textVal
+          _ -> show v
+
     parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
       C.key k >>= \case

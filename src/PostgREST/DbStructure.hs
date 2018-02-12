@@ -9,7 +9,7 @@ module PostgREST.DbStructure (
 , accessibleProcs
 , schemaDescription
 , getPgVersion
-, fillSessionWithEnvironment
+, fillSessionWithSettings
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -23,9 +23,8 @@ import qualified Data.List                     as List
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
                                                 breakOn, dropAround,
-                                                splitOn, pack)
+                                                splitOn)
 import qualified Data.Text                     as T
-import qualified Data.String                   as S
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q)
@@ -754,13 +753,18 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> HD.value HD.int4 <*> HD.value HD.text
 
-fillSessionWithEnvironment :: [(S.String, S.String)] -> H.Session ()
-fillSessionWithEnvironment envVars =
+fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
+fillSessionWithSettings settings =
     -- combine all environment-setting SQL queries into one Hasql.Session
-    List.foldr (>>) (return ()) $ List.map buildQueryForEnvVar envVars
+    sequence_ $ List.map buildSetConfigQuery settings
   where
-    buildQueryForEnvVar (k, v) =
-      let stmt = H.statement "SELECT set_config($1, $2, false)" encodeKeyValue HD.unit False
-      in H.query (pack ("app.env." ++ k), pack v) stmt
+    buildSetConfigQuery :: (Text, Text) -> H.Session ()
+    buildSetConfigQuery keyValue =
+      let
+        stmt = H.statement "SELECT set_config($1, $2, false)" encodeKeyValue HD.unit False
+      in
+        -- the key in this (key, value) pair should already be qualified as a
+        -- PostgreSQL session-local name, e.g. `app.settings.[variable]`
+        H.query keyValue stmt
     -- take a (key, value) pair and encode as one value to later bind to the query
     encodeKeyValue = contrazip2 (HE.value HE.text) (HE.value HE.text)
