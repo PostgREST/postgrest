@@ -757,7 +757,7 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
 fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
 fillSessionWithSettings settings =
     -- Send all of the config settings to the set_config function, using pgsql's `unnest` to transform arrays of values
-    H.query settings $ H.statement "SELECT set_config(unnest($1), unnest($2), false)" encoder HD.unit False
+    H.query settings $ H.statement "SELECT set_config(k, v, false) FROM unnest($1, $2) AS f1(k, v)" encoder HD.unit False
   
   where
     -- Take a list of (key, value) pairs and encode each as an array to later bind to the query

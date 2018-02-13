@@ -168,9 +168,9 @@ readOptions = do
     coerceInt (String x) = readMaybe $ toS x
     coerceInt _          = Nothing
 
-    coerceBool ::  Value -> Maybe Bool
+    coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
-    coerceBool (String x) = readMaybe $ toS x
+    coerceBool (String b) = readMaybe $ toS b
     coerceBool _          = Nothing
 
     opts = info (helper <*> pathParser) $
