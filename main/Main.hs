@@ -64,7 +64,7 @@ connectionWorker
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema environ refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -76,7 +76,7 @@ connectionWorker mainTid pool schema environ refDbStructure refIsWorkerOn = do
       connected <- connectingSucceeded pool
       when connected $ do
         result <- P.use pool $ do
-          fillSessionWithSettings environ
+          fillSessionWithSettings settings
           actualPgVersion <- getPgVersion
           unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
             hPutStrLn stderr
