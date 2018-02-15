@@ -227,7 +227,7 @@ pathParser =
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90300 "9.3"
+minimumPgVersion = PgVersion 90400 "9.4"
 
 pgVersion96 :: PgVersion
 pgVersion96 = PgVersion 90600 "9.6"

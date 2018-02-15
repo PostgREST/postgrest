@@ -59,10 +59,7 @@ main = do
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
 
   let reset :: IO ()
-      reset = do
-          r <- resetDb testDbConn
-          _ <- P.use pool $ fillSessionWithSettings (configSettings $ testCfg testDbConn)
-          pure r
+      reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
 
       actualPgVersion = pgVersion dbStructure
       pg96spec | actualPgVersion >= pgVersion96 = [("Feature.PgVersion96Spec"  , Feature.PgVersion96Spec.spec)]

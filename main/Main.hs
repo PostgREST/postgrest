@@ -76,13 +76,13 @@ connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
       connected <- connectingSucceeded pool
       when connected $ do
         result <- P.use pool $ do
-          fillSessionWithSettings settings
           actualPgVersion <- getPgVersion
           unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
             hPutStrLn stderr
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
+          fillSessionWithSettings settings
           dbStructure <- getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
