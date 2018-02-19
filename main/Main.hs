@@ -7,7 +7,8 @@ import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
                                            minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion,
+                                           fillSessionWithSettings)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
@@ -32,6 +33,7 @@ import           Network.Wai.Handler.Warp (defaultSettings,
                                            setTimeout)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
+
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
@@ -58,10 +60,11 @@ connectionWorker
   :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
+  -> [(Text, Text)] -- ^ Settings or Environment passed in through the config
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -79,6 +82,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
+          fillSessionWithSettings settings
           dbStructure <- getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
@@ -173,6 +177,7 @@ main = do
     mainTid
     pool
     (configSchema conf)
+    (configSettings conf)
     refDbStructure
     refIsWorkerOn
   --
@@ -195,6 +200,7 @@ main = do
               mainTid
               pool
               (configSchema conf)
+              (configSettings conf)
               refDbStructure
               refIsWorkerOn
     ) Nothing
@@ -211,6 +217,7 @@ main = do
          mainTid
          pool
          (configSchema conf)
+         (configSettings conf)
          refDbStructure
          refIsWorkerOn)
 

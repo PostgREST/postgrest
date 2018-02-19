@@ -9,6 +9,7 @@ module PostgREST.DbStructure (
 , accessibleProcs
 , schemaDescription
 , getPgVersion
+, fillSessionWithSettings
 ) where
 
 import qualified Hasql.Decoders                as HD
@@ -18,9 +19,11 @@ import qualified Hasql.Query                   as H
 import           Control.Applicative
 import qualified Data.HashMap.Strict           as M
 import           Data.List                     (elemIndex)
+import qualified Data.List                     as List
 import           Data.Maybe                    (fromJust)
 import           Data.Text                     (split, strip,
-                                                breakOn, dropAround, splitOn)
+                                                breakOn, dropAround,
+                                                splitOn)
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
@@ -29,6 +32,9 @@ import           Text.InterpolatedString.Perl6 (q)
 import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
+
+import           Data.Functor.Contravariant    (contramap)
+import           Contravariant.Extras          (contrazip2)
 
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
@@ -747,3 +753,17 @@ getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> HD.value HD.int4 <*> HD.value HD.text
+
+fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
+fillSessionWithSettings settings =
+    -- Send all of the config settings to the set_config function, using pgsql's `unnest` to transform arrays of values
+    H.query settings $ H.statement "SELECT set_config(k, v, false) FROM unnest($1, $2) AS f1(k, v)" encoder HD.unit False
+  
+  where
+    -- Take a list of (key, value) pairs and encode each as an array to later bind to the query
+    -- see Insert Many section at https://hackage.haskell.org/package/hasql-1.1.1/docs/Hasql-Encoders.html
+    encoder = contramap List.unzip $ contrazip2 (vector HE.text) (vector HE.text)
+      where
+        vector value =
+          HE.value $ HE.array $ HE.arrayDimension foldl' $ HE.arrayValue value
+

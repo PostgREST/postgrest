@@ -6,8 +6,8 @@ import SpecHelper
 import qualified Hasql.Pool as P
 
 import PostgREST.App (postgrest)
-import PostgREST.Config (pgVersion96)
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Config (pgVersion96, configSettings)
+import PostgREST.DbStructure (getDbStructure, getPgVersion, fillSessionWithSettings)
 import PostgREST.Types (DbStructure(..))
 import Data.Function (id)
 import Data.IORef
@@ -58,7 +58,9 @@ main = do
       asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool $ pure ()
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
 
-  let reset = resetDb testDbConn
+  let reset :: IO ()
+      reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
+
       actualPgVersion = pgVersion dbStructure
       pg96spec | actualPgVersion >= pgVersion96 = [("Feature.PgVersion96Spec"  , Feature.PgVersion96Spec.spec)]
                | otherwise = []

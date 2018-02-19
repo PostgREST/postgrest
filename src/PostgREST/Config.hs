@@ -76,6 +76,7 @@ data AppConfig = AppConfig {
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
+  , configSettings          :: [(Text, Text)]
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -136,6 +137,7 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
+          <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
 
   case mAppConf of
     Nothing -> do
@@ -145,6 +147,13 @@ readOptions = do
       return appConf
 
   where
+    parsedPairToTextPair :: (Name, Value) -> (Text, Text)
+    parsedPairToTextPair (k, v) = (k, newValue)
+      where
+        newValue = case v of
+          String textVal -> textVal
+          _ -> show v
+
     parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
       C.key k >>= \case
@@ -159,9 +168,9 @@ readOptions = do
     coerceInt (String x) = readMaybe $ toS x
     coerceInt _          = Nothing
 
-    coerceBool ::  Value -> Maybe Bool
+    coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
-    coerceBool (String x) = readMaybe $ toS x
+    coerceBool (String b) = readMaybe $ toS b
     coerceBool _          = Nothing
 
     opts = info (helper <*> pathParser) $
@@ -218,7 +227,7 @@ pathParser =
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90300 "9.3"
+minimumPgVersion = PgVersion 90400 "9.4"
 
 pgVersion96 :: PgVersion
 pgVersion96 = PgVersion 90600 "9.6"

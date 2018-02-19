@@ -73,6 +73,9 @@ _baseCfg =  -- Connection Settings
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
             True
+            [ ("app.settings.app_host", "localhost")
+            , ("app.settings.external_api_secret", "0123456789abcdef")
+            ]
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }

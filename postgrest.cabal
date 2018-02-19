@@ -57,6 +57,7 @@ library
                      , configurator-ng == 0.0.0.1
                      , containers
                      , contravariant
+                     , contravariant-extras
                      , either
                      , gitrev
                      , hasql

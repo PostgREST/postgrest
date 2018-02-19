@@ -699,7 +699,6 @@ spec = do
           { matchStatus = 200
           , matchHeaders = []
           }
-
     it "multiple cookies ends up as claims" $
       request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
         [json| {"name":"request.cookie.secondcookie"} |]
@@ -708,7 +707,15 @@ spec = do
           { matchStatus = 200
           , matchHeaders = []
           }
-
+    it "app settings available" $
+      request methodPost "/rpc/get_guc_value" []
+        [json| { "name": "app.settings.app_host" } |]
+          `shouldRespondWith`
+          [str|"localhost"|]
+          { matchStatus  = 200
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+    
   describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`
