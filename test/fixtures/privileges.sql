@@ -68,6 +68,11 @@ GRANT ALL ON TABLE
     , only_pk
     , family_tree
     , organizations
+    , authors
+    , books
+    , forties_books
+    , fifties_books
+    , sixties_books
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

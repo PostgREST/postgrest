@@ -3,6 +3,7 @@
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
@@ -18,9 +19,8 @@ import qualified Hasql.Query                   as H
 
 import           Control.Applicative
 import qualified Data.HashMap.Strict           as M
-import           Data.List                     (elemIndex)
-import qualified Data.List                     as List
-import           Data.Maybe                    (fromJust)
+import qualified Data.List                     as L
+import           Data.Set                      as S (fromList)
 import           Data.Text                     (split, strip,
                                                 breakOn, dropAround,
                                                 splitOn)
@@ -38,21 +38,21 @@ import           Contravariant.Extras          (contrazip2)
 
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
-  tabs <- H.query () allTables
-  cols <- H.query schema $ allColumns tabs
-  syns <- H.query () $ allSynonyms cols
-  rels <- H.query () $ allRelations tabs cols
-  keys <- H.query () $ allPrimaryKeys tabs
-  procs <- H.query schema allProcs
+  tabs      <- H.query () allTables
+  cols      <- H.query schema $ allColumns tabs
+  syns      <- H.query () $ allSynonyms cols
+  childRels <- H.query () $ allChildRelations tabs cols
+  keys      <- H.query () $ allPrimaryKeys tabs
+  procs     <- H.query schema allProcs
 
-  let rels' = (addManyToManyRelations . raiseRelations schema syns . addParentRelations . addSynonymousRelations syns) rels
-      cols' = addForeignKeys rels' cols
+  let rels = addManyToManyRelations . addParentRelations $ addViewRelations syns childRels
+      cols' = addForeignKeys rels cols
       keys' = synonymousPrimaryKeys syns keys
 
   return DbStructure {
       dbTables = tabs
     , dbColumns = cols'
-    , dbRelations = rels'
+    , dbRelations = rels
     , dbPrimaryKeys = keys'
     , dbProcs = procs
     , pgVersion = pgVer
@@ -100,7 +100,7 @@ decodePks tables =
  where
   pkRow = (,,) <$> HD.value HD.text <*> HD.value HD.text <*> HD.value HD.text
 
-decodeSynonyms :: [Column] -> HD.Result [(Column,Column)]
+decodeSynonyms :: [Column] -> HD.Result [Synonym]
 decodeSynonyms cols =
   mapMaybe (synonymFromRow cols) <$> HD.rowsList synRow
  where
@@ -228,18 +228,6 @@ accessibleTables =
       )
     order by relname |]
 
-synonymousColumns :: [(Column,Column)] -> [Column] -> [[Column]]
-synonymousColumns allSyns cols = synCols'
-  where
-    syns = case headMay cols of
-            Just firstCol -> sort $ filter ((== colTable firstCol) . colTable . fst) allSyns
-            Nothing -> []
-    synCols  = transpose $ map (\c -> map snd $ filter ((== c) . fst) syns) cols
-    synCols' = (filter sameTable . filter matchLength) synCols
-    matchLength cs = length cols == length cs
-    sameTable (c:cs) = all (\cc -> colTable c == colTable cc) (c:cs)
-    sameTable [] = False
-
 addForeignKeys :: [Relation] -> [Column] -> [Column]
 addForeignKeys rels = map addFk
   where
@@ -248,17 +236,71 @@ addForeignKeys rels = map addFk
     lookupFn :: Column -> Relation -> Bool
     lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==Child
     relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
-      pos <- elemIndex col cols
+      pos <- L.elemIndex col cols
       colF <- atMay colsF pos
       return $ ForeignKey colF
 
-addSynonymousRelations :: [(Column,Column)] -> [Relation] -> [Relation]
-addSynonymousRelations _ [] = []
-addSynonymousRelations syns (rel:rels) = rel : synRelsP ++ synRelsF ++ addSynonymousRelations syns rels
-  where
-    synRelsP = synRels (relColumns rel) (\t cs -> rel{relTable=t,relColumns=cs})
-    synRelsF = synRels (relFColumns rel) (\t cs -> rel{relFTable=t,relFColumns=cs})
-    synRels cols mapFn = map (\cs -> mapFn (colTable $ unsafeHead cs) cs) $ synonymousColumns syns cols
+{-
+Adds Views Child Relations based on Synonyms found, the logic is as follows:
+
+Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relType=Child} represented by:
+
+t1.c1------t2.c2
+
+When only having a t1_view.c1 synonym, we need to add a View to Table Relation
+
+         t1.c1----t2.c2         t1.c1----------t2.c2
+                         ->            --------/
+                                      /
+      t1_view.c1             t1_view.c1
+
+
+When only having a t2_view.c2 synonym, we need to add a Table to View Relation
+
+         t1.c1----t2.c2               t1.c1----------t2.c2
+                               ->          \--------
+                                                    \
+                    t2_view.c2                      t2_view.c1
+
+When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View Relation in addition to the prior
+
+         t1.c1----t2.c2               t1.c1----------t2.c2
+                               ->          \--------/
+                                           /        \
+    t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
+
+The logic for composite pks is similar just need to make sure all the Relation columns have synonyms.
+-}
+addViewRelations :: [Synonym] -> [Relation] -> [Relation]
+addViewRelations _ [] = []
+addViewRelations allSyns (rel:rels) =
+  case rel of
+    Relation{relType=Child, relTable, relColumns, relFTable, relFColumns} ->
+
+      let colSynsGroupedByView :: [Column] -> [[Synonym]]
+          colSynsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
+                                         filter (\(c, _) -> c `elem` relCols) allSyns
+          colsSyns = colSynsGroupedByView relColumns
+          fColsSyns = colSynsGroupedByView relFColumns
+          getView :: [Synonym] -> Table
+          getView = colTable . snd . unsafeHead
+          syns `allSynsOf` cols = S.fromList (fst <$> syns) == S.fromList cols in
+
+      -- View Table Relations
+      [Relation (getView syns) (snd <$> syns) relFTable relFColumns Child Nothing Nothing Nothing
+        | syns <- colsSyns, syns `allSynsOf` relColumns] ++
+
+      -- Table View Relations
+      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+        | fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns] ++
+
+      -- View View Relations
+      [Relation (getView syns) (snd <$> syns) (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+        | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns] ++
+
+      rel : addViewRelations allSyns rels
+
+    _ -> rel : addViewRelations allSyns rels
 
 addParentRelations :: [Relation] -> [Relation]
 addParentRelations [] = []
@@ -269,7 +311,7 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
   where
     links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==Child). relType) rels
     groupFn :: Relation -> Text
-    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s<>"_"<>t
+    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s <> "_" <> t
     -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
     combinations :: Int -> [a] -> [[a]]
     combinations 0 _  = [ [] ]
@@ -285,20 +327,7 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
       | otherwise = Nothing
     link2Relation _ = Nothing
 
-raiseRelations :: Schema -> [(Column,Column)] -> [Relation] -> [Relation]
-raiseRelations schema syns = map raiseRel
-  where
-    raiseRel rel
-      | tableSchema table == schema = rel
-      | isJust newCols = rel{relFTable=fromJust newTable,relFColumns=fromJust newCols}
-      | otherwise = rel
-      where
-        cols = relFColumns rel
-        table = relFTable rel
-        newCols = listToMaybe $ filter ((== schema) . tableSchema . colTable . unsafeHead) (synonymousColumns syns cols)
-        newTable = (colTable . unsafeHead) <$> newCols
-
-synonymousPrimaryKeys :: [(Column,Column)] -> [PrimaryKey] -> [PrimaryKey]
+synonymousPrimaryKeys :: [Synonym] -> [PrimaryKey] -> [PrimaryKey]
 synonymousPrimaryKeys _ [] = []
 synonymousPrimaryKeys syns (key:keys) = key : newKeys ++ synonymousPrimaryKeys syns keys
   where
@@ -515,8 +544,8 @@ columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
-allRelations :: [Table] -> [Column] -> H.Query () [Relation]
-allRelations tabs cols =
+allChildRelations :: [Table] -> [Column] -> H.Query () [Relation]
+allChildRelations tabs cols =
   H.statement sql HE.unit (decodeRelations tabs cols) True
  where
   sql = [q|
@@ -666,7 +695,7 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Query () [(Column,Column)]
+allSynonyms :: [Column] -> H.Query () [Synonym]
 allSynonyms cols =
   H.statement sql HE.unit (decodeSynonyms cols) True
  where
@@ -741,7 +770,7 @@ allSynonyms cols =
     order by c.view_schema, c.view_name, c.table_name, c.view_column_name
     |]
 
-synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe (Column,Column)
+synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe Synonym
 synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
   where
     col1 = findCol s1 t1 c1
@@ -758,11 +787,11 @@ fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
 fillSessionWithSettings settings =
     -- Send all of the config settings to the set_config function, using pgsql's `unnest` to transform arrays of values
     H.query settings $ H.statement "SELECT set_config(k, v, false) FROM unnest($1, $2) AS f1(k, v)" encoder HD.unit False
-  
+
   where
     -- Take a list of (key, value) pairs and encode each as an array to later bind to the query
     -- see Insert Many section at https://hackage.haskell.org/package/hasql-1.1.1/docs/Hasql-Encoders.html
-    encoder = contramap List.unzip $ contrazip2 (vector HE.text) (vector HE.text)
+    encoder = contramap L.unzip $ contrazip2 (vector HE.text) (vector HE.text)
       where
         vector value =
           HE.value $ HE.array $ HE.arrayDimension foldl' $ HE.arrayValue value
