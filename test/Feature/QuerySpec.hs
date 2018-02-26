@@ -398,6 +398,19 @@ spec = do
         [json|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "detects parent relations when having many views of a private table" $ do
+      get "/books?select=title,author(name)&id=eq.5" `shouldRespondWith`
+        [json|[ { "title": "Farenheit 451", "author": { "name": "Ray Bradbury" } } ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/forties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+        [json|[ { "title": "1984", "author": { "name": "George Orwell" } } ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/fifties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+        [json|[ { "title": "The Catcher in the Rye", "author": { "name": "J.D. Salinger" } } ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/sixties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+        [json|[ { "title": "To Kill a Mockingbird", "author": { "name": "Harper Lee" } } ]|]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments{content}" `shouldRespondWith`

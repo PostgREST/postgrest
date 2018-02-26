@@ -359,3 +359,27 @@ INSERT INTO organizations VALUES (1, 'Referee Org', null, null);
 INSERT INTO organizations VALUES (2, 'Auditor Org', null, null);
 INSERT INTO organizations VALUES (3, 'Acme', 1, 2);
 INSERT INTO organizations VALUES (4, 'Umbrella', 1, 2);
+
+SET search_path = private, pg_catalog;
+
+TRUNCATE TABLE authors CASCADE;
+INSERT INTO authors VALUES (1, 'George Orwell');
+INSERT INTO authors VALUES (2, 'Anne Frank');
+INSERT INTO authors VALUES (3, 'Antoine de Saint-Exupéry');
+INSERT INTO authors VALUES (4, 'J.D. Salinger');
+INSERT INTO authors VALUES (5, 'Ray Bradbury');
+INSERT INTO authors VALUES (6, 'William Golding');
+INSERT INTO authors VALUES (7, 'Harper Lee');
+INSERT INTO authors VALUES (8, 'Kurt Vonnegut');
+INSERT INTO authors VALUES (9, 'Ken Kesey');
+
+TRUNCATE TABLE books CASCADE;
+INSERT INTO books VALUES (1, '1984', 1949, 1);
+INSERT INTO books VALUES (2, 'The Diary of a Young Girl', 1947, 2);
+INSERT INTO books VALUES (3, 'The Little Prince', 1947, 3);
+INSERT INTO books VALUES (4, 'The Catcher in the Rye', 1951, 4);
+INSERT INTO books VALUES (5, 'Farenheit 451', 1953, 5);
+INSERT INTO books VALUES (6, 'Lord of the Flies', 1954, 6);
+INSERT INTO books VALUES (7, 'To Kill a Mockingbird', 1960, 7);
+INSERT INTO books VALUES (8, 'Slaughterhouse-Five', 1969, 8);
+INSERT INTO books VALUES (9, 'One Flew Over the Cuckoo''s Nest', 1962, 9);

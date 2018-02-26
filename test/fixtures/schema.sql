@@ -1390,3 +1390,22 @@ create table test.organizations (
 );
 alter table only test.organizations add constraint pptr1 foreign key (referee) references test.organizations(id);
 alter table only test.organizations add constraint pptr2 foreign key (auditor) references test.organizations(id);
+
+create table private.authors(
+  id integer primary key,
+  name text
+);
+
+create table private.books(
+  id integer primary key,
+  title text,
+  publication_year smallint,
+  author_id integer references private.authors(id)
+);
+
+create view test.authors as select id, name from private.authors;
+
+create view test.books as select id, title, publication_year, author_id from private.books;
+create view test.forties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1940 and publication_year < 1950;
+create view test.fifties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1950 and publication_year < 1960;
+create view test.sixties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1960 and publication_year < 1970;

@@ -107,7 +107,9 @@ data Column =
     , colFK          :: Maybe ForeignKey
     } deriving (Show, Ord)
 
-type Synonym = (Column,Column)
+-- | A view column that refers to a table column
+type Synonym = (Column, ViewColumn)
+type ViewColumn = Column
 
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
