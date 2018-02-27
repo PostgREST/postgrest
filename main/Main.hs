@@ -14,6 +14,9 @@ import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
 import           Protolude                hiding (hPutStrLn, replace)
 
+
+import           Control.AutoUpdate       (defaultUpdateSettings,
+                                           mkAutoUpdate, updateAction)
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
                                            retrying, rsPreviousDelay)
@@ -25,6 +28,7 @@ import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn)
+import           Data.Time.Clock          (getCurrentTime)
 import qualified Hasql.Pool               as P
 import qualified Hasql.Session            as H
 import           Network.Wai.Handler.Warp (defaultSettings,
@@ -206,13 +210,17 @@ main = do
     ) Nothing
 #endif
 
-  --
+
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
+
   -- run the postgrest application
   runSettings appSettings $
     postgrest
       conf
       refDbStructure
       pool
+      getTime
       (connectionWorker
          mainTid
          pool

@@ -9,8 +9,10 @@ import PostgREST.App (postgrest)
 import PostgREST.Config (pgVersion95, pgVersion96, configSettings)
 import PostgREST.DbStructure (getDbStructure, getPgVersion, fillSessionWithSettings)
 import PostgREST.Types (DbStructure(..))
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Data.Function (id)
 import Data.IORef
+import Data.Time.Clock (getCurrentTime)
 
 import qualified Feature.AuthSpec
 import qualified Feature.AsymmetricJwtSpec
@@ -47,17 +49,19 @@ main = do
 
   dbStructure <- pure $ either (panic.show) id result
 
+  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+
   refDbStructure <- newIORef $ Just dbStructure
 
-  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool $ pure ()
-      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool $ pure ()
-      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool $ pure ()
-      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool $ pure ()
-      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool $ pure ()
-      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool $ pure ()
-      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool $ pure ()
-      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool $ pure ()
-      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
+  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool getTime $ pure ()
+      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool getTime $ pure ()
+      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool getTime $ pure ()
+      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool getTime $ pure ()
+      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool getTime $ pure ()
+      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool getTime $ pure ()
+      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool getTime $ pure ()
+      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool getTime $ pure ()
+      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
       reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
