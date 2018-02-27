@@ -21,6 +21,7 @@ module PostgREST.Auth (
 import           Control.Lens.Operators
 import           Data.Aeson             (Value (..), decode, toJSON)
 import qualified Data.HashMap.Strict    as M
+import           Data.Time.Clock           (UTCTime)
 import           Protolude
 
 import qualified Crypto.JOSE.Types      as JOSE.Types
@@ -38,16 +39,16 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> Maybe StringOrURI -> LByteString  -> IO JWTAttempt
-jwtClaims _ _ "" = return $ JWTClaims M.empty
-jwtClaims secret audience payload =
+jwtClaims :: Maybe JWK -> Maybe StringOrURI -> LByteString -> UTCTime -> IO JWTAttempt
+jwtClaims _ _ "" _ = return $ JWTClaims M.empty
+jwtClaims secret audience payload time =
   case secret of
     Nothing -> return JWTMissingSecret
     Just s -> do
       let validation = defaultJWTValidationSettings (maybe (const True) (==) audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
-        verifyClaims validation s jwt
+        verifyClaimsAt validation s time jwt
       return $ case eJwt of
         Left e    -> JWTInvalid e
         Right jwt -> JWTClaims . claims2map $ jwt

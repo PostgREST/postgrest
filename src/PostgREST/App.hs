@@ -12,6 +12,7 @@ import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
 import           Data.Text                 (intercalate)
+import           Data.Time.Clock           (UTCTime)
 import qualified Data.Set                  as S
 
 import qualified Hasql.Pool                 as P
@@ -62,12 +63,13 @@ import           Data.Function (id)
 import           Protolude              hiding (intercalate, Proxy)
 import           Safe                   (headMay)
 
-postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO () -> Application
-postgrest conf refDbStructure pool worker =
+postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
+postgrest conf refDbStructure pool getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
       jwtSecret = parseJWK <$> configJwtSecret conf in
 
   middle $ \ req respond -> do
+    time <- getTime
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure
     case maybeDbStructure of
@@ -76,7 +78,7 @@ postgrest conf refDbStructure pool worker =
         response <- case userApiRequest (configSchema conf) req body of
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
-            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest)
+            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time
 
             let authed = containsRole eClaims
                 proc = case (iTarget apiRequest, iPayload apiRequest, iPreferSingleObjectParameter apiRequest) of
