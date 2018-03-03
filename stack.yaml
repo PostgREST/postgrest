@@ -2,8 +2,6 @@ resolver: lts-9.6
 extra-deps:
   - configurator-ng-0.0.0.1
   - critbit-0.2.0.0
-  - hjsonpointer-1.1.1
-  - hjsonschema-1.5.0.1
   - Ranged-sets-0.3.0
   - protolude-0.2
   - hasql-1.1
