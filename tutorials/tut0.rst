@@ -94,7 +94,7 @@ If everything is working correctly it will print out its version and information
 Step 4. Create Database for API
 -------------------------------
 
-Connect to to SQL console (psql) inside the container. To do so, run this from your command line:
+Connect to the SQL console (psql) inside the container. To do so, run this from your command line:
 
 .. code-block:: bash
 
