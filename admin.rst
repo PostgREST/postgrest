@@ -177,7 +177,29 @@ To refresh the cache without restarting the PostgREST server, send the server pr
 
   killall -HUP postgrest
 
-In the future we're investigating ways to keep the cache updated without manual intervention.
+The above is the manual way to do it. To automate the schema reloads, use a database trigger like this:
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION public.notify_ddl_postgrest()
+    RETURNS event_trigger
+   LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    NOTIFY ddl_command_end;
+  END;
+  $$;
+
+  CREATE EVENT TRIGGER ddl_postgrest ON ddl_command_end
+     EXECUTE PROCEDURE public.notify_ddl_postgrest();
+
+Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to monitor for that event and send a SIGHUP when it occurs:
+
+.. code-block:: bash
+
+  pg_listen <db-uri> ddl_command_end "killall -HUP postgrest"
+
+Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache.
 
 Alternate URL Structure
 =======================
