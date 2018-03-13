@@ -47,7 +47,7 @@ getDbStructure schema pgVer = do
 
   let rels = addManyToManyRelations . addParentRelations $ addViewRelations syns childRels
       cols' = addForeignKeys rels cols
-      keys' = synonymousPrimaryKeys syns keys
+      keys' = addViewPrimaryKeys syns keys
 
   return DbStructure {
       dbTables = tabs
@@ -272,9 +272,8 @@ When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View 
 The logic for composite pks is similar just need to make sure all the Relation columns have synonyms.
 -}
 addViewRelations :: [Synonym] -> [Relation] -> [Relation]
-addViewRelations _ [] = []
-addViewRelations allSyns (rel:rels) =
-  case rel of
+addViewRelations allSyns = concatMap (\rel ->
+  rel : case rel of
     Relation{relType=Child, relTable, relColumns, relFTable, relFColumns} ->
 
       let colSynsGroupedByView :: [Column] -> [[Synonym]]
@@ -296,15 +295,12 @@ addViewRelations allSyns (rel:rels) =
 
       -- View View Relations
       [Relation (getView syns) (snd <$> syns) (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
-        | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns] ++
+        | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns]
 
-      rel : addViewRelations allSyns rels
-
-    _ -> rel : addViewRelations allSyns rels
+    _ -> [])
 
 addParentRelations :: [Relation] -> [Relation]
-addParentRelations [] = []
-addParentRelations (rel@(Relation t c ft fc _ _ _ _):rels) = Relation ft fc t c Parent Nothing Nothing Nothing : rel : addParentRelations rels
+addParentRelations = concatMap (\rel@(Relation t c ft fc _ _ _ _) -> [rel, Relation ft fc t c Parent Nothing Nothing Nothing])
 
 addManyToManyRelations :: [Relation] -> [Relation]
 addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation links)
@@ -317,8 +313,7 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
     combinations 0 _  = [ [] ]
     combinations n xs = [ y:ys | y:xs' <- tails xs
                                , ys <- combinations (n-1) xs']
-    addMirrorRelation [] = []
-    addMirrorRelation (rel@(Relation t c ft fc _ lt lc1 lc2):rels') = Relation ft fc t c Many lt lc2 lc1 : rel : addMirrorRelation rels'
+    addMirrorRelation = concatMap (\rel@(Relation t c ft fc _ lt lc1 lc2) -> [rel, Relation ft fc t c Many lt lc2 lc1])
     link2Relation [
       Relation{relTable=lt, relColumns=lc1, relFTable=t,  relFColumns=c},
       Relation{             relColumns=lc2, relFTable=ft, relFColumns=fc}
@@ -327,12 +322,11 @@ addManyToManyRelations rels = rels ++ addMirrorRelation (mapMaybe link2Relation 
       | otherwise = Nothing
     link2Relation _ = Nothing
 
-synonymousPrimaryKeys :: [Synonym] -> [PrimaryKey] -> [PrimaryKey]
-synonymousPrimaryKeys _ [] = []
-synonymousPrimaryKeys syns (key:keys) = key : newKeys ++ synonymousPrimaryKeys syns keys
-  where
-    keySyns = filter ((\c -> colTable c == pkTable key && colName c == pkName key) . fst) syns
-    newKeys = map ((\c -> PrimaryKey{pkTable=colTable c,pkName=colName c}) . snd) keySyns
+addViewPrimaryKeys :: [Synonym] -> [PrimaryKey] -> [PrimaryKey]
+addViewPrimaryKeys syns = concatMap (\pk ->
+  let viewPks = (\(_, viewCol) -> PrimaryKey{pkTable=colTable viewCol, pkName=colName viewCol}) <$>
+                filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) syns in
+  pk : viewPks)
 
 allTables :: H.Query () [Table]
 allTables =
