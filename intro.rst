@@ -91,7 +91,6 @@ In Production
 
 * `Moat <https://moat.com/>`_
 * `Catarse <https://www.catarse.me/>`_
-* `iAdvize <http://iadvize.com/>`_
 * `Redsmin <https://www.redsmin.com/>`_
 * `Image-charts <https://image-charts.com/>`_
 * `Drip Depot <https://www.dripdepot.com/>`_
