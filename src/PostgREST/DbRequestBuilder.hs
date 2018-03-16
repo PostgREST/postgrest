@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DuplicateRecordFields    #-}
+{-# LANGUAGE DuplicateRecordFields#-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
@@ -110,103 +111,88 @@ augumentRequestWithJoin schema allRels request =
   >>= addJoinConditions schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRelations schema allRelations parentNode (Node readNode@(query, (name, _, alias, relationDetail, depth)) forest) =
+addRelations schema allRelations parentNode (Node (query, (nodeName, _, alias, relationDetail, depth)) forest) =
   case parentNode of
-    (Just (Node (Select{from=[parentNodeTable]}, _) _)) ->
-      Node <$> readNode' <*> forest'
-      where
-        forest' = updateForest $ hush node'
-        node' = Node <$> readNode' <*> pure forest
-        readNode' = addRel readNode <$> rel
-        rel :: Either ApiRequestError Relation
-        rel = note (NoRelationBetween parentNodeTable name)
-            $ findRelation schema name parentNodeTable relationDetail
-            where
-
-              findRelation s nodeTableName parentNodeTableName Nothing =
-                find (\r ->
-                  s == tableSchema (relTable r) && -- match schema for relation table
-                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
-                  (
-
-                    -- (request)        => projects { ..., clients{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    (
-                      nodeTableName == tableName (relTable r) && -- match relation table name
-                      parentNodeTableName == tableName (relFTable r) -- match relation foreign table name
-                    ) ||
-
-
-                    -- (request)        => projects { ..., client_id{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    (
-                      parentNodeTableName == tableName (relFTable r) &&
-                      length (relFColumns r) == 1 &&
-                      nodeTableName `colMatches` (colName . unsafeHead . relFColumns) r
-                    )
-
-                    -- (request)        => project_id { ..., client_id{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    -- this case works becasue before reaching this place
-                    -- addRelation will turn project_id to project so the above condition will match
-                  )
-                ) allRelations
-
-              findRelation s nodeTableName parentNodeTableName (Just rd) =
-                find (\r ->
-                  s == tableSchema (relTable r) && -- match schema for relation table
-                  s == tableSchema (relFTable r) && -- match schema for relation foriegn table
-                  (
-
-                    -- (request)        => clients { ..., project.client_id{...} }
-                    -- will match
-                    -- (relation type)  => parent
-                    -- (entity)         => clients  {id}
-                    -- (foriegn entity) => projects {client_id}
-                    (
-                      nodeTableName == tableName (relTable r) && -- match relation table name
-                      parentNodeTableName == tableName (relFTable r) && -- && -- match relation foreign table name
-                      length (relColumns r) == 1 &&
-                      rd == (colName . unsafeHead . relColumns) r
-                    )
-                    ||
-
-
-                    -- (request)        => tasks { ..., users.tasks_users{...} }
-                    -- will match
-                    -- (relation type)  => many
-                    -- (entity)         => users
-                    -- (foriegn entity) => tasks
-                    (
-                      relType r == Many &&
-                      nodeTableName == tableName (relTable r) && -- match relation table name
-                      parentNodeTableName == tableName (relFTable r) && -- match relation foreign table name
-                      rd == tableName (fromJust (relLinkTable r))
-                    )
-                  )
-                ) allRelations
-              n `colMatches` rc = (toS ("^" <> rc <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS n :: BS.ByteString)
-        addRel :: (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth)) -> Relation -> (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
-        addRel (query', (n, _, a, _, dpth)) r = (query' {from=fromRelation}, (n, Just r, a, Nothing, dpth))
-          where fromRelation = map (\t -> if t == n then tableName (relTable r) else t) (from query')
-
-    _ -> n' <$> updateForest (Just (n' forest))
-      where
-        n' = Node (query, (name, Just r, alias, Nothing, depth))
-        t = Table schema name Nothing True -- !!! TODO find another way to get the table from the query
-        r = Relation t [] t [] Root Nothing Nothing Nothing
+    Just (Node (Select{from=[parentNodeTable]}, _) _) ->
+      let newFrom r = (\tName -> if tName == nodeName then tableName (relTable r) else tName) <$> from query
+          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
+          rel :: Either ApiRequestError Relation
+          rel = note (NoRelationBetween parentNodeTable nodeName) $
+                findRelation schema allRelations nodeName parentNodeTable relationDetail in
+      Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
+    _ ->
+      let rn = (query, (nodeName, Just r, alias, Nothing, depth))
+          r = Relation t [] t [] Root Nothing Nothing Nothing
+          t = Table schema nodeName Nothing True in -- !!! TODO find another way to get the table from the query
+      Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
-    updateForest n = mapM (addRelations schema allRelations n) forest
+    updateForest rq = mapM (addRelations schema allRelations rq) forest
+
+findRelation :: Schema -> [Relation] -> NodeName -> TableName -> Maybe RelationDetail -> Maybe Relation
+findRelation schema allRelations nodeTableName parentNodeTableName relationDetail =
+  find (\Relation{relTable, relColumns, relFTable, relFColumns, relType, relLinkTable} ->
+    -- Both relation ends need to be on the exposed schema
+    schema == tableSchema relTable && schema == tableSchema relFTable &&
+    case relationDetail of
+      Nothing ->
+
+        -- (request)        => projects { ..., clients{...} }
+        -- will match
+        -- (relation type)  => parent
+        -- (entity)         => clients  {id}
+        -- (foriegn entity) => projects {client_id}
+        (
+          nodeTableName == tableName relTable && -- match relation table name
+          parentNodeTableName == tableName relFTable -- match relation foreign table name
+        ) ||
+
+        -- (request)        => projects { ..., client_id{...} }
+        -- will match
+        -- (relation type)  => parent
+        -- (entity)         => clients  {id}
+        -- (foriegn entity) => projects {client_id}
+        (
+          parentNodeTableName == tableName relFTable &&
+          length relFColumns == 1 &&
+          -- match common foreign key names(table_name_id, table_name_fk) to table_name
+          (toS ("^" <> colName (unsafeHead relFColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS nodeTableName :: BS.ByteString)
+        )
+
+        -- (request)        => project_id { ..., client_id{...} }
+        -- will match
+        -- (relation type)  => parent
+        -- (entity)         => clients  {id}
+        -- (foriegn entity) => projects {client_id}
+        -- this case works becasue before reaching this place
+        -- addRelation will turn project_id to project so the above condition will match
+
+      Just rd ->
+
+        -- (request)        => clients { ..., project.client_id{...} }
+        -- will match
+        -- (relation type)  => parent
+        -- (entity)         => clients  {id}
+        -- (foriegn entity) => projects {client_id}
+        (
+          nodeTableName == tableName relTable && -- match relation table name
+          parentNodeTableName == tableName relFTable && -- && -- match relation foreign table name
+          length relColumns == 1 &&
+          rd == colName (unsafeHead relColumns)
+        ) ||
+
+        -- (request)        => tasks { ..., users.tasks_users{...} }
+        -- will match
+        -- (relation type)  => many
+        -- (entity)         => users
+        -- (foriegn entity) => tasks
+        (
+          relType == Many &&
+          nodeTableName == tableName relTable && -- match relation table name
+          parentNodeTableName == tableName relFTable && -- match relation foreign table name
+          rd == tableName (fromJust relLinkTable)
+        )
+  ) allRelations
 
 addJoinConditions :: Schema -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _, _)) forest) =
