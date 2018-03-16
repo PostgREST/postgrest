@@ -276,15 +276,17 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
-data JoinCond = JoinCond (QualifiedIdentifier, FieldName, Level) (QualifiedIdentifier, FieldName, Level) deriving (Show, Eq)
-type Level = Integer
+data JoinCondition = JoinCondition (QualifiedIdentifier, Maybe Alias, FieldName)
+                                   (QualifiedIdentifier, Maybe Alias, FieldName) deriving (Show, Eq)
 
-data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], joinConds::[JoinCond], order::[OrderTerm], range_::NonnegRange } deriving (Show, Eq)
+data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], joinConditions::[JoinCondition], order::[OrderTerm], range_::NonnegRange } deriving (Show, Eq)
 data MutateQuery = Insert { in_::TableName, insPkCols::[Text], qPayload::PayloadJSON, onConflict:: Maybe PreferResolution, where_::[LogicTree], returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Level))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
 type ReadRequest = Tree ReadNode
+-- Depth of the ReadRequest tree
+type Depth = Integer
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 

@@ -218,20 +218,32 @@ requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, 
    qi = removeSourceCTESchema schema mainTbl
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest joinConds_ ordts range, (nodeName, maybeRelation, _, _, level)) forest)) =
-  query
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest joinConditions_ ordts range, (nodeName, maybeRelation, _, _, depth)) forest)) =
+  unwords [
+    "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
+    "FROM " <> intercalate ", " tables,
+    unwords joins,
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConds))
+      `emptyOnFalse` (null logicForest && null joinConds),
+    ("ORDER BY " <> intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
+    ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
+
   where
     mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
-    tableAlias tbl = tbl <> "_" <> show level
-    qi = QualifiedIdentifier "" $ tableAlias mainTbl
-    query = unwords [
-      "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-      "FROM " <> intercalate ", " (map (\t -> fromQi (removeSourceCTESchema schema t) <> " AS " <> pgFmtIdent (tableAlias t)) tbls),
-      unwords joins,
-      ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCond joinConds_))
-        `emptyOnFalse` (null logicForest && null joinConds_),
-      ("ORDER BY " <> intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
-      ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
+    isSelfJoin = maybe False (\r -> relType r /= Root && relTable r == relFTable r) maybeRelation
+    (qi, tables, joinConds) =
+      let depthAlias name dpth = if dpth /= 0  then name <> "_" <> show dpth else name in -- Root node doesn't get aliased
+      if isSelfJoin
+        then (
+          QualifiedIdentifier "" (depthAlias mainTbl depth),
+          (\t -> fromQi (removeSourceCTESchema schema t) <> " AS " <> pgFmtIdent (depthAlias t depth)) <$> tbls,
+          (\(JoinCondition (qi1, _, c1) (qi2, _, c2)) ->
+            JoinCondition (qi1, Just $ depthAlias (qiName qi1) depth, c1)
+                          (qi2, Just $ depthAlias (qiName qi2) (depth - 1), c2)) <$> joinConditions_)
+        else (
+          removeSourceCTESchema schema mainTbl,
+          fromQi . removeSourceCTESchema schema <$> tbls,
+          joinConditions_)
 
     (joins, selects) = foldr getQueryParts ([],[]) forest
 
@@ -423,11 +435,12 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      (toS (pgFmtLit v) <> "::unknown ")
      (find ((==) . toLower $ v) ["null","true","false"])
 
-pgFmtJoinCond :: JoinCond -> SqlFragment
-pgFmtJoinCond (JoinCond (qi, cName, lvl) (fQi, fcName, fLvl)) =
-  let qiAlias = QualifiedIdentifier "" (qiName qi <> "_" <> show lvl)
-      fQiAlias = QualifiedIdentifier "" (qiName fQi <> "_" <> show fLvl) in
-  pgFmtColumn qiAlias cName <> " = " <> pgFmtColumn fQiAlias fcName
+pgFmtJoinCondition :: JoinCondition -> SqlFragment
+pgFmtJoinCondition (JoinCondition (qi, al1, col1) (QualifiedIdentifier schema fTable, al2, col2)) =
+  pgFmtColumn (fromMaybe qi $ aliasToQi al1) col1 <> " = " <>
+  pgFmtColumn (fromMaybe (removeSourceCTESchema schema fTable) $ aliasToQi al2) col2
+  where
+    aliasToQi al = QualifiedIdentifier "" <$> al
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
 pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
