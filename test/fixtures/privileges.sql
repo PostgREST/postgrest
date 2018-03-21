@@ -73,6 +73,9 @@ GRANT ALL ON TABLE
     , forties_books
     , fifties_books
     , sixties_books
+    , person
+    , message
+    , person_detail
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

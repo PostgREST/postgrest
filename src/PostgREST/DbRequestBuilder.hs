@@ -169,16 +169,30 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
 
       Just rd ->
 
-        -- (request)        => clients { ..., project.client_id{...} }
+        -- (request)        => clients { ..., projects.client_id{...} }
         -- will match
-        -- (relation type)  => parent
+        -- (relation type)  => child
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
         (
+          relType == Child &&
           nodeTableName == tableName relTable && -- match relation table name
-          parentNodeTableName == tableName relFTable && -- && -- match relation foreign table name
+          parentNodeTableName == tableName relFTable && -- match relation foreign table name
           length relColumns == 1 &&
           rd == colName (unsafeHead relColumns)
+        ) ||
+
+        -- (request)        => message { ..., person_detail.sender{...} }
+        -- will match
+        -- (relation type)  => parent
+        -- (entity)         => message  {sender}
+        -- (foriegn entity) => person_detail {id}
+        (
+          relType == Parent &&
+          nodeTableName == tableName relTable && -- match relation table name
+          parentNodeTableName == tableName relFTable && -- match relation foreign table name
+          length relFColumns == 1 &&
+          rd == colName (unsafeHead relFColumns)
         ) ||
 
         -- (request)        => tasks { ..., users.tasks_users{...} }
