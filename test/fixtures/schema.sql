@@ -1409,3 +1409,19 @@ create view test.books as select id, title, publication_year, author_id from pri
 create view test.forties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1940 and publication_year < 1950;
 create view test.fifties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1950 and publication_year < 1960;
 create view test.sixties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1960 and publication_year < 1970;
+
+create table person (
+  id integer primary key,
+  name character varying not null);
+
+create table message (
+  id integer primary key,
+  body text not null default '',
+  sender bigint not null references person(id),
+  recipient bigint not null references person(id));
+
+create view person_detail as
+  select p.id, p.name, s.count as sent, r.count as received
+  from person p
+  join lateral (select message.sender, count(message.id) as count from message group by message.sender) s on s.sender = p.id
+  join lateral (select message.recipient, count(message.id) as count from message group by message.recipient) r on r.recipient = p.id;

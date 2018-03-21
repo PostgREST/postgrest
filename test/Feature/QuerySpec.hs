@@ -362,18 +362,8 @@ spec = do
         [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "requesting children 2 levels (with relation path fixed)" $
-      get "/clients?id=eq.1&select=id,projects:projects.client_id{id,tasks{id}}" `shouldRespondWith`
-        [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
     it "requesting many<->many relation" $
       get "/tasks?select=id,users{id}" `shouldRespondWith`
-        [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "requesting many<->many relation (with relation path fixed)" $
-      get "/tasks?select=id,users:users.users_tasks{id}" `shouldRespondWith`
         [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
@@ -381,7 +371,6 @@ spec = do
       get "/tasks?id=eq.1&select=id,theUsers:users{id}" `shouldRespondWith`
         [json|[{"id":1,"theUsers":[{"id":1},{"id":3}]}]|]
         { matchHeaders = [matchContentTypeJson] }
-
 
     it "requesting many<->many relation reverse" $
       get "/users?select=id,tasks{id}" `shouldRespondWith`
@@ -426,7 +415,7 @@ spec = do
       get "/projects?id=in.1,3&select=id,name,client_id{id,name}" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
         { matchHeaders = [matchContentTypeJson] }
-    
+
     it "can embed by FK column name and select the FK value at the same time, if aliased" $
       get "/projects?id=in.1,3&select=id,name,client_id,client:client_id{id,name}" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
@@ -439,6 +428,31 @@ spec = do
 
     it "can detect fk relations through views to tables in the public schema" $
       get "/consumers_view?select=*,orders_view{*}" `shouldRespondWith` 200
+
+    context "path fixed" $ do
+      it "works when requesting children 2 levels" $
+        get "/clients?id=eq.1&select=id,projects:projects.client_id{id,tasks{id}}" `shouldRespondWith`
+          [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with parent relation" $ do
+        get "/message?select=id,body,sender:person_detail.sender(name,sent),recipient:person_detail.recipient(name,received)&id=lt.4" `shouldRespondWith`
+          [json|
+            [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
+             {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
+             {"id":3,"body":"How are you doing?","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/message?select=id,body,sender:person.sender(name),recipient:person.recipient(name)&id=lt.4" `shouldRespondWith`
+          [json|
+            [{"id":1,"body":"Hello Jane","sender":{"name":"John"},"recipient":{"name":"Jane"}},
+             {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
+             {"id":3,"body":"How are you doing?","sender":{"name":"John"},"recipient":{"name":"Jane"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with many<->many relation" $
+        get "/tasks?select=id,users:users.users_tasks{id}" `shouldRespondWith`
+          [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
@@ -799,7 +813,7 @@ spec = do
           { matchStatus  = 200
           , matchHeaders = [ matchContentTypeJson ]
           }
-    
+
   describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.\"Hebdon, John\"" `shouldRespondWith`

@@ -383,3 +383,19 @@ INSERT INTO books VALUES (6, 'Lord of the Flies', 1954, 6);
 INSERT INTO books VALUES (7, 'To Kill a Mockingbird', 1960, 7);
 INSERT INTO books VALUES (8, 'Slaughterhouse-Five', 1969, 8);
 INSERT INTO books VALUES (9, 'One Flew Over the Cuckoo''s Nest', 1962, 9);
+
+SET search_path = test, pg_catalog;
+
+TRUNCATE TABLE person CASCADE;
+
+INSERT INTO person VALUES (1, 'John');
+INSERT INTO person VALUES (2, 'Jane');
+INSERT INTO person VALUES (3, 'Jake');
+INSERT INTO person VALUES (4, 'Julie');
+
+TRUNCATE TABLE message CASCADE;
+INSERT INTO message VALUES (1, 'Hello Jane', 1, 2);
+INSERT INTO message VALUES (2, 'Hi John', 2, 1);
+INSERT INTO message VALUES (3, 'How are you doing?', 1, 2);
+INSERT INTO message VALUES (4, 'Hey Julie', 3, 4);
+INSERT INTO message VALUES (5, 'What''s up Jake', 4, 3);
