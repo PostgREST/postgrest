@@ -399,3 +399,12 @@ INSERT INTO message VALUES (2, 'Hi John', 2, 1);
 INSERT INTO message VALUES (3, 'How are you doing?', 1, 2);
 INSERT INTO message VALUES (4, 'Hey Julie', 3, 4);
 INSERT INTO message VALUES (5, 'What''s up Jake', 4, 3);
+
+TRUNCATE TABLE space CASCADE;
+INSERT INTO space VALUES (1, 'space 1');
+
+TRUNCATE TABLE zone CASCADE;
+INSERT INTO zone VALUES (1, 'zone 1', 2, 1);
+INSERT INTO zone VALUES (2, 'zone 2', 2, 1);
+INSERT INTO zone VALUES (3, 'store 3', 3, 1);
+INSERT INTO zone VALUES (4, 'store 4', 3, 1);

@@ -1425,3 +1425,13 @@ create view person_detail as
   from person p
   join lateral (select message.sender, count(message.id) as count from message group by message.sender) s on s.sender = p.id
   join lateral (select message.recipient, count(message.id) as count from message group by message.recipient) r on r.recipient = p.id;
+
+create table space(
+  id integer primary key,
+  name text);
+
+create table zone(
+  id integer primary key,
+  name text,
+  zone_type_id integer,
+  space_id integer references space(id));
