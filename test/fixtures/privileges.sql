@@ -76,6 +76,8 @@ GRANT ALL ON TABLE
     , person
     , message
     , person_detail
+    , space
+    , zone
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

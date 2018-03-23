@@ -454,6 +454,63 @@ spec = do
           [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+    context "aliased embeds" $ do
+      it "works with child relation" $
+        get "/space?select=id,zones:zone(id,name),stores:zone(id,name)&zones.zone_type_id=eq.2&stores.zone_type_id=eq.3" `shouldRespondWith`
+          [json|[
+            { "id":1,
+              "zones": [ {"id":1,"name":"zone 1"}, {"id":2,"name":"zone 2"}],
+              "stores": [ {"id":3,"name":"store 3"}, {"id":4,"name":"store 4"}]}
+          ]|] { matchHeaders = [matchContentTypeJson] }
+
+      it "works with many to many relation" $
+        get "/users?select=id,designTasks:tasks(id,name),codeTasks:tasks(id,name)&designTasks.name=like.*Design*&codeTasks.name=like.*Code*" `shouldRespondWith`
+          [json|[
+             { "id":1,
+               "designTasks":[ { "id":1, "name":"Design w7" }, { "id":3, "name":"Design w10" } ],
+               "codeTasks":[ { "id":2, "name":"Code w7" }, { "id":4, "name":"Code w10" } ] },
+             { "id":2,
+               "designTasks":[ { "id":5, "name":"Design IOS" }, { "id":7, "name":"Design OSX" } ],
+               "codeTasks":[ { "id":6, "name":"Code IOS" } ] },
+             { "id":3,
+               "designTasks":[ { "id":1, "name":"Design w7" }, { "id":5, "name":"Design IOS" } ],
+               "codeTasks":[ ] }
+          ]|] { matchHeaders = [matchContentTypeJson] }
+
+      it "works with an aliased child plus non aliased child" $
+        get "/projects?select=id,name,designTasks:tasks{name,users{id,name}}&designTasks.name=like.*Design*&designTasks.users.id=in.(1,2)" `shouldRespondWith`
+          [json|[
+            {
+              "id":1, "name":"Windows 7",
+              "designTasks":[ { "name":"Design w7", "users":[ { "id":1, "name":"Angela Martin" } ] } ] },
+            {
+              "id":2, "name":"Windows 10",
+              "designTasks":[ { "name":"Design w10", "users":[ { "id":1, "name":"Angela Martin" } ] } ] },
+            {
+              "id":3, "name":"IOS",
+              "designTasks":[ { "name":"Design IOS", "users":[ { "id":2, "name":"Michael Scott" } ] } ] },
+            {
+              "id":4, "name":"OSX",
+              "designTasks":[ { "name":"Design OSX", "users":[ { "id":2, "name":"Michael Scott" } ] } ] },
+            {
+              "id":5, "name":"Orphan",
+              "designTasks":[ ] }
+          ]|] { matchHeaders = [matchContentTypeJson] }
+
+      it "works with two aliased childs embeds plus and/or" $
+        get "/entities?select=id,childs:child_entities{id,gChilds:grandchild_entities{id}}&childs.and=(id.in.(1,2,3))&childs.gChilds.or=(id.eq.1,id.eq.2)" `shouldRespondWith`
+          [json|[
+            { "id":1,
+              "childs":[
+                {"id":1,"gChilds":[{"id":1}, {"id":2}]},
+                {"id":2,"gChilds":[]}]},
+            { "id":2,
+              "childs":[
+                {"id":3,"gChilds":[]}]},
+            { "id":3,"childs":[]},
+            { "id":4,"childs":[]}
+          ]|] { matchHeaders = [matchContentTypeJson] }
+
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
         it "embeds parents recursively" $

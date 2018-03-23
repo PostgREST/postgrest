@@ -291,25 +291,13 @@ addLogicTree :: (EmbedPath, LogicTree) -> ReadRequest -> ReadRequest
 addLogicTree = addProperty addLogicTreeToNode
 
 addProperty :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> ReadRequest -> ReadRequest
-addProperty f ([], a) n = f a n
-addProperty f (path, a) (Node rn forest) =
-  case targetNode of
+addProperty f ([], a) rr = f a rr
+addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
+  case pathNode of
     Nothing -> Node rn forest -- the property is silenty dropped in the Request does not contain the required path
-    Just tn -> Node rn (addProperty f (remainingPath, a) tn:restForest)
+    Just tn -> Node rn (addProperty f (remainingPath, a) tn:delete tn forest)
   where
-    targetNodeName:remainingPath = path
-    (targetNode,restForest) = splitForest targetNodeName forest
-    splitForest :: NodeName -> Forest ReadNode -> (Maybe ReadRequest, Forest ReadNode)
-    splitForest name forst =
-      case maybeNode of
-        Nothing -> (Nothing,forest)
-        Just node -> (Just node, delete node forest)
-      where
-        maybeNode :: Maybe ReadRequest
-        maybeNode = find fnd forst
-          where
-            fnd :: ReadRequest -> Bool
-            fnd (Node (_,(n,_,_,_,_)) _) = n == name
+    pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
 mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
