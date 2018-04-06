@@ -148,18 +148,23 @@ main = do
       port = configPort conf
       proxy = configProxyUri conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
+      roleClaimKey = configRoleClaimKey conf
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
         . setServerName (toS $ "postgrest/" <> prettyVersion)
         . setTimeout 3600 $
         defaultSettings
-  --
-  -- Checks that the provided proxy uri is formated correctly,
-  -- does not test if it works here.
+
+  -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> proxy) $
     panic
       "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
+
+  -- Checks that the provided jspath is valid
+  when (isLeft roleClaimKey) $
+    panic $ show roleClaimKey
+
   putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
   --
   -- create connection pool with the provided settings, returns either

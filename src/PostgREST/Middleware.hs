@@ -5,7 +5,7 @@
 module PostgREST.Middleware where
 
 import           Crypto.JWT
-import           Data.Aeson                    (Value (..))
+import qualified Data.Aeson                    as JSON
 import qualified Data.HashMap.Strict           as M
 import qualified Hasql.Transaction             as H
 
@@ -44,7 +44,7 @@ runWithClaims conf eClaims app req =
         setSchemaSql = ["set schema " <> pgFmtLit (configSchema conf) <> ";"] :: [Text]
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)
-        anon = String . toS $ configAnonRole conf
+        anon = JSON.String . toS $ configAnonRole conf
         customReqCheck = (\f -> "select " <> toS f <> "();") <$> configReqCheck conf
   where
     unauthed message = simpleError

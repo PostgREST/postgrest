@@ -78,7 +78,7 @@ postgrest conf refDbStructure pool getTime worker =
         response <- case userApiRequest (configSchema conf) req body of
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
-            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time
+            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
 
             let authed = containsRole eClaims
                 proc = case (iTarget apiRequest, iPayload apiRequest, iPreferSingleObjectParameter apiRequest) of

@@ -317,3 +317,8 @@ data PgVersion = PgVersion {
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
+
+-- | full jspath, e.g. .property[0].attr.detail
+type JSPath = [JSPathExp]
+-- | jspath expression, e.g. .property, .property[0] or ."property-dash"
+data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
