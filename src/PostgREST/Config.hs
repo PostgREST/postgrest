@@ -25,7 +25,6 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import           PostgREST.Types             (PgVersion(..))
 import           Control.Applicative
 import           Control.Monad                (fail)
 import           Control.Lens                 (preview)
@@ -52,6 +51,9 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
+import           PostgREST.Parsers            (pRoleClaimKey)
+import           PostgREST.Types              (PgVersion(..), ApiRequestError(..),
+                                               JSPath, JSPathExp(..))
 import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
 import           System.IO                    (hPrint)
@@ -78,6 +80,7 @@ data AppConfig = AppConfig {
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
   , configSettings          :: [(Text, Text)]
+  , configRoleClaimKey      :: Either ApiRequestError JSPath
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -139,6 +142,7 @@ readOptions = do
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
           <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
+          <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
 
   case mAppConf of
     Nothing -> do
@@ -173,6 +177,10 @@ readOptions = do
     coerceBool (Bool b)   = Just b
     coerceBool (String b) = readMaybe $ toS b
     coerceBool _          = Nothing
+
+    parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
+    parseRoleClaimKey (String s) = pRoleClaimKey s
+    parseRoleClaimKey v = pRoleClaimKey $ show v
 
     opts = info (helper <*> pathParser) $
              fullDesc
@@ -218,6 +226,9 @@ readOptions = do
           |
           |## stored proc to exec immediately after auth
           |# pre-request = "stored_proc_name"
+          |
+          |## jspath to the role claim key
+          |# role-claim-key = ".role"
           |]
 
 pathParser :: Parser FilePath

@@ -12,6 +12,7 @@ import           PostgREST.RangeQuery          (NonnegRange)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           Text.Parsec.Error
+import           Text.Read                     (read)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -212,3 +213,25 @@ mapError = mapLeft translateError
         message = show $ errorPos e
         details = strip $ replace "\n" " " $ toS
            $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
+-- Used for the config value "role-claim-key"
+pRoleClaimKey :: Text -> Either ApiRequestError JSPath
+pRoleClaimKey selStr =
+  mapError $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
+
+pJSPath :: Parser JSPath
+pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
+  where
+    toJSPath :: [(Text, Maybe Int)] -> JSPath
+    toJSPath = concatMap (\(key, idx) -> JSPKey key : maybeToList (JSPIdx <$> idx))
+    period = char '.' <?> "period (.)"
+    pPath :: Parser (Text, Maybe Int)
+    pPath = (,) <$> pJSPKey <*> optionMaybe pJSPIdx
+
+pJSPKey :: Parser Text
+pJSPKey = toS <$> (many1 (alphaNum <|> oneOf "_$@") <|> pQuoted) <?> "attribute name [a..z0..9_$@])"
+  where
+    pQuoted = char '"' *> many (noneOf "\"") <* char '"'
+
+pJSPIdx :: Parser Int
+pJSPIdx = char '[' *> (read <$> many1 digit) <* char ']' <?> "array index [0..n]"
