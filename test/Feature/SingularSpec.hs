@@ -37,7 +37,7 @@ spec =
           `shouldRespondWith` [str|{"id":5}|]
 
       it "can shape plurality singular object routes" $
-        request methodGet "/projects_view?id=eq.1&select=id,name,clients{*},tasks{id,name}" [singular] ""
+        request methodGet "/projects_view?id=eq.1&select=id,name,clients(*),tasks(id,name)" [singular] ""
           `shouldRespondWith`
             [json|{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}|]
             { matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"] }

@@ -25,6 +25,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Computed columns now only work if they belong to the db-schema - @steve-chavez
 - To use RPC now the `json_to_record/json_to_recordset` functions are needed, these are available starting from PostgreSQL 9.4 - @steve-chavez
 - Overloaded functions now depend on the `dbStructure`, restart/sighup may be needed for their correct functioning - @steve-chavez
+- #1098, Removed support for:
+  + curly braces `{}` in embeds, i.e. `/clients?select=*,projects{*}` can no longer be used, from now on parens `()` should be used `/clients?select=*,projects(*)` - @steve-chavez
+  + "in" operator without parens, i.e. `/clients?id=in.1,2,3` no longer supported, `/clients?id=in.(1,2,3)` should be used - @steve-chavez
 
 ## [0.4.4.0] - 2018-01-08
 

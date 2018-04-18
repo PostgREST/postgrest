@@ -57,7 +57,7 @@ spec = do
 
     context "requesting full representation" $ do
       it "includes related data after insert" $
-        request methodPost "/projects?select=id,name,clients{id,name}"
+        request methodPost "/projects?select=id,name,clients(id,name)"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
