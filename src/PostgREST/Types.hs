@@ -202,14 +202,10 @@ operators = M.union (M.fromList [
   ("sr", ">>"),
   ("nxr", "&<"),
   ("nxl", "&>"),
-  ("adj", "-|-"),
-  -- TODO: these are deprecated and should be removed in v0.5.0.0
-  ("@>", "@>"),
-  ("<@", "<@")]) ftsOperators
+  ("adj", "-|-")]) ftsOperators
 
 ftsOperators :: M.HashMap Operator SqlFragment
 ftsOperators = M.fromList [
-  ("@@", "@@ to_tsquery"), -- TODO: '@@' deprecated
   ("fts", "@@ to_tsquery"),
   ("plfts", "@@ plainto_tsquery"),
   ("phfts", "@@ phraseto_tsquery")
