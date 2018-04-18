@@ -145,22 +145,6 @@ spec = do
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      -- TODO: remove in 0.5.0 as deprecated
-      it "Deprecated @@ operator, pending to remove" $ do
-        get "/tsearch?text_search_vector=@@.impossible" `shouldRespondWith`
-          [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.@@.impossible%7Cfat%7Cfun" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.@@(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`
         [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
@@ -186,24 +170,15 @@ spec = do
         [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "matches with cs operator" $ do
+    it "matches with cs operator" $
       get "/complex_items?select=id&arr_data=cs.{2}" `shouldRespondWith`
         [json|[{"id":2},{"id":3}]|]
         { matchHeaders = [matchContentTypeJson] }
-      -- TODO: remove in 0.5.0 as deprecated
-      get "/complex_items?select=id&arr_data=@>.{2}" `shouldRespondWith`
-        [json|[{"id":2},{"id":3}]|]
-        { matchHeaders = [matchContentTypeJson] }
 
-    it "matches with cd operator" $ do
+    it "matches with cd operator" $
       get "/complex_items?select=id&arr_data=cd.{1,2,4}" `shouldRespondWith`
         [json|[{"id":1},{"id":2}]|]
         { matchHeaders = [matchContentTypeJson] }
-      -- TODO: remove in 0.5.0 as deprecated
-      get "/complex_items?select=id&arr_data=<@.{1,2,4}" `shouldRespondWith`
-        [json|[{"id":1},{"id":2}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
 
   describe "Shaping response with select parameter" $ do
 
