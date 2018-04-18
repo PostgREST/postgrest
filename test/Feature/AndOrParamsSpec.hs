@@ -27,13 +27,13 @@ spec =
 
       context "embedded levels" $ do
         it "can do logic on the second level" $
-          get "/entities?child_entities.or=(id.eq.1,name.eq.child entity 2)&select=id,child_entities{id}" `shouldRespondWith`
+          get "/entities?child_entities.or=(id.eq.1,name.eq.child entity 2)&select=id,child_entities(id)" `shouldRespondWith`
             [json|[
               {"id": 1, "child_entities": [ { "id": 1 }, { "id": 2 } ] }, { "id": 2, "child_entities": []},
               {"id": 3, "child_entities": []}, {"id": 4, "child_entities": []}
             ]|] { matchHeaders = [matchContentTypeJson] }
         it "can do logic on the third level" $
-          get "/entities?child_entities.grandchild_entities.or=(id.eq.1,id.eq.2)&select=id,child_entities{id,grandchild_entities{id}}" `shouldRespondWith`
+          get "/entities?child_entities.grandchild_entities.or=(id.eq.1,id.eq.2)&select=id,child_entities(id,grandchild_entities(id))" `shouldRespondWith`
             [json|[
               {"id": 1, "child_entities": [ { "id": 1, "grandchild_entities": [ { "id": 1 }, { "id": 2 } ]}, { "id": 2, "grandchild_entities": []}]},
               {"id": 2, "child_entities": [ { "id": 3, "grandchild_entities": []} ]},
@@ -182,7 +182,7 @@ spec =
 
     context "used with POST" $
       it "includes related data with filters" $
-        request methodPost "/child_entities?entities.or=(id.eq.2,id.eq.3)&select=id,entities{id}"
+        request methodPost "/child_entities?entities.or=(id.eq.2,id.eq.3)&select=id,entities(id)"
           [("Prefer", "return=representation")]
           [json|[{"id":4,"name":"entity 4","parent_id":1},
                  {"id":5,"name":"entity 5","parent_id":2},

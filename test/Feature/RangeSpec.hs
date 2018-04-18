@@ -149,7 +149,7 @@ spec = do
           }
 
       it "limit works on all levels" $
-        get "/clients?select=id,projects{id,tasks{id}}&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=1"
+        get "/clients?select=id,projects(id,tasks(id))&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=1"
           `shouldRespondWith`
           [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1}]},{"id":2,"tasks":[{"id":3}]}]}]|]
           { matchStatus  = 200

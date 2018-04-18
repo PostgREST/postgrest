@@ -22,7 +22,7 @@ pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
-    oper = parse (pOpExpr pSingleVal pListVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = parse (pOpExpr pSingleVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -64,9 +64,8 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
     pFieldTree :: Parser (Tree SelectItem)
-    pFieldTree =  try (Node <$> pRelationSelect <*> between (char '{') (char '}') pFieldForest) -- TODO: "{}" deprecated
-              <|> try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest)
-              <|> Node <$> pFieldSelect <*> pure []
+    pFieldTree =  try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
+                  Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
 pStar = toS <$> (string "*" *> pure ("*"::ByteString))
@@ -115,13 +114,13 @@ pFieldSelect = lexeme $
     s <- pStar
     return ((s, Nothing), Nothing, Nothing, Nothing)
 
-pOpExpr :: Parser SingleVal -> Parser ListVal -> Parser OpExpr
-pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
+pOpExpr :: Parser SingleVal -> Parser OpExpr
+pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
     pOperation :: Parser Operation
     pOperation =
           Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
-      <|> In <$> (string "in" *> pDelimiter *> pLVal)
+      <|> In <$> (try (string "in" *> pDelimiter) *> pListVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
 
@@ -137,8 +136,7 @@ pSingleVal :: Parser SingleVal
 pSingleVal = toS <$> many anyChar
 
 pListVal :: Parser ListVal
-pListVal =    try (lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')'))
-          <|> lexeme pListElement `sepBy1` char ',' -- TODO: "in.3,4,5" deprecated, parens e.g. "in.(3,4,5)" should be used
+pListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pListElement :: Parser Text
 pListElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
@@ -173,7 +171,7 @@ pLogicTree = Stmnt <$> try pLogicFilter
              <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
-    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal pLogicListVal
+    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
     pNot :: Parser Bool
     pNot = try (string "not" *> pDelimiter *> pure True)
            <|> pure False
@@ -186,16 +184,12 @@ pLogicTree = Stmnt <$> try pLogicFilter
 pLogicSingleVal :: Parser SingleVal
 pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
-    -- TODO: "{}" deprecated, after removal pPgArray can be removed
     pPgArray :: Parser Text
     pPgArray =  do
       a <- string "{"
       b <- many (noneOf "{}")
       c <- string "}"
       toS <$> pure (a ++ b ++ c)
-
-pLogicListVal :: Parser ListVal
-pLogicListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
