@@ -1,14 +1,9 @@
-resolver: lts-9.6
+resolver: lts-10.7
 extra-deps:
   - configurator-ng-0.0.0.1
   - critbit-0.2.0.0
-  - hjsonpointer-1.1.1
   - hjsonschema-1.5.0.1
   - Ranged-sets-0.3.0
-  - protolude-0.2
-  - hasql-1.1
-  - hasql-pool-0.4.3
-  - hasql-transaction-0.5.2
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
