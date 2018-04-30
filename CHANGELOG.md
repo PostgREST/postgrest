@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #256, Add support for bulk UPSERT with POST and single UPSERT with PUT - @steve-chavez
 - #1078, Add ability to specify source column in embed - @steve-chavez
 - #821, Allow embeds alias to be used in filters - @steve-chavez
+- #906, Add jspath configurable `role-claim-key` - @steve-chavez
 
 ### Fixed
 
