@@ -28,7 +28,7 @@ install:
 
 build_script:
 - stack setup --no-terminal > nul
-- stack build --copy-bins --local-bin-path .
+- stack build -j1 --copy-bins --local-bin-path .
 
 artifacts:
 - path: postgrest.exe
