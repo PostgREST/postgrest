@@ -89,6 +89,7 @@ Example Apps
 In Production
 -------------
 
+* `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
 * `Moat <https://moat.com/>`_
 * `Catarse <https://www.catarse.me/>`_
 * `Redsmin <https://www.redsmin.com/>`_
