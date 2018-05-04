@@ -408,3 +408,6 @@ INSERT INTO zone VALUES (1, 'zone 1', 2, 1);
 INSERT INTO zone VALUES (2, 'zone 2', 2, 1);
 INSERT INTO zone VALUES (3, 'store 3', 3, 1);
 INSERT INTO zone VALUES (4, 'store 4', 3, 1);
+
+-- for foreign table projects_dump
+copy (select id, name, client_id from projects) to '/tmp/projects_dump.csv' with csv;
