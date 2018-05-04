@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1078, Add ability to specify source column in embed - @steve-chavez
 - #821, Allow embeds alias to be used in filters - @steve-chavez
 - #906, Add jspath configurable `role-claim-key` - @steve-chavez
+- #1061, Add foreign tables to OpenAPI output - @rhyamada
 
 ### Fixed
 

@@ -219,7 +219,7 @@ accessibleTables =
       join pg_namespace n on n.oid = c.relnamespace
       left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
-      c.relkind in ('v', 'r', 'm')
+      c.relkind in ('v', 'r', 'm', 'f')
       and n.nspname = $1
       and (
         pg_has_role(c.relowner, 'USAGE'::text)
@@ -346,7 +346,7 @@ allTables =
           AND (pg_trigger.tgtype::integer & 69) = 69) ) AS insertable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind IN ('v','r','m')
+    WHERE c.relkind IN ('v','r','m','f')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]

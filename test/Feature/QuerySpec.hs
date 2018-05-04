@@ -403,7 +403,7 @@ spec = do
     it "can detect fk relations through views to tables in the public schema" $
       get "/consumers_view?select=*,orders_view(*)" `shouldRespondWith` 200
 
-    context "path fixed" $ do
+    describe "path fixed" $ do
       it "works when requesting children 2 levels" $
         get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`
           [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
@@ -428,7 +428,7 @@ spec = do
           [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-    context "aliased embeds" $ do
+    describe "aliased embeds" $ do
       it "works with child relation" $
         get "/space?select=id,zones:zone(id,name),stores:zone(id,name)&zones.zone_type_id=eq.2&stores.zone_type_id=eq.3" `shouldRespondWith`
           [json|[
@@ -485,7 +485,7 @@ spec = do
             { "id":4,"childs":[]}
           ]|] { matchHeaders = [matchContentTypeJson] }
 
-    context "tables with self reference foreign keys" $ do
+    describe "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
         it "embeds parents recursively" $
           get "/family_tree?id=in.(3,4)&select=id,parent(id,name,parent(*))" `shouldRespondWith`
@@ -911,7 +911,7 @@ spec = do
     it "only returns an empty result set if the in value is empty" $
       get "/items_with_different_col_types?int_data=in.( ,3,4)" `shouldRespondWith` 400
 
-  context "Embedding when column name = table name" $ do
+  describe "Embedding when column name = table name" $ do
     it "works with child embeds" $
       get "/being?select=*,descendant(*)&limit=1" `shouldRespondWith`
         [json|[{"being":1,"descendant":[{"descendant":1,"being":1},{"descendant":2,"being":1},{"descendant":3,"being":1}]}]|]
@@ -919,4 +919,14 @@ spec = do
     it "works with many to many embeds" $
       get "/being?select=*,part(*)&limit=1" `shouldRespondWith`
         [json|[{"being":1,"part":[{"part":1}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+  describe "Foreign table" $ do
+    it "can be queried by using regular filters" $
+      get "/projects_dump?id=in.(1,2,3)" `shouldRespondWith`
+        [json| [{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}, {"id":3,"name":"IOS","client_id":2}]|]
+        { matchHeaders = [matchContentTypeJson] }
+    it "can be queried with select, order and limit" $
+      get "/projects_dump?select=id,name&order=id.desc&limit=3" `shouldRespondWith`
+        [json| [{"id":5,"name":"Orphan"}, {"id":4,"name":"OSX"}, {"id":3,"name":"IOS"}] |]
         { matchHeaders = [matchContentTypeJson] }

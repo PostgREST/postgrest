@@ -1435,3 +1435,19 @@ create table zone(
   name text,
   zone_type_id integer,
   space_id integer references space(id));
+
+-- foreign table tests
+create extension file_fdw;
+
+create server import_csv foreign data wrapper file_fdw;
+
+create foreign table projects_dump (
+  id integer,
+  name text,
+  client_id integer
+) server import_csv options ( filename '/tmp/projects_dump.csv', format 'csv');
+
+comment on foreign table projects_dump is
+$$A temporary projects dump
+
+Just a test for foreign tables$$;
