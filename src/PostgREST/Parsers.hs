@@ -148,23 +148,20 @@ pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
 pOrder :: Parser [OrderTerm]
-pOrder = lexeme pOrderTerm `sepBy` char ','
+pOrder = lexeme pOrderTerm `sepBy1` char ','
 
 pOrderTerm :: Parser OrderTerm
 pOrderTerm =
   try ( do
     c <- pField
-    d <- optionMaybe (try $ pDelimiter *> (
-               try(string "asc" *> pure OrderAsc)
-           <|> try(string "desc" *> pure OrderDesc)
-         ))
-    nls <- optionMaybe (pDelimiter *> (
-                 try(string "nullslast" *> pure OrderNullsLast)
-             <|> try(string "nullsfirst" *> pure OrderNullsFirst)
-           ))
-    return $ OrderTerm c d nls
+    let pDirectionNulls =
+               try(string "asc"        <* notFollowedBy (noneOf ".") $> OrderTerm mempty (Just OrderAsc) Nothing)
+           <|> try(string "desc"       <* notFollowedBy (noneOf ".") $> OrderTerm mempty (Just OrderDesc) Nothing)
+           <|> try(string "nullslast"  <* notFollowedBy (noneOf ".") $> OrderTerm mempty Nothing (Just OrderNullsLast))
+           <|> try(string "nullsfirst" <* notFollowedBy (noneOf ".") $> OrderTerm mempty Nothing (Just OrderNullsFirst))
+    ords <-  try $ pDelimiter *> pDirectionNulls `sepBy1` char '.' <|> pure []
+    return $ foldr mappend (OrderTerm c Nothing Nothing) ords
   )
-  <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing
 
 pLogicTree :: Parser LogicTree
 pLogicTree = Stmnt <$> try pLogicFilter

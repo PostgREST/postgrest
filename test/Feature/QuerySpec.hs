@@ -644,6 +644,17 @@ spec = do
       get "/projects?id=eq.1&select=id, name, client(id, name)&client.order=name.asc" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}]|]
 
+    it "with error when ordering direction is misspelled" $
+      get "/items?order=id.wrong" `shouldRespondWith` 400
+
+    it "with error when ordering direction is not exact" $
+      get "/items?order=id.desc2" `shouldRespondWith` 400
+
+    it "with error when ordering nulls is misspelled" $
+      get "/items?order=id.desc.wrong" `shouldRespondWith` 400
+
+    it "with error when ordering nulls correct but ordering direction is misspelled" $
+      get "/items?order=id.nullslast.wrong" `shouldRespondWith` 400
 
 
   describe "Accept headers" $ do
