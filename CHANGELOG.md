@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #925, Fix RPC high memory usage by using parametrized query and avoiding json encoding - @steve-chavez
 - #987, Fix embedding with self-reference foreign key - @steve-chavez
 - #1044, Fix view parent embedding when having many views - @steve-chavez
+- #781, Fix accepting misspelled desc/asc ordering modificators - @onporat, @steve-chavez
 
 ### Changed
 

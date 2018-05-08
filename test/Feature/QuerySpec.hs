@@ -564,6 +564,8 @@ spec = do
         { matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
+
+
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` [json| [{"id":2},{"id":1}] |]
@@ -608,6 +610,26 @@ spec = do
         , matchHeaders = ["Content-Range" <:> "0-2/*"]
         }
 
+    it "by two columns with nulls and direction specified" $
+      get "/projects?select=client_id,id,name&order=client_id.desc.nullslast,id.desc"
+        `shouldRespondWith` [json|
+          [{"client_id":2,"id":4,"name":"OSX"},
+           {"client_id":2,"id":3,"name":"IOS"},
+           {"client_id":1,"id":2,"name":"Windows 10"},
+           {"client_id":1,"id":1,"name":"Windows 7"},
+           {"client_id":null,"id":5,"name":"Orphan"}]
+        |]
+        { matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-4/*"]
+        }
+
+    it "by a column with no direction or nulls specified" $
+      get "/items?id=lte.2&order=id"
+        `shouldRespondWith` [json| [{"id":1},{"id":2}] |]
+        { matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
+        }
+
     it "by a json column property asc" $
       get "/json?order=data->>id.asc" `shouldRespondWith`
         [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
@@ -644,7 +666,50 @@ spec = do
       get "/projects?id=eq.1&select=id, name, client(id, name)&client.order=name.asc" `shouldRespondWith`
         [str|[{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}]|]
 
+    context "order syntax errors" $ do
+      it "gives meaningful error messages when asc/desc/nulls{first,last} are misspelled" $ do
+        get "/items?order=id.ac" `shouldRespondWith`
+          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.descc" `shouldRespondWith`
+          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.nulsfist" `shouldRespondWith`
+          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.nullslasttt" `shouldRespondWith`
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.smth34" `shouldRespondWith`
+          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
 
+      it "gives meaningful error messages when nulls{first,last} are misspelled after asc/desc" $ do
+        get "/items?order=id.asc.nlsfst" `shouldRespondWith`
+          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/items?order=id.asc.smth34" `shouldRespondWith`
+          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
 
   describe "Accept headers" $ do
     it "should respond an unknown accept type with 415" $
