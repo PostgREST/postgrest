@@ -76,10 +76,9 @@ library
                      , network-uri
                      , optparse-applicative >= 0.13 && < 0.15
                      , parsec
-                     , protolude >= 0.2 && < 0.2.2
+                     , protolude >= 0.2.2
                      , Ranged-sets == 0.3.0
                      , regex-tdfa
-                     , safe
                      , scientific
                      , swagger2
                      , text
