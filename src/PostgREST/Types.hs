@@ -118,13 +118,13 @@ data PrimaryKey = PrimaryKey {
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
-  show OrderAsc  = "asc"
-  show OrderDesc = "desc"
+  show OrderAsc  = "ASC"
+  show OrderDesc = "DESC"
 
 data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
 instance Show OrderNulls where
-  show OrderNullsFirst = "nulls first"
-  show OrderNullsLast  = "nulls last"
+  show OrderNullsFirst = "NULLS FIRST"
+  show OrderNullsLast  = "NULLS LAST"
 
 data OrderTerm = OrderTerm {
   otTerm      :: Field
