@@ -29,12 +29,12 @@ spec = do
               (acceptHdrs "application/openapi+json") ""
         `shouldRespondWith` 415
 
-    it "includes postgrest.com current version api docs" $ do
+    it "includes postgrest.org current version api docs" $ do
       r <- simpleBody <$> get "/"
 
       let docsUrl = r ^? key "externalDocs" . key "url"
 
-      liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
+      liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
 
     describe "table" $ do
 

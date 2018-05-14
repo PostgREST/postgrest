@@ -2,11 +2,11 @@
   "name": "PostgREST",
   "description": "RESTful API for any PostgreSQL database.",
   "logo": "https://halcyon.sh/logo.svg",
-  "repository": "https://github.com/begriffs/postgrest",
+  "repository": "https://github.com/PostgREST/postgrest",
   "env": {
     "BUILDPACK_URL": {
       "description": "Heroku buildpack for deploying Haskell applications",
-      "value": "https://github.com/begriffs/postgrest-heroku"
+      "value": "https://github.com/PostgREST/postgrest-heroku"
     },
     "POSTGREST_VER": {
       "description": "Version of PostgREST to deploy",

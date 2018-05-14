@@ -7,14 +7,14 @@ synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
 author:                Joe Nelson, Adam Baker
-homepage:              https://github.com/begriffs/postgrest
+homepage:              https://github.com/PostgREST/postgrest
 maintainer:            cred+github@begriffs.com
 category:              Web
 build-type:            Simple
 cabal-version:         >=1.10
 source-repository head
   type: git
-  location: git://github.com/begriffs/postgrest.git
+  location: git://github.com/PostgREST/postgrest.git
 
 Flag CI
   Description: No warnings allowed in continuous integration
