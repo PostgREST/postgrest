@@ -2,7 +2,7 @@ name:                  postgrest
 description:           Reads the schema of a PostgreSQL database and creates RESTful routes
                        for the tables and views, supporting all HTTP verbs that security
                        permits.
-version:               0.4.4.0
+version:               0.5.0.0
 synopsis:              REST API for any Postgres database
 license:               MIT
 license-file:          LICENSE
