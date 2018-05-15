@@ -64,7 +64,7 @@ library
                      , gitrev
                      , hasql
                      , hasql-pool
-                     , hasql-transaction
+                     , hasql-transaction < 0.6
                      , heredoc
                      , HTTP
                      , http-types
@@ -76,7 +76,7 @@ library
                      , network-uri
                      , optparse-applicative >= 0.13 && < 0.15
                      , parsec
-                     , protolude >= 0.2
+                     , protolude >= 0.2 && < 0.2.2
                      , Ranged-sets == 0.3.0
                      , regex-tdfa
                      , safe
