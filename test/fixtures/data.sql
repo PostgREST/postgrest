@@ -411,3 +411,6 @@ INSERT INTO zone VALUES (4, 'store 4', 3, 1);
 
 -- for foreign table projects_dump
 copy (select id, name, client_id from projects) to '/tmp/projects_dump.csv' with csv;
+
+TRUNCATE TABLE "UnitTest" CASCADE;
+INSERT INTO "UnitTest" VALUES (1, 'unit test 1');

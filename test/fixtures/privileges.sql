@@ -79,6 +79,7 @@ GRANT ALL ON TABLE
     , space
     , zone
     , projects_dump
+    , "UnitTest"
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
