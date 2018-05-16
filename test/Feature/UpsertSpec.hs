@@ -198,3 +198,30 @@ spec =
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
           [str| [ { "name": "Ruby", "rank": 11 } ]|]
           `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|] { matchHeaders = [matchContentTypeSingular] }
+
+    context "with a camel case pk column" $ do
+      it "works with POST and merge-duplicates/ignore-duplicates headers" $ do
+        request methodPost "/UnitTest" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+          [json| [
+            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+          ]|] `shouldRespondWith` [json|[
+            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+          ]|]
+          { matchStatus = 201
+          , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+          }
+        request methodPost "/UnitTest" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+          [json| [
+            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+          ]|] `shouldRespondWith` [json|[]|]
+          { matchStatus = 201
+          , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+          }
+
+      it "works with PUT" $ do
+        put "/UnitTest?idUnitTest=eq.1" [str| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] `shouldRespondWith` 204
+        get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
+          [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] { matchHeaders = [matchContentTypeJson] }

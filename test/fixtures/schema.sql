@@ -1451,3 +1451,8 @@ comment on foreign table projects_dump is
 $$A temporary projects dump
 
 Just a test for foreign tables$$;
+
+create table "UnitTest"(
+  "idUnitTest" integer primary key,
+  "nameUnitTest" text
+);

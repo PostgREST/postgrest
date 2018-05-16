@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #1113, Fix UPSERT failing when having a camel case PK column - @steve-chavez
+
 ### Changed
 
 ## [0.5.0.0] - 2018-05-14

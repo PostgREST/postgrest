@@ -288,7 +288,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl pkCols p@(PayloadJSON _ pType 
         -- Only used for PUT
         ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> logicForest)) `emptyOnFalse` null logicForest],
     maybe "" (\x -> (
-      "ON CONFLICT(" <> intercalate ", " pkCols <> ") " <> case x of
+      "ON CONFLICT(" <> intercalate ", " (pgFmtIdent <$> pkCols) <> ") " <> case x of
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
