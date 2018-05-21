@@ -108,10 +108,10 @@ and the [API guide](http://postgrest.org/en/stable/api.html).
 
 ### Thanks
 
-The PostgREST organization is grateful to the generous project
-[contributors](https://github.com/PostgREST/postgrest/graphs/contributors)
-who have improved PostgREST immensely with their code and good
-judgement.  See more details in the
-[changelog](https://github.com/PostgREST/postgrest/blob/master/CHANGELOG.md).
+The PostgREST organization is grateful to:
+
+- The project [sponsors and backers](https://github.com/PostgREST/postgrest/blob/master/BACKERS.md) who support PostgREST's development.
+- The project [contributors](https://github.com/PostgREST/postgrest/graphs/contributors) who have improved PostgREST immensely with their code
+  and good judgement. See more details in the [changelog](https://github.com/PostgREST/postgrest/blob/master/CHANGELOG.md).
 
 The cool logo came from [Mikey Casalaina](https://github.com/casalaina).
