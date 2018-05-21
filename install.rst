@@ -203,25 +203,28 @@ To avoid having to install the database at all, you can run both it and the serv
 
   # docker-compose.yml
 
-  server:
-    image: postgrest/postgrest
-    ports:
-      - "3000:3000"
-    links:
-      - db:db
-    environment:
-      PGRST_DB_URI: postgres://app_user:password@db:5432/app_db
-      PGRST_DB_SCHEMA: public
-      PGRST_DB_ANON_ROLE: app_user
-
-  db:
-    image: postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: app_db
-      POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: password
+  version: '3'
+  services:
+    server:
+      image: postgrest/postgrest
+      ports:
+        - "3000:3000"
+      links:
+        - db:db
+      environment:
+        PGRST_DB_URI: postgres://app_user:password@db:5432/app_db
+        PGRST_DB_SCHEMA: public
+        PGRST_DB_ANON_ROLE: app_user
+      depends_on:
+        - db
+    db:
+      image: postgres
+      ports:
+        - "5432:5432"
+      environment:
+        POSTGRES_DB: app_db
+        POSTGRES_USER: app_user
+        POSTGRES_PASSWORD: password
 
 Go into the directory where you saved this file and run :code:`docker-compose up`. You will see the logs of both the database and PostgREST, and be able to access the latter on port 3000.
 
