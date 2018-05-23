@@ -83,6 +83,7 @@ jwt-aud           String
 secret-is-base64  Bool    False
 max-rows          Int     ∞
 pre-request       String
+app.settings.*    String
 ================  ======  =======  ========
 
 db-uri
@@ -133,6 +134,8 @@ max-rows
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
 pre-request
   A schema-qualified stored procedure name to call right after switching roles for a client request. This provides an opportunity to modify SQL variables or raise an exception to prevent the request from completing.
+app.settings.*
+  Arbitrary settings that will become database session settings. This can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
 
 Running the Server
 ------------------
