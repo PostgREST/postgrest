@@ -694,6 +694,38 @@ To bulk insert JSON post an array of objects having all-matching keys
     { "name": "Janus", "age": 10, "height": 55 }
   ]
 
+Upsert
+------
+
+You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
+
+.. code:: HTTP
+
+  POST /employees HTTP/1.1
+  Prefer: resolution=merge-duplicates
+
+  [
+    { "id": 1, "name": "Old employee 1", "salary": 30000 },
+    { "id": 2, "name": "Old employee 2" , "salary": 42000 },
+    { "id": 3, "name": "New employee 3" , "salary": 50000 }
+  ]
+
+UPSERT merging operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`.
+
+A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
+
+.. code:: HTTP
+
+  PUT /employees?id=eq.4 HTTP/1.1
+
+  { "id": 4, "name": "Sara B.", "salary": 60000 }
+
+All the columns must be specified in the request body, including the primary key columns.
+
+.. note::
+
+  This feature is only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/9.5/static/sql-insert.html#SQL-ON-CONFLICT>`_.
+
 Deletions
 =========
 
