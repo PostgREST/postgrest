@@ -742,7 +742,7 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 OpenAPI Support
 ===============
 
-Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints, along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on a table, column, or function. For instance,
+Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints(tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on a table, column, or function. For instance,
 
 .. code-block:: sql
 
