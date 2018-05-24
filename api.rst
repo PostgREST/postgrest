@@ -487,6 +487,12 @@ Limit and offset operations are also possible:
 
   GET /films?select=*,actors(*)&actors.limit=10&actors.offset=2 HTTP/1.1
 
+You can also alias the embedded resources and apply filters on the aliases:
+
+.. code-block:: http
+
+  GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
+
 Custom Queries
 ==============
 
