@@ -266,8 +266,8 @@ When a pre-built binary does not exist for your system you can build the project
   =====================  =======================================
   Ubuntu/Debian          libpq-dev, libgmp-dev
   CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
-  BSD                    postgresql95-server
-  OS X                   postgresql, gmp
+  BSD                    postgresql95-client
+  OS X                   libpq, gmp
   =====================  =======================================
 
 * Build and install binary
