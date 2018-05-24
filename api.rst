@@ -742,9 +742,12 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 OpenAPI Support
 ===============
 
-Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints(tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on a table, column, or function. For instance,
+Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints(tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on any database object. For instance,
 
 .. code-block:: sql
+
+  COMMENT ON SCHEMA mammals IS
+    'A warm-blooded vertebrate animal of a class that is distinguished by the secretion of milk by females for the nourishment of the young';
 
   COMMENT ON TABLE monotremes IS
     'Freakish mammals lay the best eggs for breakfast';
@@ -752,7 +755,18 @@ Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.
   COMMENT ON COLUMN monotremes.has_venomous_claw IS
     'Sometimes breakfast is not worth it';
 
-These unsavory comments will appear in the generated JSON as the fields ``definitions.monotremes.description`` and ``definitions.monotremes.properties.has_venomous_claw.description``.
+These unsavory comments will appear in the generated JSON as the fields, ``info.description``, ``definitions.monotremes.description`` and ``definitions.monotremes.properties.has_venomous_claw.description``.
+
+Also if you wish to generate a ``summary`` field you can do it by having a multiple line comment, the ``summary`` will be the first line and the ``description`` the lines that follow it:
+
+.. code-block:: sql
+
+  COMMENT ON TABLE entities IS
+    $$Entities summary
+
+    Entities description that
+    spans
+    multiple lines$$;
 
 You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
