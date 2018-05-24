@@ -458,10 +458,10 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 
   Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
-Embedded Filters and Order
---------------------------
+Operations on Embedded Resources
+--------------------------------
 
-Embedded tables can be filtered and ordered similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded table. For instance, to order the actors in each film:
+Embedded resources rows can be shaped similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded resource. For instance, to order the actors in each film:
 
 .. code-block:: http
 
@@ -475,6 +475,17 @@ This sorts the list of actors in each film but does *not* change the order of th
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
+An ``or`` filter  can also be used for a similar operation:
+
+.. code-block:: http
+
+  GET /films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo) HTTP/1.1
+
+Limit and offset operations are also possible:
+
+.. code-block:: http
+
+  GET /films?select=*,actors(*)&actors.limit=10&actors.offset=2 HTTP/1.1
 
 Custom Queries
 ==============
