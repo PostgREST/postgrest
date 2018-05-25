@@ -533,7 +533,7 @@ The function parameter names match the JSON object keys in the POST case, for th
 
 .. note::
 
-  We recommend using function arguments of type json to accept arrays from the client. To pass a PostgreSQL native array you'll need to quote it as a string:
+  For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you'll need to quote it as a string:
 
   .. code:: http
 
@@ -541,11 +541,15 @@ The function parameter names match the JSON object keys in the POST case, for th
 
     { "arg": "{1,2,3}" }
 
+  In these versions we recommend using function arguments of type json to accept arrays from the client:
+
   .. code:: http
 
     POST /rpc/json_array_func HTTP/1.1
 
     { "arg": [1,2,3] }
+
+  Starting from PostgreSQL 10, a json array from the client gets mapped normally to a PostgreSQL native array.
 
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
