@@ -44,7 +44,7 @@ Complex logic can also be applied:
 .. code-block:: http
 
   GET /people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null)) HTTP/1.1
- 
+
 These operators are available:
 
 ============  ===============================================  =====================
@@ -131,9 +131,24 @@ When certain columns are wide (such as those holding binary data), it is more ef
 
 .. code-block:: http
 
-  GET /people?select=fname,age HTTP/1.1
+  GET /people?select=first_name,age HTTP/1.1
+
+  [
+    {"first_name": "John", "age": 30},
+    {"first_name": "Jane", "age": 20}
+  ]
 
 The default is :sql:`*`, meaning all columns. This value will become more important below in :ref:`resource_embedding`.
+
+You can rename the columns by prefixing them with an alias followed by the colon ``:`` operator.
+
+.. code-block:: http
+
+  GET /people?select=fullName:full_name,birthDate:birth_date HTTP/1.1
+  [
+    {"fullName": "John Doe", "birthDate": "04/25/1988"},
+    {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
+  ]
 
 .. _computed_cols:
 
