@@ -529,7 +529,7 @@ Because ``add_them`` is declared IMMUTABLE, we can alternately call the function
 
   GET /rpc/add_them?a=1&b=2 HTTP/1.1
 
-For POST and GET the keys of the object match the parameter names. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
 
 .. note::
 
