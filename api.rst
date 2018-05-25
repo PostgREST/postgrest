@@ -150,6 +150,16 @@ You can rename the columns by prefixing them with an alias followed by the colon
     {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
   ]
 
+Casting the columns is possible by suffixing them with the double colon ``::`` plus the desired type.
+
+.. code-block:: http
+
+  GET /people?select=full_name,salary::text HTTP/1.1
+  [
+    {"fullName": "John Doe", "salary": "90000.00"},
+    {"fullName": "Jane Doe", "salary": "120000.00"}
+  ]
+
 .. _computed_cols:
 
 Computed Columns
