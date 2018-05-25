@@ -35,7 +35,8 @@ ENV PGRST_DB_URI= \
     PGRST_SECRET_IS_BASE64=false \
     PGRST_JWT_AUD= \
     PGRST_MAX_ROWS= \
-    PGRST_PRE_REQUEST=
+    PGRST_PRE_REQUEST= \
+    PGRST_ROLE_CLAIM_KEY=".role"
 
 # PostgREST reads /etc/postgrest.conf so map the configuration
 # file in when you run this container
