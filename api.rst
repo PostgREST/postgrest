@@ -551,6 +551,28 @@ The function parameter names match the JSON object keys in the POST case, for th
 
   Starting from PostgreSQL 10, a json array from the client gets mapped normally to a PostgreSQL native array.
 
+PostgREST will detect if the function is scalar or table-valued and will shape the response format accordingly:
+
+.. code:: http
+
+  GET /rpc/add_them?a=1&b=2 HTTP/1.1
+
+  3
+
+.. code:: http
+
+  GET /rpc/best_films_2017 HTTP/1.1
+
+  [
+    { "title": "Okja", "rating": 7.4},
+    { "title": "Call me by your name", "rating": 8},
+    { "title": "Blade Runner 2049", "rating": 8.1}
+  ]
+
+.. note::
+
+  Whenever the function definition changes you must refresh PostgREST's schema for this to work properly. See the section :ref:`schema_reloading`.
+
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
 By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs. Another option is to define the function with with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
