@@ -79,12 +79,6 @@ adj           is adjacent to, e.g. :code:`?range=adj.(1,10)`   :code:`-|-`
 not           negates another operator, see below              :code:`NOT`
 ============  ===============================================  =====================
 
-.. note::
-
-  As of PostgREST v0.4.3.0, the symbol operators :code:`@@, @>, <@` have been
-  deprecated in lieu of their mnemonic equivalents. They are still supported
-  but will be removed in v0.5.0.0.
-
 To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
 For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
@@ -443,10 +437,6 @@ this:
 .. code-block:: http
 
   GET /films?select=title,director:directors(id,last_name) HTTP/1.1
-
-.. note::
-
-  As of PostgREST v0.4.1.0, parens :code:`()` are used rather than brackets :code:`{}` for the list of embedded columns. Brackets are still supported, but are deprecated and will be removed in v0.5.0.0.
 
 PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
 
