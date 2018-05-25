@@ -90,6 +90,8 @@ role-claim-key    String  .role
 db-uri
   The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/9.1/static/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
 
+  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <http://www.postgresql.org/docs/current/static/auth-methods.html#AUTH-PEER>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  According to the documentation on the `libpq connection string <https://www.postgresql.org/docs/10/static/libpq-connect.html#LIBPQ-CONNSTRING>`_ the empty host resolves to the Unix socket and the password can be omitted in this case, so the ``db-uri`` would be reduced to ``postgres://user@/dbname``.
+
   On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`.
 db-schema
   The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints.

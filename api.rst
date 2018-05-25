@@ -145,6 +145,7 @@ You can rename the columns by prefixing them with an alias followed by the colon
 .. code-block:: http
 
   GET /people?select=fullName:full_name,birthDate:birth_date HTTP/1.1
+
   [
     {"fullName": "John Doe", "birthDate": "04/25/1988"},
     {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
@@ -155,6 +156,7 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 .. code-block:: http
 
   GET /people?select=full_name,salary::text HTTP/1.1
+
   [
     {"fullName": "John Doe", "salary": "90000.00"},
     {"fullName": "Jane Doe", "salary": "120000.00"}
