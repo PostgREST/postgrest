@@ -573,6 +573,12 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
 
   Whenever the function definition changes you must refresh PostgREST's schema for this to work properly. See the section :ref:`schema_reloading`.
 
+A function response can be shaped using the same filters as the ones used for tables and views:
+
+.. code:: http
+
+  GET /rpc/top_rated_films?select=title,director:directors(*)&year=eq.1990&order=title.desc HTTP/1.1
+
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
 By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs. Another option is to define the function with with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
