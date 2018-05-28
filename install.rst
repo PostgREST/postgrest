@@ -90,7 +90,7 @@ role-claim-key    String  .role
 db-uri
   The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/9.1/static/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
 
-  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <http://www.postgresql.org/docs/current/static/auth-methods.html#AUTH-PEER>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  According to the documentation on the `libpq connection string <https://www.postgresql.org/docs/10/static/libpq-connect.html#LIBPQ-CONNSTRING>`_ the empty host resolves to the Unix socket and the password can be omitted in this case, so the ``db-uri`` would be reduced to ``postgres://user@/dbname``.
+  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <http://www.postgresql.org/docs/current/static/auth-methods.html#AUTH-PEER>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/10/static/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
 
   On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`.
 db-schema
@@ -142,7 +142,7 @@ pre-request
 app.settings.*
   Arbitrary settings that will become database session settings. This can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
 role-claim-key
-  A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta or Keycloak. Some examples:
+  A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta or Keycloak. Usage examples:
 
 .. code:: bash
 
@@ -151,7 +151,7 @@ role-claim-key
   role-claim-key = ".postgrest.roles[1]"
 
   # {"https://www.example.com/role": { "key": "author }}
-  # non-alphanumerical characters can go inside quotes(escaped in config value)
+  # non-alphanumerical characters can go inside quotes(escaped in the config value)
   role-claim-key = ".\"https://www.example.com/role\".key"
 
 Running the Server

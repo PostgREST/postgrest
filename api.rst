@@ -158,8 +158,8 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
   GET /people?select=full_name,salary::text HTTP/1.1
 
   [
-    {"fullName": "John Doe", "salary": "90000.00"},
-    {"fullName": "Jane Doe", "salary": "120000.00"}
+    {"full_name": "John Doe", "salary": "90000.00"},
+    {"full_name": "Jane Doe", "salary": "120000.00"}
   ]
 
 .. _computed_cols:
@@ -475,10 +475,10 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 
   Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
-Operations on Embedded Resources
---------------------------------
+Embedded Operations
+-------------------
 
-Embedded resources rows can be shaped similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded resource. For instance, to order the actors in each film:
+Embedded resources can be shaped similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded resource. For instance, to order the actors in each film:
 
 .. code-block:: http
 
@@ -492,19 +492,19 @@ This sorts the list of actors in each film but does *not* change the order of th
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
-An ``or`` filter  can also be used for a similar operation:
+An ``or`` filter  can be used for a similar operation:
 
 .. code-block:: http
 
   GET /films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo) HTTP/1.1
 
-Limit and offset operations are also possible:
+Limit and offset operations are possible:
 
 .. code-block:: http
 
   GET /films?select=*,actors(*)&actors.limit=10&actors.offset=2 HTTP/1.1
 
-You can also alias the embedded resources and apply filters on the aliases:
+Embedded resources can be aliased and filters can be applied on these aliases:
 
 .. code-block:: http
 
@@ -560,7 +560,7 @@ The function parameter names match the JSON object keys in the POST case, for th
 
 .. note::
 
-  For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you'll need to quote it as a string:
+  For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you need to quote it as a string:
 
   .. code:: http
 
@@ -772,11 +772,11 @@ You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge
 
   [
     { "id": 1, "name": "Old employee 1", "salary": 30000 },
-    { "id": 2, "name": "Old employee 2" , "salary": 42000 },
-    { "id": 3, "name": "New employee 3" , "salary": 50000 }
+    { "id": 2, "name": "Old employee 2", "salary": 42000 },
+    { "id": 3, "name": "New employee 3", "salary": 50000 }
   ]
 
-UPSERT merging operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`.
+UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`.
 
 A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
