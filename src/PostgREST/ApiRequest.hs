@@ -105,7 +105,7 @@ userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError Api
 userApiRequest schema req reqBody
   | isTargetingProc && method `notElem` ["GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
-  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) undefined payload
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | otherwise = Right ApiRequest {
       iAction = action
       , iTarget = target
