@@ -231,7 +231,7 @@ getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{
      | typ == Many ->
         let ltN = fromMaybe "" (tableName <$> lt) in
         zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fcs (fromMaybe [] lc2)
-     | typ == Root -> undefined
+     | typ == Root -> witness
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =

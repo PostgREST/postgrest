@@ -207,7 +207,7 @@ pgFmtLit x =
    else slashed
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
-requestToCountQuery _ (DbMutate _) = undefined
+requestToCountQuery _ (DbMutate _) = witness
 requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
  unwords [
    "SELECT pg_catalog.count(*)",
@@ -272,7 +272,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     --the following is just to remove the warning
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
-    getQueryParts _ _ = undefined
+    getQueryParts _ _ = witness
 requestToQuery schema _ (DbMutate (Insert mainTbl pkCols p@(PayloadJSON _ pType pKeys) onConflct logicForest returnings)) =
   unwords [
     ("WITH " <> ignoredBody) `emptyOnFalse` not payloadIsEmpty,

@@ -61,7 +61,6 @@ import           PostgREST.OpenAPI
 
 import           Data.Function (id)
 import           Protolude              hiding (intercalate, Proxy)
-import           Safe                   (headMay)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
