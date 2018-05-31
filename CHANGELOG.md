@@ -34,7 +34,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Computed columns now only work if they belong to the db-schema - @steve-chavez
+- #828, A `SET SCHEMA <db-schema>` is done on each request, this has the following implications:
+  - Computed columns now only work if they belong to the db-schema
+  - Stored procedures might require a `search_path` to work properly, for further details see https://postgrest.org/en/v5.0/api.html#explicit-qualification
 - To use RPC now the `json_to_record/json_to_recordset` functions are needed, these are available starting from PostgreSQL 9.4 - @steve-chavez
 - Overloaded functions now depend on the `dbStructure`, restart/sighup may be needed for their correct functioning - @steve-chavez
 - #1098, Removed support for:
