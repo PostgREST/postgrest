@@ -608,11 +608,25 @@ A function response can be shaped using the same filters as the ones used for ta
 
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
-By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs. Another option is to define the function with with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
+By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs. Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
 
 .. note::
 
   Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+
+Explicit Qualification
+----------------------
+
+As of ``v5.0``, PostgREST executes a ``SET SCHEMA <db-schema>`` on each request, this overrides the `search_path <https://www.postgresql.org/docs/10/static/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ and it means that for functions to work properly, explicit qualification is needed for any database object that is not in the ``<db-schema>``. However, this can be cumbersome when working with extensions such as PostGIS, to avoid it, you can add a search path to the function:
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION api.line() RETURNS json AS $$
+    SELECT ST_AsGeoJSON('LINESTRING(1 2 3, 4 5 6)')::json;
+  $$ LANGUAGE sql SET search_path = public;
+
+  -- existing functions can be altered to add a search_path
+  ALTER FUNCTION api.make_point() SET search_path = public;
 
 Accessing Request Headers/Cookies
 ---------------------------------
@@ -825,7 +839,7 @@ These unsavory comments will appear in the generated JSON as the fields, ``info.
 
 Also if you wish to generate a ``summary`` field you can do it by having a multiple line comment, the ``summary`` will be the first line and the ``description`` the lines that follow it:
 
-.. code-block:: sql
+.. code-block:: plpgsql
 
   COMMENT ON TABLE entities IS
     $$Entities summary
