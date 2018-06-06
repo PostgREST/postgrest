@@ -390,16 +390,6 @@ spec = do
           [json| [{ a: "keepme", b: null }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "can set a json column to escaped value" $ do
-        _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
-        request methodPatch "/json?data->>escaped=eq.bar"
-                     [("Prefer", "return=representation")]
-                     [json| { "data": { "escaped":" \"bar" } } |]
-          `shouldRespondWith` [json| [{ "data": { "escaped":" \"bar" } }] |]
-          { matchStatus  = 200
-          , matchHeaders = []
-          }
-
       it "can update based on a computed column" $
         request methodPatch
           "/items?always_true=eq.false"

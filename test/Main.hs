@@ -22,6 +22,7 @@ import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.InsertSpec
+import qualified Feature.JsonOperatorSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
@@ -77,6 +78,7 @@ main = do
         , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
         , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
+        , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
         , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
         , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)

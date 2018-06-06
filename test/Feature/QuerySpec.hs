@@ -216,23 +216,6 @@ spec = do
         [json| [{"settings":{"foo":{"int":1,"bar":"baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "json subfield one level with casting (json)" $
-      get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
-        [json| [{"foo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "rename json subfield one level with casting (json)" $
-      get "/complex_items?id=eq.1&select=myFoo:settings->>foo::json" `shouldRespondWith`
-        [json| [{"myFoo":{"int":1,"bar":"baz"}}] |] -- the value of foo here is of type "text"
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "fails on bad casting (data of the wrong format)" $
-      get "/complex_items?select=settings->foo->>bar::integer"
-        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
-        { matchStatus  = 400
-        , matchHeaders = []
-        }
-
     it "fails on bad casting (wrong cast type)" $
       get "/complex_items?select=id::fakecolumntype"
         `shouldRespondWith` [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
@@ -240,27 +223,6 @@ spec = do
         , matchHeaders = []
         }
 
-
-    it "json subfield two levels (string)" $
-      get "/complex_items?id=eq.1&select=settings->foo->>bar" `shouldRespondWith`
-        [json| [{"bar":"baz"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "rename json subfield two levels (string)" $
-      get "/complex_items?id=eq.1&select=myBar:settings->foo->>bar" `shouldRespondWith`
-        [json| [{"myBar":"baz"}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
-
-    it "json subfield two levels with casting (int)" $
-      get "/complex_items?id=eq.1&select=settings->foo->>int::integer" `shouldRespondWith`
-        [json| [{"int":1}] |] -- the value in the db is an int, but here we expect a string for now
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "rename json subfield two levels with casting (int)" $
-      get "/complex_items?id=eq.1&select=myInt:settings->foo->>int::integer" `shouldRespondWith`
-        [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
-        { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
@@ -630,16 +592,6 @@ spec = do
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
-    it "by a json column property asc" $
-      get "/json?order=data->>id.asc" `shouldRespondWith`
-        [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "by a json column with two level property nulls first" $
-      get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
-        [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
     it "without other constraints" $
       get "/items?order=id.asc" `shouldRespondWith` 200
 
@@ -771,22 +723,6 @@ spec = do
         respHeaders `shouldSatisfy` matchHeader
           "Content-Location" "/simple_pk"
 
-  describe "jsonb" $ do
-    it "can filter by properties inside json column" $ do
-      get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
-        [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
-        [json| [] |]
-        { matchHeaders = [matchContentTypeJson] }
-    it "can filter by properties inside json column using not" $
-      get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
-        [json| [] |]
-        { matchHeaders = [matchContentTypeJson] }
-    it "can filter by properties inside json column using ->>" $
-      get "/json?data->>id=eq.1" `shouldRespondWith`
-        [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
-        { matchHeaders = [matchContentTypeJson] }
 
   describe "weird requests" $ do
     it "can query as normal" $ do

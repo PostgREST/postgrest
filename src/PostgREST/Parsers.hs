@@ -57,7 +57,7 @@ lexeme p = ws *> p <* ws
 pTreePath :: Parser (EmbedPath, Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
-  jp <- optionMaybe pJsonPath
+  jp <- option [] pJsonPath
   return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
@@ -87,7 +87,7 @@ pJsonPath :: Parser [Text]
 pJsonPath = (<>) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
 
 pField :: Parser Field
-pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
+pField = lexeme $ (,) <$> pFieldName <*> option [] pJsonPath
 
 aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
@@ -112,7 +112,7 @@ pFieldSelect = lexeme $
   )
   <|> do
     s <- pStar
-    return ((s, Nothing), Nothing, Nothing, Nothing)
+    return ((s, []), Nothing, Nothing, Nothing)
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation

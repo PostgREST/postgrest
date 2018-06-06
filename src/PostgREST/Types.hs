@@ -239,7 +239,7 @@ data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Sh
 
 type FieldName = Text
 type JsonPath = [Text]
-type Field = (FieldName, Maybe JsonPath)
+type Field = (FieldName, JsonPath)
 type Alias = Text
 type Cast = Text
 type NodeName = Text

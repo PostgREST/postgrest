@@ -193,10 +193,6 @@ spec =
     it "can query columns that begin with and/or reserved words" $
       get "/grandchild_entities?or=(and_starting_col.eq.smth, or_starting_col.eq.smth)" `shouldRespondWith` 200
 
-    it "can query jsonb columns" $
-      get "/grandchild_entities?or=(jsonb_col->a->>b.eq.foo, jsonb_col->>b.eq.bar)&select=id" `shouldRespondWith`
-        [json|[{id: 4}, {id: 5}]|] { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
-
     it "fails when using IN without () and provides meaningful error message" $
       get "/entities?or=(id.in.1,2,id.eq.3)" `shouldRespondWith`
         [json|{
