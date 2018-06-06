@@ -447,14 +447,14 @@ pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <>
   where notOp =  if hasNot then "NOT" else ""
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
-pgFmtJsonPath :: Maybe JsonPath -> SqlFragment
-pgFmtJsonPath (Just [x]) = "->>" <> pgFmtLit x
-pgFmtJsonPath (Just (x:xs)) = "->" <> pgFmtLit x <> pgFmtJsonPath ( Just xs )
-pgFmtJsonPath _ = ""
+pgFmtJsonPath :: JsonPath -> SqlFragment
+pgFmtJsonPath [] = ""
+pgFmtJsonPath [x] = "->>" <> pgFmtLit x
+pgFmtJsonPath (x:xs) = "->" <> pgFmtLit x <> pgFmtJsonPath xs
 
-pgFmtAs :: Maybe JsonPath -> Maybe Alias -> SqlFragment
-pgFmtAs Nothing Nothing = ""
-pgFmtAs (Just xx) Nothing = case lastMay xx of
+pgFmtAs :: JsonPath -> Maybe Alias -> SqlFragment
+pgFmtAs [] Nothing = ""
+pgFmtAs jp Nothing = case lastMay jp of
   Just alias -> " AS " <> pgFmtIdent alias
   Nothing -> ""
 pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias

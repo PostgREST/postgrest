@@ -122,6 +122,7 @@ Test-Suite spec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
                      , Feature.InsertSpec
+                     , Feature.JsonOperatorSpec
                      , Feature.NoJwtSpec
                      , Feature.PgVersion96Spec
                      , Feature.ProxySpec
