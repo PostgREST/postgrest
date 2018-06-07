@@ -80,6 +80,7 @@ GRANT ALL ON TABLE
     , zone
     , projects_dump
     , "UnitTest"
+    , json_arr
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

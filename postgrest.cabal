@@ -124,6 +124,7 @@ Test-Suite spec
                      , Feature.InsertSpec
                      , Feature.JsonOperatorSpec
                      , Feature.NoJwtSpec
+                     , Feature.PgVersion95Spec
                      , Feature.PgVersion96Spec
                      , Feature.ProxySpec
                      , Feature.QueryLimitedSpec

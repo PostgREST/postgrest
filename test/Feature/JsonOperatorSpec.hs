@@ -48,6 +48,44 @@ spec = describe "json and jsonb operators" $ do
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
         { matchHeaders = [matchContentTypeJson] }
 
+    context "with array index" $ do
+      it "can get array of ints and alias/cast it" $ do
+        get "/json_arr?select=data->>0::int&id=in.(1,2)" `shouldRespondWith`
+          [json| [{"data":1}, {"data":4}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=idx0:data->>0::int,idx1:data->>1::int&id=in.(1,2)" `shouldRespondWith`
+          [json| [{"idx0":1,"idx1":2}, {"idx0":4,"idx1":5}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can get nested array of ints" $ do
+        get "/json_arr?select=data->0->>1::int&id=in.(3,4)" `shouldRespondWith`
+          [json| [{"data":8}, {"data":7}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=data->0->0->>1::int&id=in.(3,4)" `shouldRespondWith`
+          [json| [{"data":null}, {"data":6}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can get array of objects" $ do
+        get "/json_arr?select=data->0->>a&id=in.(5,6)" `shouldRespondWith`
+          [json| [{"a":"A"}, {"a":"[1,2,3]"}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=data->0->a->>2&id=in.(5,6)" `shouldRespondWith`
+          [json| [{"a":null}, {"a":"3"}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can get array in object keys" $ do
+        get "/json_arr?select=data->c->>0::json&id=in.(7,8)" `shouldRespondWith`
+          [json| [{"c":1}, {"c":{"d": [4,5,6,7,8]}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=data->c->0->d->>4::int&id=in.(7,8)" `shouldRespondWith`
+          [json| [{"d":null}, {"d":8}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "only treats well formed numbers as indexes" $
+        get "/json_arr?select=data->0->0xy1->1->23-xy-45->1->xy-6->>0::int&id=eq.9" `shouldRespondWith`
+          [json| [{"xy-6":3}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
   context "filtering response" $ do
     it "can filter by properties inside json column" $ do
       get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
@@ -71,6 +109,20 @@ spec = describe "json and jsonb operators" $ do
       get "/grandchild_entities?or=(jsonb_col->a->>b.eq.foo, jsonb_col->>b.eq.bar)&select=id" `shouldRespondWith`
         [json|[{id: 4}, {id: 5}]|] { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
 
+    it "can filter by array indexes" $ do
+      get "/json_arr?select=data&data->>0=eq.1" `shouldRespondWith`
+        [json| [{"data":[1, 2, 3]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/json_arr?select=data&data->1->>2=eq.13" `shouldRespondWith`
+        [json| [{"data":[[9, 8, 7], [11, 12, 13]]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/json_arr?select=data&data->1->>b=eq.B" `shouldRespondWith`
+        [json| [{"data":[{"a": "A"}, {"b": "B"}]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/json_arr?select=data&data->1->b->>1=eq.5" `shouldRespondWith`
+        [json| [{"data":[{"a": [1,2,3]}, {"b": [4,5]}]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
   context "ordering response" $ do
     it "orders by a json column property asc" $
       get "/json?order=data->>id.asc" `shouldRespondWith`
@@ -82,7 +134,7 @@ spec = describe "json and jsonb operators" $ do
         [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-  context "Patching record, in a nonempty table" $ do
+  context "Patching record, in a nonempty table" $
     it "can set a json column to escaped value" $ do
       _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
       request methodPatch "/json?data->>escaped=eq.bar"

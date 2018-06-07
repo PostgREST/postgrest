@@ -1456,3 +1456,8 @@ create table "UnitTest"(
   "idUnitTest" integer primary key,
   "nameUnitTest" text
 );
+
+create table json_arr(
+  id integer primary key,
+  data pg_catalog.json
+);

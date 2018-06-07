@@ -34,6 +34,7 @@ import qualified Feature.ProxySpec
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.RpcSpec
 import qualified Feature.NonexistentSchemaSpec
+import qualified Feature.PgVersion95Spec
 import qualified Feature.PgVersion96Spec
 import qualified Feature.UpsertSpec
 
@@ -70,6 +71,7 @@ main = do
       actualPgVersion = pgVersion dbStructure
       extraSpecs =
         [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
+        [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95] ++
         [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
 
       specs = uncurry describe <$> [

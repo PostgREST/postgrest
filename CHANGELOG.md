@@ -7,11 +7,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #1099, Add support for getting json/jsonb by array index - @steve-chavez
+
 ### Fixed
 
 - #1113, Fix UPSERT failing when having a camel case PK column - @steve-chavez
 
 ### Changed
+
+- #1099, Numbers in json path `?select=data->1->>key` now get treated as json array indexes instead of keys - @steve-chavez
 
 ## [0.5.0.0] - 2018-05-14
 
