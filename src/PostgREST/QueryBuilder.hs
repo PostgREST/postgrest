@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE DuplicateRecordFields    #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
 Module      : PostgREST.QueryBuilder
 Description : PostgREST SQL generating functions.
@@ -394,8 +395,8 @@ pgFmtField :: QualifiedIdentifier -> Field -> SqlFragment
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
-pgFmtSelectItem table (f@(_, jp), Nothing, alias, _) = pgFmtField table f <> pgFmtAs jp alias
-pgFmtSelectItem table (f@(_, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs jp alias
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> pgFmtAs fName jp alias
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs fName jp alias
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SqlFragment
 pgFmtOrderTerm qi ot = unwords [
@@ -448,16 +449,25 @@ pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <>
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SqlFragment
-pgFmtJsonPath [] = ""
-pgFmtJsonPath [x] = "->>" <> pgFmtLit x
-pgFmtJsonPath (x:xs) = "->" <> pgFmtLit x <> pgFmtJsonPath xs
+pgFmtJsonPath = \case
+  []     -> ""
+  [x]    -> "->>" <> pgFmtJsonPathOp x
+  (x:xs) -> "->" <> pgFmtJsonPathOp x <> pgFmtJsonPath xs
+  where
+    pgFmtJsonPathOp (JKey k) = pgFmtLit k
+    pgFmtJsonPathOp (JIdx i) = pgFmtLit i <> "::int"
 
-pgFmtAs :: JsonPath -> Maybe Alias -> SqlFragment
-pgFmtAs [] Nothing = ""
-pgFmtAs jp Nothing = case lastMay jp of
-  Just alias -> " AS " <> pgFmtIdent alias
+pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SqlFragment
+pgFmtAs _ [] Nothing = ""
+pgFmtAs fName jp Nothing = case lastMay jp of
+  Just (JKey key) -> " AS " <> pgFmtIdent key
+  Just (JIdx _)   -> " AS " <> pgFmtIdent (fromMaybe fName lastKey)
+    -- We get the lastKey because on:
+    -- `select=data->1->mycol->>2`, we need to show the result as [ {"mycol": ..}, {"mycol": ..} ]
+    -- `select=data->3`, we need to show the result as [ {"data": ..}, {"data": ..} ]
+    where lastKey = jpOp <$> find (\case JKey{} -> True; _ -> False) (reverse jp)
   Nothing -> ""
-pgFmtAs _ (Just alias) = " AS " <> pgFmtIdent alias
+pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
 pgFmtEnvVar :: Text -> (Text, Text) -> SqlFragment
 pgFmtEnvVar prefix (k, v) =

@@ -80,11 +80,16 @@ pFieldName = do
     dash :: Parser Char
     dash = isDash *> pure '-'
 
-pJsonPathStep :: Parser Text
-pJsonPathStep = toS <$> try (string "->" *> pFieldName)
-
-pJsonPath :: Parser [Text]
-pJsonPath = (<>) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
+pJsonPath :: Parser JsonPath
+pJsonPath = (<>) <$> many pJsonPathOp <*> ( (:[]) <$> (string "->>" *> (try pJIdx <|> pJKey)) )
+  where
+    pJsonPathOp :: Parser JsonPathOp
+    pJsonPathOp = try (string "->" *> pJIdx) <|> try (string "->" *> pJKey)
+    pJKey = JKey . toS <$> pFieldName
+    pJIdx = JIdx . toS <$> ((:) <$> option '+' (char '-') <*> many1 digit) <* pEnd
+    pEnd = try (void $ lookAhead (string "->")) <|>
+           try (void $ lookAhead (string "::")) <|>
+           try eof
 
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> option [] pJsonPath

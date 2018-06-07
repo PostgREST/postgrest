@@ -414,3 +414,14 @@ copy (select id, name, client_id from projects) to '/tmp/projects_dump.csv' with
 
 TRUNCATE TABLE "UnitTest" CASCADE;
 INSERT INTO "UnitTest" VALUES (1, 'unit test 1');
+
+TRUNCATE TABLE json_arr CASCADE;
+INSERT INTO json_arr VALUES (1, '[1, 2, 3]');
+INSERT INTO json_arr VALUES (2, '[4, 5, 6]');
+INSERT INTO json_arr VALUES (3, '[[9, 8, 7], [11, 12, 13]]');
+INSERT INTO json_arr VALUES (4, '[[[5, 6], 7, 8]]');
+INSERT INTO json_arr VALUES (5, '[{"a": "A"}, {"b": "B"}]');
+INSERT INTO json_arr VALUES (6, '[{"a": [1,2,3]}, {"b": [4,5]}]');
+INSERT INTO json_arr VALUES (7, '{"c": [1,2,3], "d": [4,5]}');
+INSERT INTO json_arr VALUES (8, '{"c": [{"d": [4,5,6,7,8]}]}');
+INSERT INTO json_arr VALUES (9, '[{"0xy1": [1,{"23-xy-45": [2, {"xy-6": [3]}]}]}]');
