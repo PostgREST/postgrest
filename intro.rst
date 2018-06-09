@@ -94,6 +94,7 @@ In Production
 * `Catarse <https://www.catarse.me/>`_
 * `Redsmin <https://www.redsmin.com/>`_
 * `Image-charts <https://image-charts.com/>`_
+* `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
 * `Drip Depot <https://www.dripdepot.com/>`_
 * `OpenBooking <http://openbooking.ch>`_
 * `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
