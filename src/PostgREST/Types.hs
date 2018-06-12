@@ -238,12 +238,15 @@ instance Show LogicOperator where
 data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Show, Eq)
 
 type FieldName = Text
-type JsonPath = [JsonPathOp]
 {-|
-  Json path operands as specified in https://www.postgresql.org/docs/9.5/static/functions-json.html
-  the array index is Text because we reuse our escaping functons and let pg do the casting with '1'::int
+  Json path operations as specified in https://www.postgresql.org/docs/9.4/static/functions-json.html
 -}
-data JsonPathOp = JKey{jpOp :: Text} | JIdx{jpOp :: Text} deriving (Show, Eq)
+type JsonPath = [JsonOperation]
+-- | Represents the single arrow `->` or double arrow `->>` operators
+data JsonOperation = JArrow{jOp :: JsonOperand} | J2Arrow{jOp :: JsonOperand} deriving (Show, Eq)
+-- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text because we reuse our escaping functons and let pg do the casting with '1'::int
+data JsonOperand = JKey{jVal :: Text} | JIdx{jVal :: Text} deriving (Show, Eq)
+
 type Field = (FieldName, JsonPath)
 type Alias = Text
 type Cast = Text
