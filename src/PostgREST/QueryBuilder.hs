@@ -450,22 +450,22 @@ pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SqlFragment
 pgFmtJsonPath = \case
-  []     -> ""
-  [x]    -> "->>" <> pgFmtJsonPathOp x
-  (x:xs) -> "->" <> pgFmtJsonPathOp x <> pgFmtJsonPath xs
+  []             -> ""
+  (JArrow x:xs)  -> "->" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
+  (J2Arrow x:xs) -> "->>" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
   where
-    pgFmtJsonPathOp (JKey k) = pgFmtLit k
-    pgFmtJsonPathOp (JIdx i) = pgFmtLit i <> "::int"
+    pgFmtJsonOperand (JKey k) = pgFmtLit k
+    pgFmtJsonOperand (JIdx i) = pgFmtLit i <> "::int"
 
 pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SqlFragment
 pgFmtAs _ [] Nothing = ""
-pgFmtAs fName jp Nothing = case lastMay jp of
+pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Just (JKey key) -> " AS " <> pgFmtIdent key
   Just (JIdx _)   -> " AS " <> pgFmtIdent (fromMaybe fName lastKey)
     -- We get the lastKey because on:
     -- `select=data->1->mycol->>2`, we need to show the result as [ {"mycol": ..}, {"mycol": ..} ]
     -- `select=data->3`, we need to show the result as [ {"data": ..}, {"data": ..} ]
-    where lastKey = jpOp <$> find (\case JKey{} -> True; _ -> False) (reverse jp)
+    where lastKey = jVal <$> find (\case JKey{} -> True; _ -> False) (jOp <$> reverse jp)
   Nothing -> ""
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 

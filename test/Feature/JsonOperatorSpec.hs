@@ -48,6 +48,20 @@ spec = describe "json and jsonb operators" $ do
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
         { matchHeaders = [matchContentTypeJson] }
 
+    -- TODO the status code for the error is 404, this is because 42883 represents undefined function
+    -- this works fine for /rpc/unexistent requests, but for this case a 500 seems more appropriate
+    it "fails when a double arrow ->> is followed with a single arrow ->" $ do
+      get "/json_arr?select=data->>c->1"
+        `shouldRespondWith` [json|
+          {"hint":"No operator matches the given name and argument type(s). You might need to add explicit type casts.",
+           "details":null,"code":"42883","message":"operator does not exist: text -> integer"} |]
+        { matchStatus  = 404 , matchHeaders = [] }
+      get "/json_arr?select=data->>c->b"
+        `shouldRespondWith` [json|
+          {"hint":"No operator matches the given name and argument type(s). You might need to add explicit type casts.",
+           "details":null,"code":"42883","message":"operator does not exist: text -> unknown"} |]
+        { matchStatus  = 404 , matchHeaders = [] }
+
     context "with array index" $ do
       it "can get array of ints and alias/cast it" $ do
         get "/json_arr?select=data->>0::int&id=in.(1,2)" `shouldRespondWith`
@@ -84,6 +98,23 @@ spec = describe "json and jsonb operators" $ do
       it "only treats well formed numbers as indexes" $
         get "/json_arr?select=data->0->0xy1->1->23-xy-45->1->xy-6->>0::int&id=eq.9" `shouldRespondWith`
           [json| [{"xy-6":3}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+    context "finishing json path with single arrow ->" $ do
+      it "works when finishing with a key" $ do
+        get "/json_arr?select=data->c&id=in.(7,8)" `shouldRespondWith`
+          [json| [{"c":[1,2,3]}, {"c":[{"d": [4,5,6,7,8]}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=data->0->a&id=in.(5,6)" `shouldRespondWith`
+          [json| [{"a":"A"}, {"a":[1,2,3]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when finishing with an index" $ do
+        get "/json_arr?select=data->0->a&id=in.(5,6)" `shouldRespondWith`
+          [json| [{"a":"A"}, {"a":[1,2,3]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/json_arr?select=data->c->0->d&id=eq.8" `shouldRespondWith`
+          [json| [{"d":[4,5,6,7,8]}] |]
           { matchHeaders = [matchContentTypeJson] }
 
   context "filtering response" $ do
