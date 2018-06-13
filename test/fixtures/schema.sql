@@ -1461,3 +1461,8 @@ create table json_arr(
   id integer primary key,
   data pg_catalog.json
 );
+
+create table jsonb_test(
+  id integer primary key,
+  data jsonb
+);

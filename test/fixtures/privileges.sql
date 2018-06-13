@@ -81,6 +81,7 @@ GRANT ALL ON TABLE
     , projects_dump
     , "UnitTest"
     , json_arr
+    , jsonb_test
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

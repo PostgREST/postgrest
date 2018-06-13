@@ -154,6 +154,20 @@ spec = describe "json and jsonb operators" $ do
         [json| [{"data":[{"a": [1,2,3]}, {"b": [4,5]}]}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "can filter jsonb" $ do
+      get "/jsonb_test?data=eq.{\"e\":1}" `shouldRespondWith`
+        [json| [{"id":4,"data":{"e": 1}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/jsonb_test?data->a=eq.{\"b\":2}" `shouldRespondWith`
+        [json| [{"id":1,"data":{"a": {"b": 2}}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/jsonb_test?data->c=eq.[1,2,3]" `shouldRespondWith`
+        [json| [{"id":2,"data":{"c": [1, 2, 3]}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/jsonb_test?data->0=eq.{\"d\":\"test\"}" `shouldRespondWith`
+        [json| [{"id":3,"data":[{"d": "test"}]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
   context "ordering response" $ do
     it "orders by a json column property asc" $
       get "/json?order=data->>id.asc" `shouldRespondWith`
