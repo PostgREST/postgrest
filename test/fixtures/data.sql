@@ -425,3 +425,9 @@ INSERT INTO json_arr VALUES (6, '[{"a": [1,2,3]}, {"b": [4,5]}]');
 INSERT INTO json_arr VALUES (7, '{"c": [1,2,3], "d": [4,5]}');
 INSERT INTO json_arr VALUES (8, '{"c": [{"d": [4,5,6,7,8]}]}');
 INSERT INTO json_arr VALUES (9, '[{"0xy1": [1,{"23-xy-45": [2, {"xy-6": [3]}]}]}]');
+
+TRUNCATE TABLE jsonb_test CASCADE;
+INSERT INTO jsonb_test VALUES (1, '{ "a": {"b": 2} }');
+INSERT INTO jsonb_test VALUES (2, '{ "c": [1,2,3] }');
+INSERT INTO jsonb_test VALUES (3, '[{ "d": "test" }]');
+INSERT INTO jsonb_test VALUES (4, '{ "e": 1 }');
