@@ -251,6 +251,21 @@ To avoid having to install the database at all, you can run both it and the serv
 
 Go into the directory where you saved this file and run :code:`docker-compose up`. You will see the logs of both the database and PostgREST, and be able to access the latter on port 3000.
 
+If you want to have a visual overview of your API in your browser you can add swagger-ui to your :code:`docker-compose.yml`:
+
+.. code-block:: yaml
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    environment:
+      API_URL: http://localhost:3000/
+
+With this you can see the swagger-ui in your browser on port 8080.
+
 .. _build_source:
 
 Build from Source
