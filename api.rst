@@ -617,16 +617,31 @@ By default, a function is executed with the privileges of the user who calls it.
 Explicit Qualification
 ----------------------
 
-As of ``v5.0``, PostgREST executes a ``SET SCHEMA <db-schema>`` on each request, this overrides the `search_path <https://www.postgresql.org/docs/10/static/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ and it means that for functions to work properly, explicit qualification is needed for any database object that is not in the ``<db-schema>``. However, this can be cumbersome when working with extensions such as PostGIS, to avoid it, you can add a search path to the function:
+As of ``v5.0``, PostgREST executes a ``SET SCHEMA <your-exposed-schema>`` on each request, since this overrides the `search_path <https://www.postgresql.org/docs/10/static/ddl-schemas.html#DDL-SCHEMAS-PATH>`_, function bodies need qualified schema names for any database object that is not in your exposed schema.
 
 .. code-block:: plpgsql
 
-  CREATE FUNCTION api.line() RETURNS json AS $$
-    SELECT ST_AsGeoJSON('LINESTRING(1 2 3, 4 5 6)')::json;
-  $$ LANGUAGE sql SET search_path = public;
+  -- Assuming that:
+  -- exposed schema is "api"
+  -- ST_AsGeoJSON is in the "public" schema
+  -- streets is in the "api" schema
+  CREATE FUNCTION api.sample() RETURNS json AS $$
+    SELECT public.ST_AsGeoJSON(geom)::json FROM streets LIMIT 1;
+    -- Notice streets doesn't need the schema prefix while ST_AsGeoJSON does
+  $$ LANGUAGE sql;
+
+To avoid having to qualify many database objects, you can add a ``search_path`` to the function:
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION api.sample_distance() RETURNS float8 AS $$
+    SELECT ST_MakePoint(1, 1) <-> ST_MakePoint(10, 10);
+    -- If the search_path is not specified, this would have to be:
+    -- SELECT public.ST_MakePoint(1, 1) operator(public.<->) public.ST_MakePoint(10, 10);
+  $$ LANGUAGE sql SET search_path = public, api;
 
   -- existing functions can be altered to add a search_path
-  ALTER FUNCTION api.make_point() SET search_path = public;
+  ALTER FUNCTION api.make_point(float8, float8) SET search_path = public, api;
 
 Accessing Request Headers/Cookies
 ---------------------------------
