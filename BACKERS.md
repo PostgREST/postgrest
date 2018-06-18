@@ -5,6 +5,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 ## Lead Backers
 
 - [Christiaan Westerbeek](https://devotis.nl)
+- [Daniel Babiak](https://github.com/d-babiak)
 
 ## Backers
 
