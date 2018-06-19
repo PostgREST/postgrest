@@ -162,6 +162,26 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
     {"full_name": "Jane Doe", "salary": "120000.00"}
   ]
 
+You can specify a json path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/9.5/static/functions-json.html>`_.
+
+.. code-block:: http
+
+  GET /people?select=id,json_data->>blood_type,json_data->phones HTTP/1.1
+
+  [
+    { "id": 1, "blood_type": "A+", "phones": [{"country_code": "61", "number": "917-929-5745"}] },
+    { "id": 2, "blood_type": "O+", "phones": [{"country_code": "43", "number": "512-446-4988"}, {"country_code": "43", "number": "213-891-5979"}] }
+  ]
+
+.. code-block:: http
+
+  GET /people?select=id,json_data->phones->0->>number HTTP/1.1
+
+  [
+    { "id": 1, "number": "917-929-5745"},
+    { "id": 2, "number": "512-446-4988"}
+  ]
+
 .. _computed_cols:
 
 Computed Columns
