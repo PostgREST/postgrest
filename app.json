@@ -1,7 +1,7 @@
 {
   "name": "PostgREST",
   "description": "RESTful API for any PostgreSQL database.",
-  "logo": "https://halcyon.sh/logo.svg",
+  "logo": "https://avatars2.githubusercontent.com/u/15115011",
   "repository": "https://github.com/PostgREST/postgrest",
   "env": {
     "BUILDPACK_URL": {
@@ -13,7 +13,7 @@
       "value": "0.5.0.0"
     },
     "DB_URI": {
-      "description": "Database connection string",
+      "description": "Database connection string, e.g. postgres://user:pass@xxxxxxx.rds.amazonaws.com/mydb",
       "required": true
     },
     "DB_SCHEMA": {
