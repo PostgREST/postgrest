@@ -102,7 +102,7 @@ findProc qi payloadKeys paramsAsSingleObject allProcs =
              else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs x))
   ) <$> procs
 
-transactionMode :: Maybe ProcDescription -> Action -> H.Mode
+transactionMode :: Maybe ProcDescription -> Action -> HT.Mode
 transactionMode proc action =
   case action of
     ActionRead -> HT.Read
@@ -131,7 +131,7 @@ app dbStructure proc conf apiRequest =
             Right ((q, cq), bField) -> do
               let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount
                                             (contentType == CTTextCSV) bField
-              row <- H.query () stm
+              row <- H.statement () stm
               let (tableTotal, queryTotal, _ , body) = row
                   (status, contentRange) = rangeHeader queryTotal tableTotal
                   canonical = iCanonicalQS apiRequest
@@ -162,7 +162,7 @@ app dbStructure proc conf apiRequest =
                       stm = createWriteStatement sq mq
                         (contentType == CTSingularJSON) isSingle
                         (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
-                  row <- H.query (toS pjRaw) stm
+                  row <- H.statement (toS pjRaw) stm
                   let (_, _, fs, body) = extractQueryResult row
                       headers = catMaybes [
                           if null fs
@@ -191,7 +191,7 @@ app dbStructure proc conf apiRequest =
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
-              row <- H.query (toS pjRaw) stm
+              row <- H.statement (toS pjRaw) stm
               let (_, queryTotal, _, body) = extractQueryResult row
               if contentType == CTSingularJSON
                  && queryTotal /= 1
@@ -224,7 +224,7 @@ app dbStructure proc conf apiRequest =
               else if S.fromList colNames /= pjKeys
                 then return $ simpleError status400 [] "You must specify all columns in the payload when using PUT"
               else do
-                row <- H.query (toS pjRaw) $
+                row <- H.statement (toS pjRaw) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) []
                 let (_, queryTotal, _, body) = extractQueryResult row
@@ -248,7 +248,7 @@ app dbStructure proc conf apiRequest =
                     (contentType == CTSingularJSON) False
                     (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
-              row <- H.query mempty stm
+              row <- H.statement mempty stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
                         toInteger <$> if shouldCount then Just queryTotal else Nothing
@@ -287,7 +287,7 @@ app dbStructure proc conf apiRequest =
                                 PJArray _ -> False
                   singular = contentType == CTSingularJSON
                   specifiedPgArgs = filter ((`S.member` pjKeys) . pgaName) $ fromMaybe [] (pdArgs <$> proc)
-              row <- H.query (toS pjRaw) $
+              row <- H.statement (toS pjRaw) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
@@ -316,7 +316,7 @@ app dbStructure proc conf apiRequest =
               toTableInfo :: [Table] -> [(Table, [Column], [Text])]
               toTableInfo = map (\t -> let (s, tn) = (tableSchema t, tableName t) in (t, tableCols dbStructure s tn, tablePKCols dbStructure s tn))
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
-          body <- encodeApi <$> H.query schema accessibleTables <*> H.query schema schemaDescription <*> H.query schema accessibleProcs
+          body <- encodeApi <$> H.statement schema accessibleTables <*> H.statement schema schemaDescription <*> H.statement schema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
         _ -> return notFound
