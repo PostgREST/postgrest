@@ -62,9 +62,9 @@ library
                      , contravariant-extras
                      , either
                      , gitrev
-                     , hasql
-                     , hasql-pool
-                     , hasql-transaction < 0.6
+                     , hasql >= 1.3
+                     , hasql-pool >= 0.5
+                     , hasql-transaction >= 0.7
                      , heredoc
                      , HTTP
                      , http-types

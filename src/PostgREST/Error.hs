@@ -118,7 +118,10 @@ instance JSON.ToJSON P.UsageError where
     "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
-instance JSON.ToJSON H.Error where
+instance JSON.ToJSON H.QueryError where
+  toJSON (H.QueryError _ _ e) = JSON.toJSON e
+
+instance JSON.ToJSON H.CommandError where
   toJSON (H.ResultError (H.ServerError c m d h)) = case toS c of
     'P':'T':_ ->
       JSON.object [
@@ -154,7 +157,7 @@ instance JSON.ToJSON H.Error where
 
 httpStatus :: Bool -> P.UsageError -> HT.Status
 httpStatus _ (P.ConnectionError _) = HT.status503
-httpStatus authed (P.SessionError (H.ResultError (H.ServerError c m _ _))) =
+httpStatus authed (P.SessionError (H.QueryError _ _ (H.ResultError (H.ServerError c m _ _)))) =
   case toS c of
     '0':'8':_ -> HT.status503 -- pg connection err
     '0':'9':_ -> HT.status500 -- triggered action exception
@@ -184,5 +187,5 @@ httpStatus authed (P.SessionError (H.ResultError (H.ServerError c m _ _))) =
     "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
     'P':'T':n -> fromMaybe HT.status500 (HT.mkStatus <$> readMaybe n <*> pure m)
     _         -> HT.status400
-httpStatus _ (P.SessionError (H.ResultError _)) = HT.status500
-httpStatus _ (P.SessionError (H.ClientError _)) = HT.status503
+httpStatus _ (P.SessionError (H.QueryError _ _ (H.ResultError _))) = HT.status500
+httpStatus _ (P.SessionError (H.QueryError _ _ (H.ClientError _))) = HT.status503
