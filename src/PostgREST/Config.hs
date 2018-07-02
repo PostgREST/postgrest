@@ -19,12 +19,12 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , minimumPgVersion
+                        , pgVersion95
                         , pgVersion96
                         , AppConfig (..)
                         )
        where
 
-import           PostgREST.Types             (PgVersion(..))
 import           Control.Applicative
 import           Control.Monad                (fail)
 import           Control.Lens                 (preview)
@@ -51,6 +51,9 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
+import           PostgREST.Parsers            (pRoleClaimKey)
+import           PostgREST.Types              (PgVersion(..), ApiRequestError(..),
+                                               JSPath, JSPathExp(..))
 import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
 import           System.IO                    (hPrint)
@@ -76,6 +79,8 @@ data AppConfig = AppConfig {
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
+  , configSettings          :: [(Text, Text)]
+  , configRoleClaimKey      :: Either ApiRequestError JSPath
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -136,6 +141,8 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
+          <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
+          <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
 
   case mAppConf of
     Nothing -> do
@@ -145,6 +152,13 @@ readOptions = do
       return appConf
 
   where
+    parsedPairToTextPair :: (Name, Value) -> (Text, Text)
+    parsedPairToTextPair (k, v) = (k, newValue)
+      where
+        newValue = case v of
+          String textVal -> textVal
+          _ -> show v
+
     parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
       C.key k >>= \case
@@ -159,10 +173,14 @@ readOptions = do
     coerceInt (String x) = readMaybe $ toS x
     coerceInt _          = Nothing
 
-    coerceBool ::  Value -> Maybe Bool
+    coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
-    coerceBool (String x) = readMaybe $ toS x
+    coerceBool (String b) = readMaybe $ toS b
     coerceBool _          = Nothing
+
+    parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
+    parseRoleClaimKey (String s) = pRoleClaimKey s
+    parseRoleClaimKey v = pRoleClaimKey $ show v
 
     opts = info (helper <*> pathParser) $
              fullDesc
@@ -208,6 +226,9 @@ readOptions = do
           |
           |## stored proc to exec immediately after auth
           |# pre-request = "stored_proc_name"
+          |
+          |## jspath to the role claim key
+          |# role-claim-key = ".role"
           |]
 
 pathParser :: Parser FilePath
@@ -218,7 +239,10 @@ pathParser =
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90300 "9.3"
+minimumPgVersion = PgVersion 90400 "9.4"
 
 pgVersion96 :: PgVersion
 pgVersion96 = PgVersion 90600 "9.6"
+
+pgVersion95 :: PgVersion
+pgVersion95 = PgVersion 90500 "9.5"

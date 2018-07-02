@@ -39,6 +39,7 @@ apiRequestError err =
         NoRelationBetween _ _ -> HT.status400
         InvalidRange -> HT.status416
         UnknownRelation -> HT.status404
+        InvalidFilters -> HT.status405
 
 simpleError :: HT.Status -> [Header] -> Text -> Response
 simpleError status hdrs message =
@@ -107,6 +108,8 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not find foreign keys between these entities, No relation found between " <> parent <> " and " <> child :: Text)]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
+  toJSON InvalidFilters = JSON.object [
+    "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
 
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [

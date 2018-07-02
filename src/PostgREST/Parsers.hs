@@ -8,20 +8,21 @@ import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
 import           Data.Tree
 import           Data.Either.Combinators       (mapLeft)
-import           PostgREST.RangeQuery          (NonnegRange,allRange)
+import           PostgREST.RangeQuery          (NonnegRange)
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           Text.Parsec.Error
+import           Text.Read                     (read)
 
-pRequestSelect :: Text -> Text -> Either ApiRequestError ReadRequest
-pRequestSelect rootName selStr =
-  mapError $ parse (pReadRequest rootName) ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
+pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
+pRequestSelect selStr =
+  mapError $ parse pFieldForest ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
 
 pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
-    oper = parse (pOpExpr pSingleVal pListVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = parse (pOpExpr pSingleVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -53,38 +54,21 @@ ws = toS <$> many (oneOf " \t")
 lexeme :: Parser a -> Parser a
 lexeme p = ws *> p <* ws
 
-pReadRequest :: Text -> Parser ReadRequest
-pReadRequest rootNodeName = do
-  fieldTree <- pFieldForest
-  return $ foldr treeEntry (Node (readQuery, (rootNodeName, Nothing, Nothing, Nothing)) []) fieldTree
-  where
-    readQuery = Select [] [rootNodeName] [] Nothing allRange
-    treeEntry :: Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
-      case fldForest of
-        [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) newForest
-          where
-            newForest =
-              foldr treeEntry (Node (Select [] [fn] [] Nothing allRange, (fn, Nothing, alias, relationDetail)) []) fldForest:rForest
-
 pTreePath :: Parser (EmbedPath, Field)
 pTreePath = do
   p <- pFieldName `sepBy1` pDelimiter
-  jp <- optionMaybe pJsonPath
+  jp <- option [] pJsonPath
   return (init p, (last p, jp))
 
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
-
-pFieldTree :: Parser (Tree SelectItem)
-pFieldTree =  try (Node <$> pRelationSelect <*> between (char '{') (char '}') pFieldForest) -- TODO: "{}" deprecated
-          <|> try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest)
-          <|> Node <$> pFieldSelect <*> pure []
+  where
+    pFieldTree :: Parser (Tree SelectItem)
+    pFieldTree =  try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
+                  Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
 pStar = toS <$> (string "*" *> pure ("*"::ByteString))
-
 
 pFieldName :: Parser Text
 pFieldName = do
@@ -96,14 +80,26 @@ pFieldName = do
     dash :: Parser Char
     dash = isDash *> pure '-'
 
-pJsonPathStep :: Parser Text
-pJsonPathStep = toS <$> try (string "->" *> pFieldName)
+pJsonPath :: Parser JsonPath
+pJsonPath = many pJsonOperation
+  where
+    pJsonOperation :: Parser JsonOperation
+    pJsonOperation = pJsonArrow <*> pJsonOperand
 
-pJsonPath :: Parser [Text]
-pJsonPath = (<>) <$> many pJsonPathStep <*> ( (:[]) <$> (string "->>" *> pFieldName) )
+    pJsonArrow   =
+      try (string "->>" $> J2Arrow) <|>
+      try (string "->" $> JArrow)
+
+    pJsonOperand =
+      let pJKey = JKey . toS <$> pFieldName
+          pJIdx = JIdx . toS <$> ((:) <$> option '+' (char '-') <*> many1 digit) <* pEnd
+          pEnd = try (void $ lookAhead (string "->")) <|>
+                 try (void $ lookAhead (string "::")) <|>
+                 try eof in
+      try pJIdx <|> try pJKey
 
 pField :: Parser Field
-pField = lexeme $ (,) <$> pFieldName <*> optionMaybe pJsonPath
+pField = lexeme $ (,) <$> pFieldName <*> option [] pJsonPath
 
 aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
@@ -128,15 +124,15 @@ pFieldSelect = lexeme $
   )
   <|> do
     s <- pStar
-    return ((s, Nothing), Nothing, Nothing, Nothing)
+    return ((s, []), Nothing, Nothing, Nothing)
 
-pOpExpr :: Parser SingleVal -> Parser ListVal -> Parser OpExpr
-pOpExpr pSVal pLVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
+pOpExpr :: Parser SingleVal -> Parser OpExpr
+pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
     pOperation :: Parser Operation
     pOperation =
           Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
-      <|> In <$> (string "in" *> pDelimiter *> pLVal)
+      <|> In <$> (try (string "in" *> pDelimiter) *> pListVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
 
@@ -152,8 +148,7 @@ pSingleVal :: Parser SingleVal
 pSingleVal = toS <$> many anyChar
 
 pListVal :: Parser ListVal
-pListVal =    try (lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')'))
-          <|> lexeme pListElement `sepBy1` char ',' -- TODO: "in.3,4,5" deprecated, parens e.g. "in.(3,4,5)" should be used
+pListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pListElement :: Parser Text
 pListElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
@@ -165,30 +160,29 @@ pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
 pOrder :: Parser [OrderTerm]
-pOrder = lexeme pOrderTerm `sepBy` char ','
+pOrder = lexeme pOrderTerm `sepBy1` char ','
 
 pOrderTerm :: Parser OrderTerm
-pOrderTerm =
-  try ( do
-    c <- pField
-    d <- optionMaybe (try $ pDelimiter *> (
-               try(string "asc" *> pure OrderAsc)
-           <|> try(string "desc" *> pure OrderDesc)
-         ))
-    nls <- optionMaybe (pDelimiter *> (
-                 try(string "nullslast" *> pure OrderNullsLast)
-             <|> try(string "nullsfirst" *> pure OrderNullsFirst)
-           ))
-    return $ OrderTerm c d nls
-  )
-  <|> OrderTerm <$> pField <*> pure Nothing <*> pure Nothing
+pOrderTerm = do
+  fld <- pField
+  dir <- optionMaybe $
+         try (pDelimiter *> string "asc" $> OrderAsc) <|>
+         try (pDelimiter *> string "desc" $> OrderDesc)
+  nls <- optionMaybe pNulls <* pEnd <|>
+         pEnd $> Nothing
+  return $ OrderTerm fld dir nls
+  where
+    pNulls = try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst) <|>
+             try (pDelimiter *> string "nullslast"  $> OrderNullsLast)
+    pEnd = try (void $ lookAhead (char ',')) <|>
+           try eof
 
 pLogicTree :: Parser LogicTree
 pLogicTree = Stmnt <$> try pLogicFilter
              <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
-    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal pLogicListVal
+    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
     pNot :: Parser Bool
     pNot = try (string "not" *> pDelimiter *> pure True)
            <|> pure False
@@ -201,16 +195,12 @@ pLogicTree = Stmnt <$> try pLogicFilter
 pLogicSingleVal :: Parser SingleVal
 pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
-    -- TODO: "{}" deprecated, after removal pPgArray can be removed
     pPgArray :: Parser Text
     pPgArray =  do
       a <- string "{"
       b <- many (noneOf "{}")
       c <- string "}"
       toS <$> pure (a ++ b ++ c)
-
-pLogicListVal :: Parser ListVal
-pLogicListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
@@ -228,3 +218,25 @@ mapError = mapLeft translateError
         message = show $ errorPos e
         details = strip $ replace "\n" " " $ toS
            $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+
+-- Used for the config value "role-claim-key"
+pRoleClaimKey :: Text -> Either ApiRequestError JSPath
+pRoleClaimKey selStr =
+  mapError $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
+
+pJSPath :: Parser JSPath
+pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
+  where
+    toJSPath :: [(Text, Maybe Int)] -> JSPath
+    toJSPath = concatMap (\(key, idx) -> JSPKey key : maybeToList (JSPIdx <$> idx))
+    period = char '.' <?> "period (.)"
+    pPath :: Parser (Text, Maybe Int)
+    pPath = (,) <$> pJSPKey <*> optionMaybe pJSPIdx
+
+pJSPKey :: Parser Text
+pJSPKey = toS <$> (many1 (alphaNum <|> oneOf "_$@") <|> pQuoted) <?> "attribute name [a..z0..9_$@])"
+  where
+    pQuoted = char '"' *> many (noneOf "\"") <* char '"'
+
+pJSPIdx :: Parser Int
+pJSPIdx = char '[' *> (read <$> many1 digit) <* char ']' <?> "array index [0..n]"

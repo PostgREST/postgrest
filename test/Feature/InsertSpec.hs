@@ -49,9 +49,15 @@ spec = do
           , matchHeaders = [matchContentTypeJson]
           }
 
+    context "non uniform json array" $ do
+      it "rejects json array that isn't exclusivily composed of objects" $
+        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |] `shouldRespondWith` 400
+      it "rejects json array that has objects with different keys" $
+        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |] `shouldRespondWith` 400
+
     context "requesting full representation" $ do
       it "includes related data after insert" $
-        request methodPost "/projects?select=id,name,clients{id,name}"
+        request methodPost "/projects?select=id,name,clients(id,name)"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
@@ -383,16 +389,6 @@ spec = do
         get "/no_pk?a=eq.keepme" `shouldRespondWith`
           [json| [{ a: "keepme", b: null }] |]
           { matchHeaders = [matchContentTypeJson] }
-
-      it "can set a json column to escaped value" $ do
-        _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
-        request methodPatch "/json?data->>escaped=eq.bar"
-                     [("Prefer", "return=representation")]
-                     [json| { "data": { "escaped":" \"bar" } } |]
-          `shouldRespondWith` [json| [{ "data": { "escaped":" \"bar" } }] |]
-          { matchStatus  = 200
-          , matchHeaders = []
-          }
 
       it "can update based on a computed column" $
         request methodPatch

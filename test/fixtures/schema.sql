@@ -631,6 +631,9 @@ CREATE TABLE no_pk (
     b character varying
 );
 
+CREATE TABLE only_pk (
+    id integer primary key
+);
 
 --
 -- Name: nullable_integer; Type: TABLE; Schema: test; Owner: -
@@ -1351,4 +1354,115 @@ create table test.leak(
   blob bytea
 );
 
-CREATE FUNCTION test.leak(blob bytea) RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;
+create function test.leak(blob bytea) returns void as $$ begin end; $$ language plpgsql;
+
+create table test.perf_articles(
+  id integer not null,
+  body text not null
+);
+
+create table test.employees(
+  first_name text,
+  last_name text,
+  salary money,
+  company text,
+  occupation text,
+  primary key(first_name, last_name)
+);
+
+create table test.tiobe_pls(
+  name text primary key,
+  rank smallint
+);
+
+create table test.family_tree (
+  id text not null primary key,
+  name text not null,
+  parent text
+);
+alter table only test.family_tree add constraint pptr foreign key (parent) references test.family_tree(id);
+
+create table test.organizations (
+  id integer primary key,
+  name text,
+  referee integer,
+  auditor integer
+);
+alter table only test.organizations add constraint pptr1 foreign key (referee) references test.organizations(id);
+alter table only test.organizations add constraint pptr2 foreign key (auditor) references test.organizations(id);
+
+create table private.authors(
+  id integer primary key,
+  name text
+);
+
+create table private.books(
+  id integer primary key,
+  title text,
+  publication_year smallint,
+  author_id integer references private.authors(id)
+);
+
+create view test.authors as select id, name from private.authors;
+
+create view test.books as select id, title, publication_year, author_id from private.books;
+create view test.forties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1940 and publication_year < 1950;
+create view test.fifties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1950 and publication_year < 1960;
+create view test.sixties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1960 and publication_year < 1970;
+
+create table person (
+  id integer primary key,
+  name character varying not null);
+
+create table message (
+  id integer primary key,
+  body text not null default '',
+  sender bigint not null references person(id),
+  recipient bigint not null references person(id));
+
+create view person_detail as
+  select p.id, p.name, s.count as sent, r.count as received
+  from person p
+  join lateral (select message.sender, count(message.id) as count from message group by message.sender) s on s.sender = p.id
+  join lateral (select message.recipient, count(message.id) as count from message group by message.recipient) r on r.recipient = p.id;
+
+create table space(
+  id integer primary key,
+  name text);
+
+create table zone(
+  id integer primary key,
+  name text,
+  zone_type_id integer,
+  space_id integer references space(id));
+
+-- foreign table tests
+create extension file_fdw;
+
+create server import_csv foreign data wrapper file_fdw;
+
+create foreign table projects_dump (
+  id integer,
+  name text,
+  client_id integer
+) server import_csv options ( filename '/tmp/projects_dump.csv', format 'csv');
+
+comment on foreign table projects_dump is
+$$A temporary projects dump
+
+Just a test for foreign tables$$;
+
+create table "UnitTest"(
+  "idUnitTest" integer primary key,
+  "nameUnitTest" text
+);
+
+create table json_arr(
+  id integer primary key,
+  data pg_catalog.json
+);
+
+create table jsonb_test(
+  id integer primary key,
+  data jsonb
+);

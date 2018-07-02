@@ -62,6 +62,26 @@ GRANT ALL ON TABLE
     , being_part
     , part
     , leak
+    , perf_articles
+    , employees
+    , tiobe_pls
+    , only_pk
+    , family_tree
+    , organizations
+    , authors
+    , books
+    , forties_books
+    , fifties_books
+    , sixties_books
+    , person
+    , message
+    , person_detail
+    , space
+    , zone
+    , projects_dump
+    , "UnitTest"
+    , json_arr
+    , jsonb_test
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

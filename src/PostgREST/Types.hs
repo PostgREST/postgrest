@@ -23,7 +23,13 @@ data ApiRequestError = ActionInappropriate
                      | UnknownRelation
                      | NoRelationBetween Text Text
                      | UnsupportedVerb
+                     | InvalidFilters
                      deriving (Show, Eq)
+
+data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
+instance Show PreferResolution where
+  show MergeDuplicates  = "resolution=merge-duplicates"
+  show IgnoreDuplicates = "resolution=ignore-duplicates"
 
 data DbStructure = DbStructure {
   dbTables      :: [Table]
@@ -34,6 +40,14 @@ data DbStructure = DbStructure {
 , dbProcs       :: M.HashMap Text [ProcDescription]
 , pgVersion     :: PgVersion
 } deriving (Show, Eq)
+
+-- TODO Table could hold references to all its Columns
+tableCols :: DbStructure -> Schema -> TableName -> [Column]
+tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
+
+-- TODO Table could hold references to all its PrimaryKeys
+tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
+tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
 
 data PgArg = PgArg {
   pgaName :: Text
@@ -93,7 +107,9 @@ data Column =
     , colFK          :: Maybe ForeignKey
     } deriving (Show, Ord)
 
-type Synonym = (Column,Column)
+-- | A view column that refers to a table column
+type Synonym = (Column, ViewColumn)
+type ViewColumn = Column
 
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
@@ -102,13 +118,13 @@ data PrimaryKey = PrimaryKey {
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
-  show OrderAsc  = "asc"
-  show OrderDesc = "desc"
+  show OrderAsc  = "ASC"
+  show OrderDesc = "DESC"
 
 data OrderNulls = OrderNullsFirst | OrderNullsLast deriving (Eq)
 instance Show OrderNulls where
-  show OrderNullsFirst = "nulls first"
-  show OrderNullsLast  = "nulls last"
+  show OrderNullsFirst = "NULLS FIRST"
+  show OrderNullsLast  = "NULLS LAST"
 
 data OrderTerm = OrderTerm {
   otTerm      :: Field
@@ -135,9 +151,10 @@ data Relation = Relation {
 , relFTable   :: Table
 , relFColumns :: [Column]
 , relType     :: RelationType
-, relLTable   :: Maybe Table
-, relLCols1   :: Maybe [Column]
-, relLCols2   :: Maybe [Column]
+-- The Link attrs are used when RelationType == Many
+, relLinkTable   :: Maybe Table
+, relLinkCols1   :: Maybe [Column]
+, relLinkCols2   :: Maybe [Column]
 } deriving (Show, Eq)
 
 -- | Cached attributes of a JSON payload
@@ -185,14 +202,10 @@ operators = M.union (M.fromList [
   ("sr", ">>"),
   ("nxr", "&<"),
   ("nxl", "&>"),
-  ("adj", "-|-"),
-  -- TODO: these are deprecated and should be removed in v0.5.0.0
-  ("@>", "@>"),
-  ("<@", "<@")]) ftsOperators
+  ("adj", "-|-")]) ftsOperators
 
 ftsOperators :: M.HashMap Operator SqlFragment
 ftsOperators = M.fromList [
-  ("@@", "@@ to_tsquery"), -- TODO: '@@' deprecated
   ("fts", "@@ to_tsquery"),
   ("plfts", "@@ plainto_tsquery"),
   ("phfts", "@@ phraseto_tsquery")
@@ -201,8 +214,7 @@ ftsOperators = M.fromList [
 data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
 data Operation = Op Operator SingleVal |
                  In ListVal |
-                 Fts Operator (Maybe Language) SingleVal |
-                 Join QualifiedIdentifier ForeignKey deriving (Eq, Show)
+                 Fts Operator (Maybe Language) SingleVal deriving (Eq, Show)
 type Language = Text
 
 -- | Represents a single value in a filter, e.g. id=eq.singleval
@@ -226,8 +238,16 @@ instance Show LogicOperator where
 data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Show, Eq)
 
 type FieldName = Text
-type JsonPath = [Text]
-type Field = (FieldName, Maybe JsonPath)
+{-|
+  Json path operations as specified in https://www.postgresql.org/docs/9.4/static/functions-json.html
+-}
+type JsonPath = [JsonOperation]
+-- | Represents the single arrow `->` or double arrow `->>` operators
+data JsonOperation = JArrow{jOp :: JsonOperand} | J2Arrow{jOp :: JsonOperand} deriving (Show, Eq)
+-- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text because we reuse our escaping functons and let pg do the casting with '1'::int
+data JsonOperand = JKey{jVal :: Text} | JIdx{jVal :: Text} deriving (Show, Eq)
+
+type Field = (FieldName, JsonPath)
 type Alias = Text
 type Cast = Text
 type NodeName = Text
@@ -260,13 +280,17 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
+data JoinCondition = JoinCondition (QualifiedIdentifier, Maybe Alias, FieldName)
+                                   (QualifiedIdentifier, Maybe Alias, FieldName) deriving (Show, Eq)
 
-data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], order::Maybe [OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, qPayload::PayloadJSON, returning::[FieldName] }
+data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], joinConditions::[JoinCondition], order::[OrderTerm], range_::NonnegRange } deriving (Show, Eq)
+data MutateQuery = Insert { in_::TableName, insPkCols::[Text], qPayload::PayloadJSON, onConflict:: Maybe PreferResolution, where_::[LogicTree], returning::[FieldName] }
                  | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
                  | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
 type ReadRequest = Tree ReadNode
+-- Depth of the ReadRequest tree
+type Depth = Integer
 type MutateRequest = MutateQuery
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 
@@ -297,3 +321,8 @@ data PgVersion = PgVersion {
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
+
+-- | full jspath, e.g. .property[0].attr.detail
+type JSPath = [JSPathExp]
+-- | jspath expression, e.g. .property, .property[0] or ."property-dash"
+data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)

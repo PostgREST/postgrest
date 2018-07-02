@@ -111,24 +111,24 @@ spec =
 
     context "foreign entities embedding" $ do
       it "can embed if related tables are in the exposed schema" $ do
-        post "/rpc/getproject?select=id,name,client{id},tasks{id}" [json| { "id": 1} |] `shouldRespondWith`
+        post "/rpc/getproject?select=id,name,client(id),tasks(id)" [json| { "id": 1} |] `shouldRespondWith`
           [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/getproject?id=1&select=id,name,client{id},tasks{id}" `shouldRespondWith`
+        get "/rpc/getproject?id=1&select=id,name,client(id),tasks(id)" `shouldRespondWith`
           [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
       it "cannot embed if the related table is not in the exposed schema" $ do
-        post "/rpc/single_article?select=*,article_stars{*}" [json|{ "id": 1}|]
+        post "/rpc/single_article?select=*,article_stars(*)" [json|{ "id": 1}|]
           `shouldRespondWith` 400
-        get "/rpc/single_article?id=1&select=*,article_stars{*}"
+        get "/rpc/single_article?id=1&select=*,article_stars(*)"
           `shouldRespondWith` 400
 
       it "can embed if the related tables are in a hidden schema but exposed as views" $ do
-        post "/rpc/single_article?select=id,articleStars{userId}" [json|{ "id": 2}|]
+        post "/rpc/single_article?select=id,articleStars(userId)" [json|{ "id": 2}|]
           `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/single_article?id=2&select=id,articleStars{userId}"
+        get "/rpc/single_article?id=2&select=id,articleStars(userId)"
           `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -359,12 +359,5 @@ spec =
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
         get "/rpc/get_tsearch?text_search_vector=not.fts(english).fun%7Crat" `shouldRespondWith`
-          [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        -- TODO: '@@' deprecated
-        get "/rpc/get_tsearch?text_search_vector=@@(english).impossible" `shouldRespondWith`
-          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=not.@@(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }

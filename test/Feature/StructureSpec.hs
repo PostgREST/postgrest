@@ -29,12 +29,12 @@ spec = do
               (acceptHdrs "application/openapi+json") ""
         `shouldRespondWith` 415
 
-    it "includes postgrest.com current version api docs" $ do
+    it "includes postgrest.org current version api docs" $ do
       r <- simpleBody <$> get "/"
 
       let docsUrl = r ^? key "externalDocs" . key "url"
 
-      liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.com/en/" <> docsVersion <> "/api.html"))
+      liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
 
     describe "table" $ do
 
@@ -130,6 +130,38 @@ spec = do
                       . key "post"  . key "tags"
                       . nth 0
         liftIO $ tableTag `shouldBe` Just [aesonQQ|"authors_only"|]
+
+    describe "Foreign table" $
+
+      it "includes foreign table properties" $ do
+        r <- simpleBody <$> get "/"
+
+        let method s = key "paths" . key "/projects_dump" . key s
+            getSummary = r ^? method "get" . key "summary"
+            getDescription = r ^? method "get" . key "description"
+            getParameters = r ^? method "get" . key "parameters"
+
+        liftIO $ do
+
+          getSummary `shouldBe` Just "A temporary projects dump"
+
+          getDescription `shouldBe` Just "Just a test for foreign tables"
+
+          getParameters `shouldBe` Just
+            [aesonQQ|
+              [
+                { "$ref": "#/parameters/rowFilter.projects_dump.id" },
+                { "$ref": "#/parameters/rowFilter.projects_dump.name" },
+                { "$ref": "#/parameters/rowFilter.projects_dump.client_id" },
+                { "$ref": "#/parameters/select" },
+                { "$ref": "#/parameters/order" },
+                { "$ref": "#/parameters/range" },
+                { "$ref": "#/parameters/rangeUnit" },
+                { "$ref": "#/parameters/offset" },
+                { "$ref": "#/parameters/limit" },
+                { "$ref": "#/parameters/preferCount" }
+              ]
+            |]
 
     describe "RPC" $ do
 

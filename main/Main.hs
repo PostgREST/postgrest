@@ -7,12 +7,16 @@ import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
                                            minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion,
+                                           fillSessionWithSettings)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
 import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
 import           Protolude                hiding (hPutStrLn, replace)
 
+
+import           Control.AutoUpdate       (defaultUpdateSettings,
+                                           mkAutoUpdate, updateAction)
 import           Control.Retry            (RetryStatus, capDelay,
                                            exponentialBackoff,
                                            retrying, rsPreviousDelay)
@@ -24,6 +28,7 @@ import           Data.String              (IsString (..))
 import           Data.Text                (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import           Data.Text.IO             (hPutStrLn)
+import           Data.Time.Clock          (getCurrentTime)
 import qualified Hasql.Pool               as P
 import qualified Hasql.Session            as H
 import           Network.Wai.Handler.Warp (defaultSettings,
@@ -32,6 +37,7 @@ import           Network.Wai.Handler.Warp (defaultSettings,
                                            setTimeout)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
+
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
@@ -58,10 +64,11 @@ connectionWorker
   :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
+  -> [(Text, Text)] -- ^ Settings or Environment passed in through the config
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -79,6 +86,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
+          fillSessionWithSettings settings
           dbStructure <- getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
@@ -140,18 +148,23 @@ main = do
       port = configPort conf
       proxy = configProxyUri conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
+      roleClaimKey = configRoleClaimKey conf
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
         . setServerName (toS $ "postgrest/" <> prettyVersion)
         . setTimeout 3600 $
         defaultSettings
-  --
-  -- Checks that the provided proxy uri is formated correctly,
-  -- does not test if it works here.
+
+  -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> proxy) $
     panic
       "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
+
+  -- Checks that the provided jspath is valid
+  when (isLeft roleClaimKey) $
+    panic $ show roleClaimKey
+
   putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
   --
   -- create connection pool with the provided settings, returns either
@@ -173,6 +186,7 @@ main = do
     mainTid
     pool
     (configSchema conf)
+    (configSettings conf)
     refDbStructure
     refIsWorkerOn
   --
@@ -195,22 +209,28 @@ main = do
               mainTid
               pool
               (configSchema conf)
+              (configSettings conf)
               refDbStructure
               refIsWorkerOn
     ) Nothing
 #endif
 
-  --
+
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
+
   -- run the postgrest application
   runSettings appSettings $
     postgrest
       conf
       refDbStructure
       pool
+      getTime
       (connectionWorker
          mainTid
          pool
          (configSchema conf)
+         (configSettings conf)
          refDbStructure
          refIsWorkerOn)
 

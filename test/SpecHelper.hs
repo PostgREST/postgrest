@@ -17,6 +17,7 @@ import           System.Process (readProcess)
 import           Text.Heredoc
 
 import PostgREST.Config (AppConfig(..))
+import PostgREST.Types  (JSPathExp(..))
 
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
@@ -73,6 +74,11 @@ _baseCfg =  -- Connection Settings
             10 Nothing (Just "test.switch_role")
             -- Debug Settings
             True
+            [ ("app.settings.app_host", "localhost")
+            , ("app.settings.external_api_secret", "0123456789abcdef")
+            ]
+            -- Default role claim key
+            (Right [JSPKey "role"])
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }

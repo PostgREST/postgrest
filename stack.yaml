@@ -5,10 +5,11 @@ extra-deps:
   - hjsonpointer-1.1.1
   - hjsonschema-1.5.0.1
   - Ranged-sets-0.3.0
-  - protolude-0.2
+  - protolude-0.2.2
   - hasql-1.1
   - hasql-pool-0.4.3
   - hasql-transaction-0.5.2
+  - jose-0.7.0.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:

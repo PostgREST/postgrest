@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
@@ -41,10 +42,10 @@ import           Web.Cookie                (parseCookiesText)
 type RequestBody = BL.ByteString
 
 -- | Types of things a user wants to do to tables/views/procs
-data Action = ActionCreate | ActionRead
-            | ActionUpdate | ActionDelete
-            | ActionInfo   | ActionInvoke{isReadOnly :: Bool}
-            | ActionInspect
+data Action = ActionCreate  | ActionRead
+            | ActionUpdate  | ActionDelete
+            | ActionInfo    | ActionInvoke{isReadOnly :: Bool}
+            | ActionInspect | ActionSingleUpsert
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
@@ -54,7 +55,7 @@ data Target = TargetIdent QualifiedIdentifier
             deriving Eq
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
-                          --
+
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
@@ -79,6 +80,8 @@ data ApiRequest = ApiRequest {
   , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
   , iPreferCount :: Bool
+  -- | Whether the client wants to UPSERT or ignore records on PK conflict
+  , iPreferResolution :: Maybe PreferResolution
   -- | Filters on the result ("id", "eq.10")
   , iFilters :: [(Text, Text)]
   -- | &and and &or parameters used for complex boolean logic
@@ -102,7 +105,7 @@ userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError Api
 userApiRequest schema req reqBody
   | isTargetingProc && method `notElem` ["GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
-  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) undefined payload
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | otherwise = Right ApiRequest {
       iAction = action
       , iTarget = target
@@ -113,6 +116,9 @@ userApiRequest schema req reqBody
       , iPreferRepresentation = representation
       , iPreferSingleObjectParameter = singleObject
       , iPreferCount = hasPrefer "count=exact"
+      , iPreferResolution = if hasPrefer (show MergeDuplicates) then Just MergeDuplicates
+                            else if hasPrefer (show IgnoreDuplicates) then Just IgnoreDuplicates
+                            else Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
@@ -167,6 +173,7 @@ userApiRequest schema req reqBody
                     then ActionInvoke{isReadOnly=False}
                     else ActionCreate
       "PATCH"   -> ActionUpdate
+      "PUT"     -> ActionSingleUpsert
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect
@@ -177,7 +184,7 @@ userApiRequest schema req reqBody
               ["rpc", proc] -> TargetProc
                               $ QualifiedIdentifier schema proc
               other         -> TargetUnknown other
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
   relevantPayload | shouldParsePayload = rightToMaybe payload
                   | otherwise = Nothing
   path            = pathInfo req
@@ -278,21 +285,21 @@ payloadAttributes raw json =
   -- Test that Array contains only Objects having the same keys
   case json of
     JSON.Array arr ->
-      let objs :: V.Vector JSON.Object
-          objs = foldr -- filter non-objects, map to raw objects
-                   (\val result -> case val of
-                      JSON.Object o -> V.cons o result
-                      _ -> result)
-                   V.empty arr
-          keysPerObj = V.map (S.fromList . M.keys) objs
-          canonicalKeys = fromMaybe S.empty $ keysPerObj V.!? 0
-          areKeysUniform = all (==canonicalKeys) keysPerObj
-          arrLength = V.length arr in
-      if (V.length objs == arrLength) && areKeysUniform
-        then Just $ PayloadJSON raw (PJArray arrLength) canonicalKeys
-        else Nothing
+      case arr V.!? 0 of
+        Just (JSON.Object o) ->
+          let canonicalKeys = S.fromList $ M.keys o
+              areKeysUniform = all (\case
+                JSON.Object x -> S.fromList (M.keys x) == canonicalKeys
+                _ -> False) arr in
+          if areKeysUniform
+            then Just $ PayloadJSON raw (PJArray $ V.length arr) canonicalKeys
+            else Nothing
+        Just _ -> Nothing
+        Nothing -> Just emptyPJArray
 
     JSON.Object o -> Just $ PayloadJSON raw PJObject (S.fromList $ M.keys o)
 
     -- truncate everything else to an empty array.
-    _ -> Just $ PayloadJSON (JSON.encode emptyArray) (PJArray 0) S.empty
+    _ -> Just emptyPJArray
+  where
+    emptyPJArray = PayloadJSON (JSON.encode emptyArray) (PJArray 0) S.empty

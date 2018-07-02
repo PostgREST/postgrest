@@ -51,18 +51,7 @@ your contributions.
 source](https://postgrest.com/en/stable/install.html#build-from-source)
 wiki page.
 
-## Maintenance
-
-### Schedule
-
-Currently I (@begriffs) am the sole maintainer, and while I am
-overjoyed to help resolve issues I also have to balance this with
-my other obligations.  If you don't get a response right away
-don't worry, I will definitely get to it. Also you can join the
-Gitter [chat room](https://gitter.im/begriffs/postgrest) to
-discuss issues you are having.
-
-## Running Tests
+### Running Tests
 
 For instructions on running tests, see the official docs hosted here:
 

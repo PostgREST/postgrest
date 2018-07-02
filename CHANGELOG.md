@@ -7,16 +7,47 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #1099, Add support for getting json/jsonb by array index - @steve-chavez
+
+### Fixed
+
+- #1113, Fix UPSERT failing when having a camel case PK column - @steve-chavez
+
+### Changed
+
+- #1099, Numbers in json path `?select=data->1->>key` now get treated as json array indexes instead of keys - @steve-chavez
+- #1128, Allow finishing a json path with a single arrow `->`. Now a json can be obtained without resorting to casting, Previously: `/json_arr?select=data->>2::json`, now: `/json_arr?select=data->2` - @steve-chavez
+
+## [0.5.0.0] - 2018-05-14
+
+### Added
+
+- The configuration (e.g. `postgrest.conf`) now accepts arbitrary settings that will be passed through as session-local database settings. This can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: `app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take `MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as `current_setting('app.settings.jwt_secret')`. Only `app.settings.*` values in the configuration file are treated in this way. - @canadaduane
+- #256, Add support for bulk UPSERT with POST and single UPSERT with PUT - @steve-chavez
+- #1078, Add ability to specify source column in embed - @steve-chavez
+- #821, Allow embeds alias to be used in filters - @steve-chavez
+- #906, Add jspath configurable `role-claim-key` - @steve-chavez
+- #1061, Add foreign tables to OpenAPI output - @rhyamada
+
 ### Fixed
 
 - #828, Fix computed column only working in public schema - @steve-chavez
 - #925, Fix RPC high memory usage by using parametrized query and avoiding json encoding - @steve-chavez
+- #987, Fix embedding with self-reference foreign key - @steve-chavez
+- #1044, Fix view parent embedding when having many views - @steve-chavez
+- #781, Fix accepting misspelled desc/asc ordering modificators - @onporat, @steve-chavez
 
 ### Changed
 
-- Computed columns now only work if they belong to the db-schema - @steve-chavez
+- #828, A `SET SCHEMA <db-schema>` is done on each request, this has the following implications:
+  - Computed columns now only work if they belong to the db-schema
+  - Stored procedures might require a `search_path` to work properly, for further details see https://postgrest.org/en/v5.0/api.html#explicit-qualification
 - To use RPC now the `json_to_record/json_to_recordset` functions are needed, these are available starting from PostgreSQL 9.4 - @steve-chavez
 - Overloaded functions now depend on the `dbStructure`, restart/sighup may be needed for their correct functioning - @steve-chavez
+- #1098, Removed support for:
+  + curly braces `{}` in embeds, i.e. `/clients?select=*,projects{*}` can no longer be used, from now on parens `()` should be used `/clients?select=*,projects(*)` - @steve-chavez
+  + "in" operator without parens, i.e. `/clients?id=in.1,2,3` no longer supported, `/clients?id=in.(1,2,3)` should be used - @steve-chavez
+  + "@@", "@>" and "<@" operators, from now on their mnemonic equivalents should be used "fts", "cs" and "cd" respectively - @steve-chavez
 
 ## [0.4.4.0] - 2018-01-08
 

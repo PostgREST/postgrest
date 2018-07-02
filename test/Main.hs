@@ -6,11 +6,13 @@ import SpecHelper
 import qualified Hasql.Pool as P
 
 import PostgREST.App (postgrest)
-import PostgREST.Config (pgVersion96)
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Config (pgVersion95, pgVersion96, configSettings)
+import PostgREST.DbStructure (getDbStructure, getPgVersion, fillSessionWithSettings)
 import PostgREST.Types (DbStructure(..))
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Data.Function (id)
 import Data.IORef
+import Data.Time.Clock (getCurrentTime)
 
 import qualified Feature.AuthSpec
 import qualified Feature.AsymmetricJwtSpec
@@ -20,6 +22,7 @@ import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.InsertSpec
+import qualified Feature.JsonOperatorSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
@@ -31,7 +34,9 @@ import qualified Feature.ProxySpec
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.RpcSpec
 import qualified Feature.NonexistentSchemaSpec
+import qualified Feature.PgVersion95Spec
 import qualified Feature.PgVersion96Spec
+import qualified Feature.UpsertSpec
 
 import Protolude
 
@@ -46,22 +51,28 @@ main = do
 
   dbStructure <- pure $ either (panic.show) id result
 
+  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+
   refDbStructure <- newIORef $ Just dbStructure
 
-  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool $ pure ()
-      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool $ pure ()
-      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool $ pure ()
-      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool $ pure ()
-      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool $ pure ()
-      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool $ pure ()
-      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool $ pure ()
-      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool $ pure ()
-      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool $ pure ()
+  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool getTime $ pure ()
+      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool getTime $ pure ()
+      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool getTime $ pure ()
+      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool getTime $ pure ()
+      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool getTime $ pure ()
+      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool getTime $ pure ()
+      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool getTime $ pure ()
+      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool getTime $ pure ()
+      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool getTime $ pure ()
 
-  let reset = resetDb testDbConn
+  let reset :: IO ()
+      reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
+
       actualPgVersion = pgVersion dbStructure
-      pg96spec | actualPgVersion >= pgVersion96 = [("Feature.PgVersion96Spec"  , Feature.PgVersion96Spec.spec)]
-               | otherwise = []
+      extraSpecs =
+        [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
+        [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95] ++
+        [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
 
       specs = uncurry describe <$> [
           ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
@@ -69,6 +80,7 @@ main = do
         , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
         , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
+        , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
         , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
         , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
@@ -76,7 +88,7 @@ main = do
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
         , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
-        ] ++ pg96spec
+        ] ++ extraSpecs
 
   hspec $ do
     mapM_ (beforeAll_ reset . before withApp) specs

@@ -334,6 +334,100 @@ INSERT INTO part VALUES (1), (2), (3), (4);
 
 TRUNCATE TABLE being_part CASCADE;
 INSERT INTO being_part VALUES (1,1), (2,1), (3,2), (4,3);
---
--- PostgreSQL database dump complete
---
+
+TRUNCATE TABLE employees CASCADE;
+INSERT INTO employees VALUES
+  ('Frances M.', 'Roe', '24000', 'One-Up Realty', 'Author'),
+  ('Daniel B.', 'Lyon', '36000', 'Dubrow''s Cafeteria', 'Packer'),
+  ('Edwin S.', 'Smith', '48000', 'Pro Garden Management', 'Marine biologist');
+
+TRUNCATE TABLE tiobe_pls CASCADE;
+INSERT INTO tiobe_pls VALUES ('Java', 1), ('C', 2), ('Python', 4);
+
+TRUNCATE TABLE only_pk CASCADE;
+INSERT INTO only_pk VALUES (1), (2);
+
+TRUNCATE TABLE family_tree CASCADE;
+INSERT INTO family_tree VALUES ('1', 'Parental Unit', NULL);
+INSERT INTO family_tree VALUES ('2', 'Kid One', '1');
+INSERT INTO family_tree VALUES ('3', 'Kid Two', '1');
+INSERT INTO family_tree VALUES ('4', 'Grandkid One', '2');
+INSERT INTO family_tree VALUES ('5', 'Grandkid Two', '3');
+
+TRUNCATE TABLE organizations CASCADE;
+INSERT INTO organizations VALUES (1, 'Referee Org', null, null);
+INSERT INTO organizations VALUES (2, 'Auditor Org', null, null);
+INSERT INTO organizations VALUES (3, 'Acme', 1, 2);
+INSERT INTO organizations VALUES (4, 'Umbrella', 1, 2);
+
+SET search_path = private, pg_catalog;
+
+TRUNCATE TABLE authors CASCADE;
+INSERT INTO authors VALUES (1, 'George Orwell');
+INSERT INTO authors VALUES (2, 'Anne Frank');
+INSERT INTO authors VALUES (3, 'Antoine de Saint-Exupéry');
+INSERT INTO authors VALUES (4, 'J.D. Salinger');
+INSERT INTO authors VALUES (5, 'Ray Bradbury');
+INSERT INTO authors VALUES (6, 'William Golding');
+INSERT INTO authors VALUES (7, 'Harper Lee');
+INSERT INTO authors VALUES (8, 'Kurt Vonnegut');
+INSERT INTO authors VALUES (9, 'Ken Kesey');
+
+TRUNCATE TABLE books CASCADE;
+INSERT INTO books VALUES (1, '1984', 1949, 1);
+INSERT INTO books VALUES (2, 'The Diary of a Young Girl', 1947, 2);
+INSERT INTO books VALUES (3, 'The Little Prince', 1947, 3);
+INSERT INTO books VALUES (4, 'The Catcher in the Rye', 1951, 4);
+INSERT INTO books VALUES (5, 'Farenheit 451', 1953, 5);
+INSERT INTO books VALUES (6, 'Lord of the Flies', 1954, 6);
+INSERT INTO books VALUES (7, 'To Kill a Mockingbird', 1960, 7);
+INSERT INTO books VALUES (8, 'Slaughterhouse-Five', 1969, 8);
+INSERT INTO books VALUES (9, 'One Flew Over the Cuckoo''s Nest', 1962, 9);
+
+SET search_path = test, pg_catalog;
+
+TRUNCATE TABLE person CASCADE;
+
+INSERT INTO person VALUES (1, 'John');
+INSERT INTO person VALUES (2, 'Jane');
+INSERT INTO person VALUES (3, 'Jake');
+INSERT INTO person VALUES (4, 'Julie');
+
+TRUNCATE TABLE message CASCADE;
+INSERT INTO message VALUES (1, 'Hello Jane', 1, 2);
+INSERT INTO message VALUES (2, 'Hi John', 2, 1);
+INSERT INTO message VALUES (3, 'How are you doing?', 1, 2);
+INSERT INTO message VALUES (4, 'Hey Julie', 3, 4);
+INSERT INTO message VALUES (5, 'What''s up Jake', 4, 3);
+
+TRUNCATE TABLE space CASCADE;
+INSERT INTO space VALUES (1, 'space 1');
+
+TRUNCATE TABLE zone CASCADE;
+INSERT INTO zone VALUES (1, 'zone 1', 2, 1);
+INSERT INTO zone VALUES (2, 'zone 2', 2, 1);
+INSERT INTO zone VALUES (3, 'store 3', 3, 1);
+INSERT INTO zone VALUES (4, 'store 4', 3, 1);
+
+-- for foreign table projects_dump
+copy (select id, name, client_id from projects) to '/tmp/projects_dump.csv' with csv;
+
+TRUNCATE TABLE "UnitTest" CASCADE;
+INSERT INTO "UnitTest" VALUES (1, 'unit test 1');
+
+TRUNCATE TABLE json_arr CASCADE;
+INSERT INTO json_arr VALUES (1, '[1, 2, 3]');
+INSERT INTO json_arr VALUES (2, '[4, 5, 6]');
+INSERT INTO json_arr VALUES (3, '[[9, 8, 7], [11, 12, 13]]');
+INSERT INTO json_arr VALUES (4, '[[[5, 6], 7, 8]]');
+INSERT INTO json_arr VALUES (5, '[{"a": "A"}, {"b": "B"}]');
+INSERT INTO json_arr VALUES (6, '[{"a": [1,2,3]}, {"b": [4,5]}]');
+INSERT INTO json_arr VALUES (7, '{"c": [1,2,3], "d": [4,5]}');
+INSERT INTO json_arr VALUES (8, '{"c": [{"d": [4,5,6,7,8]}]}');
+INSERT INTO json_arr VALUES (9, '[{"0xy1": [1,{"23-xy-45": [2, {"xy-6": [3]}]}]}]');
+
+TRUNCATE TABLE jsonb_test CASCADE;
+INSERT INTO jsonb_test VALUES (1, '{ "a": {"b": 2} }');
+INSERT INTO jsonb_test VALUES (2, '{ "c": [1,2,3] }');
+INSERT INTO jsonb_test VALUES (3, '[{ "d": "test" }]');
+INSERT INTO jsonb_test VALUES (4, '{ "e": 1 }');

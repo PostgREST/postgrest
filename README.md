@@ -1,12 +1,13 @@
 ![Logo](static/logo.png "Logo")
 
-[![Build Status](https://circleci.com/gh/begriffs/postgrest.png?style=shield&circle-token=f723c01686abf0364de1e2eaae5aff1f68bd3ff2)](https://circleci.com/gh/begriffs/postgrest/tree/master)
-<a href="https://heroku.com/deploy?template=https://github.com/begriffs/postgrest">
+[![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/master.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/master)
+<a href="https://heroku.com/deploy?template=https://github.com/PostgREST/postgrest">
   <img src="https://img.shields.io/badge/%E2%86%91_Deploy_to-Heroku-7056bf.svg" alt="Deploy">
 </a>
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
-[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.com)
+[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
 [![Docker Stars](https://img.shields.io/docker/pulls/postgrest/postgrest.svg)](https://hub.docker.com/r/postgrest/postgrest/)
+[![Donate](https://img.shields.io/badge/patreon-donate-orange.svg?colorB=F96854)](https://www.patreon.com/postgrest)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
@@ -14,7 +15,7 @@ API than you are likely to write from scratch.
 
 ### Usage
 
-1. Download the binary ([latest release](https://github.com/begriffs/postgrest/releases/latest))
+1. Download the binary ([latest release](https://github.com/PostgREST/postgrest/releases/latest))
    for your platform.
 2. Invoke for help:
 
@@ -50,13 +51,10 @@ by
 * Using the PostgreSQL binary protocol
 * Being stateless to allow horizontal scaling
 
-Other optimizations are possible, and some are outlined in the
-[Future Features](#future-features).
-
 ### Security
 
 PostgREST [handles
-authentication](http://postgrest.com/en/stable/auth.html) (via JSON Web
+authentication](http://postgrest.org/en/stable/auth.html) (via JSON Web
 Tokens) and delegates authorization to the role information defined in
 the database. This ensures there is a single declarative source of truth
 for security.  When dealing with the database the server assumes the
@@ -106,14 +104,14 @@ surprises, such as enforcing idempotent PUT requests.
 
 See examples of [PostgreSQL
 constraints](http://www.tutorialspoint.com/postgresql/postgresql_constraints.htm)
-and the [API guide](http://postgrest.com/en/stable/api.html).
+and the [API guide](http://postgrest.org/en/stable/api.html).
 
 ### Thanks
 
-I'm grateful to the generous project
-[contributors](https://github.com/begriffs/postgrest/graphs/contributors)
-who have improved PostgREST immensely with their code and good
-judgement.  See more details in the
-[changelog](https://github.com/begriffs/postgrest/blob/master/CHANGELOG.md).
+The PostgREST organization is grateful to:
+
+- The project [sponsors and backers](https://github.com/PostgREST/postgrest/blob/master/BACKERS.md) who support PostgREST's development.
+- The project [contributors](https://github.com/PostgREST/postgrest/graphs/contributors) who have improved PostgREST immensely with their code
+  and good judgement. See more details in the [changelog](https://github.com/PostgREST/postgrest/blob/master/CHANGELOG.md).
 
 The cool logo came from [Mikey Casalaina](https://github.com/casalaina).
