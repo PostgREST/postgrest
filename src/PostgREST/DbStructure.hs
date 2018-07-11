@@ -40,7 +40,7 @@ getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
   tabs      <- H.query () allTables
   cols      <- H.query schema $ allColumns tabs
-  syns      <- H.query () $ allSynonyms cols
+  syns      <- H.query schema $ allSynonyms cols
   childRels <- H.query () $ allChildRelations tabs cols
   keys      <- H.query () $ allPrimaryKeys tabs
   procs     <- H.query schema allProcs
@@ -689,79 +689,67 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Query () [Synonym]
+allSynonyms :: [Column] -> H.Query Schema [Synonym]
 allSynonyms cols =
-  H.statement sql HE.unit (decodeSynonyms cols) True
- where
-  -- query explanation at https://gist.github.com/ruslantalpa/2eab8c930a65e8043d8f
-  sql = [q|
-    with view_columns as (
-        select
-            c.oid as view_oid,
-            a.attname::information_schema.sql_identifier as column_name
-        from pg_attribute a
-        join pg_class c on a.attrelid = c.oid
-        join pg_namespace nc on c.relnamespace = nc.oid
-        where
-            not pg_is_other_temp_schema(nc.oid)
-            and a.attnum > 0
-            and not a.attisdropped
-            and (c.relkind = 'v'::"char")
-            and nc.nspname not in ('information_schema', 'pg_catalog')
+  H.statement sql (HE.value HE.text) (decodeSynonyms cols) True
+  -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
+  where sql = [q|
+    with
+    views as (
+      select
+        n.nspname   as view_schema,
+        c.relname   as view_name,
+        r.ev_action as view_definition
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      join pg_rewrite r on r.ev_class = c.oid
+      where (c.relkind = 'v'::char) and n.nspname = $1
     ),
-    view_column_usage as (
-        select distinct
-            v.oid as view_oid,
-            nv.nspname::information_schema.sql_identifier as view_schema,
-            v.relname::information_schema.sql_identifier as view_name,
-            nt.nspname::information_schema.sql_identifier as table_schema,
-            t.relname::information_schema.sql_identifier as table_name,
-            a.attname::information_schema.sql_identifier as column_name,
-            pg_get_viewdef(v.oid)::information_schema.character_data as view_definition
-        from pg_namespace nv
-        join pg_class v on nv.oid = v.relnamespace
-        join pg_depend dv on v.oid = dv.refobjid
-        join pg_depend dt on dv.objid = dt.objid
-        join pg_class t on dt.refobjid = t.oid
-        join pg_namespace nt on t.relnamespace = nt.oid
-        join pg_attribute a on t.oid = a.attrelid and dt.refobjsubid = a.attnum
-
-        where
-            nv.nspname not in ('information_schema', 'pg_catalog')
-            and v.relkind = 'v'::"char"
-            and dv.refclassid = 'pg_class'::regclass::oid
-            and dv.classid = 'pg_rewrite'::regclass::oid
-            and dv.deptype = 'i'::"char"
-            and dv.refobjid <> dt.refobjid
-            and dt.classid = 'pg_rewrite'::regclass::oid
-            and dt.refclassid = 'pg_class'::regclass::oid
-            and (t.relkind = any (array['r'::"char", 'v'::"char", 'f'::"char"]))
+    removed_subselects as(
+      select
+        view_schema, view_name,
+        regexp_replace(view_definition, ':subselect {.*?:constraintDeps <>} :location', '', 'g') as x
+      from views
     ),
-    candidates as (
-        select
-            vcu.*,
-            (
-                select case when match is not null then coalesce(match[8], match[7], match[4]) end
-                from regexp_matches(
-                    CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
-                    'nsi'
-                ) match
-            ) as view_column_name
-        from view_column_usage as vcu
+    target_lists as(
+      select
+        view_schema, view_name,
+        regexp_split_to_array(x, 'targetList') as x
+      from removed_subselects
+    ),
+    last_target_list_wo_tail as(
+      select
+        view_schema, view_name,
+        (regexp_split_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
+      from target_lists
+    ),
+    target_entries as(
+      select
+        view_schema, view_name,
+        unnest((regexp_split_to_array(x, 'TARGETENTRY'))[2:]) as entry
+      from last_target_list_wo_tail
+    ),
+    results as(
+      select
+        view_schema, view_name,
+        substring(entry from ':resname (.*?) :') as view_colum_name,
+        substring(entry from ':resorigtbl (.*?) :') as resorigtbl,
+        substring(entry from ':resorigcol (.*?) :') as resorigcol
+      from target_entries
     )
     select
-        c.table_schema,
-        c.table_name,
-        c.column_name as table_column_name,
-        c.view_schema,
-        c.view_name,
-        c.view_column_name
-    from view_columns as vc, candidates as c
-    where
-        vc.view_oid = c.view_oid
-        and vc.column_name = c.view_column_name
-    order by c.view_schema, c.view_name, c.table_name, c.view_column_name
+      sch.nspname as table_schema,
+      tbl.relname as table_name,
+      col.attname as table_column_name,
+      res.view_schema,
+      res.view_name,
+      res.view_colum_name
+    from results res
+    join pg_class tbl on tbl.oid::text = res.resorigtbl
+    join pg_attribute col on col.attrelid = tbl.oid and col.attnum::text = res.resorigcol
+    join pg_namespace sch on sch.oid = tbl.relnamespace
+    where resorigtbl <> '0'
+    order by view_schema, view_name, view_colum_name;
     |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe Synonym

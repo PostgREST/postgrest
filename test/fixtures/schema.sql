@@ -1120,17 +1120,17 @@ create view images_base64 as (
   select name, replace(encode(img, 'base64'), E'\n', '') as img from images
 );
 
-create function test.ret_enum(val text) returns test.enum_menagerie_type as $$ 
+create function test.ret_enum(val text) returns test.enum_menagerie_type as $$
   select val::test.enum_menagerie_type;
 $$ language sql;
 
 create domain one_nine as integer check (value >= 1 and value <= 9);
 
-create function test.ret_array() returns integer[] as $$ 
+create function test.ret_array() returns integer[] as $$
   select '{1,2,3}'::integer[];
 $$ language sql;
 
-create function test.ret_domain(val integer) returns test.one_nine as $$ 
+create function test.ret_domain(val integer) returns test.one_nine as $$
   select val::test.one_nine;
 $$ language sql;
 
@@ -1144,20 +1144,20 @@ $$ language sql;
 
 create function test.ret_scalars() returns table(
   a text, b test.enum_menagerie_type, c test.one_nine, d int4range
-) as $$ 
-  select row('scalars'::text, enum_first(null::test.enum_menagerie_type), 
+) as $$
+  select row('scalars'::text, enum_first(null::test.enum_menagerie_type),
               1::test.one_nine, int4range(10, 20));
 $$ language sql;
 
 create type test.point_2d as (x integer, y integer);
 
-create function test.ret_point_2d() returns test.point_2d as $$ 
+create function test.ret_point_2d() returns test.point_2d as $$
   select row(10, 5)::test.point_2d;
 $$ language sql;
 
 create type private.point_3d as (x integer, y integer, z integer);
 
-create function test.ret_point_3d() returns private.point_3d as $$ 
+create function test.ret_point_3d() returns private.point_3d as $$
   select row(7, -3, 4)::private.point_3d;
 $$ language sql;
 
@@ -1171,17 +1171,17 @@ create function test.ret_rows_with_base64_bin() returns setof test.images_base64
   select i.name, i.img from test.images_base64 i;
 $$ language sql;
 
-create function test.single_article(id integer) returns test.articles as $$ 
+create function test.single_article(id integer) returns test.articles as $$
   select a.* from test.articles a where a.id = $1;
 $$ language sql;
 
-create function test.get_guc_value(name text) returns text as $$ 
+create function test.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
 create table w_or_wo_comma_names ( name text );
 
-create table items_with_different_col_types ( 
+create table items_with_different_col_types (
   int_data integer,
   text_data text,
   bool_data bool,
@@ -1194,20 +1194,20 @@ create table items_with_different_col_types (
 
 -- Tables used for testing complex boolean logic with and/or query params
 
-create table entities ( 
+create table entities (
   id integer primary key,
   name text,
   arr integer[],
   text_search_vector tsvector
 );
 
-create table child_entities ( 
+create table child_entities (
   id integer primary key,
   name text,
   parent_id integer references entities(id)
 );
 
-create table grandchild_entities ( 
+create table grandchild_entities (
   id integer primary key,
   name text,
   parent_id integer references child_entities(id),
@@ -1466,3 +1466,59 @@ create table jsonb_test(
   id integer primary key,
   data jsonb
 );
+
+create view test.authors_books_number as
+select
+  id,
+  name,
+  (
+    select
+      count(*)
+    from forties_books where author_id = authors.id
+  ) as num_in_forties,
+  (
+    select
+      count(*)
+    from fifties_books where author_id = authors.id
+  ) as num_in_fifties,
+  (
+    select
+      count(*)
+    from sixties_books where author_id = authors.id
+  ) as num_in_sixties,
+  (
+    select
+      count(*)
+    from (
+      select id
+      from forties_books where author_id = authors.id
+      union
+      select id
+      from fifties_books where author_id = authors.id
+      union
+      select id
+      from sixties_books where author_id = authors.id
+    ) _
+  ) as num_in_all_decades
+from private.authors;
+
+create view test.authors_have_book_in_decade as
+select
+  id,
+  name,
+  CASE
+    WHEN (x.id IN (SELECT author_id FROM test.forties_books))
+    THEN true
+    ELSE false
+  END AS has_book_in_forties,
+  CASE
+    WHEN (x.id IN (SELECT author_id FROM test.fifties_books))
+    THEN true
+    ELSE false
+  END AS has_book_in_fifties,
+  CASE
+    WHEN (x.id IN (SELECT author_id FROM test.sixties_books))
+    THEN true
+    ELSE false
+  END AS has_book_in_sixties
+from private.authors x;
