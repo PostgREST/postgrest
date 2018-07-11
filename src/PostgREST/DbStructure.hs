@@ -726,7 +726,7 @@ allSynonyms cols =
     target_entries as(
       select
         view_schema, view_name,
-        unnest((regexp_split_to_array(x, 'TARGETENTRY'))[2:]) as entry
+        unnest(regexp_split_to_array(x, 'TARGETENTRY')) as entry
       from last_target_list_wo_tail
     ),
     results as(
