@@ -377,6 +377,9 @@ spec = do
                    "books":[{"title":"The Little Prince"}]} ]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "works when having a capitalized table name and camelCase fk column" $
+        get "/foos?select=*,bars(*)" `shouldRespondWith` 200
+
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
         get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`

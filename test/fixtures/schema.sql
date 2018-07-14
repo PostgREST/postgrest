@@ -1522,3 +1522,17 @@ select
     ELSE false
   END AS has_book_in_sixties
 from private.authors x;
+
+CREATE TABLE test."Foo"(
+  id int primary key,
+  name text
+);
+
+CREATE TABLE test.bar(
+  id int primary key,
+  name text,
+  "fooId" int references "Foo"(id)
+);
+
+CREATE VIEW test.foos as select id,name from "Foo";
+CREATE VIEW test.bars as select id, "fooId", name from bar;

@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1113, Fix UPSERT failing when having a camel case PK column - @steve-chavez
 - #945, Fix slow start-up time on big schemas - @steve-chavez
+- #1129, Fix view embedding when table is capitalized - @steve-chavez
 
 ### Changed
 

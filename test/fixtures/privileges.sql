@@ -84,6 +84,8 @@ GRANT ALL ON TABLE
     , jsonb_test
     , authors_books_number
     , authors_have_book_in_decade
+    , foos
+    , bars
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
