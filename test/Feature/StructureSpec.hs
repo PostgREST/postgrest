@@ -163,6 +163,38 @@ spec = do
               ]
             |]
 
+    describe "Materialized view" $
+
+      it "includes materialized view properties" $ do
+        r <- simpleBody <$> get "/"
+
+        let method s = key "paths" . key "/materialized_projects" . key s
+            summary = r ^? method "get" . key "summary"
+            description = r ^? method "get" . key "description"
+            parameters = r ^? method "get" . key "parameters"
+
+        liftIO $ do
+
+          summary `shouldBe` Just "A materialized view for projects"
+
+          description `shouldBe` Just "Just a test for materialized views"
+
+          parameters `shouldBe` Just
+            [aesonQQ|
+              [
+                { "$ref": "#/parameters/rowFilter.materialized_projects.id" },
+                { "$ref": "#/parameters/rowFilter.materialized_projects.name" },
+                { "$ref": "#/parameters/rowFilter.materialized_projects.client_id" },
+                { "$ref": "#/parameters/select" },
+                { "$ref": "#/parameters/order" },
+                { "$ref": "#/parameters/range" },
+                { "$ref": "#/parameters/rangeUnit" },
+                { "$ref": "#/parameters/offset" },
+                { "$ref": "#/parameters/limit" },
+                { "$ref": "#/parameters/preferCount" }
+              ]
+            |]
+
     describe "RPC" $ do
 
       it "includes body schema for arguments" $ do

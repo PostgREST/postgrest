@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #1099, Add support for getting json/jsonb by array index - @steve-chavez
+- #1145, Add materialized view columns to OpenAPI output - @steve-chavez
 
 ### Fixed
 

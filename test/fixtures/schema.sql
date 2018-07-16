@@ -1536,3 +1536,11 @@ CREATE TABLE test.bar(
 
 CREATE VIEW test.foos as select id,name from "Foo";
 CREATE VIEW test.bars as select id, "fooId", name from bar;
+
+create materialized view materialized_projects as
+select id, name, client_id from projects;
+
+comment on materialized view materialized_projects is
+$$A materialized view for projects
+
+Just a test for materialized views$$;

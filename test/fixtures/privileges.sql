@@ -86,6 +86,7 @@ GRANT ALL ON TABLE
     , authors_have_book_in_decade
     , foos
     , bars
+    , materialized_projects
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
