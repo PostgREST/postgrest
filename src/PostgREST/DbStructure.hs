@@ -388,7 +388,7 @@ allColumns tabs =
                pg_catalog.pg_namespace n
              WHERE
                r.contype IN ('f', 'p')
-               AND c.relkind IN ('r', 'v', 'f', 'mv')
+               AND c.relkind IN ('r', 'v', 'f', 'm')
                AND r.conrelid = c.oid
                AND c.relnamespace = n.oid
                AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
@@ -492,7 +492,7 @@ allColumns tabs =
                 NOT pg_is_other_temp_schema(nc.oid)
                 AND a.attnum > 0
                 AND NOT a.attisdropped
-                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char", 'm'::"char"]))
                 AND (nc.nspname = $1 OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
               /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
