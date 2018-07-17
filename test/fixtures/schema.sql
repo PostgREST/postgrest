@@ -1396,11 +1396,17 @@ create table private.authors(
   name text
 );
 
+create table private.publishers(
+  id integer primary key,
+  name text
+);
+
 create table private.books(
   id integer primary key,
   title text,
   publication_year smallint,
-  author_id integer references private.authors(id)
+  author_id integer references private.authors(id),
+  first_publisher_id integer references private.publishers(id)
 );
 
 create view test.authors as select id, name from private.authors;
@@ -1506,22 +1512,42 @@ create view test.authors_have_book_in_decade as
 select
   id,
   name,
-  CASE
-    WHEN (x.id IN (SELECT author_id FROM test.forties_books))
-    THEN true
-    ELSE false
-  END AS has_book_in_forties,
-  CASE
-    WHEN (x.id IN (SELECT author_id FROM test.fifties_books))
-    THEN true
-    ELSE false
-  END AS has_book_in_fifties,
-  CASE
-    WHEN (x.id IN (SELECT author_id FROM test.sixties_books))
-    THEN true
-    ELSE false
-  END AS has_book_in_sixties
+  case
+    when (x.id in (select author_id from test.forties_books))
+    then true
+    else false
+  end as has_book_in_forties,
+  case
+    when (x.id in (select author_id from test.fifties_books))
+    then true
+    else false
+  end as has_book_in_fifties,
+  case
+    when (x.id in (select author_id from test.sixties_books))
+    then true
+    else false
+  end as has_book_in_sixties
 from private.authors x;
+
+create view test.forties_and_fifties_books as
+select x.id, x.title, x.publication_year, y.name as first_publisher, x.author_id
+from (
+  select id, title, publication_year, author_id, first_publisher_id from private.books
+  where publication_year >= 1940 and publication_year < 1960) x
+join private.publishers y on y.id = x.first_publisher_id;
+
+create view test.odd_years_publications as
+with
+odd_years_books as(
+  select id, title, publication_year, author_id, first_publisher_id
+  from private.books
+  where publication_year % 2 <> 0
+)
+select
+  x.id, x.title, x.publication_year,
+  y.name as first_publisher, x.author_id
+from odd_years_books x
+join private.publishers y on y.id = x.first_publisher_id;
 
 CREATE TABLE test."Foo"(
   id int primary key,

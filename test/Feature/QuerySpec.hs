@@ -367,14 +367,29 @@ spec = do
           [json|[ { "title": "To Kill a Mockingbird", "author": { "name": "Harper Lee" } } ]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "works with views that have subselects" $ do
+      it "works with views that have subselects" $
         get "/authors_books_number?select=*,books(title)&id=eq.1" `shouldRespondWith`
           [json|[ {"id":1, "name":"George Orwell","num_in_forties":1,"num_in_fifties":0,"num_in_sixties":0,"num_in_all_decades":1,
                    "books":[{"title":"1984"}]} ]|]
           { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have case subselects" $
         get "/authors_have_book_in_decade?select=*,books(title)&id=eq.3" `shouldRespondWith`
           [json|[ {"id":3,"name":"Antoine de Saint-Exupéry","has_book_in_forties":true,"has_book_in_fifties":false,"has_book_in_sixties":false,
                    "books":[{"title":"The Little Prince"}]} ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have subselect in the FROM clause" $
+        get "/forties_and_fifties_books?select=title,first_publisher,author:authors(name)&id=eq.1" `shouldRespondWith`
+          [json|[{"title":"1984","first_publisher":"Secker & Warburg","author":{"name":"George Orwell"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have CTE" $
+        get "/odd_years_publications?select=title,publication_year,first_publisher,author:authors(name)&id=in.(1,2,3)" `shouldRespondWith`
+          [json|[
+            {"title":"1984","publication_year":1949,"first_publisher":"Secker & Warburg","author":{"name":"George Orwell"}},
+            {"title":"The Diary of a Young Girl","publication_year":1947,"first_publisher":"Contact Publishing","author":{"name":"Anne Frank"}},
+            {"title":"The Little Prince","publication_year":1947,"first_publisher":"Reynal & Hitchcock","author":{"name":"Antoine de Saint-Exupéry"}} ]|]
           { matchHeaders = [matchContentTypeJson] }
 
       it "works when having a capitalized table name and camelCase fk column" $
