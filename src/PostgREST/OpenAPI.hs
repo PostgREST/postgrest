@@ -42,7 +42,8 @@ makeTableDef pks (t, cs, _) =
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ .~ SwaggerObject
-        & properties .~ fromList (map (makeProperty pks) cs))
+        & properties .~ fromList (map (makeProperty pks) cs)
+        & required .~ map colName (filter (not . colNullable) cs))
 
 makeProperty :: [PrimaryKey] -> Column -> (Text, Referenced Schema)
 makeProperty pks c = (colName c, Inline s)
