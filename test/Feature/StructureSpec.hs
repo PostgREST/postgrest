@@ -113,7 +113,10 @@ spec = do
                     "format": "integer",
                     "type": "integer"
                   }
-                }
+                },
+                "required": [
+                  "id"
+                ]
               }
             |]
 
