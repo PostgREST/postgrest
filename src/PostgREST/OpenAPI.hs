@@ -198,8 +198,11 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & at 206 ?~ "Partial Content"
       & at 200 ?~ Inline ((mempty :: Response)
         & description .~ "OK"
-        & schema ?~ (Ref $ Reference $ tableName t)
+        & schema ?~ Inline (mempty
+          & type_ .~ SwaggerArray
+          & items ?~ (SwaggerItemsObject $ Ref $ Reference $ tableName t)
         )
+      )
     postOp = tOp
       & parameters .~ map ref ["body." <> tn, "preferReturn"]
       & at 201 ?~ "Created"
