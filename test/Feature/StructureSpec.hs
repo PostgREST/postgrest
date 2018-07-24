@@ -85,6 +85,27 @@ spec = do
 
           deleteResponse `shouldBe` Just "No Content"
 
+      it "includes an array type for GET responses" $ do
+        r <- simpleBody <$> get "/"
+
+        let childGetSchema = r ^? key "paths"
+              . key "/child_entities"
+              . key "get"
+              . key "responses"
+              . key "200"
+              . key "schema"
+
+        liftIO $
+          childGetSchema `shouldBe` Just
+            [aesonQQ|
+              {
+                "items": {
+                  "$ref": "#/definitions/child_entities"
+                },
+                "type": "array"
+              }
+            |]
+
       it "includes definitions to tables" $ do
         r <- simpleBody <$> get "/"
 
