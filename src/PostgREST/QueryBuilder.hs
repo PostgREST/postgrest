@@ -173,9 +173,9 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
                            unwords [
                            "_args_record AS (",
                              "SELECT * FROM " <> (if isObject then "json_to_record" else "json_to_recordset") <> "($1)",
-                             "AS _(" <> intercalate ", " ((\a -> pgaName a <> " " <> pgaType a) <$> pgArgs) <> ")",
+                             "AS _(" <> intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
                            ")"]
-                         , intercalate ", " ((\a -> pgaName a <> " := (SELECT " <> pgaName a <> " FROM _args_record)") <$> pgArgs))
+                         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _procName = qiName qi
     responseHeaders =
