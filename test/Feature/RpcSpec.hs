@@ -78,6 +78,16 @@ spec =
         get "/rpc/sayhello" `shouldRespondWith` 404
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
 
+    it "works when having uppercase identifiers" $ do
+      get "/rpc/quotedFunction?user=mscott&fullName=Michael Scott&SSN=401-32-XXXX" `shouldRespondWith`
+        [json|{"user": "mscott", "fullName": "Michael Scott", "SSN": "401-32-XXXX"}|]
+        { matchHeaders = [matchContentTypeJson] }
+      post "/rpc/quotedFunction"
+        [json|{"user": "dschrute", "fullName": "Dwight Schrute", "SSN": "030-18-XXXX"}|]
+        `shouldRespondWith`
+        [json|{"user": "dschrute", "fullName": "Dwight Schrute", "SSN": "030-18-XXXX"}|]
+        { matchHeaders = [matchContentTypeJson] }
+
     context "shaping the response returned by a proc" $ do
       it "returns a project" $ do
         post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
