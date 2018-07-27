@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #945, Fix slow start-up time on big schemas - @steve-chavez
 - #1129, Fix view embedding when table is capitalized - @steve-chavez
 - #1149, OpenAPI: Change `GET` response type to array - @laughedelic
+- #1152, Fix RPC failing when having arguments with reserved or uppercase keywords - @mdr1384
 
 ### Changed
 
