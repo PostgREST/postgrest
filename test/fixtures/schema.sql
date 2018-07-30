@@ -1570,3 +1570,8 @@ comment on materialized view materialized_projects is
 $$A materialized view for projects
 
 Just a test for materialized views$$;
+
+create or replace function test."quotedFunction"("user" text, "fullName" text, "SSN" text)
+returns jsonb AS $$
+  select format('{"user": "%s", "fullName": "%s", "SSN": "%s"}', "user", "fullName", "SSN")::jsonb;
+$$ language sql;
