@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1129, Fix view embedding when table is capitalized - @steve-chavez
 - #1149, OpenAPI: Change `GET` response type to array - @laughedelic
 - #1152, Fix RPC failing when having arguments with reserved or uppercase keywords - @mdr1384
+- #905, Fix intermittent empty replies - @steve-chavez
 
 ### Changed
 

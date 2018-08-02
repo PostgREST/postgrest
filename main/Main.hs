@@ -33,8 +33,7 @@ import qualified Hasql.Pool               as P
 import qualified Hasql.Session            as H
 import           Network.Wai.Handler.Warp (defaultSettings,
                                            runSettings, setHost,
-                                           setPort, setServerName,
-                                           setTimeout)
+                                           setPort, setServerName)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
 
@@ -152,8 +151,7 @@ main = do
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
-        . setServerName (toS $ "postgrest/" <> prettyVersion)
-        . setTimeout 3600 $
+        . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
 
   -- Checks that the provided proxy uri is formated correctly
