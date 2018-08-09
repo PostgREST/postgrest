@@ -202,15 +202,16 @@ main = do
         throwTo mainTid UserInterrupt
       ) Nothing
 
-  void $ installHandler sigHUP (
-    Catch $ connectionWorker
-              mainTid
-              pool
-              (configSchema conf)
-              (configSettings conf)
-              refDbStructure
-              refIsWorkerOn
-    ) Nothing
+  forM_ [sigHUP, sigUSR1] $ \sig ->
+    void $ installHandler sig (
+      Catch $ connectionWorker
+                mainTid
+                pool
+                (configSchema conf)
+                (configSettings conf)
+                refDbStructure
+                refIsWorkerOn
+      ) Nothing
 #endif
 
 
