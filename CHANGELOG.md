@@ -27,6 +27,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1128, Allow finishing a json path with a single arrow `->`. Now a json can be obtained without resorting to casting, Previously: `/json_arr?select=data->>2::json`, now: `/json_arr?select=data->2` - @steve-chavez
 - #724, Change server-host default of *4 to 127.0.0.1
 
+### Deprecated
+
+- #724, SIGHUP deprecated, SIGUSR1 should be used instead
+
 ## [0.5.0.0] - 2018-05-14
 
 ### Added
