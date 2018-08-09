@@ -132,7 +132,7 @@ readOptions = do
           <*> C.key "db-anon-role"
           <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
           <*> C.key "db-schema"
-          <*> (fromMaybe "*4" . mfilter (/= "") <$> C.key "server-host")
+          <*> (fromMaybe "127.0.0.1" . mfilter (/= "") <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
@@ -209,7 +209,7 @@ readOptions = do
           |db-anon-role = "postgres"
           |db-pool = 10
           |
-          |server-host = "*4"
+          |server-host = "127.0.0.1"
           |server-port = 3000
           |
           |## base url for swagger output
