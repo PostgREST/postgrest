@@ -20,6 +20,7 @@ module PostgREST.Auth (
   ) where
 
 import           Control.Lens.Operators
+import           Control.Lens           (set)
 import qualified Data.Aeson             as JSON
 import qualified Data.HashMap.Strict    as M
 import           Data.Time.Clock        (UTCTime)
@@ -48,7 +49,7 @@ jwtClaims secret audience payload time jspath =
   case secret of
     Nothing -> return JWTMissingSecret
     Just s -> do
-      let validation = defaultJWTValidationSettings (maybe (const True) (==) audience)
+      let validation = set allowedSkew 1 $ defaultJWTValidationSettings (maybe (const True) (==) audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
         verifyClaimsAt validation s time jwt
