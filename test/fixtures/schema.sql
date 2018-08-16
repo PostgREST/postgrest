@@ -222,6 +222,10 @@ AS $_$
   SELECT 'Hi'::text;
 $_$;
 
+COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer) IS
+$_$An RPC function
+
+Just a test for RPC function arguments$_$;
 
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
