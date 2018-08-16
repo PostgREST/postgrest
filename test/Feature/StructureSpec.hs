@@ -226,6 +226,8 @@ spec = do
         let args = r ^? key "paths" . key "/rpc/varied_arguments"
                       . key "post"  . key "parameters"
                       . nth 0       . key "schema"
+            summary = r ^? key "post" . key "summary"
+            description = r ^? key "post" . key "description"
 
         liftIO $ do
 
