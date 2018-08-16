@@ -223,8 +223,13 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
+    -- Use first line of proc description as summary; rest as description (if present)
+    -- We strip leading newlines from description so that users can include a blank line between summary and description
+    (pSum, pDesc) = fmap fst &&& fmap (dropWhile (=='\n') . snd) $
+                    breakOn "\n" <$> pdDescription pd
     postOp = (mempty :: Operation)
-      & description .~ pdDescription pd
+      & summary .~ pSum
+      & description .~ mfilter (/="") pDesc
       & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]
