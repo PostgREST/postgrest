@@ -227,7 +227,12 @@ spec = do
                       . key "post"  . key "parameters"
                       . nth 0       . key "schema"
 
-        liftIO $
+        liftIO $ do
+
+          summary `shouldBe` Just "An RPC function"
+
+          description `shouldBe` Just "Just a test for RPC function arguments"
+
           args `shouldBe` Just
             [aesonQQ|
               {
