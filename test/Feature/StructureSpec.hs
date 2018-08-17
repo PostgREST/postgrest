@@ -223,11 +223,10 @@ spec = do
 
       it "includes body schema for arguments" $ do
         r <- simpleBody <$> get "/"
-        let args = r ^? key "paths" . key "/rpc/varied_arguments"
-                      . key "post"  . key "parameters"
-                      . nth 0       . key "schema"
-            summary = r ^? key "post" . key "summary"
-            description = r ^? key "post" . key "description"
+        let method = r ^? key "paths" . key "/rpc/varied_arguments" . key "post"
+            args = r ^? method . key "parameters" . nth 0 . key "schema"
+            summary = r ^? method . key "summary"
+            description = r ^? method . key "description"
 
         liftIO $ do
 
