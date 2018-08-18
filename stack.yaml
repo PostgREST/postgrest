@@ -10,6 +10,7 @@ extra-deps:
   - hasql-pool-0.4.3
   - hasql-transaction-0.5.2
   - jose-0.7.0.0
+  - postgresql-libpq-0.9.4.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
