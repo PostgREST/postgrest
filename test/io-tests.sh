@@ -143,6 +143,26 @@ ensureIatClaimWorks(){
   pgrStop
 }
 
+# ensure app settings don't reset on pool timeout of 10 seconds, see https://github.com/PostgREST/postgrest/issues/1141
+ensureAppSettings(){
+  pgrStart "./configs/app-settings.config"
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  sleep 11
+  response=$(curl -s "http://localhost:$pgrPort/rpc/get_guc_value?name=app.settings.external_api_secret")
+  if test "$response" = "\"0123456789abcdef\""
+  then
+    ok "GET /rpc/get_guc_value response is $response"
+  else
+    ko "GET /rpc/get_guc_value response was $response"
+  fi
+  pgrStop
+}
+
 # PRE: curl must be available
 test -n "$(command -v curl)" || bailOut 'curl is not available'
 
@@ -181,6 +201,7 @@ invalidRoleClaimKey ''
 invalidRoleClaimKey 1234
 
 ensureIatClaimWorks
+ensureAppSettings
 
 cleanUp
 

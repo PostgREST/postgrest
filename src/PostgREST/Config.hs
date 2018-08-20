@@ -141,7 +141,7 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
-          <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
+          <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
 
   case mAppConf of
@@ -152,13 +152,6 @@ readOptions = do
       return appConf
 
   where
-    parsedPairToTextPair :: (Name, Value) -> (Text, Text)
-    parsedPairToTextPair (k, v) = (k, newValue)
-      where
-        newValue = case v of
-          String textVal -> textVal
-          _ -> show v
-
     parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
       C.key k >>= \case
@@ -167,6 +160,10 @@ readOptions = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
+
+    coerceText :: Value -> Text
+    coerceText (String s) = s
+    coerceText v = show v
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x

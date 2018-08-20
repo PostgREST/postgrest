@@ -23,7 +23,7 @@ module PostgREST.QueryBuilder (
   , requestToCountQuery
   , unquoted
   , ResultsWithCount
-  , pgFmtEnvVar
+  , pgFmtSetLocal
   ) where
 
 import qualified Hasql.Query             as H
@@ -469,8 +469,8 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> ""
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-pgFmtEnvVar :: Text -> (Text, Text) -> SqlFragment
-pgFmtEnvVar prefix (k, v) =
+pgFmtSetLocal :: Text -> (Text, Text) -> SqlFragment
+pgFmtSetLocal prefix (k, v) =
   "set local " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
 
 trimNullChars :: Text -> Text
