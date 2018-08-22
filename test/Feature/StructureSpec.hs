@@ -224,7 +224,7 @@ spec = do
       it "includes body schema for arguments" $ do
         r <- simpleBody <$> get "/"
 
-        let method s = r ^? key "paths" . key "/rpc/varied_arguments" . key s
+        let method s = key "paths" . key "/rpc/varied_arguments" . key s
             args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
             summary = r ^? method "post" . key "summary"
             description = r ^? method "post" . key "description"
@@ -276,7 +276,8 @@ spec = do
                     "type": "integer"
                   }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "An RPC function\n\nJust a test for RPC function arguments"
               }
             |]
 
