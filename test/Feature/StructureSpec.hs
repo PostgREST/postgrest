@@ -221,7 +221,7 @@ spec = do
 
     describe "RPC" $ do
 
-      it "includes body schema for arguments" $ do
+      it "includes function summary/description and body schema for arguments" $ do
         r <- simpleBody <$> get "/"
 
         let method s = key "paths" . key "/rpc/varied_arguments" . key s
