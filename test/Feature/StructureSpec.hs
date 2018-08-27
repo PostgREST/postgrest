@@ -221,13 +221,20 @@ spec = do
 
     describe "RPC" $ do
 
-      it "includes body schema for arguments" $ do
+      it "includes function summary/description and body schema for arguments" $ do
         r <- simpleBody <$> get "/"
-        let args = r ^? key "paths" . key "/rpc/varied_arguments"
-                      . key "post"  . key "parameters"
-                      . nth 0       . key "schema"
 
-        liftIO $
+        let method s = key "paths" . key "/rpc/varied_arguments" . key s
+            args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
+            summary = r ^? method "post" . key "summary"
+            description = r ^? method "post" . key "description"
+
+        liftIO $ do
+
+          summary `shouldBe` Just "An RPC function"
+
+          description `shouldBe` Just "Just a test for RPC function arguments"
+
           args `shouldBe` Just
             [aesonQQ|
               {
@@ -269,7 +276,8 @@ spec = do
                     "type": "integer"
                   }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "An RPC function\n\nJust a test for RPC function arguments"
               }
             |]
 
