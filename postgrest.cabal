@@ -10,7 +10,8 @@ author:                Joe Nelson, Adam Baker
 homepage:              https://postgrest.org
 maintainer:            Steve Chávez <stevechavezast@gmail.com>
 bug-reports:           https://github.com/PostgREST/postgrest/issues
-category:              Web
+category:              Executable, PostgreSQL, Network APIs
+extra-source-files:    CHANGELOG.md
 build-type:            Simple
 cabal-version:         >=1.10
 source-repository head
