@@ -1,10 +1,12 @@
-#### Sphinx source files for PostgREST documentation
+# PostgREST documentation
+
+PostgREST docs use the reStructuredText format, check this [cheatsheet](https://github.com/ralsina/rst-cheatsheet/blob/master/rst-cheatsheet.rst) to get acquainted with it.
 
 To generate HTML version:
 
-1. Install Sphinx from the [sphinx website](http://sphinx-doc.org/latest/install.html)
+1. Install Sphinx from the [sphinx website](http://www.sphinx-doc.org/en/stable/install.html)
 2. Clone this repository
-4. Generate HTML
+3. Generate HTML
     ```bash
     cd postgrest-docs
     sphinx-build -b html -a -n . _build
