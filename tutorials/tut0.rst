@@ -48,13 +48,13 @@ This will run the Docker instance as a daemon and expose port 5432 to the host s
 Step 3. Install PostgREST
 -------------------------
 
-PostgREST is distributed as a single binary, with versions compiled for major distributions of Linux/BSD/Windows. Visit the `latest release <https://github.com/begriffs/postgrest/releases/latest>`_ for a list of downloads. In the event that your platform is not among those already pre-built, see :ref:`build_source` for instructions how to build it yourself. Also let us know to add your platform in the next release.
+PostgREST is distributed as a single binary, with versions compiled for major distributions of Linux/BSD/Windows. Visit the `latest release <https://github.com/PostgREST/postgrest/releases/latest>`_ for a list of downloads. In the event that your platform is not among those already pre-built, see :ref:`build_source` for instructions how to build it yourself. Also let us know to add your platform in the next release.
 
 The pre-built binaries for download are :code:`.tar.xz` compressed files (except Windows which is a zip file). To extract the binary, go into the terminal and run
 
 .. code-block:: bash
 
-  # download from https://github.com/begriffs/postgrest/releases/latest
+  # download from https://github.com/PostgREST/postgrest/releases/latest
 
   tar xfJ postgrest-<version>-<platform>.tar.xz
 

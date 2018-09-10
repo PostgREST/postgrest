@@ -1,13 +1,13 @@
 Binary Release
 ==============
 
-[ `Download from release page <https://github.com/begriffs/postgrest/releases/latest>`_ ]
+[ `Download from release page <https://github.com/PostgREST/postgrest/releases/latest>`_ ]
 
 The release page has pre-compiled binaries for Mac OS X, Windows, and several Linux distributions. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
 
 .. code-block:: bash
 
-  # Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
+  # Untar the release (available at https://github.com/PostgREST/postgrest/releases/latest)
 
   $ tar Jxf postgrest-[version]-[platform].tar.xz
 
@@ -293,7 +293,7 @@ When a pre-built binary does not exist for your system you can build the project
 
   .. code-block:: bash
 
-    git clone https://github.com/begriffs/postgrest.git
+    git clone https://github.com/PostgREST/postgrest.git
     cd postgrest
 
     # adjust local-bin-path to taste
