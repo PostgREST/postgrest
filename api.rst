@@ -4,7 +4,7 @@
 Tables and Views
 ================
 
-All views and tables in the active schema and accessible by the active database role for a request are available for querying. They are exposed in one-level deep routes. For instance the full contents of a table `people` is returned at
+All views and tables in the exposed schema and accessible by the active database role for a request are available for querying. They are exposed in one-level deep routes. For instance the full contents of a table `people` is returned at
 
 .. code-block:: http
 
@@ -218,6 +218,10 @@ As mentioned, computed columns do not appear in the output by default. However y
 .. code-block:: HTTP
 
   GET /people?select=*,full_name HTTP/1.1
+
+.. important::
+
+  Computed columns must be created under the exposed schema to be used in this way.
 
 Ordering
 --------
