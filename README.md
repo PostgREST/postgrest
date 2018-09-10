@@ -14,6 +14,14 @@ To generate HTML version:
     # open _build/index.html in your browser
     ```
 
+If you use [nix](https://nixos.org/nix/), you can just run:
+
+```
+  nix-shell
+```
+
+This will build the docs and start a livereload server on `http://localhost:5500`.
+
 ---
 
 **Sphinx Installation Notes:**
