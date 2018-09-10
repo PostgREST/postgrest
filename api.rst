@@ -162,7 +162,10 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
     {"full_name": "Jane Doe", "salary": "120000.00"}
   ]
 
-You can specify a json path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/9.5/static/functions-json.html>`_.
+JSON Columns
+~~~~~~~~~~~~
+
+You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/9.5/static/functions-json.html>`_.
 
 .. code-block:: http
 
