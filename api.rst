@@ -670,14 +670,23 @@ To avoid having to qualify many database objects, you can add a ``search_path`` 
   -- existing functions can be altered to add a search_path
   ALTER FUNCTION api.make_point(float8, float8) SET search_path = public, api;
 
-Accessing Request Headers/Cookies
----------------------------------
+Accessing Request Headers, Cookies and JWT claims
+-------------------------------------------------
 
-Stored procedures can access request headers and cookies by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ` and :code:`request.cookie.XYZ`. For example, to read the value of the Origin request header:
+Stored procedures can access request headers, cookies and jwt claims by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ`, :code:`request.cookie.XYZ` and :code:`request.jwt.claim.XYZ`.
 
 .. code-block:: postgresql
 
+  -- To read the value of the Origin request header:
   SELECT current_setting('request.header.origin', true);
+  -- To read the value of sessionId in a cookie:
+  SELECT current_setting('request.cookie.sessionId', true);
+  -- To read the value of the email claim in a jwt:
+  SELECT current_setting('request.jwt.claim.email', true);
+
+.. note::
+
+  ``request.jwt.claim.role`` defaults to the value of :ref:`db-anon-role`.
 
 Errors and HTTP Status Codes
 ----------------------------
