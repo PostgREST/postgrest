@@ -498,7 +498,7 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 
   GET /directors?select=films(title,year) HTTP/1.1
 
-.. note::
+.. important::
 
   Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
@@ -623,7 +623,7 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
-.. note::
+.. important::
 
   Whenever the function definition changes you must refresh PostgREST's schema for this to work properly. See the section :ref:`schema_reloading`.
 
@@ -782,7 +782,7 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
 
 Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
-.. note::
+.. warning::
 
   Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
@@ -857,7 +857,7 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 
   DELETE /user?active=is.false HTTP/1.1
 
-.. note::
+.. warning::
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
 
@@ -892,7 +892,7 @@ Also if you wish to generate a ``summary`` field you can do it by having a multi
 
 You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
-.. note::
+.. important::
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
 
