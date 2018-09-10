@@ -19,4 +19,3 @@ To generate HTML version:
 **Sphinx Installation Notes:**
 
 * If you're on OSX you might want to install the Python from homebrew - then a simple `pip install sphinx` does the trick.
-* For an easier time refreshing your local preview of docs as you change it, try [sphinx-autobuild](https://github.com/GaretJax/sphinx-autobuild).
