@@ -126,18 +126,16 @@ Here's an example. In the config file specify a stored procedure:
 
 In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
 
-.. code:: sql
+.. code-block:: postgres
 
-  CREATE OR REPLACE FUNCTION check_user() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
+  CREATE OR REPLACE FUNCTION check_user() RETURNS void AS $$
   BEGIN
     IF current_user = 'evil_user' THEN
       RAISE EXCEPTION 'No, you are evil'
         USING HINT = 'Stop being so evil and maybe you can log in';
     END IF;
   END
-  $$;
+  $$ LANGUAGE plpgsql;
 
 Client Auth
 ===========
@@ -157,20 +155,18 @@ You can create a valid JWT either from inside your database or via an external s
 JWT from SQL
 ~~~~~~~~~~~~
 
-You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/michelp/pgjwt>`_. It's simple and requires only pgcrypto. If you're on an environment like Amazon RDS which doesn't support installing new extensions, you can still manually run the SQL inside pgjwt which creates the functions you will need.
+You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/michelp/pgjwt>`_. It's simple and requires only pgcrypto. If you're on an environment like Amazon RDS which doesn't support installing new extensions, you can still manually run the `SQL inside pgjwt <https://github.com/michelp/pgjwt/blob/master/pgjwt--0.0.1.sql>`_ (you'll need to replace ``@extschema@`` with another schema or just delete it) which creates the functions you will need.
 
 Next write a stored procedure that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
 
-.. code:: sql
+.. code-block:: postgres
 
   CREATE TYPE jwt_token AS (
     token text
   );
 
-  CREATE FUNCTION jwt_test() RETURNS public.jwt_token
-      LANGUAGE sql
-      AS $$
-    SELECT sign(
+  CREATE FUNCTION jwt_test() RETURNS public.jwt_token AS $$
+    SELECT public.sign(
       row_to_json(r), 'reallyreallyreallyreallyverysafe'
     ) AS token
     FROM (
@@ -178,7 +174,7 @@ Next write a stored procedure that returns the token. The one below returns a to
         'my_role'::text as role,
         extract(epoch from now())::integer + 300 AS exp
     ) r;
-  $$;
+  $$ LANGUAGE sql;
 
 PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`.
 
@@ -329,12 +325,10 @@ First we'll need a table to keep track of our users:
 
 We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the :code:`pg_roles` table. We'll use a trigger to manually enforce it.
 
-.. code:: plpgsql
+.. code-block:: plpgsql
 
   create or replace function
-  basic_auth.check_role_exists() returns trigger
-    language plpgsql
-    as $$
+  basic_auth.check_role_exists() returns trigger as $$
   begin
     if not exists (select 1 from pg_roles as r where r.rolname = new.role) then
       raise foreign_key_violation using message =
@@ -343,7 +337,7 @@ We would like the role to be a foreign key to actual database roles, however Pos
     end if;
     return new;
   end
-  $$;
+  $$ language plpgsql;
 
   drop trigger if exists ensure_user_role_exists on basic_auth.users;
   create constraint trigger ensure_user_role_exists
@@ -353,21 +347,19 @@ We would like the role to be a foreign key to actual database roles, however Pos
 
 Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the :code:`users` table.
 
-.. code:: plpgsql
+.. code-block:: plpgsql
 
   create extension if not exists pgcrypto;
 
   create or replace function
-  basic_auth.encrypt_pass() returns trigger
-    language plpgsql
-    as $$
+  basic_auth.encrypt_pass() returns trigger as $$
   begin
     if tg_op = 'INSERT' or new.pass <> old.pass then
       new.pass = crypt(new.pass, gen_salt('bf'));
     end if;
     return new;
   end
-  $$;
+  $$ language plpgsql;
 
   drop trigger if exists encrypt_pass on basic_auth.users;
   create trigger encrypt_pass
@@ -377,7 +369,7 @@ Next we'll use the pgcrypto extension and a trigger to keep passwords safe in th
 
 With the table in place we can make a helper to check a password against the encrypted column. It returns the database role for a user if the email and password are correct.
 
-.. code:: plpgsql
+.. code-block:: plpgsql
 
   create or replace function
   basic_auth.user_role(email text, pass text) returns name
@@ -404,12 +396,11 @@ Logins
 
 As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure (at least thirty-two character) secret of your choosing.
 
-.. code:: plpgsql
+.. code-block:: postgres
 
+  -- login should be on your exposed schema
   create or replace function
-  login(email text, pass text) returns basic_auth.jwt_token
-    language plpgsql
-    as $$
+  login(email text, pass text) returns basic_auth.jwt_token as $$
   declare
     _role name;
     result basic_auth.jwt_token;
@@ -430,7 +421,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
       into result;
     return result;
   end;
-  $$;
+  $$ language plpgsql;
 
 An API request to call this function would look like:
 
