@@ -239,9 +239,15 @@ PostgREST outputs basic request logging to stdout. When running it in an SSH ses
 Docker
 ======
 
-The official PostgREST Docker image consults an internal :code:`/etc/postgrest.conf` file. To customize this file you can either mount a replacement configuration file into the container, or use environment variables. The environment variables will be interpolated into the default config file.
+You can get the `official PostgREST Docker image <https://hub.docker.com/r/postgrest/postgrest>`_ with:
 
-These variables match the options shown in our :ref:`configuration` section, except they are capitalized, have a prefix, and use underscores. To get a list of the available environment variables, run this:
+.. code-block:: bash
+
+  docker pull postgrest/postgrest
+
+The image consults an internal ``/etc/postgrest.conf`` file. To customize this file you can either mount a replacement configuration file into the container, or use environment variables. The environment variables will be interpolated into the default config file.
+
+These variables match the options shown in our :ref:`configuration` section, except they are capitalized, have a ``PGRST_`` prefix, and use underscores. To get a list of the available environment variables, run this:
 
 .. code-block:: bash
 
@@ -255,9 +261,6 @@ Containerized PostgREST with native PostgreSQL
 The first way to run PostgREST in Docker is to connect it to an existing native database on the host.
 
 .. code-block:: bash
-
-  # Pull the official image
-  docker pull postgrest/postgrest
 
   # Run the server
   docker run --rm --net=host -p 3000:3000 \
