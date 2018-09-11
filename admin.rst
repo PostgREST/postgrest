@@ -164,6 +164,22 @@ Once you've verified that requests are as you expect, you can get more informati
 
 Restart the database and watch the log file in real-time to understand how HTTP requests are being translated into SQL commands.
 
+.. note::
+
+  On Docker you can enable the logs by using a custom ``init.sh``:
+
+  .. code:: bash
+
+    #!/bin/sh
+    echo "log_statement = 'all'" >> /var/lib/postgresql/data/postgresql.conf
+
+  After that you can start the container and check the logs with ``docker logs``.
+
+  .. code:: bash
+
+    docker run -v "$(pwd)/init.sh":"/docker-entrypoint-initdb.d/init.sh" -d postgres
+    docker logs -f <container-id>
+
 .. _schema_reloading:
 
 Schema Reloading
