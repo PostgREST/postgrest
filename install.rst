@@ -45,7 +45,7 @@ The PostgREST server reads a configuration file to determine information about t
 
 .. code:: bash
 
-  postgrest /path/to/postgrest.conf
+  ./postgrest /path/to/postgrest.conf
 
 The file must contain a set of key value pairs. At minimum you must include these keys:
 
