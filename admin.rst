@@ -5,18 +5,18 @@ PostgREST is a fast way to construct a RESTful API. Its default behavior is grea
 
 The first step is to create an Nginx configuration file that proxies requests to an underlying PostgREST server.
 
-.. code:: nginx
+.. code-block:: nginx
 
   http {
-    ...
+    # ...
     # upstream configuration
     upstream postgrest {
       server localhost:3000;
       keepalive 64;
     }
-    ...
+    # ...
     server {
-      ...
+      # ...
       # expose to the outside world
       location /api/ {
         default_type  application/json;
@@ -26,7 +26,7 @@ The first step is to create an Nginx configuration file that proxies requests to
         proxy_http_version 1.1;
         proxy_pass http://postgrest/;
       }
-      ...
+      # ...
     }
   }
 
@@ -37,13 +37,13 @@ Block Full-Table Operations
 
 Each table in the admin-selected schema gets exposed as a top level route. Client requests are executed by certain database roles depending on their authentication. All HTTP verbs are supported that correspond to actions permitted to the role. For instance if the active role can drop rows of the table then the DELETE verb is allowed for clients. Here's an API request to delete old rows from a hypothetical logs table:
 
-.. code:: http
+.. code-block:: http
 
   DELETE /logs?time=lt.1991-08-06 HTTP/1.1
 
 However it's very easy to delete the **entire table** by omitting the query parameter!
 
-.. code:: http
+.. code-block:: http
 
   DELETE /logs HTTP/1.1
 
@@ -92,7 +92,7 @@ This is fine in small tables, but count performance degrades in big tables due t
 HTTPS
 -----
 
-See the :ref:`ssl` section of the authentication guide.
+See the :ref:`https` section of the authentication guide.
 
 Rate Limiting
 -------------
@@ -201,6 +201,50 @@ Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to mon
 
 Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache.
 
+Daemonizing
+===========
+
+For linux distros that use **systemd** (ubuntu, debian, archlinux) you can create a daemon in the following way.
+
+First, create postgrest configuration in ``/etc/postgrest/config``
+
+.. code-block:: ini
+
+  db-uri = "postgres://<your_user>:<your_password>@localhost:5432/<your_db>"
+  db-schema = "<your_exposed_schema>"
+  db-anon-role = "<your_anon_role>"
+  db-pool = 10
+
+  server-host = "127.0.0.1"
+  server-port = 3000
+
+  jwt-secret = "<your_secret>"
+
+Then create the systemd service file in ``/etc/systemd/system/postgrest.service``
+
+.. code-block:: ini
+
+  [Unit]
+  Description=REST API for any Postgres database
+  After=postgresql.service
+
+  [Service]
+  ExecStart=/bin/postgrest /etc/postgrest/config
+  ExecReload=/bin/kill -HUP $MAINPID
+
+  [Install]
+  WantedBy=multi-user.target
+
+After that, you can enable the service at boot time and start it with:
+
+.. code-block:: bash
+
+  systemctl enable postgrest
+  systemctl start postgrest
+
+  ## For reloading the service
+  ## systemctl restart postgrest
+
 Alternate URL Structure
 =======================
 
@@ -215,7 +259,7 @@ This allows compound primary keys and makes the intent for singular response ind
 
 Nginx rewrite rules allow you to simulate the familiar URL convention. The following example adds a rewrite rule for all table endpoints, but you'll want to restrict it to those tables that have a numeric simple primary key named "id."
 
-.. code:: nginx
+.. code-block:: nginx
 
   # support /endpoint/:id url style
   location ~ ^/([a-z_]+)/([0-9]+) {
