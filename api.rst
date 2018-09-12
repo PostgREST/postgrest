@@ -552,26 +552,36 @@ Stored Procedures
 
 Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports POST (and in some cases GET) to execute the function.
 
-.. code:: http
+.. code-block:: http
 
   POST /rpc/function_name HTTP/1.1
 
 Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations). However procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas. Stable and immutable functions can be called with the HTTP GET verb if desired.
 
-Procedures must be used with `named arguments <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_. To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
+To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
 
 For instance, assume we have created this function in the database.
 
-.. code:: plpgsql
+.. code-block:: plpgsql
 
   CREATE FUNCTION add_them(a integer, b integer)
   RETURNS integer AS $$
-   SELECT $1 + $2;
+   SELECT a + b;
   $$ LANGUAGE SQL IMMUTABLE STRICT;
+
+.. note::
+
+  Procedures must be declared with named parameters, procedures declared like:
+
+  .. code-block:: plpgsql
+
+    CREATE FUNCTION non_named_args(integer, text, integer) ...
+
+  Can not be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
 
 The client can call it by posting an object like
 
-.. code:: http
+.. code-block:: http
 
   POST /rpc/add_them HTTP/1.1
 
@@ -579,7 +589,7 @@ The client can call it by posting an object like
 
 Because ``add_them`` is declared IMMUTABLE, we can alternately call the function with a GET request:
 
-.. code:: http
+.. code-block:: http
 
   GET /rpc/add_them?a=1&b=2 HTTP/1.1
 
@@ -640,6 +650,25 @@ By default, a function is executed with the privileges of the user who calls it.
 .. note::
 
   Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+
+Overloaded functions
+--------------------
+
+You can call overloaded functions with different number of arguments.
+
+.. code-block:: postgres
+
+  CREATE FUNCTION rental_duration(customer_id integer) ..
+
+  CREATE FUNCTION rental_duration(customer_id integer, from_date date) ..
+
+.. code-block:: http
+
+  GET /rpc/rental_duration?customer_id=232 HTTP/1.1
+
+.. code-block:: http
+
+  GET /rpc/rental_duration?customer_id=232&from_date=2018-07-01 HTTP/1.1
 
 Explicit Qualification
 ----------------------
