@@ -68,14 +68,14 @@ The user specified in the db-uri is also known as the authenticator role. For mo
 
 Here is the full list of configuration parameters.
 
-================  ======  =======  ========
-Name              Type    Default  Required
-================  ======  =======  ========
-db-uri            String           Y
-db-schema         String           Y
-db-anon-role      String           Y
+================  ======  =========  ========
+Name              Type    Default    Required
+================  ======  =========  ========
+db-uri            String             Y
+db-schema         String             Y
+db-anon-role      String             Y
 db-pool           Int     10
-server-host       String  \*4
+server-host       String  127.0.0.1
 server-port       Int     3000
 server-proxy-uri  String
 jwt-secret        String
@@ -85,7 +85,7 @@ max-rows          Int     ∞
 pre-request       String
 app.settings.*    String
 role-claim-key    String  .role
-================  ======  =======  ========
+================  ======  =========  ========
 
 .. _db-uri:
 
