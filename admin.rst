@@ -187,11 +187,11 @@ Schema Reloading
 
 Users are often confused by PostgREST's database schema cache. It is present because detecting foreign key relationships between tables (including how those relationships pass through views) is necessary, but costly. API requests consult the schema cache as part of :ref:`resource_embedding`. However if the schema changes while the server is running it results in a stale cache and leads to errors claiming that no relations are detected between tables.
 
-To refresh the cache without restarting the PostgREST server, send the server process a SIGHUP signal:
+To refresh the cache without restarting the PostgREST server, send the server process a SIGUSR1 signal:
 
 .. code:: bash
 
-  killall -HUP postgrest
+  killall -SIGUSR1 postgrest
 
 The above is the manual way to do it. To automate the schema reloads, use a database trigger like this:
 
@@ -209,13 +209,17 @@ The above is the manual way to do it. To automate the schema reloads, use a data
   CREATE EVENT TRIGGER ddl_postgrest ON ddl_command_end
      EXECUTE PROCEDURE public.notify_ddl_postgrest();
 
-Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to monitor for that event and send a SIGHUP when it occurs:
+Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to monitor for that event and send a SIGUSR1 when it occurs:
 
 .. code-block:: bash
 
-  pg_listen <db-uri> ddl_command_end "killall -HUP postgrest"
+  pg_listen <db-uri> ddl_command_end "killall -SIGUSR1 postgrest"
 
 Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache.
+
+.. important::
+
+  As of PostgREST v5.1 reloading with SIGHUP is deprecated, it's still supported but will be removed in v6.0
 
 Daemonizing
 ===========
@@ -246,7 +250,7 @@ Then create the systemd service file in ``/etc/systemd/system/postgrest.service`
 
   [Service]
   ExecStart=/bin/postgrest /etc/postgrest/config
-  ExecReload=/bin/kill -HUP $MAINPID
+  ExecReload=/bin/kill -SIGUSR1 $MAINPID
 
   [Install]
   WantedBy=multi-user.target
