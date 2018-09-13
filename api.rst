@@ -569,6 +569,10 @@ For instance, assume we have created this function in the database.
    SELECT a + b;
   $$ LANGUAGE SQL IMMUTABLE STRICT;
 
+.. important::
+
+  Whenever you create or change a function you must refresh PostgREST's schema. See the section :ref:`schema_reloading`.
+
 .. note::
 
   Procedures must be declared with named parameters, procedures declared like:
@@ -632,10 +636,6 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Call me by your name", "rating": 8},
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
-
-.. important::
-
-  Whenever the function definition changes you must refresh PostgREST's schema for this to work properly. See the section :ref:`schema_reloading`.
 
 A function response can be shaped using the same filters as the ones used for tables and views:
 
