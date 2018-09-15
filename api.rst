@@ -221,7 +221,7 @@ As mentioned, computed columns do not appear in the output by default. However y
 
 .. important::
 
-  Computed columns must be created under the exposed schema to be used in this way.
+  Computed columns must be created under the :ref:`exposed schema <db-schema>` to be used in this way.
 
 Ordering
 --------
@@ -378,30 +378,30 @@ Binary output
 If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
 and select a single column :code:`?select=bin_data`.
 
-.. code:: http
+.. code-block:: http
 
   GET /items?select=bin_data&id=eq.1 HTTP/1.1
   Accept: application/octet-stream
 
-You can also request binary output when calling stored procedures and since they can return a scalar value you are not forced to use :code:`select`
+You can also request binary output when calling `Stored Procedures`_ and since they can return a scalar value you are not forced to use :code:`select`
 for this case.
 
-.. code:: sql
+.. code-block:: postgres
 
   CREATE FUNCTION closest_point(..) RETURNS bytea ..
 
-.. code:: http
+.. code-block:: http
 
   POST /rpc/closest_point HTTP/1.1
   Accept: application/octet-stream
 
 If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
 
-.. code:: sql
+.. code-block:: sql
 
   CREATE FUNCTION overlapping_regions(..) RETURNS SETOF TABLE(geom_twkb bytea, ..) ..
 
-.. code:: http
+.. code-block:: http
 
   POST /rpc/overlapping_regions?select=geom_twkb HTTP/1.1
   Accept: application/octet-stream
@@ -502,8 +502,8 @@ PostgREST can also detect relations going through join tables. Thus you can requ
 
   Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
-Embedded Operations
--------------------
+Embedded Filters
+----------------
 
 Embedded resources can be shaped similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded resource. For instance, to order the actors in each film:
 
@@ -832,7 +832,7 @@ All tables and `auto-updatable views <https://www.postgresql.org/docs/current/st
 
 To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
 
-.. code:: HTTP
+.. code-block:: HTTP
 
   POST /table_name HTTP/1.1
 
@@ -858,7 +858,7 @@ On the other end of the spectrum you can get the full created object back in the
 
 To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
 
-.. code:: HTTP
+.. code-block:: http
 
   PATCH /people?age=lt.13 HTTP/1.1
 
@@ -877,7 +877,7 @@ Bulk insert works exactly like single row insert except that you provide either 
 
 To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
 
-.. code:: HTTP
+.. code-block:: http
 
   POST /people HTTP/1.1
   Content-Type: text/csv
@@ -890,7 +890,7 @@ An empty field (:code:`,,`) is coerced to an empty string and the reserved word 
 
 To bulk insert JSON post an array of objects having all-matching keys
 
-.. code:: HTTP
+.. code-block:: http
 
   POST /people HTTP/1.1
   Content-Type: application/json
@@ -905,7 +905,7 @@ Upsert
 
 You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
 
-.. code:: HTTP
+.. code-block:: http
 
   POST /employees HTTP/1.1
   Prefer: resolution=merge-duplicates
@@ -920,7 +920,7 @@ UPSERT operates based on the primary key columns, you must specify all of them. 
 
 A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
-.. code:: HTTP
+.. code-block:: http
 
   PUT /employees?id=eq.4 HTTP/1.1
 
