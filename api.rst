@@ -556,7 +556,7 @@ Every stored procedure in the API-exposed database schema is accessible under th
 
   POST /rpc/function_name HTTP/1.1
 
-Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations). However procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas. Stable and immutable functions can be called with the HTTP GET verb if desired.
+Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations).
 
 To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
 
@@ -573,16 +573,6 @@ For instance, assume we have created this function in the database.
 
   Whenever you create or change a function you must refresh PostgREST's schema. See the section :ref:`schema_reloading`.
 
-.. note::
-
-  Procedures must be declared with named parameters, procedures declared like:
-
-  .. code-block:: plpgsql
-
-    CREATE FUNCTION non_named_args(integer, text, integer) ...
-
-  Can not be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
-
 The client can call it by posting an object like
 
 .. code-block:: http
@@ -591,13 +581,41 @@ The client can call it by posting an object like
 
   { "a": 1, "b": 2 }
 
-Because ``add_them`` is declared IMMUTABLE, we can alternately call the function with a GET request:
+  3
+
+You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION mult_them(param json) RETURNS int AS $$
+    SELECT (param->>'x')::int * (param->>'y')::int
+  $$ LANGUAGE SQL;
 
 .. code-block:: http
 
-  GET /rpc/add_them?a=1&b=2 HTTP/1.1
+  POST /rpc/mult_them HTTP/1.1
+  Prefer: params=single-object
 
-The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``. Note that PostgreSQL converts parameter names to lowercase unless you quote them like :sql:`CREATE FUNCTION foo("mixedCase" text) ...`. You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+  { "x": 4, "y": 2 }
+
+  8
+
+
+Procedures must be declared with named parameters, procedures declared like:
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION non_named_args(integer, text, integer) ...
+
+Can not be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
+
+Note that PostgreSQL converts identifier names to lowercase unless you quote them like:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION "someFunc"("someParam" text) ...
+
+PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
 
 .. note::
 
@@ -619,15 +637,35 @@ The function parameter names match the JSON object keys in the POST case, for th
 
   Starting from PostgreSQL 10, a json array from the client gets mapped normally to a PostgreSQL native array.
 
+.. note::
+
+  Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+
+Immutable and stable functions
+------------------------------
+
+Procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas. Stable and immutable functions can be called with the HTTP GET verb if desired.
+
+Because ``add_them`` is declared IMMUTABLE, we can alternately call the function with a GET request:
+
+.. code-block:: http
+
+  GET /rpc/add_them?a=1&b=2 HTTP/1.1
+
+The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
+
+Scalar functions
+----------------
+
 PostgREST will detect if the function is scalar or table-valued and will shape the response format accordingly:
 
-.. code:: http
+.. code-block:: http
 
   GET /rpc/add_them?a=1&b=2 HTTP/1.1
 
   3
 
-.. code:: http
+.. code-block:: http
 
   GET /rpc/best_films_2017 HTTP/1.1
 
@@ -637,19 +675,27 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
-A function response can be shaped using the same filters as the ones used for tables and views:
+Function filters
+----------------
 
-.. code:: http
+A function that returns a table type response can be shaped using the same filters as the ones used for tables and views:
 
-  GET /rpc/top_rated_films?select=title,director:directors(*)&year=eq.1990&order=title.desc HTTP/1.1
+.. code-block:: postgres
 
-PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
+  CREATE FUNCTION best_films_2017() RETURNS SETOF films ..
+
+.. code-block:: http
+
+  GET /rpc/best_films_2017?select=title,director:directors(*) HTTP/1.1
+
+.. code-block:: http
+
+  GET /rpc/best_films_2017?rating=gt.8&order=title.desc HTTP/1.1
+
+Function privileges
+-------------------
 
 By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs. Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html>`_ for more details.
-
-.. note::
-
-  Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
 
 Overloaded functions
 --------------------
