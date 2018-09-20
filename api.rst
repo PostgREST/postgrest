@@ -103,22 +103,19 @@ The view will provide a new endpoint:
 Full-Text Search
 ~~~~~~~~~~~~~~~~
 
-The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The follow examples illustrate the possibilities.
+The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The following examples illustrate the possibilities.
 
 .. code-block:: http
 
-  # Use language in fts query
-  GET /tsearch?my_tsv=fts(french).amusant
+  GET /tsearch?my_tsv=fts(french).amusant HTTP/1.1
 
-  # Use plainto_tsquery and phraseto_tsquery
-  GET /tsearch?my_tsv=plfts.The%20Fat%20Cats
-  GET /tsearch?my_tsv=phfts.The%20Fat%20Rats
+.. code-block:: http
 
-  # Combine both
-  GET /tsearch?my_tsv=phfts(english).The%20Fat%20Cats
+  GET /tsearch?my_tsv=plfts.The%20Fat%20Cats HTTP/1.1
 
-  # "not" also working
-  GET /tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats
+.. code-block:: http
+
+  GET /tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats HTTP/1.1
 
 Using phrase search mode requires PostgreSQL of version at least 9.6 and will raise an error in earlier versions of the database.
 
@@ -346,7 +343,7 @@ By default PostgREST returns all JSON results in an array, even when there is on
 
 This can be inconvenient for client code. To return the first result as an object unenclosed by an array, specify :code:`vnd.pgrst.object` as part of the :code:`Accept` header
 
-.. code:: http
+.. code-block:: http
 
   GET /items?id=eq.1 HTTP/1.1
   Accept: application/vnd.pgrst.object+json
@@ -621,7 +618,7 @@ PostgreSQL has four procedural languages that are part of the core distribution:
 
   For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you need to quote it as a string:
 
-  .. code:: http
+  .. code-block:: http
 
     POST /rpc/native_array_func HTTP/1.1
 
@@ -629,7 +626,7 @@ PostgreSQL has four procedural languages that are part of the core distribution:
 
   In these versions we recommend using function arguments of type json to accept arrays from the client:
 
-  .. code:: http
+  .. code-block:: http
 
     POST /rpc/json_array_func HTTP/1.1
 

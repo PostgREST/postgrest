@@ -222,7 +222,7 @@ role-claim-key
     role-claim-key = ".\"https://www.example.com/role\".key"
 
 Running the Server
-------------------
+==================
 
 PostgREST outputs basic request logging to stdout. When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a log file or to the syslog:
 
