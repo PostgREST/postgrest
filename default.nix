@@ -8,7 +8,6 @@ stdenv.mkDerivation {
     python36Packages.sphinx_rtd_theme
     python36Packages.livereload ];
   shellHook = ''
-    sphinx-build -b html -a -n . _build
-    python reload_docs.py && exit
+    python livereload_docs.py && exit
   '';
 }
