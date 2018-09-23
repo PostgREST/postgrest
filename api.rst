@@ -100,7 +100,7 @@ The view will provide a new endpoint:
 
 .. important::
 
-  Views are invoked with the privileges of the view owner, much like stored procedures with the "SECURITY DEFINER" option. When created by a SUPERUSER role, all row-level security will be bypassed unless a different owner is specified.
+  Views are invoked with the privileges of the view owner, much like stored procedures with the "SECURITY DEFINER" option. When created by a SUPERUSER role, all row-level security will be bypassed unless a different, non-SUPERUSER owner is specified.
 
 .. _fts:
 
