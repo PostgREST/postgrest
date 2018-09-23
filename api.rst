@@ -98,6 +98,10 @@ The view will provide a new endpoint:
 
   GET /fresh_stories HTTP/1.1
 
+.. important::
+
+  Views bypass all row-level security features and are invoked as the role which created the view, much like stored procedures with the "SECURITY DEFINER" option.
+
 .. _fts:
 
 Full-Text Search
