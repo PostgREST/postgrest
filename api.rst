@@ -100,7 +100,15 @@ The view will provide a new endpoint:
 
 .. important::
 
-  Views are invoked with the privileges of the view owner, much like stored procedures with the "SECURITY DEFINER" option. When created by a SUPERUSER role, all row-level security will be bypassed unless a different, non-SUPERUSER owner is specified.
+  Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
+
+  .. code-block:: postgres
+
+    -- Workaround:
+    -- non-SUPERUSER role to be used as the owner of the views
+    CREATE ROLE api_views_owner;
+    -- alter the view owner so RLS can work normally
+    ALTER VIEW sample_view OWNER TO api_views_owner;
 
 .. _fts:
 
