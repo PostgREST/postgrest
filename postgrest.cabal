@@ -33,8 +33,8 @@ executable postgrest
   default-language:    Haskell2010
   build-depends:       auto-update
                      , base >= 4.8 && < 4.10
-                     , hasql == 1.1
-                     , hasql-pool == 0.4.3
+                     , hasql >= 1.3 && < 1.4
+                     , hasql-pool >= 0.5 && < 0.6
                      , postgrest
                      , protolude == 0.2.2
                      , text
@@ -64,9 +64,9 @@ library
                      , contravariant-extras
                      , either
                      , gitrev
-                     , hasql >= 1.3
-                     , hasql-pool >= 0.5
-                     , hasql-transaction >= 0.7
+                     , hasql >= 1.3 && < 1.4
+                     , hasql-pool >= 0.5 && < 0.6
+                     , hasql-transaction >= 0.7 && < 0.8
                      , heredoc
                      , HTTP
                      , http-types
@@ -152,8 +152,8 @@ Test-Suite spec
                      , cassava
                      , containers
                      , contravariant
-                     , hasql == 1.1
-                     , hasql-pool == 0.4.3
+                     , hasql >= 1.3 && < 1.4
+                     , hasql-pool >= 0.5 && < 0.6
                      , heredoc
                      , hjsonschema == 1.5.0.1
                      , hspec
