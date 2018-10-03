@@ -5,12 +5,11 @@ module Main where
 
 import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
-                                           minimumPgVersion,
                                            prettyVersion, readOptions)
 import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
-import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
+import           PostgREST.Types          (DbStructure, Schema, PgVersion(..), minimumPgVersion)
 import           Protolude                hiding (hPutStrLn, replace)
 
 

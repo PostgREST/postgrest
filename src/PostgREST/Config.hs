@@ -18,9 +18,6 @@ module PostgREST.Config ( prettyVersion
                         , docsVersion
                         , readOptions
                         , corsPolicy
-                        , minimumPgVersion
-                        , pgVersion95
-                        , pgVersion96
                         , AppConfig (..)
                         )
        where
@@ -52,7 +49,7 @@ import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
 import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (PgVersion(..), ApiRequestError(..),
+import           PostgREST.Types              (ApiRequestError(..),
                                                JSPath, JSPathExp(..))
 import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
@@ -233,13 +230,3 @@ pathParser =
   strArgument $
     metavar "FILENAME" <>
     help "Path to configuration file"
-
--- | Tells the minimum PostgreSQL version required by this version of PostgREST
-minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90400 "9.4"
-
-pgVersion96 :: PgVersion
-pgVersion96 = PgVersion 90600 "9.6"
-
-pgVersion95 :: PgVersion
-pgVersion95 = PgVersion 90500 "9.5"
