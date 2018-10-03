@@ -52,7 +52,7 @@ build-distro-bin: &build-distro-bin
         key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
 jobs:
-  build-test:
+  build-test-9.4:
     docker:
       - image: circleci/buildpack-deps:trusty
         environment:
@@ -112,6 +112,38 @@ jobs:
         environment:
           - PGHOST=localhost
       - image: circleci/postgres:9.6.2
+        environment:
+          - POSTGRES_USER=circleci
+          - POSTGRES_DB=circleci
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-1.1.2-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y postgresql-client
+            stack setup
+      - run:
+          name: build src and tests
+          command: |
+            stack build --fast -j1
+            stack build --fast --test --no-run-tests
+      - run:
+          name: run tests
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+
+  build-test-10:
+    docker:
+      - image: circleci/buildpack-deps:trusty
+        environment:
+          - PGHOST=localhost
+      - image: circleci/postgres:10.5
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -224,11 +256,15 @@ workflows:
   version: 2
   build-test-release:
     jobs:
-      - build-test:
+      - build-test-9.4:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
       - build-test-9.6:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+      - build-test-10:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
@@ -238,8 +274,9 @@ workflows:
               only: /v[0-9]+(\.[0-9]+)*/
       - centos6:
           requires:
-            - build-test
+            - build-test-9.4
             - build-test-9.6
+            - build-test-10
             - build-prof-test
           filters:
             tags:
@@ -248,8 +285,9 @@ workflows:
               ignore: /.*/
       - centos7:
           requires:
-            - build-test
+            - build-test-9.4
             - build-test-9.6
+            - build-test-10
             - build-prof-test
           filters:
             tags:
@@ -258,8 +296,9 @@ workflows:
               ignore: /.*/
       - ubuntu:
           requires:
-            - build-test
+            - build-test-9.4
             - build-test-9.6
+            - build-test-10
             - build-prof-test
           filters:
             tags:
@@ -268,8 +307,9 @@ workflows:
               ignore: /.*/
       - ubuntui386:
           requires:
-            - build-test
+            - build-test-9.4
             - build-test-9.6
+            - build-test-10
             - build-prof-test
           filters:
             tags:
