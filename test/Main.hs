@@ -6,9 +6,8 @@ import SpecHelper
 import qualified Hasql.Pool as P
 
 import PostgREST.App (postgrest)
-import PostgREST.Config (pgVersion95, pgVersion96)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types (DbStructure(..))
+import PostgREST.Types (DbStructure(..), pgVersion95, pgVersion96)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Data.Function (id)
 import Data.IORef

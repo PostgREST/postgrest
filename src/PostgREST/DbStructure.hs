@@ -26,7 +26,7 @@ import           Data.Text                     (split, strip,
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
-import           Text.InterpolatedString.Perl6 (q)
+import           Text.InterpolatedString.Perl6 (q, qc)
 
 import           GHC.Exts                      (groupWith)
 import           Protolude
@@ -36,7 +36,7 @@ getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
   tabs      <- H.statement () allTables
   cols      <- H.statement schema $ allColumns tabs
-  syns      <- H.statement schema $ allSynonyms cols
+  syns      <- H.statement schema $ allSynonyms cols pgVer
   childRels <- H.statement () $ allChildRelations tabs cols
   keys      <- H.statement () $ allPrimaryKeys tabs
   procs     <- H.statement schema allProcs
@@ -685,68 +685,71 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Statement Schema [Synonym]
-allSynonyms cols =
+allSynonyms :: [Column] -> PgVersion -> H.Statement Schema [Synonym]
+allSynonyms cols pgVer =
   H.Statement sql (HE.param HE.text) (decodeSynonyms cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
-  where sql = [q|
-    with
-    views as (
+  where
+    subselectRegex :: Text
+    subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location"
+                   | otherwise = ":subselect {.*?:stmt_len 0} :location"
+    sql = [qc|
+      with
+      views as (
+        select
+          n.nspname   as view_schema,
+          c.relname   as view_name,
+          r.ev_action as view_definition
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        join pg_rewrite r on r.ev_class = c.oid
+        where (c.relkind = 'v'::char) and n.nspname = $1
+      ),
+      removed_subselects as(
+        select
+          view_schema, view_name,
+          regexp_replace(view_definition, '{subselectRegex}', '', 'g') as x
+        from views
+      ),
+      target_lists as(
+        select
+          view_schema, view_name,
+          regexp_split_to_array(x, 'targetList') as x
+        from removed_subselects
+      ),
+      last_target_list_wo_tail as(
+        select
+          view_schema, view_name,
+          (regexp_split_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
+        from target_lists
+      ),
+      target_entries as(
+        select
+          view_schema, view_name,
+          unnest(regexp_split_to_array(x, 'TARGETENTRY')) as entry
+        from last_target_list_wo_tail
+      ),
+      results as(
+        select
+          view_schema, view_name,
+          substring(entry from ':resname (.*?) :') as view_colum_name,
+          substring(entry from ':resorigtbl (.*?) :') as resorigtbl,
+          substring(entry from ':resorigcol (.*?) :') as resorigcol
+        from target_entries
+      )
       select
-        n.nspname   as view_schema,
-        c.relname   as view_name,
-        r.ev_action as view_definition
-      from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-      join pg_rewrite r on r.ev_class = c.oid
-      where (c.relkind = 'v'::char) and n.nspname = $1
-    ),
-    removed_subselects as(
-      select
-        view_schema, view_name,
-        regexp_replace(view_definition, ':subselect {.*?:constraintDeps <>} :location', '', 'g') as x
-      from views
-    ),
-    target_lists as(
-      select
-        view_schema, view_name,
-        regexp_split_to_array(x, 'targetList') as x
-      from removed_subselects
-    ),
-    last_target_list_wo_tail as(
-      select
-        view_schema, view_name,
-        (regexp_split_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
-      from target_lists
-    ),
-    target_entries as(
-      select
-        view_schema, view_name,
-        unnest(regexp_split_to_array(x, 'TARGETENTRY')) as entry
-      from last_target_list_wo_tail
-    ),
-    results as(
-      select
-        view_schema, view_name,
-        substring(entry from ':resname (.*?) :') as view_colum_name,
-        substring(entry from ':resorigtbl (.*?) :') as resorigtbl,
-        substring(entry from ':resorigcol (.*?) :') as resorigcol
-      from target_entries
-    )
-    select
-      sch.nspname as table_schema,
-      tbl.relname as table_name,
-      col.attname as table_column_name,
-      res.view_schema,
-      res.view_name,
-      res.view_colum_name
-    from results res
-    join pg_class tbl on tbl.oid::text = res.resorigtbl
-    join pg_attribute col on col.attrelid = tbl.oid and col.attnum::text = res.resorigcol
-    join pg_namespace sch on sch.oid = tbl.relnamespace
-    where resorigtbl <> '0'
-    order by view_schema, view_name, view_colum_name;
-    |]
+        sch.nspname as table_schema,
+        tbl.relname as table_name,
+        col.attname as table_column_name,
+        res.view_schema,
+        res.view_name,
+        res.view_colum_name
+      from results res
+      join pg_class tbl on tbl.oid::text = res.resorigtbl
+      join pg_attribute col on col.attrelid = tbl.oid and col.attnum::text = res.resorigcol
+      join pg_namespace sch on sch.oid = tbl.relnamespace
+      where resorigtbl <> '0'
+      order by view_schema, view_name, view_colum_name; |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe Synonym
 synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2

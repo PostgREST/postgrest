@@ -317,7 +317,23 @@ toMime (CTOther ct)      = ct
 data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
-} deriving (Eq, Ord, Show)
+} deriving (Eq, Show)
+
+instance Ord PgVersion where
+  (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
+
+-- | Tells the minimum PostgreSQL version required by this version of PostgREST
+minimumPgVersion :: PgVersion
+minimumPgVersion = PgVersion 90400 "9.4"
+
+pgVersion95 :: PgVersion
+pgVersion95 = PgVersion 90500 "9.5"
+
+pgVersion96 :: PgVersion
+pgVersion96 = PgVersion 90600 "9.6"
+
+pgVersion100 :: PgVersion
+pgVersion100 = PgVersion 100000 "10"
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"

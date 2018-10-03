@@ -32,7 +32,6 @@ import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
 
-import           PostgREST.Config        (pgVersion96)
 import           PostgREST.RangeQuery    (rangeLimit, rangeOffset, allRange)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Maybe
