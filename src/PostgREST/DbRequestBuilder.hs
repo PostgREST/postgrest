@@ -90,7 +90,7 @@ readRequest maxRows allRels proc apiRequest  =
 -- in a relation where one of the tables matches "TableName"
 -- replace the name to that table with pg_source
 -- this "fake" relations is needed so that in a mutate query
--- we can look a the "returning *" part which is wrapped with a "with"
+-- we can look at the "returning *" part which is wrapped with a "with"
 -- as just another table that has relations with other tables
 toSourceRelation :: TableName -> Relation -> Maybe Relation
 toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
