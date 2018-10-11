@@ -225,12 +225,12 @@ addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _, _)) fo
     addJoinCond jc rq@Select{joinConditions=jcs} = rq{joinConditions=jc:jcs}
 
 getJoinConditions :: Relation -> [JoinCondition]
-getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fcs typ lt lc1 lc2) =
+getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols typ lt lc1 lc2) =
   if | typ == Child || typ == Parent ->
-        zipWith (toJoinCondition tN ftN) cols fcs
+        zipWith (toJoinCondition tN ftN) cols fCols
      | typ == Many ->
         let ltN = fromMaybe "" (tableName <$> lt) in
-        zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fcs (fromMaybe [] lc2)
+        zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
      | typ == Root -> witness
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition

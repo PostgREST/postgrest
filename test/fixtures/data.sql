@@ -250,7 +250,7 @@ INSERT INTO tsearch VALUES (to_tsvector('It''s kind of fun to do the impossible'
 INSERT INTO tsearch VALUES (to_tsvector('But also fun to do what is possible'));
 INSERT INTO tsearch VALUES (to_tsvector('Fat cats ate rats'));
 INSERT INTO tsearch VALUES (to_tsvector('french', 'C''est un peu amusant de faire l''impossible'));
-INSERT INTO tsearch VALUES (to_tsvector('german', 'Es ist eine Art Spaß, das Unmögliche zu machen')); 
+INSERT INTO tsearch VALUES (to_tsvector('german', 'Es ist eine Art Spaß, das Unmögliche zu machen'));
 
 --
 -- Data for Name: users_projects; Type: TABLE DATA; Schema: test; Owner: -
@@ -442,3 +442,24 @@ INSERT INTO jsonb_test VALUES (1, '{ "a": {"b": 2} }');
 INSERT INTO jsonb_test VALUES (2, '{ "c": [1,2,3] }');
 INSERT INTO jsonb_test VALUES (3, '[{ "d": "test" }]');
 INSERT INTO jsonb_test VALUES (4, '{ "e": 1 }');
+
+TRUNCATE TABLE private.player CASCADE;
+INSERT into private.player
+SELECT
+  generate_series,
+  'first_name_' || generate_series,
+  'last_name_' || generate_series,
+  '2018-10-11'
+FROM generate_series(1, 12);
+
+TRUNCATE TABLE contract CASCADE;
+insert into contract
+select
+  'tournament_' || generate_series,
+  tsrange(now()::timestamp, null),
+  10*generate_series,
+  generate_series,
+  'first_name_' || generate_series,
+  'last_name_' || generate_series,
+  '2018-10-11'
+from generate_series(1, 6);

@@ -1579,3 +1579,26 @@ create or replace function test."quotedFunction"("user" text, "fullName" text, "
 returns jsonb AS $$
   select format('{"user": "%s", "fullName": "%s", "SSN": "%s"}', "user", "fullName", "SSN")::jsonb;
 $$ language sql;
+
+create table private.player (
+  id integer not null,
+  first_name text not null,
+  last_name text not null,
+  birth_date date,
+  primary key (last_name, id, first_name, birth_date) -- just for testing a long compound pk
+);
+
+create table test.contract (
+  tournament text not null,
+  time tsrange not null,
+  purchase_price int not null,
+  id integer not null,
+  first_name text not null,
+  last_name text not null,
+  birth_date date,
+  foreign key (last_name, id, first_name, birth_date) references private.player
+);
+
+create view test.player_view as select * from private.player;
+
+create view test.contract_view as select * from test.contract;

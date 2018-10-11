@@ -41,7 +41,7 @@ getDbStructure schema pgVer = do
   keys      <- H.statement () $ allPrimaryKeys tabs
   procs     <- H.statement schema allProcs
 
-  let rels = addManyToManyRelations . addParentRelations $ addViewRelations syns childRels
+  let rels = addManyToManyRelations . addParentRelations $ addViewChildRelations syns childRels
       cols' = addForeignKeys rels cols
       keys' = addViewPrimaryKeys syns keys
 
@@ -243,32 +243,32 @@ Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], 
 
 t1.c1------t2.c2
 
-When only having a t1_view.c1 synonym, we need to add a View to Table Relation
+When only having a t1_view.c1 synonym, we need to add a View to Table Child Relation
 
          t1.c1----t2.c2         t1.c1----------t2.c2
-                         ->            --------/
+                         ->            ________/
                                       /
       t1_view.c1             t1_view.c1
 
 
-When only having a t2_view.c2 synonym, we need to add a Table to View Relation
+When only having a t2_view.c2 synonym, we need to add a Table to View Child Relation
 
          t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \--------
+                               ->          \________
                                                     \
                     t2_view.c2                      t2_view.c1
 
-When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View Relation in addition to the prior
+When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View Child Relation in addition to the prior
 
          t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \--------/
+                               ->          \________/
                                            /        \
     t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
 
 The logic for composite pks is similar just need to make sure all the Relation columns have synonyms.
 -}
-addViewRelations :: [Synonym] -> [Relation] -> [Relation]
-addViewRelations allSyns = concatMap (\rel ->
+addViewChildRelations :: [Synonym] -> [Relation] -> [Relation]
+addViewChildRelations allSyns = concatMap (\rel ->
   rel : case rel of
     Relation{relType=Child, relTable, relColumns, relFTable, relFColumns} ->
 
@@ -279,18 +279,22 @@ addViewRelations allSyns = concatMap (\rel ->
           fColsSyns = colSynsGroupedByView relFColumns
           getView :: [Synonym] -> Table
           getView = colTable . snd . unsafeHead
-          syns `allSynsOf` cols = S.fromList (fst <$> syns) == S.fromList cols in
+          syns `allSynsOf` cols = S.fromList (fst <$> syns) == S.fromList cols
+          -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
+          -- So we need to change the order of the synonyms to match the relColumns
+          -- This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
+          syns `sortAccordingTo` columns = sortOn (\(k, _) -> L.lookup k $ zip columns [0::Int ..]) syns in
 
-      -- View Table Relations
-      [Relation (getView syns) (snd <$> syns) relFTable relFColumns Child Nothing Nothing Nothing
+      -- View Table Child Relations
+      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) relFTable relFColumns Child Nothing Nothing Nothing
         | syns <- colsSyns, syns `allSynsOf` relColumns] ++
 
-      -- Table View Relations
-      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+      -- Table View Child Relations
+      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
         | fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns] ++
 
-      -- View View Relations
-      [Relation (getView syns) (snd <$> syns) (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+      -- View View Child Relations
+      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
         | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns]
 
     _ -> [])
