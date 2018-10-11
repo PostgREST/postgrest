@@ -89,6 +89,9 @@ GRANT ALL ON TABLE
     , foos
     , bars
     , materialized_projects
+    , contract
+    , player_view
+    , contract_view
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

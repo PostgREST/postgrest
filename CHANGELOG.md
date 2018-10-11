@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #1182, Fix embedding on views with composite pks - @steve-chavez
+- #1180, Fix embedding on views with subselects in pg10 - @steve-chavez
+
 ## [5.1.0] - 2018-08-31
 
 ### Added

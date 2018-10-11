@@ -395,6 +395,36 @@ spec = do
       it "works when having a capitalized table name and camelCase fk column" $
         get "/foos?select=*,bars(*)" `shouldRespondWith` 200
 
+      it "works when embedding a view with a table that has a long compound pk" $ do
+        get "/player_view?select=id,contract(purchase_price)&id=in.(1,3,5,7)" `shouldRespondWith`
+          [json|
+            [{"id":1,"contract":[{"purchase_price":10}]},
+             {"id":3,"contract":[{"purchase_price":30}]},
+             {"id":5,"contract":[{"purchase_price":50}]},
+             {"id":7,"contract":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/contract?select=tournament,player_view(first_name)&limit=3" `shouldRespondWith`
+          [json|
+            [{"tournament":"tournament_1","player_view":{"first_name":"first_name_1"}},
+             {"tournament":"tournament_2","player_view":{"first_name":"first_name_2"}},
+             {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when embedding a view with a view that referes to a table that has a long compound pk" $ do
+        get "/player_view?select=id,contract_view(purchase_price)&id=in.(1,3,5,7)" `shouldRespondWith`
+          [json|
+            [{"id":1,"contract_view":[{"purchase_price":10}]},
+             {"id":3,"contract_view":[{"purchase_price":30}]},
+             {"id":5,"contract_view":[{"purchase_price":50}]},
+             {"id":7,"contract_view":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/contract_view?select=tournament,player_view(first_name)&limit=3" `shouldRespondWith`
+          [json|
+            [{"tournament":"tournament_1","player_view":{"first_name":"first_name_1"}},
+             {"tournament":"tournament_2","player_view":{"first_name":"first_name_2"}},
+             {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
         get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`

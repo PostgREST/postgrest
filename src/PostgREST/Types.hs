@@ -144,6 +144,9 @@ data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
   The name 'Relation' here is used with the meaning
   "What is the relation between the current node and the parent node".
   It has nothing to do with PostgreSQL referring to tables/views as relations.
+  The order of the relColumns and relFColumns should be maintained to get
+  the join conditions right.
+  TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
   relTable    :: Table
