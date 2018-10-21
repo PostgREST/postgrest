@@ -45,7 +45,7 @@ spec =
             "true"
           respHeaders `shouldSatisfy` matchHeader
             "Access-Control-Allow-Methods"
-            "GET, POST, PATCH, DELETE, OPTIONS, HEAD"
+            "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
           respHeaders `shouldSatisfy` matchHeader
             "Access-Control-Allow-Headers"
             "Authentication, Foo, Bar, Accept, Accept-Language, Content-Language"
