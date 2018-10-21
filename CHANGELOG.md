@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1182, Fix embedding on views with composite pks - @steve-chavez
 - #1180, Fix embedding on views with subselects in pg10 - @steve-chavez
+- #1197, Allow CORS for PUT - @bkylerussell
 
 ## [5.1.0] - 2018-08-31
 
