@@ -5,3 +5,7 @@ div.wy-menu.rst-pro {
 div.highlight {
   background: #fff !important;
 }
+
+div.line-block {
+  margin-bottom: 0px !important;
+}
