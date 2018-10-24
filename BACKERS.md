@@ -6,9 +6,9 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 - [Christiaan Westerbeek](https://devotis.nl)
 - [Daniel Babiak](https://github.com/d-babiak)
+- [Michel Pelletier](https://github.com/michelp/)
 
 ## Backers
 
 - Tsingson Qin
-- Michel Pelletier
 - Jay Hannah

@@ -6,10 +6,12 @@ extra-deps:
   - hjsonschema-1.5.0.1
   - Ranged-sets-0.3.0
   - protolude-0.2.2
-  - hasql-1.1
-  - hasql-pool-0.4.3
-  - hasql-transaction-0.5.2
+  - hasql-1.3
+  - hasql-pool-0.5
+  - hasql-transaction-0.7
+  - text-builder-0.5.1.1
   - jose-0.7.0.0
+  - postgresql-libpq-0.9.4.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:

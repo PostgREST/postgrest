@@ -18,9 +18,6 @@ module PostgREST.Config ( prettyVersion
                         , docsVersion
                         , readOptions
                         , corsPolicy
-                        , minimumPgVersion
-                        , pgVersion95
-                        , pgVersion96
                         , AppConfig (..)
                         )
        where
@@ -52,7 +49,7 @@ import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
 import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (PgVersion(..), ApiRequestError(..),
+import           PostgREST.Types              (ApiRequestError(..),
                                                JSPath, JSPathExp(..))
 import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
@@ -85,7 +82,7 @@ data AppConfig = AppConfig {
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
-  ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] ["Authorization"] Nothing
+  ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] ["Authorization"] Nothing
   (Just $ 60*60*24) False False True
 
 -- | CORS policy to be used in by Wai Cors middleware
@@ -132,7 +129,7 @@ readOptions = do
           <*> C.key "db-anon-role"
           <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
           <*> C.key "db-schema"
-          <*> (fromMaybe "*4" . mfilter (/= "") <$> C.key "server-host")
+          <*> (fromMaybe "127.0.0.1" . mfilter (/= "") <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
@@ -141,7 +138,7 @@ readOptions = do
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
-          <*> (fmap parsedPairToTextPair <$> C.subassocs "app.settings")
+          <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
 
   case mAppConf of
@@ -152,13 +149,6 @@ readOptions = do
       return appConf
 
   where
-    parsedPairToTextPair :: (Name, Value) -> (Text, Text)
-    parsedPairToTextPair (k, v) = (k, newValue)
-      where
-        newValue = case v of
-          String textVal -> textVal
-          _ -> show v
-
     parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
     parseJwtAudience k =
       C.key k >>= \case
@@ -167,6 +157,10 @@ readOptions = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
+
+    coerceText :: Value -> Text
+    coerceText (String s) = s
+    coerceText v = show v
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
@@ -209,7 +203,7 @@ readOptions = do
           |db-anon-role = "postgres"
           |db-pool = 10
           |
-          |server-host = "*4"
+          |server-host = "127.0.0.1"
           |server-port = 3000
           |
           |## base url for swagger output
@@ -236,13 +230,3 @@ pathParser =
   strArgument $
     metavar "FILENAME" <>
     help "Path to configuration file"
-
--- | Tells the minimum PostgreSQL version required by this version of PostgREST
-minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90400 "9.4"
-
-pgVersion96 :: PgVersion
-pgVersion96 = PgVersion 90600 "9.6"
-
-pgVersion95 :: PgVersion
-pgVersion95 = PgVersion 90500 "9.5"

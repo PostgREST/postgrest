@@ -42,7 +42,8 @@ makeTableDef pks (t, cs, _) =
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ .~ SwaggerObject
-        & properties .~ fromList (map (makeProperty pks) cs))
+        & properties .~ fromList (map (makeProperty pks) cs)
+        & required .~ map colName (filter (not . colNullable) cs))
 
 makeProperty :: [PrimaryKey] -> Column -> (Text, Referenced Schema)
 makeProperty pks c = (colName c, Inline s)
@@ -197,8 +198,11 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & at 206 ?~ "Partial Content"
       & at 200 ?~ Inline ((mempty :: Response)
         & description .~ "OK"
-        & schema ?~ (Ref $ Reference $ tableName t)
+        & schema ?~ Inline (mempty
+          & type_ .~ SwaggerArray
+          & items ?~ (SwaggerItemsObject $ Ref $ Reference $ tableName t)
         )
+      )
     postOp = tOp
       & parameters .~ map ref ["body." <> tn, "preferReturn"]
       & at 201 ?~ "Created"
@@ -219,8 +223,13 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
+    -- Use first line of proc description as summary; rest as description (if present)
+    -- We strip leading newlines from description so that users can include a blank line between summary and description
+    (pSum, pDesc) = fmap fst &&& fmap (dropWhile (=='\n') . snd) $
+                    breakOn "\n" <$> pdDescription pd
     postOp = (mempty :: Operation)
-      & description .~ pdDescription pd
+      & summary .~ pSum
+      & description .~ mfilter (/="") pDesc
       & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]

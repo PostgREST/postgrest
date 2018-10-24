@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/env bash
 currentTest=1
 failedTests=0
 result(){ echo "$1 $currentTest $2"; currentTest=$(( $currentTest + 1 )); }
@@ -96,20 +96,20 @@ setUp
 
 echo "Running memory usage tests.."
 
-jsonKeyTest "1M" "POST" "/rpc/leak" "15M"
-jsonKeyTest "1M" "POST" "/leak" "15M"
-jsonKeyTest "1M" "PATCH" "/leak?id=eq.1" "15M"
+jsonKeyTest "1M" "POST" "/rpc/leak" "20M"
+jsonKeyTest "1M" "POST" "/leak" "20M"
+jsonKeyTest "1M" "PATCH" "/leak?id=eq.1" "20M"
 
 jsonKeyTest "10M" "POST" "/rpc/leak" "105M"
 jsonKeyTest "10M" "POST" "/leak" "105M"
 jsonKeyTest "10M" "PATCH" "/leak?id=eq.1" "105M"
 
-jsonKeyTest "100M" "POST" "/rpc/leak" "895M"
-jsonKeyTest "100M" "POST" "/leak" "895M"
-jsonKeyTest "100M" "PATCH" "/leak?id=eq.1" "895M"
+jsonKeyTest "50M" "POST" "/rpc/leak" "500M"
+jsonKeyTest "50M" "POST" "/leak" "500M"
+jsonKeyTest "50M" "PATCH" "/leak?id=eq.1" "500M"
 
 postJsonArrayTest "1000" "/perf_articles" "20M"
-postJsonArrayTest "10000" "/perf_articles" "120M"
+postJsonArrayTest "10000" "/perf_articles" "150M"
 postJsonArrayTest "100000" "/perf_articles" "1.15G"
 
 cleanUp

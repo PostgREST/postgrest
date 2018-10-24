@@ -223,13 +223,12 @@ spec = do
         , matchHeaders = []
         }
 
-
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "requesting parent without specifying primary key" $ do
+    it "requesting parent without specifying primary key" $
       get "/projects?select=name,client(name)" `shouldRespondWith`
         [json|[
           {"name":"Windows 7","client":{"name": "Microsoft"}},
@@ -238,9 +237,6 @@ spec = do
           {"name":"OSX","client":{"name": "Apple"}},
           {"name":"Orphan","client":null}
         ]|]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/articleStars?select=createdAt,article(owner),user(name)&limit=1" `shouldRespondWith`
-        [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting parent and renaming primary key" $
@@ -313,38 +309,9 @@ spec = do
         [json|[{"id":1,"tasks":[{"id":1},{"id":2},{"id":3},{"id":4}]},{"id":2,"tasks":[{"id":5},{"id":6},{"id":7}]},{"id":3,"tasks":[{"id":1},{"id":5}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "requesting parents and children on views" $
-      get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
-        [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "requesting parents and children on views with renamed keys" $
-      get "/projects_view_alt?t_id=eq.1&select=t_id, name, clients(*), tasks(id, name)" `shouldRespondWith`
-        [json|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "detects parent relations when having many views of a private table" $ do
-      get "/books?select=title,author(name)&id=eq.5" `shouldRespondWith`
-        [json|[ { "title": "Farenheit 451", "author": { "name": "Ray Bradbury" } } ]|]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/forties_books?select=title,author(name)&limit=1" `shouldRespondWith`
-        [json|[ { "title": "1984", "author": { "name": "George Orwell" } } ]|]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/fifties_books?select=title,author(name)&limit=1" `shouldRespondWith`
-        [json|[ { "title": "The Catcher in the Rye", "author": { "name": "J.D. Salinger" } } ]|]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/sixties_books?select=title,author(name)&limit=1" `shouldRespondWith`
-        [json|[ { "title": "To Kill a Mockingbird", "author": { "name": "Harper Lee" } } ]|]
-        { matchHeaders = [matchContentTypeJson] }
-
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
-      get "/articles?id=eq.1&select=id,articleStars(users(*))" `shouldRespondWith`
-        [json|[{"id":1,"articleStars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "can embed by FK column name" $
@@ -362,8 +329,101 @@ spec = do
         [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "can detect fk relations through views to tables in the public schema" $
-      get "/consumers_view?select=*,orders_view(*)" `shouldRespondWith` 200
+    describe "view embedding" $ do
+      it "can detect fk relations through views to tables in the public schema" $
+        get "/consumers_view?select=*,orders_view(*)" `shouldRespondWith` 200
+
+      it "can request parent without specifying primary key" $
+        get "/articleStars?select=createdAt,article(owner),user(name)&limit=1" `shouldRespondWith`
+          [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
+        get "/articles?id=eq.1&select=id,articleStars(users(*))" `shouldRespondWith`
+          [json|[{"id":1,"articleStars":[{"users":{"id":1,"name":"Angela Martin"}},{"users":{"id":2,"name":"Michael Scott"}},{"users":{"id":3,"name":"Dwight Schrute"}}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when requesting parents and children on views" $
+        get "/projects_view?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when requesting parents and children on views with renamed keys" $
+        get "/projects_view_alt?t_id=eq.1&select=t_id, name, clients(*), tasks(id, name)" `shouldRespondWith`
+          [json|[{"t_id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "detects parent relations when having many views of a private table" $ do
+        get "/books?select=title,author(name)&id=eq.5" `shouldRespondWith`
+          [json|[ { "title": "Farenheit 451", "author": { "name": "Ray Bradbury" } } ]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/forties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+          [json|[ { "title": "1984", "author": { "name": "George Orwell" } } ]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/fifties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+          [json|[ { "title": "The Catcher in the Rye", "author": { "name": "J.D. Salinger" } } ]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/sixties_books?select=title,author(name)&limit=1" `shouldRespondWith`
+          [json|[ { "title": "To Kill a Mockingbird", "author": { "name": "Harper Lee" } } ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have subselects" $
+        get "/authors_books_number?select=*,books(title)&id=eq.1" `shouldRespondWith`
+          [json|[ {"id":1, "name":"George Orwell","num_in_forties":1,"num_in_fifties":0,"num_in_sixties":0,"num_in_all_decades":1,
+                   "books":[{"title":"1984"}]} ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have case subselects" $
+        get "/authors_have_book_in_decade?select=*,books(title)&id=eq.3" `shouldRespondWith`
+          [json|[ {"id":3,"name":"Antoine de Saint-Exupéry","has_book_in_forties":true,"has_book_in_fifties":false,"has_book_in_sixties":false,
+                   "books":[{"title":"The Little Prince"}]} ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have subselect in the FROM clause" $
+        get "/forties_and_fifties_books?select=title,first_publisher,author:authors(name)&id=eq.1" `shouldRespondWith`
+          [json|[{"title":"1984","first_publisher":"Secker & Warburg","author":{"name":"George Orwell"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views that have CTE" $
+        get "/odd_years_publications?select=title,publication_year,first_publisher,author:authors(name)&id=in.(1,2,3)" `shouldRespondWith`
+          [json|[
+            {"title":"1984","publication_year":1949,"first_publisher":"Secker & Warburg","author":{"name":"George Orwell"}},
+            {"title":"The Diary of a Young Girl","publication_year":1947,"first_publisher":"Contact Publishing","author":{"name":"Anne Frank"}},
+            {"title":"The Little Prince","publication_year":1947,"first_publisher":"Reynal & Hitchcock","author":{"name":"Antoine de Saint-Exupéry"}} ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when having a capitalized table name and camelCase fk column" $
+        get "/foos?select=*,bars(*)" `shouldRespondWith` 200
+
+      it "works when embedding a view with a table that has a long compound pk" $ do
+        get "/player_view?select=id,contract(purchase_price)&id=in.(1,3,5,7)" `shouldRespondWith`
+          [json|
+            [{"id":1,"contract":[{"purchase_price":10}]},
+             {"id":3,"contract":[{"purchase_price":30}]},
+             {"id":5,"contract":[{"purchase_price":50}]},
+             {"id":7,"contract":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/contract?select=tournament,player_view(first_name)&limit=3" `shouldRespondWith`
+          [json|
+            [{"tournament":"tournament_1","player_view":{"first_name":"first_name_1"}},
+             {"tournament":"tournament_2","player_view":{"first_name":"first_name_2"}},
+             {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when embedding a view with a view that referes to a table that has a long compound pk" $ do
+        get "/player_view?select=id,contract_view(purchase_price)&id=in.(1,3,5,7)" `shouldRespondWith`
+          [json|
+            [{"id":1,"contract_view":[{"purchase_price":10}]},
+             {"id":3,"contract_view":[{"purchase_price":30}]},
+             {"id":5,"contract_view":[{"purchase_price":50}]},
+             {"id":7,"contract_view":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/contract_view?select=tournament,player_view(first_name)&limit=3" `shouldRespondWith`
+          [json|
+            [{"tournament":"tournament_1","player_view":{"first_name":"first_name_1"}},
+             {"tournament":"tournament_2","player_view":{"first_name":"first_name_2"}},
+             {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
 
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
@@ -371,18 +431,20 @@ spec = do
           [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "works with parent relation" $ do
-        get "/message?select=id,body,sender:person_detail.sender(name,sent),recipient:person_detail.recipient(name,received)&id=lt.4" `shouldRespondWith`
-          [json|
-            [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
-             {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
-             {"id":3,"body":"How are you doing?","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}}] |]
-          { matchHeaders = [matchContentTypeJson] }
+      it "works with parent relation" $
         get "/message?select=id,body,sender:person.sender(name),recipient:person.recipient(name)&id=lt.4" `shouldRespondWith`
           [json|
             [{"id":1,"body":"Hello Jane","sender":{"name":"John"},"recipient":{"name":"Jane"}},
              {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
              {"id":3,"body":"How are you doing?","sender":{"name":"John"},"recipient":{"name":"Jane"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with a parent view relation" $
+        get "/message?select=id,body,sender:person_detail.sender(name,sent),recipient:person_detail.recipient(name,received)&id=lt.4" `shouldRespondWith`
+          [json|
+            [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
+             {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
+             {"id":3,"body":"How are you doing?","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "works with many<->many relation" $

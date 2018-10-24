@@ -144,6 +144,9 @@ data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
   The name 'Relation' here is used with the meaning
   "What is the relation between the current node and the parent node".
   It has nothing to do with PostgreSQL referring to tables/views as relations.
+  The order of the relColumns and relFColumns should be maintained to get
+  the join conditions right.
+  TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
   relTable    :: Table
@@ -317,7 +320,23 @@ toMime (CTOther ct)      = ct
 data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
-} deriving (Eq, Ord, Show)
+} deriving (Eq, Show)
+
+instance Ord PgVersion where
+  (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
+
+-- | Tells the minimum PostgreSQL version required by this version of PostgREST
+minimumPgVersion :: PgVersion
+minimumPgVersion = PgVersion 90400 "9.4"
+
+pgVersion95 :: PgVersion
+pgVersion95 = PgVersion 90500 "9.5"
+
+pgVersion96 :: PgVersion
+pgVersion96 = PgVersion 90600 "9.6"
+
+pgVersion100 :: PgVersion
+pgVersion100 = PgVersion 100000 "10"
 
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"

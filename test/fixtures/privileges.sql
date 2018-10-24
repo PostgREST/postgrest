@@ -82,6 +82,16 @@ GRANT ALL ON TABLE
     , "UnitTest"
     , json_arr
     , jsonb_test
+    , authors_books_number
+    , authors_have_book_in_decade
+    , forties_and_fifties_books
+    , odd_years_publications
+    , foos
+    , bars
+    , materialized_projects
+    , contract
+    , player_view
+    , contract_view
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

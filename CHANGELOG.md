@@ -7,16 +7,42 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+### Fixed
+
+- #1182, Fix embedding on views with composite pks - @steve-chavez
+- #1180, Fix embedding on views with subselects in pg10 - @steve-chavez
+- #1197, Allow CORS for PUT - @bkylerussell
+
+## [5.1.0] - 2018-08-31
+
+### Added
+
 - #1099, Add support for getting json/jsonb by array index - @steve-chavez
+- #1145, Add materialized view columns to OpenAPI output - @steve-chavez
+- #709, Allow embedding on views with subselects/CTE - @steve-chavez
+- #1148, OpenAPI: add `required` section for the non-nullable columns - @laughedelic
+- #1158, Add summary to OpenAPI doc for RPC functions - @mdr1384
 
 ### Fixed
 
 - #1113, Fix UPSERT failing when having a camel case PK column - @steve-chavez
+- #945, Fix slow start-up time on big schemas - @steve-chavez
+- #1129, Fix view embedding when table is capitalized - @steve-chavez
+- #1149, OpenAPI: Change `GET` response type to array - @laughedelic
+- #1152, Fix RPC failing when having arguments with reserved or uppercase keywords - @mdr1384
+- #905, Fix intermittent empty replies - @steve-chavez
+- #1139, Fix JWTIssuedAtFuture failure for valid iat claim - @steve-chavez
+- #1141, Fix app.settings resetting on pool timeout - @steve-chavez
 
 ### Changed
 
 - #1099, Numbers in json path `?select=data->1->>key` now get treated as json array indexes instead of keys - @steve-chavez
 - #1128, Allow finishing a json path with a single arrow `->`. Now a json can be obtained without resorting to casting, Previously: `/json_arr?select=data->>2::json`, now: `/json_arr?select=data->2` - @steve-chavez
+- #724, Change server-host default of *4 to 127.0.0.1
+
+### Deprecated
+
+- #724, SIGHUP deprecated, SIGUSR1 should be used instead
 
 ## [0.5.0.0] - 2018-05-14
 

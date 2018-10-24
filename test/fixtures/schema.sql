@@ -222,6 +222,10 @@ AS $_$
   SELECT 'Hi'::text;
 $_$;
 
+COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer) IS
+$_$An RPC function
+
+Just a test for RPC function arguments$_$;
 
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
@@ -1120,17 +1124,17 @@ create view images_base64 as (
   select name, replace(encode(img, 'base64'), E'\n', '') as img from images
 );
 
-create function test.ret_enum(val text) returns test.enum_menagerie_type as $$ 
+create function test.ret_enum(val text) returns test.enum_menagerie_type as $$
   select val::test.enum_menagerie_type;
 $$ language sql;
 
 create domain one_nine as integer check (value >= 1 and value <= 9);
 
-create function test.ret_array() returns integer[] as $$ 
+create function test.ret_array() returns integer[] as $$
   select '{1,2,3}'::integer[];
 $$ language sql;
 
-create function test.ret_domain(val integer) returns test.one_nine as $$ 
+create function test.ret_domain(val integer) returns test.one_nine as $$
   select val::test.one_nine;
 $$ language sql;
 
@@ -1144,20 +1148,20 @@ $$ language sql;
 
 create function test.ret_scalars() returns table(
   a text, b test.enum_menagerie_type, c test.one_nine, d int4range
-) as $$ 
-  select row('scalars'::text, enum_first(null::test.enum_menagerie_type), 
+) as $$
+  select row('scalars'::text, enum_first(null::test.enum_menagerie_type),
               1::test.one_nine, int4range(10, 20));
 $$ language sql;
 
 create type test.point_2d as (x integer, y integer);
 
-create function test.ret_point_2d() returns test.point_2d as $$ 
+create function test.ret_point_2d() returns test.point_2d as $$
   select row(10, 5)::test.point_2d;
 $$ language sql;
 
 create type private.point_3d as (x integer, y integer, z integer);
 
-create function test.ret_point_3d() returns private.point_3d as $$ 
+create function test.ret_point_3d() returns private.point_3d as $$
   select row(7, -3, 4)::private.point_3d;
 $$ language sql;
 
@@ -1171,17 +1175,17 @@ create function test.ret_rows_with_base64_bin() returns setof test.images_base64
   select i.name, i.img from test.images_base64 i;
 $$ language sql;
 
-create function test.single_article(id integer) returns test.articles as $$ 
+create function test.single_article(id integer) returns test.articles as $$
   select a.* from test.articles a where a.id = $1;
 $$ language sql;
 
-create function test.get_guc_value(name text) returns text as $$ 
+create function test.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
 create table w_or_wo_comma_names ( name text );
 
-create table items_with_different_col_types ( 
+create table items_with_different_col_types (
   int_data integer,
   text_data text,
   bool_data bool,
@@ -1194,20 +1198,20 @@ create table items_with_different_col_types (
 
 -- Tables used for testing complex boolean logic with and/or query params
 
-create table entities ( 
+create table entities (
   id integer primary key,
   name text,
   arr integer[],
   text_search_vector tsvector
 );
 
-create table child_entities ( 
+create table child_entities (
   id integer primary key,
   name text,
   parent_id integer references entities(id)
 );
 
-create table grandchild_entities ( 
+create table grandchild_entities (
   id integer primary key,
   name text,
   parent_id integer references child_entities(id),
@@ -1396,11 +1400,17 @@ create table private.authors(
   name text
 );
 
+create table private.publishers(
+  id integer primary key,
+  name text
+);
+
 create table private.books(
   id integer primary key,
   title text,
   publication_year smallint,
-  author_id integer references private.authors(id)
+  author_id integer references private.authors(id),
+  first_publisher_id integer references private.publishers(id)
 );
 
 create view test.authors as select id, name from private.authors;
@@ -1466,3 +1476,129 @@ create table jsonb_test(
   id integer primary key,
   data jsonb
 );
+
+create view test.authors_books_number as
+select
+  id,
+  name,
+  (
+    select
+      count(*)
+    from forties_books where author_id = authors.id
+  ) as num_in_forties,
+  (
+    select
+      count(*)
+    from fifties_books where author_id = authors.id
+  ) as num_in_fifties,
+  (
+    select
+      count(*)
+    from sixties_books where author_id = authors.id
+  ) as num_in_sixties,
+  (
+    select
+      count(*)
+    from (
+      select id
+      from forties_books where author_id = authors.id
+      union
+      select id
+      from fifties_books where author_id = authors.id
+      union
+      select id
+      from sixties_books where author_id = authors.id
+    ) _
+  ) as num_in_all_decades
+from private.authors;
+
+create view test.authors_have_book_in_decade as
+select
+  id,
+  name,
+  case
+    when (x.id in (select author_id from test.forties_books))
+    then true
+    else false
+  end as has_book_in_forties,
+  case
+    when (x.id in (select author_id from test.fifties_books))
+    then true
+    else false
+  end as has_book_in_fifties,
+  case
+    when (x.id in (select author_id from test.sixties_books))
+    then true
+    else false
+  end as has_book_in_sixties
+from private.authors x;
+
+create view test.forties_and_fifties_books as
+select x.id, x.title, x.publication_year, y.name as first_publisher, x.author_id
+from (
+  select id, title, publication_year, author_id, first_publisher_id from private.books
+  where publication_year >= 1940 and publication_year < 1960) x
+join private.publishers y on y.id = x.first_publisher_id;
+
+create view test.odd_years_publications as
+with
+odd_years_books as(
+  select id, title, publication_year, author_id, first_publisher_id
+  from private.books
+  where publication_year % 2 <> 0
+)
+select
+  x.id, x.title, x.publication_year,
+  y.name as first_publisher, x.author_id
+from odd_years_books x
+join private.publishers y on y.id = x.first_publisher_id;
+
+CREATE TABLE test."Foo"(
+  id int primary key,
+  name text
+);
+
+CREATE TABLE test.bar(
+  id int primary key,
+  name text,
+  "fooId" int references "Foo"(id)
+);
+
+CREATE VIEW test.foos as select id,name from "Foo";
+CREATE VIEW test.bars as select id, "fooId", name from bar;
+
+create materialized view materialized_projects as
+select id, name, client_id from projects;
+
+comment on materialized view materialized_projects is
+$$A materialized view for projects
+
+Just a test for materialized views$$;
+
+create or replace function test."quotedFunction"("user" text, "fullName" text, "SSN" text)
+returns jsonb AS $$
+  select format('{"user": "%s", "fullName": "%s", "SSN": "%s"}', "user", "fullName", "SSN")::jsonb;
+$$ language sql;
+
+create table private.player (
+  id integer not null,
+  first_name text not null,
+  last_name text not null,
+  birth_date date,
+  primary key (last_name, id, first_name, birth_date) -- just for testing a long compound pk
+);
+
+create table test.contract (
+  tournament text not null,
+  time tsrange not null,
+  purchase_price int not null,
+  id integer not null,
+  first_name text not null,
+  last_name text not null,
+  birth_date date,
+  foreign key (last_name, id, first_name, birth_date) references private.player
+);
+
+create view test.player_view as select * from private.player;
+
+create view test.contract_view as select * from test.contract;

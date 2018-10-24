@@ -23,16 +23,15 @@ module PostgREST.QueryBuilder (
   , requestToCountQuery
   , unquoted
   , ResultsWithCount
-  , pgFmtEnvVar
+  , pgFmtSetLocal
   ) where
 
-import qualified Hasql.Query             as H
+import qualified Hasql.Statement         as H
 import qualified Hasql.Encoders          as HE
 import qualified Hasql.Decoders          as HD
 
 import qualified Data.Aeson              as JSON
 
-import           PostgREST.Config        (pgVersion96)
 import           PostgREST.RangeQuery    (rangeLimit, rangeOffset, allRange)
 import qualified Data.HashMap.Strict     as HM
 import           Data.Maybe
@@ -58,10 +57,10 @@ import           PostgREST.ApiRequest    (PreferRepresentation (..))
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString)
 
 standardRow :: HD.Row ResultsWithCount
-standardRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                    <*> HD.value header <*> HD.value HD.bytea
+standardRow = (,,,) <$> HD.nullableColumn HD.int8 <*> HD.column HD.int8
+                    <*> HD.column header <*> HD.column HD.bytea
   where
-    header = HD.array $ HD.arrayDimension replicateM $ HD.arrayValue HD.bytea
+    header = HD.array $ HD.dimension replicateM $ HD.element HD.bytea
 
 noLocationF :: Text
 noLocationF = "array[]::text[]"
@@ -76,10 +75,10 @@ decodeStandard =
 
 decodeStandardMay :: HD.Result (Maybe ResultsWithCount)
 decodeStandardMay =
-  HD.maybeRow standardRow
+  HD.rowMaybe standardRow
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
-                       H.Query () ResultsWithCount
+                       H.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
   unicodeStatement sql HE.unit decodeStandard False
  where
@@ -102,9 +101,9 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
-                        H.Query ByteString (Maybe ResultsWithCount)
+                        H.Statement ByteString (Maybe ResultsWithCount)
 createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys =
-  unicodeStatement sql (HE.value HE.unknown) decodeStandardMay True
+  unicodeStatement sql (HE.param HE.unknown) decodeStandardMay True
 
  where
   sql = case rep of
@@ -139,9 +138,9 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
 callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
             Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool -> PgVersion ->
-            H.Query ByteString (Maybe ProcResults)
+            H.Statement ByteString (Maybe ProcResults)
 callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField isObject pgVer =
-  unicodeStatement sql (HE.value HE.unknown) decodeProc True
+  unicodeStatement sql (HE.param HE.unknown) decodeProc True
   where
     sql =
      if returnsScalar then [qc|
@@ -173,18 +172,18 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
                            unwords [
                            "_args_record AS (",
                              "SELECT * FROM " <> (if isObject then "json_to_record" else "json_to_recordset") <> "($1)",
-                             "AS _(" <> intercalate ", " ((\a -> pgaName a <> " " <> pgaType a) <$> pgArgs) <> ")",
+                             "AS _(" <> intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
                            ")"]
-                         , intercalate ", " ((\a -> pgaName a <> " := (SELECT " <> pgaName a <> " FROM _args_record)") <$> pgArgs))
+                         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _procName = qiName qi
     responseHeaders =
       if pgVer >= pgVersion96
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
         else "'[]'" :: Text
-    decodeProc = HD.maybeRow procRow
-    procRow = (,,,) <$> HD.nullableValue HD.int8 <*> HD.value HD.int8
-                    <*> HD.value HD.bytea <*> HD.value HD.bytea
+    decodeProc = HD.rowMaybe procRow
+    procRow = (,,,) <$> HD.nullableColumn HD.int8 <*> HD.column HD.int8
+                    <*> HD.column HD.bytea <*> HD.column HD.bytea
     scalarBodyF
      | asBinary = asBinaryF _procName
      | otherwise = "(row_to_json(_postgrest_t)->" <> pgFmtLit _procName <> ")::character varying"
@@ -381,8 +380,8 @@ fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
     n = qiName t
     s = qiSchema t
 
-unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Query a b
-unicodeStatement = H.statement . T.encodeUtf8
+unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
+unicodeStatement = H.Statement . T.encodeUtf8
 
 emptyOnFalse :: Text -> Bool -> Text
 emptyOnFalse val cond = if cond then "" else val
@@ -469,8 +468,8 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> ""
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-pgFmtEnvVar :: Text -> (Text, Text) -> SqlFragment
-pgFmtEnvVar prefix (k, v) =
+pgFmtSetLocal :: Text -> (Text, Text) -> SqlFragment
+pgFmtSetLocal prefix (k, v) =
   "set local " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
 
 trimNullChars :: Text -> Text

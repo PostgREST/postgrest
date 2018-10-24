@@ -90,7 +90,7 @@ readRequest maxRows allRels proc apiRequest  =
 -- in a relation where one of the tables matches "TableName"
 -- replace the name to that table with pg_source
 -- this "fake" relations is needed so that in a mutate query
--- we can look a the "returning *" part which is wrapped with a "with"
+-- we can look at the "returning *" part which is wrapped with a "with"
 -- as just another table that has relations with other tables
 toSourceRelation :: TableName -> Relation -> Maybe Relation
 toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
@@ -225,12 +225,12 @@ addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _, _)) fo
     addJoinCond jc rq@Select{joinConditions=jcs} = rq{joinConditions=jc:jcs}
 
 getJoinConditions :: Relation -> [JoinCondition]
-getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fcs typ lt lc1 lc2) =
+getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols typ lt lc1 lc2) =
   if | typ == Child || typ == Parent ->
-        zipWith (toJoinCondition tN ftN) cols fcs
+        zipWith (toJoinCondition tN ftN) cols fCols
      | typ == Many ->
         let ltN = fromMaybe "" (tableName <$> lt) in
-        zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fcs (fromMaybe [] lc2)
+        zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
      | typ == Root -> witness
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition

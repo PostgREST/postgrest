@@ -167,7 +167,7 @@ spec =
 
     context "used with POST" $
       it "includes related data with filters" $
-        request methodPost "/child_entities?entities.or=(id.eq.2,id.eq.3)&select=id,entities(id)"
+        request methodPost "/child_entities?select=id,entities(id)&entities.or=(id.eq.2,id.eq.3)&entities.order=id"
           [("Prefer", "return=representation")]
           [json|[{"id":4,"name":"entity 4","parent_id":1},
                  {"id":5,"name":"entity 5","parent_id":2},

@@ -19,7 +19,7 @@ import           PostgREST.ApiRequest          (ApiRequest(..))
 import           PostgREST.Auth                (JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (simpleError)
-import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtEnvVar)
+import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtSetLocal)
 
 import           Protolude                     hiding (concat, null)
 
@@ -32,13 +32,14 @@ runWithClaims conf eClaims app req =
     JWTInvalid e -> return $ unauthed $ show e
     JWTMissingSecret -> return $ simpleError status500 [] "Server lacks JWT secret"
     JWTClaims claims -> do
-      H.sql $ toS.mconcat $ setSchemaSql ++ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql
+      H.sql $ toS.mconcat $ setSchemaSql ++ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
       mapM_ H.sql customReqCheck
       app req
       where
-        headersSql = map (pgFmtEnvVar "request.header.") $ iHeaders req
-        cookiesSql = map (pgFmtEnvVar "request.cookie.") $ iCookies req
-        claimsSql = map (pgFmtEnvVar "request.jwt.claim.") [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
+        headersSql = pgFmtSetLocal "request.header." <$> iHeaders req
+        cookiesSql = pgFmtSetLocal "request.cookie." <$> iCookies req
+        claimsSql = pgFmtSetLocal "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
+        appSettingsSql = pgFmtSetLocal mempty <$> configSettings conf
         setRoleSql = maybeToList $
           (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
         setSchemaSql = ["set schema " <> pgFmtLit (configSchema conf) <> ";"] :: [Text]

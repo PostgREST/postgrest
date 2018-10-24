@@ -85,6 +85,27 @@ spec = do
 
           deleteResponse `shouldBe` Just "No Content"
 
+      it "includes an array type for GET responses" $ do
+        r <- simpleBody <$> get "/"
+
+        let childGetSchema = r ^? key "paths"
+              . key "/child_entities"
+              . key "get"
+              . key "responses"
+              . key "200"
+              . key "schema"
+
+        liftIO $
+          childGetSchema `shouldBe` Just
+            [aesonQQ|
+              {
+                "items": {
+                  "$ref": "#/definitions/child_entities"
+                },
+                "type": "array"
+              }
+            |]
+
       it "includes definitions to tables" $ do
         r <- simpleBody <$> get "/"
 
@@ -113,7 +134,10 @@ spec = do
                     "format": "integer",
                     "type": "integer"
                   }
-                }
+                },
+                "required": [
+                  "id"
+                ]
               }
             |]
 
@@ -163,15 +187,54 @@ spec = do
               ]
             |]
 
+    describe "Materialized view" $
+
+      it "includes materialized view properties" $ do
+        r <- simpleBody <$> get "/"
+
+        let method s = key "paths" . key "/materialized_projects" . key s
+            summary = r ^? method "get" . key "summary"
+            description = r ^? method "get" . key "description"
+            parameters = r ^? method "get" . key "parameters"
+
+        liftIO $ do
+
+          summary `shouldBe` Just "A materialized view for projects"
+
+          description `shouldBe` Just "Just a test for materialized views"
+
+          parameters `shouldBe` Just
+            [aesonQQ|
+              [
+                { "$ref": "#/parameters/rowFilter.materialized_projects.id" },
+                { "$ref": "#/parameters/rowFilter.materialized_projects.name" },
+                { "$ref": "#/parameters/rowFilter.materialized_projects.client_id" },
+                { "$ref": "#/parameters/select" },
+                { "$ref": "#/parameters/order" },
+                { "$ref": "#/parameters/range" },
+                { "$ref": "#/parameters/rangeUnit" },
+                { "$ref": "#/parameters/offset" },
+                { "$ref": "#/parameters/limit" },
+                { "$ref": "#/parameters/preferCount" }
+              ]
+            |]
+
     describe "RPC" $ do
 
-      it "includes body schema for arguments" $ do
+      it "includes function summary/description and body schema for arguments" $ do
         r <- simpleBody <$> get "/"
-        let args = r ^? key "paths" . key "/rpc/varied_arguments"
-                      . key "post"  . key "parameters"
-                      . nth 0       . key "schema"
 
-        liftIO $
+        let method s = key "paths" . key "/rpc/varied_arguments" . key s
+            args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
+            summary = r ^? method "post" . key "summary"
+            description = r ^? method "post" . key "description"
+
+        liftIO $ do
+
+          summary `shouldBe` Just "An RPC function"
+
+          description `shouldBe` Just "Just a test for RPC function arguments"
+
           args `shouldBe` Just
             [aesonQQ|
               {
@@ -213,7 +276,8 @@ spec = do
                     "type": "integer"
                   }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "An RPC function\n\nJust a test for RPC function arguments"
               }
             |]
 

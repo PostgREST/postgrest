@@ -5,13 +5,11 @@ module Main where
 
 import           PostgREST.App            (postgrest)
 import           PostgREST.Config         (AppConfig (..),
-                                           minimumPgVersion,
                                            prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion,
-                                           fillSessionWithSettings)
+import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
 import           PostgREST.Error          (encodeError)
 import           PostgREST.OpenAPI        (isMalformedProxyUri)
-import           PostgREST.Types          (DbStructure, Schema, PgVersion(..))
+import           PostgREST.Types          (DbStructure, Schema, PgVersion(..), minimumPgVersion)
 import           Protolude                hiding (hPutStrLn, replace)
 
 
@@ -33,8 +31,7 @@ import qualified Hasql.Pool               as P
 import qualified Hasql.Session            as H
 import           Network.Wai.Handler.Warp (defaultSettings,
                                            runSettings, setHost,
-                                           setPort, setServerName,
-                                           setTimeout)
+                                           setPort, setServerName)
 import           System.IO                (BufferMode (..),
                                            hSetBuffering)
 
@@ -64,11 +61,10 @@ connectionWorker
   :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> Schema   -- ^ Schema PostgREST is serving up
-  -> [(Text, Text)] -- ^ Settings or Environment passed in through the config
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -86,7 +82,6 @@ connectionWorker mainTid pool schema settings refDbStructure refIsWorkerOn = do
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
-          fillSessionWithSettings settings
           dbStructure <- getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
@@ -152,8 +147,7 @@ main = do
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
-        . setServerName (toS $ "postgrest/" <> prettyVersion)
-        . setTimeout 3600 $
+        . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
 
   -- Checks that the provided proxy uri is formated correctly
@@ -186,7 +180,6 @@ main = do
     mainTid
     pool
     (configSchema conf)
-    (configSettings conf)
     refDbStructure
     refIsWorkerOn
   --
@@ -204,15 +197,15 @@ main = do
         throwTo mainTid UserInterrupt
       ) Nothing
 
-  void $ installHandler sigHUP (
-    Catch $ connectionWorker
-              mainTid
-              pool
-              (configSchema conf)
-              (configSettings conf)
-              refDbStructure
-              refIsWorkerOn
-    ) Nothing
+  forM_ [sigHUP, sigUSR1] $ \sig ->
+    void $ installHandler sig (
+      Catch $ connectionWorker
+                mainTid
+                pool
+                (configSchema conf)
+                refDbStructure
+                refIsWorkerOn
+      ) Nothing
 #endif
 
 
@@ -230,7 +223,6 @@ main = do
          mainTid
          pool
          (configSchema conf)
-         (configSettings conf)
          refDbStructure
          refIsWorkerOn)
 

@@ -10,12 +10,11 @@ module PostgREST.DbStructure (
 , accessibleProcs
 , schemaDescription
 , getPgVersion
-, fillSessionWithSettings
 ) where
 
 import qualified Hasql.Decoders                as HD
 import qualified Hasql.Encoders                as HE
-import qualified Hasql.Query                   as H
+import qualified Hasql.Statement               as H
 
 import           Control.Applicative
 import qualified Data.HashMap.Strict           as M
@@ -27,25 +26,22 @@ import           Data.Text                     (split, strip,
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
 import           PostgREST.Types
-import           Text.InterpolatedString.Perl6 (q)
+import           Text.InterpolatedString.Perl6 (q, qc)
 
 import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
 
-import           Data.Functor.Contravariant    (contramap)
-import           Contravariant.Extras          (contrazip2)
-
 getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
 getDbStructure schema pgVer = do
-  tabs      <- H.query () allTables
-  cols      <- H.query schema $ allColumns tabs
-  syns      <- H.query () $ allSynonyms cols
-  childRels <- H.query () $ allChildRelations tabs cols
-  keys      <- H.query () $ allPrimaryKeys tabs
-  procs     <- H.query schema allProcs
+  tabs      <- H.statement () allTables
+  cols      <- H.statement schema $ allColumns tabs
+  syns      <- H.statement schema $ allSynonyms cols pgVer
+  childRels <- H.statement () $ allChildRelations tabs cols
+  keys      <- H.statement () $ allPrimaryKeys tabs
+  procs     <- H.statement schema allProcs
 
-  let rels = addManyToManyRelations . addParentRelations $ addViewRelations syns childRels
+  let rels = addManyToManyRelations . addParentRelations $ addViewChildRelations syns childRels
       cols' = addForeignKeys rels cols
       keys' = addViewPrimaryKeys syns keys
 
@@ -60,70 +56,70 @@ getDbStructure schema pgVer = do
 
 decodeTables :: HD.Result [Table]
 decodeTables =
-  HD.rowsList tblRow
+  HD.rowList tblRow
  where
-  tblRow = Table <$> HD.value HD.text
-                 <*> HD.value HD.text
-                 <*> HD.nullableValue HD.text
-                 <*> HD.value HD.bool
+  tblRow = Table <$> HD.column HD.text
+                 <*> HD.column HD.text
+                 <*> HD.nullableColumn HD.text
+                 <*> HD.column HD.bool
 
 decodeColumns :: [Table] -> HD.Result [Column]
 decodeColumns tables =
-  mapMaybe (columnFromRow tables) <$> HD.rowsList colRow
+  mapMaybe (columnFromRow tables) <$> HD.rowList colRow
  where
   colRow =
     (,,,,,,,,,,,)
-      <$> HD.value HD.text <*> HD.value HD.text
-      <*> HD.value HD.text <*> HD.nullableValue HD.text
-      <*> HD.value HD.int4 <*> HD.value HD.bool
-      <*> HD.value HD.text <*> HD.value HD.bool
-      <*> HD.nullableValue HD.int4
-      <*> HD.nullableValue HD.int4
-      <*> HD.nullableValue HD.text
-      <*> HD.nullableValue HD.text
+      <$> HD.column HD.text <*> HD.column HD.text
+      <*> HD.column HD.text <*> HD.nullableColumn HD.text
+      <*> HD.column HD.int4 <*> HD.column HD.bool
+      <*> HD.column HD.text <*> HD.column HD.bool
+      <*> HD.nullableColumn HD.int4
+      <*> HD.nullableColumn HD.int4
+      <*> HD.nullableColumn HD.text
+      <*> HD.nullableColumn HD.text
 
 decodeRelations :: [Table] -> [Column] -> HD.Result [Relation]
 decodeRelations tables cols =
-  mapMaybe (relationFromRow tables cols) <$> HD.rowsList relRow
+  mapMaybe (relationFromRow tables cols) <$> HD.rowList relRow
  where
   relRow = (,,,,,)
-    <$> HD.value HD.text
-    <*> HD.value HD.text
-    <*> HD.value (HD.array (HD.arrayDimension replicateM (HD.arrayValue HD.text)))
-    <*> HD.value HD.text
-    <*> HD.value HD.text
-    <*> HD.value (HD.array (HD.arrayDimension replicateM (HD.arrayValue HD.text)))
+    <$> HD.column HD.text
+    <*> HD.column HD.text
+    <*> HD.column (HD.array (HD.dimension replicateM (HD.element HD.text)))
+    <*> HD.column HD.text
+    <*> HD.column HD.text
+    <*> HD.column (HD.array (HD.dimension replicateM (HD.element HD.text)))
 
 decodePks :: [Table] -> HD.Result [PrimaryKey]
 decodePks tables =
-  mapMaybe (pkFromRow tables) <$> HD.rowsList pkRow
+  mapMaybe (pkFromRow tables) <$> HD.rowList pkRow
  where
-  pkRow = (,,) <$> HD.value HD.text <*> HD.value HD.text <*> HD.value HD.text
+  pkRow = (,,) <$> HD.column HD.text <*> HD.column HD.text <*> HD.column HD.text
 
 decodeSynonyms :: [Column] -> HD.Result [Synonym]
 decodeSynonyms cols =
-  mapMaybe (synonymFromRow cols) <$> HD.rowsList synRow
+  mapMaybe (synonymFromRow cols) <$> HD.rowList synRow
  where
   synRow = (,,,,,)
-    <$> HD.value HD.text <*> HD.value HD.text
-    <*> HD.value HD.text <*> HD.value HD.text
-    <*> HD.value HD.text <*> HD.value HD.text
+    <$> HD.column HD.text <*> HD.column HD.text
+    <*> HD.column HD.text <*> HD.column HD.text
+    <*> HD.column HD.text <*> HD.column HD.text
 
 decodeProcs :: HD.Result (M.HashMap Text [ProcDescription])
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addName) <$> HD.rowsList tblRow
+  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addName) <$> HD.rowList tblRow
   where
     tblRow = ProcDescription
-              <$> HD.value HD.text
-              <*> HD.nullableValue HD.text
-              <*> (parseArgs <$> HD.value HD.text)
+              <$> HD.column HD.text
+              <*> HD.nullableColumn HD.text
+              <*> (parseArgs <$> HD.column HD.text)
               <*> (parseRetType
-                  <$> HD.value HD.text
-                  <*> HD.value HD.text
-                  <*> HD.value HD.bool
-                  <*> HD.value HD.char)
-              <*> (parseVolatility <$> HD.value HD.char)
+                  <$> HD.column HD.text
+                  <*> HD.column HD.text
+                  <*> HD.column HD.bool
+                  <*> HD.column HD.char)
+              <*> (parseVolatility <$> HD.column HD.char)
 
     addName :: ProcDescription -> (Text, ProcDescription)
     addName pd = (pdName pd, pd)
@@ -159,11 +155,11 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: H.Query Schema (M.HashMap Text [ProcDescription])
-allProcs = H.statement (toS procsSqlQuery) (HE.value HE.text) decodeProcs True
+allProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
+allProcs = H.Statement (toS procsSqlQuery) (HE.param HE.text) decodeProcs True
 
-accessibleProcs :: H.Query Schema (M.HashMap Text [ProcDescription])
-accessibleProcs = H.statement (toS sql) (HE.value HE.text) decodeProcs True
+accessibleProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
+accessibleProcs = H.Statement (toS sql) (HE.param HE.text) decodeProcs True
   where
     sql = procsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
@@ -186,9 +182,9 @@ procsSqlQuery = [q|
   WHERE  pn.nspname = $1
 |]
 
-schemaDescription :: H.Query Schema (Maybe Text)
+schemaDescription :: H.Statement Schema (Maybe Text)
 schemaDescription =
-    H.statement sql (HE.value HE.text) (join <$> HD.maybeRow (HD.nullableValue HD.text)) True
+    H.Statement sql (HE.param HE.text) (join <$> HD.rowMaybe (HD.nullableColumn HD.text)) True
   where
     sql = [q|
       select
@@ -199,9 +195,9 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: H.Query Schema [Table]
+accessibleTables :: H.Statement Schema [Table]
 accessibleTables =
-  H.statement sql (HE.value HE.text) decodeTables True
+  H.Statement sql (HE.param HE.text) decodeTables True
  where
   sql = [q|
     select
@@ -247,32 +243,32 @@ Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], 
 
 t1.c1------t2.c2
 
-When only having a t1_view.c1 synonym, we need to add a View to Table Relation
+When only having a t1_view.c1 synonym, we need to add a View to Table Child Relation
 
          t1.c1----t2.c2         t1.c1----------t2.c2
-                         ->            --------/
+                         ->            ________/
                                       /
       t1_view.c1             t1_view.c1
 
 
-When only having a t2_view.c2 synonym, we need to add a Table to View Relation
+When only having a t2_view.c2 synonym, we need to add a Table to View Child Relation
 
          t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \--------
+                               ->          \________
                                                     \
                     t2_view.c2                      t2_view.c1
 
-When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View Relation in addition to the prior
+When having t1_view.c1 and a t2_view.c2 synonyms, we need to add a View to View Child Relation in addition to the prior
 
          t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \--------/
+                               ->          \________/
                                            /        \
     t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
 
 The logic for composite pks is similar just need to make sure all the Relation columns have synonyms.
 -}
-addViewRelations :: [Synonym] -> [Relation] -> [Relation]
-addViewRelations allSyns = concatMap (\rel ->
+addViewChildRelations :: [Synonym] -> [Relation] -> [Relation]
+addViewChildRelations allSyns = concatMap (\rel ->
   rel : case rel of
     Relation{relType=Child, relTable, relColumns, relFTable, relFColumns} ->
 
@@ -283,18 +279,22 @@ addViewRelations allSyns = concatMap (\rel ->
           fColsSyns = colSynsGroupedByView relFColumns
           getView :: [Synonym] -> Table
           getView = colTable . snd . unsafeHead
-          syns `allSynsOf` cols = S.fromList (fst <$> syns) == S.fromList cols in
+          syns `allSynsOf` cols = S.fromList (fst <$> syns) == S.fromList cols
+          -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
+          -- So we need to change the order of the synonyms to match the relColumns
+          -- This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
+          syns `sortAccordingTo` columns = sortOn (\(k, _) -> L.lookup k $ zip columns [0::Int ..]) syns in
 
-      -- View Table Relations
-      [Relation (getView syns) (snd <$> syns) relFTable relFColumns Child Nothing Nothing Nothing
+      -- View Table Child Relations
+      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) relFTable relFColumns Child Nothing Nothing Nothing
         | syns <- colsSyns, syns `allSynsOf` relColumns] ++
 
-      -- Table View Relations
-      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+      -- Table View Child Relations
+      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
         | fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns] ++
 
-      -- View View Relations
-      [Relation (getView syns) (snd <$> syns) (getView fSyns) (snd <$> fSyns) Child Nothing Nothing Nothing
+      -- View View Child Relations
+      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
         | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns]
 
     _ -> [])
@@ -328,9 +328,9 @@ addViewPrimaryKeys syns = concatMap (\pk ->
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) syns in
   pk : viewPks)
 
-allTables :: H.Query () [Table]
+allTables :: H.Statement () [Table]
 allTables =
-  H.statement sql HE.unit decodeTables True
+  H.Statement sql HE.unit decodeTables True
  where
   sql = [q|
     SELECT
@@ -351,9 +351,9 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> H.Query Schema [Column]
+allColumns :: [Table] -> H.Statement Schema [Column]
 allColumns tabs =
-  H.statement sql (HE.value HE.text) (decodeColumns tabs) True
+  H.Statement sql (HE.param HE.text) (decodeColumns tabs) True
  where
   sql = [q|
     SELECT DISTINCT
@@ -388,7 +388,7 @@ allColumns tabs =
                pg_catalog.pg_namespace n
              WHERE
                r.contype IN ('f', 'p')
-               AND c.relkind IN ('r', 'v', 'f', 'mv')
+               AND c.relkind IN ('r', 'v', 'f', 'm')
                AND r.conrelid = c.oid
                AND c.relnamespace = n.oid
                AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
@@ -492,7 +492,7 @@ allColumns tabs =
                 NOT pg_is_other_temp_schema(nc.oid)
                 AND a.attnum > 0
                 AND NOT a.attisdropped
-                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char"]))
+                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char", 'm'::"char"]))
                 AND (nc.nspname = $1 OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
               /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
@@ -538,9 +538,9 @@ columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <
     parseEnum :: Maybe Text -> [Text]
     parseEnum str = fromMaybe [] $ split (==',') <$> str
 
-allChildRelations :: [Table] -> [Column] -> H.Query () [Relation]
+allChildRelations :: [Table] -> [Column] -> H.Statement () [Relation]
 allChildRelations tabs cols =
-  H.statement sql HE.unit (decodeRelations tabs cols) True
+  H.Statement sql HE.unit (decodeRelations tabs cols) True
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -579,9 +579,9 @@ relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> H.Query () [PrimaryKey]
+allPrimaryKeys :: [Table] -> H.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
-  H.statement sql HE.unit (decodePks tabs) True
+  H.Statement sql HE.unit (decodePks tabs) True
  where
   sql = [q|
     /*
@@ -689,80 +689,71 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSynonyms :: [Column] -> H.Query () [Synonym]
-allSynonyms cols =
-  H.statement sql HE.unit (decodeSynonyms cols) True
- where
-  -- query explanation at https://gist.github.com/ruslantalpa/2eab8c930a65e8043d8f
-  sql = [q|
-    with view_columns as (
+allSynonyms :: [Column] -> PgVersion -> H.Statement Schema [Synonym]
+allSynonyms cols pgVer =
+  H.Statement sql (HE.param HE.text) (decodeSynonyms cols) True
+  -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
+  where
+    subselectRegex :: Text
+    subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location"
+                   | otherwise = ":subselect {.*?:stmt_len 0} :location"
+    sql = [qc|
+      with
+      views as (
         select
-            c.oid as view_oid,
-            a.attname::information_schema.sql_identifier as column_name
-        from pg_attribute a
-        join pg_class c on a.attrelid = c.oid
-        join pg_namespace nc on c.relnamespace = nc.oid
-        where
-            not pg_is_other_temp_schema(nc.oid)
-            and a.attnum > 0
-            and not a.attisdropped
-            and (c.relkind = 'v'::"char")
-            and nc.nspname not in ('information_schema', 'pg_catalog')
-    ),
-    view_column_usage as (
-        select distinct
-            v.oid as view_oid,
-            nv.nspname::information_schema.sql_identifier as view_schema,
-            v.relname::information_schema.sql_identifier as view_name,
-            nt.nspname::information_schema.sql_identifier as table_schema,
-            t.relname::information_schema.sql_identifier as table_name,
-            a.attname::information_schema.sql_identifier as column_name,
-            pg_get_viewdef(v.oid)::information_schema.character_data as view_definition
-        from pg_namespace nv
-        join pg_class v on nv.oid = v.relnamespace
-        join pg_depend dv on v.oid = dv.refobjid
-        join pg_depend dt on dv.objid = dt.objid
-        join pg_class t on dt.refobjid = t.oid
-        join pg_namespace nt on t.relnamespace = nt.oid
-        join pg_attribute a on t.oid = a.attrelid and dt.refobjsubid = a.attnum
-
-        where
-            nv.nspname not in ('information_schema', 'pg_catalog')
-            and v.relkind = 'v'::"char"
-            and dv.refclassid = 'pg_class'::regclass::oid
-            and dv.classid = 'pg_rewrite'::regclass::oid
-            and dv.deptype = 'i'::"char"
-            and dv.refobjid <> dt.refobjid
-            and dt.classid = 'pg_rewrite'::regclass::oid
-            and dt.refclassid = 'pg_class'::regclass::oid
-            and (t.relkind = any (array['r'::"char", 'v'::"char", 'f'::"char"]))
-    ),
-    candidates as (
+          n.nspname   as view_schema,
+          c.relname   as view_name,
+          r.ev_action as view_definition
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        join pg_rewrite r on r.ev_class = c.oid
+        where (c.relkind = 'v'::char) and n.nspname = $1
+      ),
+      removed_subselects as(
         select
-            vcu.*,
-            (
-                select case when match is not null then coalesce(match[8], match[7], match[4]) end
-                from regexp_matches(
-                    CONCAT('SELECT ', SPLIT_PART(vcu.view_definition, 'SELECT', 2)),
-                    CONCAT('SELECT.*?((',vcu.table_name,')|(\w+))\.(', vcu.column_name, ')(\s+AS\s+("([^"]+)"|([^, \n\t]+)))?.*?FROM.*?(',vcu.table_schema,'\.|)(\2|',vcu.table_name,'\s+(as\s)?\3)'),
-                    'nsi'
-                ) match
-            ) as view_column_name
-        from view_column_usage as vcu
-    )
-    select
-        c.table_schema,
-        c.table_name,
-        c.column_name as table_column_name,
-        c.view_schema,
-        c.view_name,
-        c.view_column_name
-    from view_columns as vc, candidates as c
-    where
-        vc.view_oid = c.view_oid
-        and vc.column_name = c.view_column_name
-    order by c.view_schema, c.view_name, c.table_name, c.view_column_name
-    |]
+          view_schema, view_name,
+          regexp_replace(view_definition, '{subselectRegex}', '', 'g') as x
+        from views
+      ),
+      target_lists as(
+        select
+          view_schema, view_name,
+          regexp_split_to_array(x, 'targetList') as x
+        from removed_subselects
+      ),
+      last_target_list_wo_tail as(
+        select
+          view_schema, view_name,
+          (regexp_split_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
+        from target_lists
+      ),
+      target_entries as(
+        select
+          view_schema, view_name,
+          unnest(regexp_split_to_array(x, 'TARGETENTRY')) as entry
+        from last_target_list_wo_tail
+      ),
+      results as(
+        select
+          view_schema, view_name,
+          substring(entry from ':resname (.*?) :') as view_colum_name,
+          substring(entry from ':resorigtbl (.*?) :') as resorigtbl,
+          substring(entry from ':resorigcol (.*?) :') as resorigcol
+        from target_entries
+      )
+      select
+        sch.nspname as table_schema,
+        tbl.relname as table_name,
+        col.attname as table_column_name,
+        res.view_schema,
+        res.view_name,
+        res.view_colum_name
+      from results res
+      join pg_class tbl on tbl.oid::text = res.resorigtbl
+      join pg_attribute col on col.attrelid = tbl.oid and col.attnum::text = res.resorigcol
+      join pg_namespace sch on sch.oid = tbl.relnamespace
+      where resorigtbl <> '0'
+      order by view_schema, view_name, view_colum_name; |]
 
 synonymFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe Synonym
 synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
@@ -772,21 +763,7 @@ synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
     findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
 
 getPgVersion :: H.Session PgVersion
-getPgVersion = H.query () $ H.statement sql HE.unit versionRow False
+getPgVersion = H.statement () $ H.Statement sql HE.unit versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
-    versionRow = HD.singleRow $ PgVersion <$> HD.value HD.int4 <*> HD.value HD.text
-
-fillSessionWithSettings :: [(Text, Text)] -> H.Session ()
-fillSessionWithSettings settings =
-    -- Send all of the config settings to the set_config function, using pgsql's `unnest` to transform arrays of values
-    H.query settings $ H.statement "SELECT set_config(k, v, false) FROM unnest($1, $2) AS f1(k, v)" encoder HD.unit False
-
-  where
-    -- Take a list of (key, value) pairs and encode each as an array to later bind to the query
-    -- see Insert Many section at https://hackage.haskell.org/package/hasql-1.1.1/docs/Hasql-Encoders.html
-    encoder = contramap L.unzip $ contrazip2 (vector HE.text) (vector HE.text)
-      where
-        vector value =
-          HE.value $ HE.array $ HE.arrayDimension foldl' $ HE.arrayValue value
-
+    versionRow = HD.singleRow $ PgVersion <$> HD.column HD.int4 <*> HD.column HD.text

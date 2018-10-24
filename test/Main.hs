@@ -6,9 +6,8 @@ import SpecHelper
 import qualified Hasql.Pool as P
 
 import PostgREST.App (postgrest)
-import PostgREST.Config (pgVersion95, pgVersion96, configSettings)
-import PostgREST.DbStructure (getDbStructure, getPgVersion, fillSessionWithSettings)
-import PostgREST.Types (DbStructure(..))
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Types (DbStructure(..), pgVersion95, pgVersion96)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Data.Function (id)
 import Data.IORef
@@ -66,7 +65,7 @@ main = do
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
-      reset = P.use pool (fillSessionWithSettings (configSettings $ testCfg testDbConn)) >> resetDb testDbConn
+      reset = resetDb testDbConn
 
       actualPgVersion = pgVersion dbStructure
       extraSpecs =
