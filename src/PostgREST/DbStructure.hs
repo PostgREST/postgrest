@@ -25,6 +25,7 @@ import           Data.Text                     (split, strip,
                                                 splitOn)
 import qualified Data.Text                     as T
 import qualified Hasql.Session                 as H
+import qualified Hasql.Transaction             as HT
 import           PostgREST.Types
 import           Text.InterpolatedString.Perl6 (q, qc)
 
@@ -32,14 +33,15 @@ import           GHC.Exts                      (groupWith)
 import           Protolude
 import           Unsafe (unsafeHead)
 
-getDbStructure :: Schema -> PgVersion -> H.Session DbStructure
+getDbStructure :: Schema -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schema pgVer = do
-  tabs      <- H.statement () allTables
-  cols      <- H.statement schema $ allColumns tabs
-  syns      <- H.statement schema $ allSynonyms cols pgVer
-  childRels <- H.statement () $ allChildRelations tabs cols
-  keys      <- H.statement () $ allPrimaryKeys tabs
-  procs     <- H.statement schema allProcs
+  HT.sql "set local schema ''" -- for getting the fully qualified name(schema.name) of every db object
+  tabs      <- HT.statement () allTables
+  cols      <- HT.statement schema $ allColumns tabs
+  syns      <- HT.statement schema $ allSynonyms cols pgVer
+  childRels <- HT.statement () $ allChildRelations tabs cols
+  keys      <- HT.statement () $ allPrimaryKeys tabs
+  procs     <- HT.statement schema allProcs
 
   let rels = addManyToManyRelations . addParentRelations $ addViewChildRelations syns childRels
       cols' = addForeignKeys rels cols

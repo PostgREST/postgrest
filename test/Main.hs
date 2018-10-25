@@ -4,6 +4,7 @@ import Test.Hspec
 import SpecHelper
 
 import qualified Hasql.Pool as P
+import qualified Hasql.Transaction.Sessions as HT
 
 import PostgREST.App (postgrest)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
@@ -46,7 +47,9 @@ main = do
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
-  result <- P.use pool $ getDbStructure "test" =<< getPgVersion
+  result <- P.use pool $ do
+    ver <- getPgVersion
+    HT.transaction HT.ReadCommitted HT.Read $ getDbStructure "test" ver
 
   dbStructure <- pure $ either (panic.show) id result
 
