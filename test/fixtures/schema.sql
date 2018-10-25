@@ -1602,3 +1602,9 @@ create table test.contract (
 create view test.player_view as select * from private.player;
 
 create view test.contract_view as select * from test.contract;
+
+create type public.my_type AS enum ('something');
+
+CREATE FUNCTION test.test_arg(my_arg public.my_type) RETURNS text AS $$
+  SELECT 'foobar'::text;
+$$ LANGUAGE sql;

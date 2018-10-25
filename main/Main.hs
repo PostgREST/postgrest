@@ -3,37 +3,38 @@
 module Main where
 
 
-import           PostgREST.App            (postgrest)
-import           PostgREST.Config         (AppConfig (..),
-                                           prettyVersion, readOptions)
-import           PostgREST.DbStructure    (getDbStructure, getPgVersion)
-import           PostgREST.Error          (encodeError)
-import           PostgREST.OpenAPI        (isMalformedProxyUri)
-import           PostgREST.Types          (DbStructure, Schema, PgVersion(..), minimumPgVersion)
-import           Protolude                hiding (hPutStrLn, replace)
+import           PostgREST.App              (postgrest)
+import           PostgREST.Config           (AppConfig (..),
+                                             prettyVersion, readOptions)
+import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
+import           PostgREST.Error            (encodeError)
+import           PostgREST.OpenAPI          (isMalformedProxyUri)
+import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion)
+import           Protolude                  hiding (hPutStrLn, replace)
 
 
-import           Control.AutoUpdate       (defaultUpdateSettings,
-                                           mkAutoUpdate, updateAction)
-import           Control.Retry            (RetryStatus, capDelay,
-                                           exponentialBackoff,
-                                           retrying, rsPreviousDelay)
-import qualified Data.ByteString          as BS
-import qualified Data.ByteString.Base64   as B64
-import           Data.IORef               (IORef, atomicWriteIORef,
-                                           newIORef, readIORef)
-import           Data.String              (IsString (..))
-import           Data.Text                (pack, replace, stripPrefix, strip)
-import           Data.Text.Encoding       (decodeUtf8, encodeUtf8)
-import           Data.Text.IO             (hPutStrLn)
-import           Data.Time.Clock          (getCurrentTime)
-import qualified Hasql.Pool               as P
-import qualified Hasql.Session            as H
-import           Network.Wai.Handler.Warp (defaultSettings,
-                                           runSettings, setHost,
-                                           setPort, setServerName)
-import           System.IO                (BufferMode (..),
-                                           hSetBuffering)
+import           Control.AutoUpdate         (defaultUpdateSettings,
+                                             mkAutoUpdate, updateAction)
+import           Control.Retry              (RetryStatus, capDelay,
+                                             exponentialBackoff,
+                                             retrying, rsPreviousDelay)
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Base64     as B64
+import           Data.IORef                 (IORef, atomicWriteIORef,
+                                             newIORef, readIORef)
+import           Data.String                (IsString (..))
+import           Data.Text                  (pack, replace, stripPrefix, strip)
+import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
+import           Data.Text.IO               (hPutStrLn)
+import           Data.Time.Clock            (getCurrentTime)
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Session              as H
+import qualified Hasql.Transaction.Sessions as HT
+import           Network.Wai.Handler.Warp   (defaultSettings,
+                                             runSettings, setHost,
+                                             setPort, setServerName)
+import           System.IO                  (BufferMode (..),
+                                             hSetBuffering)
 
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
@@ -82,7 +83,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
               ("Cannot run in this PostgreSQL version, PostgREST needs at least "
               <> pgvName minimumPgVersion)
             killThread mainTid
-          dbStructure <- getDbStructure schema actualPgVersion
+          dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schema actualPgVersion
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
           Left e -> do

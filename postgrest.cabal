@@ -35,6 +35,7 @@ executable postgrest
                      , base >= 4.8 && < 4.10
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
+                     , hasql-transaction >= 0.7 && < 0.8
                      , postgrest
                      , protolude == 0.2.2
                      , text
@@ -154,6 +155,7 @@ Test-Suite spec
                      , contravariant
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
+                     , hasql-transaction >= 0.7 && < 0.8
                      , heredoc
                      , hjsonschema == 1.5.0.1
                      , hspec
