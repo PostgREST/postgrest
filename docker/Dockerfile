@@ -40,5 +40,3 @@ ENV PGRST_DB_URI= \
     PGRST_ROLE_CLAIM_KEY=".role"
 
 CMD ./start
-
-EXPOSE 3000
