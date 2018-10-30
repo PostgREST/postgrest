@@ -19,7 +19,7 @@ import           Text.Heredoc
 import PostgREST.Config (AppConfig(..))
 import PostgREST.Types  (JSPathExp(..))
 
-import Test.Hspec hiding (pendingWith)
+import Test.Hspec
 import Test.Hspec.Wai
 
 import Network.HTTP.Types
@@ -61,9 +61,8 @@ validateOpenApiResponse headers = do
        D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
 
 getEnvVarWithDefault :: Text -> Text -> IO Text
-getEnvVarWithDefault var def = do
-  varValue <- getEnv (toS var) `E.catchIOError` const (return $ toS def)
-  return $ toS varValue
+getEnvVarWithDefault var def = toS <$>
+  getEnv (toS var) `E.catchIOError` const (return $ toS def)
 
 _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
@@ -166,5 +165,5 @@ isErrorFormat s =
     S.null (S.difference keys validKeys)
  where
   obj = decode s :: Maybe (M.Map Text Value)
-  keys = fromMaybe S.empty (M.keysSet <$> obj)
+  keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]

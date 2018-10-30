@@ -109,7 +109,7 @@ transactionMode proc action =
     ActionInfo -> HT.Read
     ActionInspect -> HT.Read
     ActionInvoke{isReadOnly=False} ->
-      let v = fromMaybe Volatile $ pdVolatility <$> proc in
+      let v = maybe Volatile  pdVolatility proc in
       if v == Stable || v == Immutable
          then HT.Read
          else HT.Write
@@ -286,7 +286,7 @@ app dbStructure proc conf apiRequest =
                                 PJObject  -> True
                                 PJArray _ -> False
                   singular = contentType == CTSingularJSON
-                  specifiedPgArgs = filter ((`S.member` pjKeys) . pgaName) $ fromMaybe [] (pdArgs <$> proc)
+                  specifiedPgArgs = filter ((`S.member` pjKeys) . pgaName) $ maybe [] pdArgs proc
               row <- H.statement (toS pjRaw) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
@@ -397,8 +397,8 @@ contentRangeH lower upper total =
       rangeString
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
-      totalString   = fromMaybe "*" (show <$> total)
-      totalNotZero  = fromMaybe True ((/=) 0 <$> total)
+      totalString   = maybe "*" show total
+      totalNotZero  = maybe True (0 /=) total
       fromInRange   = lower <= upper
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
