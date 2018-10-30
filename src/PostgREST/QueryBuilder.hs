@@ -47,7 +47,7 @@ import           Data.Scientific         ( FPFormat (..)
                                          , formatScientific
                                          , isInteger
                                          )
-import           Protolude hiding        (from, intercalate, ord, cast, replace)
+import           Protolude hiding        ( intercalate, cast, replace)
 import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
@@ -229,7 +229,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
 
   where
-    mainTbl = fromMaybe nodeName (tableName . relTable <$> maybeRelation)
+    mainTbl = maybe nodeName (tableName . relTable) maybeRelation
     isSelfJoin = maybe False (\r -> relType r /= Root && relTable r == relFTable r) maybeRelation
     (qi, tables, joinConds) =
       let depthAlias name dpth = if dpth /= 0  then name <> "_" <> show dpth else name in -- Root node doesn't get aliased
@@ -413,7 +413,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
 
    In vals -> pgFmtField table fld <> " " <>
     let emptyValForIn = "= any('{}') " in -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"
-    case ((&&) (length vals == 1) . T.null) <$> headMay vals of
+    case (&&) (length vals == 1) . T.null <$> headMay vals of
       Just False -> sqlOperator "in" <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
       Just True  -> emptyValForIn
       Nothing    -> emptyValForIn

@@ -36,7 +36,7 @@ import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange, allRange)
 import           PostgREST.Types
 
-import           Protolude                hiding (from, dropWhile, drop)
+import           Protolude                hiding (from)
 import           Text.Regex.TDFA         ((=~))
 import           Unsafe                  (unsafeHead)
 
@@ -229,7 +229,7 @@ getJoinConditions (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{
   if | typ == Child || typ == Parent ->
         zipWith (toJoinCondition tN ftN) cols fCols
      | typ == Many ->
-        let ltN = fromMaybe "" (tableName <$> lt) in
+        let ltN = maybe "" tableName lt in
         zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
      | typ == Root -> witness
   where

@@ -60,7 +60,7 @@ makeProperty pks c = (colName c, Inline s)
       ]
     d =
       if length n > 1 then
-        Just $ append (fromMaybe "" ((`append` "\n\n") <$> colDescription c)) (intercalate "\n" n)
+        Just $ append (maybe "" (`append` "\n\n") $ colDescription c) (intercalate "\n" n)
       else
         colDescription c
     s =

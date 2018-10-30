@@ -538,7 +538,7 @@ columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <
     buildColumn tbl = Column tbl n desc pos nul typ u l p d (parseEnum e) Nothing
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
-    parseEnum str = fromMaybe [] $ split (==',') <$> str
+    parseEnum = maybe [] (split (==','))
 
 allChildRelations :: [Table] -> [Column] -> H.Statement () [Relation]
 allChildRelations tabs cols =

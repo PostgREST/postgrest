@@ -8,7 +8,7 @@ import Network.HTTP.Types
 import SpecHelper
 import Network.Wai (Application)
 
-import Protolude hiding (get)
+import Protolude
 -- }}}
 
 spec :: SpecWith Application

@@ -110,8 +110,7 @@ userApiRequest schema req reqBody
       iAction = action
       , iTarget = target
       , iRange = ranges
-      , iAccepts = fromMaybe [CTAny] $
-        map decodeContentType . parseHttpAccept <$> lookupHeader "accept"
+      , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
       , iPreferSingleObjectParameter = singleObject
@@ -130,7 +129,7 @@ userApiRequest schema req reqBody
         $ rawQueryString req
       , iJWT = tokenStr
       , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
-      , iCookies = fromMaybe [] $ parseCookiesText <$> lookupHeader "Cookie"
+      , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       }
  where
   -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
@@ -143,7 +142,7 @@ userApiRequest schema req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  isTargetingProc = fromMaybe False $ (== "rpc") <$> listToMaybe path
+  isTargetingProc = (== Just "rpc") $ listToMaybe path
   payload =
     case (decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type", action) of
       (_, ActionInvoke{isReadOnly=True}) ->
@@ -215,7 +214,7 @@ userApiRequest schema req reqBody
   limitParams :: M.HashMap ByteString NonnegRange
   limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
   offsetParams :: M.HashMap ByteString NonnegRange
-  offsetParams = M.fromList [(toS (replaceLast "limit" k), fromMaybe allRange (rangeGeq <$> (readMaybe =<< (toS <$> v)))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
+  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe =<< (toS <$> v))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
   urlRange = M.unionWith f limitParams offsetParams
     where

@@ -3,6 +3,7 @@ module PostgREST.Parsers where
 import           Protolude                     hiding (try, intercalate, replace, option)
 import           Control.Monad                 ((>>))
 import           Data.Foldable                 (foldl1)
+import           Data.Functor                  (($>))
 import qualified Data.HashMap.Strict           as M
 import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
@@ -68,17 +69,18 @@ pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
                   Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
-pStar = toS <$> (string "*" *> pure ("*"::ByteString))
+pStar = toS <$> (string "*" $> ("*"::ByteString))
 
 pFieldName :: Parser Text
-pFieldName = do
-  matches <- (many1 (letter <|> digit <|> oneOf "_") `sepBy1` dash) <?> "field name (* or [a..z0..9_])"
-  return $ intercalate "-" $ map toS matches
+pFieldName =
+  intercalate "-" . map toS <$>
+  (many1 (letter <|> digit <|> oneOf "_") `sepBy1` dash) <?>
+  "field name (* or [a..z0..9_])"
   where
     isDash :: GenParser Char st ()
     isDash = try ( char '-' >> notFollowedBy (char '>') )
     dash :: Parser Char
-    dash = isDash *> pure '-'
+    dash = isDash $> '-'
 
 pJsonPath :: Parser JsonPath
 pJsonPath = many pJsonOperation
@@ -184,12 +186,12 @@ pLogicTree = Stmnt <$> try pLogicFilter
     pLogicFilter :: Parser Filter
     pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
     pNot :: Parser Bool
-    pNot = try (string "not" *> pDelimiter *> pure True)
+    pNot = try (string "not" *> pDelimiter $> True)
            <|> pure False
            <?> "negation operator (not)"
     pLogicOp :: Parser LogicOperator
-    pLogicOp = try (string "and"  *> pure And)
-               <|> string "or" *> pure Or
+    pLogicOp = try (string "and" $> And)
+               <|> string "or" $> Or
                <?> "logic operator (and, or)"
 
 pLogicSingleVal :: Parser SingleVal

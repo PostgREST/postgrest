@@ -1,6 +1,6 @@
 module Feature.PgVersion95Spec where
 
-import Test.Hspec hiding (pendingWith)
+import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 

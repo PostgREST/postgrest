@@ -1,6 +1,6 @@
 module Feature.StructureSpec where
 
-import Test.Hspec hiding (pendingWith)
+import Test.Hspec
 import Test.Hspec.Wai
 import Network.HTTP.Types
 

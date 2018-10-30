@@ -8,7 +8,7 @@ import Control.Monad.Base
 import Control.Monad.Trans.Control
 import Control.Concurrent.Async (mapConcurrently)
 
-import Test.Hspec hiding (pendingWith)
+import Test.Hspec
 import Test.Hspec.Wai.Internal
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON

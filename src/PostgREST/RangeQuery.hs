@@ -32,14 +32,13 @@ rangeParse range = do
   case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
     Just parsedRange ->
       let [_, mLower, mUpper] = readMaybe . toS <$> parsedRange
-          lower         = fromMaybe emptyRange   (rangeGeq <$> mLower)
-          upper         = fromMaybe allRange (rangeLeq <$> mUpper) in
+          lower         = maybe emptyRange rangeGeq mLower
+          upper         = maybe allRange rangeLeq mUpper in
       rangeIntersection lower upper
     Nothing -> allRange
 
 rangeRequested :: RequestHeaders -> NonnegRange
-rangeRequested headers = fromMaybe allRange $
-  rangeParse <$> lookup hRange headers
+rangeRequested headers = maybe allRange rangeParse $ lookup hRange headers
 
 restrictRange :: Maybe Integer -> NonnegRange -> NonnegRange
 restrictRange Nothing r = r

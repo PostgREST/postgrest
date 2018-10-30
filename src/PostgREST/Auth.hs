@@ -95,7 +95,7 @@ parseJWK str =
 hs256jwk :: ByteString -> JWK
 hs256jwk key =
   fromKeyMaterial km
-    & jwkUse .~ Just Sig
-    & jwkAlg .~ (Just $ JWSAlg HS256)
+    & jwkUse ?~ Sig
+    & jwkAlg ?~ JWSAlg HS256
  where
   km = OctKeyMaterial (OctKeyParameters (JOSE.Types.Base64Octets key))

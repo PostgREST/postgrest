@@ -21,7 +21,7 @@ import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (simpleError)
 import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtSetLocal)
 
-import           Protolude                     hiding (concat, null)
+import           Protolude
 
 runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->

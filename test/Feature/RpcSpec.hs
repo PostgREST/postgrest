@@ -1,6 +1,6 @@
 module Feature.RpcSpec where
 
-import Test.Hspec hiding (pendingWith)
+import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Network.HTTP.Types
@@ -372,7 +372,7 @@ spec =
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-    it "should work with an argument of custom type in public schema" $ do
+    it "should work with an argument of custom type in public schema" $
         get "/rpc/test_arg?my_arg=something" `shouldRespondWith`
           [json|"foobar"|]
           { matchHeaders = [matchContentTypeJson] }
