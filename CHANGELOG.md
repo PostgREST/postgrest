@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
+- #1205, Add support for parsing JSON Web Key Sets -@russelldavies
 
 ### Fixed
 
