@@ -16,7 +16,7 @@ module PostgREST.Auth (
     containsRole
   , jwtClaims
   , JWTAttempt(..)
-  , parseJWK
+  , parseSecret
   ) where
 
 import           Control.Lens.Operators
@@ -43,7 +43,7 @@ data JWTAttempt = JWTInvalid JWTError
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWK -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
+jwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
 jwtClaims _ _ "" _ _ = return $ JWTClaims M.empty
 jwtClaims secret audience payload time jspath =
   case secret of
@@ -83,17 +83,27 @@ containsRole :: JWTAttempt -> Bool
 containsRole (JWTClaims claims) = M.member "role" claims
 containsRole _                  = False
 
-parseJWK :: ByteString -> JWK
-parseJWK str =
-  fromMaybe (hs256jwk str) (JSON.decode (toS str) :: Maybe JWK)
+{-|
+  Parse `jwt-secret` configuration option and turn into a JWKSet.
+
+  There are three ways to specify `jwt-secret`: text secret, JSON Web Key
+  (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JWKSet
+  with one key and the last is converted as is.
+-}
+parseSecret :: ByteString -> JWKSet
+parseSecret str =
+  fromMaybe (maybe secret (\jwk' -> JWKSet [jwk']) maybeJWK)
+    maybeJWKSet
+ where
+  maybeJWKSet = JSON.decode (toS str) :: Maybe JWKSet
+  maybeJWK = JSON.decode (toS str) :: Maybe JWK
+  secret = JWKSet [jwkFromSecret str]
 
 {-|
-  Internal helper to generate HMAC-SHA256. When the jwt key in the
-  config file is a simple string rather than a JWK object, we'll
-  apply this function to it.
+  Internal helper to generate a symmetric HMAC-SHA256 JWK from a text secret.
 -}
-hs256jwk :: ByteString -> JWK
-hs256jwk key =
+jwkFromSecret :: ByteString -> JWK
+jwkFromSecret key =
   fromKeyMaterial km
     & jwkUse ?~ Sig
     & jwkAlg ?~ JWSAlg HS256

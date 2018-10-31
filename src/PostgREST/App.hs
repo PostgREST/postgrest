@@ -35,7 +35,7 @@ import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
                                         , mutuallyAgreeable
                                         , userApiRequest
                                         )
-import           PostgREST.Auth            (jwtClaims, containsRole, parseJWK)
+import           PostgREST.Auth            (jwtClaims, containsRole, parseSecret)
 import           PostgREST.Config          (AppConfig (..))
 import           PostgREST.DbStructure
 import           PostgREST.DbRequestBuilder( readRequest
@@ -65,7 +65,7 @@ import           Protolude              hiding (intercalate, Proxy)
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
-      jwtSecret = parseJWK <$> configJwtSecret conf in
+      jwtSecret = parseSecret <$> configJwtSecret conf in
 
   middle $ \ req respond -> do
     time <- getTime

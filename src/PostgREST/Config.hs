@@ -209,7 +209,7 @@ readOptions = do
           |## base url for swagger output
           |# server-proxy-uri = ""
           |
-          |## choose a secret to enable JWT auth
+          |## choose a secret, JSON Web Key (or set) to enable JWT auth
           |## (use "@filename" to load from separate file)
           |# jwt-secret = "foo"
           |# secret-is-base64 = false

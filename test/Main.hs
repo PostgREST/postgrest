@@ -65,6 +65,7 @@ main = do
       binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool getTime $ pure ()
       audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool getTime $ pure ()
       asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool getTime $ pure ()
+      asymJwkSetApp        = return $ postgrest (testCfgAsymJWKSet testDbConn)  refDbStructure pool getTime $ pure ()
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
@@ -121,6 +122,10 @@ main = do
 
     -- this test runs with asymmetric JWK
     beforeAll_ reset . before asymJwkApp $
+      describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
+
+    -- this test runs with asymmetric JWKSet
+    beforeAll_ reset . before asymJwkSetApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
     -- this test runs with a nonexistent db-schema
