@@ -219,7 +219,7 @@ Now, whenever the structure of the database schema changes, PostgreSQL will noti
 
 .. important::
 
-  As of PostgREST v5.1 reloading with SIGHUP is deprecated, it's still supported but will be removed in v6.0
+  As of PostgREST v5.1 reloading with SIGHUP is deprecated, it's still supported but will be removed in v6.0. SIGUSR1 should be used instead.
 
 Daemonizing
 ===========
