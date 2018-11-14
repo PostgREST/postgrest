@@ -239,7 +239,7 @@ Our code requires a database role in the JWT. To add it you need to save the dat
 Asymmetric Keys
 ~~~~~~~~~~~~~~~
 
-As described in the :ref:`configuration` section, PostgREST accepts a ``jwt-secret`` config file parameter. If it is set to a simple string value like "reallyreallyreallyreallyverysafe" then PostgREST interprets it as an HMAC-SHA256 passphrase. However you can also specify a literal JWT key JSON value. For example, you can use an RSA-256 public key such as:
+As described in the :ref:`configuration` section, PostgREST accepts a ``jwt-secret`` config file parameter. If it is set to a simple string value like "reallyreallyreallyreallyverysafe" then PostgREST interprets it as an HMAC-SHA256 passphrase. However you can also specify a literal JSON Web Key (JWK) or set. For example, you can use an RSA-256 public key encoded as a JWK:
 
 .. code-block:: json
 
@@ -250,6 +250,10 @@ As described in the :ref:`configuration` section, PostgREST accepts a ``jwt-secr
     "kty":"RSA",
     "n":"9zKNYTaYGfGm1tBMpRT6FxOYrM720GhXdettc02uyakYSEHU2IJz90G_MLlEl4-WWWYoS_QKFupw3s7aPYlaAjamG22rAnvWu-rRkP5sSSkKvud_IgKL4iE6Y2WJx2Bkl1XUFkdZ8wlEUR6O1ft3TS4uA-qKifSZ43CahzAJyUezOH9shI--tirC028lNg767ldEki3WnVr3zokSujC9YJ_9XXjw2hFBfmJUrNb0-wldvxQbFU8RPXip-GQ_JPTrCTZhrzGFeWPvhA6Rqmc3b1PhM9jY7Dur1sjYWYVyXlFNCK3c-6feo5WlRfe1aCWmwZQh6O18eTmLeT4nWYkDzQ"
   }
+
+.. note::
+
+  This could also be a JSON Web Key Set (JWKS) if it was contained within an array assigned to a `keys` member, e.g. ``{ keys: [jwk1, jwk2] }``.
 
 Just pass it in as a single line string, escaping the quotes:
 
