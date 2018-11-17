@@ -336,6 +336,19 @@ If you want to have a visual overview of your API in your browser you can add sw
 
 With this you can see the swagger-ui in your browser on port 8080.
 
+Deploying to Heroku
+===================
+Assuming your making modifications locally and then pushing to GitHub, it's easy to deploy to Heroku.
+ 
+1. Create a new app on Heroku
+2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
+3. Add the require Config Vars in Heroku (see above)
+4. Modify your postgres.conf file as required to match your Config Vars in Heroku
+5. Create your :code:`Procfile` and add :code:`./env-to-config ./postgrest postgres.conf`
+6. Push your changes to GitHub
+7. Set Heroku to automatically deploy from Master and then manually deploy the branch for the first build
+
+
 .. _build_source:
 
 Build from Source
