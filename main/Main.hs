@@ -25,7 +25,7 @@ import           Data.IORef                 (IORef, atomicWriteIORef,
 import           Data.String                (IsString (..))
 import           Data.Text                  (pack, replace, stripPrefix, strip)
 import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
-import           Data.Text.IO               (hPutStrLn)
+import           Data.Text.IO               (hPutStrLn, readFile)
 import           Data.Time.Clock            (getCurrentTime)
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Session              as H
@@ -139,7 +139,7 @@ main = do
   --
   -- readOptions builds the 'AppConfig' from the config file specified on the
   -- command line
-  conf <- loadSecretFile =<< readOptions
+  conf <- loadDbUriFile =<< loadSecretFile =<< readOptions
   let host = configHost conf
       port = configPort conf
       proxy = configProxyUri conf
@@ -278,3 +278,18 @@ loadSecretFile conf = extractAndTransform mSecret
     -- replace: Replace every occurrence of one substring with another
     replaceUrlChars =
       replace "_" "/" . replace "-" "+" . replace "." "="
+
+{-
+  Load database uri from a separate file if `db-uri` is a filepath.
+-}
+loadDbUriFile :: AppConfig -> IO AppConfig
+loadDbUriFile conf = extractDbUri mDbUri
+  where
+    mDbUri = configDatabase conf
+    extractDbUri :: Text -> IO AppConfig
+    extractDbUri dbUri =
+      fmap setDbUri $
+      case stripPrefix "@" dbUri of
+        Nothing -> return dbUri
+        Just filename -> strip <$> readFile (toS filename)
+    setDbUri dbUri = conf {configDatabase = dbUri}
