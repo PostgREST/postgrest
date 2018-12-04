@@ -82,6 +82,24 @@ readSecretFromFile(){
   pgrStop
 }
 
+readDbUriFromFile(){
+  pgrConfig="dburi-from-file.config"
+  pgrStartRead "./configs/$pgrConfig" "./dburis/$1"
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  if pgrStarted
+  then
+    ok "connection with $2 dburi read from a file"
+  else
+    ko "failed to read $2 dburi from a file"
+  fi
+  pgrStop
+}
+
 reqWithRoleClaimKey(){
   export ROLE_CLAIM_KEY=$1
   pgrStart "./configs/role-claim-key.config"
@@ -186,6 +204,9 @@ readSecretFromFile word.b64 'Base64 (simple)'
 readSecretFromFile ascii.b64 'Base64 (ASCII)'
 readSecretFromFile utf8.b64 'Base64 (UTF-8)'
 readSecretFromFile binary.b64 'Base64 (binary)'
+
+readDbUriFromFile uri.noeol "(no EOL)"
+readDbUriFromFile uri.txt "(EOL)"
 
 reqWithRoleClaimKey '.postgrest.a_role' '{"postgrest":{"a_role":"postgrest_test_author"}}' 200
 reqWithRoleClaimKey '.customObject.manyRoles[1]' '{"customObject":{"manyRoles": ["other", "postgrest_test_author"]}}' 200

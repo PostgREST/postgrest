@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - #1205, Add support for parsing JSON Web Key Sets -@russelldavies
+- #1203, Add support for reading db-uri from a separate file - @zhoufeng1989
 
 ### Fixed
 
