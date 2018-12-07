@@ -463,3 +463,13 @@ select
   'last_name_' || generate_series,
   '2018-10-11'
 from generate_series(1, 6);
+
+TRUNCATE TABLE ltree_sample CASCADE;
+INSERT INTO ltree_sample VALUES ('Top');
+INSERT INTO ltree_sample VALUES ('Top.Science');
+INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy');
+INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy.Astrophysics');
+INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy.Cosmology');
+
+TRUNCATE TABLE isn_sample CASCADE;
+INSERT INTO isn_sample VALUES ('978-0-393-04002-9', 'Mathematics: From the Birth of Numbers');

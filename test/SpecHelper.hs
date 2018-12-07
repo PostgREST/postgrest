@@ -78,6 +78,8 @@ _baseCfg =  -- Connection Settings
             ]
             -- Default role claim key
             (Right [JSPKey "role"])
+            -- Empty db-extra-search-path
+            []
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
@@ -121,6 +123,9 @@ testCfgAsymJWKSet testDbConn = (testCfg testDbConn) {
 
 testNonexistentSchemaCfg :: Text -> AppConfig
 testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchema = "nonexistent" }
+
+testCfgExtraSearchPath :: Text -> AppConfig
+testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do

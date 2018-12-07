@@ -17,7 +17,7 @@ CREATE SCHEMA postgrest;
 CREATE SCHEMA private;
 CREATE SCHEMA test;
 CREATE SCHEMA تست;
-
+CREATE SCHEMA extensions;
 
 --
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
@@ -1605,6 +1605,27 @@ create view test.contract_view as select * from test.contract;
 
 create type public.my_type AS enum ('something');
 
-CREATE FUNCTION test.test_arg(my_arg public.my_type) RETURNS text AS $$
-  SELECT 'foobar'::text;
-$$ LANGUAGE sql;
+create function test.test_arg(my_arg public.my_type) returns text as $$
+  select 'foobar'::text;
+$$ language sql;
+
+create extension if not exists ltree with schema public;
+
+create table test.ltree_sample (
+  path public.ltree
+);
+
+CREATE FUNCTION test.number_of_labels(test.ltree_sample) RETURNS integer AS $$
+  SELECT nlevel($1.path)
+$$ language sql;
+
+create extension if not exists isn with schema extensions;
+
+create table test.isn_sample (
+  id extensions.isbn,
+  name text
+);
+
+create function test.is_valid_isbn(input text) returns boolean as $$
+  select is_valid(input::isbn);
+$$ language sql;

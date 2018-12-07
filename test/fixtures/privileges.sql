@@ -5,6 +5,7 @@ GRANT USAGE ON SCHEMA
     , jwt
     , public
     , "تست"
+    , extensions
 TO postgrest_test_anonymous;
 
 -- Schema test objects
@@ -92,6 +93,8 @@ GRANT ALL ON TABLE
     , contract
     , player_view
     , contract_view
+    , ltree_sample
+    , isn_sample
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

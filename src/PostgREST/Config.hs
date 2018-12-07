@@ -78,6 +78,7 @@ data AppConfig = AppConfig {
   , configQuiet             :: Bool
   , configSettings          :: [(Text, Text)]
   , configRoleClaimKey      :: Either ApiRequestError JSPath
+  , configExtraSearchPath   :: [Text]
   }
 
 defaultCorsPolicy :: CorsResourcePolicy
@@ -140,6 +141,7 @@ readOptions = do
           <*> pure False
           <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
+          <*> (maybe ["public"] (filter (/= "")) <$> C.key "db-extra-search-path")
 
   case mAppConf of
     Nothing -> do
@@ -199,7 +201,7 @@ readOptions = do
     exampleCfg :: Doc
     exampleCfg = vsep . map (text . toS) . lines $
       [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-          |db-schema = "public"
+          |db-schema = "public" # gets added to the search_path of every request
           |db-anon-role = "postgres"
           |db-pool = 10
           |
@@ -223,6 +225,9 @@ readOptions = do
           |
           |## jspath to the role claim key
           |# role-claim-key = ".role"
+          |
+          |## extra schemas to add to the search_path of every request
+          |# db-extra-search-path = ["extensions", "util"]
           |]
 
 pathParser :: Parser FilePath
