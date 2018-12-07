@@ -39,7 +39,7 @@ import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
 import           Data.Text                    (dropAround,
                                                intercalate, lines,
-                                               strip, take)
+                                               strip, take, splitOn)
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.IO                 (hPutStrLn)
 import           Data.Version                 (versionBranch)
@@ -141,7 +141,7 @@ readOptions = do
           <*> pure False
           <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
-          <*> (maybe ["public"] (filter (/= "")) <$> C.key "db-extra-search-path")
+          <*> (maybe ["public"] splitExtraSearchPath <$> C.key "db-extra-search-path")
 
   case mAppConf of
     Nothing -> do
@@ -178,6 +178,10 @@ readOptions = do
     parseRoleClaimKey (String s) = pRoleClaimKey s
     parseRoleClaimKey v = pRoleClaimKey $ show v
 
+    splitExtraSearchPath :: Value -> [Text]
+    splitExtraSearchPath (String s) = strip <$> splitOn "," s
+    splitExtraSearchPath _ = []
+
     opts = info (helper <*> pathParser) $
              fullDesc
              <> progDesc (
@@ -201,7 +205,7 @@ readOptions = do
     exampleCfg :: Doc
     exampleCfg = vsep . map (text . toS) . lines $
       [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-          |db-schema = "public" # gets added to the search_path of every request
+          |db-schema = "public" # this schema gets added to the search_path of every request
           |db-anon-role = "postgres"
           |db-pool = 10
           |
@@ -227,7 +231,7 @@ readOptions = do
           |# role-claim-key = ".role"
           |
           |## extra schemas to add to the search_path of every request
-          |# db-extra-search-path = ["extensions", "util"]
+          |# db-extra-search-path = "extensions, util"
           |]
 
 pathParser :: Parser FilePath
