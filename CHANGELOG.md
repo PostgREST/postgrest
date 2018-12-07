@@ -6,8 +6,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
-- #1205, Add support for parsing JSON Web Key Sets -@russelldavies
+
+- #1205, Add support for parsing JSON Web Key Sets - @russelldavies
 - #1203, Add support for reading db-uri from a separate file - @zhoufeng1989
+- #1200, Add db-extra-search-path config for adding schemas to the search_path, solves issues related to extensions created on the public schema - @steve-chavez
 
 ### Fixed
 
