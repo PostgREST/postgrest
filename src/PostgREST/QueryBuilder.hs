@@ -24,6 +24,7 @@ module PostgREST.QueryBuilder (
   , unquoted
   , ResultsWithCount
   , pgFmtSetLocal
+  , pgFmtSetLocalSearchPath
   ) where
 
 import qualified Hasql.Statement         as H
@@ -470,7 +471,11 @@ pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
 pgFmtSetLocal :: Text -> (Text, Text) -> SqlFragment
 pgFmtSetLocal prefix (k, v) =
-  "set local " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
+  "SET LOCAL " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
+
+pgFmtSetLocalSearchPath :: [Text] -> SqlFragment
+pgFmtSetLocalSearchPath vals =
+  "SET LOCAL search_path = " <> intercalate ", " (pgFmtLit <$> vals) <> ";"
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')

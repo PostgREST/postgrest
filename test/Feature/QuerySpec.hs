@@ -993,3 +993,6 @@ spec = do
       get "/projects_dump?select=id,name&order=id.desc&limit=3" `shouldRespondWith`
         [json| [{"id":5,"name":"Orphan"}, {"id":4,"name":"OSX"}, {"id":3,"name":"IOS"}] |]
         { matchHeaders = [matchContentTypeJson] }
+
+  it "cannot use ltree(in public schema) extension operators if no extra search path added" $
+    get "/ltree_sample?path=cd.Top.Science.Astronomy" `shouldRespondWith` 400

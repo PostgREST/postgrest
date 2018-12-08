@@ -124,6 +124,7 @@ Test-Suite spec
                      , Feature.ConcurrentSpec
                      , Feature.CorsSpec
                      , Feature.DeleteSpec
+                     , Feature.ExtraSearchPathSpec
                      , Feature.InsertSpec
                      , Feature.JsonOperatorSpec
                      , Feature.NoJwtSpec

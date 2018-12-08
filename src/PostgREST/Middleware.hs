@@ -19,7 +19,7 @@ import           PostgREST.ApiRequest          (ApiRequest(..))
 import           PostgREST.Auth                (JWTAttempt(..))
 import           PostgREST.Config              (AppConfig (..), corsPolicy)
 import           PostgREST.Error               (simpleError)
-import           PostgREST.QueryBuilder        (pgFmtLit, unquoted, pgFmtSetLocal)
+import           PostgREST.QueryBuilder        (unquoted, pgFmtSetLocal, pgFmtSetLocalSearchPath)
 
 import           Protolude
 
@@ -32,7 +32,7 @@ runWithClaims conf eClaims app req =
     JWTInvalid e -> return $ unauthed $ show e
     JWTMissingSecret -> return $ simpleError status500 [] "Server lacks JWT secret"
     JWTClaims claims -> do
-      H.sql $ toS.mconcat $ setSchemaSql ++ setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
+      H.sql $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
       mapM_ H.sql customReqCheck
       app req
       where
@@ -40,9 +40,9 @@ runWithClaims conf eClaims app req =
         cookiesSql = pgFmtSetLocal "request.cookie." <$> iCookies req
         claimsSql = pgFmtSetLocal "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
         appSettingsSql = pgFmtSetLocal mempty <$> configSettings conf
-        setRoleSql = maybeToList $
-          (\r -> "set local role " <> r <> ";") . toS . pgFmtLit . unquoted <$> M.lookup "role" claimsWithRole
-        setSchemaSql = ["set local schema " <> pgFmtLit (configSchema conf) <> ";"] :: [Text]
+        setRoleSql = maybeToList $ (\x ->
+          pgFmtSetLocal mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
+        setSearchPathSql = pgFmtSetLocalSearchPath $ configSchema conf : configExtraSearchPath conf
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)
         anon = JSON.String . toS $ configAnonRole conf

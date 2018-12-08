@@ -21,6 +21,7 @@ import qualified Feature.AudienceJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
+import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.NoJwtSpec
@@ -57,16 +58,17 @@ main = do
 
   refDbStructure <- newIORef $ Just dbStructure
 
-  let withApp              = return $ postgrest (testCfg testDbConn)            refDbStructure pool getTime $ pure ()
-      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)     refDbStructure pool getTime $ pure ()
-      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)     refDbStructure pool getTime $ pure ()
-      proxyApp             = return $ postgrest (testProxyCfg testDbConn)       refDbStructure pool getTime $ pure ()
-      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)       refDbStructure pool getTime $ pure ()
-      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)   refDbStructure pool getTime $ pure ()
-      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn) refDbStructure pool getTime $ pure ()
-      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)     refDbStructure pool getTime $ pure ()
-      asymJwkSetApp        = return $ postgrest (testCfgAsymJWKSet testDbConn)  refDbStructure pool getTime $ pure ()
-      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn)   refDbStructure pool getTime $ pure ()
+  let withApp              = return $ postgrest (testCfg testDbConn)                  refDbStructure pool getTime $ pure ()
+      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)           refDbStructure pool getTime $ pure ()
+      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)           refDbStructure pool getTime $ pure ()
+      proxyApp             = return $ postgrest (testProxyCfg testDbConn)             refDbStructure pool getTime $ pure ()
+      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)             refDbStructure pool getTime $ pure ()
+      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)         refDbStructure pool getTime $ pure ()
+      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn)       refDbStructure pool getTime $ pure ()
+      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)           refDbStructure pool getTime $ pure ()
+      asymJwkSetApp        = return $ postgrest (testCfgAsymJWKSet testDbConn)        refDbStructure pool getTime $ pure ()
+      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn) refDbStructure pool getTime $ pure ()
+      extraSearchPathApp   = return $ postgrest (testCfgExtraSearchPath testDbConn)   refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
       reset = resetDb testDbConn
@@ -90,7 +92,6 @@ main = do
         , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec)
-        , ("Feature.NonexistentSchemaSpec"  , Feature.NonexistentSchemaSpec.spec)
         ] ++ extraSpecs
 
   hspec $ do
@@ -131,3 +132,7 @@ main = do
     -- this test runs with a nonexistent db-schema
     beforeAll_ reset . before nonexistentSchemaApp $
       describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
+
+    -- this test runs with an extra search path
+    beforeAll_ reset . before extraSearchPathApp $
+      describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
