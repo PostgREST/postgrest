@@ -425,6 +425,14 @@ spec = do
              {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "can embed a view that has group by" $
+        get "/projects_count_grouped_by?select=number_of_projects,client(name)" `shouldRespondWith`
+          [json|
+            [{"number_of_projects":1,"client":null},
+             {"number_of_projects":2,"client":{"name":"Microsoft"}},
+             {"number_of_projects":2,"client":{"name":"Apple"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
         get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`
