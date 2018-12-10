@@ -74,7 +74,7 @@ pStar = toS <$> (string "*" $> ("*"::ByteString))
 pFieldName :: Parser Text
 pFieldName =
   intercalate "-" . map toS <$>
-  (many1 (letter <|> digit <|> oneOf "_") `sepBy1` dash) <?>
+  (many1 (letter <|> digit <|> oneOf "_ ") `sepBy1` dash) <?>
   "field name (* or [a..z0..9_])"
   where
     isDash :: GenParser Char st ()

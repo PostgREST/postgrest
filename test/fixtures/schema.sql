@@ -1636,3 +1636,8 @@ create table test.isn_sample (
 create function test.is_valid_isbn(input text) returns boolean as $$
   select is_valid(input::isbn);
 $$ language sql;
+
+create table "Server Today"(
+  "cHostname" text,
+  "Just A Server Model" text
+);

@@ -473,3 +473,12 @@ INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy.Cosmology');
 
 TRUNCATE TABLE isn_sample CASCADE;
 INSERT INTO isn_sample VALUES ('978-0-393-04002-9', 'Mathematics: From the Birth of Numbers');
+
+TRUNCATE TABLE "Server Today" CASCADE;
+COPY "Server Today" ("cHostname", "Just A Server Model") FROM STDIN CSV DELIMITER '|';
+argnim1 | IBM,9113-550 (P5-550)
+argnim2 | IBM,9113-550 (P5-550)
+daaa2nim71 | IBM,9131-52A (P5-52A)
+daah3nim71 | IBM,8406-71Y (P7-PS701)
+hbnim1 | IBM,9133-55A (P5-55A)
+\.

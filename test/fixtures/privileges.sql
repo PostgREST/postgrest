@@ -96,6 +96,7 @@ GRANT ALL ON TABLE
     , ltree_sample
     , isn_sample
     , projects_count_grouped_by
+    , "Server Today"
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
