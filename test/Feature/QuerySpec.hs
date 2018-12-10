@@ -819,6 +819,15 @@ spec = do
         [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "will select and filter a column that has spaces" $
+      get "/Server%20Today?select=Just%20A%20Server%20Model&Just%20A%20Server%20Model=like.*91*" `shouldRespondWith`
+        [json|[
+          {"Just A Server Model":" IBM,9113-550 (P5-550)"},
+          {"Just A Server Model":" IBM,9113-550 (P5-550)"},
+          {"Just A Server Model":" IBM,9131-52A (P5-52A)"},
+          {"Just A Server Model":" IBM,9133-55A (P5-55A)"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
   describe "binary output" $ do
     context "on GET" $ do
       it "can query if a single column is selected" $
