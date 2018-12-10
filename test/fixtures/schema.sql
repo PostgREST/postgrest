@@ -1553,6 +1553,13 @@ select
 from odd_years_books x
 join private.publishers y on y.id = x.first_publisher_id;
 
+create view test.projects_count_grouped_by as
+select
+  client_id,
+  count(id) as number_of_projects
+from projects
+group by client_id;
+
 CREATE TABLE test."Foo"(
   id int primary key,
   name text
