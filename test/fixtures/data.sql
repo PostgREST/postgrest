@@ -476,9 +476,16 @@ INSERT INTO isn_sample VALUES ('978-0-393-04002-9', 'Mathematics: From the Birth
 
 TRUNCATE TABLE "Server Today" CASCADE;
 COPY "Server Today" ("cHostname", "Just A Server Model") FROM STDIN CSV DELIMITER '|';
-argnim1 | IBM,9113-550 (P5-550)
-argnim2 | IBM,9113-550 (P5-550)
+argnim1    | IBM,9113-550 (P5-550)
+argnim2    | IBM,9113-550 (P5-550)
 daaa2nim71 | IBM,9131-52A (P5-52A)
 daah3nim71 | IBM,8406-71Y (P7-PS701)
-hbnim1 | IBM,9133-55A (P5-55A)
+hbnim1     | IBM,9133-55A (P5-55A)
+\.
+
+TRUNCATE TABLE pgrst_reserved_chars CASCADE;
+COPY pgrst_reserved_chars ("*id*", ":arr->ow::cast", "(inside,parens)", "a.dotted.column", "  col  w  space  ") FROM STDIN CSV DELIMITER '|';
+1 | arrow-1 | parens-1 | dotted-1 | space-1
+2 | arrow-2 | parens-2 | dotted-2 | space-2
+3 | arrow-3 | parens-3 | dotted-3 | space-3
 \.
