@@ -426,7 +426,7 @@ spec = do
           { matchHeaders = [matchContentTypeJson] }
 
       it "can embed a view that has group by" $
-        get "/projects_count_grouped_by?select=number_of_projects,client(name)" `shouldRespondWith`
+        get "/projects_count_grouped_by?select=number_of_projects,client(name)&order=number_of_projects" `shouldRespondWith`
           [json|
             [{"number_of_projects":1,"client":null},
              {"number_of_projects":2,"client":{"name":"Microsoft"}},
@@ -826,6 +826,11 @@ spec = do
           {"Just A Server Model":" IBM,9113-550 (P5-550)"},
           {"Just A Server Model":" IBM,9131-52A (P5-52A)"},
           {"Just A Server Model":" IBM,9133-55A (P5-55A)"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "will select and filter a quoted column that has PostgREST reserved characters" $
+      get "/pgrst_reserved_chars?select=%22:arr-%3Eow::cast%22,%22(inside,parens)%22,%22a.dotted.column%22,%22%20%20col%20%20w%20%20space%20%20%22&%22*id*%22=eq.1" `shouldRespondWith`
+        [json|[{":arr->ow::cast":" arrow-1 ","(inside,parens)":" parens-1 ","a.dotted.column":" dotted-1 ","  col  w  space  ":" space-1"}]|]
         { matchHeaders = [matchContentTypeJson] }
 
   describe "binary output" $ do

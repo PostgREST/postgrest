@@ -73,8 +73,8 @@ pStar = toS <$> (string "*" $> ("*"::ByteString))
 
 pFieldName :: Parser Text
 pFieldName =
-  intercalate "-" . map toS <$>
-  (many1 (letter <|> digit <|> oneOf "_ ") `sepBy1` dash) <?>
+  pQuotedValue <|>
+  intercalate "-" . map toS <$> (many1 (letter <|> digit <|> oneOf "_ ") `sepBy1` dash) <?>
   "field name (* or [a..z0..9_])"
   where
     isDash :: GenParser Char st ()
@@ -153,10 +153,10 @@ pListVal :: Parser ListVal
 pListVal = lexeme (char '(') *> pListElement `sepBy1` char ',' <* lexeme (char ')')
 
 pListElement :: Parser Text
-pListElement = try pQuotedValue <|> (toS <$> many (noneOf ",)"))
+pListElement = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> (toS <$> many (noneOf ",)"))
 
 pQuotedValue :: Parser Text
-pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"' <* notFollowedBy (noneOf ",)"))
+pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"')
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
@@ -195,7 +195,7 @@ pLogicTree = Stmnt <$> try pLogicFilter
                <?> "logic operator (and, or)"
 
 pLogicSingleVal :: Parser SingleVal
-pLogicSingleVal = try pQuotedValue <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
+pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
     pPgArray :: Parser Text
     pPgArray =  do
@@ -236,9 +236,7 @@ pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
     pPath = (,) <$> pJSPKey <*> optionMaybe pJSPIdx
 
 pJSPKey :: Parser Text
-pJSPKey = toS <$> (many1 (alphaNum <|> oneOf "_$@") <|> pQuoted) <?> "attribute name [a..z0..9_$@])"
-  where
-    pQuoted = char '"' *> many (noneOf "\"") <* char '"'
+pJSPKey = toS <$> many1 (alphaNum <|> oneOf "_$@") <|> pQuotedValue <?> "attribute name [a..z0..9_$@])"
 
 pJSPIdx :: Parser Int
 pJSPIdx = char '[' *> (read <$> many1 digit) <* char ']' <?> "array index [0..n]"

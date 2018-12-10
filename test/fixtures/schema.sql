@@ -1641,3 +1641,11 @@ create table "Server Today"(
   "cHostname" text,
   "Just A Server Model" text
 );
+
+create table test.pgrst_reserved_chars (
+  "*id*" integer,
+  ":arr->ow::cast" text,
+  "(inside,parens)" text,
+  "a.dotted.column" text,
+  "  col  w  space  " text
+);
