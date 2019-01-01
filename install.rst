@@ -68,24 +68,25 @@ The user specified in the db-uri is also known as the authenticator role. For mo
 
 Here is the full list of configuration parameters.
 
-================  ======  =========  ========
-Name              Type    Default    Required
-================  ======  =========  ========
-db-uri            String             Y
-db-schema         String             Y
-db-anon-role      String             Y
-db-pool           Int     10
-server-host       String  127.0.0.1
-server-port       Int     3000
-server-proxy-uri  String
-jwt-secret        String
-jwt-aud           String
-secret-is-base64  Bool    False
-max-rows          Int     ∞
-pre-request       String
-app.settings.*    String
-role-claim-key    String  .role
-================  ======  =========  ========
+====================  ======  =========  ========
+Name                  Type    Default    Required
+====================  ======  =========  ========
+db-uri                String             Y
+db-schema             String             Y
+db-anon-role          String             Y
+db-pool               Int     10
+db-extra-search-path  String  public
+server-host           String  127.0.0.1
+server-port           Int     3000
+server-proxy-uri      String
+jwt-secret            String
+jwt-aud               String
+secret-is-base64      Bool    False
+max-rows              Int     ∞
+pre-request           String
+app.settings.*        String
+role-claim-key        String  .role
+====================  ======  =========  ========
 
 .. _db-uri:
 
@@ -107,6 +108,8 @@ db-schema
 
   The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints.
 
+  This schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+
 .. _db-anon-role:
 
 db-anon-role
@@ -120,6 +123,13 @@ db-pool
 -------
 
   Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
+
+db-extra-search-path
+--------------------
+
+  Extra schemas to add to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+
+  Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
 
 .. _server-host:
 
@@ -341,7 +351,7 @@ With this you can see the swagger-ui in your browser on port 8080.
 Deploying to Heroku
 ===================
 Assuming your making modifications locally and then pushing to GitHub, it's easy to deploy to Heroku.
- 
+
 1. Create a new app on Heroku
 2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
 3. Add the require Config Vars in Heroku (see https://github.com/PostgREST/postgrest/blob/master/app.json#L7-L57 for more details)
