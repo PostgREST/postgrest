@@ -232,6 +232,41 @@ As mentioned, computed columns do not appear in the output by default. However y
 
   Computed columns must be created under the :ref:`exposed schema <db-schema>` to be used in this way.
 
+Unicode support
+---------------
+
+PostgREST supports unicode in schemas, tables, columns and values. To access a table with unicode name, use percent encoding.
+
+To request this:
+
+.. code-block:: http
+
+  GET /موارد HTTP/1.1
+
+Do this:
+
+.. code-block:: http
+
+  GET /%D9%85%D9%88%D8%A7%D8%B1%D8%AF HTTP/1.1
+
+Reserved characters
+~~~~~~~~~~~~~~~~~~~
+
+If filters include PostgREST reserved characters(``,``, ``.``, ``:``, ``()``) you'll have to surround them in percent encoded double quotes ``%22`` for correct processing.
+
+Here ``Hebdon,John`` and ``Williams,Mary`` are values.
+
+.. code-block:: http
+
+  GET /employees?name=in.(%22Hebdon,John%22,%22Williams,Mary%22) HTTP/1.1
+
+Here ``information.cpe`` is a column name.
+
+.. code-block:: http
+
+  GET /vulnerabilities?%22information.cpe%22=like.*MS* HTTP/1.1
+
+
 Ordering
 --------
 
@@ -418,23 +453,6 @@ If the stored procedure returns non-scalar values, you need to do a :code:`selec
 .. note::
 
   If more than one row would be returned the binary results will be concatenated with no delimiter.
-
-Unicode Support
-===============
-
-PostgREST supports unicode in schemas, tables, columns and values. To access a table with unicode name, use percent encoding.
-
-To request this:
-
-.. code-block:: html
-
-  http://localhost:3000/موارد
-
-Do this:
-
-.. code-block:: html
-
-  http://localhost:3000/%D9%85%D9%88%D8%A7%D8%B1%D8%AF
 
 .. _resource_embedding:
 
