@@ -29,21 +29,11 @@ If Docker is not installed, you can get it `here <https://www.docker.com/communi
 
 .. code-block:: bash
 
-  sudo docker run --name tutorial -p 5432:5432 \
+  sudo docker run --name tutorial -p 5433:5432 \
                   -e POSTGRES_PASSWORD=mysecretpassword \
                   -d postgres
 
-This will run the Docker instance as a daemon and expose port 5432 to the host system so that it looks like an ordinary PostgreSQL server to the rest of the system.
-
-.. note::
-
-  If you have a pre-existing PostgreSQL database running on port 5432, you'll get an error like "bind: address already in use". Here's how to fix it:
-
-  .. code-block:: bash
-
-    sudo docker run --name tutorial -p 5433:5432 \
-                    -e POSTGRES_PASSWORD=mysecretpassword \
-                    -d postgres
+This will run the Docker instance as a daemon and expose port 5433 to the host system so that it looks like an ordinary PostgreSQL server to the rest of the system.
 
 Step 3. Install PostgREST
 -------------------------
@@ -171,7 +161,7 @@ PostgREST uses a configuration file to tell it how to connect to the database. C
 
 .. code-block:: ini
 
-  db-uri = "postgres://authenticator:mysecretpassword@localhost/postgres"
+  db-uri = "postgres://authenticator:mysecretpassword@localhost:5433/postgres"
   db-schema = "api"
   db-anon-role = "web_anon"
 
