@@ -93,8 +93,8 @@ If everything is working correctly it will print out its version and information
     </details>
     <details>
       <summary>Windows</summary>
-        <p>All of the DLL files that are required to run PostgREST are available in the windows installation of PostgreSQL server. 
-        Once installed they are found in the BIN folder, e.g: C:\Program Files\PostgreSQL\10\bin. Add this directory to your PATH 
+        <p>All of the DLL files that are required to run PostgREST are available in the windows installation of PostgreSQL server.
+        Once installed they are found in the BIN folder, e.g: C:\Program Files\PostgreSQL\10\bin. Add this directory to your PATH
         variable. Run the following from an administrative command prompt (adjusting the actual BIN path as necessary of course)
           <pre>setx /m PATH "%PATH%;C:\Program Files\PostgreSQL\10\bin"</pre>
         </p>
@@ -144,12 +144,19 @@ Next make a role to use for anonymous web requests. When a request comes in, Pos
 .. code-block:: postgres
 
   create role web_anon nologin;
-  grant web_anon to postgres;
 
   grant usage on schema api to web_anon;
   grant select on api.todos to web_anon;
 
 The :code:`web_anon` role has permission to access things in the :code:`api` schema, and to read rows in the :code:`todos` table.
+
+It's a good practice to create a dedicated role for connecting to the database, instead of using the highly privileged ``postgres`` role. So we'll do that, name the role ``authenticator`` and also grant him the ability to switch to the ``web_anon`` role :
+
+.. code-block:: postgres
+
+  create role authenticator noinherit login password 'mysecretpassword';
+  grant web_anon to authenticator;
+
 
 Now quit out of psql; it's time to start the API!
 
@@ -164,7 +171,7 @@ PostgREST uses a configuration file to tell it how to connect to the database. C
 
 .. code-block:: ini
 
-  db-uri = "postgres://postgres:mysecretpassword@localhost/postgres"
+  db-uri = "postgres://authenticator:mysecretpassword@localhost/postgres"
   db-schema = "api"
   db-anon-role = "web_anon"
 
