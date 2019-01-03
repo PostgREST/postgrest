@@ -69,6 +69,11 @@ You can help PostgREST ongoing maintenance and development by:
 
 Every donation will be spent on making PostgREST better for the whole community.
 
+Translations
+------------
+
+* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
+
 .. toctree::
    :caption: Tutorials
    :titlesonly:
