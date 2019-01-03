@@ -888,6 +888,15 @@ The response will include a :code:`Location` header describing where to find the
 
 On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
 
+URL encoded payloads can be posted with ``Content-Type: application/x-www-form-urlencoded``.
+
+.. code-block:: http
+
+  POST /people HTTP/1.1
+  Content-Type: application/x-www-form-urlencoded
+
+  name=John+Doe&age=50&weight=80
+
 .. note::
 
   When inserting a row you must post a JSON object, not quoted JSON.
