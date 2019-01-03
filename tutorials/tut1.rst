@@ -230,13 +230,17 @@ Restart PostgREST for the change to take effect. Next try making a request with 
 
   # this request still works
 
-  curl http://localhost:3000/todos \
-       -H "Authorization: Bearer $TOKEN"
+  curl http://localhost:3000/todos -X PATCH \
+       -H "Authorization: Bearer $TOKEN"    \
+       -H "Content-Type: application/json"  \
+       -d '{"done": true}'
 
   # this one is rejected
 
-  curl http://localhost:3000/todos \
-       -H "Authorization: Bearer $WAYWARD_TOKEN"
+  curl http://localhost:3000/todos -X PATCH      \
+       -H "Authorization: Bearer $WAYWARD_TOKEN" \
+       -H "Content-Type: application/json"       \
+       -d '{"task": "AAAHHHH!", "done": false}'
 
 The server responds with 403 Forbidden:
 
