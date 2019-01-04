@@ -1,0 +1,32 @@
+Release Notes
+=============
+
+Here we'll include the most relevant changes so you can migrate to newer versions easily.
+You can see the full changelog of each release in the `PostgREST repository <https://github.com/PostgREST/postgrest/releases>`_.
+
+v5.2.0
+======
+
+* `Explicit qualification <http://postgrest.org/en/v5.0/api.html#explicit-qualification>`_ introduced in ``v5.0`` is no longer necessary, this section will not be included from this version onwards.  A :ref:`db-extra-search-path` configuration parameter was introduced to avoid the need to explictly qualify database objects. If you install PostgreSQL extensions on the ``public`` schema, they'll work normally from now on.
+
+* Now you can filter :ref:`tabs-cols-w-spaces`.
+
+* Included the ability to quote columns that have :ref:`reserved-chars`.
+
+* Thanks to `Zhou Feng <https://github.com/zhoufeng1989>`_, now is possible to reference an external file in :ref:`db-uri`.
+
+* Thanks to `Russell Davies <https://github.com/russelldavies>`_, Json Web Key Sets are now accepted by :ref:`jwt-secret`.
+
+Thanks
+------
+
+This release was made possible thanks to:
+
+* `Daniel Babiak <https://github.com/d-babiak>`_
+* `Michel Pelletier <https://github.com/michelp>`_
+* Tsingson Qin
+* Jay Hannah
+* Victor Adossi
+* Petr Beles
+
+If you like to join them please consider :ref:`supporting PostgREST development <supporting-dev>`.

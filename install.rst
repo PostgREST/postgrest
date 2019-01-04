@@ -124,6 +124,8 @@ db-pool
 
   Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
 
+.. _db-extra-search-path:
+
 db-extra-search-path
 --------------------
 

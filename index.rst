@@ -58,6 +58,8 @@ Getting Support
 
 The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/begriffs/postgrest/issues>`_ page.
 
+.. _supporting-dev:
+
 Supporting development
 ----------------------
 
@@ -70,9 +72,15 @@ You can help PostgREST ongoing maintenance and development by:
 Every donation will be spent on making PostgREST better for the whole community.
 
 Translations
-------------
+~~~~~~~~~~~~
 
 * `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
+
+.. toctree::
+   :caption: Release Notes
+   :titlesonly:
+
+   release_notes.rst
 
 .. toctree::
    :caption: Tutorials
