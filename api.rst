@@ -249,6 +249,19 @@ Do this:
 
   GET /%D9%85%D9%88%D8%A7%D8%B1%D8%AF HTTP/1.1
 
+.. _tabs-cols-w-spaces:
+
+Table / Columns with spaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can request table/columns with spaces in them by percent encoding the spaces with ``%20``:
+
+.. code-block:: http
+
+  GET /Order%20Items?Unit%20Price=lt.200 HTTP/1.1
+
+.. _reserved-chars:
+
 Reserved characters
 ~~~~~~~~~~~~~~~~~~~
 
