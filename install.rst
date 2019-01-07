@@ -127,7 +127,7 @@ db-pool
 db-extra-search-path
 --------------------
 
-  Extra schemas to add to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+  Extra schemas to add to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. These schemas tables, views and stored procedures don't get API endpoints, they can only be referred from the database objects exposed in your :ref:`db-schema`.
 
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
 
