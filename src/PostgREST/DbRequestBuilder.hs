@@ -68,7 +68,7 @@ readRequest maxRows allRels proc apiRequest  =
     buildReadRequest fieldTree =
       let rootDepth = 0
           rootNodeName = if action == ActionRead then rootTableName else sourceCTEName in
-      foldr (treeEntry rootDepth) (Node (Select [] [rootNodeName] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing, rootDepth)) []) fieldTree
+      foldr (treeEntry rootDepth) (Node (Select [] rootNodeName [] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing, rootDepth)) []) fieldTree
       where
         treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
         treeEntry depth (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
@@ -76,7 +76,7 @@ readRequest maxRows allRels proc apiRequest  =
           case fldForest of
             [] -> Node (q {select=fld:select q}, i) rForest
             _  -> Node (q, i) $
-                  foldr (treeEntry nxtDepth) (Node (Select [] [fn] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtDepth)) []) fldForest:rForest
+                  foldr (treeEntry nxtDepth) (Node (Select [] fn [] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtDepth)) []) fldForest:rForest
 
     relations :: [Relation]
     relations = case action of
@@ -111,10 +111,10 @@ augumentRequestWithJoin schema allRels request =
   >>= addJoinConditions schema
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRelations schema allRelations parentNode (Node (query, (nodeName, _, alias, relationDetail, depth)) forest) =
+addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, relationDetail, depth)) forest) =
   case parentNode of
-    Just (Node (Select{from=[parentNodeTable]}, _) _) ->
-      let newFrom r = (\tName -> if tName == nodeName then tableName (relTable r) else tName) <$> from query
+    Just (Node (Select{from=parentNodeTable}, _) _) ->
+      let newFrom r = if tbl == nodeName then tableName (relTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
           rel :: Either ApiRequestError Relation
           rel = note (NoRelationBetween parentNodeTable nodeName) $
@@ -216,7 +216,7 @@ addJoinConditions schema (Node node@(query, nodeProps@(_, relation, _, _, _)) fo
     Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Many, relLinkTable=(Just linkTable)} ->
       let rq = augmentQuery rel in
-      Node (rq{from=tableName linkTable:from rq}, nodeProps) <$> updatedForest
+      Node (rq{implicitJoins=tableName linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
     _ -> Left UnknownRelation
   where
     updatedForest = mapM (addJoinConditions schema) forest

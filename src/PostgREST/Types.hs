@@ -308,7 +308,9 @@ data JoinCondition = JoinCondition (QualifiedIdentifier, Maybe Alias, FieldName)
 
 data ReadQuery = Select {
     select         :: [SelectItem]
-  , from           :: [TableName]
+  , from           :: TableName
+-- | Only used for many to many joins. Parent and Child joins use explicit joins.
+  , implicitJoins  :: [TableName]
   , where_         :: [LogicTree]
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
