@@ -219,7 +219,7 @@ requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, 
    qi = removeSourceCTESchema schema mainTbl
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest joinConditions_ ordts range, (nodeName, maybeRelation, _, _, depth)) forest)) =
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbl implJoins logicForest joinConditions_ ordts range, (_, maybeRelation, _, _, depth)) forest)) =
   unwords [
     "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
     "FROM " <> intercalate ", " tables,
@@ -230,19 +230,19 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbls logicForest
     ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
 
   where
-    mainTbl = maybe nodeName (tableName . relTable) maybeRelation
+    tbls = tbl:implJoins
     isSelfJoin = maybe False (\r -> relType r /= Root && relTable r == relFTable r) maybeRelation
     (qi, tables, joinConds) =
       let depthAlias name dpth = if dpth /= 0  then name <> "_" <> show dpth else name in -- Root node doesn't get aliased
       if isSelfJoin
         then (
-          QualifiedIdentifier "" (depthAlias mainTbl depth),
+          QualifiedIdentifier "" (depthAlias tbl depth),
           (\t -> fromQi (removeSourceCTESchema schema t) <> " AS " <> pgFmtIdent (depthAlias t depth)) <$> tbls,
           (\(JoinCondition (qi1, _, c1) (qi2, _, c2)) ->
             JoinCondition (qi1, Just $ depthAlias (qiName qi1) depth, c1)
                           (qi2, Just $ depthAlias (qiName qi2) (depth - 1), c2)) <$> joinConditions_)
         else (
-          removeSourceCTESchema schema mainTbl,
+          removeSourceCTESchema schema tbl,
           fromQi . removeSourceCTESchema schema <$> tbls,
           joinConditions_)
 
