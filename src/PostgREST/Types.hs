@@ -16,6 +16,20 @@ data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
                  | CTSingularJSON | CTOctetStream
                  | CTAny | CTOther ByteString deriving Eq
 
+-- | Convert from ContentType to a full HTTP Header
+toHeader :: ContentType -> Header
+toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
+
+-- | Convert from ContentType to a ByteString representing the mime type
+toMime :: ContentType -> ByteString
+toMime CTApplicationJSON = "application/json"
+toMime CTTextCSV         = "text/csv"
+toMime CTOpenAPI         = "application/openapi+json"
+toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
+toMime CTOctetStream     = "application/octet-stream"
+toMime CTAny             = "*/*"
+toMime (CTOther ct)      = ct
+
 data ApiRequestError = ActionInappropriate
                      | InvalidBody ByteString
                      | InvalidRange
@@ -89,6 +103,9 @@ data Table = Table {
 , tableInsertable  :: Bool
 } deriving (Show, Ord)
 
+instance Eq Table where
+  Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
+
 newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
 data Column =
@@ -106,6 +123,9 @@ data Column =
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
     } deriving (Show, Ord)
+
+instance Eq Column where
+  Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
 
 -- | A view column that refers to a table column
 type Synonym = (Column, ViewColumn)
@@ -149,15 +169,15 @@ data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
   TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
-  relTable    :: Table
-, relColumns  :: [Column]
-, relFTable   :: Table
-, relFColumns :: [Column]
-, relType     :: RelationType
+  relTable     :: Table
+, relColumns   :: [Column]
+, relFTable    :: Table
+, relFColumns  :: [Column]
+, relType      :: RelationType
 -- The Link attrs are used when RelationType == Many
-, relLinkTable   :: Maybe Table
-, relLinkCols1   :: Maybe [Column]
-, relLinkCols2   :: Maybe [Column]
+, relLinkTable :: Maybe Table
+, relLinkCols1 :: Maybe [Column]
+, relLinkCols2 :: Maybe [Column]
 } deriving (Show, Eq)
 
 -- | Cached attributes of a JSON payload
@@ -286,36 +306,42 @@ data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
 data JoinCondition = JoinCondition (QualifiedIdentifier, Maybe Alias, FieldName)
                                    (QualifiedIdentifier, Maybe Alias, FieldName) deriving (Show, Eq)
 
-data ReadQuery = Select { select::[SelectItem], from::[TableName], where_::[LogicTree], joinConditions::[JoinCondition], order::[OrderTerm], range_::NonnegRange } deriving (Show, Eq)
-data MutateQuery = Insert { in_::TableName, insPkCols::[Text], qPayload::PayloadJSON, onConflict:: Maybe PreferResolution, where_::[LogicTree], returning::[FieldName] }
-                 | Delete { in_::TableName, where_::[LogicTree], returning::[FieldName] }
-                 | Update { in_::TableName, qPayload::PayloadJSON, where_::[LogicTree], returning::[FieldName] } deriving (Show, Eq)
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
+data ReadQuery = Select {
+    select         :: [SelectItem]
+  , from           :: [TableName]
+  , where_         :: [LogicTree]
+  , joinConditions :: [JoinCondition]
+  , order          :: [OrderTerm]
+  , range_         :: NonnegRange
+} deriving (Show, Eq)
+
+data MutateQuery =
+  Insert {
+    in_        :: TableName
+  , insPkCols  :: [Text]
+  , qPayload   :: PayloadJSON
+  , onConflict :: Maybe PreferResolution
+  , where_     :: [LogicTree]
+  , returning  :: [FieldName]
+  }|
+  Update {
+    in_        :: TableName
+  , qPayload   :: PayloadJSON
+  , where_     :: [LogicTree]
+  , returning  :: [FieldName]
+  }|
+  Delete {
+    in_        :: TableName
+  , where_     :: [LogicTree]
+  , returning  :: [FieldName]
+  } deriving (Show, Eq)
+
+data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 type ReadRequest = Tree ReadNode
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
 -- Depth of the ReadRequest tree
 type Depth = Integer
 type MutateRequest = MutateQuery
-data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
-
-instance Eq Table where
-  Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
-
-instance Eq Column where
-  Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
-
--- | Convert from ContentType to a full HTTP Header
-toHeader :: ContentType -> Header
-toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
-
--- | Convert from ContentType to a ByteString representing the mime type
-toMime :: ContentType -> ByteString
-toMime CTApplicationJSON = "application/json"
-toMime CTTextCSV         = "text/csv"
-toMime CTOpenAPI         = "application/openapi+json"
-toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
-toMime CTOctetStream     = "application/octet-stream"
-toMime CTAny             = "*/*"
-toMime (CTOther ct)      = ct
 
 data PgVersion = PgVersion {
   pgvNum  :: Int32
