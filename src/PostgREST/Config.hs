@@ -37,7 +37,7 @@ import           Data.List                    (lookup)
 import           Data.Monoid
 import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
-import           Data.Text                    (dropAround,
+import           Data.Text                    (dropWhileEnd, dropEnd,
                                                intercalate, lines,
                                                strip, take, splitOn)
 import           Data.Text.Encoding           (encodeUtf8)
@@ -112,7 +112,7 @@ prettyVersion =
 
 -- | Version number used in docs
 docsVersion :: Text
-docsVersion = "v" <> dropAround (== '.') (dropAround (/= '.') prettyVersion)
+docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 
 -- | Function to read and parse options from the command line
 readOptions :: IO AppConfig
