@@ -189,7 +189,6 @@ Commercial
 In Production
 -------------
 
-* `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
 * `Moat <https://moat.com/>`_
 * `Catarse <https://www.catarse.me/>`_
 * `Redsmin <https://www.redsmin.com/>`_
@@ -200,6 +199,8 @@ In Production
 * `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
 * `eGull <http://www.egull.co>`_
 * `Elyios <https://elyios.com>`_
+* `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
+* `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
 
 Testimonials
 ------------
