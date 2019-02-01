@@ -68,6 +68,7 @@ GRANT ALL ON TABLE
     , tiobe_pls
     , only_pk
     , family_tree
+    , managers
     , organizations
     , authors
     , books

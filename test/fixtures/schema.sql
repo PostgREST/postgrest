@@ -1115,8 +1115,8 @@ CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF project
 $_$;
 
 create table images (
-	name               text not null,
-	img                bytea not null
+	name text  not null,
+	img  bytea not null
 );
 
 create view images_base64 as (
@@ -1386,11 +1386,17 @@ create table test.family_tree (
 );
 alter table only test.family_tree add constraint pptr foreign key (parent) references test.family_tree(id);
 
+create table test.managers (
+  id integer primary key,
+  name text
+);
+
 create table test.organizations (
   id integer primary key,
   name text,
   referee integer,
-  auditor integer
+  auditor integer,
+  manager_id integer references managers(id)
 );
 alter table only test.organizations add constraint pptr1 foreign key (referee) references test.organizations(id);
 alter table only test.organizations add constraint pptr2 foreign key (auditor) references test.organizations(id);

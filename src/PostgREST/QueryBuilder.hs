@@ -219,32 +219,21 @@ requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, 
    qi = removeSourceCTESchema schema mainTbl
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbl implJoins logicForest joinConditions_ ordts range, (_, maybeRelation, _, _, depth)) forest)) =
+requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias implJoins logicForest joinConditions_ ordts range, _) forest)) =
   unwords [
     "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-    "FROM " <> intercalate ", " tables,
+    "FROM " <> intercalate ", " (tabl : implJs),
     unwords joins,
-    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConds))
-      `emptyOnFalse` (null logicForest && null joinConds),
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
+      `emptyOnFalse` (null logicForest && null joinConditions_),
     ("ORDER BY " <> intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
     ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
 
   where
-    tbls = tbl:implJoins
-    isSelfJoin = maybe False (\r -> relType r /= Root && relTable r == relFTable r) maybeRelation
-    (qi, tables, joinConds) =
-      let depthAlias name dpth = if dpth /= 0  then name <> "_" <> show dpth else name in -- Root node doesn't get aliased
-      if isSelfJoin
-        then (
-          QualifiedIdentifier "" (depthAlias tbl depth),
-          (\t -> fromQi (removeSourceCTESchema schema t) <> " AS " <> pgFmtIdent (depthAlias t depth)) <$> tbls,
-          (\(JoinCondition (qi1, _, c1) (qi2, _, c2)) ->
-            JoinCondition (qi1, Just $ depthAlias (qiName qi1) depth, c1)
-                          (qi2, Just $ depthAlias (qiName qi2) (depth - 1), c2)) <$> joinConditions_)
-        else (
-          removeSourceCTESchema schema tbl,
-          fromQi . removeSourceCTESchema schema <$> tbls,
-          joinConditions_)
+    implJs = fromQi . QualifiedIdentifier schema <$> implJoins
+    mainQi = removeSourceCTESchema schema tbl
+    tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
+    qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
 
     (joins, selects) = foldr getQueryParts ([],[]) forest
 
@@ -437,11 +426,9 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      (find ((==) . toLower $ v) ["null","true","false"])
 
 pgFmtJoinCondition :: JoinCondition -> SqlFragment
-pgFmtJoinCondition (JoinCondition (qi, al1, col1) (QualifiedIdentifier schema fTable, al2, col2)) =
-  pgFmtColumn (fromMaybe qi $ aliasToQi al1) col1 <> " = " <>
-  pgFmtColumn (fromMaybe (removeSourceCTESchema schema fTable) $ aliasToQi al2) col2
-  where
-    aliasToQi al = QualifiedIdentifier "" <$> al
+pgFmtJoinCondition (JoinCondition (qi, col1) (QualifiedIdentifier schema fTable, col2)) =
+  pgFmtColumn qi col1 <> " = " <>
+  pgFmtColumn (removeSourceCTESchema schema fTable) col2
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
 pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
