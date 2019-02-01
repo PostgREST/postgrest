@@ -354,11 +354,21 @@ INSERT INTO family_tree VALUES ('3', 'Kid Two', '1');
 INSERT INTO family_tree VALUES ('4', 'Grandkid One', '2');
 INSERT INTO family_tree VALUES ('5', 'Grandkid Two', '3');
 
+TRUNCATE TABLE managers CASCADE;
+INSERT INTO managers VALUES (1, 'Referee Manager');
+INSERT INTO managers VALUES (2, 'Auditor Manager');
+INSERT INTO managers VALUES (3, 'Acme Manager');
+INSERT INTO managers VALUES (4, 'Umbrella Manager');
+INSERT INTO managers VALUES (5, 'Cyberdyne Manager');
+INSERT INTO managers VALUES (6, 'Oscorp Manager');
+
 TRUNCATE TABLE organizations CASCADE;
-INSERT INTO organizations VALUES (1, 'Referee Org', null, null);
-INSERT INTO organizations VALUES (2, 'Auditor Org', null, null);
-INSERT INTO organizations VALUES (3, 'Acme', 1, 2);
-INSERT INTO organizations VALUES (4, 'Umbrella', 1, 2);
+INSERT INTO organizations VALUES (1, 'Referee Org', null, null, 1);
+INSERT INTO organizations VALUES (2, 'Auditor Org', null, null, 2);
+INSERT INTO organizations VALUES (3, 'Acme', 1, 2, 3);
+INSERT INTO organizations VALUES (4, 'Umbrella', 1, 2, 4);
+INSERT INTO organizations VALUES (5, 'Cyberdyne', 3, 4, 5);
+INSERT INTO organizations VALUES (6, 'Oscorp', 3, 4, 6);
 
 SET search_path = private, pg_catalog;
 

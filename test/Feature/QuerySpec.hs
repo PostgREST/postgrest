@@ -589,6 +589,42 @@ spec = do
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
 
+        it "embeds other relations(manager) besides the self reference" $ do
+          get "/organizations?select=name,manager(name),referee(name,manager(name),auditor(name,manager(name))),auditor(name,manager(name),referee(name,manager(name)))&id=eq.5" `shouldRespondWith`
+            [json|[{
+              "name":"Cyberdyne",
+              "manager":{"name":"Cyberdyne Manager"},
+              "referee":{
+                "name":"Acme",
+                "manager":{"name":"Acme Manager"},
+                "auditor":{
+                  "name":"Auditor Org",
+                  "manager":{"name":"Auditor Manager"}}},
+              "auditor":{
+                "name":"Umbrella",
+                "manager":{"name":"Umbrella Manager"},
+                "referee":{
+                  "name":"Referee Org",
+                  "manager":{"name":"Referee Manager"}}}
+            }]|] { matchHeaders = [matchContentTypeJson] }
+
+          get "/organizations?select=name,manager(name),auditees:organizations.auditor(name,manager(name),refereeds:organizations.referee(name,manager(name)))&id=eq.2" `shouldRespondWith`
+            [json|[{
+              "name":"Auditor Org",
+              "manager":{"name":"Auditor Manager"},
+              "auditees":[
+                {"name":"Acme",
+                 "manager":{"name":"Acme Manager"},
+                 "refereeds":[
+                   {"name":"Cyberdyne",
+                    "manager":{"name":"Cyberdyne Manager"}},
+                   {"name":"Oscorp",
+                    "manager":{"name":"Oscorp Manager"}}]},
+                {"name":"Umbrella",
+                 "manager":{"name":"Umbrella Manager"},
+                 "refereeds":[]}]
+            }]|] { matchHeaders = [matchContentTypeJson] }
+
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"

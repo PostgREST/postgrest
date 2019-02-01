@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - #1223, Fix incorrect OpenAPI externalDocs url - @steve-chavez
+- #1221, Fix embedding other resources when having a self join - @steve-chavez
 
 ## [5.2.0] - 2018-12-12
 

@@ -184,6 +184,9 @@ data Relation = Relation {
 , relLinkCols2 :: Maybe [Column]
 } deriving (Show, Eq)
 
+isSelfJoin :: Relation -> Bool
+isSelfJoin r = relType r /= Root && relTable r == relFTable r
+
 -- | Cached attributes of a JSON payload
 data PayloadJSON = PayloadJSON {
 -- | This is the raw ByteString that comes from the request body.
@@ -307,13 +310,15 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
-data JoinCondition = JoinCondition (QualifiedIdentifier, Maybe Alias, FieldName)
-                                   (QualifiedIdentifier, Maybe Alias, FieldName) deriving (Show, Eq)
+data JoinCondition = JoinCondition (QualifiedIdentifier, FieldName)
+                                   (QualifiedIdentifier, FieldName) deriving (Show, Eq)
 
 data ReadQuery = Select {
     select         :: [SelectItem]
   , from           :: TableName
--- | Only used for many to many joins. Parent and Child joins use explicit joins.
+-- | A table alias is used in case of self joins
+  , fromAlias      :: Maybe Alias
+-- | Only used for Many to Many joins. Parent and Child joins use explicit joins.
   , implicitJoins  :: [TableName]
   , where_         :: [LogicTree]
   , joinConditions :: [JoinCondition]
