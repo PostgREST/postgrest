@@ -1,3 +1,7 @@
+{-|
+Module      : PostgREST.Middleware
+Description : Sets the PostgreSQL GUCs, role, search_path and pre-request function. Validates JWT.
+-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}

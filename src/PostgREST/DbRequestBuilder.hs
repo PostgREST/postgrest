@@ -1,3 +1,11 @@
+{-|
+Module      : PostgREST.DbRequestBuilder
+Description : PostgREST database request builder
+
+This module is in charge of building an intermediate representation(ReadRequest, MutateRequest) between the HTTP request and the final resulting SQL query.
+
+A query tree is built in case of resource embedding. By inferring the relationship between tables, join conditions are added for every embedded resource.
+-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DuplicateRecordFields#-}
 {-# LANGUAGE LambdaCase #-}
