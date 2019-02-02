@@ -1,3 +1,13 @@
+{-|
+Module      : PostgREST.DbStructure
+Description : PostgREST schema cache
+
+This module contains queries that target PostgreSQL system catalogs, these are used to build the schema cache(DbStructure).
+
+The schema cache is necessary for resource embedding, foreign keys are used for inferring the relationships between tables.
+
+These queries are executed once at startup or when PostgREST is reloaded.
+-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes           #-}

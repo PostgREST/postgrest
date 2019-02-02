@@ -1,3 +1,7 @@
+{-|
+Module      : PostgREST.Error
+Description : PostgREST error HTTP responses
+-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}

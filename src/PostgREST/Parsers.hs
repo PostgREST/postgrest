@@ -1,3 +1,9 @@
+{-|
+Module      : PostgREST.Parsers
+Description : PostgREST parser combinators
+
+This module is in charge of parsing all the querystring values in an url, e.g. the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
+-}
 module PostgREST.Parsers where
 
 import           Protolude                     hiding (try, intercalate, replace, option)

@@ -1,3 +1,7 @@
+{-|
+Module      : PostgREST.RangeQuery
+Description : Logic regarding the `Range` header and `limit`, `offset` querystring arguments.
+-}
 module PostgREST.RangeQuery (
   rangeParse
 , rangeRequested

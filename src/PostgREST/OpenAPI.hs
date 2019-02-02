@@ -1,10 +1,14 @@
+{-|
+Module      : PostgREST.OpenAPI
+Description : Generates the OpenAPI output
+-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module PostgREST.OpenAPI (
   encodeOpenAPI
-  , isMalformedProxyUri
-  , pickProxy
-  ) where
+, isMalformedProxyUri
+, pickProxy
+) where
 
 import           Control.Arrow               ((&&&))
 import           Control.Lens

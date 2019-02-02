@@ -1,3 +1,7 @@
+{-|
+Module      : PostgREST.Types
+Description : PostgREST common types and functions used by the rest of the modules
+-}
 {-# LANGUAGE DuplicateRecordFields    #-}
 module PostgREST.Types where
 import           Protolude
