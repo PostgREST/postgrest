@@ -177,20 +177,6 @@ CREATE FUNCTION noparamsproc() RETURNS text
 	$$;
 
 --
--- Name: insert_insertable_view_with_join(); Type: FUNCTION; Schema: test; Owner: -
---
-
-CREATE FUNCTION insert_insertable_view_with_join() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-begin
-  INSERT INTO test.auto_incrementing_pk (nullable_string, non_nullable_string) VALUES (NEW.nullable_string, NEW.non_nullable_string);
-  RETURN NEW;
-end;
-$$;
-
-
---
 -- Name: login(text, text); Type: FUNCTION; Schema: test; Owner: -
 --
 
@@ -963,13 +949,6 @@ CREATE TRIGGER articles_owner_track BEFORE INSERT OR UPDATE ON articles FOR EACH
 
 
 SET search_path = test, pg_catalog;
-
---
--- Name: insert_insertable_view_with_join; Type: TRIGGER; Schema: test; Owner: -
---
-
-CREATE TRIGGER insert_insertable_view_with_join INSTEAD OF INSERT ON insertable_view_with_join FOR EACH ROW EXECUTE PROCEDURE insert_insertable_view_with_join();
-
 
 --
 -- Name: secrets_owner_track; Type: TRIGGER; Schema: test; Owner: -
