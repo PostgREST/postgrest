@@ -146,41 +146,39 @@ app dbStructure proc conf apiRequest =
                       )
                     ] (toS body)
 
-        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw, pjType}) ->
+        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw}) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let (isSingle, nRows) = case pjType of
-                                        PJArray len -> (len == 1, len)
-                                        PJObject -> (True, 1)
+              let pkCols = tablePKCols dbStructure tSchema tName
+                  stm = createWriteStatement sq mq
+                    (contentType == CTSingularJSON) True
+                    (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
+              row <- H.statement (toS pjRaw) stm
+              let (_, queryTotal, fs, body) = extractQueryResult row
+                  headers = catMaybes [
+                      if null fs
+                        then Nothing
+                        else Just (hLocation, "/" <> toS tName <> renderLocationFields fs)
+                    , if iPreferRepresentation apiRequest == Full
+                        then Just $ toHeader contentType
+                        else Nothing
+                    , Just . contentRangeH 1 0 $
+                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+                    , if null pkCols
+                        then Nothing
+                        else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
+                    ]
               if contentType == CTSingularJSON
-                 && not isSingle
+                 && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
-                then return $ singularityError (toInteger nRows)
-                else do
-                  let pkCols = tablePKCols dbStructure tSchema tName
-                      stm = createWriteStatement sq mq
-                        (contentType == CTSingularJSON) isSingle
-                        (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
-                  row <- H.statement (toS pjRaw) stm
-                  let (_, _, fs, body) = extractQueryResult row
-                      headers = catMaybes [
-                          if null fs
-                            then Nothing
-                            else Just (hLocation, "/" <> toS tName <> renderLocationFields fs)
-                        , if iPreferRepresentation apiRequest == Full
-                            then Just $ toHeader contentType
-                            else Nothing
-                        , Just . contentRangeH 1 0 $
-                            toInteger <$> if shouldCount then Just nRows else Nothing
-                        , if null pkCols
-                            then Nothing
-                            else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
-                        ]
-
-                  return . responseLBS status201 headers $
-                    if iPreferRepresentation apiRequest == Full
-                      then toS body else ""
+                then do
+                  HT.condemn
+                  return $ singularityError (toInteger queryTotal)
+              else
+                return . responseLBS status201 headers $
+                  if iPreferRepresentation apiRequest == Full
+                    then toS body else ""
 
         (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just p@PayloadJSON{pjRaw}) ->
           case (mutateSqlParts tSchema tName, pjIsEmpty p, iPreferRepresentation apiRequest == Full) of
