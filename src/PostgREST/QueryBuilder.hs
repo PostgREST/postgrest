@@ -103,7 +103,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
                         H.Statement ByteString (Maybe ResultsWithCount)
-createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys =
+createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
   unicodeStatement sql (HE.param HE.unknown) decodeStandardMay True
 
  where
@@ -123,9 +123,14 @@ createWriteStatement selectQuery mutateQuery wantSingle wantHdrs asCsv rep pKeys
   cols = intercalate ", " [
       "'' AS total_result_set", -- when updateing it does not make sense
       "pg_catalog.count(_postgrest_t) AS page_total",
-      if wantHdrs
-         then "coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")"
-         else noLocationF <> " AS header",
+      if isInsert
+        then unwords [
+          "CASE",
+            "WHEN pg_catalog.count(_postgrest_t) = 1 THEN",
+              "coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
+            "ELSE " <> noLocationF,
+          "END AS header"]
+        else noLocationF <> "AS header",
       if rep == Full
          then bodyF <> " AS body"
          else "''"
