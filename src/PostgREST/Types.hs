@@ -115,7 +115,7 @@ newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 data Column =
     Column {
       colTable       :: Table
-    , colName        :: Text
+    , colName        :: ColumnName
     , colDescription :: Maybe Text
     , colPosition    :: Int32
     , colNullable    :: Bool
@@ -134,6 +134,7 @@ instance Eq Column where
 -- | A view column that refers to a table column
 type Synonym = (Column, ViewColumn)
 type ViewColumn = Column
+type ColumnName = Text
 
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
@@ -329,9 +330,8 @@ data ReadQuery = Select {
 data MutateQuery =
   Insert {
     in_        :: TableName
-  , insPkCols  :: [Text]
   , qPayload   :: PayloadJSON
-  , onConflict :: Maybe PreferResolution
+  , onConflict :: Maybe (PreferResolution, [ColumnName])
   , where_     :: [LogicTree]
   , returning  :: [FieldName]
   }|

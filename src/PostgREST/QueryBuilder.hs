@@ -263,44 +263,46 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias imp
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = witness
-requestToQuery schema _ (DbMutate (Insert mainTbl pkCols p@(PayloadJSON _ pType pKeys) onConflct logicForest returnings)) =
+requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ _ pKeys) onConflct putConditions returnings)) =
   unwords [
-    ("WITH " <> ignoredBody) `emptyOnFalse` not payloadIsEmpty,
+    "WITH payload AS (SELECT $1::json AS json_data),",
+    "vals AS (",
+    unwords [
+     "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
+     "UNION ALL",
+     "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')"],
     "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ")",
-    case (pType, payloadIsEmpty) of
-      (PJArray _, True) -> "SELECT null WHERE false"
-      (PJObject, True)  -> "DEFAULT VALUES"
-      _ -> unwords [
-        "SELECT " <> cols <> " FROM",
-        case pType of
-          PJObject  -> "json_populate_record"
-          PJArray _ -> "json_populate_recordset", "(null::", fromQi qi, ", $1) _",
-        -- Only used for PUT
-        ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> logicForest)) `emptyOnFalse` null logicForest],
-    maybe "" (\x -> (
-      "ON CONFLICT(" <> intercalate ", " (pgFmtIdent <$> pkCols) <> ") " <> case x of
+    unwords [
+      "SELECT " <> cols <> " FROM",
+      "json_populate_recordset", "(null::", fromQi qi, ", (select val from vals)) _",
+      -- Only used for PUT
+      ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> putConditions)) `emptyOnFalse` null putConditions],
+    maybe "" (\(oncDo, oncCols) -> (
+      "ON CONFLICT(" <> intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
         "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList pKeys)
-    ) `emptyOnFalse` null pkCols) onConflct,
+    ) `emptyOnFalse` null oncCols) onConflct,
     ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings]
   where
     qi = QualifiedIdentifier schema mainTbl
     cols = intercalate ", " $ pgFmtIdent <$> S.toList pKeys
     payloadIsEmpty = pjIsEmpty p
-requestToQuery schema _ (DbMutate (Update mainTbl p@(PayloadJSON _ pType keys) logicForest returnings)) =
+requestToQuery schema _ (DbMutate (Update mainTbl p@(PayloadJSON _ _ keys) logicForest returnings)) =
   if pjIsEmpty p
     then "WITH " <> ignoredBody <> "SELECT ''"
     else
       unwords [
+        "WITH payload AS (SELECT $1::json AS json_data),",
+        "vals AS (",
+          "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
+          "UNION ALL",
+          "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')",
         "UPDATE " <> fromQi qi <> " SET " <> cols,
-        "FROM (SELECT * FROM ",
-        case pType of
-           PJObject  -> " json_populate_record"
-           PJArray _ -> " json_populate_recordset", "(null::", fromQi qi, ", $1)) _ ",
-        ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest,
-        ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings
+        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", (select val from vals))) _ ",
+        ("WHERE " <> intercalate " AND " (pgFmtLogicTree qi <$> logicForest)) `emptyOnFalse` null logicForest,
+        ("RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)) `emptyOnFalse` null returnings
         ]
   where
     qi = QualifiedIdentifier schema mainTbl
