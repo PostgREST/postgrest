@@ -222,12 +222,23 @@ spec = do
           , matchHeaders = ["Location" <:> location]
           }
 
-    context "empty object" $
-      it "successfully populates table with all-default columns" $
+    context "empty objects" $ do
+      it "successfully inserts a row with all-default columns" $ do
         post "/items" "{}" `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = []
           }
+        post "/items" "[{}]" `shouldRespondWith` ""
+          { matchStatus  = 201
+          , matchHeaders = []
+          }
+
+      it "successfully inserts two rows with all-default columns" $
+        post "/items" "[{}, {}]" `shouldRespondWith` ""
+          { matchStatus  = 201
+          , matchHeaders = []
+          }
+
     context "table with limited privileges" $ do
       it "succeeds if correct select is applied" $
         request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
@@ -427,20 +438,20 @@ spec = do
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-        get "/items" `shouldRespondWith`
-          [json|[{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15},{id:16},{"id":2},{"id":1}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        request methodPatch "/items" [] [json| [{}] |]
+          `shouldRespondWith` ""
+          {
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "*/*"]
+          }
 
-      it "makes no updates and and returns 200, when patching with an empty json object and return=rep" $ do
+      it "makes no updates and and returns 200, when patching with an empty json object and return=rep" $
         request methodPatch "/items" [("Prefer", "return=representation")] [json| {} |]
           `shouldRespondWith` "[]"
           {
             matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
-        get "/items" `shouldRespondWith`
-          [json| [{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15},{id:16},{"id":2},{"id":1}] |]
-          { matchHeaders = [matchContentTypeJson] }
   
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
