@@ -268,7 +268,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias imp
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = witness
-requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ _ pKeys) onConflct putConditions returnings)) =
+requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON _ _ pKeys) onConflct putConditions returnings)) =
   unwords [
     "WITH payload AS (SELECT $1::json AS json_data),",
     "vals AS (",
@@ -276,7 +276,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ _ pKeys) onCo
      "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
      "UNION ALL",
      "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')"],
-    "INSERT INTO ", fromQi qi, if payloadIsEmpty then " " else "(" <> cols <> ")",
+    "INSERT INTO ", fromQi qi, if S.null pKeys then " " else "(" <> cols <> ")",
     unwords [
       "SELECT " <> cols <> " FROM",
       "json_populate_recordset", "(null::", fromQi qi, ", (select val from vals)) _",
@@ -293,10 +293,9 @@ requestToQuery schema _ (DbMutate (Insert mainTbl p@(PayloadJSON _ _ pKeys) onCo
   where
     qi = QualifiedIdentifier schema mainTbl
     cols = intercalate ", " $ pgFmtIdent <$> S.toList pKeys
-    payloadIsEmpty = pjIsEmpty p
-requestToQuery schema _ (DbMutate (Update mainTbl p@(PayloadJSON _ _ keys) logicForest returnings)) =
-  if pjIsEmpty p
-    then "WITH " <> ignoredBody <> "SELECT ''"
+requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON _ _ keys) logicForest returnings)) =
+  if S.null keys
+    then "WITH " <> ignoredBody <> "SELECT null WHERE false" -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     else
       unwords [
         "WITH payload AS (SELECT $1::json AS json_data),",
