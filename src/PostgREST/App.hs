@@ -180,12 +180,10 @@ app dbStructure proc conf apiRequest =
                   if iPreferRepresentation apiRequest == Full
                     then toS body else ""
 
-        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just p@PayloadJSON{pjRaw}) ->
-          case (mutateSqlParts tSchema tName, pjIsEmpty p, iPreferRepresentation apiRequest == Full) of
-            (Left errorResponse, _, _) -> return errorResponse
-            (_, True, True) -> return $ responseLBS status200 [contentRangeH 1 0 Nothing] "[]"
-            (_, True, False) -> return $ responseLBS status204 [contentRangeH 1 0 Nothing] ""
-            (Right (sq, mq), _, _) -> do
+        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw}) ->
+          case mutateSqlParts tSchema tName of
+            Left errorResponse -> return errorResponse
+            Right (sq, mq) -> do
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
@@ -197,15 +195,15 @@ app dbStructure proc conf apiRequest =
                 then do
                   HT.condemn
                   return $ singularityError (toInteger queryTotal)
-                else do
-                  let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                            (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                      s = if iPreferRepresentation apiRequest == Full
-                            then status200
-                            else status204
-                  return $ if iPreferRepresentation apiRequest == Full
-                    then responseLBS s [toHeader contentType, r] (toS body)
-                    else responseLBS s [r] ""
+              else do
+                let r = contentRangeH 0 (toInteger $ queryTotal-1)
+                          (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+                    s = if iPreferRepresentation apiRequest == Full
+                          then status200
+                          else status204
+                return $ if iPreferRepresentation apiRequest == Full
+                  then responseLBS s [toHeader contentType, r] (toS body)
+                  else responseLBS s [r] ""
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
@@ -269,7 +267,7 @@ app dbStructure proc conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke _, TargetProc qi, Just PayloadJSON{pjRaw, pjType, pjKeys}) ->
+        (ActionInvoke _, TargetProc qi, Just PayloadJSON{pjRaw, pjKeys}) ->
           let returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
                 _ -> False
@@ -280,16 +278,13 @@ app dbStructure proc conf apiRequest =
           case parts of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let isObject = case pjType of
-                                PJObject  -> True
-                                PJArray _ -> False
-                  singular = contentType == CTSingularJSON
+              let singular = contentType == CTSingularJSON
                   specifiedPgArgs = filter ((`S.member` pjKeys) . pgaName) $ maybe [] pdArgs proc
               row <- H.statement (toS pjRaw) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
-                         (contentType == CTOctetStream) bField isObject
+                         (contentType == CTOctetStream) bField
                          (pgVersion dbStructure)
               let (tableTotal, queryTotal, body, jsonHeaders) =
                     fromMaybe (Just 0, 0, "[]", "[]") row

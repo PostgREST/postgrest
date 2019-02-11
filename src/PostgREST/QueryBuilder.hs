@@ -143,9 +143,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
 callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
-            Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool -> PgVersion ->
+            Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
             H.Statement ByteString (Maybe ProcResults)
-callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField isObject pgVer =
+callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField pgVer =
   unicodeStatement sql (HE.param HE.unknown) decodeProc True
   where
     sql =
@@ -172,15 +172,21 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
          {responseHeaders} AS response_headers
        FROM ({selectQuery}) _postgrest_t;|]
 
-    (argsRecord, args) | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
-                       | null pgArgs = (ignoredBody, "")
-                       | otherwise = (
-                           unwords [
-                           "_args_record AS (",
-                             "SELECT * FROM " <> (if isObject then "json_to_record" else "json_to_recordset") <> "($1)",
-                             "AS _(" <> intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
-                           ")"]
-                         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
+    (argsRecord, args)
+      | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
+      | null pgArgs = (ignoredBody, "")
+      | otherwise = (
+          unwords [
+            "payload AS (SELECT $1::json AS json_data),",
+            "vals AS (",
+              "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
+              "UNION ALL",
+              "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object'),",
+            "_args_record AS (",
+              "SELECT * FROM json_to_recordset((SELECT val FROM vals)) AS _(" <>
+                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
+            ")"]
+         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _procName = qiName qi
     responseHeaders =
@@ -268,7 +274,7 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias imp
     --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = witness
-requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON _ _ pKeys) onConflct putConditions returnings)) =
+requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions returnings)) =
   unwords [
     "WITH payload AS (SELECT $1::json AS json_data),",
     "vals AS (",
@@ -276,10 +282,10 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON _ _ pKeys) onConf
      "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
      "UNION ALL",
      "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')"],
-    "INSERT INTO ", fromQi qi, if S.null pKeys then " " else "(" <> cols <> ")",
+    "INSERT INTO ", fromQi qi, if S.null iCols then " " else "(" <> cols <> ")",
     unwords [
       "SELECT " <> cols <> " FROM",
-      "json_populate_recordset", "(null::", fromQi qi, ", (select val from vals)) _",
+      "json_populate_recordset", "(null::", fromQi qi, ", (SELECT val FROM vals)) _",
       -- Only used for PUT
       ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> putConditions)) `emptyOnFalse` null putConditions],
     maybe "" (\(oncDo, oncCols) -> (
@@ -287,14 +293,14 @@ requestToQuery schema _ (DbMutate (Insert mainTbl (PayloadJSON _ _ pKeys) onConf
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
-        "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList pKeys)
+        "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
     ) `emptyOnFalse` null oncCols) onConflct,
     ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings]
   where
     qi = QualifiedIdentifier schema mainTbl
-    cols = intercalate ", " $ pgFmtIdent <$> S.toList pKeys
-requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON _ _ keys) logicForest returnings)) =
-  if S.null keys
+    cols = intercalate ", " $ pgFmtIdent <$> S.toList iCols
+requestToQuery schema _ (DbMutate (Update mainTbl uCols logicForest returnings)) =
+  if S.null uCols
     then "WITH " <> ignoredBody <> "SELECT null WHERE false" -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     else
       unwords [
@@ -304,13 +310,13 @@ requestToQuery schema _ (DbMutate (Update mainTbl (PayloadJSON _ _ keys) logicFo
           "UNION ALL",
           "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')",
         "UPDATE " <> fromQi qi <> " SET " <> cols,
-        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", (select val from vals))) _ ",
+        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", (SELECT val FROM vals))) _ ",
         ("WHERE " <> intercalate " AND " (pgFmtLogicTree qi <$> logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)) `emptyOnFalse` null returnings
         ]
   where
     qi = QualifiedIdentifier schema mainTbl
-    cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList keys)
+    cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
 requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
   unwords [
     "WITH " <> ignoredBody,

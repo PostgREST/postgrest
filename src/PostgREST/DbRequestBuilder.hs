@@ -321,8 +321,8 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
 mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
   case action of
-    ActionCreate -> Right $ Insert tName payload ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
-    ActionUpdate -> Update tName payload <$> combinedLogic <*> pure returnings
+    ActionCreate -> Right $ Insert tName (pjKeys payload) ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
+    ActionUpdate -> Update tName (pjKeys payload) <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
         if null (iLogic apiRequest) &&
@@ -331,7 +331,7 @@ mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
               _ -> False) flts
-          then Insert tName payload (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+          then Insert tName (pjKeys payload) (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
     ActionDelete -> Delete tName <$> combinedLogic <*> pure returnings

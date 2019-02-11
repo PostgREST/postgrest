@@ -115,7 +115,7 @@ newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 data Column =
     Column {
       colTable       :: Table
-    , colName        :: ColumnName
+    , colName        :: FieldName
     , colDescription :: Maybe Text
     , colPosition    :: Int32
     , colNullable    :: Bool
@@ -134,7 +134,6 @@ instance Eq Column where
 -- | A view column that refers to a table column
 type Synonym = (Column, ViewColumn)
 type ViewColumn = Column
-type ColumnName = Text
 
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
@@ -200,11 +199,6 @@ data PayloadJSON = PayloadJSON {
 } deriving (Show, Eq)
 
 data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)
-
--- | e.g. whether it is []/{} or not
-pjIsEmpty :: PayloadJSON -> Bool
-pjIsEmpty (PayloadJSON _ PJObject keys) = S.size keys == 0
-pjIsEmpty (PayloadJSON _ (PJArray l) _) = l == 0
 
 data Proxy = Proxy {
   proxyScheme     :: Text
@@ -330,14 +324,14 @@ data ReadQuery = Select {
 data MutateQuery =
   Insert {
     in_        :: TableName
-  , qPayload   :: PayloadJSON
-  , onConflict :: Maybe (PreferResolution, [ColumnName])
+  , insCols    :: S.Set FieldName
+  , onConflict :: Maybe (PreferResolution, [FieldName])
   , where_     :: [LogicTree]
   , returning  :: [FieldName]
   }|
   Update {
     in_        :: TableName
-  , qPayload   :: PayloadJSON
+  , updCols    :: S.Set FieldName
   , where_     :: [LogicTree]
   , returning  :: [FieldName]
   }|
