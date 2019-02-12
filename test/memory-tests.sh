@@ -96,21 +96,21 @@ setUp
 
 echo "Running memory usage tests.."
 
-jsonKeyTest "1M" "POST" "/rpc/leak" "20M"
-jsonKeyTest "1M" "POST" "/leak" "20M"
-jsonKeyTest "1M" "PATCH" "/leak?id=eq.1" "20M"
+jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "12M"
+jsonKeyTest "1M" "POST" "/leak?columns=blob" "12M"
+jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "12M"
 
-jsonKeyTest "10M" "POST" "/rpc/leak" "105M"
-jsonKeyTest "10M" "POST" "/leak" "105M"
-jsonKeyTest "10M" "PATCH" "/leak?id=eq.1" "105M"
+jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "40M"
+jsonKeyTest "10M" "POST" "/leak?columns=blob" "40M"
+jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "40M"
 
-jsonKeyTest "50M" "POST" "/rpc/leak" "500M"
-jsonKeyTest "50M" "POST" "/leak" "500M"
-jsonKeyTest "50M" "PATCH" "/leak?id=eq.1" "500M"
+jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "170M"
+jsonKeyTest "50M" "POST" "/leak?columns=blob" "170M"
+jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "170M"
 
-postJsonArrayTest "1000" "/perf_articles" "20M"
-postJsonArrayTest "10000" "/perf_articles" "150M"
-postJsonArrayTest "100000" "/perf_articles" "1.15G"
+postJsonArrayTest "1000" "/perf_articles?columns=id,body" "9M"
+postJsonArrayTest "10000" "/perf_articles?columns=id,body" "10M"
+postJsonArrayTest "100000" "/perf_articles?columns=id,body" "20M"
 
 cleanUp
 

@@ -321,8 +321,8 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
 mutateRequest :: ApiRequest -> TableName -> [Text] -> [FieldName] -> Either Response MutateRequest
 mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
   case action of
-    ActionCreate -> Right $ Insert tName (pjKeys payload) ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
-    ActionUpdate -> Update tName (pjKeys payload) <$> combinedLogic <*> pure returnings
+    ActionCreate -> Right $ Insert tName pjCols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
+    ActionUpdate -> Update tName pjCols <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
         if null (iLogic apiRequest) &&
@@ -331,14 +331,14 @@ mutateRequest apiRequest tName pkCols fldNames = mapLeft apiRequestError $
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
               _ -> False) flts
-          then Insert tName (pjKeys payload) (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+          then Insert tName pjCols (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
     ActionDelete -> Delete tName <$> combinedLogic <*> pure returnings
     _            -> Left UnsupportedVerb
   where
     action = iAction apiRequest
-    payload = fromJust $ iPayload apiRequest
+    pjCols = pjKeys $ fromJust $ iPayload apiRequest
     returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
     filters = map snd <$> mapM pRequestFilter mutateFilters
     logic = map snd <$> mapM pRequestLogicTree logicFilters

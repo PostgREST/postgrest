@@ -177,13 +177,9 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
       | null pgArgs = (ignoredBody, "")
       | otherwise = (
           unwords [
-            "payload AS (SELECT $1::json AS json_data),",
-            "vals AS (",
-              "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
-              "UNION ALL",
-              "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object'),",
+            normalizedBody <> ",",
             "_args_record AS (",
-              "SELECT * FROM json_to_recordset((SELECT val FROM vals)) AS _(" <>
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
                 intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
             ")"]
          , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
@@ -276,16 +272,11 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias imp
     getQueryParts _ _ = witness
 requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions returnings)) =
   unwords [
-    "WITH payload AS (SELECT $1::json AS json_data),",
-    "vals AS (",
-    unwords [
-     "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
-     "UNION ALL",
-     "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')"],
+    "WITH " <> normalizedBody,
     "INSERT INTO ", fromQi qi, if S.null iCols then " " else "(" <> cols <> ")",
     unwords [
       "SELECT " <> cols <> " FROM",
-      "json_populate_recordset", "(null::", fromQi qi, ", (SELECT val FROM vals)) _",
+      "json_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ") _",
       -- Only used for PUT
       ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> putConditions)) `emptyOnFalse` null putConditions],
     maybe "" (\(oncDo, oncCols) -> (
@@ -304,13 +295,9 @@ requestToQuery schema _ (DbMutate (Update mainTbl uCols logicForest returnings))
     then "WITH " <> ignoredBody <> "SELECT null WHERE false" -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     else
       unwords [
-        "WITH payload AS (SELECT $1::json AS json_data),",
-        "vals AS (",
-          "SELECT json_data AS val FROM payload WHERE json_typeof(json_data) = 'array'",
-          "UNION ALL",
-          "SELECT json_build_array(json_data) AS val FROM payload WHERE json_typeof(json_data) = 'object')",
+        "WITH " <> normalizedBody,
         "UPDATE " <> fromQi qi <> " SET " <> cols,
-        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", (SELECT val FROM vals))) _ ",
+        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ")) _ ",
         ("WHERE " <> intercalate " AND " (pgFmtLogicTree qi <$> logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)) `emptyOnFalse` null returnings
         ]
@@ -333,6 +320,25 @@ requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
 -- The error also happens on raw libpq used with C.
 ignoredBody :: SqlFragment
 ignoredBody = "ignored_body AS (SELECT $1::text) "
+
+-- |
+-- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
+-- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
+-- We do this in SQL to avoid processing the JSON in application code
+normalizedBody :: SqlFragment
+normalizedBody =
+  unwords [
+    "pgrst_payload AS (SELECT $1::json AS json_data),",
+    "pgrst_body AS (",
+      "SELECT",
+        "CASE WHEN json_typeof(json_data) = 'array'",
+          "THEN json_data",
+          "ELSE json_build_array(json_data)",
+        "END AS val",
+      "FROM pgrst_payload)"]
+
+selectBody :: SqlFragment
+selectBody = "(SELECT val FROM pgrst_body)"
 
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
 removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl

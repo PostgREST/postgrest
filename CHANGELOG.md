@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #690, Add `?columns` query parameter for faster bulk inserts, also ignores unspecified json keys in a payload - @steve-chavez
+
 ### Fixed
 
 - #1223, Fix incorrect OpenAPI externalDocs url - @steve-chavez

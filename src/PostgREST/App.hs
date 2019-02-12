@@ -78,10 +78,9 @@ postgrest conf refDbStructure pool getTime worker =
           Left err -> return $ apiRequestError err
           Right apiRequest -> do
             eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
-
             let authed = containsRole eClaims
                 proc = case (iTarget apiRequest, iPayload apiRequest, iPreferSingleObjectParameter apiRequest) of
-                  (TargetProc qi, Just PayloadJSON{pjKeys}, s) -> findProc qi pjKeys s $ dbProcs dbStructure
+                  (TargetProc qi, Just pJson, s) -> findProc qi (pjKeys pJson) s $ dbProcs dbStructure
                   _ -> Nothing
                 handleReq = runWithClaims conf eClaims (app dbStructure proc conf) apiRequest
                 txMode = transactionMode proc (iAction apiRequest)
@@ -109,7 +108,7 @@ transactionMode proc action =
     ActionInfo -> HT.Read
     ActionInspect -> HT.Read
     ActionInvoke{isReadOnly=False} ->
-      let v = maybe Volatile  pdVolatility proc in
+      let v = maybe Volatile pdVolatility proc in
       if v == Stable || v == Immutable
          then HT.Read
          else HT.Write
@@ -146,7 +145,7 @@ app dbStructure proc conf apiRequest =
                       )
                     ] (toS body)
 
-        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw}) ->
+        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -154,7 +153,7 @@ app dbStructure proc conf apiRequest =
                   stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) True
                     (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
-              row <- H.statement (toS pjRaw) stm
+              row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, fs, body) = extractQueryResult row
                   headers = catMaybes [
                       if null fs
@@ -180,14 +179,14 @@ app dbStructure proc conf apiRequest =
                   if iPreferRepresentation apiRequest == Full
                     then toS body else ""
 
-        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw}) ->
+        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
-              row <- H.statement (toS pjRaw) stm
+              row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
               if contentType == CTSingularJSON
                  && queryTotal /= 1
@@ -205,7 +204,7 @@ app dbStructure proc conf apiRequest =
                   then responseLBS s [toHeader contentType, r] (toS body)
                   else responseLBS s [r] ""
 
-        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just PayloadJSON{pjRaw, pjType, pjKeys}) ->
+        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -267,7 +266,7 @@ app dbStructure proc conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke _, TargetProc qi, Just PayloadJSON{pjRaw, pjKeys}) ->
+        (ActionInvoke _, TargetProc qi, Just pJson) ->
           let returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
                 _ -> False
@@ -279,8 +278,8 @@ app dbStructure proc conf apiRequest =
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
               let singular = contentType == CTSingularJSON
-                  specifiedPgArgs = filter ((`S.member` pjKeys) . pgaName) $ maybe [] pdArgs proc
-              row <- H.statement (toS pjRaw) $
+                  specifiedPgArgs = filter ((`S.member` pjKeys pJson) . pgaName) $ maybe [] pdArgs proc
+              row <- H.statement (toS $ pjRaw pJson) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
