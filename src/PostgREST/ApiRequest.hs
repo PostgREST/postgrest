@@ -19,6 +19,7 @@ import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
+import           Data.Either.Combinators   (mapLeft)
 import qualified Data.List                 as L
 import           Data.List                 (lookup, last, partition)
 import qualified Data.HashMap.Strict       as M
@@ -32,6 +33,7 @@ import           Network.HTTP.Types.Header (hAuthorization, hCookie)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
+import           PostgREST.Parsers         (pRequestColumns)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
 import           Data.Ranged.Boundaries
 import           PostgREST.Types
@@ -120,7 +122,7 @@ userApiRequest schema req reqBody
                             else Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
-      , iSelect = toS $ fromMaybe "*" $ fromMaybe (Just "*") $ lookup "select" qParams
+      , iSelect = toS $ fromMaybe "*" $ join $ lookup "select" qParams
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars
         . L.sortBy (comparing fst)
@@ -137,28 +139,37 @@ userApiRequest schema req reqBody
     case action of
       ActionInvoke{isReadOnly=True} -> partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
       _ -> (flts, [])
-  flts = [ (toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, k /= "select", not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
+  flts =
+    [ (toS k, toS $ fromJust v) |
+      (k,v) <- qParams, isJust v,
+      k `notElem` ["select", "columns"],
+      not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
   hasOperator val = any (`T.isPrefixOf` val) $
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = (== Just "rpc") $ listToMaybe path
+  contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   payload =
-    case (decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type", action) of
+    case (contentType, action) of
       (_, ActionInvoke{isReadOnly=True}) ->
-        Right $ PayloadJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) PJObject (S.fromList $ fst <$> rpcQParams)
+        Right $ ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) PJObject (S.fromList $ fst <$> rpcQParams)
       (CTApplicationJSON, _) ->
-        note "All object keys must match" . payloadAttributes reqBody
-          =<< if BL.null reqBody && isTargetingProc
-               then Right emptyObject
-               else JSON.eitherDecode reqBody
+        let columns | action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}] = toS <$> join (lookup "columns" qParams)
+                    | otherwise = Nothing in
+        case columns of
+          Just cols -> RawJSON reqBody <$> mapLeft show (pRequestColumns cols)
+          Nothing   -> note "All object keys must match" . payloadAttributes reqBody
+                         =<< if BL.null reqBody && isTargetingProc
+                               then Right emptyObject
+                               else JSON.eitherDecode reqBody
       (CTTextCSV, _) -> do
         json <- csvToJson <$> CSV.decodeByName reqBody
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
       (CTOther "application/x-www-form-urlencoded", _) ->
         let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
-        Right $ PayloadJSON (JSON.encode json) PJObject keys
+        Right $ ProcessedJSON (JSON.encode json) PJObject keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
@@ -291,14 +302,14 @@ payloadAttributes raw json =
                 JSON.Object x -> S.fromList (M.keys x) == canonicalKeys
                 _ -> False) arr in
           if areKeysUniform
-            then Just $ PayloadJSON raw (PJArray $ V.length arr) canonicalKeys
+            then Just $ ProcessedJSON raw (PJArray $ V.length arr) canonicalKeys
             else Nothing
         Just _ -> Nothing
         Nothing -> Just emptyPJArray
 
-    JSON.Object o -> Just $ PayloadJSON raw PJObject (S.fromList $ M.keys o)
+    JSON.Object o -> Just $ ProcessedJSON raw PJObject (S.fromList $ M.keys o)
 
     -- truncate everything else to an empty array.
     _ -> Just emptyPJArray
   where
-    emptyPJArray = PayloadJSON (JSON.encode emptyArray) (PJArray 0) S.empty
+    emptyPJArray = ProcessedJSON (JSON.encode emptyArray) (PJArray 0) S.empty

@@ -13,6 +13,7 @@ import           Data.Functor                  (($>))
 import qualified Data.HashMap.Strict           as M
 import           Data.Text                     (intercalate, replace, strip)
 import           Data.List                     (init, last)
+import qualified Data.Set                      as S
 import           Data.Tree
 import           Data.Either.Combinators       (mapLeft)
 import           PostgREST.RangeQuery          (NonnegRange)
@@ -216,6 +217,13 @@ pLogicPath = do
   let op = last path
       notOp = "not." <> op
   return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
+
+pRequestColumns :: Text -> Either ParseError (S.Set FieldName)
+pRequestColumns colStr =
+  S.fromList <$> parse pColumns ("failed to parse columns parameter (" <> toS colStr <> ")") (toS colStr)
+
+pColumns :: Parser [FieldName]
+pColumns = pFieldName `sepBy1` lexeme (char ',')
 
 mapError :: Either ParseError a -> Either ApiRequestError a
 mapError = mapLeft translateError

@@ -339,9 +339,15 @@ spec =
       get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
       get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [str|"123"|]
 
-    context "only for POST rpc" $
+    context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
         post "/rpc/sayhello?name=John" [json|{}|] `shouldRespondWith` 400
+
+      it "ignores json keys not included in ?columns" $
+        post "/rpc/sayhello?columns=name"
+          [json|{"name": "John", "smth": "here", "other": "stuff", "fake_id": 13}|] `shouldRespondWith`
+          [json|"Hello, John"|]
+          { matchHeaders = [matchContentTypeJson] }
 
     context "only for GET rpc" $ do
       it "should fail on mutating procs" $ do

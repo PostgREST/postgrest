@@ -187,16 +187,21 @@ data Relation = Relation {
 isSelfJoin :: Relation -> Bool
 isSelfJoin r = relType r /= Root && relTable r == relFTable r
 
--- | Cached attributes of a JSON payload
-data PayloadJSON = PayloadJSON {
--- | This is the raw ByteString that comes from the request body.
--- We cache this instead of an Aeson Value because it was detected that for large payloads the encoding
--- had high memory usage, see #1005 for more details
-  pjRaw     :: BL.ByteString
-, pjType    :: PJType
--- | Keys of the object or if it's an array these keys are guaranteed to be the same across all its objects
-, pjKeys    :: S.Set Text
-} deriving (Show, Eq)
+data PayloadJSON =
+  -- | Cached attributes of a JSON payload
+  ProcessedJSON {
+    -- | This is the raw ByteString that comes from the request body.
+    -- We cache this instead of an Aeson Value because it was detected that for large payloads the encoding
+    -- had high memory usage, see #1005 for more details
+    pjRaw  :: BL.ByteString
+  , pjType :: PJType
+    -- | Keys of the object or if it's an array these keys are guaranteed to be the same across all its objects
+  , pjKeys :: S.Set Text
+  }|
+  RawJSON {
+    pjRaw  :: BL.ByteString
+  , pjKeys :: S.Set Text
+  } deriving (Show, Eq)
 
 data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)
 

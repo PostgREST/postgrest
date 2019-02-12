@@ -260,6 +260,48 @@ spec = do
           , matchHeaders = []
           }
 
+    context "POST with ?columns parameter" $ do
+      it "ignores json keys not included in ?columns" $ do
+        request methodPost "/articles?columns=id,body" [("Prefer", "return=representation")]
+          [json| {"id": 200, "body": "xxx", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith`
+          [json|[{"id": 200, "body": "xxx", "owner": "postgrest_test_anonymous"}]|]
+          { matchStatus  = 201
+          , matchHeaders = [] }
+        request methodPost "/articles?columns=id,body&select=id,body" [("Prefer", "return=representation")]
+          [json| [
+            {"id": 201, "body": "yyy", "smth": "here", "other": "stuff", "fake_id": 13},
+            {"id": 202, "body": "zzz", "garbage": "%%$&", "kkk": "jjj"},
+            {"id": 203, "body": "aaa", "hey": "ho"} ]|] `shouldRespondWith`
+          [json|[
+            {"id": 201, "body": "yyy"},
+            {"id": 202, "body": "zzz"},
+            {"id": 203, "body": "aaa"} ]|]
+          { matchStatus  = 201
+          , matchHeaders = [] }
+
+      -- TODO parse columns error message needs to be improved
+      it "disallows blank ?columns" $
+        post "/articles?columns="
+          [json|[
+            {"id": 204, "body": "yyy"},
+            {"id": 205, "body": "zzz"}]|] `shouldRespondWith` 400
+
+      it "disallows array elements that are not json objects" $
+        post "/articles?columns=id,body"
+          [json|[
+            {"id": 204, "body": "yyy"},
+            333,
+            "asdf",
+            {"id": 205, "body": "zzz"}]|] `shouldRespondWith`
+          [json|{
+              "code": "22023",
+              "details": null,
+              "hint": null,
+              "message": "argument of json_populate_recordset must be an array of objects"}|]
+          { matchStatus  = 400
+          , matchHeaders = []
+          }
+
   describe "CSV insert" $ do
 
     context "disparate csv types" $
@@ -452,7 +494,7 @@ spec = do
             matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
-  
+
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
         void $ request methodPost "/no_pk" []
@@ -463,6 +505,14 @@ spec = do
         liftIO $ do
           simpleBody p `shouldBe` "["<>payload<>"]"
           simpleStatus p `shouldBe` ok200
+
+    context "PATCH with ?columns parameter" $
+      it "ignores json keys not included in ?columns" $
+        request methodPatch "/articles?id=eq.200&columns=body" [("Prefer", "return=representation")]
+          [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith`
+          [json|[{"id": 200, "body": "Some real content", "owner": "postgrest_test_anonymous"}]|]
+          { matchStatus  = 200
+          , matchHeaders = [] }
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
