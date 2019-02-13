@@ -15,6 +15,27 @@ PostgREST serves a fully RESTful API from any existing PostgreSQL
 database. It provides a cleaner, more standards-compliant, faster
 API than you are likely to write from scratch.
 
+## Sponsors
+
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="444px" src="static/retool.png">
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://patreon.com/postgrest" target="_blank">
+          <img width="444px" src="https://opencollective.com/static/images/become_sponsor.svg">
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+Big thanks to our sponsors! You can join them by supporting PostgREST on [Patreon](https://www.patreon.com/postgrest).
+
 ## Usage
 
 1. Download the binary ([latest release](https://github.com/PostgREST/postgrest/releases/latest))
