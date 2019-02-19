@@ -22,12 +22,12 @@ API than you are likely to write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="444px" src="static/retool.png">
+          <img width="222px" src="static/retool.png">
         </a>
       </td>
       <td align="center" valign="middle">
         <a href="https://patreon.com/postgrest" target="_blank">
-          <img width="444px" src="https://opencollective.com/static/images/become_sponsor.svg">
+          <img width="222px" src="https://opencollective.com/static/images/become_sponsor.svg">
         </a>
       </td>
     </tr>
