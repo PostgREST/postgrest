@@ -23,6 +23,16 @@
 |
 PostgREST is a standalone web server that turns your PostgreSQL database directly into a RESTful API. The structural constraints and permissions in the database determine the API endpoints and operations.
 
+Sponsors
+--------
+
+.. image:: _static/timescaledb.png
+  :target: https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=docs
+  :width:  222px
+  :align:  center
+
+`TimescaleDB <https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=docs>`_ is an scalable time-series database packaged as a PostgreSQL extension. See our tutorial for using `TimescaleDB with PostgREST <integrations/timescaledb.html>`_.
+
 Motivation
 ----------
 
@@ -88,6 +98,12 @@ Translations
 
    tutorials/tut0.rst
    tutorials/tut1.rst
+
+.. toctree::
+   :caption: Integrations
+   :titlesonly:
+
+   integrations/timescaledb.rst
 
 .. toctree::
    :caption: Installation

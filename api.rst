@@ -366,6 +366,8 @@ Note that the larger the table the slower this query runs in the database. The s
   Range-Unit: items
   Content-Range: 0-24/3573458
 
+.. _res_format:
+
 Response Format
 ---------------
 
@@ -577,6 +579,9 @@ Embedded resources can be aliased and filters can be applied on these aliases:
 
   GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
 
+
+.. _custom_queries:
+
 Custom Queries
 ==============
 
@@ -586,6 +591,8 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 * More complicated joins than those provided by `Resource Embedding`_
 * Geo-spatial queries that require an argument, like "points near (lat,lon)"
 * More sophisticated full-text search than a simple use of the :sql:`fts` filter
+
+.. _s_procs:
 
 Stored Procedures
 =================
@@ -941,6 +948,8 @@ Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 .. warning::
 
   Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+.. _bulk_insert:
 
 Bulk Insert
 -----------
