@@ -16,3 +16,14 @@ Or if you use [nix](https://nixos.org/nix/), you can just run:
 ```
 
 Both of these options will build the docs and start a livereload server on `http://localhost:5500`.
+
+## Translations
+
+Translations are maintained in separate repositories forked from this one. Once you finish translating in your fork you can upload the project
+to https://readthedocs.org and we'll link to it in the official documentation site https://postgrest.org.
+
+See more details in the chinese translation [PR](https://github.com/PostgREST/postgrest-docs/issues/66#issuecomment-297431688).
+
+### Available translations
+
+- Chinese - https://github.com/Lellansin/postgrest-docs (latest version `v0.4.2.0`)
