@@ -707,8 +707,11 @@ allSynonyms cols pgVer =
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
-    subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location"
-                   | otherwise = ":subselect {.*?:stmt_len 0} :location"
+    -- "result" appears when the subselect is used inside "case when", see `authors_have_book_in_decade` fixture
+    -- "resno"  appears in every other case
+    -- when copying the query into pg make sure you omit one backslash from \\d+, it should be like `\d+` for the regex
+    subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location \\d+} :res(no|ult)"
+                   | otherwise = ":subselect {.*?:stmt_len 0} :location \\d+} :res(no|ult)"
     sql = [qc|
       with
       views as (

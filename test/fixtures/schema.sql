@@ -1545,6 +1545,19 @@ select
 from projects
 group by client_id;
 
+create view test.authors_w_entities as
+select
+  id,
+  name,
+  (
+    select json_agg(id)
+    from test.entities
+    where id not in (
+      select parent_id from test.child_entities
+    )
+  ) as entities
+from private.authors;
+
 CREATE TABLE test."Foo"(
   id int primary key,
   name text

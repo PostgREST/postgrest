@@ -99,6 +99,7 @@ GRANT ALL ON TABLE
     , projects_count_grouped_by
     , "Server Today"
     , pgrst_reserved_chars
+    , authors_w_entities
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

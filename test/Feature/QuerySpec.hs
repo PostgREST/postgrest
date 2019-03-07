@@ -433,6 +433,11 @@ spec = do
              {"number_of_projects":2,"client":{"name":"Apple"}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "can embed a view that has a subselect containing a select in a where" $
+        get "/authors_w_entities?select=name,entities,books(title)&id=eq.1" `shouldRespondWith`
+          [json| [{"name":"George Orwell","entities":[3, 4],"books":[{"title":"1984"}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
         get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`
