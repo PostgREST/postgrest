@@ -968,7 +968,7 @@ You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge
     { "id": 3, "name": "New employee 3", "salary": 50000 }
   ]
 
-UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`.
+UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. UPSERT works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
 
 A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
