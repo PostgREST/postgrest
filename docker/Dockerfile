@@ -2,6 +2,9 @@ FROM debian:jessie
 
 ARG POSTGREST_VERSION
 
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:$PGRST_SERVER_PORT/ || exit 1
+
 # Install libpq5
 RUN apt-get -qq update && \
     apt-get -qq install -y --no-install-recommends libpq5 && \
@@ -9,9 +12,9 @@ RUN apt-get -qq update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install postgrest
-RUN BUILD_DEPS="curl ca-certificates xz-utils" && \
+RUN BUILD_DEPS="ca-certificates xz-utils" && \
     apt-get -qq update && \
-    apt-get -qq install -y --no-install-recommends $BUILD_DEPS && \
+    apt-get -qq install -y --no-install-recommends curl $BUILD_DEPS && \
     cd /tmp && \
     curl -SLO https://github.com/PostgREST/postgrest/releases/download/${POSTGREST_VERSION}/postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz && \
     tar -xJvf postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz && \
