@@ -722,7 +722,7 @@ allSynonyms cols pgVer =
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where (c.relkind = 'v'::char) and n.nspname = $1
+        where (c.relkind in ('v', 'm')) and n.nspname = $1
       ),
       removed_subselects as(
         select
