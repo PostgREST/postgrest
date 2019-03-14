@@ -333,6 +333,9 @@ spec = do
       it "can detect fk relations through views to tables in the public schema" $
         get "/consumers_view?select=*,orders_view(*)" `shouldRespondWith` 200
 
+      it "can detect fk relations through materialized views to tables in the public schema" $
+        get "/materialized_projects?select=*,users(*)" `shouldRespondWith` 200
+
       it "can request parent without specifying primary key" $
         get "/articleStars?select=createdAt,article(owner),user(name)&limit=1" `shouldRespondWith`
           [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
