@@ -249,7 +249,7 @@ spec = do
                 "properties": {
                   "double": {
                     "format": "double precision",
-                    "type": "string"
+                    "type": "number"
                   },
                   "varchar": {
                     "format": "character varying",
