@@ -56,6 +56,7 @@ import           PostgREST.QueryBuilder ( callProc
                                         , createWriteStatement
                                         , ResultsWithCount
                                         )
+import           PostgREST.Parsers      (pRequestColumns)
 import           PostgREST.Types
 import           PostgREST.OpenAPI
 
@@ -74,32 +75,28 @@ postgrest conf refDbStructure pool getTime worker =
     case maybeDbStructure of
       Nothing -> respond connectionLostError
       Just dbStructure -> do
-        response <- case userApiRequest (configSchema conf) req body of
-          Left err -> return $ apiRequestError err
-          Right apiRequest -> do
-            eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
-            let authed = containsRole eClaims
-                proc = case (iTarget apiRequest, iPayload apiRequest, iPreferSingleObjectParameter apiRequest) of
-                  (TargetProc qi, Just pJson, s) -> findProc qi (pjKeys pJson) s $ dbProcs dbStructure
-                  _ -> Nothing
-                handleReq = runWithClaims conf eClaims (app dbStructure proc conf) apiRequest
-                txMode = transactionMode proc (iAction apiRequest)
-            response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-            return $ either (pgError authed) identity response
+        response <- do
+          -- Need to parse ?columns early because findProc needs it to solve overloaded functions
+          let apiReq = userApiRequest (configSchema conf) req body
+              apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
+          case apiReqCols of
+            Left err -> return $ apiRequestError err
+            Right (apiRequest, maybeCols) -> do
+              eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
+              let authed = containsRole eClaims
+                  cols = case (iPayload apiRequest, maybeCols) of
+                    (Just ProcessedJSON{pjKeys}, _) -> pjKeys
+                    (Just RawJSON{}, Just cls)      -> cls
+                    _                               -> S.empty
+                  proc = case iTarget apiRequest of
+                    TargetProc qi -> findProc qi cols (iPreferSingleObjectParameter apiRequest) $ dbProcs dbStructure
+                    _ -> Nothing
+                  handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
+                  txMode = transactionMode proc (iAction apiRequest)
+              response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
+              return $ either (pgError authed) identity response
         when (responseStatus response == status503) worker
         respond response
-
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> M.HashMap Text [ProcDescription] -> Maybe ProcDescription
-findProc qi payloadKeys paramsAsSingleObject allProcs =
-  let procs = M.lookup (qiName qi) allProcs in
- -- Handle overloaded functions case
-  join $ (case length <$> procs of
-    Just 1 -> headMay -- if it's not an overloaded function then immediatly get the ProcDescription
-    _ -> find (\x ->
-           if paramsAsSingleObject
-             then length (pdArgs x) == 1 -- if the arg is not of json type let the db give the err
-             else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs x))
-  ) <$> procs
 
 transactionMode :: Maybe ProcDescription -> Action -> HT.Mode
 transactionMode proc action =
@@ -115,8 +112,8 @@ transactionMode proc action =
     ActionInvoke{isReadOnly=True} -> HT.Read
     _ -> HT.Write
 
-app :: DbStructure -> Maybe ProcDescription -> AppConfig -> ApiRequest -> H.Transaction Response
-app dbStructure proc conf apiRequest =
+app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
+app dbStructure proc cols conf apiRequest =
   case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
@@ -189,7 +186,7 @@ app dbStructure proc conf apiRequest =
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
 
-                  updateIsNoOp       = S.null $ pjKeys pJson
+                  updateIsNoOp       = S.null cols
                   contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
                                           if shouldCount then Just queryTotal else Nothing
                   minimalHeaders     = [contentRangeHeader]
@@ -285,7 +282,7 @@ app dbStructure proc conf apiRequest =
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
               let singular = contentType == CTSingularJSON
-                  specifiedPgArgs = filter ((`S.member` pjKeys pJson) . pgaName) $ maybe [] pdArgs proc
+                  specifiedPgArgs = filter ((`S.member` cols) . pgaName) $ maybe [] pdArgs proc
               row <- H.statement (toS $ pjRaw pJson) $
                 callProc qi specifiedPgArgs returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
@@ -339,7 +336,7 @@ app dbStructure proc conf apiRequest =
       selectQuery = requestToQuery schema False <$> readDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
-      mutationDbRequest s t = mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames
+      mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames
       mutateSqlParts s t =
         (,) <$> selectQuery
             <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)

@@ -95,6 +95,22 @@ instance Ord ProcDescription where
     | name1 == name2 && length args1 > length args2  = GT
     | otherwise = (name1, des1, args1, rt1, vol1) `compare` (name2, des2, args2, rt2, vol2)
 
+{-|
+  Search a pg procedure by its parameters, since a function can be overloaded the name is not enough to find it.
+  An overloaded function can have a different volatility or even a different return type.
+-}
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> M.HashMap Text [ProcDescription] -> Maybe ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs =
+  let procs = M.lookup (qiName qi) allProcs in
+ -- Handle overloaded functions case
+  join $ (case length <$> procs of
+    Just 1 -> headMay -- if it's not an overloaded function then immediatly get the ProcDescription
+    _ -> find (\x ->
+           if paramsAsSingleObject
+             then length (pdArgs x) == 1 -- if the arg is not of json type let the db give the err
+             else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs x))
+  ) <$> procs
+
 type Schema = Text
 type TableName = Text
 type SqlQuery = Text
@@ -200,7 +216,6 @@ data PayloadJSON =
   }|
   RawJSON {
     pjRaw  :: BL.ByteString
-  , pjKeys :: S.Set Text
   } deriving (Show, Eq)
 
 data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)

@@ -533,13 +533,17 @@ spec actualPgVersion = do
           simpleBody p `shouldBe` "["<>payload<>"]"
           simpleStatus p `shouldBe` ok200
 
-    context "PATCH with ?columns parameter" $
+    context "PATCH with ?columns parameter" $ do
       it "ignores json keys not included in ?columns" $
         request methodPatch "/articles?id=eq.200&columns=body" [("Prefer", "return=representation")]
           [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith`
           [json|[{"id": 200, "body": "Some real content", "owner": "postgrest_test_anonymous"}]|]
           { matchStatus  = 200
           , matchHeaders = [] }
+
+      it "ignores json keys and gives 404 if no record updated" $
+        request methodPatch "/articles?id=eq.2001&columns=body" [("Prefer", "return=representation")]
+          [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith` 404
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do

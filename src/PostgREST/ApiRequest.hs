@@ -19,7 +19,6 @@ import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS (c2w)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.Csv                  as CSV
-import           Data.Either.Combinators   (mapLeft)
 import qualified Data.List                 as L
 import           Data.List                 (lookup, last, partition)
 import qualified Data.HashMap.Strict       as M
@@ -33,7 +32,6 @@ import           Network.HTTP.Types.Header (hAuthorization, hCookie)
 import           Network.HTTP.Types.URI    (parseSimpleQuery)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.Parsers         (pRequestColumns)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
 import           Data.Ranged.Boundaries
 import           PostgREST.Types
@@ -90,6 +88,8 @@ data ApiRequest = ApiRequest {
   , iLogic :: [(Text, Text)]
   -- | &select parameter used to shape the response
   , iSelect :: Text
+  -- | &columns parameter used to shape the payload
+  , iColumns :: Maybe Text
   -- | &order parameters for each level
   , iOrder :: [(Text, Text)]
   -- | Alphabetized (canonical) request query string for response URLs
@@ -123,6 +123,7 @@ userApiRequest schema req reqBody
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ join $ lookup "select" qParams
+      , iColumns = columns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars
         . L.sortBy (comparing fst)
@@ -150,19 +151,19 @@ userApiRequest schema req reqBody
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = (== Just "rpc") $ listToMaybe path
   contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
+  columns | action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}] = toS <$> join (lookup "columns" qParams)
+          | otherwise = Nothing
   payload =
     case (contentType, action) of
       (_, ActionInvoke{isReadOnly=True}) ->
         Right $ ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) PJObject (S.fromList $ fst <$> rpcQParams)
       (CTApplicationJSON, _) ->
-        let columns | action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}] = toS <$> join (lookup "columns" qParams)
-                    | otherwise = Nothing in
-        case columns of
-          Just cols -> RawJSON reqBody <$> mapLeft show (pRequestColumns cols)
-          Nothing   -> note "All object keys must match" . payloadAttributes reqBody
-                         =<< if BL.null reqBody && isTargetingProc
-                               then Right emptyObject
-                               else JSON.eitherDecode reqBody
+        if isJust columns
+          then Right $ RawJSON reqBody
+          else note "All object keys must match" . payloadAttributes reqBody
+                 =<< if BL.null reqBody && isTargetingProc
+                       then Right emptyObject
+                       else JSON.eitherDecode reqBody
       (CTTextCSV, _) -> do
         json <- csvToJson <$> CSV.decodeByName reqBody
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
