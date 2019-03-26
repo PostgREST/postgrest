@@ -56,6 +56,13 @@ pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
     -- Concat op and v to make pLogicTree argument regular, in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
     logicTree = join $ parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") . toS <$> ((<>) <$> op <*> pure v)
 
+pRequestColumns :: Maybe Text -> Either ApiRequestError (Maybe (S.Set FieldName))
+pRequestColumns colStr =
+  case colStr of
+    Just str ->
+      mapError $ Just . S.fromList <$> parse pColumns ("failed to parse columns parameter (" <> toS str <> ")") (toS str)
+    _ -> Right Nothing
+
 ws :: Parser Text
 ws = toS <$> many (oneOf " \t")
 
@@ -217,10 +224,6 @@ pLogicPath = do
   let op = last path
       notOp = "not." <> op
   return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
-
-pRequestColumns :: Text -> Either ParseError (S.Set FieldName)
-pRequestColumns colStr =
-  S.fromList <$> parse pColumns ("failed to parse columns parameter (" <> toS colStr <> ")") (toS colStr)
 
 pColumns :: Parser [FieldName]
 pColumns = pFieldName `sepBy1` lexeme (char ',')
