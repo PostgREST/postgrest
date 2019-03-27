@@ -41,7 +41,6 @@ toSwaggerType "boolean"           = SwaggerBoolean
 toSwaggerType "smallint"          = SwaggerInteger
 toSwaggerType "integer"           = SwaggerInteger
 toSwaggerType "bigint"            = SwaggerInteger
-toSwaggerType "decimal"           = SwaggerNumber
 toSwaggerType "numeric"           = SwaggerNumber
 toSwaggerType "real"              = SwaggerNumber
 toSwaggerType "double precision"  = SwaggerNumber
