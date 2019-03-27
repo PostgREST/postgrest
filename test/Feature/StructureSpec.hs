@@ -219,6 +219,158 @@ spec = do
               ]
             |]
 
+    describe "PostgreSQL to Swagger Type Mapping" $ do
+
+      it "character varying to string" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_character_varying"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "character varying",
+                "type": "string"
+              }
+            |]
+      it "character(1) to string" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_character"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "maxLength": 1,
+                "format": "character",
+                "type": "string"
+              }
+            |]
+            
+      it "text to string" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_text"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "text",
+                "type": "string"
+              }
+            |]
+
+      it "boolean to boolean" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_boolean"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "boolean",
+                "type": "boolean"
+              }
+            |]
+      
+      it "smallint to integer" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_smallint"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "smallint",
+                "type": "integer"
+              }
+            |]
+      
+      it "integer to integer" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_integer"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "integer",
+                "type": "integer"
+              }
+            |]
+
+      it "bigint to integer" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_bigint"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "bigint",
+                "type": "integer"
+              }
+            |]
+
+      it "numeric to number" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_numeric"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "numeric",
+                "type": "number"
+              }
+            |]
+
+      it "real to number" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_real"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "real",
+                "type": "number"
+              }
+            |]
+      
+      it "double_precision to number" $ do
+        r <- simpleBody <$> get "/"
+
+        let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_double_precision"
+
+        liftIO $ do
+
+          types `shouldBe` Just
+            [aesonQQ|
+              {
+                "format": "double precision",
+                "type": "number"
+              }
+            |]
+
     describe "RPC" $ do
 
       it "includes function summary/description and body schema for arguments" $ do

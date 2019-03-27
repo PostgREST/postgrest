@@ -100,6 +100,7 @@ GRANT ALL ON TABLE
     , "Server Today"
     , pgrst_reserved_chars
     , authors_w_entities
+    , openapi_types
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
