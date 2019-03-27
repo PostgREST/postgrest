@@ -1,4 +1,4 @@
-FROM debian:jessie
+FROM debian:buster-slim
 
 ARG POSTGREST_VERSION
 
