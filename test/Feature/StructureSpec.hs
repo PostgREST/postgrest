@@ -226,7 +226,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_character_varying"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -240,7 +240,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_character"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -256,7 +256,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_text"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -271,7 +271,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_boolean"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -286,7 +286,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_smallint"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -301,7 +301,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_integer"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -316,7 +316,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_bigint"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -331,7 +331,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_numeric"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -346,7 +346,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_real"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
@@ -361,7 +361,7 @@ spec = do
 
         let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_double_precision"
 
-        liftIO $ do
+        liftIO $
 
           types `shouldBe` Just
             [aesonQQ|
