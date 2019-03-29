@@ -34,11 +34,17 @@ makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
 
 toSwaggerType :: Text -> SwaggerType t
-toSwaggerType "text"      = SwaggerString
-toSwaggerType "integer"   = SwaggerInteger
-toSwaggerType "boolean"   = SwaggerBoolean
-toSwaggerType "numeric"   = SwaggerNumber
-toSwaggerType _           = SwaggerString
+toSwaggerType "character varying" = SwaggerString
+toSwaggerType "character"         = SwaggerString
+toSwaggerType "text"              = SwaggerString
+toSwaggerType "boolean"           = SwaggerBoolean
+toSwaggerType "smallint"          = SwaggerInteger
+toSwaggerType "integer"           = SwaggerInteger
+toSwaggerType "bigint"            = SwaggerInteger
+toSwaggerType "numeric"           = SwaggerNumber
+toSwaggerType "real"              = SwaggerNumber
+toSwaggerType "double precision"  = SwaggerNumber
+toSwaggerType _                   = SwaggerString
 
 makeTableDef :: [PrimaryKey] -> (Table, [Column], [Text]) -> (Text, Schema)
 makeTableDef pks (t, cs, _) =

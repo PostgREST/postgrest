@@ -1647,3 +1647,16 @@ create table test.pgrst_reserved_chars (
   "a.dotted.column" text,
   "  col  w  space  " text
 );
+
+CREATE TABLE test.openapi_types(
+  "a_character_varying" character varying,
+  "a_character" character(1),
+  "a_text" text,
+  "a_boolean" boolean,
+  "a_smallint" smallint,
+  "a_integer" integer,
+  "a_bigint" bigint,
+  "a_numeric" numeric,
+  "a_real" real,
+  "a_double_precision" double precision
+);

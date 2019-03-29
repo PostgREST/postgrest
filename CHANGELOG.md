@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1223, Fix incorrect OpenAPI externalDocs url - @steve-chavez
 - #1221, Fix embedding other resources when having a self join - @steve-chavez
 - #1242, Fix embedding a view having a select in a where - @steve-chavez
+- #1238, Fix PostgreSQL to OpenAPI type mappings for numeric and character types - @fpusch
 
 ## [5.2.0] - 2018-12-12
 
