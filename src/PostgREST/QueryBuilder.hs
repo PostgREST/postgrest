@@ -148,29 +148,18 @@ callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bo
 callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField pgVer =
   unicodeStatement sql (HE.param HE.unknown) decodeProc True
   where
-    sql =
-     if returnsScalar then [qc|
-       WITH {argsRecord},
-       {sourceCTEName} AS (
-         SELECT {fromQi qi}({args})
-       )
-       SELECT
-         {countResultF} AS total_result_set,
-         1 AS page_total,
-         {scalarBodyF} AS body,
-         {responseHeaders} AS response_headers
-       FROM ({selectQuery}) _postgrest_t;|]
-     else [qc|
-       WITH {argsRecord},
-       {sourceCTEName} AS (
-         SELECT * FROM {fromQi qi}({args})
-       )
-       SELECT
-         {countResultF} AS total_result_set,
-         pg_catalog.count(_postgrest_t) AS page_total,
-         {bodyF} AS body,
-         {responseHeaders} AS response_headers
-       FROM ({selectQuery}) _postgrest_t;|]
+    sql =[qc|
+      WITH
+      {argsRecord},
+      {sourceCTEName} AS (
+        {sourceBody}
+      )
+      SELECT
+        {countResultF} AS total_result_set,
+        pg_catalog.count(_postgrest_t) AS page_total,
+        {bodyF} AS body,
+        {responseHeaders} AS response_headers
+      FROM ({selectQuery}) _postgrest_t;|]
 
     (argsRecord, args)
       | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
@@ -182,25 +171,47 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
               "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
                 intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
             ")"]
-         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM _args_record)") <$> pgArgs))
+         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
+
+    sourceBody :: SqlFragment
+    sourceBody
+      | paramsAsSingleObject || null pgArgs =
+          if returnsScalar
+            then [qc| SELECT {fromQi qi}({args}) |]
+            else [qc| SELECT * FROM {fromQi qi}({args}) |]
+      | otherwise =
+          if returnsScalar
+            then [qc| SELECT {fromQi qi}({args}) FROM _args_record |]
+            else [qc| SELECT _.*
+                      FROM _args_record,
+                      LATERAL ( SELECT * FROM {fromQi qi}({args}) ) _ |]
+
+    bodyF
+     | returnsScalar = scalarBodyF
+     | isSingle = asJsonSingleF
+     | asCsv = asCsvF
+     | isJust binaryField = asBinaryF $ fromJust binaryField
+     | otherwise = asJsonF
+
+    scalarBodyF
+     | asBinary = asBinaryF _procName
+     | otherwise = unwords [
+        "CASE",
+          "WHEN pg_catalog.count(_postgrest_t) = 1",
+            "THEN (json_agg(_postgrest_t." <> pgFmtIdent _procName <> ")->0)::character varying",
+            "ELSE (json_agg(_postgrest_t." <> pgFmtIdent _procName <> "))::character varying",
+        "END"]
+
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
     _procName = qiName qi
     responseHeaders =
       if pgVer >= pgVersion96
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
         else "'[]'" :: Text
+
     decodeProc = HD.rowMaybe procRow
     procRow = (,,,) <$> HD.nullableColumn HD.int8 <*> HD.column HD.int8
                     <*> HD.column HD.bytea <*> HD.column HD.bytea
-    scalarBodyF
-     | asBinary = asBinaryF _procName
-     | otherwise = "(row_to_json(_postgrest_t)->" <> pgFmtLit _procName <> ")::character varying"
-
-    bodyF
-     | isSingle = asJsonSingleF
-     | asCsv = asCsvF
-     | isJust binaryField = asBinaryF $ fromJust binaryField
-     | otherwise = asJsonF
 
 pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""

@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #690, Add `?columns` query parameter for faster bulk inserts, also ignores unspecified json keys in a payload - @steve-chavez
 - #1239, Add support for resource embedding on materialized views - @vitorbaptista
+- #1264, Add support for bulk RPC call - @steve-chavez
 
 ### Fixed
 

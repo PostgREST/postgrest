@@ -1660,3 +1660,8 @@ CREATE TABLE test.openapi_types(
   "a_real" real,
   "a_double_precision" double precision
 );
+
+create function add_them(a integer, b integer)
+returns integer as $$
+  select a + b;
+$$ language sql;
