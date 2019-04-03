@@ -21,8 +21,10 @@ import Network.Wai (Application)
 
 import Protolude hiding (get)
 
-spec :: SpecWith Application
-spec = do
+import PostgREST.Types (PgVersion, pgVersion112)
+
+spec :: PgVersion -> SpecWith Application
+spec actualPgVersion = do
   describe "Posting new record" $ do
     context "disparate json types" $ do
       it "accepts disparate json types" $ do
@@ -248,14 +250,23 @@ spec = do
           }
       it "fails if more columns are selected" $
         request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
-          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith`
-          [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
+        if actualPgVersion >= pgVersion112 then
+        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+           else
+        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+                                                                        )
           { matchStatus  = 401
           , matchHeaders = []
           }
       it "fails if select is not specified" $
         request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
-          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
+        if actualPgVersion >= pgVersion112 then
+        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+           else
+        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+                                                                        )
           { matchStatus  = 401
           , matchHeaders = []
           }

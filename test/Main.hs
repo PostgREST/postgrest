@@ -80,12 +80,12 @@ main = do
         [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
 
       specs = uncurry describe <$> [
-          ("Feature.AuthSpec"               , Feature.AuthSpec.spec)
+          ("Feature.AuthSpec"               , Feature.AuthSpec.spec actualPgVersion)
         , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
-        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec)
-        , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec)
+        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
+        , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
         , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
         , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
