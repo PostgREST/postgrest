@@ -1,12 +1,12 @@
 module Feature.JsonOperatorSpec where
 
-import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Network.HTTP.Types
 
-import Network.Wai         (Application)
 import SpecHelper
+import Network.Wai         (Application)
 
 import Protolude           hiding (get)
 
