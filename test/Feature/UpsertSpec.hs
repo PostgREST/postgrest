@@ -44,7 +44,7 @@ spec =
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
             }
 
-        it "succeeds when the payload has no elements" $ do
+        it "succeeds when the payload has no elements" $
           request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[]|] `shouldRespondWith`
             [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
