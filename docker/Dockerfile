@@ -39,6 +39,12 @@ ENV PGRST_DB_URI= \
     PGRST_PRE_REQUEST= \
     PGRST_ROLE_CLAIM_KEY=".role"
 
+RUN groupadd -g 1000 postgrest && \
+    useradd -r -u 1000 -g postgrest postgrest && \
+    chown postgrest:postgrest /etc/postgrest.conf
+
+USER 1000
+
 # PostgREST reads /etc/postgrest.conf so map the configuration
 # file in when you run this container
 CMD exec postgrest /etc/postgrest.conf
