@@ -44,6 +44,12 @@ spec =
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
             }
 
+        it "succeeds when the payload has no elements" $ do
+          request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json|[]|] `shouldRespondWith`
+            [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+
+
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
         it "INSERTs and ignores rows on pk conflict" $
           request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
