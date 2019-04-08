@@ -282,9 +282,8 @@ app dbStructure proc cols conf apiRequest =
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
               let singular = contentType == CTSingularJSON
-                  specifiedPgArgs = filter ((`S.member` cols) . pgaName) $ maybe [] pdArgs proc
               row <- H.statement (toS $ pjRaw pJson) $
-                callProc qi specifiedPgArgs returnsScalar q cq shouldCount
+                callProc qi (specifiedProcArgs cols proc) returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
                          (contentType == CTOctetStream) bField

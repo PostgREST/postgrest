@@ -13,8 +13,10 @@ import Network.Wai (Application)
 
 import Protolude hiding (get)
 
-spec :: SpecWith Application
-spec =
+import PostgREST.Types (PgVersion, pgVersion95)
+
+spec :: PgVersion -> SpecWith Application
+spec actualPgVersion =
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       it "returns paginated results" $ do
@@ -77,6 +79,21 @@ spec =
       it "should fail with 404 on unknown proc args" $ do
         get "/rpc/sayhello" `shouldRespondWith` 404
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
+      it "should not ignore unknown args and fail with 404" $
+        get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
+        let
+          message :: Text
+          message
+            | actualPgVersion < pgVersion95 = "function test.add_them(a := integer, b := integer, smthelse := text) does not exist"
+            | otherwise = "function test.add_them(a => integer, b => integer, smthelse => text) does not exist"
+        in [json| {
+          "code": "42883",
+          "details": null,
+          "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+          "message": #{message} } |]
+        { matchStatus  = 404
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     it "works when having uppercase identifiers" $ do
       get "/rpc/quotedFunction?user=mscott&fullName=Michael Scott&SSN=401-32-XXXX" `shouldRespondWith`

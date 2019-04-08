@@ -87,7 +87,7 @@ main = do
         , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec)
-        , ("Feature.RpcSpec"                , Feature.RpcSpec.spec)
+        , ("Feature.RpcSpec"                , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
         , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)

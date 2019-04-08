@@ -111,6 +111,17 @@ findProc qi payloadKeys paramsAsSingleObject allProcs =
              else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs x))
   ) <$> procs
 
+{-|
+  Search the procedure parameters by matching them with the specified keys.
+  If the key doesn't match a parameter, a parameter with a default type "text" is assumed.
+-}
+specifiedProcArgs :: S.Set FieldName -> Maybe ProcDescription -> [PgArg]
+specifiedProcArgs keys proc =
+  let
+    args = maybe [] pdArgs proc
+  in
+  (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) args)) <$> S.toList keys
+
 type Schema = Text
 type TableName = Text
 type SqlQuery = Text
@@ -378,7 +389,10 @@ instance Ord PgVersion where
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = PgVersion 90400 "9.4"
+minimumPgVersion = pgVersion94
+
+pgVersion94 :: PgVersion
+pgVersion94 = PgVersion 90400 "9.4"
 
 pgVersion95 :: PgVersion
 pgVersion95 = PgVersion 90500 "9.5"
