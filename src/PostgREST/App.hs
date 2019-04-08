@@ -197,9 +197,10 @@ app dbStructure proc conf apiRequest =
               else do
                 let r = contentRangeH 0 (toInteger $ queryTotal-1)
                           (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                    s = if iPreferRepresentation apiRequest == Full
+                    s_200 = if iPreferRepresentation apiRequest == Full
                           then status200
                           else status204
+                    s = if queryTotal == 0 then status404 else s_200
                 return $ if iPreferRepresentation apiRequest == Full
                   then responseLBS s [toHeader contentType, r] (toS body)
                   else responseLBS s [r] ""

@@ -427,6 +427,11 @@ spec actualPgVersion = do
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
+      it "gives a 404 when no rows updated" $
+        request methodPatch "/items?id=eq.99999999" []
+          [json| { "id": 42 } |]
+            `shouldRespondWith` 404
+
       it "returns updated object as array when return=rep" $
         request methodPatch "/items?id=eq.2"
           [("Prefer", "return=representation")] [json| { "id":2 } |]
