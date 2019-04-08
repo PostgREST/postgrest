@@ -296,7 +296,7 @@ spec =
 
     it "can map a RAISE error code and message to a http status" $
       get "/rpc/raise_pt402"
-        `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded" }|]
+        `shouldRespondWith` [json|{ "error": "Payment Required", "hint": "Upgrade your plan", "details": "Quota exceeded" }|]
         { matchStatus  = 402
         , matchHeaders = [matchContentTypeJson]
         }
