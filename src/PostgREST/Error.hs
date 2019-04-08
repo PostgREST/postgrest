@@ -129,6 +129,7 @@ instance JSON.ToJSON H.CommandError where
   toJSON (H.ResultError (H.ServerError c m d h)) = case toS c of
     'P':'T':_ ->
       JSON.object [
+        "message" .= (toS m::Text),
         "details" .= (fmap toS d::Maybe Text),
         "hint" .= (fmap toS h::Maybe Text)]
     _ ->
