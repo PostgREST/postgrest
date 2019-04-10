@@ -395,8 +395,8 @@ spec actualPgVersion = do
         request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
           `shouldRespondWith` ""
-          { matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "*/*"]
+          { matchStatus  = 404,
+            matchHeaders = []
           }
 
     context "in a nonempty table" $ do
@@ -423,8 +423,8 @@ spec actualPgVersion = do
           [("Prefer", "return=representation")] [json| { "id":999999 } |]
           `shouldRespondWith` "[]"
           {
-            matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
+            matchStatus  = 404,
+            matchHeaders = []
           }
 
       it "gives a 404 when no rows updated" $

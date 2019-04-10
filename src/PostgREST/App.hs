@@ -188,22 +188,27 @@ app dbStructure proc conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              if contentType == CTSingularJSON
-                 && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
-                then do
-                  HT.condemn
-                  return $ singularityError (toInteger queryTotal)
-              else do
-                let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                          (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                    s_200 = if iPreferRepresentation apiRequest == Full
-                          then status200
-                          else status204
-                    s = if queryTotal == 0 then status404 else s_200
-                return $ if iPreferRepresentation apiRequest == Full
-                  then responseLBS s [toHeader contentType, r] (toS body)
-                  else responseLBS s [r] ""
+
+                  contentRangeHeader = contentRangeH 0 (toInteger $ queryTotal-1)
+                        (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+
+              case (contentType, queryTotal, iPreferRepresentation apiRequest) of
+                (CTSingularJSON, 1, Full) ->
+                  return $ responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
+
+                (CTSingularJSON, _, Full) ->
+                  do HT.condemn
+                     return $ singularityError (toInteger queryTotal)
+
+                (_, 0, _) ->
+                  return $ responseLBS status404 [] (toS body)
+
+                (_, _, Full) ->
+                  return $ responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
+              --
+                (_, _, _) ->
+                  return $ responseLBS status204 [contentRangeHeader] ""
+
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
