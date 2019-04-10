@@ -87,7 +87,7 @@ spec =
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 101, address: "xxx" } ] |]
           `shouldRespondWith` ""
-          { matchStatus  = 201
+          { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
         -- and the element should exist
@@ -112,7 +112,7 @@ spec =
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
           `shouldRespondWith` ""
-          { matchStatus  = 201
+          { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 

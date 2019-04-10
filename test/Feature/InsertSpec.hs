@@ -146,7 +146,7 @@ spec actualPgVersion = do
                        [json| [] |]
           liftIO $ do
             simpleBody p `shouldBe` [json| [] |]
-            simpleStatus p `shouldBe` created201
+            simpleStatus p `shouldBe` ok200
 
         it "can insert in tables with no select privileges" $ do
           p <- request methodPost "/insertonly"
@@ -154,7 +154,7 @@ spec actualPgVersion = do
                        [json| { "v":"some value" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
-            simpleStatus p `shouldBe` created201
+            simpleStatus p `shouldBe` ok200
 
 
         it "can post nulls" $ do

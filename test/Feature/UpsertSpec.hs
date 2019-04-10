@@ -101,10 +101,10 @@ spec =
       it "succeeds if not a single resource is created" $ do
         request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
           [json|[ { "name": "Java", "rank": 1 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          [json|[]|] { matchStatus = 200 , matchHeaders = [matchContentTypeJson] }
         request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
           [json|[ { "name": "Java", "rank": 1 }, { "name": "C", "rank": 2 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          [json|[]|] { matchStatus = 200 , matchHeaders = [matchContentTypeJson] }
 
     context "with PUT" $ do
       context "Restrictions" $ do
@@ -271,7 +271,7 @@ spec =
             { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
             { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
           ]|] `shouldRespondWith` [json|[]|]
-          { matchStatus = 201
+          { matchStatus = 200
           , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
           }
 
