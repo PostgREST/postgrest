@@ -192,22 +192,42 @@ app dbStructure proc conf apiRequest =
                   contentRangeHeader = contentRangeH 0 (toInteger $ queryTotal-1)
                         (toInteger <$> if shouldCount then Just queryTotal else Nothing)
 
-              case (contentType, queryTotal, iPreferRepresentation apiRequest) of
-                (CTSingularJSON, 1, Full) ->
-                  return $ responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
+                  updateIsNoOp = case mutationDbRequest tSchema tName of
+                    (Right (Update _ uCols _ _)) -> S.null uCols
+                    _                            -> False
 
-                (CTSingularJSON, _, Full) ->
+                  minimalHeaders = [contentRangeHeader]
+                  fullHeaders = (toHeader contentType) : minimalHeaders
+
+              case (contentType, queryTotal, iPreferRepresentation apiRequest, updateIsNoOp) of
+                (CTSingularJSON, _, Full, True) ->
+                  do HT.condemn
+                     return $ singularityError 0
+
+                (_, _, Full, True) ->
+                  return $ responseLBS status200 minimalHeaders "[]"
+
+                (_, _, _, True) ->
+                  return $ responseLBS status204 minimalHeaders ""
+
+                (CTSingularJSON, 1, Full, _) ->
+                  return $ responseLBS status200 fullHeaders (toS body)
+
+                (CTSingularJSON, _, Full, _) ->
                   do HT.condemn
                      return $ singularityError (toInteger queryTotal)
 
-                (_, 0, _) ->
-                  return $ responseLBS status404 [] (toS body)
+                (_, 0, Full, _) ->
+                  return $ responseLBS status404 [] "[]"
 
-                (_, _, Full) ->
-                  return $ responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
+                (_, 0, _, _) ->
+                  return $ responseLBS status404 [] ""
+
+                (_, _, Full, _) ->
+                  return $ responseLBS status200 fullHeaders (toS body)
               --
-                (_, _, _) ->
-                  return $ responseLBS status204 [contentRangeHeader] ""
+                (_, _, _, _) ->
+                  return $ responseLBS status204 minimalHeaders ""
 
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
@@ -338,9 +358,10 @@ app dbStructure proc conf apiRequest =
       selectQuery = requestToQuery schema False <$> readDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
+      mutationDbRequest s t = (mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames)
       mutateSqlParts s t =
         (,) <$> selectQuery
-            <*> (requestToQuery schema False . DbMutate <$> (mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames))
+            <*> (requestToQuery schema False . DbMutate <$> (mutationDbRequest s t))
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
 responseContentTypeOrError accepts action = serves contentTypesForRequest accepts

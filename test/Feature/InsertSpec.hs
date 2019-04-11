@@ -385,13 +385,13 @@ spec actualPgVersion = do
   describe "Patching record" $ do
 
     context "to unknown uri" $
-      it "gives a 404" $
+      it "indicates no table found by returning 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
             `shouldRespondWith` 404
 
     context "on an empty table" $
-      it "indicates no records found to update" $
+      it "indicates no records found to update by returning 404" $
         request methodPatch "/empty_table" []
           [json| { "extra":20 } |]
           `shouldRespondWith` ""
@@ -459,15 +459,26 @@ spec actualPgVersion = do
           [json| [{ a: "keepme", b: null }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "can update based on a computed column" $
-        request methodPatch
-          "/items?always_true=eq.false"
-          [("Prefer", "return=representation")]
-          [json| { id: 100 } |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+      context "filtering by a computed column" $ do
+        it "is successful" $
+          request methodPatch
+            "/items?is_first=eq.true"
+            [("Prefer", "return=representation")]
+            [json| { id: 100 } |]
+            `shouldRespondWith` [json| [{ id: 100 }] |]
+            { matchStatus  = 200,
+              matchHeaders = [matchContentTypeJson, "Content-Range" <:> "0-0/*"]
+            }
+
+        it "indicates no records updated by returning 404" $
+          request methodPatch
+            "/items?always_true=eq.false"
+            [("Prefer", "return=representation")]
+            [json| { id: 100 } |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 404,
+              matchHeaders = []
+            }
 
       it "can provide a representation" $ do
         _ <- post "/items"
