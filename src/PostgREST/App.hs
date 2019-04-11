@@ -197,7 +197,7 @@ app dbStructure proc conf apiRequest =
                     _                            -> False
 
                   minimalHeaders = [contentRangeHeader]
-                  fullHeaders = (toHeader contentType) : minimalHeaders
+                  fullHeaders = toHeader contentType : minimalHeaders
 
               case (contentType, queryTotal, iPreferRepresentation apiRequest, updateIsNoOp) of
                 (CTSingularJSON, _, Full, True) ->
@@ -358,10 +358,10 @@ app dbStructure proc conf apiRequest =
       selectQuery = requestToQuery schema False <$> readDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
-      mutationDbRequest s t = (mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames)
+      mutationDbRequest s t = mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames
       mutateSqlParts s t =
         (,) <$> selectQuery
-            <*> (requestToQuery schema False . DbMutate <$> (mutationDbRequest s t))
+            <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
 responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
