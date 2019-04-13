@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1221, Fix embedding other resources when having a self join - @steve-chavez
 - #1242, Fix embedding a view having a select in a where - @steve-chavez
 - #1238, Fix PostgreSQL to OpenAPI type mappings for numeric and character types - @fpusch
+- #1265, Fix query generated on bulk upsert with an empty array - @qu4tro
 
 ## [5.2.0] - 2018-12-12
 

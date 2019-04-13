@@ -295,8 +295,10 @@ requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions 
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
-        "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
-    ) `emptyOnFalse` null oncCols) onConflct,
+        if S.null iCols
+           then "DO NOTHING"
+           else "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
+                                   ) `emptyOnFalse` null oncCols) onConflct,
     ("RETURNING " <> intercalate ", " (map (pgFmtColumn qi) returnings)) `emptyOnFalse` null returnings]
   where
     qi = QualifiedIdentifier schema mainTbl
