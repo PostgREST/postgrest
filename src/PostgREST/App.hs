@@ -256,8 +256,8 @@ app dbStructure proc conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = extractQueryResult row
-                  r = contentRangeH 1 0 
-                    (if shouldCount then Just queryTotal else Nothing)
+                  r = contentRangeH 1 0 $
+                    if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
