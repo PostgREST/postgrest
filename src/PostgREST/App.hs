@@ -163,7 +163,7 @@ app dbStructure proc conf apiRequest =
                         then Just $ toHeader contentType
                         else Nothing
                     , Just . contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+                        if shouldCount then Just queryTotal else Nothing
                     , if null pkCols
                         then Nothing
                         else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
@@ -191,8 +191,8 @@ app dbStructure proc conf apiRequest =
 
                   updateIsNoOp = S.null $ pjKeys pJson
 
-                  contentRangeHeader = contentRangeH 0 (toInteger $ queryTotal-1)
-                        (toInteger <$> if shouldCount then Just queryTotal else Nothing)
+                  contentRangeHeader = contentRangeH 0 (queryTotal - 1)
+                        (if shouldCount then Just queryTotal else Nothing)
                   minimalHeaders = [contentRangeHeader]
                   fullHeaders = toHeader contentType : minimalHeaders
 
@@ -256,8 +256,8 @@ app dbStructure proc conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = extractQueryResult row
-                  r = contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+                  r = contentRangeH 1 0 
+                    (if shouldCount then Just queryTotal else Nothing)
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
@@ -393,7 +393,7 @@ rangeStatus lower upper (Just total)
   | (1 + upper - lower) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Integer -> Integer -> Maybe Integer -> Header
+contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
     ("Content-Range", headerValue)
     where
