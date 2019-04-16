@@ -189,16 +189,15 @@ app dbStructure proc conf apiRequest =
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
 
-                  updateIsNoOp = S.null $ pjKeys pJson
+                  updateIsNoOp       = S.null $ pjKeys pJson
+                  contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
+                                          if shouldCount then Just queryTotal else Nothing
+                  minimalHeaders     = [contentRangeHeader]
+                  fullHeaders        = toHeader contentType : minimalHeaders
 
-                  contentRangeHeader = contentRangeH 0 (queryTotal - 1)
-                        (if shouldCount then Just queryTotal else Nothing)
-                  minimalHeaders = [contentRangeHeader]
-                  fullHeaders = toHeader contentType : minimalHeaders
-
-                  status | queryTotal == 0 && not updateIsNoOp = status404
+                  status | queryTotal == 0 && not updateIsNoOp      = status404
                          | iPreferRepresentation apiRequest == Full = status200
-                         | otherwise = status204
+                         | otherwise                                = status204
 
               case (contentType, queryTotal, iPreferRepresentation apiRequest) of
                 (CTSingularJSON, 1, Full) ->
