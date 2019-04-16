@@ -189,45 +189,30 @@ app dbStructure proc conf apiRequest =
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
 
+                  updateIsNoOp = S.null $ pjKeys pJson
+
                   contentRangeHeader = contentRangeH 0 (toInteger $ queryTotal-1)
                         (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-
-                  updateIsNoOp = case mutationDbRequest tSchema tName of
-                    (Right (Update _ uCols _ _)) -> S.null uCols
-                    _                            -> False
-
                   minimalHeaders = [contentRangeHeader]
                   fullHeaders = toHeader contentType : minimalHeaders
 
-              case (contentType, queryTotal, iPreferRepresentation apiRequest, updateIsNoOp) of
-                (CTSingularJSON, _, Full, True) ->
+                  status | queryTotal == 0 && not updateIsNoOp = status404
+                         | iPreferRepresentation apiRequest == Full = status200
+                         | otherwise = status204
+
+              case (contentType, queryTotal, iPreferRepresentation apiRequest) of
+                (CTSingularJSON, 1, Full) ->
+                  return $ responseLBS status fullHeaders (toS body)
+
+                (CTSingularJSON, _, Full) ->
                   do HT.condemn
                      return $ singularityError 0
 
-                (_, _, Full, True) ->
-                  return $ responseLBS status200 minimalHeaders "[]"
+                (_, _, Full) ->
+                  return $ responseLBS status fullHeaders (toS body)
 
-                (_, _, _, True) ->
-                  return $ responseLBS status204 minimalHeaders ""
-
-                (CTSingularJSON, 1, Full, _) ->
-                  return $ responseLBS status200 fullHeaders (toS body)
-
-                (CTSingularJSON, _, Full, _) ->
-                  do HT.condemn
-                     return $ singularityError (toInteger queryTotal)
-
-                (_, 0, Full, _) ->
-                  return $ responseLBS status404 [] "[]"
-
-                (_, 0, _, _) ->
-                  return $ responseLBS status404 [] ""
-
-                (_, _, Full, _) ->
-                  return $ responseLBS status200 fullHeaders (toS body)
-              --
-                (_, _, _, _) ->
-                  return $ responseLBS status204 minimalHeaders ""
+                (_, _, _) ->
+                  return $ responseLBS status minimalHeaders mempty
 
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
