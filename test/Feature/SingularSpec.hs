@@ -43,7 +43,6 @@ spec =
             { matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"] }
 
     context "when updating rows" $ do
-
       it "works for one row" $ do
         _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
         request methodPatch
@@ -56,10 +55,9 @@ spec =
       it "raises an error for multiple rows" $ do
         _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
         _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
-        p <- request methodPatch
-          "/addresses?id=gt.0"
-          [("Prefer", "return=representation"), singular]
-          [json| { address: "zzz" } |]
+        p <- request methodPatch "/addresses?id=gt.0"
+                [("Prefer", "return=representation"), singular]
+                [json| { address: "zzz" } |]
         liftIO $ do
           simpleStatus p `shouldBe` notAcceptable406
           isErrorFormat (simpleBody p) `shouldBe` True
@@ -68,14 +66,15 @@ spec =
         get "/addresses?id=eq.98" `shouldRespondWith` [str|[{"id":98,"address":"xxx"}]|]
 
       it "raises an error for zero rows" $ do
-        p <- request methodPatch  "/items?id=gt.0&id=lt.0"
-          [("Prefer", "return=representation"), singular] [json|{"id":1}|]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPatch "/items?id=gt.0&id=lt.0"
+                [("Prefer", "return=representation"), singular] [json|{"id":1}|]
+          `shouldRespondWith`
+                  [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  { matchStatus  = 406
+                  , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                  }
 
     context "when creating rows" $ do
-
       it "works for one row" $ do
         p <- request methodPost
           "/addresses"
@@ -118,16 +117,16 @@ spec =
           }
 
       it "raises an error when creating zero entities" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation"), singular]
-          [json| [ ] |]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPost "/addresses"
+                [("Prefer", "return=representation"), singular]
+                [json| [ ] |]
+          `shouldRespondWith`
+                  [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  { matchStatus  = 406
+                  , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                  }
 
     context "when deleting rows" $ do
-
       it "works for one row" $ do
         p <- request methodDelete
           "/items?id=eq.11"
@@ -147,20 +146,23 @@ spec =
           }
 
       it "raises an error when deleting zero entities" $ do
-        p <- request methodDelete "/items?id=lt.0"
-          [("Prefer", "return=representation"), singular] ""
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodDelete "/items?id=lt.0"
+                [("Prefer", "return=representation"), singular] ""
+          `shouldRespondWith`
+                [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                { matchStatus  = 406
+                , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                }
 
     context "when calling a stored proc" $ do
-
       it "fails for zero rows" $ do
-        p <- request methodPost "/rpc/getproject"
-          [singular] [json|{ "id": 9999999}|]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPost "/rpc/getproject"
+                [singular] [json|{ "id": 9999999}|]
+          `shouldRespondWith`
+                [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                { matchStatus  = 406
+                , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                }
 
       -- this one may be controversial, should vnd.pgrst.object include
       -- the likes of 2 and "hello?"
@@ -175,19 +177,25 @@ spec =
           [str|{"id":1,"name":"Windows 7","client_id":1}|]
 
       it "fails for multiple rows" $ do
-        p <- request methodPost "/rpc/getallprojects" [singular] "{}"
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPost "/rpc/getallprojects"
+                [singular] "{}"
+          `shouldRespondWith`
+                [str|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                { matchStatus  = 406
+                , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                }
 
       it "executes the proc exactly once per request" $ do
         request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]
           `shouldRespondWith` [str|[{"id":1,"name":"Windows 7"}]|]
-        p <- request methodPost "/rpc/setprojects" [singular]
-          [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+
+        request methodPost "/rpc/setprojects" [singular]
+                [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
+          `shouldRespondWith`
+                [str|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                { matchStatus  = 406
+                , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+                }
 
         -- should not actually have executed the function
         request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]

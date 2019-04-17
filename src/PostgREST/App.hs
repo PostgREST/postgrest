@@ -162,8 +162,7 @@ app dbStructure proc conf apiRequest =
                     , if iPreferRepresentation apiRequest == Full
                         then Just $ toHeader contentType
                         else Nothing
-                    , Just . contentRangeH 1 0 $
-                        if shouldCount then Just queryTotal else Nothing
+                    , Just $ contentRangeH shouldCount 1 0 queryTotal
                     , if null pkCols
                         then Nothing
                         else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
@@ -190,8 +189,7 @@ app dbStructure proc conf apiRequest =
               let (_, queryTotal, _, body) = extractQueryResult row
 
                   updateIsNoOp       = S.null $ pjKeys pJson
-                  contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
-                                          if shouldCount then Just queryTotal else Nothing
+                  contentRangeHeader = contentRangeH shouldCount 0 (queryTotal - 1) queryTotal
                   minimalHeaders     = [contentRangeHeader]
                   fullHeaders        = toHeader contentType : minimalHeaders
 
@@ -205,7 +203,7 @@ app dbStructure proc conf apiRequest =
 
                 (CTSingularJSON, _, Full) ->
                   do HT.condemn
-                     return $ singularityError 0
+                     return $ singularityError queryTotal
 
                 (_, _, Full) ->
                   return $ responseLBS status fullHeaders (toS body)
@@ -255,8 +253,7 @@ app dbStructure proc conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = extractQueryResult row
-                  r = contentRangeH 1 0 $
-                    if shouldCount then Just queryTotal else Nothing
+                  r = contentRangeH shouldCount 1 0 queryTotal
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
@@ -332,7 +329,7 @@ app dbStructure proc conf apiRequest =
       rangeHeader queryTotal tableTotal =
         let lower = rangeOffset topLevelRange
             upper = lower + toInteger queryTotal - 1
-            contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
+            contentRange = contentRangeH (isJust tableTotal) lower upper $ (toInteger . fromJust) tableTotal
             status = rangeStatus lower upper (toInteger <$> tableTotal)
         in (status, contentRange)
 
@@ -392,16 +389,16 @@ rangeStatus lower upper (Just total)
   | (1 + upper - lower) < total = status206
   | otherwise               = status200
 
-contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
-contentRangeH lower upper total =
+contentRangeH :: (Integral a, Show a) => Bool -> a -> a -> a -> Header
+contentRangeH shouldCount lower upper total =
     ("Content-Range", headerValue)
     where
       headerValue   = rangeString <> "/" <> totalString
       rangeString
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
-      totalString   = maybe "*" show total
-      totalNotZero  = maybe True (0 /=) total
+      totalString   = if shouldCount then (show total) else "*"
+      totalNotZero  = if shouldCount then (total /= 0) else True
       fromInRange   = lower <= upper
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
