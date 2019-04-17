@@ -397,8 +397,8 @@ contentRangeH shouldCount lower upper total =
       rangeString
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
-      totalString   = if shouldCount then (show total) else "*"
-      totalNotZero  = if shouldCount then (total /= 0) else True
+      totalString   = if shouldCount then show total else "*"
+      totalNotZero  = if shouldCount then total /= 0 else True
       fromInRange   = lower <= upper
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount

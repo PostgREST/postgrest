@@ -65,7 +65,7 @@ spec =
         -- the rows should not be updated, either
         get "/addresses?id=eq.98" `shouldRespondWith` [str|[{"id":98,"address":"xxx"}]|]
 
-      it "raises an error for zero rows" $ do
+      it "raises an error for zero rows" $
         request methodPatch "/items?id=gt.0&id=lt.0"
                 [("Prefer", "return=representation"), singular] [json|{"id":1}|]
           `shouldRespondWith`
@@ -116,7 +116,7 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-      it "raises an error when creating zero entities" $ do
+      it "raises an error when creating zero entities" $
         request methodPost "/addresses"
                 [("Prefer", "return=representation"), singular]
                 [json| [ ] |]
@@ -145,7 +145,7 @@ spec =
           , matchHeaders = ["Content-Range" <:> "0-9/*"]
           }
 
-      it "raises an error when deleting zero entities" $ do
+      it "raises an error when deleting zero entities" $
         request methodDelete "/items?id=lt.0"
                 [("Prefer", "return=representation"), singular] ""
           `shouldRespondWith`
@@ -155,7 +155,7 @@ spec =
                 }
 
     context "when calling a stored proc" $ do
-      it "fails for zero rows" $ do
+      it "fails for zero rows" $
         request methodPost "/rpc/getproject"
                 [singular] [json|{ "id": 9999999}|]
           `shouldRespondWith`
@@ -176,7 +176,7 @@ spec =
           [singular] [json|{ "id": 1}|] `shouldRespondWith`
           [str|{"id":1,"name":"Windows 7","client_id":1}|]
 
-      it "fails for multiple rows" $ do
+      it "fails for multiple rows" $
         request methodPost "/rpc/getallprojects"
                 [singular] "{}"
           `shouldRespondWith`
