@@ -155,23 +155,25 @@ app dbStructure proc cols conf apiRequest =
                         else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
                     ]
 
-              let successBody = if iPreferRepresentation apiRequest == Full then toS body else ""
+                  successBody = if iPreferRepresentation apiRequest == Full then toS body else ""
+                  status | queryTotal == 0 = status200
+                         | otherwise       = status201
 
-              let successResponse status = return (responseLBS status headers successBody)
+                  successResponse = return (responseLBS status headers successBody)
 
               case (contentType, queryTotal, iPreferRepresentation apiRequest) of
                 (CTSingularJSON, 1, Full) ->
-                  successResponse status201
+                  successResponse
 
                 (CTSingularJSON, _, Full) ->
                   do HT.condemn
                      return $ singularityError (toInteger queryTotal)
 
                 (_, 0, _) ->
-                  successResponse status200
+                  successResponse
 
                 (_, _, _) ->
-                  successResponse status201
+                  successResponse
 
         (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
