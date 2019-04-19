@@ -116,6 +116,11 @@ CREATE FUNCTION always_true(test.items) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
 
+CREATE FUNCTION is_first(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT $1.id = 1 $$;
+
+
 CREATE FUNCTION anti_id(test.items) RETURNS bigint
     LANGUAGE sql STABLE
     AS $_$ SELECT $1.id * -1 $_$;

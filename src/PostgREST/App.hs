@@ -162,8 +162,8 @@ app dbStructure proc conf apiRequest =
                     , if iPreferRepresentation apiRequest == Full
                         then Just $ toHeader contentType
                         else Nothing
-                    , Just . contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+                    , Just $ contentRangeH 1 0 $
+                        if shouldCount then Just queryTotal else Nothing
                     , if null pkCols
                         then Nothing
                         else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
@@ -188,21 +188,28 @@ app dbStructure proc conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = extractQueryResult row
-              if contentType == CTSingularJSON
-                 && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
-                then do
-                  HT.condemn
-                  return $ singularityError (toInteger queryTotal)
-              else do
-                let r = contentRangeH 0 (toInteger $ queryTotal-1)
-                          (toInteger <$> if shouldCount then Just queryTotal else Nothing)
-                    s = if iPreferRepresentation apiRequest == Full
-                          then status200
-                          else status204
-                return $ if iPreferRepresentation apiRequest == Full
-                  then responseLBS s [toHeader contentType, r] (toS body)
-                  else responseLBS s [r] ""
+
+                  updateIsNoOp       = S.null $ pjKeys pJson
+                  contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
+                                          if shouldCount then Just queryTotal else Nothing
+                  minimalHeaders     = [contentRangeHeader]
+                  fullHeaders        = toHeader contentType : minimalHeaders
+
+                  status | queryTotal == 0 && not updateIsNoOp      = status404
+                         | iPreferRepresentation apiRequest == Full = status200
+                         | otherwise                                = status204
+
+              case (contentType, iPreferRepresentation apiRequest) of
+                (CTSingularJSON, Full)
+                      | queryTotal == 1 -> return $ responseLBS status fullHeaders (toS body)
+                      | otherwise       -> HT.condemn >> return (singularityError queryTotal)
+
+                (_, Full) ->
+                  return $ responseLBS status fullHeaders (toS body)
+
+                (_, _) ->
+                  return $ responseLBS status minimalHeaders mempty
+
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
@@ -246,7 +253,7 @@ app dbStructure proc conf apiRequest =
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = extractQueryResult row
                   r = contentRangeH 1 0 $
-                        toInteger <$> if shouldCount then Just queryTotal else Nothing
+                        if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                  && iPreferRepresentation apiRequest == Full
@@ -332,9 +339,10 @@ app dbStructure proc conf apiRequest =
       selectQuery = requestToQuery schema False <$> readDbRequest
       countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
+      mutationDbRequest s t = mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames
       mutateSqlParts s t =
         (,) <$> selectQuery
-            <*> (requestToQuery schema False . DbMutate <$> (mutateRequest apiRequest t (tablePKCols dbStructure s t) =<< fldNames))
+            <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
 
 responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
 responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
@@ -381,7 +389,7 @@ rangeStatus lower upper (Just total)
   | (1 + upper - lower) < total = status206
   | otherwise               = status200
 
-contentRangeH :: Integer -> Integer -> Maybe Integer -> Header
+contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
     ("Content-Range", headerValue)
     where

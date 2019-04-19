@@ -64,7 +64,7 @@ pgError authed e =
                 else [jsonType] in
   responseLBS status hdrs (encodeError e)
 
-singularityError :: Integer -> Response
+singularityError :: (Integral a, Show a) => a -> Response
 singularityError numRows =
   responseLBS HT.status406
     [toHeader CTSingularJSON]
