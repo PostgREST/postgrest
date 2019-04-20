@@ -17,6 +17,7 @@ import qualified Data.Set                      as S
 import           Data.Tree
 import           Data.Either.Combinators       (mapLeft)
 import           PostgREST.RangeQuery          (NonnegRange)
+import           PostgREST.Error               (ApiRequestError(ParseRequestError))
 import           PostgREST.Types
 import           Text.ParserCombinators.Parsec hiding (many, (<|>))
 import           Text.Parsec.Error

@@ -3,7 +3,9 @@ Module      : PostgREST.Types
 Description : PostgREST common types and functions used by the rest of the modules
 -}
 {-# LANGUAGE DuplicateRecordFields    #-}
+
 module PostgREST.Types where
+
 import           Protolude
 import qualified GHC.Show
 import qualified Data.Aeson           as JSON
@@ -33,16 +35,6 @@ toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTOctetStream     = "application/octet-stream"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
-
-data ApiRequestError = ActionInappropriate
-                     | InvalidBody ByteString
-                     | InvalidRange
-                     | ParseRequestError Text Text
-                     | UnknownRelation
-                     | NoRelationBetween Text Text
-                     | UnsupportedVerb
-                     | InvalidFilters
-                     deriving (Show, Eq)
 
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
 instance Show PreferResolution where

@@ -7,7 +7,7 @@ import           PostgREST.App              (postgrest)
 import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
                                              prettyVersion, readOptions)
 import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
-import           PostgREST.Error            (encodeError)
+import           PostgREST.Error            (errorPayload, PgError(PgError))
 import           PostgREST.OpenAPI          (isMalformedProxyUri)
 import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion)
 import           Protolude                  hiding (hPutStrLn, replace)
@@ -88,7 +88,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
         case result of
           Left e -> do
             putStrLn ("Failed to query the database. Retrying." :: Text)
-            hPutStrLn stderr (toS $ encodeError e)
+            hPutStrLn stderr (toS $ errorPayload (PgError False e))
             work
           Right _ -> do
             atomicWriteIORef refIsWorkerOn False
@@ -113,7 +113,7 @@ connectingSucceeded pool =
     isConnectionSuccessful = do
       testConn <- P.use pool $ H.sql "SELECT 1"
       case testConn of
-        Left e -> hPutStrLn stderr (toS $ encodeError e) >> pure False
+        Left e -> hPutStrLn stderr (toS $ errorPayload (PgError False e)) >> pure False
         _ -> pure True
     shouldRetry :: RetryStatus -> Bool -> IO Bool
     shouldRetry rs isConnSucc = do
