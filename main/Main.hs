@@ -164,7 +164,7 @@ main = do
   --
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
-  pool <- P.acquire (configPool conf, 10, pgSettings)
+  pool <- P.acquire (configPool conf, toEnum $ configPoolTimeout conf, pgSettings)
   --
   -- To be filled in by connectionWorker
   refDbStructure <- newIORef Nothing

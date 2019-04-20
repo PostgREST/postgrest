@@ -70,7 +70,7 @@ _baseCfg =  -- Connection Settings
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
-            10 Nothing (Just "test.switch_role")
+            10 10 Nothing (Just "test.switch_role")
             -- Debug Settings
             True
             [ ("app.settings.app_host", "localhost")
