@@ -35,6 +35,7 @@ import qualified Data.Configurator.Parser     as C
 import           Data.Configurator.Types      as C
 import           Data.List                    (lookup)
 import           Data.Monoid
+-- import           Data.Time.Clock.UTC          (NominalDiffTime)
 import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
 import           Data.Text                    (dropWhileEnd, dropEnd,
@@ -73,7 +74,7 @@ data AppConfig = AppConfig {
   , configJwtAudience       :: Maybe StringOrURI
 
   , configPool              :: Int
-  , configPoolTimeout       :: Int
+  , configPoolTimeout       :: Float
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
@@ -137,7 +138,7 @@ readOptions = do
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> parseJwtAudience "jwt-aud"
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
-          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool-timeout")
+          <*> (fromMaybe 10.0 . join . fmap coerceFloat <$> C.key "db-pool-timeout")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
@@ -170,6 +171,11 @@ readOptions = do
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
     coerceInt (String x) = readMaybe $ toS x
     coerceInt _          = Nothing
+
+    coerceFloat :: (Read i, RealFloat i) => Value -> Maybe i
+    coerceFloat (Number x) = leftToMaybe $ floatingOrInteger x
+    coerceFloat (String x) = readMaybe $ toS x
+    coerceFloat _          = Nothing
 
     coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
