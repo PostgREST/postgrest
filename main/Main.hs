@@ -4,7 +4,7 @@ module Main where
 
 
 import           PostgREST.App              (postgrest)
-import           PostgREST.Config           (AppConfig (..),
+import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
                                              prettyVersion, readOptions)
 import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
 import           PostgREST.Error            (encodeError)
@@ -164,7 +164,7 @@ main = do
   --
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
-  pool <- P.acquire (configPool conf, (fromRational . toRational . configPoolTimeout) conf, pgSettings)
+  pool <- P.acquire (configPool conf, configPoolTimeout' conf, pgSettings)
   --
   -- To be filled in by connectionWorker
   refDbStructure <- newIORef Nothing

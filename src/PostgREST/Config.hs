@@ -19,6 +19,7 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , AppConfig (..)
+                        , configPoolTimeout'
                         )
        where
 
@@ -35,7 +36,6 @@ import qualified Data.Configurator.Parser     as C
 import           Data.Configurator.Types      as C
 import           Data.List                    (lookup)
 import           Data.Monoid
--- import           Data.Time.Clock.UTC          (NominalDiffTime)
 import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
 import           Data.Text                    (dropWhileEnd, dropEnd,
@@ -82,6 +82,11 @@ data AppConfig = AppConfig {
   , configRoleClaimKey      :: Either ApiRequestError JSPath
   , configExtraSearchPath   :: [Text]
   }
+
+configPoolTimeout' :: (Fractional a) => AppConfig -> a
+configPoolTimeout' =
+  fromRational . toRational . configPoolTimeout
+
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
