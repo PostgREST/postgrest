@@ -88,7 +88,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
         case result of
           Left e -> do
             putStrLn ("Failed to query the database. Retrying." :: Text)
-            hPutStrLn stderr (toS $ errorPayload (PgError False e))
+            hPutStrLn stderr $ toS . errorPayload . PgError False $ e
             work
           Right _ -> do
             atomicWriteIORef refIsWorkerOn False
@@ -113,8 +113,12 @@ connectingSucceeded pool =
     isConnectionSuccessful = do
       testConn <- P.use pool $ H.sql "SELECT 1"
       case testConn of
-        Left e -> hPutStrLn stderr (toS $ errorPayload (PgError False e)) >> pure False
-        _ -> pure True
+        Left e -> do
+          hPutStrLn stderr . toS . errorPayload . PgError False $ e
+          return False
+        _      ->
+          return True
+
     shouldRetry :: RetryStatus -> Bool -> IO Bool
     shouldRetry rs isConnSucc = do
       delay <- pure $ fromMaybe 0 (rsPreviousDelay rs) `div` 1000000

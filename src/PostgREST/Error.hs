@@ -199,10 +199,10 @@ instance PostgRestError SimpleError where
   status PutMatchingPkError        = HT.status400
   status PutRangeNotAllowedError   = HT.status400
   status PutPayloadIncompleteError = HT.status400
-  status (SingularityError _)      = HT.status406
-  status (ContentTypeError _)      = HT.status415
   status JwtTokenMissing           = HT.status500
   status (JwtTokenInvalid _)       = HT.unauthorized401
+  status (SingularityError _)      = HT.status406
+  status (ContentTypeError _)      = HT.status415
 
   headers (SingularityError _)     = [toHeader CTSingularJSON]
   headers (JwtTokenInvalid m)      = [toHeader CTApplicationJSON, invalidTokenHeader m]
