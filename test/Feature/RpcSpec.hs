@@ -323,7 +323,12 @@ spec actualPgVersion =
         }
 
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
-      get "/rpc/raise_bad_pt" `shouldRespondWith` 500
+      get "/rpc/raise_bad_pt"
+        `shouldRespondWith`
+        [json|{"hint": null, "details": null}|]
+        { matchStatus  = 500
+        , matchHeaders = [ matchContentTypeJson ]
+        }
 
     context "expects a single json object" $ do
       it "does not expand posted json into parameters" $
