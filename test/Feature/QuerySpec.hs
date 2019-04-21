@@ -181,7 +181,6 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
   describe "Shaping response with select parameter" $ do
-
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
         [str|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}]|]
@@ -454,6 +453,12 @@ spec = do
              {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
              {"id":3,"body":"How are you doing?","sender":{"name":"John"},"recipient":{"name":"Jane"}}] |]
           { matchHeaders = [matchContentTypeJson] }
+
+      it "fails with an unknown relation" $
+        get "/message?select=id,sender:person.space(name)&id=lt.4" `shouldRespondWith`
+          [json|{"message":"Could not find foreign keys between these entities, No relation found between message and person"}|]
+          { matchStatus = 400
+          , matchHeaders = [matchContentTypeJson] }
 
       it "works with a parent view relation" $
         get "/message?select=id,body,sender:person_detail%2Bsender(name,sent),recipient:person_detail%2Brecipient(name,received)&id=lt.4" `shouldRespondWith`
@@ -790,7 +795,11 @@ spec = do
     it "should respond an unknown accept type with 415" $
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype") ""
-        `shouldRespondWith` 415
+        `shouldRespondWith`
+        [json|{"message":"None of these Content-Types are available: text/unknowntype"}|]
+        { matchStatus  = 415
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     it "should respond correctly to */* in accept header" $
       request methodGet "/simple_pk"
@@ -846,7 +855,6 @@ spec = do
         respHeaders `shouldSatisfy` matchHeader
           "Content-Location" "/simple_pk"
 
-
   describe "weird requests" $ do
     it "can query as normal" $ do
       get "/Escap3e;" `shouldRespondWith`
@@ -897,7 +905,11 @@ spec = do
 
       it "fails if a single column is not selected" $ do
         request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-          `shouldRespondWith` 406
+          `shouldRespondWith`
+          [json| {"message":"application/octet-stream requested but a single column was not selected"} |]
+          { matchStatus = 406
+          , matchHeaders = [matchContentTypeJson]
+          }
         request methodGet "/images?select=*&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
           `shouldRespondWith` 406
         request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
@@ -929,7 +941,11 @@ spec = do
 
         it "fails if a single column is not selected" $
           request methodPost "/rpc/ret_rows_with_base64_bin" (acceptHdrs "application/octet-stream") ""
-            `shouldRespondWith` 406
+            `shouldRespondWith`
+            [json| {"message":"application/octet-stream requested but a single column was not selected"} |]
+            { matchStatus = 406
+            , matchHeaders = [matchContentTypeJson]
+            }
 
   describe "HTTP request env vars" $ do
     it "custom header is set" $
@@ -1047,7 +1063,12 @@ spec = do
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
     it "only returns an empty result set if the in value is empty" $
-      get "/items_with_different_col_types?int_data=in.( ,3,4)" `shouldRespondWith` 400
+      get "/items_with_different_col_types?int_data=in.( ,3,4)"
+        `shouldRespondWith`
+        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"\""} |]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
   describe "Embedding when column name = table name" $ do
     it "works with child embeds" $

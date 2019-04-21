@@ -41,13 +41,13 @@ class (JSON.ToJSON a) => PostgRestError a where
 
 data ApiRequestError
   = ActionInappropriate
-  | InvalidBody ByteString
   | InvalidRange
+  | InvalidBody ByteString
   | ParseRequestError Text Text
-  | UnknownRelation
   | NoRelationBetween Text Text
-  | UnsupportedVerb
   | InvalidFilters
+  | UnknownRelation                -- Unreachable?
+  | UnsupportedVerb                -- Unreachable?
   deriving (Show, Eq)
 
 instance PostgRestError ApiRequestError where
@@ -182,9 +182,9 @@ data SimpleError
   | BinaryFieldError
   | ConnectionLostError
   | PutSingletonError
+  | PutMatchingPkError
   | PutRangeNotAllowedError
   | PutPayloadIncompleteError
-  | PutMatchingPkError
   | JwtTokenMissing
   | JwtTokenInvalid Text
   | SingularityError Integer
@@ -196,9 +196,9 @@ instance PostgRestError SimpleError where
   status BinaryFieldError          = HT.status406
   status ConnectionLostError       = HT.status503
   status PutSingletonError         = HT.status400
+  status PutMatchingPkError        = HT.status400
   status PutRangeNotAllowedError   = HT.status400
   status PutPayloadIncompleteError = HT.status400
-  status PutMatchingPkError        = HT.status400
   status (SingularityError _)      = HT.status406
   status (ContentTypeError _)      = HT.status415
   status JwtTokenMissing           = HT.status500

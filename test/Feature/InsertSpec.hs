@@ -53,9 +53,22 @@ spec actualPgVersion = do
 
     context "non uniform json array" $ do
       it "rejects json array that isn't exclusivily composed of objects" $
-        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |] `shouldRespondWith` 400
+        post "/articles"
+             [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |]
+        `shouldRespondWith`
+             [json| {"message":"All object keys must match"} |]
+             { matchStatus  = 400
+             , matchHeaders = [matchContentTypeJson]
+             }
+
       it "rejects json array that has objects with different keys" $
-        post "/articles" [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |] `shouldRespondWith` 400
+        post "/articles"
+             [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |]
+        `shouldRespondWith`
+             [json| {"message":"All object keys must match"} |]
+             { matchStatus  = 400
+             , matchHeaders = [matchContentTypeJson]
+             }
 
     context "requesting full representation" $ do
       it "includes related data after insert" $
@@ -106,10 +119,12 @@ spec actualPgVersion = do
 
       context "into a table with simple pk" $
         it "fails with 400 and error" $ do
-          p <- post "/simple_pk" [json| { "extra":"foo"} |]
-          liftIO $ do
-            simpleStatus p `shouldBe` badRequest400
-            isErrorFormat (simpleBody p) `shouldBe` True
+          post "/simple_pk" [json| { "extra":"foo"} |]
+          `shouldRespondWith`
+          [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" violates not-null constraint"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
 
       context "into a table with no pk" $ do
         it "succeeds with 201 and a link including all fields" $ do
@@ -184,10 +199,12 @@ spec actualPgVersion = do
 
     context "with invalid json payload" $
       it "fails with 400 and error" $ do
-        p <- post "/simple_pk" "}{ x = 2"
-        liftIO $ do
-          simpleStatus p `shouldBe` badRequest400
-          isErrorFormat (simpleBody p) `shouldBe` True
+        post "/simple_pk" "}{ x = 2"
+        `shouldRespondWith`
+        [json|{"message":"Error in $: Failed reading: not a valid json value"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     context "with valid json payload" $
       it "succeeds and returns 201 created" $
@@ -195,7 +212,12 @@ spec actualPgVersion = do
 
     context "attempting to insert a row with the same primary key" $
       it "fails returning a 409 Conflict" $
-        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 409
+        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |]
+          `shouldRespondWith`
+          [json|{"hint":null,"details":"Key (k)=(k1) already exists.","code":"23505","message":"duplicate key value violates unique constraint \"contacts_pkey\""}|]
+          { matchStatus  = 409
+          , matchHeaders = [matchContentTypeJson]
+          }
 
     context "attempting to insert a row with conflicting unique constraint" $
       it "fails returning a 409 Conflict" $
@@ -295,7 +317,12 @@ spec actualPgVersion = do
         post "/articles?columns="
           [json|[
             {"id": 204, "body": "yyy"},
-            {"id": 205, "body": "zzz"}]|] `shouldRespondWith` 400
+            {"id": 205, "body": "zzz"}]|]
+          `shouldRespondWith`
+          [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)"} |]
+          { matchStatus  = 400
+          , matchHeaders = []
+          }
 
       it "disallows array elements that are not json objects" $
         post "/articles?columns=id,body"
@@ -314,7 +341,6 @@ spec actualPgVersion = do
           }
 
   describe "CSV insert" $ do
-
     context "disparate csv types" $
       it "succeeds with multipart response" $ do
         pendingWith "Decide on what to do with CSV insert"
@@ -362,10 +388,12 @@ spec actualPgVersion = do
 
     context "with wrong number of columns" $
       it "fails for too few" $ do
-        p <- request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
-        liftIO $ do
-          simpleStatus p `shouldBe` badRequest400
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
+        `shouldRespondWith`
+        [json|{"message":"All lines must have same number of fields"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
@@ -381,9 +409,7 @@ spec actualPgVersion = do
         r <- get location
         liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
 
-
   describe "Patching record" $ do
-
     context "to unknown uri" $
       it "indicates no table found by returning 404" $
         request methodPatch "/fake" []

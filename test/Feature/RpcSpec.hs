@@ -253,7 +253,11 @@ spec actualPgVersion =
     context "unsupported verbs" $ do
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
-          `shouldRespondWith` 405
+          `shouldRespondWith`
+          [json|{"message":"Bad Request"}|]
+          { matchStatus  = 405
+          , matchHeaders = [matchContentTypeJson]
+          }
       it "PATCH fails" $
         request methodPatch "/rpc/sayhello" [] ""
           `shouldRespondWith` 405
