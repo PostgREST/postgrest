@@ -118,7 +118,7 @@ spec actualPgVersion = do
             incNullableStr record `shouldBe` Nothing
 
       context "into a table with simple pk" $
-        it "fails with 400 and error" $ do
+        it "fails with 400 and error" $
           post "/simple_pk" [json| { "extra":"foo"} |]
           `shouldRespondWith`
           [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" violates not-null constraint"}|]
@@ -198,7 +198,7 @@ spec actualPgVersion = do
           lookup hLocation (simpleHeaders p) `shouldBe` Nothing
 
     context "with invalid json payload" $
-      it "fails with 400 and error" $ do
+      it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
         `shouldRespondWith`
         [json|{"message":"Error in $: Failed reading: not a valid json value"}|]
@@ -387,7 +387,7 @@ spec actualPgVersion = do
           }
 
     context "with wrong number of columns" $
-      it "fails for too few" $ do
+      it "fails for too few" $
         request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         `shouldRespondWith`
         [json|{"message":"All lines must have same number of fields"}|]
