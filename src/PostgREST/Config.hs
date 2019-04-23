@@ -178,7 +178,7 @@ readOptions = do
     coerceInt _          = Nothing
 
     coerceFloat :: (Read i, RealFloat i) => Value -> Maybe i
-    coerceFloat (Number x) = leftToMaybe $ floatingOrInteger x
+    coerceFloat (Number x) = rightToMaybe $ floatingOrInteger x
     coerceFloat (String x) = readMaybe $ toS x
     coerceFloat _          = Nothing
 
