@@ -172,15 +172,16 @@ readOptions = do
     coerceText (String s) = s
     coerceText v = show v
 
+    coerceNum :: (Read i, Num i) => Value -> Maybe i
+    coerceNum (Number x) = fromIntegral <$> (rightToMaybe . floatingOrInteger $ x)
+    coerceNum (String x) = readMaybe $ toS x
+    coerceNum _          = Nothing
+
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
-    coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
-    coerceInt (String x) = readMaybe $ toS x
-    coerceInt _          = Nothing
+    coerceInt = coerceNum
 
     coerceFloat :: (Read i, RealFloat i) => Value -> Maybe i
-    coerceFloat (Number x) = fromIntegral <$> (rightToMaybe . floatingOrInteger $ x)
-    coerceFloat (String x) = readMaybe $ toS x
-    coerceFloat _          = Nothing
+    coerceFloat = coerceNum
 
     coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
