@@ -74,7 +74,7 @@ data AppConfig = AppConfig {
   , configJwtAudience       :: Maybe StringOrURI
 
   , configPool              :: Int
-  , configPoolTimeout       :: Float
+  , configPoolTimeout       :: Int
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
@@ -143,7 +143,7 @@ readOptions = do
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> parseJwtAudience "jwt-aud"
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
-          <*> (fromMaybe 10.0 . join . fmap coerceFloat <$> C.key "db-pool-timeout")
+          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool-timeout")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
@@ -172,16 +172,10 @@ readOptions = do
     coerceText (String s) = s
     coerceText v = show v
 
-    coerceNum :: (Read i, Num i) => Value -> Maybe i
-    coerceNum (Number x) = fromIntegral <$> (rightToMaybe . floatingOrInteger $ x)
-    coerceNum (String x) = readMaybe $ toS x
-    coerceNum _          = Nothing
-
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
-    coerceInt = coerceNum
-
-    coerceFloat :: (Read i, RealFloat i) => Value -> Maybe i
-    coerceFloat = coerceNum
+    coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
+    coerceInt (String x) = readMaybe $ toS x
+    coerceInt _          = Nothing
 
     coerceBool :: Value -> Maybe Bool
     coerceBool (Bool b)   = Just b
