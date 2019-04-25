@@ -1,31 +1,42 @@
 module SpecHelper where
 
-import qualified Data.ByteString.Base64 as B64 (decodeLenient, encode)
-import qualified Data.ByteString.Char8  as BS
-import qualified Data.ByteString.Lazy   as BL
-import qualified Data.Map.Strict        as M
-import qualified Data.Set               as S
-import qualified JSONSchema.Draft4      as D4
-import qualified System.IO.Error        as E
+import qualified Data.ByteString.Base64     as B64 (decodeLenient,
+                                                    encode)
+import qualified Data.ByteString.Char8      as BS
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.Map.Strict            as M
+import qualified Data.Set                   as S
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction.Sessions as HT
+import qualified JSONSchema.Draft4          as D4
+import qualified Network.Wai.Test           as WaiTest
+import qualified System.IO.Error            as E
 
-import Control.Monad        (void)
-import Data.Aeson           (Value (..), decode)
-import Data.CaseInsensitive (CI (..))
-import Data.List            (lookup)
-import Data.Maybe           (fromJust)
-import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.Environment   (getEnv)
-import System.Process       (readProcess)
-import Text.Regex.TDFA      ((=~))
-
+import Control.AutoUpdate        (defaultUpdateSettings, mkAutoUpdate,
+                                  updateAction)
+import Control.Monad             (void)
+import Data.Aeson                (Value (..), decode)
+import Data.CaseInsensitive      (CI (..))
+import Data.IORef                (newIORef)
+import Data.List                 (lookup)
+import Data.Maybe                (fromJust)
+import Data.Time.Clock           (getCurrentTime)
+import Network.HTTP.Types.Status (statusCode)
+import Network.Wai               (Application, Request)
+import Network.Wai.Test          (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import System.Environment        (getEnv)
+import System.Process            (readProcess)
+import Text.Regex.TDFA           ((=~))
 
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
-import PostgREST.Config (AppConfig (..))
-import PostgREST.Types  (JSPathExp (..))
+import PostgREST.App         (postgrest)
+import PostgREST.Config      (AppConfig (..))
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Types       (JSPathExp (..))
 import Protolude
 
 matchContentTypeJson :: MatchHeader
@@ -175,3 +186,28 @@ isErrorFormat s =
   obj = decode s :: Maybe (M.Map Text Value)
   keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]
+
+
+posgrestTestApp :: IO ((Text -> AppConfig) -> Application)
+posgrestTestApp = do
+  testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
+  setupDb testDbConn
+
+  pool <- P.acquire (3, 10, toS testDbConn)
+
+  result <- P.use pool $ do
+    ver <- getPgVersion
+    HT.transaction HT.ReadCommitted HT.Read $ getDbStructure "test" ver
+
+  dbStructure <- pure $ either (panic.show) identity result
+
+  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+
+  refDbStructure <- newIORef $ Just dbStructure
+
+  return (\config -> postgrest (config testDbConn) refDbStructure pool getTime $ pure ())
+
+requestAction :: Application -> Request -> IO Int
+requestAction app req = do
+  response <- WaiTest.runSession (WaiTest.request req) app
+  return . statusCode . WaiTest.simpleStatus $ response
