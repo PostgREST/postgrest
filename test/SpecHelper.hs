@@ -1,5 +1,6 @@
 module SpecHelper where
 
+
 import qualified Data.ByteString.Base64     as B64 (decodeLenient,
                                                     encode)
 import qualified Data.ByteString.Char8      as BS
@@ -9,7 +10,7 @@ import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 import qualified JSONSchema.Draft4          as D4
-import qualified Network.Wai.Test           as WaiTest
+-- import qualified Network.Wai.Test           as WaiTest
 import qualified System.IO.Error            as E
 
 import Control.AutoUpdate        (defaultUpdateSettings, mkAutoUpdate,
@@ -22,10 +23,11 @@ import Data.List                 (lookup)
 import Data.Maybe                (fromJust)
 import Data.Time.Clock           (getCurrentTime)
 import Network.HTTP.Types.Status (statusCode)
-import Network.Wai               (Application, Request)
+import Network.Wai               (Application)
 import Network.Wai.Test          (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.Environment        (getEnv)
 import System.Process            (readProcess)
+import Test.Hspec.Wai.Internal   (withApplication)
 import Text.Regex.TDFA           ((=~))
 
 import Network.HTTP.Types
@@ -37,6 +39,7 @@ import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Types       (JSPathExp (..))
+
 import Protolude
 
 matchContentTypeJson :: MatchHeader
@@ -207,7 +210,7 @@ posgrestTestApp = do
 
   return (\config -> postgrest (config testDbConn) refDbStructure pool getTime $ pure ())
 
-requestAction :: Application -> Request -> IO Int
+requestAction :: Application -> WaiSession SResponse -> IO Int
 requestAction app req = do
-  response <- WaiTest.runSession (WaiTest.request req) app
-  return . statusCode . WaiTest.simpleStatus $ response
+  response <- withApplication app req
+  return . statusCode . simpleStatus $ response
