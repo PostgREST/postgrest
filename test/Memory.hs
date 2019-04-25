@@ -1,20 +1,19 @@
 module Main where
 
+import           Data.Aeson           ((.=))
 import qualified Data.Aeson           as JSON
-import           Data.Map             (fromList)
 import           Network.Wai          (Application)
 import           SpecHelper           (posgrestTestApp, requestAction,
-                                       testCfg)
+                                       testCfgMemory)
 
-import           Data.ByteString.Lazy (ByteString, replicate)
+import           Data.ByteString.Lazy as BS hiding (take)
 import           Network.Wai.Test     (SResponse)
 import           Test.Hspec.Wai       (WaiSession, get, patch, post)
 import           Weigh                (Weigh, mainWith, maxAllocs,
-                                       validateAction)
+                                       validateAction, wgroup)
 
 
-import           Protolude            hiding (ByteString, get,
-                                       replicate)
+import           Protolude            hiding (get)
 
 
 newtype MegaBytes = MegaBytes Double
@@ -23,59 +22,86 @@ newtype MegaBytes = MegaBytes Double
 main :: IO ()
 main = do
   postgrestApp <- posgrestTestApp
-  let testMaxAllocationMB = appMaxAlocationTesterMB (postgrestApp testCfg)
+  let test = testMaxAllocationMB $ postgrestApp testCfgMemory
 
   mainWith $ do
-    testMaxAllocationMB "root request"
-                        (get "/") $
-                        MegaBytes 30
+    test "root request" (get "/") $ MegaBytes 30
+    jsonKeyTest1M test
+    jsonKeyTest10M test
+    jsonKeyTest50M test
+    jsonArrayTest test
 
-    testMaxAllocationMB "post rpc request 1M"
-                        (post "/rpc/leak?columns=blob"           $ jsonBlob 1) $
-                        MegaBytes 8
-    testMaxAllocationMB "post request 1M"
-                        (post "/leak?columns=blob"               $ jsonBlob 1) $
-                        MegaBytes 8
-    testMaxAllocationMB "patch request 1M"
-                        (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 1) $
-                        MegaBytes 5
-    --
-    --
-    testMaxAllocationMB "post rpc request 10M"
-                        (post "/rpc/leak?columns=blob"           $ jsonBlob 10) $
-                        MegaBytes 75
-    testMaxAllocationMB "post request 10M"
-                        (post "/leak?columns=blob"               $ jsonBlob 10) $
-                        MegaBytes 75
-    testMaxAllocationMB "patch request 10M"
-                        (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 10) $
-                        MegaBytes 41
+type MemoryCaseTester = (Text -> WaiSession SResponse -> MegaBytes -> Weigh ())
 
-    --
-    testMaxAllocationMB "post rpc request 50M"
-                        (post "/rpc/leak?columns=blob"           $ jsonBlob 50) $
-                        MegaBytes 355
-    testMaxAllocationMB "post request 50M"
-                        (post "/leak?columns=blob"               $ jsonBlob 50) $
-                        MegaBytes 355
-    testMaxAllocationMB "patch request 50M"
-                        (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 50) $
-                        MegaBytes 205
+jsonKeyTest1M :: MemoryCaseTester -> Weigh ()
+jsonKeyTest1M test = wgroup "json key test - 1M blob" $ do
+    test "post rpc request"
+         (post "/rpc/leak?columns=blob"           $ jsonBlob 1) $
+         MegaBytes 10
+    test "post request"
+         (post "/leak?columns=blob"               $ jsonBlob 1) $
+         MegaBytes 10
+    test "patch request"
+         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 1) $
+         MegaBytes 5
+
+jsonKeyTest10M :: MemoryCaseTester -> Weigh ()
+jsonKeyTest10M test = wgroup "json key test - 10M blob" $ do
+    test "post rpc request"
+         (post "/rpc/leak?columns=blob"           $ jsonBlob 10) $
+         MegaBytes 75
+    test "post request"
+         (post "/leak?columns=blob"               $ jsonBlob 10) $
+         MegaBytes 75
+    test "patch request"
+         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 10) $
+         MegaBytes 45
+
+jsonKeyTest50M :: MemoryCaseTester -> Weigh ()
+jsonKeyTest50M test = wgroup "json key test - 50M blob" $ do
+    test "post rpc request"
+         (post "/rpc/leak?columns=blob"           $ jsonBlob 50) $
+         MegaBytes 355
+    test "post request"
+         (post "/leak?columns=blob"               $ jsonBlob 50) $
+         MegaBytes 355
+    test "patch request"
+         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 50) $
+         MegaBytes 205
+
+jsonArrayTest :: MemoryCaseTester -> Weigh ()
+jsonArrayTest test = wgroup "POST json array test" $ do
+    test "1_000 elements"
+      (post "/perf_articles/?columns=id,body" $ jsonArray 1000) $
+      MegaBytes 10
+
+    test "10_000 elements"
+      (post "/perf_articles/?columns=id,body" $ jsonArray 10000) $
+      MegaBytes 25
+
+    test "100_000 elements"
+      (post "/perf_articles/?columns=id,body" $ jsonArray 100000) $
+      MegaBytes 215
 
 
-appMaxAlocationTesterMB :: Application -> Text -> WaiSession SResponse -> MegaBytes -> Weigh ()
-appMaxAlocationTesterMB app testDescription req maxBytes =
-  validateAction (toS testDescription) (requestAction app) req guardAllocLimit
+testMaxAllocationMB :: Application -> Text -> WaiSession SResponse -> MegaBytes -> Weigh ()
+testMaxAllocationMB postgrestApp testDescription req maxBytes =
+  validateAction (toS testDescription)
+                 (requestAction postgrestApp)
+                 req
+                 guardAllocLimit
     where guardAllocLimit = maxAllocs . inBytes $ maxBytes
-
 
 inBytes :: (Integral a) => MegaBytes -> a
 inBytes (MegaBytes n) = round . (* 1024) . (* 1024) $ n
 
-jsonBlob :: Double -> ByteString
-jsonBlob n = JSON.encode $ Data.Map.fromList payload
-  where payload :: [(Text, Text)]
-        payload = [("blob", blob)]
 
-        blob :: Text
-        blob = toS $ replicate (inBytes $ MegaBytes n) 52
+jsonBlob :: Double -> BS.ByteString
+jsonBlob size = JSON.encode $ JSON.object ["blob" .= blob]
+  where blob :: Text
+        blob = toS $ BS.replicate (inBytes $ MegaBytes size) 52
+
+jsonArray :: Int -> BS.ByteString
+jsonArray size = JSON.encode . take size $ baseObject <$> [1..]
+  where baseObject :: Int -> JSON.Value
+        baseObject n = JSON.object ["id" .= n, "body" .= ("xxxxxxx" :: Text)]

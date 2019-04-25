@@ -207,4 +207,4 @@ Test-Suite memory
                      , time
                      , wai
                      , wai-extra
-                     , weigh
+                     , weigh >= 0.0.14

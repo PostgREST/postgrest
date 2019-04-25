@@ -14,6 +14,7 @@ extra-deps:
   - postgresql-libpq-0.9.4.1
   - http-types-0.12.3
   - wai-middleware-static-0.8.2
+  - weigh-0.0.14
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:

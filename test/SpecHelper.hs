@@ -138,6 +138,9 @@ testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchema = "non
 testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
 
+testCfgMemory :: Text -> AppConfig
+testCfgMemory testDbConn = (testCfg testDbConn) { configPool = 1 }
+
 setupDb :: Text -> IO ()
 setupDb dbConn = do
   loadFixture dbConn "database"
