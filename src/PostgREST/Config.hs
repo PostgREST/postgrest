@@ -19,6 +19,7 @@ module PostgREST.Config ( prettyVersion
                         , readOptions
                         , corsPolicy
                         , AppConfig (..)
+                        , configPoolTimeout'
                         )
        where
 
@@ -73,6 +74,7 @@ data AppConfig = AppConfig {
   , configJwtAudience       :: Maybe StringOrURI
 
   , configPool              :: Int
+  , configPoolTimeout       :: Int
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
@@ -80,6 +82,11 @@ data AppConfig = AppConfig {
   , configRoleClaimKey      :: Either ApiRequestError JSPath
   , configExtraSearchPath   :: [Text]
   }
+
+configPoolTimeout' :: (Fractional a) => AppConfig -> a
+configPoolTimeout' =
+  fromRational . toRational . configPoolTimeout
+
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
@@ -136,6 +143,7 @@ readOptions = do
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> parseJwtAudience "jwt-aud"
           <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
+          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool-timeout")
           <*> (join . fmap coerceInt <$> C.key "max-rows")
           <*> (mfilter (/= "") <$> C.key "pre-request")
           <*> pure False
@@ -208,6 +216,7 @@ readOptions = do
           |db-schema = "public" # this schema gets added to the search_path of every request
           |db-anon-role = "postgres"
           |db-pool = 10
+          |db-pool-timeout = 10
           |
           |server-host = "127.0.0.1"
           |server-port = 3000

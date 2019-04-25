@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #690, Add `?columns` query parameter for faster bulk inserts, also ignores unspecified json keys in a payload - @steve-chavez
 - #1239, Add support for resource embedding on materialized views - @vitorbaptista
 - #1264, Add support for bulk RPC call - @steve-chavez
+- #1278, Add db-pool-timeout config option - @qu4tro
 
 ### Fixed
 
@@ -19,6 +20,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1238, Fix PostgreSQL to OpenAPI type mappings for numeric and character types - @fpusch
 - #1265, Fix query generated on bulk upsert with an empty array - @qu4tro
 - #1273, Fix RPC ignoring unknown arguments by default - @steve-chavez
+- #1257, Fix incorrect status when a PATCH request doesn't find rows to change - @qu4tro
 
 ## [5.2.0] - 2018-12-12
 
