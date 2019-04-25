@@ -44,6 +44,7 @@ executable postgrest
                      , bytestring
                      , base64-bytestring
                      , retry
+                     , weigh
   if !os(windows)
     build-depends:     unix
 
@@ -174,3 +175,42 @@ Test-Suite spec
                      , transformers-base
                      , wai
                      , wai-extra
+
+Test-Suite memory
+  Type:                exitcode-stdio-1.0
+  Default-Language:    Haskell2010
+  default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
+  Hs-Source-Dirs:      test
+  Main-Is:             Memory.hs
+  Build-Depends:       aeson
+                     , aeson-qq
+                     , async
+                     , auto-update
+                     , base >= 4.8 && < 4.10
+                     , bytestring
+                     , base64-bytestring
+                     , case-insensitive
+                     , cassava
+                     , containers
+                     , contravariant
+                     , hasql >= 1.3 && < 1.4
+                     , hasql-pool >= 0.5 && < 0.6
+                     , hasql-transaction >= 0.7 && < 0.8
+                     , heredoc
+                     , hjsonschema == 1.5.0.1
+                     , hspec
+                     , hspec-wai >= 0.7.0
+                     , hspec-wai-json
+                     , http-types
+                     , lens
+                     , lens-aeson
+                     , monad-control
+                     , postgrest
+                     , process
+                     , protolude == 0.2.2
+                     , regex-tdfa
+                     , time
+                     , transformers-base
+                     , wai
+                     , wai-extra
+                     , weigh
