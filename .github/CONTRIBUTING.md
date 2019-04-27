@@ -32,7 +32,7 @@ your contributions.
   then [find your logs](http://blog.endpoint.com/2014/11/dear-postgresql-where-are-my-logs.html).
 
 * If your database schema has changed while the PostgREST server is running,
-  send the server a `SIGHUP` signal or restart it to ensure the schema cache
+  [send the server a `SIGUSR1` signal](http://postgrest.org/en/v5.2/admin.html#schema-reloading) or restart it to ensure the schema cache
   is not stale. This sometimes fixes apparent bugs.
 
 ## Code
