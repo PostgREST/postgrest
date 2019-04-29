@@ -23,7 +23,8 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setGracefulShutdownTimeout, setHost,
                                  setInstallShutdownHandler, setPort,
                                  setServerName)
-import System.IO                (BufferMode (..), hSetBuffering)
+
+import System.IO (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
