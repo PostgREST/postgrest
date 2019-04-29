@@ -22,6 +22,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1273, Fix RPC ignoring unknown arguments by default - @steve-chavez
 - #1257, Fix incorrect status when a PATCH request doesn't find rows to change - @qu4tro
 
+### Changed
+
+- #1288, Change server-host default of 127.0.0.1 to !4
+
 ### Removed
 
 - #1288, Removed support for schema reloading with SIGHUP, SIGUSR1 should be used instead - @steve-chavez
