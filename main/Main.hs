@@ -20,7 +20,9 @@ import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import Data.Text.IO             (hPutStrLn, readFile)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
-                                 setHost, setPort, setServerName)
+                                 setGracefulShutdownTimeout, setHost,
+                                 setInstallShutdownHandler, setPort,
+                                 setServerName)
 import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
@@ -34,7 +36,6 @@ import PostgREST.Types       (ConnectionStatus (..), DbStructure,
                               PgVersion (..), Schema,
                               minimumPgVersion)
 import Protolude             hiding (hPutStrLn, replace)
-
 
 #ifndef mingw32_HOST_OS
 import System.Posix.Signals
@@ -158,7 +159,9 @@ main = do
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
-        . setServerName (toS $ "postgrest/" <> prettyVersion) $
+        . setServerName (toS $ "postgrest/" <> prettyVersion)
+        . setInstallShutdownHandler (\closeSocket -> void $ installHandler sigUSR2 (Catch closeSocket) Nothing)
+        . setGracefulShutdownTimeout (Just 30) $
         defaultSettings
 
   -- Checks that the provided proxy uri is formated correctly
@@ -235,6 +238,8 @@ main = do
          (configSchema conf)
          refDbStructure
          refIsWorkerOn)
+
+  main
 
 {-|
   The purpose of this function is to load the JWT secret from a file if
