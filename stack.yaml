@@ -12,7 +12,12 @@ extra-deps:
   - text-builder-0.5.1.1
   - jose-0.7.0.0
   - postgresql-libpq-0.9.4.1
+  - http-types-0.12.3
+  - wai-middleware-static-0.8.2
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
   packages: [postgresql, zlib]
+# only added because of hjsonschema conflict with http-types
+# once hjsonschema upper bounding on http-types is solved it can be removed
+allow-newer: true
