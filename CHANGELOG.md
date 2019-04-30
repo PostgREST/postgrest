@@ -26,6 +26,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1288, Change server-host default of 127.0.0.1 to !4
 
+### Deprecated
+
+- #1288, Deprecate `.` symbol for disambiguating resource embedding(added in #918). '+' should be used instead. Though '+' is url safe, certain clients might need to encode it to '%2B'.
+
 ### Removed
 
 - #1288, Removed support for schema reloading with SIGHUP, SIGUSR1 should be used instead - @steve-chavez

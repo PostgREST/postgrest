@@ -29,7 +29,7 @@ import qualified Data.Text                 as T
 import qualified Data.Vector               as V
 import           Network.HTTP.Base         (urlEncodeVars)
 import           Network.HTTP.Types.Header (hAuthorization, hCookie)
-import           Network.HTTP.Types.URI    (parseSimpleQuery)
+import           Network.HTTP.Types.URI    (parseSimpleQuery, parseQueryReplacePlus)
 import           Network.Wai               (Request (..))
 import           Network.Wai.Parse         (parseHttpAccept)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
@@ -127,14 +127,15 @@ userApiRequest schema req reqBody
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars
         . L.sortBy (comparing fst)
-        . map (join (***) toS)
-        . parseSimpleQuery
-        $ rawQueryString req
+        . map (join (***) toS . second (fromMaybe BS.empty))
+        $ queryStringWPlus
       , iJWT = tokenStr
       , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       }
  where
+  -- queryString with '+' not converted to ' '
+  queryStringWPlus = parseQueryReplacePlus False $ rawQueryString req
   -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
   (filters, rpcQParams) =
     case action of
@@ -201,7 +202,7 @@ userApiRequest schema req reqBody
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req
-  qParams         = [(toS k, v)|(k,v) <- queryString req]
+  qParams         = [(toS k, v)|(k,v) <- queryStringWPlus]
   lookupHeader    = flip lookup hdrs
   hasPrefer :: Text -> Bool
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
