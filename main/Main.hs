@@ -7,9 +7,9 @@ import           PostgREST.App              (postgrest)
 import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
                                              prettyVersion, readOptions)
 import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
-import           PostgREST.Error            (errorPayload, isFatal, PgError(PgError))
+import           PostgREST.Error            (errorPayload, checkIsFatal, PgError(PgError))
 import           PostgREST.OpenAPI          (isMalformedProxyUri)
-import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion)
+import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion, ConnectionStatus(..))
 import           Protolude                  hiding (hPutStrLn, replace)
 
 
@@ -28,7 +28,6 @@ import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
 import           Data.Text.IO               (hPutStrLn, readFile)
 import           Data.Time.Clock            (getCurrentTime)
 import qualified Hasql.Pool                 as P
-import qualified Hasql.Session              as H
 import qualified Hasql.Transaction.Sessions as HT
 import           Network.Wai.Handler.Warp   (defaultSettings,
                                              runSettings, setHost,
@@ -75,26 +74,22 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
       atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectingSucceeded pool
-      when connected $ do
-        result <- P.use pool $ do
-          actualPgVersion <- getPgVersion
-          unless (actualPgVersion >= minimumPgVersion) $ liftIO $ do
-            hPutStrLn stderr
-              ("Cannot run in this PostgreSQL version, PostgREST needs at least "
-              <> pgvName minimumPgVersion)
-            killThread mainTid
-          dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schema actualPgVersion
-          liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
-        case result of
-          Left e -> do
-            let err = PgError False e
-            putStrLn ("Failed to query the database. Retrying." :: Text)
-            hPutStrLn stderr . toS $ errorPayload  err
-            if isFatal err then killThread mainTid else work
-            
-          Right _ -> do
-            atomicWriteIORef refIsWorkerOn False
-            putStrLn ("Connection successful" :: Text)
+      case connected of
+        FatalError reason         -> hPutStrLn stderr reason 
+                                      >> killThread mainTid  -- Fatal error when connecting
+        NotConnected              -> return ()               -- Unreachable
+        Connected actualPgVersion -> do                      -- Procede with initialization
+          result <- P.use pool $ do
+            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schema actualPgVersion
+            liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
+          case result of
+            Left e -> do
+              putStrLn ("Failed to query the database. Retrying." :: Text)
+              hPutStrLn stderr . toS . errorPayload $ PgError False e
+              
+            Right _ -> do
+              atomicWriteIORef refIsWorkerOn False
+              putStrLn ("Connection successful" :: Text)
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
@@ -105,31 +100,36 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   The connection tries are capped, but if the connection times out no error is
   thrown, just 'False' is returned.
 -}
-connectingSucceeded :: P.Pool -> IO Bool
+connectingSucceeded :: P.Pool -> IO ConnectionStatus
 connectingSucceeded pool =
   retrying (capDelay 32000000 $ exponentialBackoff 1000000)
            shouldRetry
-           (const $ P.release pool >> isConnectionSuccessful)
+           (const $ P.release pool >> getConnectionStatus)
   where
-    isConnectionSuccessful :: IO Bool
-    isConnectionSuccessful = do
-      testConn <- P.use pool $ H.sql "SELECT 1"
-      case testConn of
+    getConnectionStatus :: IO ConnectionStatus
+    getConnectionStatus = do
+      pgVersion <- P.use pool getPgVersion
+      case pgVersion of
         Left e -> do
           let err = PgError False e
           hPutStrLn stderr . toS $ errorPayload err
-          return $ isFatal err
+          case checkIsFatal err of
+            (Just reason) -> return $ FatalError reason
+            Nothing       -> return NotConnected
 
-        _      ->
-          return True
+        Right version ->
+          if version < minimumPgVersion
+             then return . FatalError $ "Cannot run in this PostgreSQL version, PostgREST needs at least " <> pgvName minimumPgVersion
+             else return . Connected  $ version
 
-    shouldRetry :: RetryStatus -> Bool -> IO Bool
+    shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
     shouldRetry rs isConnSucc = do
       delay <- pure $ fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
-      itShould <- pure $ not isConnSucc
+      itShould <- pure $ NotConnected == isConnSucc
       when itShould $
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
+
 
 {-|
   This is where everything starts.

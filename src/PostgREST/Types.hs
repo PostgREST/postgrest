@@ -405,3 +405,8 @@ sourceCTEName = "pg_source"
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"
 data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
+
+
+
+-- | Current database connection status
+data ConnectionStatus = Connected PgVersion | NotConnected | FatalError Text deriving (Eq, Show)
