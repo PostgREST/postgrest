@@ -183,6 +183,7 @@ Test-Suite memory
   ghc-options:         []
   Hs-Source-Dirs:      test
   Main-Is:             Memory.hs
+  Other-Modules:       SpecHelper
   Build-Depends:       aeson
                      , aeson-qq
                      , auto-update

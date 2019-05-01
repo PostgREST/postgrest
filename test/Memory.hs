@@ -42,8 +42,8 @@ jsonKeyTest1M test = wgroup "json key test - 1M blob" $ do
          (post "/leak?columns=blob"               $ jsonBlob 1) $
          MegaBytes 10
     test "patch request"
-         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 1) $
-         MegaBytes 5
+         (patch "/leak?id=eq.1&columns=blob"      $ jsonBlob 1) $
+         MegaBytes 8
 
 jsonKeyTest10M :: MemoryCaseTester -> Weigh ()
 jsonKeyTest10M test = wgroup "json key test - 10M blob" $ do
@@ -54,8 +54,8 @@ jsonKeyTest10M test = wgroup "json key test - 10M blob" $ do
          (post "/leak?columns=blob"               $ jsonBlob 10) $
          MegaBytes 75
     test "patch request"
-         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 10) $
-         MegaBytes 45
+         (patch "/leak?id=eq.1&columns=blob"      $ jsonBlob 10) $
+         MegaBytes 75
 
 jsonKeyTest50M :: MemoryCaseTester -> Weigh ()
 jsonKeyTest50M test = wgroup "json key test - 50M blob" $ do
@@ -66,8 +66,8 @@ jsonKeyTest50M test = wgroup "json key test - 50M blob" $ do
          (post "/leak?columns=blob"               $ jsonBlob 50) $
          MegaBytes 355
     test "patch request"
-         (patch "/leak/leak?id=eq.1&columns=blob" $ jsonBlob 50) $
-         MegaBytes 205
+         (patch "/leak?id=eq.1&columns=blob"      $ jsonBlob 50) $
+         MegaBytes 355
 
 jsonArrayTest :: MemoryCaseTester -> Weigh ()
 jsonArrayTest test = wgroup "POST json array test" $ do
