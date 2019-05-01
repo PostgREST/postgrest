@@ -75,7 +75,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
       case connected of
-        FatalError reason         -> hPutStrLn stderr reason 
+        ServerFatalError reason         -> hPutStrLn stderr reason 
                                       >> killThread mainTid  -- Fatal error when connecting
         NotConnected              -> return ()               -- Unreachable
         Connected actualPgVersion -> do                      -- Procede with initialization
@@ -114,12 +114,12 @@ connectionStatus pool =
           let err = PgError False e
           hPutStrLn stderr . toS $ errorPayload err
           case checkIsFatal err of
-            (Just reason) -> return $ FatalError reason
+            (Just reason) -> return $ ServerFatalError reason
             Nothing       -> return NotConnected
 
         Right version ->
           if version < minimumPgVersion
-             then return . FatalError $ "Cannot run in this PostgreSQL version, PostgREST needs at least " <> pgvName minimumPgVersion
+             then return . ServerFatalError $ "Cannot run in this PostgreSQL version, PostgREST needs at least " <> pgvName minimumPgVersion
              else return . Connected  $ version
 
     shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
