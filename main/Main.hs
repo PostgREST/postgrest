@@ -73,7 +73,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
     work = do
       atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
-      connected <- connectingSucceeded pool
+      connected <- connectionStatus pool
       case connected of
         FatalError reason         -> hPutStrLn stderr reason 
                                       >> killThread mainTid  -- Fatal error when connecting
@@ -100,8 +100,8 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
   The connection tries are capped, but if the connection times out no error is
   thrown, just 'False' is returned.
 -}
-connectingSucceeded :: P.Pool -> IO ConnectionStatus
-connectingSucceeded pool =
+connectionStatus :: P.Pool -> IO ConnectionStatus
+connectionStatus pool =
   retrying (capDelay 32000000 $ exponentialBackoff 1000000)
            shouldRetry
            (const $ P.release pool >> getConnectionStatus)
