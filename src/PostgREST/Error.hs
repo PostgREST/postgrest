@@ -12,6 +12,7 @@ module PostgREST.Error (
 , PgError(..)
 , SimpleError(..)
 , errorPayload
+, isFatal
 ) where
 
 import           Protolude
@@ -175,6 +176,20 @@ pgErrorStatus authed (P.SessionError (H.QueryError _ _ (H.ResultError rError))) 
         _         -> HT.status400
 
     _                       -> HT.status500
+
+isFatal :: PgError -> Bool
+isFatal (PgError _ (P.ConnectionError e)) = 
+  "FATAL:  password authentication failed" `isPrefixOf` toS (fromMaybe "" e)
+isFatal _ = False
+
+-- instance JSON.ToJSON P.UsageError where
+--   toJSON (P.ConnectionError e) = JSON.object [
+--     "code"    .= ("" :: Text),
+--     "message" .= ("Database connection error" :: Text),
+--     "details" .= (toS $ fromMaybe "" e :: Text)]
+--   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
+
+
 
 
 data SimpleError

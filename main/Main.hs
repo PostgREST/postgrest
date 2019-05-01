@@ -7,7 +7,7 @@ import           PostgREST.App              (postgrest)
 import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
                                              prettyVersion, readOptions)
 import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
-import           PostgREST.Error            (errorPayload, PgError(PgError))
+import           PostgREST.Error            (errorPayload, isFatal, PgError(PgError))
 import           PostgREST.OpenAPI          (isMalformedProxyUri)
 import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion)
 import           Protolude                  hiding (hPutStrLn, replace)
@@ -87,9 +87,11 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
           liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
         case result of
           Left e -> do
+            let err = PgError False e
             putStrLn ("Failed to query the database. Retrying." :: Text)
-            hPutStrLn stderr $ toS . errorPayload . PgError False $ e
-            work
+            hPutStrLn stderr . toS $ errorPayload  err
+            if isFatal err then killThread mainTid else work
+            
           Right _ -> do
             atomicWriteIORef refIsWorkerOn False
             putStrLn ("Connection successful" :: Text)
@@ -114,8 +116,10 @@ connectingSucceeded pool =
       testConn <- P.use pool $ H.sql "SELECT 1"
       case testConn of
         Left e -> do
-          hPutStrLn stderr . toS . errorPayload . PgError False $ e
-          return False
+          let err = PgError False e
+          hPutStrLn stderr . toS $ errorPayload err
+          return $ isFatal err
+
         _      ->
           return True
 
