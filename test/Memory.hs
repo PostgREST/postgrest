@@ -43,7 +43,7 @@ jsonKeyTest1M test = wgroup "json key test - 1M blob" $ do
          MegaBytes 10
     test "patch request"
          (patch "/leak?id=eq.1&columns=blob"      $ jsonBlob 1) $
-         MegaBytes 8
+         MegaBytes 10
 
 jsonKeyTest10M :: MemoryCaseTester -> Weigh ()
 jsonKeyTest10M test = wgroup "json key test - 10M blob" $ do
