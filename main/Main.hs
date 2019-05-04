@@ -234,8 +234,6 @@ main = do
          refDbStructure
          refIsWorkerOn)
 
-  main
-
 {-|
   The purpose of this function is to load the JWT secret from a file if
   configJwtSecret is actually a filepath and replaces some characters if the JWT
