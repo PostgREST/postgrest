@@ -4,38 +4,52 @@ module Main where
 
 
 import           PostgREST.App              (postgrest)
-import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
-                                             prettyVersion, readOptions)
-import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
+import           PostgREST.Config           (AppConfig (..),
+                                             configPoolTimeout',
+                                             prettyVersion,
+                                             readOptions)
+import           PostgREST.DbStructure      (getDbStructure,
+                                             getPgVersion)
 import           PostgREST.Error            (encodeError)
 import           PostgREST.OpenAPI          (isMalformedProxyUri)
-import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion)
-import           Protolude                  hiding (hPutStrLn, replace)
+import           PostgREST.Types            (DbStructure,
+                                             PgVersion (..), Schema,
+                                             minimumPgVersion)
+import           Protolude                  hiding (hPutStrLn,
+                                             replace)
 
 
 import           Control.AutoUpdate         (defaultUpdateSettings,
-                                             mkAutoUpdate, updateAction)
+                                             mkAutoUpdate,
+                                             updateAction)
+import           Control.Exception          (catch)
 import           Control.Retry              (RetryStatus, capDelay,
                                              exponentialBackoff,
-                                             retrying, rsPreviousDelay)
+                                             retrying,
+                                             rsPreviousDelay)
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base64     as B64
 import           Data.IORef                 (IORef, atomicWriteIORef,
                                              newIORef, readIORef)
 import           Data.String                (IsString (..))
-import           Data.Text                  (pack, replace, stripPrefix, strip)
+import           Data.Text                  (pack, replace, strip,
+                                             stripPrefix)
 import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
 import           Data.Text.IO               (hPutStrLn, readFile)
 import           Data.Time.Clock            (getCurrentTime)
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Session              as H
 import qualified Hasql.Transaction.Sessions as HT
+import           Network.Socket
 import           Network.Wai.Handler.Warp   (defaultSettings,
-                                             runSettings, setHost,
-                                             setPort, setServerName)
+                                             runSettings,
+                                             runSettingsSocket,
+                                             setHost, setPort,
+                                             setServerName)
+import           System.Directory           (removeFile)
 import           System.IO                  (BufferMode (..),
                                              hSetBuffering)
-
+import           System.IO.Error            (isDoesNotExistError)
 #ifndef mingw32_HOST_OS
 import           System.Posix.Signals
 #endif
@@ -143,6 +157,7 @@ main = do
   let host = configHost conf
       port = configPort conf
       proxy = configProxyUri conf
+      maybeSocketAddr = configSocket conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
       roleClaimKey = configRoleClaimKey conf
       appSettings =
@@ -160,7 +175,6 @@ main = do
   when (isLeft roleClaimKey) $
     panic $ show roleClaimKey
 
-  putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
   --
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
@@ -213,21 +227,33 @@ main = do
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
 
-  -- run the postgrest application
-  runSettings appSettings $
-    postgrest
-      conf
-      refDbStructure
-      pool
-      getTime
-      (connectionWorker
-         mainTid
-         pool
-         (configSchema conf)
-         refDbStructure
-         refIsWorkerOn)
+  let postgrestApplication = postgrest
+                                conf
+                                refDbStructure
+                                pool
+                                getTime
+                                (connectionWorker
+                                   mainTid
+                                   pool
+                                   (configSchema conf)
+                                   refDbStructure
+                                   refIsWorkerOn)
+   in case maybeSocketAddr of
+        Nothing -> do
+            -- run the postgrest application
+            putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
+            runSettings appSettings postgrestApplication
+        Just socketAddr -> do
+            sock <- createAndBindSocket socketAddr
+            listen sock maxListenQueue
+            putStrLn $ ("Listening on socket " :: Text) <> show socketAddr
+            -- run the postgrest application with user defined socket
+            runSettingsSocket appSettings sock postgrestApplication
+            -- clean socket up when done
+            close sock
 
-{-|
+
+    {-|
   The purpose of this function is to load the JWT secret from a file if
   configJwtSecret is actually a filepath and replaces some characters if the JWT
   is base64 encoded.
@@ -290,6 +316,19 @@ loadDbUriFile conf = extractDbUri mDbUri
     extractDbUri dbUri =
       fmap setDbUri $
       case stripPrefix "@" dbUri of
-        Nothing -> return dbUri
+        Nothing       -> return dbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}
+
+createAndBindSocket :: FilePath -> IO Socket
+createAndBindSocket filePath = do
+  deleteSocketFileIfExist filePath
+  sock <- socket AF_UNIX Stream defaultProtocol
+  bind sock $ SockAddrUnix filePath
+  return sock
+  where
+    deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist
+      where
+        handleDoesNotExist e
+          | isDoesNotExistError e = return ()
+          | otherwise = throwIO e

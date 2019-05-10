@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
@@ -24,8 +25,8 @@ module PostgREST.Config ( prettyVersion
        where
 
 import           Control.Applicative
-import           Control.Monad                (fail)
 import           Control.Lens                 (preview)
+import           Control.Monad                (fail)
 import           Crypto.JWT                   (StringOrURI,
                                                stringOrUri)
 import qualified Data.ByteString              as B
@@ -38,9 +39,9 @@ import           Data.List                    (lookup)
 import           Data.Monoid
 import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
-import           Data.Text                    (dropWhileEnd, dropEnd,
+import           Data.Text                    (dropEnd, dropWhileEnd,
                                                intercalate, lines,
-                                               strip, take, splitOn)
+                                               splitOn, strip, take)
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.IO                 (hPutStrLn)
 import           Data.Version                 (versionBranch)
@@ -50,10 +51,11 @@ import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
 import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (ApiRequestError(..),
-                                               JSPath, JSPathExp(..))
-import           Protolude                    hiding (hPutStrLn, take,
-                                               intercalate, (<>))
+import           PostgREST.Types              (ApiRequestError (..),
+                                               JSPath, JSPathExp (..))
+import           Protolude                    hiding (hPutStrLn,
+                                               intercalate, take,
+                                               (<>))
 import           System.IO                    (hPrint)
 import           System.IO.Error              (IOError)
 import           Text.Heredoc
@@ -68,6 +70,7 @@ data AppConfig = AppConfig {
   , configSchema            :: Text
   , configHost              :: Text
   , configPort              :: Int
+  , configSocket            :: Maybe String
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -139,6 +142,7 @@ readOptions = do
           <*> C.key "db-schema"
           <*> (fromMaybe "127.0.0.1" . mfilter (/= "") <$> C.key "server-host")
           <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
+          <*> C.key "server-unix-socket"
           <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
           <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
           <*> parseJwtAudience "jwt-aud"
@@ -170,7 +174,7 @@ readOptions = do
 
     coerceText :: Value -> Text
     coerceText (String s) = s
-    coerceText v = show v
+    coerceText v          = show v
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
@@ -184,11 +188,11 @@ readOptions = do
 
     parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
     parseRoleClaimKey (String s) = pRoleClaimKey s
-    parseRoleClaimKey v = pRoleClaimKey $ show v
+    parseRoleClaimKey v          = pRoleClaimKey $ show v
 
     splitExtraSearchPath :: Value -> [Text]
     splitExtraSearchPath (String s) = strip <$> splitOn "," s
-    splitExtraSearchPath _ = []
+    splitExtraSearchPath _          = []
 
     opts = info (helper <*> pathParser) $
              fullDesc
@@ -223,6 +227,7 @@ readOptions = do
           |
           |## base url for swagger output
           |# server-proxy-uri = ""
+          |# server-unix-socket = ""
           |
           |## choose a secret, JSON Web Key (or set) to enable JWT auth
           |## (use "@filename" to load from separate file)
