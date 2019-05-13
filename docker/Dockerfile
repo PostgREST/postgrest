@@ -1,4 +1,4 @@
-FROM debian:jessie
+FROM ubuntu:18.04
 
 ARG POSTGREST_VERSION
 
