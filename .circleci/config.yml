@@ -91,15 +91,6 @@ jobs:
       - run:
           name: run linter
           command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
-      - run:
-          name: extra checks
-          command: |
-            stack exec -- cabal update
-            stack exec --no-ghc-package-path -- cabal install --only-d --dry-run
-            stack exec -- packdeps *.cabal || true
-            stack exec -- cabal check
-            stack haddock --no-haddock-deps
-            stack sdist
       - save_cache:
           paths:
             - "~/.stack"
