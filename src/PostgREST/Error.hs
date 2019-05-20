@@ -179,19 +179,11 @@ pgErrorStatus authed (P.SessionError (H.QueryError _ _ (H.ResultError rError))) 
 
 checkIsFatal :: PgError -> Maybe Text
 checkIsFatal (PgError _ (P.ConnectionError e))
-  | isAuthFailureMessage = Just "Password authentication failed"
+  | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
-  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS (fromMaybe "" e) 
+  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS failureMessage
+        failureMessage = fromMaybe "" e
 checkIsFatal _ = Nothing
-
--- instance JSON.ToJSON P.UsageError where
---   toJSON (P.ConnectionError e) = JSON.object [
---     "code"    .= ("" :: Text),
---     "message" .= ("Database connection error" :: Text),
---     "details" .= (toS $ fromMaybe "" e :: Text)]
---   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
-
-
 
 
 data SimpleError
