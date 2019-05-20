@@ -28,7 +28,7 @@ import           PostgREST.Types
 import           Text.Read                 (readMaybe)
 
 
-class (JSON.ToJSON a) => PostgRestError a where
+class (JSON.ToJSON a) => PgrstError a where
   status   :: a -> HT.Status
   headers  :: a -> [Header]
 
@@ -51,7 +51,7 @@ data ApiRequestError
   | UnsupportedVerb                -- Unreachable?
   deriving (Show, Eq)
 
-instance PostgRestError ApiRequestError where
+instance PgrstError ApiRequestError where
   status InvalidRange            = HT.status416
   status InvalidFilters          = HT.status405
   status (InvalidBody _)         = HT.status400
@@ -85,7 +85,7 @@ instance JSON.ToJSON ApiRequestError where
 data PgError = PgError Authenticated P.UsageError
 type Authenticated = Bool
 
-instance PostgRestError PgError where
+instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
   headers err =
@@ -208,7 +208,7 @@ data SimpleError
   | ContentTypeError [ByteString]
   deriving (Show, Eq)
 
-instance PostgRestError SimpleError where
+instance PgrstError SimpleError where
   status GucHeadersError           = HT.status500
   status BinaryFieldError          = HT.status406
   status ConnectionLostError       = HT.status503
