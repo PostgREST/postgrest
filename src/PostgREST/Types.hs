@@ -409,6 +409,7 @@ data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
 
 
 -- | Current database connection status data ConnectionStatus
+data ConnectionStatus 
   = NotConnected
   | Connected PgVersion
   | FatalConnectionError Text
