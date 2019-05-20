@@ -86,6 +86,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
             Left e -> do
               putStrLn ("Failed to query the database. Retrying." :: Text)
               hPutStrLn stderr . toS . errorPayload $ PgError False e
+              work
               
             Right _ -> do
               atomicWriteIORef refIsWorkerOn False
