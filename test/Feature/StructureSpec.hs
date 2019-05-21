@@ -1,21 +1,21 @@
 module Feature.StructureSpec where
 
-import           Network.HTTP.Types
-import           Test.Hspec         hiding (pendingWith)
-import           Test.Hspec.Wai
+import Control.Lens     ((^?))
+import Data.Aeson.Types (Value (..))
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (..))
 
-import           Control.Lens       ((^?))
-import           Data.Aeson.Lens
-import           Data.Aeson.QQ
-import           Data.Aeson.Types   (Value (..))
-import           PostgREST.Config   (docsVersion)
+import Data.Aeson.Lens
+import Data.Aeson.QQ
+import Network.HTTP.Types
+import Test.Hspec         hiding (pendingWith)
+import Test.Hspec.Wai
 
-import           SpecHelper
 
-import           Network.Wai        (Application)
-import           Network.Wai.Test   (SResponse (..))
 
-import           Protolude          hiding (get)
+import PostgREST.Config (docsVersion)
+import Protolude        hiding (get)
+import SpecHelper
 
 spec :: SpecWith Application
 spec = do

@@ -10,35 +10,29 @@ module PostgREST.OpenAPI (
 , pickProxy
 ) where
 
-import           Control.Arrow              ((&&&))
-import           Control.Lens
-import           Data.Aeson                 (decode, encode)
-import           Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
-import           Data.Maybe                 (fromJust)
-import qualified Data.Set                   as Set
-import           Data.String                (IsString (..))
-import           Data.Text                  (append, breakOn,
-                                             dropWhile, init,
-                                             intercalate, pack, tail,
-                                             toLower, unpack)
-import           Network.URI                (URI (..), URIAuth (..),
-                                             isAbsoluteURI, parseURI)
+import qualified Data.Set as Set
 
-import           Protolude                  hiding (Proxy, dropWhile,
-                                             get, intercalate, (&))
+import Control.Arrow              ((&&&))
+import Data.Aeson                 (decode, encode)
+import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
+import Data.Maybe                 (fromJust)
+import Data.String                (IsString (..))
+import Data.Text                  (append, breakOn, dropWhile, init,
+                                   intercalate, pack, tail, toLower,
+                                   unpack)
+import Network.URI                (URI (..), URIAuth (..),
+                                   isAbsoluteURI, parseURI)
 
-import           Data.Swagger
+import Control.Lens
+import Data.Swagger
 
-import           PostgREST.ApiRequest       (ContentType (..))
-import           PostgREST.Config           (docsVersion,
-                                             prettyVersion)
-import           PostgREST.Types            (Column (..),
-                                             ForeignKey (..),
-                                             PgArg (..),
-                                             PrimaryKey (..),
-                                             ProcDescription (..),
-                                             Proxy (..), Table (..),
-                                             toMime)
+import PostgREST.ApiRequest (ContentType (..))
+import PostgREST.Config     (docsVersion, prettyVersion)
+import PostgREST.Types      (Column (..), ForeignKey (..), PgArg (..),
+                             PrimaryKey (..), ProcDescription (..),
+                             Proxy (..), Table (..), toMime)
+import Protolude            hiding (Proxy, dropWhile, get,
+                             intercalate, (&))
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs

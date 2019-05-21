@@ -1,17 +1,16 @@
 module Feature.AuthSpec where
 
-import           Network.HTTP.Types
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
-import           Text.Heredoc
+import Network.Wai (Application)
 
-import           Network.Wai         (Application)
-import           SpecHelper
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+import Text.Heredoc
 
-import           Protolude           hiding (get)
-
-import           PostgREST.Types     (PgVersion, pgVersion112)
+import PostgREST.Types (PgVersion, pgVersion112)
+import Protolude       hiding (get)
+import SpecHelper
 
 spec :: PgVersion -> SpecWith Application
 spec actualPgVersion = describe "authorization" $ do

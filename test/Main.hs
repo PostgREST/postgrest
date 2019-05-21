@@ -1,23 +1,22 @@
 module Main where
 
-import           SpecHelper
-import           Test.Hspec
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction.Sessions as HT
 
-import qualified Hasql.Pool                    as P
-import qualified Hasql.Transaction.Sessions    as HT
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
+                           updateAction)
+import Data.Function      (id)
+import Data.Time.Clock    (getCurrentTime)
 
-import           Control.AutoUpdate            (defaultUpdateSettings,
-                                                mkAutoUpdate,
-                                                updateAction)
-import           Data.Function                 (id)
-import           Data.IORef
-import           Data.Time.Clock               (getCurrentTime)
-import           PostgREST.App                 (postgrest)
-import           PostgREST.DbStructure         (getDbStructure,
-                                                getPgVersion)
-import           PostgREST.Types               (DbStructure (..),
-                                                pgVersion95,
-                                                pgVersion96)
+import Data.IORef
+import Test.Hspec
+
+import PostgREST.App         (postgrest)
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Types       (DbStructure (..), pgVersion95,
+                              pgVersion96)
+import Protolude
+import SpecHelper
 
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.AsymmetricJwtSpec
@@ -44,7 +43,6 @@ import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.UpsertSpec
 
-import           Protolude
 
 main :: IO ()
 main = do

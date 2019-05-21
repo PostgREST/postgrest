@@ -8,26 +8,26 @@ Description : Sets the PostgreSQL GUCs, role, search_path and pre-request functi
 
 module PostgREST.Middleware where
 
-import           Crypto.JWT
-import qualified Data.Aeson                    as JSON
-import qualified Data.HashMap.Strict           as M
-import qualified Hasql.Transaction             as H
+import qualified Data.Aeson          as JSON
+import qualified Data.HashMap.Strict as M
+import qualified Hasql.Transaction   as H
 
-import           Network.Wai                   (Application, Response)
-import           Network.Wai.Middleware.Cors   (cors)
-import           Network.Wai.Middleware.Gzip   (def, gzip)
-import           Network.Wai.Middleware.Static (only, staticPolicy)
+-- import Network.HTTP.Types.Status     (status500, unauthorized401)
+import Network.Wai                   (Application, Response)
+import Network.Wai.Middleware.Cors   (cors)
+import Network.Wai.Middleware.Gzip   (def, gzip)
+import Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest (..))
-import           PostgREST.Auth                (JWTAttempt (..))
-import           PostgREST.Config              (AppConfig (..),
-                                                corsPolicy)
-import           PostgREST.Error               (SimpleError (JwtTokenInvalid, JwtTokenMissing),
-                                                errorResponseFor)
-import           PostgREST.QueryBuilder        (pgFmtSetLocal, pgFmtSetLocalSearchPath,
-                                                unquoted)
+import Crypto.JWT
 
-import           Protolude
+import PostgREST.ApiRequest   (ApiRequest (..))
+import PostgREST.Auth         (JWTAttempt (..))
+import PostgREST.Config       (AppConfig (..), corsPolicy)
+import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
+                               errorResponseFor)
+import PostgREST.QueryBuilder (pgFmtSetLocal, pgFmtSetLocalSearchPath,
+                               unquoted)
+import Protolude
 
 runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->

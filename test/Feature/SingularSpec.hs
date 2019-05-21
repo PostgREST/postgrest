@@ -1,16 +1,16 @@
 module Feature.SingularSpec where
 
-import           Network.HTTP.Types
-import           Network.Wai.Test    (SResponse (..))
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
-import           Text.Heredoc
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (..))
 
-import           Network.Wai         (Application)
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+import Text.Heredoc
 
-import           Protolude           hiding (get)
-import           SpecHelper
+import Protolude  hiding (get)
+import SpecHelper
 
 
 spec :: SpecWith Application

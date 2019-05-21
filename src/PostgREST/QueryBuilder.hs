@@ -27,33 +27,28 @@ module PostgREST.QueryBuilder (
   , pgFmtSetLocalSearchPath
   ) where
 
-import qualified Hasql.Decoders                as HD
-import qualified Hasql.Encoders                as HE
-import qualified Hasql.Statement               as H
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.HashMap.Strict   as HM
+import qualified Data.Set              as S
+import qualified Data.Text             as T (map, null, takeWhile)
+import qualified Data.Text.Encoding    as T
+import qualified Hasql.Decoders        as HD
+import qualified Hasql.Encoders        as HE
+import qualified Hasql.Statement       as H
 
-import qualified Data.Aeson                    as JSON
+import Data.Maybe
+import Data.Scientific               (FPFormat (..), formatScientific,
+                                      isInteger)
+import Data.Text                     (intercalate, isInfixOf, replace,
+                                      toLower, unwords)
+import Data.Tree                     (Tree (..))
+import Text.InterpolatedString.Perl6 (qc)
 
-import qualified Data.ByteString.Char8         as BS
-import qualified Data.HashMap.Strict           as HM
-import           Data.Maybe
-import           Data.Scientific               (FPFormat (..),
-                                                formatScientific,
-                                                isInteger)
-import qualified Data.Set                      as S
-import           Data.Text                     (intercalate,
-                                                isInfixOf, replace,
-                                                toLower, unwords)
-import qualified Data.Text                     as T (map, null,
-                                                     takeWhile)
-import qualified Data.Text.Encoding            as T
-import           Data.Tree                     (Tree (..))
-import           PostgREST.ApiRequest          (PreferRepresentation (..))
-import           PostgREST.RangeQuery          (allRange, rangeLimit,
-                                                rangeOffset)
-import           PostgREST.Types
-import           Protolude                     hiding (cast,
-                                                intercalate, replace)
-import           Text.InterpolatedString.Perl6 (qc)
+import PostgREST.ApiRequest (PreferRepresentation (..))
+import PostgREST.RangeQuery (allRange, rangeLimit, rangeOffset)
+import PostgREST.Types
+import Protolude            hiding (cast, intercalate, replace)
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like

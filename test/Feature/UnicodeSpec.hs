@@ -1,14 +1,14 @@
 module Feature.UnicodeSpec where
 
-import           Control.Monad       (void)
-import           Network.Wai         (Application)
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
+import Control.Monad (void)
+import Network.Wai   (Application)
 
-import           SpecHelper
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 
-import           Protolude           hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
 spec :: SpecWith Application
 spec =

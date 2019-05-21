@@ -1,9 +1,11 @@
 module Feature.NonexistentSchemaSpec where
 
-import           Network.Wai    (Application)
-import           Protolude      hiding (get)
-import           Test.Hspec
-import           Test.Hspec.Wai
+import Network.Wai    (Application)
+
+import Test.Hspec
+import Test.Hspec.Wai
+
+import Protolude      hiding (get)
 
 spec :: SpecWith Application
 spec =

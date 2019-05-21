@@ -2,16 +2,16 @@ module Feature.CorsSpec where
 
 -- {{{ Imports
 import qualified Data.ByteString.Lazy as BL
-import           Network.Wai.Test     (SResponse (simpleBody, simpleHeaders))
-import           Test.Hspec
-import           Test.Hspec.Wai
 
-import           SpecHelper
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders))
 
-import           Network.HTTP.Types
-import           Network.Wai          (Application)
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
 
-import           Protolude
+import Protolude
+import SpecHelper
 -- }}}
 
 spec :: SpecWith Application

@@ -2,53 +2,42 @@
 
 module Main where
 
-
-import           PostgREST.App              (postgrest)
-import           PostgREST.Config           (AppConfig (..),
-                                             configPoolTimeout',
-                                             prettyVersion,
-                                             readOptions)
-import           PostgREST.DbStructure      (getDbStructure,
-                                             getPgVersion)
-import           PostgREST.Error            (PgError (PgError),
-                                             checkIsFatal,
-                                             errorPayload)
-import           PostgREST.OpenAPI          (isMalformedProxyUri)
-import           PostgREST.Types            (ConnectionStatus (..),
-                                             DbStructure,
-                                             PgVersion (..), Schema,
-                                             minimumPgVersion)
-import           Protolude                  hiding (hPutStrLn,
-                                             replace)
-
-
-import           Control.AutoUpdate         (defaultUpdateSettings,
-                                             mkAutoUpdate,
-                                             updateAction)
-import           Control.Retry              (RetryStatus, capDelay,
-                                             exponentialBackoff,
-                                             retrying,
-                                             rsPreviousDelay)
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base64     as B64
-import           Data.IORef                 (IORef, atomicWriteIORef,
-                                             newIORef, readIORef)
-import           Data.String                (IsString (..))
-import           Data.Text                  (pack, replace, strip,
-                                             stripPrefix)
-import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
-import           Data.Text.IO               (hPutStrLn, readFile)
-import           Data.Time.Clock            (getCurrentTime)
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
-import           Network.Wai.Handler.Warp   (defaultSettings,
-                                             runSettings, setHost,
-                                             setPort, setServerName)
-import           System.IO                  (BufferMode (..),
-                                             hSetBuffering)
+
+import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
+                                 updateAction)
+import Control.Retry            (RetryStatus, capDelay,
+                                 exponentialBackoff, retrying,
+                                 rsPreviousDelay)
+import Data.IORef               (IORef, atomicWriteIORef, newIORef,
+                                 readIORef)
+import Data.String              (IsString (..))
+import Data.Text                (pack, replace, strip, stripPrefix)
+import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
+import Data.Text.IO             (hPutStrLn, readFile)
+import Data.Time.Clock          (getCurrentTime)
+import Network.Wai.Handler.Warp (defaultSettings, runSettings,
+                                 setHost, setPort, setServerName)
+import System.IO                (BufferMode (..), hSetBuffering)
+
+import PostgREST.App         (postgrest)
+import PostgREST.Config      (AppConfig (..), configPoolTimeout',
+                              prettyVersion, readOptions)
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Error       (PgError (PgError), checkIsFatal,
+                              errorPayload)
+import PostgREST.OpenAPI     (isMalformedProxyUri)
+import PostgREST.Types       (ConnectionStatus (..), DbStructure,
+                              PgVersion (..), Schema,
+                              minimumPgVersion)
+import Protolude             hiding (hPutStrLn, replace)
+
 
 #ifndef mingw32_HOST_OS
-import           System.Posix.Signals
+import System.Posix.Signals
 #endif
 
 {-|

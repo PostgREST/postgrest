@@ -1,13 +1,14 @@
 module Feature.AndOrParamsSpec where
-import           Network.HTTP.Types
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
 
-import           Network.Wai         (Application)
+import Network.Wai (Application)
 
-import           Protolude           hiding (get)
-import           SpecHelper
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+
+import Protolude  hiding (get)
+import SpecHelper
 
 
 spec :: SpecWith Application

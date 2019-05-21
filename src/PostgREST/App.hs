@@ -6,62 +6,50 @@ module PostgREST.App (
   postgrest
 ) where
 
-import           Control.Applicative
-import           Data.Aeson                           as JSON
-import qualified Data.ByteString.Char8                as BS
-import           Data.IORef                           (IORef,
-                                                       readIORef)
-import           Data.Maybe
-import qualified Data.Set                             as S
-import           Data.Time.Clock                      (UTCTime)
+import qualified Data.ByteString.Char8      as BS
+import qualified Data.HashMap.Strict        as M
+import qualified Data.Set                   as S
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction          as H
+import qualified Hasql.Transaction          as HT
+import qualified Hasql.Transaction.Sessions as HT
 
-import qualified Hasql.Pool                           as P
-import qualified Hasql.Transaction                    as HT
-import qualified Hasql.Transaction.Sessions           as HT
+import Control.Applicative
+import Data.Aeson                           as JSON
+import Data.Function                        (id)
+import Data.IORef                           (IORef, readIORef)
+import Data.Maybe
+import Data.Time.Clock                      (UTCTime)
+import Network.HTTP.Types.Header
+import Network.HTTP.Types.Status
+import Network.HTTP.Types.URI               (renderSimpleQuery)
+import Network.Wai
+import Network.Wai.Middleware.RequestLogger (logStdout)
 
-import           Network.HTTP.Types.Header
-import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI               (renderSimpleQuery)
-import           Network.Wai
-import           Network.Wai.Middleware.RequestLogger (logStdout)
-
-import qualified Hasql.Transaction                    as H
-
-import qualified Data.HashMap.Strict                  as M
-
-import           PostgREST.ApiRequest                 (Action (..),
-                                                       ApiRequest (..),
-                                                       ContentType (..),
-                                                       PreferRepresentation (..),
-                                                       Target (..),
-                                                       mutuallyAgreeable,
-                                                       userApiRequest)
-import           PostgREST.Auth                       (containsRole,
-                                                       jwtClaims,
-                                                       parseSecret)
-import           PostgREST.Config                     (AppConfig (..))
-import           PostgREST.DbRequestBuilder           (fieldNames,
-                                                       mutateRequest,
-                                                       readRequest)
-import           PostgREST.DbStructure
-import           PostgREST.Error                      (PgError (..), SimpleError (..),
-                                                       errorResponseFor)
-import           PostgREST.Middleware
-import           PostgREST.OpenAPI
-import           PostgREST.Parsers                    (pRequestColumns)
-import           PostgREST.QueryBuilder               (ResultsWithCount,
-                                                       callProc,
-                                                       createReadStatement,
-                                                       createWriteStatement,
-                                                       requestToCountQuery,
-                                                       requestToQuery)
-import           PostgREST.RangeQuery                 (allRange,
-                                                       rangeOffset)
-import           PostgREST.Types
-
-import           Data.Function                        (id)
-import           Protolude                            hiding (Proxy,
-                                                       intercalate)
+import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
+                                   ContentType (..),
+                                   PreferRepresentation (..),
+                                   Target (..), mutuallyAgreeable,
+                                   userApiRequest)
+import PostgREST.Auth             (containsRole, jwtClaims,
+                                   parseSecret)
+import PostgREST.Config           (AppConfig (..))
+import PostgREST.DbRequestBuilder (fieldNames, mutateRequest,
+                                   readRequest)
+import PostgREST.DbStructure
+import PostgREST.Error            (PgError (..), SimpleError (..),
+                                   errorResponseFor)
+import PostgREST.Middleware
+import PostgREST.OpenAPI
+import PostgREST.Parsers          (pRequestColumns)
+import PostgREST.QueryBuilder     (ResultsWithCount, callProc,
+                                   createReadStatement,
+                                   createWriteStatement,
+                                   requestToCountQuery,
+                                   requestToQuery)
+import PostgREST.RangeQuery       (allRange, rangeOffset)
+import PostgREST.Types
+import Protolude                  hiding (Proxy, intercalate)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
