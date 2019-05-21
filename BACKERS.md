@@ -30,6 +30,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 - [Daniel Babiak](https://github.com/d-babiak)
 - [Michel Pelletier](https://github.com/michelp/)
+- Evans Fernandes
 
 ## Backers
 
@@ -37,6 +38,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Jay Hannah
 - Robert Stolarz
 - Kofi Gumbs
+- Nicholas DiBiase
 
 ## Former Backers
 
