@@ -17,7 +17,7 @@ extra-deps:
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
-  packages: [postgresql, zlib]
+  shell-file: shell.nix
 # only added because of hjsonschema conflict with http-types
 # once hjsonschema upper bounding on http-types is solved it can be removed
 allow-newer: true
