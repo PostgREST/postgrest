@@ -1,7 +1,6 @@
 .PHONY: check clean lint style test test-watch coverage circleci circleci-prof-test check-dburi prompt-clean prompt-long-process
 
-check: lint test
-# check: lint style test
+check: lint style test
 
 clean: prompt-clean
 	stack clean --full
@@ -9,8 +8,8 @@ clean: prompt-clean
 lint:
 	git ls-files | grep '\.l\?hs$$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$$@"
 
-# style:
-# 	git ls-files | grep '\.l\?hs$$' | xargs stack exec -- stylish-haskell -i
+style:
+	git ls-files | grep '\.l\?hs$$' | xargs stack exec -- stylish-haskell -i
 
 
 test: check-dburi
