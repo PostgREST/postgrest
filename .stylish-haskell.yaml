@@ -198,11 +198,6 @@ steps:
   # Remove trailing whitespace
   - trailing_whitespace: {}
 
-  # Squash multiple spaces between the left and right hand sides of some
-  # elements into single spaces. Basically, this undoes the effect of
-  # simple_align but is a bit less conservative.
-  # - squash: {}
-
 # A common setting is the number of columns (parts of) code will be wrapped
 # to. Different steps take this into account. Default: 80.
 columns: 70
