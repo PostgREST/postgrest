@@ -41,7 +41,7 @@ steps:
       # Default: global.
       align: global
 
-      # Folowing options affect only import list alignment.
+      # The following options affect only import list alignment.
       #
       # List align has following options:
       #
@@ -64,6 +64,25 @@ steps:
       # Default: after_alias
       list_align: after_alias
 
+      # Right-pad the module names to align imports in a group:
+      #
+      # - true: a little more readable
+      #
+      #   > import qualified Data.List       as List (concat, foldl, foldr,
+      #   >                                           init, last, length)
+      #   > import qualified Data.List.Extra as List (concat, foldl, foldr,
+      #   >                                           init, last, length)
+      #
+      # - false: diff-safe
+      #
+      #   > import qualified Data.List as List (concat, foldl, foldr, init,
+      #   >                                     last, length)
+      #   > import qualified Data.List.Extra as List (concat, foldl, foldr,
+      #   >                                           init, last, length)
+      #
+      # Default: true
+      pad_module_names: true
+
       # Long list align style takes effect when import is too long. This is
       # determined by 'columns' setting.
       #
@@ -75,7 +94,7 @@ steps:
       #   short enough to fit to single line. Otherwise it'll be multiline.
       #
       # - multiline: One line per import list entry.
-      #   Type with contructor list acts like single import.
+      #   Type with constructor list acts like single import.
       #
       #   > import qualified Data.Map as M
       #   >     ( empty
@@ -109,7 +128,7 @@ steps:
       #   Useful for 'file' and 'group' align settings.
       list_padding: 4
 
-      # Separate lists option affects formating of import list for type
+      # Separate lists option affects formatting of import list for type
       # or class. The only difference is single space between type and list
       # of constructors, selectors and class functions.
       #
@@ -125,6 +144,22 @@ steps:
       #
       # Default: true
       separate_lists: true
+
+      # Space surround option affects formatting of import lists on a single
+      # line. The only difference is single space after the initial
+      # parenthesis and a single space before the terminal parenthesis.
+      #
+      # - true: There is single space associated with the enclosing
+      #   parenthesis.
+      #
+      #   > import Data.Foo ( foo )
+      #
+      # - false: There is no space associated with the enclosing parenthesis
+      #
+      #   > import Data.Foo (foo)
+      #
+      # Default: false
+      space_surround: false
 
   # Language pragmas
   - language_pragmas:
@@ -142,7 +177,7 @@ steps:
 
       # Align affects alignment of closing pragma brackets.
       #
-      # - true: Brackets are aligned in same collumn.
+      # - true: Brackets are aligned in same column.
       #
       # - false: Brackets are not aligned together. There is only one space
       #   between actual import and closing bracket.
@@ -162,6 +197,11 @@ steps:
 
   # Remove trailing whitespace
   - trailing_whitespace: {}
+
+  # Squash multiple spaces between the left and right hand sides of some
+  # elements into single spaces. Basically, this undoes the effect of
+  # simple_align but is a bit less conservative.
+  # - squash: {}
 
 # A common setting is the number of columns (parts of) code will be wrapped
 # to. Different steps take this into account. Default: 80.
