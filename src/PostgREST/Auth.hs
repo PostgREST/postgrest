@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase       #-}
 {-|
 Module      : PostgREST.Auth
 Description : PostgREST authorization functions.
@@ -19,8 +19,8 @@ module PostgREST.Auth (
   , parseSecret
   ) where
 
-import           Control.Lens.Operators
 import           Control.Lens           (set)
+import           Control.Lens.Operators
 import qualified Data.Aeson             as JSON
 import qualified Data.HashMap.Strict    as M
 import           Data.Time.Clock        (UTCTime)

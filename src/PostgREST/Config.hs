@@ -12,7 +12,8 @@ turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module PostgREST.Config ( prettyVersion
@@ -25,8 +26,8 @@ module PostgREST.Config ( prettyVersion
        where
 
 import           Control.Applicative
-import           Control.Monad                (fail)
 import           Control.Lens                 (preview)
+import           Control.Monad                (fail)
 import           Crypto.JWT                   (StringOrURI,
                                                stringOrUri)
 import qualified Data.ByteString              as B
@@ -39,9 +40,9 @@ import           Data.List                    (lookup)
 import           Data.Monoid
 import           Data.Scientific              (floatingOrInteger)
 import           Data.String                  (String)
-import           Data.Text                    (dropWhileEnd, dropEnd,
+import           Data.Text                    (dropEnd, dropWhileEnd,
                                                intercalate, lines,
-                                               strip, take, splitOn)
+                                               splitOn, strip, take)
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.IO                 (hPutStrLn)
 import           Data.Version                 (versionBranch)
@@ -50,11 +51,12 @@ import           Network.Wai
 import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
+import           PostgREST.Error              (ApiRequestError (..))
 import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (JSPath, JSPathExp(..))
-import           PostgREST.Error              (ApiRequestError(..))
-import           Protolude                    hiding (hPutStrLn, take,
-                                               intercalate, (<>))
+import           PostgREST.Types              (JSPath, JSPathExp (..))
+import           Protolude                    hiding (hPutStrLn,
+                                               intercalate, take,
+                                               (<>))
 import           System.IO                    (hPrint)
 import           System.IO.Error              (IOError)
 import           Text.Heredoc
@@ -171,7 +173,7 @@ readOptions = do
 
     coerceText :: Value -> Text
     coerceText (String s) = s
-    coerceText v = show v
+    coerceText v          = show v
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
@@ -185,11 +187,11 @@ readOptions = do
 
     parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
     parseRoleClaimKey (String s) = pRoleClaimKey s
-    parseRoleClaimKey v = pRoleClaimKey $ show v
+    parseRoleClaimKey v          = pRoleClaimKey $ show v
 
     splitExtraSearchPath :: Value -> [Text]
     splitExtraSearchPath (String s) = strip <$> splitOn "," s
-    splitExtraSearchPath _ = []
+    splitExtraSearchPath _          = []
 
     opts = info (helper <*> pathParser) $
              fullDesc

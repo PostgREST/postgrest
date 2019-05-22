@@ -1,13 +1,13 @@
 module Feature.DeleteSpec where
 
-import Test.Hspec
-import Test.Hspec.Wai
-import Text.Heredoc
+import           Test.Hspec
+import           Test.Hspec.Wai
+import           Text.Heredoc
 
-import Network.HTTP.Types
-import Network.Wai (Application)
+import           Network.HTTP.Types
+import           Network.Wai        (Application)
 
-import Protolude hiding (get)
+import           Protolude          hiding (get)
 
 spec :: SpecWith Application
 spec =

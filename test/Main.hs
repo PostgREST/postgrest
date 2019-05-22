@@ -1,23 +1,29 @@
 module Main where
 
-import Test.Hspec
-import SpecHelper
+import           SpecHelper
+import           Test.Hspec
 
-import qualified Hasql.Pool as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                    as P
+import qualified Hasql.Transaction.Sessions    as HT
 
-import PostgREST.App (postgrest)
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types (DbStructure(..), pgVersion95, pgVersion96)
-import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
-import Data.Function (id)
-import Data.IORef
-import Data.Time.Clock (getCurrentTime)
+import           Control.AutoUpdate            (defaultUpdateSettings,
+                                                mkAutoUpdate,
+                                                updateAction)
+import           Data.Function                 (id)
+import           Data.IORef
+import           Data.Time.Clock               (getCurrentTime)
+import           PostgREST.App                 (postgrest)
+import           PostgREST.DbStructure         (getDbStructure,
+                                                getPgVersion)
+import           PostgREST.Types               (DbStructure (..),
+                                                pgVersion95,
+                                                pgVersion96)
 
-import qualified Feature.AuthSpec
+import qualified Feature.AndOrParamsSpec
 import qualified Feature.AsymmetricJwtSpec
-import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.AudienceJwtSecretSpec
+import qualified Feature.AuthSpec
+import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
@@ -25,21 +31,20 @@ import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.NoJwtSpec
-import qualified Feature.QueryLimitedSpec
-import qualified Feature.QuerySpec
-import qualified Feature.RangeSpec
-import qualified Feature.StructureSpec
-import qualified Feature.SingularSpec
-import qualified Feature.UnicodeSpec
-import qualified Feature.ProxySpec
-import qualified Feature.AndOrParamsSpec
-import qualified Feature.RpcSpec
 import qualified Feature.NonexistentSchemaSpec
 import qualified Feature.PgVersion95Spec
 import qualified Feature.PgVersion96Spec
+import qualified Feature.ProxySpec
+import qualified Feature.QueryLimitedSpec
+import qualified Feature.QuerySpec
+import qualified Feature.RangeSpec
+import qualified Feature.RpcSpec
+import qualified Feature.SingularSpec
+import qualified Feature.StructureSpec
+import qualified Feature.UnicodeSpec
 import qualified Feature.UpsertSpec
 
-import Protolude
+import           Protolude
 
 main :: IO ()
 main = do

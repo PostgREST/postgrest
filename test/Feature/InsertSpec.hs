@@ -1,27 +1,28 @@
 module Feature.InsertSpec where
 
-import Test.Hspec hiding (pendingWith)
-import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
-import Test.Hspec.Wai.Matcher (bodyEquals)
-import Network.Wai.Test (SResponse(simpleBody,simpleHeaders,simpleStatus))
+import           Network.Wai.Test          (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import           Test.Hspec                hiding (pendingWith)
+import           Test.Hspec.Wai
+import           Test.Hspec.Wai.JSON
+import           Test.Hspec.Wai.Matcher    (bodyEquals)
 
-import SpecHelper
+import           SpecHelper
 
-import qualified Data.Aeson as JSON
-import Data.List (lookup)
-import Data.Maybe (fromJust)
-import Text.Heredoc
-import Network.HTTP.Types.Header
-import Network.HTTP.Types
-import Control.Monad (replicateM_, void)
+import           Control.Monad             (replicateM_, void)
+import qualified Data.Aeson                as JSON
+import           Data.List                 (lookup)
+import           Data.Maybe                (fromJust)
+import           Network.HTTP.Types
+import           Network.HTTP.Types.Header
+import           Text.Heredoc
 
-import TestTypes(IncPK(..), CompoundPK(..))
-import Network.Wai (Application)
+import           Network.Wai               (Application)
+import           TestTypes                 (CompoundPK (..),
+                                            IncPK (..))
 
-import Protolude hiding (get)
+import           Protolude                 hiding (get)
 
-import PostgREST.Types (PgVersion, pgVersion112)
+import           PostgREST.Types           (PgVersion, pgVersion112)
 
 spec :: PgVersion -> SpecWith Application
 spec actualPgVersion = do

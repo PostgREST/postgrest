@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
@@ -27,29 +27,33 @@ module PostgREST.QueryBuilder (
   , pgFmtSetLocalSearchPath
   ) where
 
-import qualified Hasql.Statement         as H
-import qualified Hasql.Encoders          as HE
-import qualified Hasql.Decoders          as HD
+import qualified Hasql.Decoders                as HD
+import qualified Hasql.Encoders                as HE
+import qualified Hasql.Statement               as H
 
-import qualified Data.Aeson              as JSON
+import qualified Data.Aeson                    as JSON
 
-import           PostgREST.RangeQuery    (rangeLimit, rangeOffset, allRange)
-import qualified Data.HashMap.Strict     as HM
+import qualified Data.ByteString.Char8         as BS
+import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
-import qualified Data.Set                as S
-import           Data.Text               (intercalate, unwords, replace, isInfixOf, toLower)
-import qualified Data.Text as T          (map, takeWhile, null)
-import qualified Data.Text.Encoding as T
-import           Data.Tree               (Tree(..))
+import           Data.Scientific               (FPFormat (..),
+                                                formatScientific,
+                                                isInteger)
+import qualified Data.Set                      as S
+import           Data.Text                     (intercalate,
+                                                isInfixOf, replace,
+                                                toLower, unwords)
+import qualified Data.Text                     as T (map, null,
+                                                     takeWhile)
+import qualified Data.Text.Encoding            as T
+import           Data.Tree                     (Tree (..))
+import           PostgREST.ApiRequest          (PreferRepresentation (..))
+import           PostgREST.RangeQuery          (allRange, rangeLimit,
+                                                rangeOffset)
 import           PostgREST.Types
+import           Protolude                     hiding (cast,
+                                                intercalate, replace)
 import           Text.InterpolatedString.Perl6 (qc)
-import qualified Data.ByteString.Char8   as BS
-import           Data.Scientific         ( FPFormat (..)
-                                         , formatScientific
-                                         , isInteger
-                                         )
-import           Protolude hiding        ( intercalate, cast, replace)
-import           PostgREST.ApiRequest    (PreferRepresentation (..))
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -409,7 +413,7 @@ emptyOnFalse val cond = if cond then "" else val
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
-pgFmtColumn table c = fromQi table <> "." <> pgFmtIdent c
+pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> Field -> SqlFragment
 pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
@@ -427,10 +431,10 @@ pgFmtOrderTerm qi ot = unwords [
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
-     "like"   -> unknownLiteral (T.map star val)
-     "ilike"  -> unknownLiteral (T.map star val)
-     "is"     -> whiteList val
-     _        -> unknownLiteral val
+     "like"  -> unknownLiteral (T.map star val)
+     "ilike" -> unknownLiteral (T.map star val)
+     "is"    -> whiteList val
+     _       -> unknownLiteral val
 
    In vals -> pgFmtField table fld <> " " <>
     let emptyValForIn = "= any('{}') " in -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"

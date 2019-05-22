@@ -1,22 +1,24 @@
-{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Feature.ConcurrentSpec where
 
-import Control.Monad (void)
-import Control.Monad.Base
+import           Control.Monad               (void)
+import           Control.Monad.Base
 
-import Control.Monad.Trans.Control
-import Control.Concurrent.Async (mapConcurrently)
+import           Control.Concurrent.Async    (mapConcurrently)
+import           Control.Monad.Trans.Control
 
-import Test.Hspec
-import Test.Hspec.Wai.Internal
-import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
-import Network.Wai.Test (Session)
+import           Network.Wai.Test            (Session)
+import           Test.Hspec
+import           Test.Hspec.Wai
+import           Test.Hspec.Wai.Internal
+import           Test.Hspec.Wai.JSON
 
-import Network.Wai (Application)
+import           Network.Wai                 (Application)
 
-import Protolude hiding (get)
+import           Protolude                   hiding (get)
 
 spec :: SpecWith Application
 spec =

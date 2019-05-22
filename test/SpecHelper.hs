@@ -1,35 +1,35 @@
 module SpecHelper where
 
-import Control.Monad (void)
+import           Control.Monad          (void)
 
-import qualified System.IO.Error as E
-import System.Environment (getEnv)
+import           System.Environment     (getEnv)
+import qualified System.IO.Error        as E
 
-import qualified Data.ByteString.Base64 as B64 (encode, decodeLenient)
-import Data.CaseInsensitive (CI(..))
-import qualified Data.Set as S
-import qualified Data.Map.Strict as M
-import Data.List (lookup)
-import Text.Regex.TDFA ((=~))
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy as BL
-import           System.Process (readProcess)
+import qualified Data.ByteString.Base64 as B64 (decodeLenient, encode)
+import qualified Data.ByteString.Char8  as BS
+import qualified Data.ByteString.Lazy   as BL
+import           Data.CaseInsensitive   (CI (..))
+import           Data.List              (lookup)
+import qualified Data.Map.Strict        as M
+import qualified Data.Set               as S
+import           System.Process         (readProcess)
 import           Text.Heredoc
+import           Text.Regex.TDFA        ((=~))
 
-import PostgREST.Config (AppConfig(..))
-import PostgREST.Types  (JSPathExp(..))
+import           PostgREST.Config       (AppConfig (..))
+import           PostgREST.Types        (JSPathExp (..))
 
-import Test.Hspec
-import Test.Hspec.Wai
+import           Test.Hspec
+import           Test.Hspec.Wai
 
-import Network.HTTP.Types
-import Network.Wai.Test (SResponse(simpleStatus, simpleHeaders, simpleBody))
+import           Network.HTTP.Types
+import           Network.Wai.Test       (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
-import Data.Maybe (fromJust)
-import Data.Aeson (decode, Value(..))
-import qualified JSONSchema.Draft4 as D4
+import           Data.Aeson             (Value (..), decode)
+import           Data.Maybe             (fromJust)
+import qualified JSONSchema.Draft4      as D4
 
-import Protolude
+import           Protolude
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"

@@ -1,64 +1,67 @@
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module PostgREST.App (
   postgrest
 ) where
 
 import           Control.Applicative
-import           Data.Aeson                as JSON
-import qualified Data.ByteString.Char8     as BS
+import           Data.Aeson                           as JSON
+import qualified Data.ByteString.Char8                as BS
+import           Data.IORef                           (IORef,
+                                                       readIORef)
 import           Data.Maybe
-import           Data.IORef                (IORef, readIORef)
-import           Data.Time.Clock           (UTCTime)
-import qualified Data.Set                  as S
+import qualified Data.Set                             as S
+import           Data.Time.Clock                      (UTCTime)
 
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Transaction          as HT
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                           as P
+import qualified Hasql.Transaction                    as HT
+import qualified Hasql.Transaction.Sessions           as HT
 
 import           Network.HTTP.Types.Header
 import           Network.HTTP.Types.Status
-import           Network.HTTP.Types.URI    (renderSimpleQuery)
+import           Network.HTTP.Types.URI               (renderSimpleQuery)
 import           Network.Wai
 import           Network.Wai.Middleware.RequestLogger (logStdout)
 
-import qualified Hasql.Transaction         as H
+import qualified Hasql.Transaction                    as H
 
-import qualified Data.HashMap.Strict       as M
+import qualified Data.HashMap.Strict                  as M
 
-import           PostgREST.ApiRequest   ( ApiRequest(..), ContentType(..)
-                                        , Action(..), Target(..)
-                                        , PreferRepresentation (..)
-                                        , mutuallyAgreeable
-                                        , userApiRequest
-                                        )
-import           PostgREST.Auth            (jwtClaims, containsRole, parseSecret)
-import           PostgREST.Config          (AppConfig (..))
+import           PostgREST.ApiRequest                 (Action (..),
+                                                       ApiRequest (..),
+                                                       ContentType (..),
+                                                       PreferRepresentation (..),
+                                                       Target (..),
+                                                       mutuallyAgreeable,
+                                                       userApiRequest)
+import           PostgREST.Auth                       (containsRole,
+                                                       jwtClaims,
+                                                       parseSecret)
+import           PostgREST.Config                     (AppConfig (..))
+import           PostgREST.DbRequestBuilder           (fieldNames,
+                                                       mutateRequest,
+                                                       readRequest)
 import           PostgREST.DbStructure
-import           PostgREST.DbRequestBuilder( readRequest
-                                           , mutateRequest
-                                           , fieldNames
-                                           )
-import           PostgREST.Error           ( SimpleError(..), PgError(..)
-                                           , errorResponseFor
-                                           )
-import           PostgREST.RangeQuery      (allRange, rangeOffset)
+import           PostgREST.Error                      (PgError (..), SimpleError (..),
+                                                       errorResponseFor)
 import           PostgREST.Middleware
-import           PostgREST.QueryBuilder ( callProc
-                                        , requestToQuery
-                                        , requestToCountQuery
-                                        , createReadStatement
-                                        , createWriteStatement
-                                        , ResultsWithCount
-                                        )
-import           PostgREST.Parsers      (pRequestColumns)
-import           PostgREST.Types
 import           PostgREST.OpenAPI
+import           PostgREST.Parsers                    (pRequestColumns)
+import           PostgREST.QueryBuilder               (ResultsWithCount,
+                                                       callProc,
+                                                       createReadStatement,
+                                                       createWriteStatement,
+                                                       requestToCountQuery,
+                                                       requestToQuery)
+import           PostgREST.RangeQuery                 (allRange,
+                                                       rangeOffset)
+import           PostgREST.Types
 
-import           Data.Function (id)
-import           Protolude              hiding (intercalate, Proxy)
+import           Data.Function                        (id)
+import           Protolude                            hiding (Proxy,
+                                                       intercalate)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
@@ -211,7 +214,7 @@ app dbStructure proc cols conf apiRequest =
             Right (sq, mq) -> do
               let isSingle = case pjType of
                                PJArray len -> len == 1
-                               PJObject -> True
+                               PJObject    -> True
                   colNames = colName <$> tableCols dbStructure tSchema tName
               if topLevelRange /= allRange
                 then return . errorResponseFor $ PutRangeNotAllowedError

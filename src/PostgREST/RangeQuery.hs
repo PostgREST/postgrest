@@ -23,7 +23,7 @@ import           Data.Ranged.Ranges
 
 import           Text.Regex.TDFA           ((=~))
 
-import Data.List (lookup)
+import           Data.List                 (lookup)
 
 import           Protolude
 
@@ -60,7 +60,7 @@ rangeOffset :: NonnegRange -> Integer
 rangeOffset range =
   case rangeLower range of
     BoundaryBelow lower -> lower
-    _ -> panic "range without lower bound" -- should never happen
+    _                   -> panic "range without lower bound" -- should never happen
 
 rangeGeq :: Integer -> NonnegRange
 rangeGeq n =

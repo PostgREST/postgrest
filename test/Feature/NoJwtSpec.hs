@@ -1,15 +1,15 @@
 module Feature.NoJwtSpec where
 
 -- {{{ Imports
-import Test.Hspec
-import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
-import Network.HTTP.Types
+import           Network.HTTP.Types
+import           Test.Hspec
+import           Test.Hspec.Wai
+import           Test.Hspec.Wai.JSON
 
-import SpecHelper
-import Network.Wai (Application)
+import           Network.Wai         (Application)
+import           SpecHelper
 
-import Protolude
+import           Protolude
 -- }}}
 
 spec :: SpecWith Application

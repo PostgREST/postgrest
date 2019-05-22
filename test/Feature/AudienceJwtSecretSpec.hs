@@ -1,14 +1,14 @@
 module Feature.AudienceJwtSecretSpec where
 
 -- {{{ Imports
-import Test.Hspec
-import Test.Hspec.Wai
-import Network.HTTP.Types
+import           Network.HTTP.Types
+import           Test.Hspec
+import           Test.Hspec.Wai
 
-import SpecHelper
-import Network.Wai (Application)
+import           Network.Wai        (Application)
+import           SpecHelper
 
-import Protolude hiding (get)
+import           Protolude          hiding (get)
 -- }}}
 
 spec :: SpecWith Application
@@ -44,4 +44,4 @@ spec = describe "test handling of aud claims in JWT" $ do
       `shouldRespondWith` 200
 
   it "requests without JWT token should work" $
-    get "/has_count_column" `shouldRespondWith` 200 
+    get "/has_count_column" `shouldRespondWith` 200

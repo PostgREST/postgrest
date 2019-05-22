@@ -1,14 +1,14 @@
 module Feature.BinaryJwtSecretSpec where
 
 -- {{{ Imports
-import Test.Hspec
-import Test.Hspec.Wai
-import Network.HTTP.Types
+import           Network.HTTP.Types
+import           Test.Hspec
+import           Test.Hspec.Wai
 
-import SpecHelper
-import Network.Wai (Application)
+import           Network.Wai        (Application)
+import           SpecHelper
 
-import Protolude
+import           Protolude
 -- }}}
 
 spec :: SpecWith Application

@@ -15,7 +15,6 @@ module PostgREST.Error (
 , checkIsFatal
 ) where
 
-import           Protolude
 import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
 import           Data.Text                 (unwords)
@@ -25,6 +24,7 @@ import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
 import           Network.Wai               (Response, responseLBS)
 import           PostgREST.Types
+import           Protolude
 import           Text.Read                 (readMaybe)
 
 

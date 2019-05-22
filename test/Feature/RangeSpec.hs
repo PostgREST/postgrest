@@ -1,17 +1,17 @@
 module Feature.RangeSpec where
 
-import Test.Hspec
-import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
-import Network.HTTP.Types
-import Network.Wai.Test (SResponse(simpleHeaders,simpleStatus))
+import           Network.HTTP.Types
+import           Network.Wai.Test     (SResponse (simpleHeaders, simpleStatus))
+import           Test.Hspec
+import           Test.Hspec.Wai
+import           Test.Hspec.Wai.JSON
 
-import qualified Data.ByteString.Lazy         as BL
+import qualified Data.ByteString.Lazy as BL
 
-import SpecHelper
-import Network.Wai (Application)
+import           Network.Wai          (Application)
+import           SpecHelper
 
-import Protolude hiding (get)
+import           Protolude            hiding (get)
 
 defaultRange :: BL.ByteString
 defaultRange = [json| { "min": 0, "max": 15 } |]

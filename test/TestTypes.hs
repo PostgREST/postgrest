@@ -3,16 +3,16 @@ module TestTypes (
 , CompoundPK(..)
 ) where
 
+import           Data.Aeson ((.:))
 import qualified Data.Aeson as JSON
-import Data.Aeson ((.:))
 
-import Protolude
+import           Protolude
 
 data IncPK = IncPK {
-  incId :: Int
+  incId          :: Int
 , incNullableStr :: Maybe Text
-, incStr :: Text
-, incInsert :: Text
+, incStr         :: Text
+, incInsert      :: Text
 } deriving (Eq, Show)
 
 instance JSON.FromJSON IncPK where
@@ -24,8 +24,8 @@ instance JSON.FromJSON IncPK where
   parseJSON _ = mzero
 
 data CompoundPK = CompoundPK {
-  compoundK1 :: Int
-, compoundK2 :: Text
+  compoundK1    :: Int
+, compoundK2    :: Text
 , compoundExtra :: Maybe Int
 } deriving (Eq, Show)
 
