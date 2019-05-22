@@ -93,7 +93,7 @@ jobs:
           command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
       - run:
           name: run styler
-          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- stylish-haskell -i && git diff-index --quiet HEAD --
+          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- stylish-haskell -i && git diff-index --exit-code HEAD --
       - save_cache:
           paths:
             - "~/.stack"
