@@ -253,7 +253,11 @@ spec actualPgVersion =
     context "unsupported verbs" $ do
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
-          `shouldRespondWith` 405
+          `shouldRespondWith`
+          [json|{"message":"Bad Request"}|]
+          { matchStatus  = 405
+          , matchHeaders = [matchContentTypeJson]
+          }
       it "PATCH fails" $
         request methodPatch "/rpc/sayhello" [] ""
           `shouldRespondWith` 405
@@ -319,7 +323,12 @@ spec actualPgVersion =
         }
 
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
-      get "/rpc/raise_bad_pt" `shouldRespondWith` 500
+      get "/rpc/raise_bad_pt"
+        `shouldRespondWith`
+        [json|{"hint": null, "details": null}|]
+        { matchStatus  = 500
+        , matchHeaders = [ matchContentTypeJson ]
+        }
 
     context "expects a single json object" $ do
       it "does not expand posted json into parameters" $

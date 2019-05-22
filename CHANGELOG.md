@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1239, Add support for resource embedding on materialized views - @vitorbaptista
 - #1264, Add support for bulk RPC call - @steve-chavez
 - #1278, Add db-pool-timeout config option - @qu4tro
+- #1285, Abort on wrong database password - @qu4tro
 
 ### Fixed
 

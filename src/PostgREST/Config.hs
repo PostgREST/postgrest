@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-|
 Module      : PostgREST.Config
 Description : Manages PostgREST configuration options.
@@ -14,6 +12,9 @@ turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
+{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
+
 module PostgREST.Config ( prettyVersion
                         , docsVersion
                         , readOptions
@@ -50,8 +51,8 @@ import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
 import           Options.Applicative          hiding (str)
 import           Paths_postgrest              (version)
 import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (ApiRequestError(..),
-                                               JSPath, JSPathExp(..))
+import           PostgREST.Types              (JSPath, JSPathExp(..))
+import           PostgREST.Error              (ApiRequestError(..))
 import           Protolude                    hiding (hPutStrLn, take,
                                                intercalate, (<>))
 import           System.IO                    (hPrint)

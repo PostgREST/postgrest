@@ -11,7 +11,6 @@ import           Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import           Data.Maybe
 import           Data.IORef                (IORef, readIORef)
-import           Data.Text                 (intercalate)
 import           Data.Time.Clock           (UTCTime)
 import qualified Data.Set                  as S
 
@@ -42,10 +41,8 @@ import           PostgREST.DbRequestBuilder( readRequest
                                            , mutateRequest
                                            , fieldNames
                                            )
-import           PostgREST.Error           ( simpleError, pgError
-                                           , apiRequestError
-                                           , singularityError, binaryFieldError
-                                           , connectionLostError, gucHeadersError
+import           PostgREST.Error           ( SimpleError(..), PgError(..)
+                                           , errorResponseFor
                                            )
 import           PostgREST.RangeQuery      (allRange, rangeOffset)
 import           PostgREST.Middleware
@@ -73,14 +70,14 @@ postgrest conf refDbStructure pool getTime worker =
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure
     case maybeDbStructure of
-      Nothing -> respond connectionLostError
+      Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
           -- Need to parse ?columns early because findProc needs it to solve overloaded functions
           let apiReq = userApiRequest (configSchema conf) req body
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
           case apiReqCols of
-            Left err -> return $ apiRequestError err
+            Left err -> return . errorResponseFor $ err
             Right (apiRequest, maybeCols) -> do
               eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
               let authed = containsRole eClaims
@@ -94,7 +91,7 @@ postgrest conf refDbStructure pool getTime worker =
                   handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
                   txMode = transactionMode proc (iAction apiRequest)
               response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-              return $ either (pgError authed) identity response
+              return $ either (errorResponseFor . PgError authed) identity response
         when (responseStatus response == status503) worker
         respond response
 
@@ -133,7 +130,7 @@ app dbStructure proc cols conf apiRequest =
                   canonical = iCanonicalQS apiRequest
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
-                  then singularityError (toInteger queryTotal)
+                  then errorResponseFor . singularityError $ queryTotal
                   else responseLBS status
                     [toHeader contentType, contentRange,
                       ("Content-Location",
@@ -170,7 +167,7 @@ app dbStructure proc cols conf apiRequest =
                  && iPreferRepresentation apiRequest == Full
                 then do
                   HT.condemn
-                  return $ singularityError (toInteger queryTotal)
+                  return . errorResponseFor . singularityError $ queryTotal
               else
                 return . responseLBS status201 headers $
                   if iPreferRepresentation apiRequest == Full
@@ -199,7 +196,7 @@ app dbStructure proc cols conf apiRequest =
               case (contentType, iPreferRepresentation apiRequest) of
                 (CTSingularJSON, Full)
                       | queryTotal == 1 -> return $ responseLBS status fullHeaders (toS body)
-                      | otherwise       -> HT.condemn >> return (singularityError queryTotal)
+                      | otherwise       -> HT.condemn >> (return . errorResponseFor . singularityError) queryTotal
 
                 (_, Full) ->
                   return $ responseLBS status fullHeaders (toS body)
@@ -217,11 +214,11 @@ app dbStructure proc cols conf apiRequest =
                                PJObject -> True
                   colNames = colName <$> tableCols dbStructure tSchema tName
               if topLevelRange /= allRange
-                then return $ simpleError status400 [] "Range header and limit/offset querystring parameters are not allowed for PUT"
+                then return . errorResponseFor $ PutRangeNotAllowedError
               else if not isSingle
-                then return $ simpleError status400 [] "PUT payload must contain a single row"
+                then return . errorResponseFor $ PutSingletonError
               else if S.fromList colNames /= pjKeys
-                then return $ simpleError status400 [] "You must specify all columns in the payload when using PUT"
+                then return . errorResponseFor $ PutPayloadIncompleteError
               else do
                 row <- H.statement (toS pjRaw) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
@@ -233,7 +230,7 @@ app dbStructure proc cols conf apiRequest =
                 if queryTotal /= 1
                   then do
                     HT.condemn
-                    return $ simpleError status400 [] "Payload values do not match URL in primary key column(s)"
+                    return . errorResponseFor $ PutMatchingPkError
                   else
                     return $ if iPreferRepresentation apiRequest == Full
                       then responseLBS status200 [toHeader contentType] (toS body)
@@ -256,7 +253,7 @@ app dbStructure proc cols conf apiRequest =
                  && iPreferRepresentation apiRequest == Full
                 then do
                   HT.condemn
-                  return $ singularityError (toInteger queryTotal)
+                  return . errorResponseFor . singularityError $ queryTotal
                 else
                   return $ if iPreferRepresentation apiRequest == Full
                     then responseLBS status200 [toHeader contentType, r] (toS body)
@@ -293,12 +290,12 @@ app dbStructure proc cols conf apiRequest =
                   (status, contentRange) = rangeHeader queryTotal tableTotal
                   decodedHeaders = first toS $ JSON.eitherDecode $ toS jsonHeaders :: Either Text [GucHeader]
               case decodedHeaders of
-                Left _ -> return gucHeadersError
+                Left _ -> return . errorResponseFor $ GucHeadersError
                 Right hs ->
                   if singular && queryTotal /= 1
                     then do
                       HT.condemn
-                      return $ singularityError (toInteger queryTotal)
+                      return . errorResponseFor . singularityError $ queryTotal
                     else return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs) (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
@@ -355,17 +352,14 @@ responseContentTypeOrError accepts action = serves contentTypesForRequest accept
         ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
-        Nothing -> do
-          let failed = intercalate ", " $ map (toS . toMime) cAccepts
-          Left $ simpleError status415 [] $
-            "None of these Content-Types are available: " <> failed
+        Nothing -> Left . errorResponseFor . ContentTypeError . map toMime $ cAccepts
         Just ct -> Right ct
 
 binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
 binaryField CTOctetStream fldNames =
   if length fldNames == 1 && fieldName /= Just "*"
     then Right fieldName
-    else Left binaryFieldError
+    else Left . errorResponseFor $ BinaryFieldError
   where
     fieldName = headMay fldNames
 binaryField _ _ = Right Nothing
@@ -399,3 +393,6 @@ contentRangeH lower upper total =
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
 extractQueryResult = fromMaybe (Nothing, 0, [], "")
+
+singularityError :: (Integral a) => a -> SimpleError
+singularityError = SingularityError . toInteger

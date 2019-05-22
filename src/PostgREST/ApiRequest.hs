@@ -1,16 +1,18 @@
-{-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
-module PostgREST.ApiRequest ( ApiRequest(..)
-                            , ContentType(..)
-                            , Action(..)
-                            , Target(..)
-                            , PreferRepresentation (..)
-                            , mutuallyAgreeable
-                            , userApiRequest
-                            ) where
+{-# LANGUAGE LambdaCase #-}
+
+module PostgREST.ApiRequest ( 
+  ApiRequest(..)
+, ContentType(..)
+, Action(..)
+, Target(..)
+, PreferRepresentation (..)
+, mutuallyAgreeable
+, userApiRequest
+) where
 
 import           Protolude
 import qualified Data.Aeson                as JSON
@@ -35,6 +37,7 @@ import           Network.Wai.Parse         (parseHttpAccept)
 import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
 import           Data.Ranged.Boundaries
 import           PostgREST.Types
+import           PostgREST.Error           (ApiRequestError(..))
 import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
 import qualified Data.CaseInsensitive      as CI
 import           Web.Cookie                (parseCookiesText)

@@ -11,6 +11,7 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
@@ -31,26 +32,26 @@ import           Data.Either.Combinators   (mapLeft)
 
 import           Network.Wai
 
-import           Data.Foldable (foldr1)
+import           Data.Foldable             (foldr1)
 import qualified Data.HashMap.Strict       as M
 
-import           PostgREST.ApiRequest   ( ApiRequest(..)
-                                        , PreferRepresentation(..)
-                                        , Action(..), Target(..)
-                                        , PreferRepresentation (..)
-                                        )
-import           PostgREST.Error           (apiRequestError)
+import           PostgREST.ApiRequest      ( ApiRequest(..)
+                                           , PreferRepresentation(..)
+                                           , Action(..), Target(..)
+                                           , PreferRepresentation (..)
+                                           )
+import           PostgREST.Error           (ApiRequestError(..), errorResponseFor)
 import           PostgREST.Parsers
 import           PostgREST.RangeQuery      (NonnegRange, restrictRange, allRange)
 import           PostgREST.Types
 
-import           Protolude                hiding (from)
-import           Text.Regex.TDFA         ((=~))
-import           Unsafe                  (unsafeHead)
+import           Protolude                 hiding (from)
+import           Text.Regex.TDFA           ((=~))
+import           Unsafe                    (unsafeHead)
 
 readRequest :: Maybe Integer -> [Relation] -> Maybe ProcDescription -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels proc apiRequest  =
-  mapLeft apiRequestError $
+  mapLeft errorResponseFor $
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema relations =<<
   addFiltersOrdersRanges apiRequest <*>
@@ -319,7 +320,7 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
 mutateRequest :: ApiRequest -> TableName -> S.Set FieldName -> [FieldName] -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest tName cols pkCols fldNames = mapLeft apiRequestError $
+mutateRequest apiRequest tName cols pkCols fldNames = mapLeft errorResponseFor $
   case action of
     ActionCreate -> Right $ Insert tName cols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
     ActionUpdate -> Update tName cols <$> combinedLogic <*> pure returnings

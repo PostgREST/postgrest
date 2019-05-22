@@ -34,10 +34,30 @@ spec =
               "X-Test-2" <:> "key1=val1"]}
 
       it "fails when setting headers with wrong json structure" $ do
-        get "/rpc/bad_guc_headers_1" `shouldRespondWith` 500
-        get "/rpc/bad_guc_headers_2" `shouldRespondWith` 500
-        get "/rpc/bad_guc_headers_3" `shouldRespondWith` 500
-        post "/rpc/bad_guc_headers_1" [json|{}|] `shouldRespondWith` 500
+        get "/rpc/bad_guc_headers_1"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_2"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_3"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        post "/rpc/bad_guc_headers_1" [json|{}|]
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
 
       it "can set the same http header twice" $
         get "/rpc/set_cookie_twice"
