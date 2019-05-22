@@ -39,7 +39,7 @@ steps:
       # - none: Do not perform any alignment.
       #
       # Default: global.
-      align: global
+      align: group
 
       # The following options affect only import list alignment.
       #

@@ -6,7 +6,7 @@ module TestTypes (
 import           Data.Aeson ((.:))
 import qualified Data.Aeson as JSON
 
-import           Protolude
+import Protolude
 
 data IncPK = IncPK {
   incId          :: Int

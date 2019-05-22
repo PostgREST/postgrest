@@ -1,35 +1,32 @@
 module SpecHelper where
 
-import           Control.Monad          (void)
-
-import           System.Environment     (getEnv)
-import qualified System.IO.Error        as E
-
 import qualified Data.ByteString.Base64 as B64 (decodeLenient, encode)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
-import           Data.CaseInsensitive   (CI (..))
-import           Data.List              (lookup)
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
-import           System.Process         (readProcess)
-import           Text.Heredoc
-import           Text.Regex.TDFA        ((=~))
-
-import           PostgREST.Config       (AppConfig (..))
-import           PostgREST.Types        (JSPathExp (..))
-
-import           Test.Hspec
-import           Test.Hspec.Wai
-
-import           Network.HTTP.Types
-import           Network.Wai.Test       (SResponse (simpleBody, simpleHeaders, simpleStatus))
-
-import           Data.Aeson             (Value (..), decode)
-import           Data.Maybe             (fromJust)
 import qualified JSONSchema.Draft4      as D4
+import qualified System.IO.Error        as E
 
-import           Protolude
+import Control.Monad        (void)
+import Data.Aeson           (Value (..), decode)
+import Data.CaseInsensitive (CI (..))
+import Data.List            (lookup)
+import Data.Maybe           (fromJust)
+import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import System.Environment   (getEnv)
+import System.Process       (readProcess)
+import Text.Regex.TDFA      ((=~))
+
+
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Text.Heredoc
+
+import PostgREST.Config (AppConfig (..))
+import PostgREST.Types  (JSPathExp (..))
+import Protolude
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"

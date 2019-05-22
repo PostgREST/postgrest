@@ -1,14 +1,14 @@
 module Feature.AsymmetricJwtSpec where
 
 -- {{{ Imports
-import           Network.HTTP.Types
-import           Test.Hspec
-import           Test.Hspec.Wai
+import Network.Wai (Application)
 
-import           Network.Wai        (Application)
-import           SpecHelper
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
 
-import           Protolude
+import Protolude
+import SpecHelper
 -- }}}
 
 spec :: SpecWith Application

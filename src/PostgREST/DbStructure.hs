@@ -22,25 +22,26 @@ module PostgREST.DbStructure (
 , getPgVersion
 ) where
 
-import qualified Hasql.Decoders                as HD
-import qualified Hasql.Encoders                as HE
-import qualified Hasql.Statement               as H
+import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
+import           Data.Set            as S (fromList)
+import qualified Data.Text           as T
+import qualified Hasql.Decoders      as HD
+import qualified Hasql.Encoders      as HE
+import qualified Hasql.Session       as H
+import qualified Hasql.Statement     as H
+import qualified Hasql.Transaction   as HT
 
-import           Control.Applicative
-import qualified Data.HashMap.Strict           as M
-import qualified Data.List                     as L
-import           Data.Set                      as S (fromList)
-import           Data.Text                     (breakOn, dropAround,
-                                                split, splitOn, strip)
-import qualified Data.Text                     as T
-import qualified Hasql.Session                 as H
-import qualified Hasql.Transaction             as HT
-import           PostgREST.Types
-import           Text.InterpolatedString.Perl6 (q, qc)
+import Data.Text                     (breakOn, dropAround, split,
+                                      splitOn, strip)
+import GHC.Exts                      (groupWith)
+import Text.InterpolatedString.Perl6 (q, qc)
+import Unsafe                        (unsafeHead)
 
-import           GHC.Exts                      (groupWith)
-import           Protolude
-import           Unsafe                        (unsafeHead)
+import Control.Applicative
+
+import PostgREST.Types
+import Protolude
 
 getDbStructure :: Schema -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schema pgVer = do

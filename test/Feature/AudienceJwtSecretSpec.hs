@@ -1,14 +1,14 @@
 module Feature.AudienceJwtSecretSpec where
 
 -- {{{ Imports
-import           Network.HTTP.Types
-import           Test.Hspec
-import           Test.Hspec.Wai
+import Network.Wai (Application)
 
-import           Network.Wai        (Application)
-import           SpecHelper
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
 
-import           Protolude          hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 -- }}}
 
 spec :: SpecWith Application

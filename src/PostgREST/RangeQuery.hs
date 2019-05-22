@@ -13,19 +13,16 @@ module PostgREST.RangeQuery (
 , NonnegRange
 ) where
 
+import qualified Data.ByteString.Char8 as BS
+import           Data.List             (lookup)
+import           Text.Regex.TDFA       ((=~))
 
-import           Control.Applicative
-import           Network.HTTP.Types.Header
+import Control.Applicative
+import Data.Ranged.Boundaries
+import Data.Ranged.Ranges
+import Network.HTTP.Types.Header
 
-import qualified Data.ByteString.Char8     as BS
-import           Data.Ranged.Boundaries
-import           Data.Ranged.Ranges
-
-import           Text.Regex.TDFA           ((=~))
-
-import           Data.List                 (lookup)
-
-import           Protolude
+import Protolude
 
 type NonnegRange = Range Integer
 

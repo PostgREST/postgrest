@@ -14,39 +14,39 @@ module PostgREST.ApiRequest (
 , userApiRequest
 ) where
 
-import           Control.Arrow             ((***))
-import qualified Data.Aeson                as JSON
-import           Data.Aeson.Types          (emptyArray, emptyObject)
-import qualified Data.ByteString           as BS
-import qualified Data.ByteString.Internal  as BS (c2w)
-import qualified Data.ByteString.Lazy      as BL
-import qualified Data.CaseInsensitive      as CI
-import qualified Data.Csv                  as CSV
-import qualified Data.HashMap.Strict       as M
-import           Data.List                 (last, lookup, partition)
-import qualified Data.List                 as L
-import           Data.Maybe                (fromJust)
-import           Data.Ranged.Boundaries
-import           Data.Ranged.Ranges        (Range (..), emptyRange,
-                                            rangeIntersection)
-import qualified Data.Set                  as S
-import qualified Data.Text                 as T
-import qualified Data.Vector               as V
-import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization, hCookie)
-import           Network.HTTP.Types.URI    (parseQueryReplacePlus,
-                                            parseSimpleQuery)
-import           Network.Wai               (Request (..))
-import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.Error           (ApiRequestError (..))
-import           PostgREST.RangeQuery      (NonnegRange, allRange,
-                                            rangeGeq, rangeLimit,
-                                            rangeOffset,
-                                            rangeRequested,
-                                            restrictRange)
-import           PostgREST.Types
-import           Protolude
-import           Web.Cookie                (parseCookiesText)
+import qualified Data.Aeson               as JSON
+import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Internal as BS (c2w)
+import qualified Data.ByteString.Lazy     as BL
+import qualified Data.CaseInsensitive     as CI
+import qualified Data.Csv                 as CSV
+import qualified Data.HashMap.Strict      as M
+import qualified Data.List                as L
+import qualified Data.Set                 as S
+import qualified Data.Text                as T
+import qualified Data.Vector              as V
+
+import Control.Arrow             ((***))
+import Data.Aeson.Types          (emptyArray, emptyObject)
+import Data.List                 (last, lookup, partition)
+import Data.Maybe                (fromJust)
+import Data.Ranged.Boundaries
+import Data.Ranged.Ranges        (Range (..), emptyRange,
+                                  rangeIntersection)
+import Network.HTTP.Base         (urlEncodeVars)
+import Network.HTTP.Types.Header (hAuthorization, hCookie)
+import Network.HTTP.Types.URI    (parseQueryReplacePlus,
+                                  parseSimpleQuery)
+import Network.Wai               (Request (..))
+import Network.Wai.Parse         (parseHttpAccept)
+import Web.Cookie                (parseCookiesText)
+
+import PostgREST.Error      (ApiRequestError (..))
+import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
+                             rangeLimit, rangeOffset, rangeRequested,
+                             restrictRange)
+import PostgREST.Types
+import Protolude
 
 type RequestBody = BL.ByteString
 

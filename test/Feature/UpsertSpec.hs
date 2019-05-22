@@ -1,15 +1,15 @@
 module Feature.UpsertSpec where
 
-import           Network.HTTP.Types
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
+import Network.Wai (Application)
 
-import           Network.Wai         (Application)
-import           SpecHelper
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+import Text.Heredoc
 
-import           Protolude           hiding (get, put)
-import           Text.Heredoc
+import Protolude  hiding (get, put)
+import SpecHelper
 
 spec :: SpecWith Application
 spec =

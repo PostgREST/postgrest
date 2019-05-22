@@ -1,16 +1,17 @@
 module Feature.QuerySpec where
 
-import           Network.HTTP.Types
-import           Network.Wai.Test    (SResponse (simpleHeaders))
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (simpleHeaders))
 
-import           Network.Wai         (Application)
-import           SpecHelper
-import           Text.Heredoc
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 
-import           Protolude           hiding (get)
+import Text.Heredoc
+
+import Protolude  hiding (get)
+import SpecHelper
 
 spec :: SpecWith Application
 spec = do

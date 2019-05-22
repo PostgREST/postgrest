@@ -1,14 +1,15 @@
 module Feature.QueryLimitedSpec where
 
-import           Network.HTTP.Types
-import           Network.Wai         (Application)
-import           Network.Wai.Test    (SResponse (simpleHeaders, simpleStatus))
-import           SpecHelper
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
 
-import           Protolude           hiding (get)
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+
+import Protolude  hiding (get)
+import SpecHelper
 
 spec :: SpecWith Application
 spec =

@@ -18,38 +18,33 @@ module PostgREST.DbRequestBuilder (
 , fieldNames
 ) where
 
-import           Control.Applicative
-import           Control.Arrow           ((***))
-import           Control.Lens.Getter     (view)
-import           Control.Lens.Tuple      (_1)
-import qualified Data.ByteString.Char8   as BS
-import           Data.Either.Combinators (mapLeft)
-import           Data.List               (delete)
-import           Data.Maybe              (fromJust)
-import qualified Data.Set                as S
-import           Data.Text               (isInfixOf)
-import           Data.Tree
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.HashMap.Strict   as M
+import qualified Data.Set              as S
 
-import           Network.Wai
+import Control.Applicative
+import Control.Arrow           ((***))
+import Control.Lens.Getter     (view)
+import Control.Lens.Tuple      (_1)
+import Data.Either.Combinators (mapLeft)
+import Data.Foldable           (foldr1)
+import Data.List               (delete)
+import Data.Maybe              (fromJust)
+import Data.Text               (isInfixOf)
+import Text.Regex.TDFA         ((=~))
+import Unsafe                  (unsafeHead)
 
-import           Data.Foldable           (foldr1)
-import qualified Data.HashMap.Strict     as M
+import Data.Tree
+import Network.Wai
 
-import           PostgREST.ApiRequest    (Action (..),
-                                          ApiRequest (..),
-                                          PreferRepresentation (..),
-                                          PreferRepresentation (..),
-                                          Target (..))
-import           PostgREST.Error         (ApiRequestError (..),
-                                          errorResponseFor)
-import           PostgREST.Parsers
-import           PostgREST.RangeQuery    (NonnegRange, allRange,
-                                          restrictRange)
-import           PostgREST.Types
-
-import           Protolude               hiding (from)
-import           Text.Regex.TDFA         ((=~))
-import           Unsafe                  (unsafeHead)
+import PostgREST.ApiRequest (Action (..), ApiRequest (..),
+                             PreferRepresentation (..),
+                             PreferRepresentation (..), Target (..))
+import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
+import PostgREST.Parsers
+import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
+import PostgREST.Types
+import Protolude            hiding (from)
 
 readRequest :: Maybe Integer -> [Relation] -> Maybe ProcDescription -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels proc apiRequest  =

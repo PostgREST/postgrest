@@ -6,16 +6,19 @@ Description : PostgREST common types and functions used by the rest of the modul
 
 module PostgREST.Types where
 
-import qualified Data.Aeson                as JSON
-import qualified Data.ByteString.Lazy      as BL
-import qualified Data.CaseInsensitive      as CI
-import qualified Data.HashMap.Strict       as M
-import qualified Data.Set                  as S
-import           Data.Tree
+import qualified Data.Aeson           as JSON
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.CaseInsensitive as CI
+import qualified Data.HashMap.Strict  as M
+import qualified Data.Set             as S
 import qualified GHC.Show
-import           Network.HTTP.Types.Header (Header, hContentType)
-import           PostgREST.RangeQuery      (NonnegRange)
-import           Protolude
+
+import Network.HTTP.Types.Header (Header, hContentType)
+
+import Data.Tree
+
+import PostgREST.RangeQuery (NonnegRange)
+import Protolude
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
