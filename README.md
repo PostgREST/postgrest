@@ -1,4 +1,4 @@
-# PostgREST documentation
+# PostgREST documentation http://postgrest.org/
 
 PostgREST docs use the reStructuredText format, check this [cheatsheet](https://github.com/ralsina/rst-cheatsheet/blob/master/rst-cheatsheet.rst) to get acquainted with it.
 
