@@ -22,7 +22,6 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict   as M
 import qualified Data.Set              as S
 
-import Control.Applicative
 import Control.Arrow           ((***))
 import Control.Lens.Getter     (view)
 import Control.Lens.Tuple      (_1)
@@ -34,6 +33,7 @@ import Data.Text               (isInfixOf)
 import Text.Regex.TDFA         ((=~))
 import Unsafe                  (unsafeHead)
 
+import Control.Applicative
 import Data.Tree
 import Network.Wai
 

@@ -12,7 +12,6 @@ import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Hasql.Transaction   as H
 
--- import Network.HTTP.Types.Status     (status500, unauthorized401)
 import Network.Wai                   (Application, Response)
 import Network.Wai.Middleware.Cors   (cors)
 import Network.Wai.Middleware.Gzip   (def, gzip)

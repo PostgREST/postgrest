@@ -24,7 +24,6 @@ module PostgREST.DbStructure (
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import           Data.Set            as S (fromList)
 import qualified Data.Text           as T
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
@@ -32,6 +31,7 @@ import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
 
+import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
 import GHC.Exts                      (groupWith)

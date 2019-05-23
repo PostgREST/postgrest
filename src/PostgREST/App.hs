@@ -14,17 +14,18 @@ import qualified Hasql.Transaction          as H
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
-import Control.Applicative
 import Data.Aeson                           as JSON
 import Data.Function                        (id)
 import Data.IORef                           (IORef, readIORef)
-import Data.Maybe
 import Data.Time.Clock                      (UTCTime)
+import Network.HTTP.Types.URI               (renderSimpleQuery)
+import Network.Wai.Middleware.RequestLogger (logStdout)
+
+import Control.Applicative
+import Data.Maybe
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
-import Network.HTTP.Types.URI               (renderSimpleQuery)
 import Network.Wai
-import Network.Wai.Middleware.RequestLogger (logStdout)
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    ContentType (..),

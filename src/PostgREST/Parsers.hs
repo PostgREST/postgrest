@@ -9,16 +9,17 @@ module PostgREST.Parsers where
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Control.Monad                 ((>>))
-import Data.Either.Combinators       (mapLeft)
-import Data.Foldable                 (foldl1)
-import Data.Functor                  (($>))
-import Data.List                     (init, last)
-import Data.Text                     (intercalate, replace, strip)
+import Control.Monad           ((>>))
+import Data.Either.Combinators (mapLeft)
+import Data.Foldable           (foldl1)
+import Data.Functor            (($>))
+import Data.List               (init, last)
+import Data.Text               (intercalate, replace, strip)
+import Text.Read               (read)
+
 import Data.Tree
 import Text.Parsec.Error
 import Text.ParserCombinators.Parsec hiding (many, (<|>))
-import Text.Read                     (read)
 
 import PostgREST.Error      (ApiRequestError (ParseRequestError))
 import PostgREST.RangeQuery (NonnegRange)

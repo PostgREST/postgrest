@@ -30,7 +30,6 @@ import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (last, lookup, partition)
 import Data.Maybe                (fromJust)
-import Data.Ranged.Boundaries
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
 import Network.HTTP.Base         (urlEncodeVars)
@@ -40,6 +39,9 @@ import Network.HTTP.Types.URI    (parseQueryReplacePlus,
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
+
+
+import Data.Ranged.Boundaries
 
 import PostgREST.Error      (ApiRequestError (..))
 import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,

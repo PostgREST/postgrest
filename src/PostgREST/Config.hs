@@ -31,10 +31,8 @@ import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
 import qualified Data.Configurator.Parser     as C
 import           Data.Configurator.Types      as C
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
-import Control.Applicative
 import Control.Lens                (preview)
 import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
@@ -53,10 +51,12 @@ import Paths_postgrest             (version)
 import System.IO                   (hPrint)
 import System.IO.Error             (IOError)
 
+import Control.Applicative
 import Data.Monoid
 import Network.Wai
-import Options.Applicative hiding (str)
+import Options.Applicative          hiding (str)
 import Text.Heredoc
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
 import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)

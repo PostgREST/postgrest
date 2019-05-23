@@ -37,13 +37,14 @@ import qualified Hasql.Decoders        as HD
 import qualified Hasql.Encoders        as HE
 import qualified Hasql.Statement       as H
 
-import Data.Maybe
 import Data.Scientific               (FPFormat (..), formatScientific,
                                       isInteger)
 import Data.Text                     (intercalate, isInfixOf, replace,
                                       toLower, unwords)
 import Data.Tree                     (Tree (..))
 import Text.InterpolatedString.Perl6 (qc)
+
+import Data.Maybe
 
 import PostgREST.ApiRequest (PreferRepresentation (..))
 import PostgREST.RangeQuery (allRange, rangeLimit, rangeOffset)

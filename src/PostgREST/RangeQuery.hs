@@ -14,8 +14,9 @@ module PostgREST.RangeQuery (
 ) where
 
 import qualified Data.ByteString.Char8 as BS
-import           Data.List             (lookup)
-import           Text.Regex.TDFA       ((=~))
+
+import Data.List       (lookup)
+import Text.Regex.TDFA ((=~))
 
 import Control.Applicative
 import Data.Ranged.Boundaries
