@@ -10,25 +10,29 @@ module PostgREST.OpenAPI (
 , pickProxy
 ) where
 
-import           Control.Arrow               ((&&&))
-import           Control.Lens
-import           Data.Aeson                  (decode, encode)
-import           Data.HashMap.Strict.InsOrd  (InsOrdHashMap, fromList)
-import           Data.Maybe                  (fromJust)
-import qualified Data.Set                    as Set
-import           Data.String                 (IsString (..))
-import           Data.Text                   (unpack, pack, init, tail, toLower, intercalate, append, dropWhile, breakOn)
-import           Network.URI                 (parseURI, isAbsoluteURI,
-                                              URI (..), URIAuth (..))
+import qualified Data.Set as Set
 
-import           Protolude hiding              ((&), Proxy, get, intercalate, dropWhile)
+import Control.Arrow              ((&&&))
+import Data.Aeson                 (decode, encode)
+import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
+import Data.Maybe                 (fromJust)
+import Data.String                (IsString (..))
+import Data.Text                  (append, breakOn, dropWhile, init,
+                                   intercalate, pack, tail, toLower,
+                                   unpack)
+import Network.URI                (URI (..), URIAuth (..),
+                                   isAbsoluteURI, parseURI)
 
-import           Data.Swagger
+import Control.Lens
+import Data.Swagger
 
-import           PostgREST.ApiRequest        (ContentType(..))
-import           PostgREST.Config            (prettyVersion, docsVersion)
-import           PostgREST.Types             (Table(..), Column(..), PgArg(..), ForeignKey(..),
-                                              PrimaryKey(..), Proxy(..), ProcDescription(..), toMime)
+import PostgREST.ApiRequest (ContentType (..))
+import PostgREST.Config     (docsVersion, prettyVersion)
+import PostgREST.Types      (Column (..), ForeignKey (..), PgArg (..),
+                             PrimaryKey (..), ProcDescription (..),
+                             Proxy (..), Table (..), toMime)
+import Protolude            hiding (Proxy, dropWhile, get,
+                             intercalate, (&))
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -329,7 +333,7 @@ pickProxy proxy
    uri = toURI $ fromJust proxy
    scheme = init $ toLower $ pack $ uriScheme uri
    path URI {uriPath = ""} =  "/"
-   path URI {uriPath = p} = p
+   path URI {uriPath = p}  = p
    path' = pack $ path uri
    authority = fromJust $ uriAuthority uri
    host' = pack $ uriRegName authority
@@ -337,9 +341,9 @@ pickProxy proxy
    readPort = fromMaybe 80 . readMaybe
    port'' :: Integer
    port'' = case (port', scheme) of
-             ("", "http") -> 80
+             ("", "http")  -> 80
              ("", "https") -> 443
-             _ -> readPort $ unpack $ tail $ pack port'
+             _             -> readPort $ unpack $ tail $ pack port'
 
 isUriValid:: URI -> Bool
 isUriValid = fAnd [isSchemeValid, isQueryValid, isAuthorityValid]
@@ -355,7 +359,7 @@ isSchemeValid URI {uriScheme = s}
 
 isQueryValid :: URI -> Bool
 isQueryValid URI {uriQuery = ""} = True
-isQueryValid _ = False
+isQueryValid _                   = False
 
 isAuthorityValid :: URI -> Bool
 isAuthorityValid URI {uriAuthority = a}
@@ -364,16 +368,16 @@ isAuthorityValid URI {uriAuthority = a}
 
 isUserInfoValid :: URIAuth -> Bool
 isUserInfoValid URIAuth {uriUserInfo = ""} = True
-isUserInfoValid _ = False
+isUserInfoValid _                          = False
 
 isHostValid :: URIAuth -> Bool
 isHostValid URIAuth {uriRegName = ""} = False
-isHostValid _ = True
+isHostValid _                         = True
 
 isPortValid :: URIAuth -> Bool
 isPortValid URIAuth {uriPort = ""} = True
 isPortValid URIAuth {uriPort = (':':p)} =
   case readMaybe p of
-    Just i -> i > (0 :: Integer) && i < 65536
+    Just i  -> i > (0 :: Integer) && i < 65536
     Nothing -> False
 isPortValid _ = False

@@ -6,11 +6,11 @@ This module is in charge of building an intermediate representation(ReadRequest,
 
 A query tree is built in case of resource embedding. By inferring the relationship between tables, join conditions are added for every embedded resource.
 -}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DuplicateRecordFields#-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiWayIf            #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 
 module PostgREST.DbRequestBuilder (
   readRequest
@@ -18,36 +18,33 @@ module PostgREST.DbRequestBuilder (
 , fieldNames
 ) where
 
-import           Control.Applicative
-import           Control.Arrow             ((***))
-import           Control.Lens.Getter       (view)
-import           Control.Lens.Tuple        (_1)
-import qualified Data.ByteString.Char8     as BS
-import           Data.List                 (delete)
-import           Data.Maybe                (fromJust)
-import qualified Data.Set                  as S
-import           Data.Text                 (isInfixOf)
-import           Data.Tree
-import           Data.Either.Combinators   (mapLeft)
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.HashMap.Strict   as M
+import qualified Data.Set              as S
 
-import           Network.Wai
+import Control.Arrow           ((***))
+import Control.Lens.Getter     (view)
+import Control.Lens.Tuple      (_1)
+import Data.Either.Combinators (mapLeft)
+import Data.Foldable           (foldr1)
+import Data.List               (delete)
+import Data.Maybe              (fromJust)
+import Data.Text               (isInfixOf)
+import Text.Regex.TDFA         ((=~))
+import Unsafe                  (unsafeHead)
 
-import           Data.Foldable             (foldr1)
-import qualified Data.HashMap.Strict       as M
+import Control.Applicative
+import Data.Tree
+import Network.Wai
 
-import           PostgREST.ApiRequest      ( ApiRequest(..)
-                                           , PreferRepresentation(..)
-                                           , Action(..), Target(..)
-                                           , PreferRepresentation (..)
-                                           )
-import           PostgREST.Error           (ApiRequestError(..), errorResponseFor)
-import           PostgREST.Parsers
-import           PostgREST.RangeQuery      (NonnegRange, restrictRange, allRange)
-import           PostgREST.Types
-
-import           Protolude                 hiding (from)
-import           Text.Regex.TDFA           ((=~))
-import           Unsafe                    (unsafeHead)
+import PostgREST.ApiRequest (Action (..), ApiRequest (..),
+                             PreferRepresentation (..),
+                             PreferRepresentation (..), Target (..))
+import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
+import PostgREST.Parsers
+import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
+import PostgREST.Types
+import Protolude            hiding (from)
 
 readRequest :: Maybe Integer -> [Relation] -> Maybe ProcDescription -> ApiRequest -> Either Response ReadRequest
 readRequest maxRows allRels proc apiRequest  =
@@ -65,9 +62,9 @@ readRequest maxRows allRels proc apiRequest  =
         (TargetProc  (QualifiedIdentifier s pName) ) -> Just (s, tName)
           where
             tName = case pdReturnType <$> proc of
-              Just (SetOf (Composite qi)) -> qiName qi
+              Just (SetOf (Composite qi))  -> qiName qi
               Just (Single (Composite qi)) -> qiName qi
-              _ -> pName
+              _                            -> pName
 
         _ -> Nothing
 
@@ -93,7 +90,7 @@ readRequest maxRows allRels proc apiRequest  =
       ActionUpdate   -> fakeSourceRelations ++ allRels
       ActionDelete   -> fakeSourceRelations ++ allRels
       ActionInvoke _ -> fakeSourceRelations ++ allRels
-      _       -> allRels
+      _              -> allRels
       where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels
 
 -- in a relation where one of the tables matches "TableName"

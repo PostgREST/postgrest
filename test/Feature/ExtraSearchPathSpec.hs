@@ -1,14 +1,13 @@
 module Feature.ExtraSearchPathSpec where
 
+import Network.HTTP.Types
+import Network.Wai         (Application)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Network.HTTP.Types
-
-import SpecHelper
-import Network.Wai (Application)
 
 import Protolude
+import SpecHelper
 
 spec :: SpecWith Application
 spec = describe "extra search path" $ do

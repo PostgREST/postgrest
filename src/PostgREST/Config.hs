@@ -12,7 +12,8 @@ turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module PostgREST.Config ( prettyVersion
@@ -24,42 +25,44 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import           Control.Applicative
-import           Control.Monad                (fail)
-import           Control.Lens                 (preview)
-import           Crypto.JWT                   (StringOrURI,
-                                               stringOrUri)
 import qualified Data.ByteString              as B
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
 import qualified Data.Configurator.Parser     as C
 import           Data.Configurator.Types      as C
-import           Data.List                    (lookup)
-import           Data.Monoid
-import           Data.Scientific              (floatingOrInteger)
-import           Data.String                  (String)
-import           Data.Text                    (dropWhileEnd, dropEnd,
-                                               intercalate, lines,
-                                               strip, take, splitOn)
-import           Data.Text.Encoding           (encodeUtf8)
-import           Data.Text.IO                 (hPutStrLn)
-import           Data.Version                 (versionBranch)
-import           Development.GitRev           (gitHash)
-import           Network.Wai
-import           Network.Wai.Middleware.Cors  (CorsResourcePolicy (..))
-import           Options.Applicative          hiding (str)
-import           Paths_postgrest              (version)
-import           PostgREST.Parsers            (pRoleClaimKey)
-import           PostgREST.Types              (JSPath, JSPathExp(..))
-import           PostgREST.Error              (ApiRequestError(..))
-import           Protolude                    hiding (hPutStrLn, take,
-                                               intercalate, (<>))
-import           System.IO                    (hPrint)
-import           System.IO.Error              (IOError)
-import           Text.Heredoc
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import qualified Text.PrettyPrint.ANSI.Leijen as L
+
+import Control.Lens                (preview)
+import Control.Monad               (fail)
+import Crypto.JWT                  (StringOrURI, stringOrUri)
+import Data.List                   (lookup)
+import Data.Scientific             (floatingOrInteger)
+import Data.String                 (String)
+import Data.Text                   (dropEnd, dropWhileEnd,
+                                    intercalate, lines, splitOn,
+                                    strip, take)
+import Data.Text.Encoding          (encodeUtf8)
+import Data.Text.IO                (hPutStrLn)
+import Data.Version                (versionBranch)
+import Development.GitRev          (gitHash)
+import Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
+import Paths_postgrest             (version)
+import System.IO                   (hPrint)
+import System.IO.Error             (IOError)
+
+import Control.Applicative
+import Data.Monoid
+import Network.Wai
+import Options.Applicative          hiding (str)
+import Text.Heredoc
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
+
+import PostgREST.Error   (ApiRequestError (..))
+import PostgREST.Parsers (pRoleClaimKey)
+import PostgREST.Types   (JSPath, JSPathExp (..))
+import Protolude         hiding (hPutStrLn, intercalate, take, (<>))
+
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -171,7 +174,7 @@ readOptions = do
 
     coerceText :: Value -> Text
     coerceText (String s) = s
-    coerceText v = show v
+    coerceText v          = show v
 
     coerceInt :: (Read i, Integral i) => Value -> Maybe i
     coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
@@ -185,11 +188,11 @@ readOptions = do
 
     parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
     parseRoleClaimKey (String s) = pRoleClaimKey s
-    parseRoleClaimKey v = pRoleClaimKey $ show v
+    parseRoleClaimKey v          = pRoleClaimKey $ show v
 
     splitExtraSearchPath :: Value -> [Text]
     splitExtraSearchPath (String s) = strip <$> splitOn "," s
-    splitExtraSearchPath _ = []
+    splitExtraSearchPath _          = []
 
     opts = info (helper <*> pathParser) $
              fullDesc

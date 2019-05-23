@@ -4,7 +4,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 -}
 {-# LANGUAGE LambdaCase #-}
 
-module PostgREST.ApiRequest ( 
+module PostgREST.ApiRequest (
   ApiRequest(..)
 , ContentType(..)
 , Action(..)
@@ -14,33 +14,41 @@ module PostgREST.ApiRequest (
 , userApiRequest
 ) where
 
-import           Protolude
-import qualified Data.Aeson                as JSON
-import           Data.Aeson.Types          (emptyObject, emptyArray)
-import qualified Data.ByteString           as BS
-import qualified Data.ByteString.Internal  as BS (c2w)
-import qualified Data.ByteString.Lazy      as BL
-import qualified Data.Csv                  as CSV
-import qualified Data.List                 as L
-import           Data.List                 (lookup, last, partition)
-import qualified Data.HashMap.Strict       as M
-import qualified Data.Set                  as S
-import           Data.Maybe                (fromJust)
-import           Control.Arrow             ((***))
-import qualified Data.Text                 as T
-import qualified Data.Vector               as V
-import           Network.HTTP.Base         (urlEncodeVars)
-import           Network.HTTP.Types.Header (hAuthorization, hCookie)
-import           Network.HTTP.Types.URI    (parseSimpleQuery, parseQueryReplacePlus)
-import           Network.Wai               (Request (..))
-import           Network.Wai.Parse         (parseHttpAccept)
-import           PostgREST.RangeQuery      (NonnegRange, rangeRequested, restrictRange, rangeGeq, allRange, rangeLimit, rangeOffset)
-import           Data.Ranged.Boundaries
-import           PostgREST.Types
-import           PostgREST.Error           (ApiRequestError(..))
-import           Data.Ranged.Ranges        (Range(..), rangeIntersection, emptyRange)
-import qualified Data.CaseInsensitive      as CI
-import           Web.Cookie                (parseCookiesText)
+import qualified Data.Aeson               as JSON
+import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Internal as BS (c2w)
+import qualified Data.ByteString.Lazy     as BL
+import qualified Data.CaseInsensitive     as CI
+import qualified Data.Csv                 as CSV
+import qualified Data.HashMap.Strict      as M
+import qualified Data.List                as L
+import qualified Data.Set                 as S
+import qualified Data.Text                as T
+import qualified Data.Vector              as V
+
+import Control.Arrow             ((***))
+import Data.Aeson.Types          (emptyArray, emptyObject)
+import Data.List                 (last, lookup, partition)
+import Data.Maybe                (fromJust)
+import Data.Ranged.Ranges        (Range (..), emptyRange,
+                                  rangeIntersection)
+import Network.HTTP.Base         (urlEncodeVars)
+import Network.HTTP.Types.Header (hAuthorization, hCookie)
+import Network.HTTP.Types.URI    (parseQueryReplacePlus,
+                                  parseSimpleQuery)
+import Network.Wai               (Request (..))
+import Network.Wai.Parse         (parseHttpAccept)
+import Web.Cookie                (parseCookiesText)
+
+
+import Data.Ranged.Boundaries
+
+import PostgREST.Error      (ApiRequestError (..))
+import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
+                             rangeLimit, rangeOffset, rangeRequested,
+                             restrictRange)
+import PostgREST.Types
+import Protolude
 
 type RequestBody = BL.ByteString
 
@@ -68,41 +76,41 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -}
 data ApiRequest = ApiRequest {
   -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-    iAction :: Action
+    iAction                      :: Action
   -- | Requested range of rows within response
-  , iRange  :: M.HashMap ByteString NonnegRange
+  , iRange                       :: M.HashMap ByteString NonnegRange
   -- | The target, be it calling a proc or accessing a table
-  , iTarget :: Target
+  , iTarget                      :: Target
   -- | Content types the client will accept, [CTAny] if no Accept header
-  , iAccepts :: [ContentType]
+  , iAccepts                     :: [ContentType]
   -- | Data sent by client and used for mutation actions
-  , iPayload :: Maybe PayloadJSON
+  , iPayload                     :: Maybe PayloadJSON
   -- | If client wants created items echoed back
-  , iPreferRepresentation :: PreferRepresentation
+  , iPreferRepresentation        :: PreferRepresentation
   -- | Pass all parameters as a single json object to a stored procedure
   , iPreferSingleObjectParameter :: Bool
   -- | Whether the client wants a result count (slower)
-  , iPreferCount :: Bool
+  , iPreferCount                 :: Bool
   -- | Whether the client wants to UPSERT or ignore records on PK conflict
-  , iPreferResolution :: Maybe PreferResolution
+  , iPreferResolution            :: Maybe PreferResolution
   -- | Filters on the result ("id", "eq.10")
-  , iFilters :: [(Text, Text)]
+  , iFilters                     :: [(Text, Text)]
   -- | &and and &or parameters used for complex boolean logic
-  , iLogic :: [(Text, Text)]
+  , iLogic                       :: [(Text, Text)]
   -- | &select parameter used to shape the response
-  , iSelect :: Text
+  , iSelect                      :: Text
   -- | &columns parameter used to shape the payload
-  , iColumns :: Maybe Text
+  , iColumns                     :: Maybe Text
   -- | &order parameters for each level
-  , iOrder :: [(Text, Text)]
+  , iOrder                       :: [(Text, Text)]
   -- | Alphabetized (canonical) request query string for response URLs
-  , iCanonicalQS :: ByteString
+  , iCanonicalQS                 :: ByteString
   -- | JSON Web Token
-  , iJWT :: Text
+  , iJWT                         :: Text
   -- | HTTP request headers
-  , iHeaders :: [(Text, Text)]
+  , iHeaders                     :: [(Text, Text)]
   -- | Request Cookies
-  , iCookies :: [(Text, Text)]
+  , iCookies                     :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.

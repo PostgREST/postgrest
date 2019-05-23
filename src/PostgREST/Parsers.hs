@@ -6,22 +6,25 @@ This module is in charge of parsing all the querystring values in an url, e.g. t
 -}
 module PostgREST.Parsers where
 
-import           Protolude                     hiding (try, intercalate, replace, option)
-import           Control.Monad                 ((>>))
-import           Data.Foldable                 (foldl1)
-import           Data.Functor                  (($>))
-import qualified Data.HashMap.Strict           as M
-import           Data.Text                     (intercalate, replace, strip)
-import           Data.List                     (init, last)
-import qualified Data.Set                      as S
-import           Data.Tree
-import           Data.Either.Combinators       (mapLeft)
-import           PostgREST.RangeQuery          (NonnegRange)
-import           PostgREST.Error               (ApiRequestError(ParseRequestError))
-import           PostgREST.Types
-import           Text.ParserCombinators.Parsec hiding (many, (<|>))
-import           Text.Parsec.Error
-import           Text.Read                     (read)
+import qualified Data.HashMap.Strict as M
+import qualified Data.Set            as S
+
+import Control.Monad           ((>>))
+import Data.Either.Combinators (mapLeft)
+import Data.Foldable           (foldl1)
+import Data.Functor            (($>))
+import Data.List               (init, last)
+import Data.Text               (intercalate, replace, strip)
+import Text.Read               (read)
+
+import Data.Tree
+import Text.Parsec.Error
+import Text.ParserCombinators.Parsec hiding (many, (<|>))
+
+import PostgREST.Error      (ApiRequestError (ParseRequestError))
+import PostgREST.RangeQuery (NonnegRange)
+import PostgREST.Types
+import Protolude            hiding (intercalate, option, replace, try)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =

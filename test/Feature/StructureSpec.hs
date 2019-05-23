@@ -1,21 +1,21 @@
 module Feature.StructureSpec where
 
-import Test.Hspec hiding (pendingWith)
-import Test.Hspec.Wai
-import Network.HTTP.Types
-
-import PostgREST.Config (docsVersion)
-import Control.Lens ((^?))
+import Control.Lens     ((^?))
 import Data.Aeson.Types (Value (..))
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (..))
+
 import Data.Aeson.Lens
 import Data.Aeson.QQ
+import Network.HTTP.Types
+import Test.Hspec         hiding (pendingWith)
+import Test.Hspec.Wai
 
+
+
+import PostgREST.Config (docsVersion)
+import Protolude        hiding (get)
 import SpecHelper
-
-import Network.Wai (Application)
-import Network.Wai.Test (SResponse(..))
-
-import Protolude hiding (get)
 
 spec :: SpecWith Application
 spec = do
@@ -251,7 +251,7 @@ spec = do
                 "type": "string"
               }
             |]
-            
+
       it "text to string" $ do
         r <- simpleBody <$> get "/"
 
@@ -281,7 +281,7 @@ spec = do
                 "type": "boolean"
               }
             |]
-      
+
       it "smallint to integer" $ do
         r <- simpleBody <$> get "/"
 
@@ -296,7 +296,7 @@ spec = do
                 "type": "integer"
               }
             |]
-      
+
       it "integer to integer" $ do
         r <- simpleBody <$> get "/"
 
@@ -356,7 +356,7 @@ spec = do
                 "type": "number"
               }
             |]
-      
+
       it "double_precision to number" $ do
         r <- simpleBody <$> get "/"
 

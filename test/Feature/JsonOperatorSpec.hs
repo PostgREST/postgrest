@@ -1,16 +1,15 @@
 module Feature.JsonOperatorSpec where
 
+import Network.Wai (Application)
+
+import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Network.HTTP.Types
-
-import SpecHelper
-import Network.Wai (Application)
-
-import Protolude hiding (get)
 
 import PostgREST.Types (PgVersion, pgVersion112)
+import Protolude       hiding (get)
+import SpecHelper
 
 spec :: PgVersion -> SpecWith Application
 spec actualPgVersion = describe "json and jsonb operators" $ do

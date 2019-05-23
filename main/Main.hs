@@ -2,41 +2,42 @@
 
 module Main where
 
-
-import           PostgREST.App              (postgrest)
-import           PostgREST.Config           (AppConfig (..), configPoolTimeout',
-                                             prettyVersion, readOptions)
-import           PostgREST.DbStructure      (getDbStructure, getPgVersion)
-import           PostgREST.Error            (errorPayload, checkIsFatal, PgError(PgError))
-import           PostgREST.OpenAPI          (isMalformedProxyUri)
-import           PostgREST.Types            (DbStructure, Schema, PgVersion(..), minimumPgVersion, ConnectionStatus(..))
-import           Protolude                  hiding (hPutStrLn, replace)
-
-
-import           Control.AutoUpdate         (defaultUpdateSettings,
-                                             mkAutoUpdate, updateAction)
-import           Control.Retry              (RetryStatus, capDelay,
-                                             exponentialBackoff,
-                                             retrying, rsPreviousDelay)
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base64     as B64
-import           Data.IORef                 (IORef, atomicWriteIORef,
-                                             newIORef, readIORef)
-import           Data.String                (IsString (..))
-import           Data.Text                  (pack, replace, stripPrefix, strip)
-import           Data.Text.Encoding         (decodeUtf8, encodeUtf8)
-import           Data.Text.IO               (hPutStrLn, readFile)
-import           Data.Time.Clock            (getCurrentTime)
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
-import           Network.Wai.Handler.Warp   (defaultSettings,
-                                             runSettings, setHost,
-                                             setPort, setServerName)
-import           System.IO                  (BufferMode (..),
-                                             hSetBuffering)
+
+import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
+                                 updateAction)
+import Control.Retry            (RetryStatus, capDelay,
+                                 exponentialBackoff, retrying,
+                                 rsPreviousDelay)
+import Data.IORef               (IORef, atomicWriteIORef, newIORef,
+                                 readIORef)
+import Data.String              (IsString (..))
+import Data.Text                (pack, replace, strip, stripPrefix)
+import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
+import Data.Text.IO             (hPutStrLn, readFile)
+import Data.Time.Clock          (getCurrentTime)
+import Network.Wai.Handler.Warp (defaultSettings, runSettings,
+                                 setHost, setPort, setServerName)
+import System.IO                (BufferMode (..), hSetBuffering)
+
+import PostgREST.App         (postgrest)
+import PostgREST.Config      (AppConfig (..), configPoolTimeout',
+                              prettyVersion, readOptions)
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Error       (PgError (PgError), checkIsFatal,
+                              errorPayload)
+import PostgREST.OpenAPI     (isMalformedProxyUri)
+import PostgREST.Types       (ConnectionStatus (..), DbStructure,
+                              PgVersion (..), Schema,
+                              minimumPgVersion)
+import Protolude             hiding (hPutStrLn, replace)
+
 
 #ifndef mingw32_HOST_OS
-import           System.Posix.Signals
+import System.Posix.Signals
 #endif
 
 {-|
@@ -75,7 +76,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
       case connected of
-        FatalConnectionError reason -> hPutStrLn stderr reason 
+        FatalConnectionError reason -> hPutStrLn stderr reason
                                       >> killThread mainTid    -- Fatal error when connecting
         NotConnected                -> return ()               -- Unreachable
         Connected actualPgVersion   -> do                      -- Procede with initialization
@@ -87,7 +88,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
               putStrLn ("Failed to query the database. Retrying." :: Text)
               hPutStrLn stderr . toS . errorPayload $ PgError False e
               work
-              
+
             Right _ -> do
               atomicWriteIORef refIsWorkerOn False
               putStrLn ("Connection successful" :: Text)
@@ -298,6 +299,6 @@ loadDbUriFile conf = extractDbUri mDbUri
     extractDbUri dbUri =
       fmap setDbUri $
       case stripPrefix "@" dbUri of
-        Nothing -> return dbUri
+        Nothing       -> return dbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}

@@ -3,28 +3,30 @@ Module      : PostgREST.Middleware
 Description : Sets the PostgreSQL GUCs, role, search_path and pre-request function. Validates JWT.
 -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module PostgREST.Middleware where
 
-import           Crypto.JWT
-import qualified Data.Aeson                    as JSON
-import qualified Data.HashMap.Strict           as M
-import qualified Hasql.Transaction             as H
+import qualified Data.Aeson          as JSON
+import qualified Data.HashMap.Strict as M
+import qualified Hasql.Transaction   as H
 
-import           Network.Wai                   (Application, Response)
-import           Network.Wai.Middleware.Cors   (cors)
-import           Network.Wai.Middleware.Gzip   (def, gzip)
-import           Network.Wai.Middleware.Static (only, staticPolicy)
+import Network.Wai                   (Application, Response)
+import Network.Wai.Middleware.Cors   (cors)
+import Network.Wai.Middleware.Gzip   (def, gzip)
+import Network.Wai.Middleware.Static (only, staticPolicy)
 
-import           PostgREST.ApiRequest          (ApiRequest(..))
-import           PostgREST.Auth                (JWTAttempt(..))
-import           PostgREST.Config              (AppConfig (..), corsPolicy)
-import           PostgREST.Error               (errorResponseFor, SimpleError(JwtTokenMissing, JwtTokenInvalid))
-import           PostgREST.QueryBuilder        (unquoted, pgFmtSetLocal, pgFmtSetLocalSearchPath)
+import Crypto.JWT
 
-import           Protolude
+import PostgREST.ApiRequest   (ApiRequest (..))
+import PostgREST.Auth         (JWTAttempt (..))
+import PostgREST.Config       (AppConfig (..), corsPolicy)
+import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
+                               errorResponseFor)
+import PostgREST.QueryBuilder (pgFmtSetLocal, pgFmtSetLocalSearchPath,
+                               unquoted)
+import Protolude
 
 runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->

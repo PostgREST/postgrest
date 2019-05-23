@@ -2,20 +2,23 @@
 Module      : PostgREST.Types
 Description : PostgREST common types and functions used by the rest of the modules
 -}
-{-# LANGUAGE DuplicateRecordFields    #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.Types where
 
-import           Protolude
-import qualified GHC.Show
 import qualified Data.Aeson           as JSON
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.CaseInsensitive as CI
 import qualified Data.HashMap.Strict  as M
-import qualified Data.Set                  as S
-import           Data.Tree
-import           PostgREST.RangeQuery (NonnegRange)
-import           Network.HTTP.Types.Header (hContentType, Header)
+import qualified Data.Set             as S
+import qualified GHC.Show
+
+import Network.HTTP.Types.Header (Header, hContentType)
+
+import Data.Tree
+
+import PostgREST.RangeQuery (NonnegRange)
+import Protolude
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
@@ -224,10 +227,10 @@ data PayloadJSON =
 data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)
 
 data Proxy = Proxy {
-  proxyScheme     :: Text
-, proxyHost       :: Text
-, proxyPort       :: Integer
-, proxyPath       :: Text
+  proxyScheme :: Text
+, proxyHost   :: Text
+, proxyPort   :: Integer
+, proxyPath   :: Text
 } deriving (Show, Eq)
 
 type Operator = Text
@@ -272,8 +275,8 @@ type ListVal = [Text]
 
 data LogicOperator = And | Or deriving Eq
 instance Show LogicOperator where
-  show And  = "AND"
-  show Or = "OR"
+  show And = "AND"
+  show Or  = "OR"
 {-|
   Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
 
@@ -353,15 +356,15 @@ data MutateQuery =
   , returning  :: [FieldName]
   }|
   Update {
-    in_        :: TableName
-  , updCols    :: S.Set FieldName
-  , where_     :: [LogicTree]
-  , returning  :: [FieldName]
+    in_       :: TableName
+  , updCols   :: S.Set FieldName
+  , where_    :: [LogicTree]
+  , returning :: [FieldName]
   }|
   Delete {
-    in_        :: TableName
-  , where_     :: [LogicTree]
-  , returning  :: [FieldName]
+    in_       :: TableName
+  , where_    :: [LogicTree]
+  , returning :: [FieldName]
   } deriving (Show, Eq)
 
 data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
@@ -409,7 +412,7 @@ data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
 
 
 -- | Current database connection status data ConnectionStatus
-data ConnectionStatus 
+data ConnectionStatus
   = NotConnected
   | Connected PgVersion
   | FatalConnectionError Text

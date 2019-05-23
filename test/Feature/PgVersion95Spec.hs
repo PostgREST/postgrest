@@ -1,13 +1,13 @@
 module Feature.PgVersion95Spec where
 
+import Network.Wai (Application)
+
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import Protolude  hiding (get)
 import SpecHelper
-import Network.Wai (Application)
-
-import Protolude hiding (get)
 
 spec :: SpecWith Application
 spec = describe "features supported on PostgreSQL 9.5" $

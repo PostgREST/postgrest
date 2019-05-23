@@ -15,17 +15,20 @@ module PostgREST.Error (
 , checkIsFatal
 ) where
 
-import           Protolude
-import           Data.Aeson                ((.=))
 import qualified Data.Aeson                as JSON
-import           Data.Text                 (unwords)
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
-import           Network.HTTP.Types.Header
 import qualified Network.HTTP.Types.Status as HT
-import           Network.Wai               (Response, responseLBS)
-import           PostgREST.Types
-import           Text.Read                 (readMaybe)
+
+import Data.Aeson  ((.=))
+import Data.Text   (unwords)
+import Network.Wai (Response, responseLBS)
+import Text.Read   (readMaybe)
+
+import Network.HTTP.Types.Header
+
+import PostgREST.Types
+import Protolude
 
 
 class (JSON.ToJSON a) => PgrstError a where

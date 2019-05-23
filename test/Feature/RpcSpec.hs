@@ -1,19 +1,19 @@
 module Feature.RpcSpec where
 
+import qualified Data.ByteString.Lazy as BL (empty)
+
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse (simpleBody, simpleStatus))
+
+import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Network.HTTP.Types
-import Network.Wai.Test (SResponse(simpleStatus, simpleBody))
-import qualified Data.ByteString.Lazy as BL (empty)
-
-import SpecHelper
 import Text.Heredoc
-import Network.Wai (Application)
-
-import Protolude hiding (get)
 
 import PostgREST.Types (PgVersion, pgVersion95)
+import Protolude       hiding (get)
+import SpecHelper
 
 spec :: PgVersion -> SpecWith Application
 spec actualPgVersion =

@@ -13,19 +13,17 @@ module PostgREST.RangeQuery (
 , NonnegRange
 ) where
 
+import qualified Data.ByteString.Char8 as BS
 
-import           Control.Applicative
-import           Network.HTTP.Types.Header
+import Data.List       (lookup)
+import Text.Regex.TDFA ((=~))
 
-import qualified Data.ByteString.Char8     as BS
-import           Data.Ranged.Boundaries
-import           Data.Ranged.Ranges
+import Control.Applicative
+import Data.Ranged.Boundaries
+import Data.Ranged.Ranges
+import Network.HTTP.Types.Header
 
-import           Text.Regex.TDFA           ((=~))
-
-import Data.List (lookup)
-
-import           Protolude
+import Protolude
 
 type NonnegRange = Range Integer
 
@@ -60,7 +58,7 @@ rangeOffset :: NonnegRange -> Integer
 rangeOffset range =
   case rangeLower range of
     BoundaryBelow lower -> lower
-    _ -> panic "range without lower bound" -- should never happen
+    _                   -> panic "range without lower bound" -- should never happen
 
 rangeGeq :: Integer -> NonnegRange
 rangeGeq n =

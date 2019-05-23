@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase       #-}
 {-|
 Module      : PostgREST.Auth
 Description : PostgREST authorization functions.
@@ -19,17 +19,19 @@ module PostgREST.Auth (
   , parseSecret
   ) where
 
-import           Control.Lens.Operators
-import           Control.Lens           (set)
-import qualified Data.Aeson             as JSON
-import qualified Data.HashMap.Strict    as M
-import           Data.Time.Clock        (UTCTime)
-import           Data.Vector            as V
-import           PostgREST.Types
-import           Protolude
+import qualified Crypto.JOSE.Types   as JOSE.Types
+import qualified Data.Aeson          as JSON
+import qualified Data.HashMap.Strict as M
+import           Data.Vector         as V
 
-import qualified Crypto.JOSE.Types      as JOSE.Types
-import           Crypto.JWT
+import Control.Lens    (set)
+import Data.Time.Clock (UTCTime)
+
+import Control.Lens.Operators
+import Crypto.JWT
+
+import PostgREST.Types
+import Protolude
 
 {-|
   Possible situations encountered with client JWTs
