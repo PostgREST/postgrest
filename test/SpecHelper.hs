@@ -10,7 +10,6 @@ import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 import qualified JSONSchema.Draft4          as D4
--- import qualified Network.Wai.Test           as WaiTest
 import qualified System.IO.Error            as E
 
 import Control.AutoUpdate        (defaultUpdateSettings, mkAutoUpdate,
