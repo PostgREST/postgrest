@@ -1,19 +1,18 @@
 module Main where
 
-import           Data.Aeson           ((.=))
 import qualified Data.Aeson           as JSON
-import           Network.Wai          (Application)
-import           SpecHelper           (posgrestTestApp, requestAction,
-                                       testCfgMemory)
+import qualified Data.ByteString.Lazy as BS
 
-import           Data.ByteString.Lazy as BS hiding (take)
-import           Network.Wai.Test     (SResponse)
-import           Test.Hspec.Wai       (WaiSession, get, patch, post)
-import           Weigh                (Weigh, mainWith, maxAllocs,
-                                       validateAction, wgroup)
+import Data.Aeson       ((.=))
+import Network.Wai      (Application)
+import Network.Wai.Test (SResponse)
+import SpecHelper       (posgrestTestApp, requestAction,
+                         testCfgMemory)
+import Test.Hspec.Wai   (WaiSession, get, patch, post)
+import Weigh            (Weigh, mainWith, maxAllocs, validateAction,
+                         wgroup)
 
-
-import           Protolude            hiding (get)
+import Protolude hiding (get)
 
 
 newtype MegaBytes = MegaBytes Double
