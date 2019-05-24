@@ -167,7 +167,7 @@ app dbStructure proc cols conf apiRequest =
 
                 (CTSingularJSON, _, Full) ->
                   do HT.condemn
-                     return $ singularityError (toInteger queryTotal)
+                     return . errorResponseFor . singularityError $ toInteger queryTotal
 
                 (_, 0, _) ->
                   successResponse
