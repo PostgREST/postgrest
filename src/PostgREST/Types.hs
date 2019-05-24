@@ -319,8 +319,8 @@ instance JSON.FromJSON GucHeader where
     _ -> mzero
   parseJSON _          = mzero
 
-toHeaders :: [GucHeader] -> [Header]
-toHeaders = map $ \(GucHeader (k, v)) -> (CI.mk $ toS k, toS v)
+gucHToHeader :: GucHeader -> Header
+gucHToHeader (GucHeader (k, v)) = (CI.mk $ toS k, toS v)
 
 {-|
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.

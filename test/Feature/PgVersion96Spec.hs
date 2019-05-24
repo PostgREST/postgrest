@@ -1,10 +1,12 @@
 module Feature.PgVersion96Spec where
 
-import Network.Wai (Application)
+import Network.HTTP.Types
+import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Text.Heredoc
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -66,6 +68,21 @@ spec =
               matchContentTypeJson,
               "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/",
               "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"]}
+
+      it "can override the Content-Type" $
+        request methodGet "/rpc/html" [("Accept", "application/octet-stream, */*")] ""
+          `shouldRespondWith`
+          [str|
+              |<html>
+              |  <head>
+              |    <title>PostgREST</title>
+              |  </head>
+              |  <body>
+              |    <h1>REST API</h1>
+              |  </body>
+              |</html>
+              |]
+          { matchHeaders = ["Content-Type" <:> "text/html; charset=utf-8"] }
 
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $

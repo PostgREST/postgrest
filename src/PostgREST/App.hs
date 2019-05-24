@@ -283,12 +283,18 @@ app dbStructure proc cols conf apiRequest =
                   decodedHeaders = first toS $ JSON.eitherDecode $ toS jsonHeaders :: Either Text [GucHeader]
               case decodedHeaders of
                 Left _ -> return . errorResponseFor $ GucHeadersError
-                Right hs ->
+                Right hdrs ->
+                  let
+                    -- pg function can override Content-Type
+                    ctHIncluded = isJust $ find (\(GucHeader (k, _)) -> k == "Content-Type") hdrs
+                    headers = (if not ctHIncluded then [toHeader contentType] else mempty) ++
+                              [contentRange] ++
+                              (gucHToHeader <$> hdrs) in
                   if singular && queryTotal /= 1
                     then do
                       HT.condemn
                       return . errorResponseFor . singularityError $ queryTotal
-                    else return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs) (toS body)
+                    else return $ responseLBS status headers (toS body)
 
         (ActionInspect, TargetRoot, Nothing) -> do
           let host = configHost conf

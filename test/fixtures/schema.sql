@@ -1670,3 +1670,19 @@ create function add_them(a integer, b integer)
 returns integer as $$
   select a + b;
 $$ language sql;
+
+create or replace function html() returns text as $_$
+begin
+set local "response.headers" = '[{"Content-Type": "text/html; charset=utf-8"}]';
+return $$
+<html>
+  <head>
+    <title>PostgREST</title>
+  </head>
+  <body>
+    <h1>REST API</h1>
+  </body>
+</html>
+$$::text;
+end
+$_$ language plpgsql;
