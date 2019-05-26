@@ -181,6 +181,30 @@ ensureAppSettings(){
   pgrStop
 }
 
+getSocketStatus() {
+  curl -sL -w "%{http_code}\\n" -o /dev/null localhost:54321
+}
+
+socketConnection(){
+  # map port 54321 traffic to unix socket as workaround for curl below 7.40
+  # not supporting --unix-socket flag
+  ncat -vlk 54321 -c 'ncat -U /tmp/postgrest.sock' &
+  pgrStart "./configs/unix-socket.config"
+  while pgrStarted && test "$( getSocketStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  if test $( getSocketStatus ) -eq 200
+  then
+    ok "Succesfully connected through unix socket"
+  else
+    ko "Failed to connect through unix socket"
+  fi
+  pgrStop
+}
+
 # PRE: curl must be available
 test -n "$(command -v curl)" || bailOut 'curl is not available'
 
@@ -190,6 +214,8 @@ psql -l 1>/dev/null 2>/dev/null || bailOut 'postgres is not running'
 setUp
 
 echo "Running IO tests.."
+
+socketConnection
 
 readSecretFromFile word.noeol 'simple (no EOL)'
 readSecretFromFile word.txt 'simple'
@@ -223,6 +249,7 @@ invalidRoleClaimKey 1234
 
 ensureIatClaimWorks
 ensureAppSettings
+
 
 cleanUp
 
