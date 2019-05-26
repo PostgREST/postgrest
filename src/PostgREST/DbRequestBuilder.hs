@@ -241,12 +241,15 @@ addJoinConditions schema previousAlias (Node node@(query@Select{from=tbl}, nodeP
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
 getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols typ lt lc1 lc2) =
-  if | typ == Child || typ == Parent ->
+  case typ of
+    Child  ->
         zipWith (toJoinCondition tN ftN) cols fCols
-     | typ == Many ->
+    Parent ->
+        zipWith (toJoinCondition tN ftN) cols fCols
+    Many   ->
         let ltN = maybe "" tableName lt in
         zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
-     | typ == Root -> witness
+    Root   -> witness
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =
