@@ -17,6 +17,7 @@ module Data.Configurator.Syntax
     , interp
     ) where
 
+import Prelude
 import Control.Applicative
 import Control.Exception (throw)
 import Control.Monad (when)

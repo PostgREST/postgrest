@@ -43,6 +43,7 @@ module Data.CritBit.Core
     , internal
     ) where
 
+import Prelude
 import Data.Bits ((.|.), (.&.), complement, shiftR, xor)
 import Data.CritBit.Types.Internal
 

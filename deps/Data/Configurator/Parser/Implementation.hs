@@ -8,6 +8,7 @@
 
 module Data.Configurator.Parser.Implementation where
 
+import           Prelude
 #if !(MIN_VERSION_base(4,8,0))
 import           Control.Applicative
 #endif

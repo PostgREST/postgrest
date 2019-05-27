@@ -11,6 +11,7 @@
 
 module Data.Configurator.FromValue.Implementation where
 
+import           Prelude
 import           Control.Applicative
 import           Control.Arrow (first, second)
 import           Control.Monad (ap)

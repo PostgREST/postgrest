@@ -25,10 +25,10 @@ module Data.CritBit.Types.Internal
     , toList
     ) where
 
+import Prelude
 import Control.DeepSeq (NFData(..))
 import Data.Bits (Bits, (.|.), (.&.), shiftL, shiftR)
 import Data.ByteString (ByteString)
-import Data.Foldable hiding (toList)
 import Data.Monoid (Monoid(..))
 import Data.Text ()
 import Data.Text.Internal (Text(..))
