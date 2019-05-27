@@ -184,7 +184,7 @@ superconfig :: Text -> ConfigTransform -> ConfigTransform
 superconfig k (ConfigTransform x) = ConfigTransform (Superconfig k x)
 
 interpConfigTransform :: ConfigTransform -> Config -> Config
-interpConfigTransform (ConfigTransform x) config = go x
+interpConfigTransform (ConfigTransform x0) config = go x0
   where
     go Empty             = C.empty
     go (ConfigPlan _)    = config
