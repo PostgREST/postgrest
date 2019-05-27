@@ -233,7 +233,19 @@ spec actualPgVersion =
     context "proc argument types" $ do
       it "accepts a variety of arguments" $
         post "/rpc/varied_arguments"
+            [json| { "double": 3.1, "varchar": "hello", "boolean": true, "date": "20190101", "money": 0, "enum": "foo", "integer": 43 } |]
+          `shouldRespondWith`
+            [json|"Hi"|]
+            { matchHeaders = [matchContentTypeJson] }
+      it "accepts quoted embedded JSON" $
+        post "/rpc/varied_arguments"
             [json| { "double": 3.1, "varchar": "hello", "boolean": true, "date": "20190101", "money": 0, "enum": "foo", "integer": 43, "jsonb": "{\"this is embedded\": 5}" } |]
+          `shouldRespondWith`
+            [json|"Hi"|]
+            { matchHeaders = [matchContentTypeJson] }
+      it "accepts unquoted embedded JSON" $
+        post "/rpc/varied_arguments"
+            [json| { "double": 3.1, "varchar": "hello", "boolean": true, "date": "20190101", "money": 0, "enum": "foo", "integer": 43, "jsonb": {"this is embedded": 5} } |]
           `shouldRespondWith`
             [json|"Hi"|]
             { matchHeaders = [matchContentTypeJson] }
