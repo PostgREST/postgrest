@@ -206,14 +206,15 @@ CREATE FUNCTION varied_arguments(
   date date,
   money money,
   enum enum_menagerie_type,
-  "integer" integer default 42
+  "integer" integer default 42,
+  jsonb jsonb default '{}'
 ) RETURNS text
     LANGUAGE sql
 AS $_$
   SELECT 'Hi'::text;
 $_$;
 
-COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer) IS
+COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer, jsonb) IS
 $_$An RPC function
 
 Just a test for RPC function arguments$_$;
