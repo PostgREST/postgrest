@@ -101,6 +101,21 @@ library
                      , cookie
 
   Other-Modules:       Paths_postgrest
+                     , Data.Configurator
+                     , Data.Configurator.Config
+                     , Data.Configurator.Config.Implementation
+                     , Data.Configurator.Config.Internal
+                     , Data.Configurator.FromValue
+                     , Data.Configurator.FromValue.Implementation
+                     , Data.Configurator.Parser
+                     , Data.Configurator.Parser.Implementation
+                     , Data.Configurator.Syntax
+                     , Data.Configurator.Types
+                     , Data.Configurator.Types.Internal
+                     , Data.CritBit.Core
+                     , Data.CritBit.Map.Lazy
+                     , Data.CritBit.Tree
+                     , Data.CritBit.Types.Internal
   Exposed-Modules:     PostgREST.ApiRequest
                      , PostgREST.App
                      , PostgREST.Auth
