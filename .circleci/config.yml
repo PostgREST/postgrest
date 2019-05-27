@@ -232,6 +232,7 @@ jobs:
             psql "postgres:///postgrest_test" -f test/fixtures/roles.sql
             psql "postgres:///postgrest_test" -f test/fixtures/schema.sql
             psql "postgres:///postgrest_test" -f test/fixtures/jwt.sql
+            psql "postgres:///postgrest_test" -f test/fixtures/jsonschema.sql
             psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
             test/memory-tests.sh
       - save_cache:
