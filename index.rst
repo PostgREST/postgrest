@@ -216,6 +216,10 @@ In Production
 * `eGull <http://www.egull.co>`_
 * `Elyios <https://elyios.com>`_
 * `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
+* `Nimbus <https://nimbusforwork.com/>`_
+
+  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
+
 * `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
 
 Testimonials
