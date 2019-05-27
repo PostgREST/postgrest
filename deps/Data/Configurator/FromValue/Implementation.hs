@@ -1,7 +1,8 @@
+
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances, DefaultSignatures #-}
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, ViewPatterns #-}
-{-# LANGUAGE OverloadedStrings, OverlappingInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |
 -- Module:      Data.Configurator.FromValue.Implementation
@@ -617,8 +618,8 @@ instance FromValue LB.ByteString where
     fromValue = convert <$> textValue_ (typeOf (undefined :: LB.ByteString))
       where convert = LB.fromStrict . encodeUtf8
 
-instance FromMaybeValue String
-instance FromValue String where
+instance {-# Overlapping #-} FromMaybeValue String
+instance {-# Overlapping #-} FromValue String where
     fromValue = T.unpack <$> textValue_ (typeOf (undefined :: String))
 
 instance ( Typeable a, FromValue a
