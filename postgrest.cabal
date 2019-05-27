@@ -59,7 +59,6 @@ library
                      , bytestring
                      , case-insensitive
                      , cassava
-                     , configurator-ng == 0.0.0.1
                      , containers
                      , contravariant
                      , contravariant-extras
@@ -108,7 +107,7 @@ library
                      , PostgREST.QueryBuilder
                      , PostgREST.RangeQuery
                      , PostgREST.Types
-  hs-source-dirs:      src
+  hs-source-dirs:      deps, src
 
 Test-Suite spec
   Type:                exitcode-stdio-1.0
