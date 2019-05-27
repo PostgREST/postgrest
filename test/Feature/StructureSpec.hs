@@ -426,6 +426,14 @@ spec = do
                   "integer": {
                     "format": "integer",
                     "type": "integer"
+                  },
+                  "json": {
+                    "format": "json",
+                    "type": "string"
+                  },
+                  "jsonb": {
+                    "format": "jsonb",
+                    "type": "string"
                   }
                 },
                 "type": "object",

@@ -206,17 +206,27 @@ CREATE FUNCTION varied_arguments(
   date date,
   money money,
   enum enum_menagerie_type,
-  "integer" integer default 42
+  "integer" integer default 42,
+  json json default '{}',
+  jsonb jsonb default '{}'
 ) RETURNS text
     LANGUAGE sql
 AS $_$
   SELECT 'Hi'::text;
 $_$;
 
-COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer) IS
+COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer, json, jsonb) IS
 $_$An RPC function
 
 Just a test for RPC function arguments$_$;
+
+
+CREATE FUNCTION json_argument(arg json) RETURNS text
+
+LANGUAGE sql
+AS $_$
+  SELECT json_typeof(arg);
+$_$;
 
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
