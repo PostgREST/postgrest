@@ -21,8 +21,7 @@ spec :: SpecWith Application
 spec = do
 
   describe "OpenAPI" $ do
-    it "root path returns a valid openapi spec" $ do
-      pendingWith "Test timing out frequently on CI, please run locally"
+    it "root path returns a valid openapi spec" $
       validateOpenApiResponse [("Accept", "application/openapi+json")]
 
     it "should respond to openapi request on none root path with 415" $

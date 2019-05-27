@@ -158,7 +158,6 @@ Test-Suite spec
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
                      , heredoc
-                     , hjsonschema == 1.5.0.1
                      , hspec
                      , hspec-wai >= 0.7.0
                      , hspec-wai-json
@@ -170,6 +169,7 @@ Test-Suite spec
                      , process
                      , protolude == 0.2.2
                      , regex-tdfa
+                     , text
                      , time
                      , transformers-base
                      , wai

@@ -5,14 +5,12 @@ import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
-import qualified JSONSchema.Draft4      as D4
 import qualified System.IO.Error        as E
 
 import Control.Monad        (void)
-import Data.Aeson           (Value (..), decode)
+import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..))
 import Data.List            (lookup)
-import Data.Maybe           (fromJust)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.Environment   (getEnv)
 import System.Process       (readProcess)
@@ -45,17 +43,19 @@ validateOpenApiResponse headers = do
     let respHeaders = simpleHeaders r in
     respHeaders `shouldSatisfy`
       \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
-  liftIO $
-    let respBody = simpleBody r
-        schema :: D4.Schema
-        schema = D4.emptySchema { D4._schemaRef = Just "openapi.json" }
-        schemaContext :: D4.SchemaWithURI D4.Schema
-        schemaContext = D4.SchemaWithURI
-          { D4._swSchema = schema
-          , D4._swURI    = Just "test/fixtures/openapi.json"
-          }
-       in
-       D4.fetchFilesystemAndValidate schemaContext ((fromJust . decode) respBody) `shouldReturn` Right ()
+  let Just body = decode (simpleBody r)
+  Just schema <- liftIO $ decode <$> BL.readFile "test/fixtures/openapi.json"
+  let args :: M.Map Text Value
+      args = M.fromList
+        [ ( "schema", schema )
+        , ( "data", body ) ]
+      hdrs = acceptHdrs "application/json"
+  request methodPost "/rpc/validate_json_schema" hdrs (encode args)
+      `shouldRespondWith` "true"
+      { matchStatus = 200
+      , matchHeaders = []
+      }
+
 
 getEnvVarWithDefault :: Text -> Text -> IO Text
 getEnvVarWithDefault var def = toS <$>
@@ -130,6 +130,7 @@ setupDb dbConn = do
   loadFixture dbConn "roles"
   loadFixture dbConn "schema"
   loadFixture dbConn "jwt"
+  loadFixture dbConn "jsonschema"
   loadFixture dbConn "privileges"
   resetDb dbConn
 
