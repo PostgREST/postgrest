@@ -70,7 +70,7 @@ library
                      , hasql-transaction >= 0.7 && < 0.8
                      , heredoc
                      , HTTP
-                     , http-types
+                     , http-types >= 0.12.2
                      , insert-ordered-containers
                      , interpolatedstring-perl6
                      , jose == 0.7.0.0
