@@ -74,7 +74,7 @@ readSecretFromFile(){
     then
       ok "authentication with $2 secret read from a file"
     else
-      ko "failed to authenticate using JWT for $2 secret: $httpStatus"
+      ko "authentication with $2 secret read from a file: $httpStatus"
     fi
   else
     ko "failed to read $2 secret from a file"
@@ -95,7 +95,7 @@ readDbUriFromFile(){
   then
     ok "connection with $2 dburi read from a file"
   else
-    ko "failed to read $2 dburi from a file"
+    ko "connection with $2 dburi read from a file"
   fi
   pgrStop
 }
@@ -113,9 +113,9 @@ reqWithRoleClaimKey(){
   httpStatus="$( authorsStatus "$authorsJwt" )"
   if test "$httpStatus" -eq $3
   then
-    ok "request with \"$1\" role-claim-key for $2 jwt gave $3"
+    ok "request with \"$1\" role-claim-key for $2 jwt: $httpStatus"
   else
-    ko "request with \"$1\" role-claim-key for $2 jwt gave $httpStatus"
+    ko "request with \"$1\" role-claim-key for $2 jwt: $httpStatus"
   fi
   pgrStop
 }
@@ -131,9 +131,9 @@ invalidRoleClaimKey(){
   done
   if pgrStarted
   then
-    ko "invalid jspath \"$1\" accepted"
+    ko "invalid jspath \"$1\": accepted"
   else
-    ok "invalid jspath \"$1\" rejected"
+    ok "invalid jspath \"$1\": rejected"
   fi
   pgrStop
 }
@@ -152,12 +152,12 @@ ensureIatClaimWorks(){
     httpStatus="$( authorsStatus $iatJwt )"
     if test "$httpStatus" -ne 200
     then
-      ko "iat claim rejected with $httpStatus"
+      ko "iat claim rejected: $httpStatus"
       return
     fi
     sleep .5;\
   done
-  ok "accepted iat claim"
+  ok "iat claim accepted"
   pgrStop
 }
 
@@ -174,9 +174,9 @@ ensureAppSettings(){
   response=$(curl -s "http://localhost:$pgrPort/rpc/get_guc_value?name=app.settings.external_api_secret")
   if test "$response" = "\"0123456789abcdef\""
   then
-    ok "GET /rpc/get_guc_value response is $response"
+    ok "GET /rpc/get_guc_value: $response"
   else
-    ko "GET /rpc/get_guc_value response was $response"
+    ko "GET /rpc/get_guc_value: $response"
   fi
   pgrStop
 }
