@@ -165,25 +165,11 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
       | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
       | null pgArgs = (ignoredBody, "")
       | otherwise = (
-          let explicit = pgVer >= pgVersion100
-              rawType a = if explicit
-                then case pgaType a of
-                       "json"  -> "text"
-                       "jsonb" -> "text"
-                       t       -> t
-                else pgaType a
-              conversion = unwords [
-                "SELECT",
-                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> "::" <> pgaType a) <$> pgArgs),
-                "FROM ("]
-          in
           unwords [
             normalizedBody <> ",",
             "_args_record AS (",
-            if explicit then conversion else "",
-            "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
-                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> rawType a) <$> pgArgs) <> ")",
-            if explicit then ") _x" else "",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
+                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
             ")"]
          , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
 
