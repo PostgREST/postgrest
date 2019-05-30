@@ -288,7 +288,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions 
     "INSERT INTO ", fromQi qi, if S.null iCols then " " else "(" <> cols <> ")",
     unwords [
       "SELECT " <> cols <> " FROM",
-      "json_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ") _",
+      "jsonb_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ") _",
       -- Only used for PUT
       ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier "" "_") <$> putConditions)) `emptyOnFalse` null putConditions],
     maybe "" (\(oncDo, oncCols) -> (
@@ -311,7 +311,7 @@ requestToQuery schema _ (DbMutate (Update mainTbl uCols logicForest returnings))
       unwords [
         "WITH " <> normalizedBody,
         "UPDATE " <> fromQi qi <> " SET " <> cols,
-        "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ")) _ ",
+        "FROM (SELECT * FROM jsonb_populate_recordset", "(null::", fromQi qi, ", " <> selectBody <> ")) _ ",
         ("WHERE " <> intercalate " AND " (pgFmtLogicTree qi <$> logicForest)) `emptyOnFalse` null logicForest,
         ("RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)) `emptyOnFalse` null returnings
         ]
@@ -342,12 +342,12 @@ ignoredBody = "ignored_body AS (SELECT $1::text) "
 normalizedBody :: SqlFragment
 normalizedBody =
   unwords [
-    "pgrst_payload AS (SELECT $1::json AS json_data),",
+    "pgrst_payload AS (SELECT $1::jsonb AS json_data),",
     "pgrst_body AS (",
       "SELECT",
-        "CASE WHEN json_typeof(json_data) = 'array'",
+        "CASE WHEN jsonb_typeof(json_data) = 'array'",
           "THEN json_data",
-          "ELSE json_build_array(json_data)",
+          "ELSE jsonb_build_array(json_data)",
         "END AS val",
       "FROM pgrst_payload)"]
 

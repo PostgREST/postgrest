@@ -223,22 +223,22 @@ spec actualPgVersion = do
     context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
-            location = "/json?data=eq.%7B%22foo%22%3A%22bar%22%7D"
+            location = "/json?data=eq.%7B%22foo%22%3A%20%22bar%22%7D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` [str|[{"data":{"foo":"bar"}}]|]
+          `shouldRespondWith` [str|[{"data":{"foo": "bar"}}]|]
           { matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
 
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
-            location = "/json?data=eq.%5B1%2C2%2C3%5D"
+            location = "/json?data=eq.%5B1%2C%202%2C%203%5D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` [str|[{"data":[1,2,3]}]|]
+          `shouldRespondWith` [str|[{"data":[1, 2, 3]}]|]
           { matchStatus  = 201
           , matchHeaders = ["Location" <:> location]
           }
@@ -332,7 +332,7 @@ spec actualPgVersion = do
               "code": "22023",
               "details": null,
               "hint": null,
-              "message": "argument of json_populate_recordset must be an array of objects"}|]
+              "message": "argument of jsonb_populate_recordset must be an array of objects"}|]
           { matchStatus  = 400
           , matchHeaders = []
           }
