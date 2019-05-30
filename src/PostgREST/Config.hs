@@ -39,7 +39,7 @@ import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
 import Data.Scientific             (floatingOrInteger)
 import Data.String                 (String)
-import Data.Text                   (dropEnd, dropWhileEnd,
+import Data.Text                   (concat, dropEnd, dropWhileEnd,
                                     intercalate, lines, splitOn,
                                     strip, take)
 import Data.Text.Encoding          (encodeUtf8)
@@ -60,8 +60,10 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
 import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
-import PostgREST.Types   (JSPath, JSPathExp (..))
-import Protolude         hiding (hPutStrLn, intercalate, take, (<>))
+import PostgREST.Types   (JSPath, JSPathExp (..),
+                          QualifiedIdentifier (..))
+import Protolude         hiding (concat, hPutStrLn, intercalate, take,
+                          (<>))
 
 
 -- | Config file settings for the server
@@ -85,6 +87,8 @@ data AppConfig = AppConfig {
   , configSettings          :: [(Text, Text)]
   , configRoleClaimKey      :: Either ApiRequestError JSPath
   , configExtraSearchPath   :: [Text]
+
+  , configRootSpec          :: Maybe QualifiedIdentifier
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -154,6 +158,7 @@ readOptions = do
           <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
           <*> (maybe ["public"] splitExtraSearchPath <$> C.key "db-extra-search-path")
+          <*> (parseRootSpec <$> C.key "root-spec")
 
   case mAppConf of
     Nothing -> do
@@ -171,6 +176,14 @@ readOptions = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
+
+    parseRootSpec :: Text -> Maybe QualifiedIdentifier
+    parseRootSpec txt = case splitOn "." txt of
+      []         -> Nothing
+      [""]       -> Nothing
+      [tab]      -> Just $ QualifiedIdentifier mempty tab
+      [sch, tab] -> Just $ QualifiedIdentifier sch tab
+      (sch: xs)  -> Just $ QualifiedIdentifier sch $ concat xs
 
     coerceText :: Value -> Text
     coerceText (String s) = s
@@ -245,6 +258,11 @@ readOptions = do
           |
           |## extra schemas to add to the search_path of every request
           |# db-extra-search-path = "extensions, util"
+          |
+          |## stored proc that overrides the root "/" spec
+          |## it can take a `schema.proc` value or can take only the name,
+          |## in which case the schema will be decided by the search_path
+          |# root-spec = "stored_proc_name"
           |]
 
 pathParser :: Parser FilePath

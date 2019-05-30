@@ -60,8 +60,8 @@ data Action = ActionCreate  | ActionRead
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc  QualifiedIdentifier
-            | TargetRoot
+            | TargetProc{tpQi :: QualifiedIdentifier, tpIsRootSpec :: Bool}
+            | TargetDefaultSpec -- The default spec offered at root "/"
             | TargetUnknown [Text]
             deriving Eq
 -- | How to return the inserted data
@@ -114,8 +114,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest schema req reqBody
+userApiRequest :: Schema -> Maybe QualifiedIdentifier -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest schema rootSpec req reqBody
   | isTargetingProc && method `notElem` ["GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -161,7 +161,9 @@ userApiRequest schema req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  isTargetingProc = (== Just "rpc") $ listToMaybe path
+  isTargetingProc = case target of
+    TargetProc _ _ -> True
+    _              -> False
   contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns | action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}] = toS <$> join (lookup "columns" qParams)
           | otherwise = Nothing
@@ -188,7 +190,7 @@ userApiRequest schema req reqBody
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
   action =
     case method of
-      "GET"      | target == TargetRoot -> ActionInspect
+      "GET"      | target == TargetDefaultSpec -> ActionInspect
                  | isTargetingProc -> ActionInvoke{isReadOnly=True}
                  | otherwise -> ActionRead
 
@@ -201,12 +203,13 @@ userApiRequest schema req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect
   target = case path of
-              []            -> TargetRoot
-              [table]       -> TargetIdent
-                              $ QualifiedIdentifier schema table
-              ["rpc", proc] -> TargetProc
-                              $ QualifiedIdentifier schema proc
-              other         -> TargetUnknown other
+    []            -> case rootSpec of
+                       Just rsQi -> TargetProc rsQi True
+                       Nothing   -> TargetDefaultSpec
+    [table]       -> TargetIdent $ QualifiedIdentifier schema table
+    ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
+    other         -> TargetUnknown other
+
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
   relevantPayload | shouldParsePayload = rightToMaybe payload
                   | otherwise = Nothing

@@ -138,6 +138,7 @@ Test-Suite spec
                      , Feature.StructureSpec
                      , Feature.UnicodeSpec
                      , Feature.AndOrParamsSpec
+                     , Feature.RootSpec
                      , Feature.RpcSpec
                      , Feature.NonexistentSchemaSpec
                      , Feature.UpsertSpec

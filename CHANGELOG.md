@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1264, Add support for bulk RPC call - @steve-chavez
 - #1278, Add db-pool-timeout config option - @qu4tro
 - #1285, Abort on wrong database password - @qu4tro
+- #790, Allow override of OpenAPI spec through `root-spec` config option - @steve-chavez
 
 ### Fixed
 

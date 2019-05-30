@@ -66,7 +66,7 @@ postgrest conf refDbStructure pool getTime worker =
       Just dbStructure -> do
         response <- do
           -- Need to parse ?columns early because findProc needs it to solve overloaded functions
-          let apiReq = userApiRequest (configSchema conf) req body
+          let apiReq = userApiRequest (configSchema conf) (configRootSpec conf) req body
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
           case apiReqCols of
             Left err -> return . errorResponseFor $ err
@@ -78,7 +78,7 @@ postgrest conf refDbStructure pool getTime worker =
                     (Just RawJSON{}, Just cls)      -> cls
                     _                               -> S.empty
                   proc = case iTarget apiRequest of
-                    TargetProc qi -> findProc qi cols (iPreferSingleObjectParameter apiRequest) $ dbProcs dbStructure
+                    TargetProc qi _ -> findProc qi cols (iPreferSingleObjectParameter apiRequest) $ dbProcs dbStructure
                     _ -> Nothing
                   handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
                   txMode = transactionMode proc (iAction apiRequest)
@@ -103,7 +103,7 @@ transactionMode proc action =
 
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure proc cols conf apiRequest =
-  case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) of
+  case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
@@ -259,7 +259,7 @@ app dbStructure proc cols conf apiRequest =
               let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
               return $ responseLBS status200 [allOrigins, acceptH] ""
 
-        (ActionInvoke _, TargetProc qi, Just pJson) ->
+        (ActionInvoke _, TargetProc qi _, Just pJson) ->
           let returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
                 _ -> False
@@ -290,7 +290,7 @@ app dbStructure proc cols conf apiRequest =
                       return . errorResponseFor . singularityError $ queryTotal
                     else return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs) (toS body)
 
-        (ActionInspect, TargetRoot, Nothing) -> do
+        (ActionInspect, TargetDefaultSpec, Nothing) -> do
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configProxyUri conf
@@ -300,6 +300,7 @@ app dbStructure proc cols conf apiRequest =
               toTableInfo :: [Table] -> [(Table, [Column], [Text])]
               toTableInfo = map (\t -> let (s, tn) = (tableSchema t, tableName t) in (t, tableCols dbStructure s tn, tablePKCols dbStructure s tn))
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
+
           body <- encodeApi <$> H.statement schema accessibleTables <*> H.statement schema schemaDescription <*> H.statement schema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
 
@@ -329,19 +330,18 @@ app dbStructure proc cols conf apiRequest =
         (,) <$> selectQuery
             <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
 
-responseContentTypeOrError :: [ContentType] -> Action -> Either Response ContentType
-responseContentTypeOrError accepts action = serves contentTypesForRequest accepts
+responseContentTypeOrError :: [ContentType] -> Action -> Target -> Either Response ContentType
+responseContentTypeOrError accepts action target = serves contentTypesForRequest accepts
   where
-    contentTypesForRequest =
-      case action of
-        ActionRead ->    [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
-        ActionCreate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionUpdate ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionDelete ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-        ActionInvoke _ ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
-        ActionInspect -> [CTOpenAPI, CTApplicationJSON]
-        ActionInfo ->    [CTTextCSV]
-        ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+    contentTypesForRequest = case action of
+      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
+      ActionCreate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+      ActionUpdate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+      ActionDelete       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+      ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream] ++ [CTOpenAPI | tpIsRootSpec target]
+      ActionInspect      ->  [CTOpenAPI, CTApplicationJSON]
+      ActionInfo         ->  [CTTextCSV]
+      ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
     serves sProduces cAccepts =
       case mutuallyAgreeable sProduces cAccepts of
         Nothing -> Left . errorResponseFor . ContentTypeError . map toMime $ cAccepts
