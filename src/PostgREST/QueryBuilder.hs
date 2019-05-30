@@ -168,7 +168,8 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
           unwords [
             normalizedBody <> ",",
             "_args_record AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
+              "SELECT * FROM jsonb_to_recordset(" <> selectBody <> ") AS _(" <>
+
                 intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
             ")"]
          , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
