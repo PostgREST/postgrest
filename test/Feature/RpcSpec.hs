@@ -249,6 +249,18 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|"Hi"|]
             { matchHeaders = [matchContentTypeJson] }
+      it "parses quoted JSON arguments as JSON" $
+        post "/rpc/json_argument"
+            [json| { "arg": "{ \"key\": 3 }" } |]
+          `shouldRespondWith`
+            [json|"object"|]
+            { matchHeaders = [matchContentTypeJson] }
+      it "parses embedded JSON arguments as JSON" $
+        post "/rpc/json_argument"
+            [json| { "arg": { "key": 3 } } |]
+          `shouldRespondWith`
+            [json|"object"|]
+            { matchHeaders = [matchContentTypeJson] }
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $ do

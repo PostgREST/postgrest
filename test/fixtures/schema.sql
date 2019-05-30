@@ -219,6 +219,14 @@ $_$An RPC function
 
 Just a test for RPC function arguments$_$;
 
+
+CREATE FUNCTION json_argument(arg json) RETURNS text
+
+LANGUAGE sql
+AS $_$
+  SELECT json_typeof(arg);
+$_$;
+
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
 --
