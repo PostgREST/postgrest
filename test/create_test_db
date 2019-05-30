@@ -1,19 +1,23 @@
 #! /usr/bin/env bash
-if [ -z "$1" ]
-  then
-    echo "Please supply the connection uri for the user with create database privileges"
-    exit -1
+
+usage() {
+  echo "$0 <db-uri> <test-database>"
+  exit -1
+}
+
+if [ -z "$1" ]; then
+  echo "Please supply the connection uri for the user with create database privileges"
+  usage
 fi
 
-if [ -z "$2" ]
-  then
-    echo "Please supply the test database name"
-    exit -1
+if [ -z "$2" ]; then
+  echo "Please supply the test database name"
+  usage
 fi
-if [[ $1 != postgres://* ]]
-then
+
+if [[ $1 != postgres://* ]]; then
   echo "Please use a valid connection URI (https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347)"
-  exit -1
+  usage
 fi
 
 BASEPATH=$( cd $(dirname $0) ; pwd -P )
