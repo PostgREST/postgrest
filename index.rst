@@ -167,6 +167,7 @@ Client-Side Libraries
 * `lewisjared/postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
 * `JarvusInnovations/jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
 * `davidthewatson/postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
+* `datrium/postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
 * `calebmer/postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
 * `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
 * `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
@@ -221,6 +222,8 @@ In Production
   - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
 
 * `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
+* `Datrium <https://www.datrium.com>`_
+
 
 Testimonials
 ------------
@@ -253,3 +256,11 @@ Testimonials
   and database design."
 
   -- Eric Bréchemier, Data Engineer, eGull SAS
+
+  "PostgREST is performant, stable, and transparent. It allows us to
+  bootstrap projects really fast, and to focus on our data and application
+  instead of building out the ORM layer. In our k8s cluster, we run a few
+  pods per schema we want exposed, and we scale up/down depending on demand.
+  Couldn't be happier."
+
+  -- Anupam Garg, Datrium, Inc.
