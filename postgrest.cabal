@@ -32,16 +32,16 @@ executable postgrest
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       auto-update
-                     , base >= 4.9 && < 4.10
+                     , base >= 4.9 && < 4.13
                      , base64-bytestring
                      , bytestring
                      , directory
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
-                     , network == 2.6.3.2
+                     , network < 2.9
                      , postgrest
-                     , protolude == 0.2.2
+                     , protolude >= 0.2.2 && < 0.3
                      , retry
                      , text
                      , time
@@ -56,7 +56,7 @@ library
   default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
   build-depends:       aeson
                      , ansi-wl-pprint
-                     , base >= 4.9 && < 4.10
+                     , base >= 4.9 && < 4.13
                      , base64-bytestring
                      , bytestring
                      , case-insensitive
@@ -76,14 +76,14 @@ library
                      , http-types >= 0.12.2
                      , insert-ordered-containers
                      , interpolatedstring-perl6
-                     , jose == 0.7.0.0
+                     , jose >= 0.7 && < 0.8
                      , lens
                      , lens-aeson
                      , network-uri
                      , optparse-applicative >= 0.13 && < 0.15
                      , parsec
-                     , protolude == 0.2.2
-                     , Ranged-sets == 0.3.0
+                     , protolude >= 0.2.2 && < 0.3
+                     , Ranged-sets >= 0.3 && < 0.5
                      , regex-tdfa
                      , scientific
                      , swagger2 < 2.4
@@ -149,7 +149,7 @@ Test-Suite spec
                      , aeson-qq
                      , async
                      , auto-update
-                     , base >= 4.9 && < 4.10
+                     , base >= 4.9 && < 4.13
                      , bytestring
                      , base64-bytestring
                      , case-insensitive
@@ -169,7 +169,7 @@ Test-Suite spec
                      , monad-control
                      , postgrest
                      , process
-                     , protolude == 0.2.2
+                     , protolude >= 0.2.2 && < 0.3
                      , regex-tdfa
                      , text
                      , time
