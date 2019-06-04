@@ -143,5 +143,6 @@ main = do
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
     -- this test runs with a root spec function override
-    beforeAll_ reset . before rootSpecApp $
-      describe "Feature.RootSpec" Feature.RootSpec.spec
+    when (actualPgVersion >= pgVersion96) $
+      beforeAll_ reset . before rootSpecApp $
+        describe "Feature.RootSpec" Feature.RootSpec.spec

@@ -40,7 +40,7 @@ import Data.List                   (lookup)
 import Data.Scientific             (floatingOrInteger)
 import Data.String                 (String)
 import Data.Text                   (concat, dropEnd, dropWhileEnd,
-                                    intercalate, lines, splitOn,
+                                    intercalate, lines, null, splitOn,
                                     strip, take)
 import Data.Text.Encoding          (encodeUtf8)
 import Data.Text.IO                (hPutStrLn)
@@ -62,8 +62,8 @@ import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
 import PostgREST.Types   (JSPath, JSPathExp (..),
                           QualifiedIdentifier (..))
-import Protolude         hiding (concat, hPutStrLn, intercalate, take,
-                          (<>))
+import Protolude         hiding (concat, hPutStrLn, intercalate, null,
+                          take, (<>))
 
 
 -- | Config file settings for the server
@@ -158,7 +158,7 @@ readOptions = do
           <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
           <*> (maybe ["public"] splitExtraSearchPath <$> C.key "db-extra-search-path")
-          <*> (parseRootSpec <$> C.key "root-spec")
+          <*> (parseRootSpec "root-spec")
 
   case mAppConf of
     Nothing -> do
@@ -177,13 +177,16 @@ readOptions = do
           (Just "") -> pure Nothing
           aud' -> pure aud'
 
-    parseRootSpec :: Text -> Maybe QualifiedIdentifier
-    parseRootSpec txt = case splitOn "." txt of
-      []         -> Nothing
-      [""]       -> Nothing
-      [tab]      -> Just $ QualifiedIdentifier mempty tab
-      [sch, tab] -> Just $ QualifiedIdentifier sch tab
-      (sch: xs)  -> Just $ QualifiedIdentifier sch $ concat xs
+    parseRootSpec :: Name -> C.ConfigParserM (Maybe QualifiedIdentifier)
+    parseRootSpec k =
+      C.key k >>= \case
+        Nothing -> pure Nothing -- no root-spec in config file
+        Just txt -> case splitOn "." txt of
+          []         -> fail "Invalid root-spec. Check your configuration."
+          [tab]      | null $ strip tab -> fail "Empty root-spec. Check your configuration."
+                     | otherwise        -> pure . Just $ QualifiedIdentifier mempty tab
+          [sch, tab] -> pure . Just $ QualifiedIdentifier sch tab
+          (sch: xs)  -> pure . Just $ QualifiedIdentifier sch $ concat xs
 
     coerceText :: Value -> Text
     coerceText (String s) = s
