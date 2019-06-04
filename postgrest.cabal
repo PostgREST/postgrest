@@ -33,17 +33,17 @@ executable postgrest
   default-language:    Haskell2010
   build-depends:       auto-update
                      , base >= 4.8 && < 4.10
+                     , base64-bytestring
+                     , bytestring
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
                      , postgrest
                      , protolude == 0.2.2
+                     , retry
                      , text
                      , time
                      , warp
-                     , bytestring
-                     , base64-bytestring
-                     , retry
   if !os(windows)
     build-depends:     unix
 
@@ -59,10 +59,11 @@ library
                      , bytestring
                      , case-insensitive
                      , cassava
-                     , configurator-ng == 0.0.0.1
+                     , configurator-pg >= 0.1 && < 0.2
                      , containers
                      , contravariant
                      , contravariant-extras
+                     , cookie
                      , either
                      , gitrev
                      , hasql >= 1.3 && < 1.4
@@ -92,7 +93,6 @@ library
                      , wai-cors
                      , wai-extra
                      , wai-middleware-static
-                     , cookie
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.ApiRequest
