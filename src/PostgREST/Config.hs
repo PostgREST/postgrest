@@ -158,7 +158,7 @@ readOptions = do
           <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
           <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
           <*> (maybe ["public"] splitExtraSearchPath <$> C.key "db-extra-search-path")
-          <*> (parseRootSpec "root-spec")
+          <*> parseRootSpec "root-spec"
 
   case mAppConf of
     Nothing -> do
