@@ -32,7 +32,7 @@ executable postgrest
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
   build-depends:       auto-update
-                     , base >= 4.8 && < 4.10
+                     , base >= 4.9 && < 4.10
                      , base64-bytestring
                      , bytestring
                      , directory
@@ -56,7 +56,7 @@ library
   default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
   build-depends:       aeson
                      , ansi-wl-pprint
-                     , base >= 4.8 && < 4.10
+                     , base >= 4.9 && < 4.10
                      , base64-bytestring
                      , bytestring
                      , case-insensitive
@@ -149,7 +149,7 @@ Test-Suite spec
                      , aeson-qq
                      , async
                      , auto-update
-                     , base >= 4.8 && < 4.10
+                     , base >= 4.9 && < 4.10
                      , bytestring
                      , base64-bytestring
                      , case-insensitive
