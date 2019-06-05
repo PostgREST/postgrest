@@ -31,21 +31,21 @@ executable postgrest
     -rtsopts
     "-with-rtsopts=-N -I2"
   default-language:    Haskell2010
-  build-depends:       auto-update
+  build-depends:       auto-update >= 0.1.4
                      , base >= 4.9 && < 4.13
-                     , base64-bytestring
-                     , bytestring
-                     , directory
+                     , base64-bytestring >= 1.0.0.1
+                     , bytestring >= 0.10.8.1
+                     , directory >= 1.2.6.2
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
                      , network < 2.9
                      , postgrest
                      , protolude >= 0.2.2 && < 0.3
-                     , retry
-                     , text
-                     , time
-                     , warp
+                     , retry >= 0.7.4.2
+                     , text >= 1.2.2.2
+                     , time >= 1.6.0.1
+                     , warp >= 3.2.12
   if !os(windows)
     build-depends:     unix
 
@@ -54,47 +54,47 @@ executable postgrest
 library
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
-  build-depends:       aeson
-                     , ansi-wl-pprint
+  build-depends:       aeson >= 0.11.3
+                     , ansi-wl-pprint >=0.6.7.3
                      , base >= 4.9 && < 4.13
-                     , base64-bytestring
-                     , bytestring
-                     , case-insensitive
-                     , cassava
+                     , base64-bytestring >= 1.0.0.1
+                     , bytestring >= 0.10.8.1
+                     , case-insensitive >= 1.2.0.9
+                     , cassava >= 0.4.5.1
                      , configurator-pg >= 0.1 && < 0.2
-                     , containers
-                     , contravariant
-                     , contravariant-extras
-                     , cookie
-                     , either
-                     , gitrev
+                     , containers >= 0.5.7.1
+                     , contravariant >= 1.4
+                     , contravariant-extras >= 0.3.3.1
+                     , cookie >= 0.4.2.1
+                     , either >= 4.4.1.1
+                     , gitrev >= 1.2
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
-                     , heredoc
-                     , HTTP
+                     , heredoc >= 0.2
+                     , HTTP >= 4000.3.7
                      , http-types >= 0.12.2
-                     , insert-ordered-containers
-                     , interpolatedstring-perl6
+                     , insert-ordered-containers >= 0.1.0.1
+                     , interpolatedstring-perl6 >= 1
                      , jose >= 0.7 && < 0.8
-                     , lens
-                     , lens-aeson
-                     , network-uri
+                     , lens >= 4.14
+                     , lens-aeson >= 1.0.1
+                     , network-uri >= 2.6.1
                      , optparse-applicative >= 0.13 && < 0.15
-                     , parsec
+                     , parsec >= 3.1.11
                      , protolude >= 0.2.2 && < 0.3
                      , Ranged-sets >= 0.3 && < 0.5
-                     , regex-tdfa
-                     , scientific
-                     , swagger2 < 2.4
-                     , text
-                     , time
-                     , unordered-containers
-                     , vector
-                     , wai
-                     , wai-cors
-                     , wai-extra
-                     , wai-middleware-static
+                     , regex-tdfa >= 1.2.2
+                     , scientific >= 0.3.4.9
+                     , swagger2 >= 2.1.4 && < 2.4
+                     , text >= 1.2.2.2
+                     , time >= 1.6.0.1
+                     , unordered-containers >= 0.2.8
+                     , vector >= 0.11
+                     , wai >= 3.2.1.1
+                     , wai-cors >= 0.2.5
+                     , wai-extra >= 3.0.19.1
+                     , wai-middleware-static >= 0.8.1
 
   Other-Modules:       Paths_postgrest
   Exposed-Modules:     PostgREST.ApiRequest
@@ -145,34 +145,34 @@ Test-Suite spec
                      , Feature.UpsertSpec
                      , SpecHelper
                      , TestTypes
-  Build-Depends:       aeson
-                     , aeson-qq
-                     , async
-                     , auto-update
+  Build-Depends:       aeson >= 0.11.3
+                     , aeson-qq >= 0.8.1
+                     , async >= 2.1.1.1
+                     , auto-update >= 0.1.4
                      , base >= 4.9 && < 4.13
-                     , bytestring
-                     , base64-bytestring
-                     , case-insensitive
-                     , cassava
-                     , containers
-                     , contravariant
+                     , bytestring >= 0.10.8.1
+                     , base64-bytestring >= 1.0.0.1
+                     , case-insensitive >= 1.2.0.9
+                     , cassava >= 0.4.5.1
+                     , containers >= 0.5.7.1
+                     , contravariant >= 1.4
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
-                     , heredoc
-                     , hspec
-                     , hspec-wai >= 0.7.0
-                     , hspec-wai-json
-                     , http-types
-                     , lens
-                     , lens-aeson
-                     , monad-control
+                     , heredoc >= 0.2
+                     , hspec >= 2.3
+                     , hspec-wai >= 0.7
+                     , hspec-wai-json >= 0.7
+                     , http-types >= 0.12.3
+                     , lens >= 4.14
+                     , lens-aeson >= 1.0.1
+                     , monad-control >= 1.0.1
                      , postgrest
-                     , process
+                     , process >= 1.4.2
                      , protolude >= 0.2.2 && < 0.3
-                     , regex-tdfa
-                     , text
-                     , time
-                     , transformers-base
-                     , wai
-                     , wai-extra
+                     , regex-tdfa >= 1.2.2
+                     , text >= 1.2.2.2
+                     , time >= 1.6.0.1
+                     , transformers-base >= 0.4.4
+                     , wai >= 3.2.1.1
+                     , wai-extra >= 3.0.19.1
