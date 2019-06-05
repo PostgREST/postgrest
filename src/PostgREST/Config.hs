@@ -70,6 +70,7 @@ data AppConfig = AppConfig {
   , configSchema            :: Text
   , configHost              :: Text
   , configPort              :: Int
+  , configSocket            :: Maybe Text
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -149,6 +150,7 @@ readOptions = do
         <*> reqString "db-schema"
         <*> (fromMaybe "!4" . mfilter (/= "") <$> optString "server-host")
         <*> (fromMaybe 3000 . join . fmap coerceInt <$> optValue "server-port")
+        <*> optString "server-unix-socket"
         <*> (fmap encodeUtf8 . mfilter (/= "") <$> optString "jwt-secret")
         <*> (fromMaybe False . join . fmap coerceBool <$> optValue "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
@@ -230,6 +232,10 @@ readOptions = do
           |
           |server-host = "!4"
           |server-port = 3000
+          |
+          |## unix socket location
+          |## if specified it takes precedence over server-port
+          |# server-unix-socket = "/tmp/pgrst.sock"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""

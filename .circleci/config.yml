@@ -67,6 +67,11 @@ jobs:
           keys:
           - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
+          name: install ncat
+          command: |
+            # utility needed to test socket connection with curl <  7.40
+            sudo apt-get install nmap
+      - run:
           name: install stack & dependencies
           command: |
             curl -L https://github.com/commercialhaskell/stack/releases/download/v1.1.2/stack-1.1.2-linux-x86_64.tar.gz | tar zx -C /tmp
