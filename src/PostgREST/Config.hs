@@ -12,8 +12,9 @@ turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module PostgREST.Config ( prettyVersion
@@ -29,26 +30,23 @@ import qualified Data.ByteString              as B
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
-import qualified Data.Configurator.Parser     as C
-import           Data.Configurator.Types      as C
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
+import Control.Exception           (Handler (..))
 import Control.Lens                (preview)
 import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
 import Data.Scientific             (floatingOrInteger)
-import Data.String                 (String)
 import Data.Text                   (concat, dropEnd, dropWhileEnd,
                                     intercalate, lines, null, splitOn,
-                                    strip, take)
+                                    strip, take, unpack)
 import Data.Text.Encoding          (encodeUtf8)
 import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
 import Development.GitRev          (gitHash)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
 import Paths_postgrest             (version)
-import System.IO                   (hPrint)
 import System.IO.Error             (IOError)
 
 import Control.Applicative
@@ -135,51 +133,51 @@ readOptions = do
   -- First read the config file path from command line
   cfgPath <- customExecParser parserPrefs opts
   -- Now read the actual config file
-  conf <- catch
-    (C.readConfig =<< C.load [C.Required cfgPath])
-    configNotfoundHint
+  conf <- catches (C.load cfgPath)
+    [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
+    , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n\t" <> err)
+    ]
 
-  let (mAppConf, errs) = flip C.runParserM conf $
-        AppConfig
-          <$> C.key "db-uri"
-          <*> C.key "db-anon-role"
-          <*> (mfilter (/= "") <$> C.key "server-proxy-uri")
-          <*> C.key "db-schema"
-          <*> (fromMaybe "!4" . mfilter (/= "") <$> C.key "server-host")
-          <*> (fromMaybe 3000 . join . fmap coerceInt <$> C.key "server-port")
-          <*> (fmap encodeUtf8 . mfilter (/= "") <$> C.key "jwt-secret")
-          <*> (fromMaybe False . join . fmap coerceBool <$> C.key "secret-is-base64")
-          <*> parseJwtAudience "jwt-aud"
-          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool")
-          <*> (fromMaybe 10 . join . fmap coerceInt <$> C.key "db-pool-timeout")
-          <*> (join . fmap coerceInt <$> C.key "max-rows")
-          <*> (mfilter (/= "") <$> C.key "pre-request")
-          <*> pure False
-          <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings")
-          <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> C.key "role-claim-key")
-          <*> (maybe ["public"] splitExtraSearchPath <$> C.key "db-extra-search-path")
-          <*> parseRootSpec "root-spec"
-
-  case mAppConf of
-    Nothing -> do
-      forM_ errs $ hPrint stderr
-      exitFailure
-    Just appConf ->
+  case C.runParser parseConfig conf of
+    Left err ->
+      exitErr $ "Error parsing config file:\n\t" <> err
+    Right appConf ->
       return appConf
 
   where
-    parseJwtAudience :: Name -> C.ConfigParserM (Maybe StringOrURI)
+    parseConfig =
+      AppConfig
+        <$> reqString "db-uri"
+        <*> reqString "db-anon-role"
+        <*> (mfilter (/= "") <$> optString "server-proxy-uri")
+        <*> reqString "db-schema"
+        <*> (fromMaybe "!4" . mfilter (/= "") <$> optString "server-host")
+        <*> (fromMaybe 3000 . join . fmap coerceInt <$> optValue "server-port")
+        <*> (fmap encodeUtf8 . mfilter (/= "") <$> optString "jwt-secret")
+        <*> (fromMaybe False . join . fmap coerceBool <$> optValue "secret-is-base64")
+        <*> parseJwtAudience "jwt-aud"
+        <*> (fromMaybe 10 . join . fmap coerceInt <$> optValue "db-pool")
+        <*> (fromMaybe 10 . join . fmap coerceInt <$> optValue "db-pool-timeout")
+        <*> (join . fmap coerceInt <$> optValue "max-rows")
+        <*> (mfilter (/= "") <$> optString "pre-request")
+        <*> pure False
+        <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
+        <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
+        <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
+        <*> parseRootSpec "root-spec"
+
+    parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
-      C.key k >>= \case
+      C.optional k C.string >>= \case
         Nothing -> pure Nothing -- no audience in config file
-        Just aud -> case preview stringOrUri (aud :: String) of
+        Just aud -> case preview stringOrUri (unpack aud) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
 
-    parseRootSpec :: Name -> C.ConfigParserM (Maybe QualifiedIdentifier)
+    parseRootSpec :: C.Key -> C.Parser C.Config (Maybe QualifiedIdentifier)
     parseRootSpec k =
-      C.key k >>= \case
+      C.optional k C.string >>= \case
         Nothing -> pure Nothing -- no root-spec in config file
         Just txt -> case splitOn "." txt of
           []         -> fail "Invalid root-spec. Check your configuration."
@@ -188,27 +186,36 @@ readOptions = do
           [sch, tab] -> pure . Just $ QualifiedIdentifier sch tab
           (sch: xs)  -> pure . Just $ QualifiedIdentifier sch $ concat xs
 
-    coerceText :: Value -> Text
-    coerceText (String s) = s
-    coerceText v          = show v
+    reqString :: C.Key -> C.Parser C.Config Text
+    reqString k = C.required k C.string
 
-    coerceInt :: (Read i, Integral i) => Value -> Maybe i
-    coerceInt (Number x) = rightToMaybe $ floatingOrInteger x
-    coerceInt (String x) = readMaybe $ toS x
-    coerceInt _          = Nothing
+    optString :: C.Key -> C.Parser C.Config (Maybe Text)
+    optString k = C.optional k C.string
 
-    coerceBool :: Value -> Maybe Bool
-    coerceBool (Bool b)   = Just b
-    coerceBool (String b) = readMaybe $ toS b
-    coerceBool _          = Nothing
+    optValue :: C.Key -> C.Parser C.Config (Maybe C.Value)
+    optValue k = C.optional k C.value
 
-    parseRoleClaimKey :: Value -> Either ApiRequestError JSPath
-    parseRoleClaimKey (String s) = pRoleClaimKey s
-    parseRoleClaimKey v          = pRoleClaimKey $ show v
+    coerceText :: C.Value -> Text
+    coerceText (C.String s) = s
+    coerceText v            = show v
 
-    splitExtraSearchPath :: Value -> [Text]
-    splitExtraSearchPath (String s) = strip <$> splitOn "," s
-    splitExtraSearchPath _          = []
+    coerceInt :: (Read i, Integral i) => C.Value -> Maybe i
+    coerceInt (C.Number x) = rightToMaybe $ floatingOrInteger x
+    coerceInt (C.String x) = readMaybe $ toS x
+    coerceInt _            = Nothing
+
+    coerceBool :: C.Value -> Maybe Bool
+    coerceBool (C.Bool b)   = Just b
+    coerceBool (C.String b) = readMaybe $ toS b
+    coerceBool _            = Nothing
+
+    parseRoleClaimKey :: C.Value -> Either ApiRequestError JSPath
+    parseRoleClaimKey (C.String s) = pRoleClaimKey s
+    parseRoleClaimKey v            = pRoleClaimKey $ show v
+
+    splitExtraSearchPath :: C.Value -> [Text]
+    splitExtraSearchPath (C.String s) = strip <$> splitOn "," s
+    splitExtraSearchPath _            = []
 
     opts = info (helper <*> pathParser) $
              fullDesc
@@ -224,10 +231,9 @@ readOptions = do
 
     parserPrefs = prefs showHelpOnError
 
-    configNotfoundHint :: IOError -> IO a
-    configNotfoundHint e = do
-      hPutStrLn stderr $
-        "Cannot open config file:\n\t" <> show e
+    exitErr :: Text -> IO a
+    exitErr err = do
+      hPutStrLn stderr err
       exitFailure
 
     exampleCfg :: Doc
