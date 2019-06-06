@@ -1,17 +1,12 @@
-resolver: lts-9.6
+# stack.yaml is used for circle-ci tests. Profiling build fails on circleci
+# with GHC 8.6, so we build with 8.4 for now.
+
+resolver: lts-12.26
 extra-deps:
-  - Ranged-sets-0.3.0
-  - protolude-0.2.2
-  - hasql-1.3
-  - hasql-pool-0.5
-  - hasql-transaction-0.7
-  - text-builder-0.5.1.1
-  - jose-0.7.0.0
-  - postgresql-libpq-0.9.4.1
-  - http-types-0.12.3
-  - wai-middleware-static-0.8.2
-  - configurator-pg-0.1.0.1
+- Ranged-sets-0.4.0
+- configurator-pg-0.1.0.3
+- http-types-0.12.3
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:
-  shell-file: shell.nix
+  packages: [pcre, pkgconfig, zlib]
