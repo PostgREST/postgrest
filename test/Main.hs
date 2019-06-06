@@ -55,7 +55,7 @@ main = do
     ver <- getPgVersion
     HT.transaction HT.ReadCommitted HT.Read $ getDbStructure "test" ver
 
-  dbStructure <- pure $ either (panic.show) id result
+  let dbStructure = either (panic.show) id result
 
   getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
 

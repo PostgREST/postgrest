@@ -135,8 +135,8 @@ connectionStatus pool =
 
     shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
     shouldRetry rs isConnSucc = do
-      delay <- pure $ fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
-      itShould <- pure $ NotConnected == isConnSucc
+      let delay    = fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
+          itShould = NotConnected == isConnSucc
       when itShould $
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
