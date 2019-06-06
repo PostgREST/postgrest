@@ -33,6 +33,9 @@ executable postgrest
   default-language:    Haskell2010
   build-depends:       auto-update
                      , base >= 4.8 && < 4.10
+                     , base64-bytestring
+                     , bytestring
+                     , directory
                      , hasql >= 1.3 && < 1.4
                      , hasql-pool >= 0.5 && < 0.6
                      , hasql-transaction >= 0.7 && < 0.8
@@ -43,10 +46,6 @@ executable postgrest
                      , text
                      , time
                      , warp
-                     , bytestring
-                     , base64-bytestring
-                     , retry
-                     , directory
   if !os(windows)
     build-depends:     unix
 
