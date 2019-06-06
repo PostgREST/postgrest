@@ -295,19 +295,28 @@ addViewChildRelations allSyns = concatMap (\rel ->
           -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
           -- So we need to change the order of the synonyms to match the relColumns
           -- This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
-          syns `sortAccordingTo` columns = sortOn (\(k, _) -> L.lookup k $ zip columns [0::Int ..]) syns in
+          syns `sortAccordingTo` columns = sortOn (\(k, _) -> L.lookup k $ zip columns [0::Int ..]) syns
 
-      -- View Table Child Relations
-      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) relFTable relFColumns Child Nothing Nothing Nothing
-        | syns <- colsSyns, syns `allSynsOf` relColumns] ++
+          viewTableChild =
+            [ Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns)
+                       relFTable relFColumns
+                       Child Nothing Nothing Nothing
+            | syns <- colsSyns, syns `allSynsOf` relColumns ]
 
-      -- Table View Child Relations
-      [Relation relTable relColumns (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
-        | fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns] ++
+          tableViewChild =
+            [ Relation relTable relColumns
+                       (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns)
+                       Child Nothing Nothing Nothing
+            | fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns ]
 
-      -- View View Child Relations
-      [Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns) (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns) Child Nothing Nothing Nothing
-        | syns <- colsSyns, fSyns <- fColsSyns, syns `allSynsOf` relColumns, fSyns `allSynsOf` relFColumns]
+          viewViewChild =
+            [ Relation (getView syns) (snd <$> syns `sortAccordingTo` relColumns)
+                       (getView fSyns) (snd <$> fSyns `sortAccordingTo` relFColumns)
+                       Child Nothing Nothing Nothing
+            | syns <- colsSyns, syns `allSynsOf` relColumns
+            , fSyns <- fColsSyns, fSyns `allSynsOf` relFColumns ]
+
+      in viewTableChild ++ tableViewChild ++ viewViewChild
 
     _ -> [])
 
