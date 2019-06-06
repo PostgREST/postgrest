@@ -240,7 +240,7 @@ addForeignKeys :: [Relation] -> [Column] -> [Column]
 addForeignKeys rels = map addFk
   where
     addFk col = col { colFK = fk col }
-    fk col = join $ relToFk col <$> find (lookupFn col) rels
+    fk col = find (lookupFn col) rels >>= relToFk col
     lookupFn :: Column -> Relation -> Bool
     lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==Child
     relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
