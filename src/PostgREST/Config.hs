@@ -38,8 +38,8 @@ import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
 import Data.Scientific             (floatingOrInteger)
-import Data.Text                   (concat, dropEnd, dropWhileEnd,
-                                    intercalate, lines, null, splitOn,
+import Data.Text                   (dropEnd, dropWhileEnd,
+                                    intercalate, lines, splitOn,
                                     strip, take, unpack)
 import Data.Text.Encoding          (encodeUtf8)
 import Data.Text.IO                (hPutStrLn)
@@ -145,12 +145,13 @@ readOptions = do
       return appConf
 
   where
+    dbSchema = reqString "db-schema"
     parseConfig =
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
         <*> (mfilter (/= "") <$> optString "server-proxy-uri")
-        <*> reqString "db-schema"
+        <*> dbSchema
         <*> (fromMaybe "!4" . mfilter (/= "") <$> optString "server-host")
         <*> (fromMaybe 3000 . join . fmap coerceInt <$> optValue "server-port")
         <*> (fmap encodeUtf8 . mfilter (/= "") <$> optString "jwt-secret")
@@ -164,7 +165,7 @@ readOptions = do
         <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
-        <*> parseRootSpec "root-spec"
+        <*> ((\x y -> QualifiedIdentifier x <$> mfilter (/= "") y) <$> dbSchema <*> optString "root-spec")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -174,17 +175,6 @@ readOptions = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
-
-    parseRootSpec :: C.Key -> C.Parser C.Config (Maybe QualifiedIdentifier)
-    parseRootSpec k =
-      C.optional k C.string >>= \case
-        Nothing -> pure Nothing -- no root-spec in config file
-        Just txt -> case splitOn "." txt of
-          []         -> fail "Invalid root-spec. Check your configuration."
-          [tab]      | null $ strip tab -> fail "Empty root-spec. Check your configuration."
-                     | otherwise        -> pure . Just $ QualifiedIdentifier mempty tab
-          [sch, tab] -> pure . Just $ QualifiedIdentifier sch tab
-          (sch: xs)  -> pure . Just $ QualifiedIdentifier sch $ concat xs
 
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string
@@ -269,8 +259,7 @@ readOptions = do
           |# db-extra-search-path = "extensions, util"
           |
           |## stored proc that overrides the root "/" spec
-          |## it can take a `schema.proc` value or can take only the name,
-          |## in which case the schema will be decided by the search_path
+          |## it must be inside the db-schema
           |# root-spec = "stored_proc_name"
           |]
 
