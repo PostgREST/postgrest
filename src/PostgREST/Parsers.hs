@@ -56,9 +56,11 @@ pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
   where
     path = parse pLogicPath ("failed to parser logic path (" ++ toS k ++ ")") $ toS k
     embedPath = fst <$> path
-    op = snd <$> path
-    -- Concat op and v to make pLogicTree argument regular, in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
-    logicTree = join $ parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") . toS <$> ((<>) <$> op <*> pure v)
+    logicTree = do
+      op <- snd <$> path
+      -- Concat op and v to make pLogicTree argument regular,
+      -- in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
+      parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") $ toS (op <> v)
 
 pRequestColumns :: Maybe Text -> Either ApiRequestError (Maybe (S.Set FieldName))
 pRequestColumns colStr =

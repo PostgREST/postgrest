@@ -349,7 +349,7 @@ isUriValid:: URI -> Bool
 isUriValid = fAnd [isSchemeValid, isQueryValid, isAuthorityValid]
 
 fAnd :: [a -> Bool] -> a -> Bool
-fAnd fs x = all ($x) fs
+fAnd fs x = all ($ x) fs
 
 isSchemeValid :: URI -> Bool
 isSchemeValid URI {uriScheme = s}
