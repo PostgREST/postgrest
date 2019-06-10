@@ -137,7 +137,7 @@ userApiRequest schema rootSpec req reqBody
       , iColumns = columns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars
-        . L.sortBy (comparing fst)
+        . L.sortOn fst
         . map (join (***) toS . second (fromMaybe BS.empty))
         $ queryStringWPlus
       , iJWT = tokenStr

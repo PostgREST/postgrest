@@ -72,6 +72,7 @@ data AppConfig = AppConfig {
   , configSchema            :: Text
   , configHost              :: Text
   , configPort              :: Int
+  , configSocket            :: Maybe Text
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -150,22 +151,23 @@ readOptions = do
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
-        <*> (mfilter (/= "") <$> optString "server-proxy-uri")
+        <*> optString "server-proxy-uri"
         <*> dbSchema
-        <*> (fromMaybe "!4" . mfilter (/= "") <$> optString "server-host")
-        <*> (fromMaybe 3000 . join . fmap coerceInt <$> optValue "server-port")
-        <*> (fmap encodeUtf8 . mfilter (/= "") <$> optString "jwt-secret")
-        <*> (fromMaybe False . join . fmap coerceBool <$> optValue "secret-is-base64")
+        <*> (fromMaybe "!4" <$> optString "server-host")
+        <*> (fromMaybe 3000 <$> optInt "server-port")
+        <*> optString "server-unix-socket"
+        <*> (fmap encodeUtf8 <$> optString "jwt-secret")
+        <*> (fromMaybe False <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
-        <*> (fromMaybe 10 . join . fmap coerceInt <$> optValue "db-pool")
-        <*> (fromMaybe 10 . join . fmap coerceInt <$> optValue "db-pool-timeout")
-        <*> (join . fmap coerceInt <$> optValue "max-rows")
-        <*> (mfilter (/= "") <$> optString "pre-request")
+        <*> (fromMaybe 10 <$> optInt "db-pool")
+        <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
+        <*> optInt "max-rows"
+        <*> optString "pre-request"
         <*> pure False
         <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
-        <*> ((\x y -> QualifiedIdentifier x <$> mfilter (/= "") y) <$> dbSchema <*> optString "root-spec")
+        <*> ((\x y -> QualifiedIdentifier x <$> y) <$> dbSchema <*> optString "root-spec")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -180,10 +182,16 @@ readOptions = do
     reqString k = C.required k C.string
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
-    optString k = C.optional k C.string
+    optString k = mfilter (/= "") <$> C.optional k C.string
 
     optValue :: C.Key -> C.Parser C.Config (Maybe C.Value)
     optValue k = C.optional k C.value
+
+    optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
+    optInt k = join <$> C.optional k (coerceInt <$> C.value)
+
+    optBool :: C.Key -> C.Parser C.Config (Maybe Bool)
+    optBool k = join <$> C.optional k (coerceBool <$> C.value)
 
     coerceText :: C.Value -> Text
     coerceText (C.String s) = s
@@ -236,6 +244,10 @@ readOptions = do
           |
           |server-host = "!4"
           |server-port = 3000
+          |
+          |## unix socket location
+          |## if specified it takes precedence over server-port
+          |# server-unix-socket = "/tmp/pgrst.sock"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""

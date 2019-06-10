@@ -15,13 +15,22 @@ import Control.Retry            (RetryStatus, capDelay,
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
-import Data.Text                (pack, replace, strip, stripPrefix)
+import Data.Text                (pack, replace, strip, stripPrefix,
+                                 unpack)
 import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import Data.Text.IO             (hPutStrLn, readFile)
 import Data.Time.Clock          (getCurrentTime)
+import Network.Socket           (Family (AF_UNIX),
+                                 SockAddr (SockAddrUnix), Socket,
+                                 SocketType (Stream), bind, close,
+                                 defaultProtocol, listen,
+                                 maxListenQueue, socket)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
-                                 setHost, setPort, setServerName)
+                                 runSettingsSocket, setHost, setPort,
+                                 setServerName)
+import System.Directory         (removeFile)
 import System.IO                (BufferMode (..), hSetBuffering)
+import System.IO.Error          (isDoesNotExistError)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
@@ -126,8 +135,8 @@ connectionStatus pool =
 
     shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
     shouldRetry rs isConnSucc = do
-      delay <- pure $ fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
-      itShould <- pure $ NotConnected == isConnSucc
+      let delay    = fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
+          itShould = NotConnected == isConnSucc
       when itShould $
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
@@ -153,6 +162,7 @@ main = do
   let host = configHost conf
       port = configPort conf
       proxy = configProxyUri conf
+      maybeSocketAddr = configSocket conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
       roleClaimKey = configRoleClaimKey conf
       appSettings =
@@ -170,7 +180,6 @@ main = do
   when (isLeft roleClaimKey) $
     panic $ show roleClaimKey
 
-  putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
   --
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
@@ -222,19 +231,31 @@ main = do
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
 
-  -- run the postgrest application
-  runSettings appSettings $
-    postgrest
-      conf
-      refDbStructure
-      pool
-      getTime
-      (connectionWorker
-         mainTid
-         pool
-         (configSchema conf)
-         refDbStructure
-         refIsWorkerOn)
+  let postgrestApplication =
+        postgrest
+          conf
+          refDbStructure
+          pool
+          getTime
+          (connectionWorker
+             mainTid
+             pool
+             (configSchema conf)
+             refDbStructure
+             refIsWorkerOn)
+    in case maybeSocketAddr of
+         Nothing -> do
+             -- run the postgrest application
+             putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
+             runSettings appSettings postgrestApplication
+         Just socketAddr -> do
+             -- run postgrest application with user defined socket
+             sock <- createAndBindSocket (unpack socketAddr)
+             listen sock maxListenQueue
+             putStrLn $ ("Listening on unix socket " :: Text) <> show socketAddr
+             runSettingsSocket appSettings sock postgrestApplication
+             -- clean socket up when done
+             close sock
 
 {-|
   The purpose of this function is to load the JWT secret from a file if
@@ -302,3 +323,15 @@ loadDbUriFile conf = extractDbUri mDbUri
         Nothing       -> return dbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}
+
+createAndBindSocket :: FilePath -> IO Socket
+createAndBindSocket filePath = do
+  deleteSocketFileIfExist filePath
+  sock <- socket AF_UNIX Stream defaultProtocol
+  bind sock $ SockAddrUnix filePath
+  return sock
+  where
+    deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist
+    handleDoesNotExist e
+      | isDoesNotExistError e = return ()
+      | otherwise = throwIO e

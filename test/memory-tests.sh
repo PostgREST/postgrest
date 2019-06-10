@@ -90,8 +90,6 @@ postJsonArrayTest(){
   fi
 }
 
-stack build --profile
-
 setUp
 
 echo "Running memory usage tests.."

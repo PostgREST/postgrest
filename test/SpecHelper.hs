@@ -64,6 +64,8 @@ getEnvVarWithDefault var def = toS <$>
 _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
   AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
+            -- No user configured Unix Socket
+            Nothing
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
