@@ -9,7 +9,6 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 
 module PostgREST.DbRequestBuilder (
@@ -59,7 +58,7 @@ readRequest maxRows allRels proc apiRequest  =
       let target = iTarget apiRequest in
       case target of
         (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
-        (TargetProc  (QualifiedIdentifier s pName) ) -> Just (s, tName)
+        (TargetProc  (QualifiedIdentifier s pName) _ ) -> Just (s, tName)
           where
             tName = case pdReturnType <$> proc of
               Just (SetOf (Composite qi))  -> qiName qi

@@ -23,7 +23,7 @@ import Test.Hspec.Wai
 import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..))
-import PostgREST.Types  (JSPathExp (..))
+import PostgREST.Types  (JSPathExp (..), QualifiedIdentifier (..))
 import Protolude
 
 matchContentTypeJson :: MatchHeader
@@ -79,6 +79,8 @@ _baseCfg =  -- Connection Settings
             (Right [JSPKey "role"])
             -- Empty db-extra-search-path
             []
+            -- No root spec override
+            Nothing
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
@@ -125,6 +127,9 @@ testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchema = "non
 
 testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
+
+testCfgRootSpec :: Text -> AppConfig
+testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just $ QualifiedIdentifier "test" "root"}
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do

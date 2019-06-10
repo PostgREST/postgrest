@@ -135,6 +135,7 @@ test-suite spec
                       Feature.QueryLimitedSpec
                       Feature.QuerySpec
                       Feature.RangeSpec
+                      Feature.RootSpec
                       Feature.RpcSpec
                       Feature.SingularSpec
                       Feature.StructureSpec

@@ -37,6 +37,7 @@ import qualified Feature.ProxySpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
+import qualified Feature.RootSpec
 import qualified Feature.RpcSpec
 import qualified Feature.SingularSpec
 import qualified Feature.StructureSpec
@@ -72,6 +73,7 @@ main = do
       asymJwkSetApp        = return $ postgrest (testCfgAsymJWKSet testDbConn)        refDbStructure pool getTime $ pure ()
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn) refDbStructure pool getTime $ pure ()
       extraSearchPathApp   = return $ postgrest (testCfgExtraSearchPath testDbConn)   refDbStructure pool getTime $ pure ()
+      rootSpecApp          = return $ postgrest (testCfgRootSpec testDbConn)          refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
       reset = resetDb testDbConn
@@ -139,3 +141,8 @@ main = do
     -- this test runs with an extra search path
     beforeAll_ reset . before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
+
+    -- this test runs with a root spec function override
+    when (actualPgVersion >= pgVersion96) $
+      beforeAll_ reset . before rootSpecApp $
+        describe "Feature.RootSpec" Feature.RootSpec.spec

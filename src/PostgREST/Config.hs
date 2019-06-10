@@ -58,8 +58,10 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
 import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
-import PostgREST.Types   (JSPath, JSPathExp (..))
-import Protolude         hiding (hPutStrLn, intercalate, take, (<>))
+import PostgREST.Types   (JSPath, JSPathExp (..),
+                          QualifiedIdentifier (..))
+import Protolude         hiding (concat, hPutStrLn, intercalate, null,
+                          take, (<>))
 
 
 -- | Config file settings for the server
@@ -84,6 +86,8 @@ data AppConfig = AppConfig {
   , configSettings          :: [(Text, Text)]
   , configRoleClaimKey      :: Either ApiRequestError JSPath
   , configExtraSearchPath   :: [Text]
+
+  , configRootSpec          :: Maybe QualifiedIdentifier
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -142,12 +146,13 @@ readOptions = do
       return appConf
 
   where
+    dbSchema = reqString "db-schema"
     parseConfig =
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
         <*> optString "server-proxy-uri"
-        <*> reqString "db-schema"
+        <*> dbSchema
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
@@ -162,6 +167,7 @@ readOptions = do
         <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
+        <*> ((\x y -> QualifiedIdentifier x <$> y) <$> dbSchema <*> optString "root-spec")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -263,6 +269,10 @@ readOptions = do
           |
           |## extra schemas to add to the search_path of every request
           |# db-extra-search-path = "extensions, util"
+          |
+          |## stored proc that overrides the root "/" spec
+          |## it must be inside the db-schema
+          |# root-spec = "stored_proc_name"
           |]
 
 pathParser :: Parser FilePath
