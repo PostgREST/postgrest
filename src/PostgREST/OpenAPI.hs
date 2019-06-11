@@ -10,7 +10,7 @@ module PostgREST.OpenAPI (
 , pickProxy
 ) where
 
-import qualified Data.Set as Set
+import qualified Data.HashSet.InsOrd as Set
 
 import Control.Arrow              ((&&&))
 import Data.Aeson                 (decode, encode)
@@ -55,7 +55,7 @@ makeTableDef pks (t, cs, _) =
   let tn = tableName t in
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
-        & type_ .~ SwaggerObject
+        & type_ ?~ SwaggerObject
         & properties .~ fromList (map (makeProperty pks) cs)
         & required .~ map colName (filter (not . colNullable) cs))
 
@@ -84,13 +84,13 @@ makeProperty pks c = (colName c, Inline s)
         & enum_ .~ e
         & format ?~ colType c
         & maxLength .~ (fromIntegral <$> colMaxLen c)
-        & type_ .~ toSwaggerType (colType c)
+        & type_ ?~ toSwaggerType (colType c)
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
   (mempty :: Schema)
   & description .~ pdDescription pd
-  & type_ .~ SwaggerObject
+  & type_ ?~ SwaggerObject
   & properties .~ fromList (map makeProcProperty (pdArgs pd))
   & required .~ map pgaName (filter pgaReq (pdArgs pd))
 
@@ -98,7 +98,7 @@ makeProcProperty :: PgArg -> (Text, Referenced Schema)
 makeProcProperty (PgArg n t _) = (n, Inline s)
   where
     s = (mempty :: Schema)
-          & type_ .~ toSwaggerType t
+          & type_ ?~ toSwaggerType t
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
@@ -109,7 +109,7 @@ makePreferParam ts =
   & required    ?~ False
   & schema .~ ParamOther ((mempty :: ParamOtherSchema)
     & in_ .~ ParamHeader
-    & type_ .~ SwaggerString
+    & type_ ?~ SwaggerString
     & enum_ .~ decode (encode ts))
 
 makeProcParam :: ProcDescription -> [Referenced Param]
@@ -132,28 +132,28 @@ makeParamDefs ti =
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamQuery
-        & type_ .~ SwaggerString))
+        & type_ ?~ SwaggerString))
   , ("order", (mempty :: Param)
       & name        .~ "order"
       & description ?~ "Ordering"
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamQuery
-        & type_ .~ SwaggerString))
+        & type_ ?~ SwaggerString))
   , ("range", (mempty :: Param)
       & name        .~ "Range"
       & description ?~ "Limiting and Pagination"
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamHeader
-        & type_ .~ SwaggerString))
+        & type_ ?~ SwaggerString))
   , ("rangeUnit", (mempty :: Param)
       & name        .~ "Range-Unit"
       & description ?~ "Limiting and Pagination"
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamHeader
-        & type_ .~ SwaggerString
+        & type_ ?~ SwaggerString
         & default_ .~ decode "\"items\""))
   , ("offset", (mempty :: Param)
       & name        .~ "offset"
@@ -161,14 +161,14 @@ makeParamDefs ti =
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamQuery
-        & type_ .~ SwaggerString))
+        & type_ ?~ SwaggerString))
   , ("limit", (mempty :: Param)
       & name        .~ "limit"
       & description ?~ "Limiting and Pagination"
       & required    ?~ False
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamQuery
-        & type_ .~ SwaggerString))
+        & type_ ?~ SwaggerString))
   ]
   <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) cs
             | (t, cs, _) <- ti
@@ -190,7 +190,7 @@ makeRowFilter tn c =
     & required ?~ False
     & schema .~ ParamOther ((mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
-      & type_ .~ SwaggerString
+      & type_ ?~ SwaggerString
       & format ?~ colType c))
 
 makeRowFilters :: Text -> [Column] -> [(Text, Param)]
@@ -213,7 +213,7 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
       & at 200 ?~ Inline ((mempty :: Response)
         & description .~ "OK"
         & schema ?~ Inline (mempty
-          & type_ .~ SwaggerArray
+          & type_ ?~ SwaggerArray
           & items ?~ (SwaggerItemsObject $ Ref $ Reference $ tableName t)
         )
       )
