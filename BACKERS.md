@@ -13,8 +13,8 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=github" target="_blank">
-          <img width="222px" src="static/timescaledb.png">
+        <a href="https://www.2ndquadrant.com/en/?utm_campaign=external%20websites&utm_source=postgrest&utm_medium=logo" target="_blank">
+          <img width="222px" src="static/2ndquadrant.png">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -41,5 +41,17 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Nicholas DiBiase
 
 ## Former Backers
+
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=github" target="_blank">
+          <img width="222px" src="static/timescaledb.png">
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 - [Christiaan Westerbeek](https://devotis.nl)
