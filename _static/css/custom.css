@@ -9,3 +9,11 @@ div.highlight {
 div.line-block {
   margin-bottom: 0px !important;
 }
+
+#sponsors{
+  text-align: center;
+}
+
+#sponsors h1{
+  text-align: left;
+}

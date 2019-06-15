@@ -26,12 +26,14 @@ PostgREST is a standalone web server that turns your PostgreSQL database directl
 Sponsors
 --------
 
-.. image:: _static/timescaledb.png
-  :target: https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=docs
-  :width:  222px
-  :align:  center
 
-`TimescaleDB <https://www.timescale.com?utm_campaign=postgrest&utm_source=sponsor&utm_medium=referral&utm_content=docs>`_ is an scalable time-series database packaged as a PostgreSQL extension. See our tutorial for using `TimescaleDB with PostgREST <integrations/timescaledb.html>`_.
+.. image:: _static/2ndquadrant.png
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=external%20websites&utm_source=postgrest&utm_medium=logo
+  :width:  13em
+
+.. image:: _static/retool.png
+  :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
 
 Motivation
 ----------
