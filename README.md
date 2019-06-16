@@ -21,18 +21,13 @@ API than you are likely to write from scratch.
   <tbody>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="222px" src="static/retool.png">
-        </a>
-      </td>
-      <td align="center" valign="middle">
-        <a href="https://www.2ndquadrant.com/en/?utm_campaign=external%20websites&utm_source=postgrest&utm_medium=logo" target="_blank">
+        <a href="https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo" target="_blank">
           <img width="222px" src="static/2ndquadrant.png">
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://patreon.com/postgrest" target="_blank">
-          <img width="222px" src="static/become_sponsor.svg">
+        <a href="https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="222px" src="static/retool.png">
         </a>
       </td>
     </tr>
