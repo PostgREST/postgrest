@@ -28,7 +28,7 @@ Sponsors
 
 
 .. image:: _static/2ndquadrant.png
-  :target: https://www.2ndquadrant.com/en/?utm_campaign=external%20websites&utm_source=postgrest&utm_medium=logo
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
   :width:  13em
 
 .. image:: _static/retool.png
