@@ -51,6 +51,18 @@ import PostgREST.RangeQuery (allRange, rangeLimit, rangeOffset)
 import PostgREST.Types
 import Protolude            hiding (cast, intercalate, replace)
 
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+element :: HD.Value a -> HD.Array a
+element = HD.element . HD.nonNullable
+
+param :: HE.Value a -> HE.Params a
+param = HE.param . HE.nonNullable
+
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
     @"k1=eq.42"@, or the empty list if there is no location header.
@@ -58,10 +70,10 @@ import Protolude            hiding (cast, intercalate, replace)
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString)
 
 standardRow :: HD.Row ResultsWithCount
-standardRow = (,,,) <$> HD.nullableColumn HD.int8 <*> HD.column HD.int8
-                    <*> HD.column header <*> HD.column HD.bytea
+standardRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                    <*> column header <*> column HD.bytea
   where
-    header = HD.array $ HD.dimension replicateM $ HD.element HD.bytea
+    header = HD.array $ HD.dimension replicateM $ element HD.bytea
 
 noLocationF :: Text
 noLocationF = "array[]::text[]"
@@ -81,7 +93,7 @@ decodeStandardMay =
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
                        H.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
-  unicodeStatement sql HE.unit decodeStandard False
+  unicodeStatement sql HE.noParams decodeStandard False
  where
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
@@ -104,7 +116,7 @@ createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
                         H.Statement ByteString (Maybe ResultsWithCount)
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
-  unicodeStatement sql (HE.param HE.unknown) decodeStandardMay True
+  unicodeStatement sql (param HE.unknown) decodeStandardMay True
 
  where
   sql = case rep of
@@ -146,7 +158,7 @@ callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bo
             Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
             H.Statement ByteString (Maybe ProcResults)
 callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField pgVer =
-  unicodeStatement sql (HE.param HE.unknown) decodeProc True
+  unicodeStatement sql (param HE.unknown) decodeProc True
   where
     sql =[qc|
       WITH
@@ -210,8 +222,8 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
         else "'[]'" :: Text
 
     decodeProc = HD.rowMaybe procRow
-    procRow = (,,,) <$> HD.nullableColumn HD.int8 <*> HD.column HD.int8
-                    <*> HD.column HD.bytea <*> HD.column HD.bytea
+    procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                    <*> column HD.bytea <*> column HD.bytea
 
 pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""

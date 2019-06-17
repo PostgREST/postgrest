@@ -6,6 +6,12 @@ extra-deps:
 - Ranged-sets-0.4.0
 - configurator-pg-0.1.0.3
 - http-types-0.12.3
+- hasql-1.4
+- hasql-pool-0.5.1
+- hasql-transaction-0.7.2
+- text-builder-0.6.5.1
+- deferred-folds-0.9.10.1
+- primitive-0.6.4.0
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
 nix:

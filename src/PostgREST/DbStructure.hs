@@ -43,6 +43,18 @@ import Control.Applicative
 import PostgREST.Types
 import Protolude
 
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+element :: HD.Value a -> HD.Array a
+element = HD.element . HD.nonNullable
+
+param :: HE.Value a -> HE.Params a
+param = HE.param . HE.nonNullable
+
 getDbStructure :: Schema -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schema pgVer = do
   HT.sql "set local schema ''" -- for getting the fully qualified name(schema.name) of every db object
@@ -70,10 +82,10 @@ decodeTables :: HD.Result [Table]
 decodeTables =
   HD.rowList tblRow
  where
-  tblRow = Table <$> HD.column HD.text
-                 <*> HD.column HD.text
-                 <*> HD.nullableColumn HD.text
-                 <*> HD.column HD.bool
+  tblRow = Table <$> column HD.text
+                 <*> column HD.text
+                 <*> nullableColumn HD.text
+                 <*> column HD.bool
 
 decodeColumns :: [Table] -> HD.Result [Column]
 decodeColumns tables =
@@ -81,41 +93,41 @@ decodeColumns tables =
  where
   colRow =
     (,,,,,,,,,,,)
-      <$> HD.column HD.text <*> HD.column HD.text
-      <*> HD.column HD.text <*> HD.nullableColumn HD.text
-      <*> HD.column HD.int4 <*> HD.column HD.bool
-      <*> HD.column HD.text <*> HD.column HD.bool
-      <*> HD.nullableColumn HD.int4
-      <*> HD.nullableColumn HD.int4
-      <*> HD.nullableColumn HD.text
-      <*> HD.nullableColumn HD.text
+      <$> column HD.text <*> column HD.text
+      <*> column HD.text <*> nullableColumn HD.text
+      <*> column HD.int4 <*> column HD.bool
+      <*> column HD.text <*> column HD.bool
+      <*> nullableColumn HD.int4
+      <*> nullableColumn HD.int4
+      <*> nullableColumn HD.text
+      <*> nullableColumn HD.text
 
 decodeRelations :: [Table] -> [Column] -> HD.Result [Relation]
 decodeRelations tables cols =
   mapMaybe (relationFromRow tables cols) <$> HD.rowList relRow
  where
   relRow = (,,,,,)
-    <$> HD.column HD.text
-    <*> HD.column HD.text
-    <*> HD.column (HD.array (HD.dimension replicateM (HD.element HD.text)))
-    <*> HD.column HD.text
-    <*> HD.column HD.text
-    <*> HD.column (HD.array (HD.dimension replicateM (HD.element HD.text)))
+    <$> column HD.text
+    <*> column HD.text
+    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
+    <*> column HD.text
+    <*> column HD.text
+    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
 
 decodePks :: [Table] -> HD.Result [PrimaryKey]
 decodePks tables =
   mapMaybe (pkFromRow tables) <$> HD.rowList pkRow
  where
-  pkRow = (,,) <$> HD.column HD.text <*> HD.column HD.text <*> HD.column HD.text
+  pkRow = (,,) <$> column HD.text <*> column HD.text <*> column HD.text
 
 decodeSynonyms :: [Column] -> HD.Result [Synonym]
 decodeSynonyms cols =
   mapMaybe (synonymFromRow cols) <$> HD.rowList synRow
  where
   synRow = (,,,,,)
-    <$> HD.column HD.text <*> HD.column HD.text
-    <*> HD.column HD.text <*> HD.column HD.text
-    <*> HD.column HD.text <*> HD.column HD.text
+    <$> column HD.text <*> column HD.text
+    <*> column HD.text <*> column HD.text
+    <*> column HD.text <*> column HD.text
 
 decodeProcs :: HD.Result (M.HashMap Text [ProcDescription])
 decodeProcs =
@@ -123,15 +135,15 @@ decodeProcs =
   map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addName) <$> HD.rowList tblRow
   where
     tblRow = ProcDescription
-              <$> HD.column HD.text
-              <*> HD.nullableColumn HD.text
-              <*> (parseArgs <$> HD.column HD.text)
+              <$> column HD.text
+              <*> nullableColumn HD.text
+              <*> (parseArgs <$> column HD.text)
               <*> (parseRetType
-                  <$> HD.column HD.text
-                  <*> HD.column HD.text
-                  <*> HD.column HD.bool
-                  <*> HD.column HD.char)
-              <*> (parseVolatility <$> HD.column HD.char)
+                  <$> column HD.text
+                  <*> column HD.text
+                  <*> column HD.bool
+                  <*> column HD.char)
+              <*> (parseVolatility <$> column HD.char)
 
     addName :: ProcDescription -> (Text, ProcDescription)
     addName pd = (pdName pd, pd)
@@ -168,10 +180,10 @@ decodeProcs =
                       | otherwise = Volatile -- only 'v' can happen here
 
 allProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
-allProcs = H.Statement (toS procsSqlQuery) (HE.param HE.text) decodeProcs True
+allProcs = H.Statement (toS procsSqlQuery) (param HE.text) decodeProcs True
 
 accessibleProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
-accessibleProcs = H.Statement (toS sql) (HE.param HE.text) decodeProcs True
+accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
   where
     sql = procsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
@@ -196,7 +208,7 @@ procsSqlQuery = [q|
 
 schemaDescription :: H.Statement Schema (Maybe Text)
 schemaDescription =
-    H.Statement sql (HE.param HE.text) (join <$> HD.rowMaybe (HD.nullableColumn HD.text)) True
+    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text)) True
   where
     sql = [q|
       select
@@ -209,7 +221,7 @@ schemaDescription =
 
 accessibleTables :: H.Statement Schema [Table]
 accessibleTables =
-  H.Statement sql (HE.param HE.text) decodeTables True
+  H.Statement sql (param HE.text) decodeTables True
  where
   sql = [q|
     select
@@ -351,7 +363,7 @@ addViewPrimaryKeys syns = concatMap (\pk ->
 
 allTables :: H.Statement () [Table]
 allTables =
-  H.Statement sql HE.unit decodeTables True
+  H.Statement sql HE.noParams decodeTables True
  where
   sql = [q|
     SELECT
@@ -374,7 +386,7 @@ allTables =
 
 allColumns :: [Table] -> H.Statement Schema [Column]
 allColumns tabs =
-  H.Statement sql (HE.param HE.text) (decodeColumns tabs) True
+  H.Statement sql (param HE.text) (decodeColumns tabs) True
  where
   sql = [q|
     SELECT DISTINCT
@@ -561,7 +573,7 @@ columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <
 
 allChildRelations :: [Table] -> [Column] -> H.Statement () [Relation]
 allChildRelations tabs cols =
-  H.Statement sql HE.unit (decodeRelations tabs cols) True
+  H.Statement sql HE.noParams (decodeRelations tabs cols) True
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -602,7 +614,7 @@ relationFromRow allTabs allCols (rs, rt, rcs, frs, frt, frcs) =
 
 allPrimaryKeys :: [Table] -> H.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
-  H.Statement sql HE.unit (decodePks tabs) True
+  H.Statement sql HE.noParams (decodePks tabs) True
  where
   sql = [q|
     /*
@@ -712,7 +724,7 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
 
 allSynonyms :: [Column] -> PgVersion -> H.Statement Schema [Synonym]
 allSynonyms cols pgVer =
-  H.Statement sql (HE.param HE.text) (decodeSynonyms cols) True
+  H.Statement sql (param HE.text) (decodeSynonyms cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
@@ -787,7 +799,7 @@ synonymFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
     findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
 
 getPgVersion :: H.Session PgVersion
-getPgVersion = H.statement () $ H.Statement sql HE.unit versionRow False
+getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
-    versionRow = HD.singleRow $ PgVersion <$> HD.column HD.int4 <*> HD.column HD.text
+    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
