@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+### Fixed
+
+## [6.0.0] - 2019-06-19
+
+### Added
+
 - #1186, Add support for user defined unix socket via `server-unix-socket` config option
 - #690, Add `?columns` query parameter for faster bulk inserts, also ignores unspecified json keys in a payload - @steve-chavez
 - #1239, Add support for resource embedding on materialized views - @vitorbaptista

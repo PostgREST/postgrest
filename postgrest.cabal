@@ -1,5 +1,5 @@
 name:               postgrest
-version:            5.2.0
+version:            6.0.0
 synopsis:           REST API for any Postgres database
 description:        Reads the schema of a PostgreSQL database and creates RESTful routes
                     for the tables and views, supporting all HTTP verbs that security
