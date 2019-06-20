@@ -469,6 +469,55 @@ spec actualPgVersion =
              {"id":4,"name":"OSX"}]
           |] { matchHeaders = [matchContentTypeJson] }
 
+    context "binary output" $ do
+      context "Proc that returns scalar" $ do
+        it "can query without selecting column" $
+          request methodPost "/rpc/ret_base64_bin" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            }
+
+        it "can get raw output with Accept: text/html" $
+          request methodGet "/rpc/welcome.html" (acceptHdrs "text/html") ""
+            `shouldRespondWith`
+            [str|
+                |<html>
+                |  <head>
+                |    <title>PostgREST</title>
+                |  </head>
+                |  <body>
+                |    <h1>Welcome to PostgREST</h1>
+                |  </body>
+                |</html>
+                |]
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "text/html; charset=utf-8"]
+            }
+
+        it "can get raw output with Accept: text/plain" $
+          request methodGet "/rpc/welcome" (acceptHdrs "text/plain") ""
+            `shouldRespondWith` "Welcome to PostgREST"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
+            }
+
+      context "Proc that returns rows" $ do
+        it "can query if a single column is selected" $
+          request methodPost "/rpc/ret_rows_with_base64_bin?select=img" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            }
+
+        it "fails if a single column is not selected" $
+          request methodPost "/rpc/ret_rows_with_base64_bin" (acceptHdrs "application/octet-stream") ""
+            `shouldRespondWith`
+            [json| {"message":"application/octet-stream requested but a single column was not selected"} |]
+            { matchStatus = 406
+            , matchHeaders = [matchContentTypeJson]
+            }
+
     context "only for GET rpc" $ do
       it "should fail on mutating procs" $ do
         get "/rpc/callcounter" `shouldRespondWith` 500

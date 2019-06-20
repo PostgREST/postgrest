@@ -6,11 +6,13 @@ Description : PostgREST common types and functions used by the rest of the modul
 
 module PostgREST.Types where
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.CaseInsensitive as CI
-import qualified Data.HashMap.Strict  as M
-import qualified Data.Set             as S
+import qualified Data.Aeson               as JSON
+import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Internal as BS (c2w)
+import qualified Data.ByteString.Lazy     as BL
+import qualified Data.CaseInsensitive     as CI
+import qualified Data.HashMap.Strict      as M
+import qualified Data.Set                 as S
 import qualified GHC.Show
 
 import Network.HTTP.Types.Header (Header, hContentType)
@@ -21,9 +23,10 @@ import PostgREST.RangeQuery (NonnegRange)
 import Protolude
 
 -- | Enumeration of currently supported response content types
-data ContentType = CTApplicationJSON | CTTextCSV | CTOpenAPI
-                 | CTSingularJSON | CTOctetStream
-                 | CTAny | CTOther ByteString deriving Eq
+data ContentType = CTApplicationJSON | CTSingularJSON
+                 | CTTextCSV | CTTextPlain | CTTextHtml
+                 | CTOpenAPI | CTOctetStream
+                 | CTAny | CTOther ByteString deriving (Show, Eq)
 
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header
@@ -33,11 +36,31 @@ toHeader ct = (hContentType, toMime ct <> "; charset=utf-8")
 toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
+toMime CTTextPlain       = "text/plain"
+toMime CTTextHtml        = "text/html"
 toMime CTOpenAPI         = "application/openapi+json"
 toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTOctetStream     = "application/octet-stream"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
+
+-- | Convert from ByteString to ContentType. Warning: discards MIME parameters
+decodeContentType :: BS.ByteString -> ContentType
+decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
+  "application/json"                  -> CTApplicationJSON
+  "text/csv"                          -> CTTextCSV
+  "text/plain"                        -> CTTextPlain
+  "text/html"                         -> CTTextHtml
+  "application/openapi+json"          -> CTOpenAPI
+  "application/vnd.pgrst.object+json" -> CTSingularJSON
+  "application/vnd.pgrst.object"      -> CTSingularJSON
+  "application/octet-stream"          -> CTOctetStream
+  "*/*"                               -> CTAny
+  ct'                                 -> CTOther ct'
+
+-- | ContentTypes that can get a raw/unwrapped response
+rawContentTypes :: [ContentType]
+rawContentTypes = [CTOctetStream, CTTextPlain, CTTextHtml]
 
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
 instance Show PreferResolution where

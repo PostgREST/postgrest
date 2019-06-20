@@ -1713,3 +1713,20 @@ case current_setting('request.header.accept', true)
   end case;
 end
 $_$ language plpgsql;
+
+create or replace function welcome() returns text as $$
+select 'Welcome to PostgREST'::text;
+$$ language sql;
+
+create or replace function "welcome.html"() returns text as $_$
+select $$
+<html>
+  <head>
+    <title>PostgREST</title>
+  </head>
+  <body>
+    <h1>Welcome to PostgREST</h1>
+  </body>
+</html>
+$$::text;
+$_$ language sql;
