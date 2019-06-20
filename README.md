@@ -21,6 +21,11 @@ API than you are likely to write from scratch.
   <tbody>
     <tr>
       <td align="center" valign="middle">
+        <a href="https://www.cybertec-postgresql.com/en/" target="_blank">
+          <img width="222px" src="static/cybertec.png">
+        </a>
+      </td>
+      <td align="center" valign="middle">
         <a href="https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo" target="_blank">
           <img width="222px" src="static/2ndquadrant.png">
         </a>
