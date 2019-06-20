@@ -26,6 +26,9 @@ PostgREST is a standalone web server that turns your PostgreSQL database directl
 Sponsors
 --------
 
+.. image:: _static/cybertec.png
+  :target: https://www.cybertec-postgresql.com/en/
+  :width:  13em
 
 .. image:: _static/2ndquadrant.png
   :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo

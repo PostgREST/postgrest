@@ -17,3 +17,7 @@ div.line-block {
 #sponsors h1{
   text-align: left;
 }
+
+#sponsors img{
+  margin: 10px;
+}
