@@ -14,17 +14,16 @@ module PostgREST.ApiRequest (
 , userApiRequest
 ) where
 
-import qualified Data.Aeson               as JSON
-import qualified Data.ByteString          as BS
-import qualified Data.ByteString.Internal as BS (c2w)
-import qualified Data.ByteString.Lazy     as BL
-import qualified Data.CaseInsensitive     as CI
-import qualified Data.Csv                 as CSV
-import qualified Data.HashMap.Strict      as M
-import qualified Data.List                as L
-import qualified Data.Set                 as S
-import qualified Data.Text                as T
-import qualified Data.Vector              as V
+import qualified Data.Aeson           as JSON
+import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.CaseInsensitive as CI
+import qualified Data.Csv             as CSV
+import qualified Data.HashMap.Strict  as M
+import qualified Data.List            as L
+import qualified Data.Set             as S
+import qualified Data.Text            as T
+import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
@@ -263,23 +262,6 @@ mutuallyAgreeable sProduces cAccepts =
   if isNothing exact && CTAny `elem` cAccepts
      then listToMaybe sProduces
      else exact
-
--- PRIVATE ---------------------------------------------------------------
-
-{-|
-  Warning: discards MIME parameters
--}
-decodeContentType :: BS.ByteString -> ContentType
-decodeContentType ct =
-  case BS.takeWhile (/= BS.c2w ';') ct of
-    "application/json"                  -> CTApplicationJSON
-    "text/csv"                          -> CTTextCSV
-    "application/openapi+json"          -> CTOpenAPI
-    "application/vnd.pgrst.object+json" -> CTSingularJSON
-    "application/vnd.pgrst.object"      -> CTSingularJSON
-    "application/octet-stream"          -> CTOctetStream
-    "*/*"                               -> CTAny
-    ct'                                 -> CTOther ct'
 
 type CsvData = V.Vector (M.HashMap Text BL.ByteString)
 

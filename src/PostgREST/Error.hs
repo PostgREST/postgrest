@@ -12,6 +12,7 @@ module PostgREST.Error (
 , SimpleError(..)
 , errorPayload
 , checkIsFatal
+, singularityError
 ) where
 
 import qualified Data.Aeson                as JSON
@@ -190,7 +191,7 @@ checkIsFatal _ = Nothing
 
 data SimpleError
   = GucHeadersError
-  | BinaryFieldError
+  | BinaryFieldError ContentType
   | ConnectionLostError
   | PutSingletonError
   | PutMatchingPkError
@@ -204,7 +205,7 @@ data SimpleError
 
 instance PgrstError SimpleError where
   status GucHeadersError           = HT.status500
-  status BinaryFieldError          = HT.status406
+  status (BinaryFieldError _)      = HT.status406
   status ConnectionLostError       = HT.status503
   status PutSingletonError         = HT.status400
   status PutMatchingPkError        = HT.status400
@@ -222,8 +223,8 @@ instance PgrstError SimpleError where
 instance JSON.ToJSON SimpleError where
   toJSON GucHeadersError           = JSON.object [
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text)]
-  toJSON BinaryFieldError          = JSON.object [
-    "message" .= ((toS (toMime CTOctetStream) <> " requested but a single column was not selected") :: Text)]
+  toJSON (BinaryFieldError ct)          = JSON.object [
+    "message" .= ((toS (toMime ct) <> " requested but a single column was not selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [
     "message" .= ("Database connection lost, retrying the connection." :: Text)]
 
@@ -250,3 +251,6 @@ instance JSON.ToJSON SimpleError where
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> show m)
+
+singularityError :: (Integral a) => a -> SimpleError
+singularityError = SingularityError . toInteger

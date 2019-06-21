@@ -39,7 +39,7 @@ import PostgREST.DbRequestBuilder (fieldNames, mutateRequest,
                                    readRequest)
 import PostgREST.DbStructure
 import PostgREST.Error            (PgError (..), SimpleError (..),
-                                   errorResponseFor)
+                                   errorResponseFor, singularityError)
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
@@ -275,7 +275,7 @@ app dbStructure proc cols conf apiRequest =
                 callProc qi (specifiedProcArgs cols proc) returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
-                         (contentType == CTOctetStream) bField
+                         (contentType `elem` rawContentTypes) bField
                          (pgVersion dbStructure)
               let (tableTotal, queryTotal, body, jsonHeaders) =
                     fromMaybe (Just 0, 0, "[]", "[]") row
@@ -334,11 +334,12 @@ responseContentTypeOrError :: [ContentType] -> Action -> Target -> Either Respon
 responseContentTypeOrError accepts action target = serves contentTypesForRequest accepts
   where
     contentTypesForRequest = case action of
-      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream]
+      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV] ++ rawContentTypes
       ActionCreate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionUpdate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionDelete       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-      ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV, CTOctetStream] ++ [CTOpenAPI | tpIsRootSpec target]
+      ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV] ++ rawContentTypes ++
+                             [CTOpenAPI | tpIsRootSpec target]
       ActionInspect      ->  [CTOpenAPI, CTApplicationJSON]
       ActionInfo         ->  [CTTextCSV]
       ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
@@ -347,14 +348,18 @@ responseContentTypeOrError accepts action target = serves contentTypesForRequest
         Nothing -> Left . errorResponseFor . ContentTypeError . map toMime $ cAccepts
         Just ct -> Right ct
 
+{-
+  | If raw(binary) output is requested, check that ContentType is one of the admitted rawContentTypes and that
+  | `?select=...` contains only one field other than `*`
+-}
 binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
-binaryField CTOctetStream fldNames =
-  if length fldNames == 1 && fieldName /= Just "*"
-    then Right fieldName
-    else Left . errorResponseFor $ BinaryFieldError
-  where
-    fieldName = headMay fldNames
-binaryField _ _ = Right Nothing
+binaryField ct fldNames
+  | ct `elem` rawContentTypes =
+      let fieldName = headMay fldNames in
+      if length fldNames == 1 && fieldName /= Just "*"
+        then Right fieldName
+        else Left . errorResponseFor $ BinaryFieldError ct
+  | otherwise = Right Nothing
 
 splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
 splitKeyValue kv = (k, BS.tail v)
@@ -385,6 +390,3 @@ contentRangeH lower upper total =
 
 extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
 extractQueryResult = fromMaybe (Nothing, 0, [], "")
-
-singularityError :: (Integral a) => a -> SimpleError
-singularityError = SingularityError . toInteger
