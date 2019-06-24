@@ -1,3 +1,4 @@
+## AppVeyor is used for building a Windows binary on new tag releases
 platform: x64
 
 cache:
@@ -8,6 +9,7 @@ environment:
   global:
     STACK_ROOT: "c:\\sr"
     GOPATH: c:\gopath
+    TMP: "c:\\tmp"
 
 test: off
 
@@ -28,7 +30,7 @@ install:
 
 build_script:
 - stack setup --no-terminal > nul
-- stack build -j1 --copy-bins --local-bin-path .
+- bash -lc "timeout 2700 'C:\projects\postgrest\stack.exe' build -j1 --copy-bins --local-bin-path . || true"
 
 artifacts:
 - path: postgrest.exe
