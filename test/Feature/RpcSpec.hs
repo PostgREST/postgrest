@@ -11,8 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Types (PgVersion, pgVersion100, pgVersion95,
-                        pgVersion96)
+import PostgREST.Types (PgVersion, pgVersion100, pgVersion114,
+                        pgVersion95)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -256,30 +256,26 @@ spec actualPgVersion =
             [json|"object"|]
             { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion <= pgVersion96) $
-        it "parses quoted JSON arguments as JSON (Postgres <= 9.6)" $
+      when (actualPgVersion < pgVersion100) $
+        it "parses quoted JSON arguments as JSON (Postgres < 10)" $
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]
             `shouldRespondWith`
               [json|"object"|]
               { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion100) $ do
-        it "parses quoted JSON arguments as JSON string (Postgres >= 10)" $ do
-          -- Postgres bug report:
-          -- https://www.postgresql.org/message-id/D6921B37-BD8E-4664-8D5F-DB3525765DCD%40vllmrt.net
-          -- * json_to_record fails (see following test)
-          -- * jsonb_to_record parses the embedded quoted JSON to a JSON string,
-          --   so that's probably the expected behavior for Postgres >= 10
-          pendingWith "Postgres >= 10 fails to parse quoted embedded JSON"
+      when (actualPgVersion >= pgVersion114) $
+        it "parses quoted JSON arguments as JSON string (Postgres >= 11.4)" $
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]
             `shouldRespondWith`
               [json|"string"|]
               { matchHeaders = [matchContentTypeJson] }
 
-        it "fails to parse quoted JSON arguments (Postgres >= 10)" $
-          -- Confirming buggy Postgres behavior (see previous test)
+      when (actualPgVersion >= pgVersion100 && actualPgVersion < pgVersion114) $
+        it "fails to parse quoted JSON arguments (Postgres >= 10, < 11.4)" $
+          -- Confirming buggy Postgres behavior:
+          -- https://www.postgresql.org/message-id/D6921B37-BD8E-4664-8D5F-DB3525765DCD%40vllmrt.net
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]
             `shouldRespondWith`

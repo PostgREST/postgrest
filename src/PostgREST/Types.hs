@@ -429,6 +429,9 @@ pgVersion100 = PgVersion 100000 "10"
 pgVersion112 :: PgVersion
 pgVersion112 = PgVersion 110002 "11.2"
 
+pgVersion114 :: PgVersion
+pgVersion114 = PgVersion 110004 "11.4"
+
 sourceCTEName :: SqlFragment
 sourceCTEName = "pg_source"
 
