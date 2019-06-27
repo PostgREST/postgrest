@@ -174,7 +174,7 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:11.3
+      - image: circleci/postgres:11.4
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
