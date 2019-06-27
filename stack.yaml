@@ -13,6 +13,6 @@ extra-deps:
 - deferred-folds-0.9.10.1
 - primitive-0.6.4.0
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints
+  postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints -optP-Wno-nonportable-include-path
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
