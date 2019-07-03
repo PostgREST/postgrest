@@ -114,6 +114,26 @@ spec =
           get "/ranges?range=adj.(3,10]&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }]|] { matchHeaders = [matchContentTypeJson] }
 
+        it "can handle array operators" $ do
+          get "/entities?arr=eq.{1,2,3}&select=id" `shouldRespondWith`
+            [json|[{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=neq.{1,2}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=lt.{2,3}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=lt.{2,0}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=gt.{1,1}&select=id" `shouldRespondWith`
+            [json|[{ "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=gt.{3}&select=id" `shouldRespondWith`
+            [json|[]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=lte.{2,1}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=lte.{1,2,3}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=lte.{1,2}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
+
         context "operators with not" $ do
           it "eq, cs, like can be negated" $
             get "/entities?and=(arr.not.cs.{1,2,3},and(id.not.eq.2,name.not.like.*3))&select=id" `shouldRespondWith`
