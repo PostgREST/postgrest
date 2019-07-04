@@ -1,56 +1,5 @@
 version: 2
 
-build-distro-bin: &build-distro-bin
-  machine: true
-  steps:
-    - checkout
-    # cannot interpolate env var and use as a cache key so just copy the Dockerfile to another filename
-    - run: cp docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/Dockerfile
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-    - run:
-        name: load or build docker image
-        command: |
-          if [[ -e ~/image.tar ]]; then
-            docker load -i ~/image.tar
-          else
-            docker build --rm=false -t $CIRCLE_JOB -f docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/
-            docker save $CIRCLE_JOB > ~/image.tar
-          fi
-    - run:
-        name: build binary
-        command: |
-          docker run -it \
-            -v $HOME/.stack:/root/.stack \
-            -v $(pwd):/source \
-            -v $HOME/bin/:/root/.local/bin/ \
-            $CIRCLE_JOB build --allow-different-user --install-ghc --copy-bins
-          # volumes owned by root if chown is not done the save_cache step fails silently
-          sudo chown -R circleci:circleci ~/.stack .stack-work
-    - run:
-        name: compress binary
-        command: |
-          mkdir -p /tmp/workspace/bin
-          cd /tmp/workspace/bin
-          tar cvJf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
-    - persist_to_workspace:
-        root: /tmp/workspace
-        paths:
-          - bin/*
-    - save_cache:
-        paths:
-          - ~/image.tar
-        key: v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - save_cache:
-        paths:
-          - "~/.stack"
-          - ".stack-work"
-        key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-
 jobs:
   build-test-9:
     docker:
@@ -189,51 +138,6 @@ jobs:
       - run:
           name: run tests
           command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
-
-  build-prof-test:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-          - TERM=xterm
-      - image: circleci/postgres:9.6.2
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build with profiling enabled
-          command: |
-            stack build --profile -j1
-      - run:
-          name: run memory usage tests
-          command: |
-            test/create_test_db "postgres://circleci@localhost" postgrest_test
-            psql "postgres:///postgrest_test" -f test/fixtures/database.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/roles.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/schema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jwt.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jsonschema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
-            test/memory-tests.sh
-      - save_cache:
-          paths:
-            - "~/.stack"
-            - ".stack-work"
-          key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
 workflows:
   version: 2
