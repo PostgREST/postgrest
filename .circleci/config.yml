@@ -34,9 +34,7 @@ jobs:
             stack build --fast --test --no-run-tests
       - run:
           name: run tests
-          command: |
-            POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
-            test/io-tests.sh
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
       - save_cache:
           paths:
             - "~/.stack"
