@@ -70,6 +70,9 @@ cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
 cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
 ov            overlap (have points in common),                 :code:`&&`
               e.g. :code:`?period=ov.[2017-01-01,2017-06-30]`
+              – also supports array types, use curly braces
+              instead of square brackets
+              e.g. :code: `?arr=ov.{1,3}`
 sl            strictly left of, e.g. :code:`?range=sl.(1,10)`  :code:`<<`
 sr            strictly right of                                :code:`>>`
 nxr           does not extend to the right of,                 :code:`&<`
