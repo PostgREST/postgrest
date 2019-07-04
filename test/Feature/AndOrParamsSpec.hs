@@ -133,6 +133,14 @@ spec =
             [json|[{ "id": 1 }, { "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
           get "/entities?arr=lte.{1,2}&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=cs.{1,2}&select=id" `shouldRespondWith`
+            [json|[{ "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=cd.{1,2,6}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 2 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=ov.{3}&select=id" `shouldRespondWith`
+            [json|[{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=ov.{2,3}&select=id" `shouldRespondWith`
+            [json|[{ "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
 
         context "operators with not" $ do
           it "eq, cs, like can be negated" $
