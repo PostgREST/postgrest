@@ -52,12 +52,12 @@ build-distro-bin: &build-distro-bin
         key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
 jobs:
-  build-test-9.4:
+  build-test-9:
     docker:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:9.4.14
+      - image: circleci/postgres:9
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -66,11 +66,6 @@ jobs:
       - restore_cache:
           keys:
           - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install ncat
-          command: |
-            # utility needed to test socket connection with curl <  7.40
-            sudo apt-get install nmap
       - run:
           name: install stack & dependencies
           command: |
@@ -93,56 +88,18 @@ jobs:
           command: |
             POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
             test/io-tests.sh
-      - run:
-          name: run linter
-          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
-      - run:
-          name: run styler
-          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- stylish-haskell -i && git diff-index --exit-code HEAD --
       - save_cache:
           paths:
             - "~/.stack"
             - ".stack-work"
           key: v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
-  build-test-9.6:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-      - image: circleci/postgres:9.6.2
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build src and tests
-          command: |
-            stack build --fast -j1
-            stack build --fast --test --no-run-tests
-      - run:
-          name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
-
   build-test-10:
     docker:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:10.5
+      - image: circleci/postgres:10
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -174,7 +131,39 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:11.4
+      - image: circleci/postgres:11
+        environment:
+          - POSTGRES_USER=circleci
+          - POSTGRES_DB=circleci
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y postgresql-client
+            stack setup
+      - run:
+          name: build src and tests
+          command: |
+            stack build --fast -j1
+            stack build --fast --test --no-run-tests
+      - run:
+          name: run tests
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+
+  build-test-latest:
+    docker:
+      - image: circleci/buildpack-deps:trusty
+        environment:
+          - PGHOST=localhost
+      - image: circleci/postgres:latest
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -246,53 +235,11 @@ jobs:
             - ".stack-work"
           key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
-  centos6:
-    <<: *build-distro-bin
-
-  centos7:
-    <<: *build-distro-bin
-
-  ubuntu:
-    <<: *build-distro-bin
-
-  ubuntui386:
-    <<: *build-distro-bin
-
-  release:
-    docker:
-      - image: circleci/golang:1.8
-    steps:
-      - attach_workspace:
-          at: /tmp/workspace
-      - checkout
-      - run:
-          name: add body and tars to github release
-          command: |
-            go get -u github.com/tcnksm/ghr
-            START=$(echo $CIRCLE_TAG | cut -c2-)
-            END='## \['
-            BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
-            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/workspace/bin
-      - setup_remote_docker
-      - run:
-          name: publish docker image
-          command: |
-            docker build --build-arg POSTGREST_VERSION=$CIRCLE_TAG -t postgrest ./docker/
-            docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker tag postgrest postgrest/postgrest:$CIRCLE_TAG
-            docker push postgrest/postgrest:$CIRCLE_TAG
-            docker tag postgrest postgrest/postgrest:latest
-            docker push postgrest/postgrest:latest
-
 workflows:
   version: 2
   build-test-release:
     jobs:
-      - build-test-9.4:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-      - build-test-9.6:
+      - build-test-9:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
@@ -304,64 +251,7 @@ workflows:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-prof-test:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-      - centos6:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - centos7:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntu:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntui386:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - release:
-          requires:
-            - centos6
-            - centos7
-            - ubuntu
-            - ubuntui386
+      - build-test-latest:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
