@@ -426,6 +426,12 @@ pgVersion96 = PgVersion 90600 "9.6"
 pgVersion100 :: PgVersion
 pgVersion100 = PgVersion 100000 "10"
 
+pgVersion109 :: PgVersion
+pgVersion109 = PgVersion 100009 "10.9"
+
+pgVersion110 :: PgVersion
+pgVersion110 = PgVersion 110000 "11.0"
+
 pgVersion112 :: PgVersion
 pgVersion112 = PgVersion 110002 "11.2"
 
