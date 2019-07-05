@@ -11,8 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Types (PgVersion, pgVersion100, pgVersion114,
-                        pgVersion95)
+import PostgREST.Types (PgVersion, pgVersion100, pgVersion109,
+                        pgVersion110, pgVersion114, pgVersion95)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -264,25 +264,14 @@ spec actualPgVersion =
               [json|"object"|]
               { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion114) $
-        it "parses quoted JSON arguments as JSON string (Postgres >= 11.4)" $
+      when ((actualPgVersion >= pgVersion109 && actualPgVersion < pgVersion110)
+            || actualPgVersion >= pgVersion114) $
+        it "parses quoted JSON arguments as JSON string (from Postgres 10.9, 11.4)" $
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]
             `shouldRespondWith`
               [json|"string"|]
               { matchHeaders = [matchContentTypeJson] }
-
-      when (actualPgVersion >= pgVersion100 && actualPgVersion < pgVersion114) $
-        it "fails to parse quoted JSON arguments (Postgres >= 10, < 11.4)" $
-          -- Confirming buggy Postgres behavior:
-          -- https://www.postgresql.org/message-id/D6921B37-BD8E-4664-8D5F-DB3525765DCD%40vllmrt.net
-          post "/rpc/json_argument"
-              [json| { "arg": "{ \"key\": 3 }" } |]
-            `shouldRespondWith`
-              [json|{"hint":null,"details":"Token \"key\" is invalid.","code":"22P02","message":"invalid input syntax for type json"}|]
-              { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
-              }
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $ do
