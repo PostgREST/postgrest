@@ -13,10 +13,10 @@ extra-deps:
 - deferred-folds-0.9.10.1
 - primitive-0.6.4.0
 
-# text-printer without problematic SPECIALIZE pragmas:
+# text-printer with fixed problematic SPECIALIZE pragmas:
 # https://github.com/mvv/text-printer/issues/1
-- git: https://github.com/robx/text-printer.git
-  commit: 4a861c1cab97d55dbd94a175e6c30367320af6eb
+- git: https://github.com/mvv/text-printer.git
+  commit: dd8a404ea44411285bad0d21b438f01fe7da0447
 
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints -optP-Wno-nonportable-include-path
