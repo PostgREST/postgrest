@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1285, Abort on wrong database password - @qu4tro
 - #790, Allow override of OpenAPI spec through `root-spec` config option - @steve-chavez
 - #1308, Accept `text/plain` and `text/html` for raw output - @steve-chavez
+- #1339, Add websearch_to_tsquery support - @herulume
 
 ### Fixed
 
