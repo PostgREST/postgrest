@@ -12,7 +12,8 @@ import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
 import PostgREST.Types (PgVersion, pgVersion100, pgVersion109,
-                        pgVersion110, pgVersion114, pgVersion95)
+                        pgVersion110, pgVersion112, pgVersion114,
+                        pgVersion95)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -531,6 +532,10 @@ spec actualPgVersion =
         get "/rpc/get_tsearch?text_search_vector=not.fts(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
+        when (actualPgVersion >= pgVersion112) $
+            get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
+                [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+                { matchHeaders = [matchContentTypeJson] }
 
     it "should work with an argument of custom type in public schema" $
         get "/rpc/test_arg?my_arg=something" `shouldRespondWith`

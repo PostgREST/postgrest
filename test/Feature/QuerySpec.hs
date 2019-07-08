@@ -10,11 +10,12 @@ import Test.Hspec.Wai.JSON
 
 import Text.Heredoc
 
-import Protolude  hiding (get)
+import PostgREST.Types (PgVersion, pgVersion112)
+import Protolude       hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
-spec = do
+spec :: PgVersion -> SpecWith Application
+spec actualPgVersion = do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $
@@ -119,6 +120,29 @@ spec = do
           [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      when (actualPgVersion >= pgVersion112) $ do
+        it "finds matches with websearch_to_tsquery" $
+            get "/tsearch?text_search_vector=wfts.The%20Fat%20Rats" `shouldRespondWith`
+                [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+                { matchHeaders = [matchContentTypeJson] }
+
+        it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
+          get "/tsearch?text_search_vector=wfts.fun%20and%20possible"
+            `shouldRespondWith`
+              [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
+              { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=wfts.impossible%20or%20possible"
+            `shouldRespondWith`
+              [json| [
+                {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+                {"text_search_vector": "'also':2 'fun':3 'possibl':8"}]
+                  |]
+              { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=wfts.fun%20and%20-possible"
+            `shouldRespondWith`
+              [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
+              { matchHeaders = [matchContentTypeJson] }
+
       it "finds matches with different dictionaries" $ do
         get "/tsearch?text_search_vector=fts(french).amusant" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
@@ -126,6 +150,12 @@ spec = do
         get "/tsearch?text_search_vector=plfts(french).amusant%20impossible" `shouldRespondWith`
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
+
+        when (actualPgVersion >= pgVersion112) $
+            get "/tsearch?text_search_vector=wfts(french).amusant%20impossible"
+                `shouldRespondWith`
+                  [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+                  { matchHeaders = [matchContentTypeJson] }
 
       it "can be negated with not operator" $ do
         get "/tsearch?text_search_vector=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
@@ -145,6 +175,13 @@ spec = do
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
+        when (actualPgVersion >= pgVersion112) $
+            get "/tsearch?text_search_vector=not.wfts(english).impossible%20or%20fat%20or%20fun"
+                `shouldRespondWith`
+                  [json| [
+                    {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+                    {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+                  { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`

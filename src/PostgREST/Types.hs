@@ -287,7 +287,8 @@ ftsOperators :: M.HashMap Operator SqlFragment
 ftsOperators = M.fromList [
   ("fts", "@@ to_tsquery"),
   ("plfts", "@@ plainto_tsquery"),
-  ("phfts", "@@ phraseto_tsquery")
+  ("phfts", "@@ phraseto_tsquery"),
+  ("wfts", "@@ websearch_to_tsquery")
   ]
 
 data OpExpr = OpExpr Bool Operation deriving (Eq, Show)

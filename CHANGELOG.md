@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- #1243, Add websearch_to_tsquery support - @herulume
+
 ### Added
 
 ### Fixed
