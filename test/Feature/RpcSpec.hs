@@ -532,13 +532,10 @@ spec actualPgVersion =
         get "/rpc/get_tsearch?text_search_vector=not.fts(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/get_tsearch?text_search_vector=wfts.impossible"
-            `shouldRespondWith` (
-                if actualPgVersion >= pgVersion112 then
-                    [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|] { matchHeaders = [matchContentTypeJson] }
-                else
-                    [json|{"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","details":null,"code":"42883","message":"function websearch_to_tsquery(unknown) does not exist"}|] { matchStatus = 404, matchHeaders = [matchContentTypeJson] }
-            )
+        when (actualPgVersion >= pgVersion112) $
+            get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
+                [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+                { matchHeaders = [matchContentTypeJson] }
 
     it "should work with an argument of custom type in public schema" $
         get "/rpc/test_arg?my_arg=something" `shouldRespondWith`

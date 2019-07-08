@@ -80,18 +80,18 @@ spec actualPgVersion =
               {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
               {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
             ]|] { matchHeaders = [matchContentTypeJson] }
-          get "/tsearch?or=(text_search_vector.plfts(german).Art,text_search_vector.plfts(french).amusant,text_search_vector.not.wfts(english).impossible)"
-            `shouldRespondWith` (
-                if actualPgVersion >= pgVersion112 then
-                    [json|[
-                        {"text_search_vector": "'also':2 'fun':3 'possibl':8" },
-                        {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" },
-                        {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
-                        {"text_search_vector": "'art':4 'spass':5 'unmog':7" }
-                    ]|] { matchHeaders = [matchContentTypeJson] }
-                else
-                    [json|{"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","details":null,"code":"42883","message":"function websearch_to_tsquery(unknown, unknown) does not exist"}|] { matchStatus = 404 , matchHeaders = [matchContentTypeJson] }
-            )
+
+        when (actualPgVersion >= pgVersion112) $
+          it "can handle fts" $
+            get "/tsearch?or=(text_search_vector.plfts(german).Art,text_search_vector.plfts(french).amusant,text_search_vector.not.wfts(english).impossible)"
+            `shouldRespondWith`
+              [json|[
+                     {"text_search_vector": "'also':2 'fun':3 'possibl':8" },
+                     {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" },
+                     {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
+                     {"text_search_vector": "'art':4 'spass':5 'unmog':7" }
+              ]|]
+              { matchHeaders = [matchContentTypeJson] }
 
         it "can handle cs and cd" $
           get "/entities?or=(arr.cs.{1,2,3},arr.cd.{1})&select=id" `shouldRespondWith`
