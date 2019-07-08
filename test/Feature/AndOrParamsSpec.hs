@@ -82,7 +82,7 @@ spec actualPgVersion =
             ]|] { matchHeaders = [matchContentTypeJson] }
 
         when (actualPgVersion >= pgVersion112) $
-          it "can handle fts" $
+          it "can handle wfts (websearch_to_tsquery)" $
             get "/tsearch?or=(text_search_vector.plfts(german).Art,text_search_vector.plfts(french).amusant,text_search_vector.not.wfts(english).impossible)"
             `shouldRespondWith`
               [json|[
