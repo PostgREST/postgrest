@@ -8,6 +8,7 @@ module PostgREST.App (
 
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.HashMap.Strict        as M
+import qualified Data.List                  as L (union)
 import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as H
@@ -56,7 +57,6 @@ postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> I
 postgrest conf refDbStructure pool getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
       jwtSecret = parseSecret <$> configJwtSecret conf in
-
   middle $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
@@ -103,14 +103,14 @@ transactionMode proc action =
 
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure proc cols conf apiRequest =
-  case responseContentTypeOrError (iAccepts apiRequest) (iAction apiRequest) (iTarget apiRequest) of
+  case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
         (ActionRead, TargetIdent qi, Nothing) ->
           let partsField = (,) <$> readSqlParts
-                <*> (binaryField contentType =<< fldNames) in
+                <*> (binaryField contentType rawContentTypes =<< fldNames) in
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
@@ -265,7 +265,7 @@ app dbStructure proc cols conf apiRequest =
                 _ -> False
               rpcBinaryField = if returnsScalar
                                  then Right Nothing
-                                 else binaryField contentType =<< fldNames
+                                 else binaryField contentType rawContentTypes =<< fldNames
               parts = (,) <$> readSqlParts <*> rpcBinaryField in
           case parts of
             Left errorResponse -> return errorResponse
@@ -329,17 +329,22 @@ app dbStructure proc cols conf apiRequest =
       mutateSqlParts s t =
         (,) <$> selectQuery
             <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
+      rawContentTypes =
+        (decodeContentType <$> configRawOutputMediaTypes conf) `L.union`
+        [ CTOctetStream, CTTextPlain ]
 
-responseContentTypeOrError :: [ContentType] -> Action -> Target -> Either Response ContentType
-responseContentTypeOrError accepts action target = serves contentTypesForRequest accepts
+responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target -> Either Response ContentType
+responseContentTypeOrError accepts rawContentTypes action target = serves contentTypesForRequest accepts
   where
     contentTypesForRequest = case action of
-      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV] ++ rawContentTypes
+      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+                             ++ rawContentTypes
       ActionCreate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionUpdate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionDelete       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-      ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV] ++ rawContentTypes ++
-                             [CTOpenAPI | tpIsRootSpec target]
+      ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+                             ++ rawContentTypes
+                             ++ [CTOpenAPI | tpIsRootSpec target]
       ActionInspect      ->  [CTOpenAPI, CTApplicationJSON]
       ActionInfo         ->  [CTTextCSV]
       ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
@@ -352,8 +357,8 @@ responseContentTypeOrError accepts action target = serves contentTypesForRequest
   | If raw(binary) output is requested, check that ContentType is one of the admitted rawContentTypes and that
   | `?select=...` contains only one field other than `*`
 -}
-binaryField :: ContentType -> [FieldName] -> Either Response (Maybe FieldName)
-binaryField ct fldNames
+binaryField :: ContentType -> [ContentType]-> [FieldName] -> Either Response (Maybe FieldName)
+binaryField ct rawContentTypes fldNames
   | ct `elem` rawContentTypes =
       let fieldName = headMay fldNames in
       if length fldNames == 1 && fieldName /= Just "*"

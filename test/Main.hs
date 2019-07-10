@@ -27,6 +27,7 @@ import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.ExtraSearchPathSpec
+import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.NoJwtSpec
@@ -37,6 +38,7 @@ import qualified Feature.ProxySpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
+import qualified Feature.RawOutputTypesSpec
 import qualified Feature.RootSpec
 import qualified Feature.RpcSpec
 import qualified Feature.SingularSpec
@@ -74,6 +76,7 @@ main = do
       nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn) refDbStructure pool getTime $ pure ()
       extraSearchPathApp   = return $ postgrest (testCfgExtraSearchPath testDbConn)   refDbStructure pool getTime $ pure ()
       rootSpecApp          = return $ postgrest (testCfgRootSpec testDbConn)          refDbStructure pool getTime $ pure ()
+      htmlRawOutputApp     = return $ postgrest (testCfgHtmlRawOutput testDbConn)     refDbStructure pool getTime $ pure ()
 
   let reset :: IO ()
       reset = resetDb testDbConn
@@ -86,6 +89,7 @@ main = do
 
       specs = uncurry describe <$> [
           ("Feature.AuthSpec"               , Feature.AuthSpec.spec actualPgVersion)
+        , ("Feature.RawOutputTypesSpec"     , Feature.RawOutputTypesSpec.spec)
         , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
@@ -101,6 +105,10 @@ main = do
 
   hspec $ do
     mapM_ (beforeAll_ reset . before withApp) specs
+
+    -- this test runs with a raw-output-media-types set to text/html
+    beforeAll_ reset . before htmlRawOutputApp $
+      describe "Feature.HtmlRawOutputSpec" Feature.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
     beforeAll_ reset . before ltdApp $

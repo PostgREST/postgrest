@@ -81,6 +81,8 @@ _baseCfg =  -- Connection Settings
             []
             -- No root spec override
             Nothing
+            -- Raw output media types
+            []
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
@@ -131,6 +133,9 @@ testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath
 testCfgRootSpec :: Text -> AppConfig
 testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just $ QualifiedIdentifier "test" "root"}
 
+testCfgHtmlRawOutput :: Text -> AppConfig
+testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawOutputMediaTypes = ["text/html"] }
+
 setupDb :: Text -> IO ()
 setupDb dbConn = do
   loadFixture dbConn "database"
@@ -172,6 +177,8 @@ authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
   (hAuthorization, "Bearer " <> token)
 
+acceptHeader :: BS.ByteString -> Header
+acceptHeader mime = (hAccept, mime)
 -- | Tests whether the text can be parsed as a json object comtaining
 -- the key "message", and optional keys "details", "hint", "code",
 -- and no extraneous keys

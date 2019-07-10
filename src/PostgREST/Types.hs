@@ -58,10 +58,6 @@ decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
   "*/*"                               -> CTAny
   ct'                                 -> CTOther ct'
 
--- | ContentTypes that can get a raw/unwrapped response
-rawContentTypes :: [ContentType]
-rawContentTypes = [CTOctetStream, CTTextPlain, CTTextHtml]
-
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
 instance Show PreferResolution where
   show MergeDuplicates  = "resolution=merge-duplicates"
