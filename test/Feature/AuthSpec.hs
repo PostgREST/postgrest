@@ -117,11 +117,11 @@ spec actualPgVersion = describe "authorization" $ do
   it "hides tables from users with invalid JWT" $ do
     let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` [json| {"message":"JWSError (CompactDecodeError CompactDecodeError: Expected 3 parts; got 2)"} |]
+      `shouldRespondWith` [json| {"message":"JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"} |]
         { matchStatus = 401
         , matchHeaders = [
             "WWW-Authenticate" <:>
-            "Bearer error=\"invalid_token\", error_description=\"JWSError (CompactDecodeError CompactDecodeError: Expected 3 parts; got 2)\""
+            "Bearer error=\"invalid_token\", error_description=\"JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)\""
           ]
         }
 
