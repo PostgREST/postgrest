@@ -557,7 +557,7 @@ allColumns tabs =
         JOIN pg_enum e ON t.oid = e.enumtypid
         JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
-    ) AS enum_info ON (info.udt_name = enum_info.n OR info.udt_name = CONCAT('_', enum_info.n))
+    ) AS enum_info ON (trim(leading '_' from info.udt_name) = enum_info.n)
     ORDER BY schema, position |]
 
 columnFromRow :: [Table] ->
