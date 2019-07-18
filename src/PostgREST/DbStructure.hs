@@ -447,12 +447,14 @@ allColumns tabs =
                     CASE
                         WHEN t.typtype = 'd'::"char" THEN
                         CASE
+                            WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) AND a.atttypmod = (-1) THEN format_type(a.atttypid, a.atttypmod)
                             WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
                             ELSE format_type(a.atttypid, a.atttypmod)
                         END
                         ELSE
                         CASE
+                            WHEN t.typelem <> 0::oid AND t.typlen = (-1) AND a.atttypmod = (-1) THEN format_type(a.atttypid, a.atttypmod)
                             WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
                             ELSE format_type(a.atttypid, a.atttypmod)
@@ -555,7 +557,7 @@ allColumns tabs =
         JOIN pg_enum e ON t.oid = e.enumtypid
         JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
-    ) AS enum_info ON (info.udt_name = enum_info.n)
+    ) AS enum_info ON (info.udt_name = enum_info.n OR info.udt_name = CONCAT('_', enum_info.n))
     ORDER BY schema, position |]
 
 columnFromRow :: [Table] ->
