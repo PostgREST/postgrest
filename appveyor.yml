@@ -14,13 +14,11 @@ environment:
 
 test: off
 
-skip_non_tags: true
-
-skip_branch_with_pr: true
-
-branches:
-  only:
-    - master
+#skip_non_tags: true
+#skip_branch_with_pr: true
+#branches:
+  #only:
+    #- master
 
 install:
 - set PATH=C:\Program Files\PostgreSQL\9.6\bin\;%PATH%
@@ -31,6 +29,7 @@ install:
 
 build_script:
 - stack setup --no-terminal > nul
+# Appveyor has a timeout of 60 mins, building can take longer, limit the time and make sure this succeeds
 - bash -lc "timeout 2700 'C:\projects\postgrest\stack.exe' build -j1 --copy-bins --local-bin-path . || true"
 
 artifacts:
@@ -38,4 +37,4 @@ artifacts:
 
 deploy_script:
 - 7z a -tzip postgrest-%APPVEYOR_REPO_TAG_NAME%-windows-x64.zip postgrest.exe
-- bash -lc "exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"$(sed -n \"1,/$(echo $APPVEYOR_REPO_TAG_NAME | cut -c2-)/d;/## \[/q;p\" CHANGELOG.md)\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"
+- bash -lc " exec 0</dev/null && test -n \"$APPVEYOR_REPO_TAG_NAME\" && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"$(sed -n \"1,/$(echo $APPVEYOR_REPO_TAG_NAME | cut -c2-)/d;/## \[/q;p\" CHANGELOG.md)\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"

@@ -51,7 +51,7 @@ script:
 - |
   if test ! "$TRAVIS_TAG"
   then
-    echo 'No tag pushed. Skipping build.'
+    echo 'No tag pushed. Skip building binary.'
   else
     stack build --no-terminal --copy-bins --local-bin-path .
   fi

@@ -13,6 +13,8 @@ extra-deps:
 - deferred-folds-0.9.10.1
 - primitive-0.6.4.0
 - jose-0.8.1.0
+- text-printer-0.5.0.1
+- network-2.7.0.1
 ghc-options:
   postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints -optP-Wno-nonportable-include-path
 nix:
