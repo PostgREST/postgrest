@@ -36,5 +36,5 @@ artifacts:
 - path: postgrest.exe
 
 deploy_script:
-- 7z a -tzip postgrest-%APPVEYOR_REPO_TAG_NAME%-windows-x64.zip postgrest.exe
-- bash -lc " exec 0</dev/null && test -n \"$APPVEYOR_REPO_TAG_NAME\" && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"$(sed -n \"1,/$(echo $APPVEYOR_REPO_TAG_NAME | cut -c2-)/d;/## \[/q;p\" CHANGELOG.md)\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"
+- IF DEFINED %APPVEYOR_REPO_TAG_NAME% 7z a -tzip postgrest-%APPVEYOR_REPO_TAG_NAME%-windows-x64.zip postgrest.exe
+- IF DEFINED %APPVEYOR_REPO_TAG_NAME% bash -lc " exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"$(sed -n \"1,/$(echo $APPVEYOR_REPO_TAG_NAME | cut -c2-)/d;/## \[/q;p\" CHANGELOG.md)\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"
