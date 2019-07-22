@@ -330,7 +330,7 @@ app dbStructure proc cols conf apiRequest =
         (,) <$> selectQuery
             <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
       rawContentTypes =
-        (decodeContentType <$> configRawOutputMediaTypes conf) `L.union`
+        (decodeContentType <$> configRawMediaTypes conf) `L.union`
         [ CTOctetStream, CTTextPlain ]
 
 responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target -> Either Response ContentType

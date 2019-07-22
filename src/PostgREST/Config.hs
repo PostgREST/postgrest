@@ -66,29 +66,29 @@ import Protolude         hiding (concat, hPutStrLn, intercalate, null,
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDatabase            :: Text
-  , configAnonRole            :: Text
-  , configProxyUri            :: Maybe Text
-  , configSchema              :: Text
-  , configHost                :: Text
-  , configPort                :: Int
-  , configSocket              :: Maybe Text
+    configDatabase          :: Text
+  , configAnonRole          :: Text
+  , configProxyUri          :: Maybe Text
+  , configSchema            :: Text
+  , configHost              :: Text
+  , configPort              :: Int
+  , configSocket            :: Maybe Text
 
-  , configJwtSecret           :: Maybe B.ByteString
-  , configJwtSecretIsBase64   :: Bool
-  , configJwtAudience         :: Maybe StringOrURI
+  , configJwtSecret         :: Maybe B.ByteString
+  , configJwtSecretIsBase64 :: Bool
+  , configJwtAudience       :: Maybe StringOrURI
 
-  , configPool                :: Int
-  , configPoolTimeout         :: Int
-  , configMaxRows             :: Maybe Integer
-  , configReqCheck            :: Maybe Text
-  , configQuiet               :: Bool
-  , configSettings            :: [(Text, Text)]
-  , configRoleClaimKey        :: Either ApiRequestError JSPath
-  , configExtraSearchPath     :: [Text]
+  , configPool              :: Int
+  , configPoolTimeout       :: Int
+  , configMaxRows           :: Maybe Integer
+  , configReqCheck          :: Maybe Text
+  , configQuiet             :: Bool
+  , configSettings          :: [(Text, Text)]
+  , configRoleClaimKey      :: Either ApiRequestError JSPath
+  , configExtraSearchPath   :: [Text]
 
-  , configRootSpec            :: Maybe QualifiedIdentifier
-  , configRawOutputMediaTypes :: [B.ByteString]
+  , configRootSpec          :: Maybe QualifiedIdentifier
+  , configRawMediaTypes     :: [B.ByteString]
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -169,7 +169,7 @@ readOptions = do
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
         <*> ((\x y -> QualifiedIdentifier x <$> y) <$> dbSchema <*> optString "root-spec")
-        <*> (fmap encodeUtf8 <$> optionalListOfText "raw-output-media-types")
+        <*> (fmap encodeUtf8 <$> optionalListOfText "raw-media-types")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -283,7 +283,7 @@ readOptions = do
           |# root-spec = "stored_proc_name"
           |
           |## content types to produce raw output
-          |#raw-output-media-type=["image/png","image/jpg"]
+          |# raw-media-types=["image/png","image/jpg"]
           |]
 
 pathParser :: Parser FilePath

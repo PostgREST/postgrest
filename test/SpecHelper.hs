@@ -134,7 +134,7 @@ testCfgRootSpec :: Text -> AppConfig
 testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just $ QualifiedIdentifier "test" "root"}
 
 testCfgHtmlRawOutput :: Text -> AppConfig
-testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawOutputMediaTypes = ["text/html"] }
+testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do
