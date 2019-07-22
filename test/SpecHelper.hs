@@ -81,6 +81,8 @@ _baseCfg =  -- Connection Settings
             []
             -- No root spec override
             Nothing
+            -- Raw output media types
+            []
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
@@ -130,6 +132,9 @@ testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath
 
 testCfgRootSpec :: Text -> AppConfig
 testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just $ QualifiedIdentifier "test" "root"}
+
+testCfgHtmlRawOutput :: Text -> AppConfig
+testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do

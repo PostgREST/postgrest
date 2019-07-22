@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #1349, Add user defined raw output media types via `raw-media-types` config option
+
 ### Fixed
 
 ## [6.0.0] - 2019-06-21
@@ -23,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1285, Abort on wrong database password - @qu4tro
 - #790, Allow override of OpenAPI spec through `root-spec` config option - @steve-chavez
 - #1308, Accept `text/plain` and `text/html` for raw output - @steve-chavez
+
 
 ### Fixed
 

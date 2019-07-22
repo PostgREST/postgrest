@@ -464,23 +464,6 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
             }
 
-        it "can get raw output with Accept: text/html" $
-          request methodGet "/rpc/welcome.html" (acceptHdrs "text/html") ""
-            `shouldRespondWith`
-            [str|
-                |<html>
-                |  <head>
-                |    <title>PostgREST</title>
-                |  </head>
-                |  <body>
-                |    <h1>Welcome to PostgREST</h1>
-                |  </body>
-                |</html>
-                |]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/html; charset=utf-8"]
-            }
-
         it "can get raw output with Accept: text/plain" $
           request methodGet "/rpc/welcome" (acceptHdrs "text/plain") ""
             `shouldRespondWith` "Welcome to PostgREST"

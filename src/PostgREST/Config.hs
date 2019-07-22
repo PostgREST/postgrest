@@ -88,6 +88,7 @@ data AppConfig = AppConfig {
   , configExtraSearchPath   :: [Text]
 
   , configRootSpec          :: Maybe QualifiedIdentifier
+  , configRawMediaTypes     :: [B.ByteString]
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -168,6 +169,7 @@ readOptions = do
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitExtraSearchPath <$> optValue "db-extra-search-path")
         <*> ((\x y -> QualifiedIdentifier x <$> y) <$> dbSchema <*> optString "root-spec")
+        <*> (fmap encodeUtf8 <$> optionalListOfText "raw-media-types")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -177,6 +179,12 @@ readOptions = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
+
+    optionalListOfText :: C.Key -> C.Parser C.Config [Text]
+    optionalListOfText k =
+      C.optional k (C.list C.string) >>= \case
+        Nothing -> pure []
+        Just types -> pure types
 
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string
@@ -273,6 +281,9 @@ readOptions = do
           |## stored proc that overrides the root "/" spec
           |## it must be inside the db-schema
           |# root-spec = "stored_proc_name"
+          |
+          |## content types to produce raw output
+          |# raw-media-types=["image/png","image/jpg"]
           |]
 
 pathParser :: Parser FilePath
