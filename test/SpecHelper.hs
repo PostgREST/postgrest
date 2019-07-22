@@ -177,8 +177,6 @@ authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
   (hAuthorization, "Bearer " <> token)
 
-acceptHeader :: BS.ByteString -> Header
-acceptHeader mime = (hAccept, mime)
 -- | Tests whether the text can be parsed as a json object comtaining
 -- the key "message", and optional keys "details", "hint", "code",
 -- and no extraneous keys

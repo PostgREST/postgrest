@@ -24,7 +24,7 @@ import Protolude
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTSingularJSON
-                 | CTTextCSV | CTTextPlain | CTTextHtml
+                 | CTTextCSV | CTTextPlain
                  | CTOpenAPI | CTOctetStream
                  | CTAny | CTOther ByteString deriving (Show, Eq)
 
@@ -37,7 +37,6 @@ toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
 toMime CTTextPlain       = "text/plain"
-toMime CTTextHtml        = "text/html"
 toMime CTOpenAPI         = "application/openapi+json"
 toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTOctetStream     = "application/octet-stream"
@@ -50,7 +49,6 @@ decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
   "application/json"                  -> CTApplicationJSON
   "text/csv"                          -> CTTextCSV
   "text/plain"                        -> CTTextPlain
-  "text/html"                         -> CTTextHtml
   "application/openapi+json"          -> CTOpenAPI
   "application/vnd.pgrst.object+json" -> CTSingularJSON
   "application/vnd.pgrst.object"      -> CTSingularJSON
