@@ -9,7 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- #1349, Add user defined raw output media types via `raw-output-media-type` config option
+- #1349, Add user defined raw output media types via `raw-media-types` config option
 
 ### Fixed
 

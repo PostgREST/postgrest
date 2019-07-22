@@ -11,7 +11,7 @@ import Protolude
 import SpecHelper (acceptHdrs)
 
 spec :: SpecWith Application
-spec = describe "When raw-output-media-types config variable is missing or left empty" $ do
+spec = describe "When raw-media-types config variable is missing or left empty" $ do
   let firefoxAcceptHdrs = acceptHdrs "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
       chromeAcceptHdrs = acceptHdrs "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3"
   it "responds json to a GET request with Firefox Accept headers" $
