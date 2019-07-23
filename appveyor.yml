@@ -24,7 +24,7 @@ install:
 build_script:
 - stack setup --no-terminal > nul
 # Appveyor has a timeout of 60 mins, building can take longer, limit the time and make sure this succeeds,
-# previous work will get cached and finish on next commit.
+# previous work will get cached and finish on next commit
 - bash -lc "timeout 2700 'C:\projects\postgrest\stack.exe' build -j1 --copy-bins --local-bin-path . || true"
 
 artifacts:
