@@ -1,10 +1,5 @@
-## Travis is used for building an OSX binary on new tag releases,
-## it also compiles the project on OSX for each commit to master.
-##
-## Building the whole project can take longer than 50 minutes. Since Travis has a global timeout of 50 minutes
-## we compile for 30 minutes tops(see `gtimeout 1800` below) and quit compiling with no error.
-## Since we CACHE the compile results we can continue compiling from where we left off
-## on the next commit.
+## Travis is only used for building an OSX binary ,
+## no tests are run here.
 language: generic
 
 sudo: false
@@ -47,6 +42,10 @@ install:
   fi
 
 script:
+## Building the whole project can take longer than 50 minutes. Since Travis has a global timeout of 50 minutes
+## we compile for 30 minutes tops(`gtimeout 1800`) and quit compiling with no error.
+## Since we CACHE the compile results we can continue compiling from where we left off
+## on the next commit.
 - gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || true
 - |
   if test ! "$TRAVIS_TAG"
