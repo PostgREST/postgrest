@@ -1,5 +1,4 @@
-## AppVeyor is only used for building a Windows binary,
-## no tests are run here.
+## AppVeyor is only used for building a Windows binary, no tests are run here.
 platform: x64
 
 cache:
