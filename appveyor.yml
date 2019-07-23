@@ -10,7 +10,6 @@ environment:
   global:
     STACK_ROOT: "c:\\sr"
     GOPATH: c:\gopath
-    TMP: "c:\\tmp"
 
 test: off
 
