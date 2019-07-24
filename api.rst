@@ -66,6 +66,7 @@ is            checking for exact equality (null,true,false)    :code:`IS`
 fts           :ref:`fts` using to_tsquery                      :code:`@@`
 plfts         :ref:`fts` using plainto_tsquery                 :code:`@@`
 phfts         :ref:`fts` using phraseto_tsquery                :code:`@@`
+wfts          :ref:`fts` using websearch_to_tsquery            :code:`@@`
 cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
 cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
 ov            overlap (have points in common),                 :code:`&&`
@@ -132,7 +133,13 @@ The :code:`fts` filter mentioned above has a number of options to support flexib
 
   GET /tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats HTTP/1.1
 
+.. code-block:: http
+
+  GET /tsearch?my_tsv=not.wfts(french).amusant HTTP/1.1
+
 Using phrase search mode requires PostgreSQL of version at least 9.6 and will raise an error in earlier versions of the database.
+
+Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and will raise an error in earlier versions of the database.
 
 .. _v_filter:
 
