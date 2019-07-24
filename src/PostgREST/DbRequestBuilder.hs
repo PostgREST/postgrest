@@ -162,6 +162,14 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
           length relFColumns == 1 &&
           -- match common foreign key names(table_name_id, table_name_fk) to table_name
           (toS ("^" <> colName (unsafeHead relFColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS nodeTableName :: BS.ByteString)
+        ) ||
+
+        -- self relations
+        (
+          tableName relTable == tableName relFTable &&
+          length relFColumns == 1 &&
+          -- match common foreign key names(table_name_id, table_name_fk) to table_name
+          (toS ("^" <> colName (unsafeHead relFColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS nodeTableName :: BS.ByteString)
         )
 
         -- (request)        => project_id { ..., client_id{...} }
