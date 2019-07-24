@@ -745,6 +745,26 @@ CREATE TABLE users (
 );
 
 
+--
+-- Name: web_content; Type: TABLE; Schema: test; Owner: -
+--
+CREATE TABLE web_content (
+    id integer,
+    name text,
+    p_web_id integer references web_content(id),
+    primary key (id)
+);
+
+
+--
+-- Name: s_web_content; Type: TABLE; Schema: test; Owner: -
+--
+CREATE TABLE s_web_content (
+    id integer,
+    name text,
+    p_web_id integer references web_content(id),
+    primary key (id)
+);
 
 --
 -- Name: users_tasks; Type: TABLE; Schema: test; Owner: -
