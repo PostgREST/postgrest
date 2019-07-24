@@ -5,19 +5,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- #1243, Add websearch_to_tsquery support - @herulume
-
 ### Added
 
-- #1349, Add user defined raw output media types via `raw-media-types` config option
+- #1349, Add user defined raw output media types via `raw-media-types` config option - @Dansvidania
+- #1243, Add websearch_to_tsquery support - @herulume
 
 ### Fixed
+
+- #1336, Error when testing on Chrome/Firefox: text/html requested but a single column was not selected - @Dansvidania
+- #1334, Unable to compile v6.0.0 on windows - @steve-chavez
 
 ## [6.0.0] - 2019-06-21
 
 ### Added
 
-- #1186, Add support for user defined unix socket via `server-unix-socket` config option
+- #1186, Add support for user defined unix socket via `server-unix-socket` config option - @Dansvidania
 - #690, Add `?columns` query parameter for faster bulk inserts, also ignores unspecified json keys in a payload - @steve-chavez
 - #1239, Add support for resource embedding on materialized views - @vitorbaptista
 - #1264, Add support for bulk RPC call - @steve-chavez
