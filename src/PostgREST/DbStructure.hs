@@ -420,7 +420,7 @@ allColumns tabs =
                pg_catalog.pg_class c,
                pg_catalog.pg_namespace n
              WHERE
-               r.contype IN ('f', 'p')
+               r.contype IN ('f', 'p', 'u')
                AND c.relkind IN ('r', 'v', 'f', 'm')
                AND r.conrelid = c.oid
                AND c.relnamespace = n.oid
