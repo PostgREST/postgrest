@@ -482,23 +482,14 @@ spec actualPgVersion = do
           [json| [{ a: "keepme", b: null }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "meh" $ do
-        g <- get "/s_web_content?id=eq.0"
-        liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "0-0/*"
-        p <- request methodPatch "/s_web_content?id=eq.0&select=p_web(id, name)" [] [json| { "name":"ff" } |]
+      it "can patch a self-refering entity" $ do
+        p <- request methodPatch "/web_content?id=eq.1&select=p_web(id, name)" [] [json| { "name":"ff" } |]
         pure p `shouldRespondWith` ""
           { matchStatus  = 204,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
         liftIO $ lookup hContentType (simpleHeaders p) `shouldBe` Nothing
-
-        -- check it really got updated
-        g' <- get "/s_web_content?id=eq.0"
-        liftIO $ simpleHeaders g'
-          `shouldSatisfy` matchHeader "Content-Range" "0-0/*"
-        -- put value back for other tests
-        void $ request methodPatch "/s_web_content?id=eq.0&select=p_web(id, name)"[] [json| { "name":"sonic" } |]
+        void $ request methodPatch "/web_content?id=eq.1&select=p_web(id, name)" [] [json| { "name":"fezz" } |]
 
       context "filtering by a computed column" $ do
         it "is successful" $

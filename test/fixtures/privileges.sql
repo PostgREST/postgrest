@@ -102,7 +102,6 @@ GRANT ALL ON TABLE
     , authors_w_entities
     , openapi_types
     , web_content
-    , s_web_content
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

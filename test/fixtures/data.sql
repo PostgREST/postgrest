@@ -54,13 +54,6 @@ INSERT INTO web_content VALUES (0, 'tardis', null);
 INSERT INTO web_content VALUES (1, 'fezz', 0);
 
 
---
--- Data for Name: s_web_content; Type: TABLE DATA; Schema: test; Owner: -
---
-TRUNCATE TABLE s_web_content CASCADE;
-INSERT INTO s_web_content VALUES (0, 'sonic', 0);
-
-
 SET search_path = private, pg_catalog;
 
 --
