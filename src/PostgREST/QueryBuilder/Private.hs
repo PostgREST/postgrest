@@ -14,10 +14,148 @@ import qualified Data.HashMap.Strict   as HM
 import qualified Data.ByteString.Char8 as BS
 import Data.Text                     (intercalate, isInfixOf, replace,
                                       toLower, unwords)
-
+import Data.Maybe
+import PostgREST.ApiRequest (PreferRepresentation (..))
 import Text.InterpolatedString.Perl6 (qc)
 import PostgREST.Types
 import Protolude            hiding (cast, intercalate, replace)
+
+type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
+callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
+            Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+            H.Statement ByteString (Maybe ProcResults)
+callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField pgVer =
+  unicodeStatement sql (param HE.unknown) decodeProc True
+  where
+    sql =[qc|
+      WITH
+      {argsRecord},
+      {sourceCTEName} AS (
+        {sourceBody}
+      )
+      SELECT
+        {countResultF} AS total_result_set,
+        pg_catalog.count(_postgrest_t) AS page_total,
+        {bodyF} AS body,
+        {responseHeaders} AS response_headers
+      FROM ({selectQuery}) _postgrest_t;|]
+
+    (argsRecord, args)
+      | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
+      | null pgArgs = (ignoredBody, "")
+      | otherwise = (
+          unwords [
+            normalizedBody <> ",",
+            "_args_record AS (",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
+                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
+            ")"]
+         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
+
+    sourceBody :: SqlFragment
+    sourceBody
+      | paramsAsSingleObject || null pgArgs =
+          if returnsScalar
+            then [qc| SELECT {fromQi qi}({args}) |]
+            else [qc| SELECT * FROM {fromQi qi}({args}) |]
+      | otherwise =
+          if returnsScalar
+            then [qc| SELECT {fromQi qi}({args}) FROM _args_record |]
+            else [qc| SELECT _.*
+                      FROM _args_record,
+                      LATERAL ( SELECT * FROM {fromQi qi}({args}) ) _ |]
+
+    bodyF
+     | returnsScalar = scalarBodyF
+     | isSingle = asJsonSingleF
+     | asCsv = asCsvF
+     | isJust binaryField = asBinaryF $ fromJust binaryField
+     | otherwise = asJsonF
+
+    scalarBodyF
+     | asBinary = asBinaryF _procName
+     | otherwise = unwords [
+        "CASE",
+          "WHEN pg_catalog.count(_postgrest_t) = 1",
+            "THEN (json_agg(_postgrest_t." <> pgFmtIdent _procName <> ")->0)::character varying",
+            "ELSE (json_agg(_postgrest_t." <> pgFmtIdent _procName <> "))::character varying",
+        "END"]
+
+    countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
+    _procName = qiName qi
+    responseHeaders =
+      if pgVer >= pgVersion96
+        then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
+        else "'[]'" :: Text
+
+    decodeProc = HD.rowMaybe procRow
+    procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                    <*> column HD.bytea <*> column HD.bytea
+
+
+createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
+                       H.Statement () ResultsWithCount
+createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
+  unicodeStatement sql HE.noParams decodeStandard False
+ where
+  sql = [qc|
+      WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
+      FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
+  countResultF = if countTotal then "("<>countQuery<>")" else "null"
+  cols = intercalate ", " [
+      countResultF <> " AS total_result_set",
+      "pg_catalog.count(_postgrest_t) AS page_total",
+      noLocationF <> " AS header",
+      bodyF <> " AS body"
+    ]
+  bodyF
+    | asCsv = asCsvF
+    | isSingle = asJsonSingleF
+    | isJust binaryField = asBinaryF $ fromJust binaryField
+    | otherwise = asJsonF
+
+
+createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+                        PreferRepresentation -> [Text] ->
+                        H.Statement ByteString (Maybe ResultsWithCount)
+createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
+  unicodeStatement sql (param HE.unknown) decodeStandardMay True
+
+ where
+  sql = case rep of
+    None -> [qc|
+      WITH {sourceCTEName} AS ({mutateQuery})
+      SELECT '', 0, {noLocationF}, '' |]
+    HeadersOnly -> [qc|
+      WITH {sourceCTEName} AS ({mutateQuery})
+      SELECT {cols}
+      FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
+    Full -> [qc|
+      WITH {sourceCTEName} AS ({mutateQuery})
+      SELECT {cols}
+      FROM ({selectQuery}) _postgrest_t |]
+
+  cols = intercalate ", " [
+      "'' AS total_result_set", -- when updateing it does not make sense
+      "pg_catalog.count(_postgrest_t) AS page_total",
+      if isInsert
+        then unwords [
+          "CASE",
+            "WHEN pg_catalog.count(_postgrest_t) = 1 THEN",
+              "coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
+            "ELSE " <> noLocationF,
+          "END AS header"]
+        else noLocationF <> "AS header",
+      if rep == Full
+         then bodyF <> " AS body"
+         else "''"
+    ]
+
+  bodyF
+    | asCsv = asCsvF
+    | wantSingle = asJsonSingleF
+    | otherwise = asJsonF
+
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
