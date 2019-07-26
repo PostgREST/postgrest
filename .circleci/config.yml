@@ -74,8 +74,8 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
             sudo apt-get install -y --only-upgrade binutils
@@ -122,8 +122,8 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
             sudo apt-get install -y postgresql-client
@@ -154,8 +154,8 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
             sudo apt-get install -y postgresql-client
@@ -186,8 +186,8 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
             sudo apt-get install -y postgresql-client
@@ -219,8 +219,8 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-1.9.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
             sudo apt-get install -y postgresql-client
