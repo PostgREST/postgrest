@@ -226,6 +226,15 @@ jobs:
             sudo apt-get install -y postgresql-client
             stack setup
       - run:
+          name: build dependencies with profiling enabled
+          command: |
+            stack build --profile -j1 --only-dependencies
+      - save_cache:
+          paths:
+            - "~/.stack"
+            - ".stack-work"
+          key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
           name: build with profiling enabled
           command: |
             stack build --profile -j1
@@ -240,11 +249,6 @@ jobs:
             psql "postgres:///postgrest_test" -f test/fixtures/jsonschema.sql
             psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
             test/memory-tests.sh
-      - save_cache:
-          paths:
-            - "~/.stack"
-            - ".stack-work"
-          key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
   centos6:
     <<: *build-distro-bin
