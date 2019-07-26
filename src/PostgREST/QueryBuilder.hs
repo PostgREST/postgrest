@@ -38,6 +38,9 @@ import Data.Maybe
 import PostgREST.RangeQuery (allRange, rangeLimit, rangeOffset)
 import PostgREST.Types
 import PostgREST.QueryBuilder.Private
+import PostgREST.QueryBuilder.Procedure
+import PostgREST.QueryBuilder.ReadStatement
+import PostgREST.QueryBuilder.WriteStatement
 import Protolude            hiding (cast, intercalate, replace)
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
