@@ -24,23 +24,24 @@ module PostgREST.QueryBuilder (
   , pgFmtSetLocalSearchPath
   ) where
 
-import qualified Data.Aeson            as JSON
-import qualified Data.Set              as S
+import qualified Data.Aeson as JSON
+import qualified Data.Set   as S
 
-import Data.Scientific               (FPFormat (..), formatScientific,
-                                      isInteger)
-import Data.Text                     (intercalate, unwords)
-import Data.Tree                     (Tree (..))
+import Data.Scientific (FPFormat (..), formatScientific, isInteger)
+import Data.Text       (intercalate, unwords)
+import Data.Tree       (Tree (..))
 
 import Data.Maybe
 
-import PostgREST.RangeQuery (allRange, rangeLimit, rangeOffset)
-import PostgREST.Types
 import PostgREST.QueryBuilder.Private
 import PostgREST.QueryBuilder.Procedure
 import PostgREST.QueryBuilder.ReadStatement
 import PostgREST.QueryBuilder.WriteStatement
-import Protolude            hiding (cast, intercalate, replace)
+import PostgREST.RangeQuery                  (allRange, rangeLimit,
+                                              rangeOffset)
+import PostgREST.Types
+import Protolude                             hiding (cast,
+                                              intercalate, replace)
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = witness

@@ -1,23 +1,26 @@
-{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.QueryBuilder.Private
 Description : Helper functions for PostgREST.QueryBuilder.
 -}
 module PostgREST.QueryBuilder.Private where
 
-import qualified Data.Text             as T (map, null, takeWhile)
-import qualified Data.Text.Encoding    as T
-import qualified Hasql.Decoders        as HD
-import qualified Hasql.Encoders        as HE
-import qualified Hasql.Statement       as H
-import qualified Data.HashMap.Strict   as HM
-import qualified Data.ByteString.Char8 as BS
-import Data.Text                     (intercalate, isInfixOf, replace,
-                                      toLower, unwords)
-import Data.Maybe
-import Text.InterpolatedString.Perl6 (qc)
-import PostgREST.Types
-import Protolude            hiding (cast, intercalate, replace)
+import qualified Data.ByteString.Char8         as BS
+import qualified Data.HashMap.Strict           as HM
+import           Data.Maybe
+import           Data.Text                     (intercalate,
+                                                isInfixOf, replace,
+                                                toLower, unwords)
+import qualified Data.Text                     as T (map, null,
+                                                     takeWhile)
+import qualified Data.Text.Encoding            as T
+import qualified Hasql.Decoders                as HD
+import qualified Hasql.Encoders                as HE
+import qualified Hasql.Statement               as H
+import           PostgREST.Types
+import           Protolude                     hiding (cast,
+                                                intercalate, replace)
+import           Text.InterpolatedString.Perl6 (qc)
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable

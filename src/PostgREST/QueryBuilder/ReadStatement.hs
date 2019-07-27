@@ -1,13 +1,14 @@
 module PostgREST.QueryBuilder.ReadStatement where
 
-import qualified Hasql.Encoders        as HE
-import qualified Hasql.Statement       as H
-import Data.Text                     (intercalate)
-import Data.Maybe
-import Text.InterpolatedString.Perl6 (qc)
-import PostgREST.Types
-import PostgREST.QueryBuilder.Private
-import Protolude            hiding (cast, intercalate, replace)
+import           Data.Maybe
+import           Data.Text                      (intercalate)
+import qualified Hasql.Encoders                 as HE
+import qualified Hasql.Statement                as H
+import           PostgREST.QueryBuilder.Private
+import           PostgREST.Types
+import           Protolude                      hiding (cast,
+                                                 intercalate, replace)
+import           Text.InterpolatedString.Perl6  (qc)
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName ->
                        H.Statement () ResultsWithCount

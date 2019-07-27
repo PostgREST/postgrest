@@ -1,14 +1,15 @@
 module PostgREST.QueryBuilder.Procedure where
 
-import qualified Hasql.Decoders        as HD
-import qualified Hasql.Encoders        as HE
-import qualified Hasql.Statement       as H
-import Data.Text                     (intercalate, unwords)
-import Data.Maybe
-import Text.InterpolatedString.Perl6 (qc)
-import PostgREST.Types
-import PostgREST.QueryBuilder.Private
-import Protolude            hiding (cast, intercalate, replace)
+import           Data.Maybe
+import           Data.Text                      (intercalate, unwords)
+import qualified Hasql.Decoders                 as HD
+import qualified Hasql.Encoders                 as HE
+import qualified Hasql.Statement                as H
+import           PostgREST.QueryBuilder.Private
+import           PostgREST.Types
+import           Protolude                      hiding (cast,
+                                                 intercalate, replace)
+import           Text.InterpolatedString.Perl6  (qc)
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
 callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->

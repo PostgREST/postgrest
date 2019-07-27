@@ -1,14 +1,15 @@
 module PostgREST.QueryBuilder.WriteStatement where
 
-import qualified Hasql.Encoders        as HE
-import qualified Hasql.Statement       as H
-import Data.Text                     (intercalate, unwords)
-import Data.Maybe
-import Text.InterpolatedString.Perl6 (qc)
-import PostgREST.Types
-import PostgREST.QueryBuilder.Private
-import PostgREST.ApiRequest (PreferRepresentation (..))
-import Protolude            hiding (cast, intercalate, replace)
+import           Data.Maybe
+import           Data.Text                      (intercalate, unwords)
+import qualified Hasql.Encoders                 as HE
+import qualified Hasql.Statement                as H
+import           PostgREST.ApiRequest           (PreferRepresentation (..))
+import           PostgREST.QueryBuilder.Private
+import           PostgREST.Types
+import           Protolude                      hiding (cast,
+                                                 intercalate, replace)
+import           Text.InterpolatedString.Perl6  (qc)
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
