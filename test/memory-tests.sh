@@ -7,9 +7,9 @@ ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 
 pgrPort=49421
 
-pgrStopAll(){ pkill -f "$(stack path --local-install-root)/bin/postgrest"; }
+pgrStopAll(){ pkill -f "$(stack path --profile --local-install-root)/bin/postgrest"; }
 
-pgrStart(){ stack exec -- postgrest test/memory-tests/config +RTS -p -h >/dev/null & pgrPID="$!"; }
+pgrStart(){ stack exec --profile -- postgrest test/memory-tests/config +RTS -p -h >/dev/null & pgrPID="$!"; }
 pgrStop(){ kill "$pgrPID" 2>/dev/null; }
 
 setUp(){ pgrStopAll; }
