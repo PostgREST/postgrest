@@ -84,6 +84,16 @@ jobs:
             rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
             stack install hlint stylish-haskell
       - run:
+          name: build src and tests dependencies
+          command: |
+            stack build --fast -j1 --only-dependencies
+            stack build --fast --test --no-run-tests --only-dependencies
+      - save_cache:
+          paths:
+            - "~/.stack"
+            - ".stack-work"
+          key: v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
           name: build src and tests
           command: |
             stack build --fast -j1
@@ -99,11 +109,6 @@ jobs:
       - run:
           name: run styler
           command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- stylish-haskell -i && git diff-index --exit-code HEAD --
-      - save_cache:
-          paths:
-            - "~/.stack"
-            - ".stack-work"
-          key: v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
   build-test-9.6:
     docker:
@@ -228,7 +233,7 @@ jobs:
       - run:
           name: build dependencies with profiling enabled
           command: |
-            stack build --profile -j1 --only-dependencies
+            stack build --profile -j1  --only-dependencies
       - save_cache:
           paths:
             - "~/.stack"
