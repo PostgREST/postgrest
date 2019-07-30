@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+### Fixed
+
+## [6.0.1] - 2019-07-30
+
+### Added
+
 - #1349, Add user defined raw output media types via `raw-media-types` config option - @Dansvidania
 - #1243, Add websearch_to_tsquery support - @herulume
 
