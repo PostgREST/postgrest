@@ -623,7 +623,7 @@ For instance, assume we have created this function in the database.
   CREATE FUNCTION add_them(a integer, b integer)
   RETURNS integer AS $$
    SELECT a + b;
-  $$ LANGUAGE SQL IMMUTABLE STRICT;
+  $$ LANGUAGE SQL IMMUTABLE;
 
 The client can call it by posting an object like
 
