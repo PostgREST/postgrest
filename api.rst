@@ -45,43 +45,42 @@ Complex logic can also be applied:
 
   GET /people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null)) HTTP/1.1
 
+Operators
+~~~~~~~~~
+
 These operators are available:
 
-============  ===============================================  =====================
-Abbreviation  Meaning                                          PostgreSQL Equivalent
-============  ===============================================  =====================
-eq            equals                                           :code:`=`
-gt            greater than                                     :code:`>`
-gte           greater than or equal                            :code:`>=`
-lt            less than                                        :code:`<`
-lte           less than or equal                               :code:`<=`
-neq           not equal                                        :code:`<>` or :code:`!=`
-like          LIKE operator (use * in place of %)              :code:`LIKE`
-ilike         ILIKE operator (use * in place of %)             :code:`ILIKE`
-in            one of a list of values e.g.                     :code:`IN`
-              :code:`?a=in.(1,2,3)` – also supports commas
-              in quoted strings like
-              :code:`?a=in.("hi,there","yes,you")`
-is            checking for exact equality (null,true,false)    :code:`IS`
-fts           :ref:`fts` using to_tsquery                      :code:`@@`
-plfts         :ref:`fts` using plainto_tsquery                 :code:`@@`
-phfts         :ref:`fts` using phraseto_tsquery                :code:`@@`
-wfts          :ref:`fts` using websearch_to_tsquery            :code:`@@`
-cs            contains e.g. :code:`?tags=cs.{example, new}`    :code:`@>`
-cd            contained in e.g. :code:`?values=cd.{1,2,3}`     :code:`<@`
-ov            overlap (have points in common),                 :code:`&&`
-              e.g. :code:`?period=ov.[2017-01-01,2017-06-30]`
-              – also supports array types, use curly braces
-              instead of square brackets
-              e.g. :code: `?arr=ov.{1,3}`
-sl            strictly left of, e.g. :code:`?range=sl.(1,10)`  :code:`<<`
-sr            strictly right of                                :code:`>>`
-nxr           does not extend to the right of,                 :code:`&<`
-              e.g. :code:`?range=nxr.(1,10)`
-nxl           does not extend to the left of                   :code:`&>`
-adj           is adjacent to, e.g. :code:`?range=adj.(1,10)`   :code:`-|-`
-not           negates another operator, see below              :code:`NOT`
-============  ===============================================  =====================
+============  ========================  ==================================================================================
+Abbreviation  In PostgreSQL             Meaning
+============  ========================  ==================================================================================
+eq            :code:`=`                 equals
+gt            :code:`>`                 greater than
+gte           :code:`>=`                greater than or equal
+lt            :code:`<`                 less than
+lte           :code:`<=`                less than or equal
+neq           :code:`<>` or :code:`!=`  not equal
+like          :code:`LIKE`              LIKE operator (use * in place of %)
+ilike         :code:`ILIKE`             ILIKE operator (use * in place of %)
+in            :code:`IN`                one of a list of values, e.g. :code:`?a=in.(1,2,3)`
+                                        – also supports commas in quoted strings like
+                                        :code:`?a=in.("hi,there","yes,you")`
+is            :code:`IS`                checking for exact equality (null,true,false)
+fts           :code:`@@`                :ref:`fts` using to_tsquery
+plfts         :code:`@@`                :ref:`fts` using plainto_tsquery
+phfts         :code:`@@`                :ref:`fts` using phraseto_tsquery
+wfts          :code:`@@`                :ref:`fts` using websearch_to_tsquery
+cs            :code:`@>`                contains e.g. :code:`?tags=cs.{example, new}`
+cd            :code:`<@`                contained in e.g. :code:`?values=cd.{1,2,3}`
+ov            :code:`&&`                overlap (have points in common), e.g. :code:`?period=ov.[2017-01-01,2017-06-30]` –
+                                        also supports array types, use curly braces instead of square brackets e.g.
+                                        :code: `?arr=ov.{1,3}`
+sl            :code:`<<`                strictly left of, e.g. :code:`?range=sl.(1,10)`
+sr            :code:`>>`                strictly right of
+nxr           :code:`&<`                does not extend to the right of, e.g. :code:`?range=nxr.(1,10)`
+nxl           :code:`&>`                does not extend to the left of
+adj           :code:`-|-`               is adjacent to, e.g. :code:`?range=adj.(1,10)`
+not           :code:`NOT`               negates another operator, see below
+============  ========================  ==================================================================================
 
 To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
@@ -982,7 +981,7 @@ UPSERT operates based on the primary key columns, you must specify all of them. 
 
 .. important::
   After creating a table or changing its primary key, you must refresh PostgREST schema cache for UPSERT to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
-   
+
 
 A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
