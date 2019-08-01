@@ -625,10 +625,6 @@ For instance, assume we have created this function in the database.
    SELECT a + b;
   $$ LANGUAGE SQL IMMUTABLE STRICT;
 
-.. important::
-
-  Whenever you create or change a function you must refresh PostgREST's schema. See the section :ref:`schema_reloading`.
-
 The client can call it by posting an object like
 
 .. code-block:: http
@@ -638,6 +634,22 @@ The client can call it by posting an object like
   { "a": 1, "b": 2 }
 
   3
+
+.. important::
+
+  Whenever you create or change a function you must refresh PostgREST's schema cache. See the section :ref:`schema_reloading`.
+
+  If the schema cache is not refreshed, PostgREST will assume :code:`text` as the default type for function arguments. This could
+  lead to getting error responses like:
+
+  .. code-block:: json
+
+     {
+      "hint":"No function matches the given name and argument types. You might need to add explicit type casts.",
+      "details":null,
+      "code":"42883",
+      "message":"function test.add_them(a => text, b => text) does not exist"
+     }
 
 You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
 
