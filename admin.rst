@@ -30,6 +30,11 @@ The first step is to create an Nginx configuration file that proxies requests to
     }
   }
 
+.. note::
+
+  For ubuntu, if you already installed nginx through :code:`apt` you can add this to the config file in 
+  :code:`/etc/nginx/sites-enabled/default`.
+
 .. _block_fulltable:
 
 Block Full-Table Operations
