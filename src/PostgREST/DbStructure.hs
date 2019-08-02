@@ -437,7 +437,7 @@ allColumns tabs =
                 nc.nspname::information_schema.sql_identifier AS table_schema,
                 c.relname::information_schema.sql_identifier AS table_name,
                 a.attname::information_schema.sql_identifier AS column_name,
-                d.description::information_schema.sql_identifier AS description,
+                d.description AS description,
                 a.attnum::information_schema.cardinal_number AS ordinal_position,
                 pg_get_expr(ad.adbin, ad.adrelid)::information_schema.character_data AS column_default,
                     CASE
