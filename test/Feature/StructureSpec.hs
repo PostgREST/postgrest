@@ -125,7 +125,7 @@ spec = do
                     "type": "integer"
                   },
                   "name": {
-                    "description": "child_entities name comment",
+                    "description": "child_entities name comment. Can be longer than sixty-three characters long",
                     "format": "text",
                     "type": "string"
                   },

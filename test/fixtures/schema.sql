@@ -1226,7 +1226,7 @@ create table ranges (
 
 comment on table child_entities is 'child_entities comment';
 comment on column child_entities.id is 'child_entities id comment';
-comment on column child_entities.name is 'child_entities name comment';
+comment on column child_entities.name is 'child_entities name comment. Can be longer than sixty-three characters long';
 
 comment on table grandchild_entities is
 $$grandchild_entities summary
