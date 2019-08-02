@@ -288,6 +288,10 @@ Here ``information.cpe`` is a column name.
 
   GET /vulnerabilities?%22information.cpe%22=like.*MS* HTTP/1.1
 
+.. note::
+
+   Some http libraries might encode URLs automatically(e.g. :code:`axios`). In these cases you should use double quotes
+   :code:`""` directly instead of :code:`%22`.
 
 Ordering
 --------
