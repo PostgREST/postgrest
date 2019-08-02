@@ -45,7 +45,6 @@ RSA
 RabbitMQ
 RestSharp
 SHA
-SIGHUP
 SIGUSR1
 SNS
 SQL

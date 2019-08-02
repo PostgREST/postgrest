@@ -222,10 +222,6 @@ Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to mon
 
 Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache.
 
-.. important::
-
-  As of PostgREST v5.1 reloading with SIGHUP is deprecated, it's still supported but will be removed in v6.0. SIGUSR1 should be used instead.
-
 Daemonizing
 ===========
 

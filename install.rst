@@ -249,9 +249,6 @@ PostgREST outputs basic request logging to stdout. When running it in an SSH ses
 
   # another option is to pipe the output into "logger -t postgrest"
 
-(Avoid :code:`nohup postgrest` because the HUP signal is used for manual :ref:`schema_reloading`.)
-
-
 Docker
 ======
 
