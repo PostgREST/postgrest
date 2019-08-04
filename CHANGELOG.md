@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #1369, Change `raw-media-types` to accept a string of comma separated MIME types - @Dansvidania
+
 ## [6.0.1] - 2019-07-30
 
 ### Added
