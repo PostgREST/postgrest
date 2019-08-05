@@ -768,6 +768,8 @@ A function that returns a table type response can be shaped using the same filte
 
   GET /rpc/best_films_2017?rating=gt.8&order=title.desc HTTP/1.1
 
+.. _func_privs:
+
 Function privileges
 -------------------
 

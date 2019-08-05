@@ -425,7 +425,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
       into result;
     return result;
   end;
-  $$ language plpgsql;
+  $$ language plpgsql security definer;
 
 An API request to call this function would look like:
 
@@ -446,18 +446,20 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
 Permissions
 ~~~~~~~~~~~
 
-Your database roles need access to the schema, tables, views and functions in order to service HTTP requests. Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
+Your database roles need access to the schema, tables, views and functions in order to service HTTP requests. 
+Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and 
+anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
 
-.. code:: sql
+.. code-block:: postgres
 
   -- the names "anon" and "authenticator" are configurable and not
   -- sacred, we simply choose them for clarity
-  create role anon;
+  create role anon noinherit;
   create role authenticator noinherit;
   grant anon to authenticator;
 
-  grant usage on schema public, basic_auth to anon;
-  grant select on table pg_authid, basic_auth.users to anon;
   grant execute on function login(text,text) to anon;
 
-You may be worried from the above that anonymous users can read everything from the :code:`basic_auth.users` table. However this table is not available for direct queries because it lives in a separate schema. The anonymous role needs access because the public :code:`users` view reads the underlying table with the permissions of the calling user. But we have made sure the view properly restricts access to sensitive information.
+Since the above :code:`login` function is defined as `security definer <https://www.postgresql.org/docs/current/sql-createfunction.html#id-1.9.3.67.10.2>`_,
+the anonymous user :code:`anon` doesn't need permission to read the :code:`basic_auth.users` table. It doesn't even need permission to access the :code:`basic_auth` schema.
+:code:`grant execute on function` is included for clarity but it might not be needed, see :ref:`func_privs` for more details.
