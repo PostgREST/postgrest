@@ -50,7 +50,7 @@ PostgREST can accommodate either viewpoint. If you treat a role as a single user
 
 You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
 
-.. code:: sql
+.. code-block:: postgres
 
   CREATE TABLE chat (
     message_uuid    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -65,13 +65,17 @@ We want to enforce a policy that ensures a user can see only those messages sent
 
 PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
 
-.. code:: sql
+.. code-block:: postgres
 
   CREATE POLICY chat_policy ON chat
     USING ((message_to = current_user) OR (message_from = current_user))
     WITH CHECK (message_from = current_user)
 
 Anyone accessing the generated API endpoint for the chat table will see exactly the rows they should, without our needing custom imperative server-side coding.
+
+.. warning::
+
+   Roles are namespaced per-cluster rather than per-database so they may be prone to collision.
 
 Web Users Sharing Role
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -96,9 +100,9 @@ This allows JWT generation services to include extra information and your databa
 Hybrid User-Group Roles
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There is no performance penalty for having many database roles, although roles are namespaced per-cluster rather than per-database so may be prone to collision within the database. You are free to assign a new role for every user in a web application if desired. You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
+You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
 
-.. code:: sql
+.. code-block:: postgres
 
   CREATE ROLE webuser NOLOGIN;
   -- grant this role access to certain tables etc
