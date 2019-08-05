@@ -947,6 +947,12 @@ Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
   Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
+.. warning::
+
+   Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
+   It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+   If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+
 .. _bulk_insert:
 
 Bulk Insert
