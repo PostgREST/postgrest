@@ -950,7 +950,7 @@ spec actualPgVersion = do
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
-        [json| {"message":"application/octet-stream requested but a single column was not selected"} |]
+        [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
         { matchStatus = 406
         , matchHeaders = [matchContentTypeJson]
         }
