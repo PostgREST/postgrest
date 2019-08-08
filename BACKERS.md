@@ -29,16 +29,18 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 ## Lead Backers
 
 - [Daniel Babiak](https://github.com/d-babiak)
-- [Michel Pelletier](https://github.com/michelp/)
 - Evans Fernandes
 
 ## Backers
 
 - Tsingson Qin
+- Michel Pelletier
 - Jay Hannah
 - Robert Stolarz
 - Kofi Gumbs
 - Nicholas DiBiase
+- Christopher Reid
+- Nathan Bouscal
 
 ## Former Backers
 
