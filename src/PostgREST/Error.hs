@@ -224,7 +224,7 @@ instance JSON.ToJSON SimpleError where
   toJSON GucHeadersError           = JSON.object [
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text)]
   toJSON (BinaryFieldError ct)          = JSON.object [
-    "message" .= ((toS (toMime ct) <> " requested but a single column was not selected") :: Text)]
+    "message" .= ((toS (toMime ct) <> " requested but more than one column was selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [
     "message" .= ("Database connection lost, retrying the connection." :: Text)]
 

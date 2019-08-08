@@ -482,7 +482,7 @@ spec actualPgVersion =
         it "fails if a single column is not selected" $
           request methodPost "/rpc/ret_rows_with_base64_bin" (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith`
-            [json| {"message":"application/octet-stream requested but a single column was not selected"} |]
+            [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
             { matchStatus = 406
             , matchHeaders = [matchContentTypeJson]
             }
