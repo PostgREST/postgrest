@@ -218,7 +218,7 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
         )
       )
     postOp = tOp
-      & parameters .~ map ref ["body." <> tn, "preferReturn"]
+      & parameters .~ map ref ["body." <> tn, "select", "preferReturn"]
       & at 201 ?~ "Created"
     patchOp = tOp
       & parameters .~ map ref (rs <> ["body." <> tn, "preferReturn"])

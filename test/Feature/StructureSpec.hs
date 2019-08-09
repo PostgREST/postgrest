@@ -45,6 +45,7 @@ spec = do
             childGetSummary = r ^? method "get" . key "summary"
             childGetDescription = r ^? method "get" . key "description"
             getParameters = r ^? method "get" . key "parameters"
+            postParameters = r ^? method "post" . key "parameters"
             postResponse = r ^? method "post" . key "responses" . key "201" . key "description"
             patchResponse = r ^? method "patch" . key "responses" . key "204" . key "description"
             deleteResponse = r ^? method "delete" . key "responses" . key "204" . key "description"
@@ -76,6 +77,15 @@ spec = do
                 { "$ref": "#/parameters/offset" },
                 { "$ref": "#/parameters/limit" },
                 { "$ref": "#/parameters/preferCount" }
+              ]
+            |]
+
+          postParameters `shouldBe` Just
+            [aesonQQ|
+              [
+                { "$ref": "#/parameters/body.child_entities" },
+                { "$ref": "#/parameters/select" },
+                { "$ref": "#/parameters/preferReturn" }
               ]
             |]
 
