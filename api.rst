@@ -487,7 +487,13 @@ If the stored procedure returns non-scalar values, you need to do a :code:`selec
 Resource Embedding
 ==================
 
-In addition to providing RESTful routes for each table and view, PostgREST allows related resources to be included together in a single API call. This reduces the need for multiple API requests. The server uses foreign keys to determine which tables and views can be returned together. For example, consider a database of films and their awards:
+In addition to providing RESTful routes for each table and view, PostgREST allows related resources to be included together in a single
+API call. This reduces the need for multiple API requests. The server uses **foreign keys** to determine which tables and views can be 
+returned together. For example, consider a database of films and their awards:
+
+.. important::
+
+  PostgREST needs `FOREIGN KEY constraints <https://www.postgresql.org/docs/current/tutorial-fk.html>`_ to be able to do Resource Embedding.
 
 .. image:: _static/film.png
 
@@ -547,15 +553,18 @@ this:
 
   GET /films?select=title,director:directors(id,last_name) HTTP/1.1
 
-PostgREST can also detect relations going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
+.. important::
+
+  Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
+
+Embeddeding through join tables
+-------------------------------
+
+PostgREST can also detect relationships going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
 
 .. code-block:: http
 
   GET /directors?select=films(title,year) HTTP/1.1
-
-.. important::
-
-  Whenever foreign key relations change in the database schema you must refresh PostgREST's schema cache to allow resource embedding to work properly. See the section :ref:`schema_reloading`.
 
 Embedded Filters
 ----------------
