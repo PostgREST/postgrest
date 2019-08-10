@@ -488,7 +488,7 @@ Resource Embedding
 ==================
 
 In addition to providing RESTful routes for each table and view, PostgREST allows related resources to be included together in a single
-API call. This reduces the need for multiple API requests. The server uses **foreign keys** to determine which tables and views can be 
+API call. This reduces the need for multiple API requests. The server uses **foreign keys** to determine which tables and views can be
 returned together. For example, consider a database of films and their awards:
 
 .. important::
@@ -601,6 +601,41 @@ Embedded resources can be aliased and filters can be applied on these aliases:
 
   GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
 
+Embedding Views
+---------------
+
+Embedding a view is possible if the view contains columns that have **foreign keys** defined in their source tables.
+
+As an example, let's create a view called ``nominations_view`` based on the nominations table.
+
+.. code-block:: postgres
+
+  CREATE VIEW nominations_view AS
+  SELECT
+     rank
+   , competition_id
+   , film_id
+  FROM
+    nominations;
+
+Since it contains ``competition_id`` and ``film_id``—and each one has a **foreign key** defined in its source table—we can embed competitions and films:
+
+.. code-block:: http
+
+  GET /nominations_view?select=rank,competitions(name,year),films(title)&rank=eq.5 HTTP/1.1
+
+
+.. warning::
+
+   Is not guaranteed that all kinds of views will be embeddable. In particular, views that contain
+   UNIONs will not be made embeddable.
+
+   Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/11/catalog-pg-rewrite.html>`_.
+   This may fail depending on the complexity of the view, it's a best-effort approach.
+
+.. important::
+
+  If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
 
 .. _custom_queries:
 
