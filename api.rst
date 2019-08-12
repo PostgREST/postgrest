@@ -606,7 +606,7 @@ Embedding Views
 
 Embedding a view is possible if the view contains columns that have **foreign keys** defined in their source tables.
 
-As an example, let's create a view called ``nominations_view`` based on the nominations table.
+As an example, let's create a view called ``nominations_view`` based on the *nominations* table.
 
 .. code-block:: postgres
 
@@ -618,7 +618,7 @@ As an example, let's create a view called ``nominations_view`` based on the nomi
   FROM
     nominations;
 
-Since it contains ``competition_id`` and ``film_id``—and each one has a **foreign key** defined in its source table—we can embed competitions and films:
+Since it contains ``competition_id`` and ``film_id``—and each one has a **foreign key** defined in its source table—we can embed *competitions* and *films*:
 
 .. code-block:: http
 
@@ -631,7 +631,12 @@ Since it contains ``competition_id`` and ``film_id``—and each one has a **fore
    UNIONs will not be made embeddable.
 
    Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/11/catalog-pg-rewrite.html>`_.
-   This may fail depending on the complexity of the view, it's a best-effort approach.
+   This may fail depending on the complexity of the view.
+
+   `Report an issue <https://github.com/PostgREST/postgrest/issues>`_ if your view is not made embeddable so we can
+   keep continue improving foreign key detection.
+
+   In the future we'll include include a way to manually specify views source foreign keys to address this limitation.
 
 .. important::
 
