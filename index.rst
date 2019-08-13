@@ -106,6 +106,12 @@ Translations
    tutorials/tut1.rst
 
 .. toctree::
+   :caption: How-to guides
+   :titlesonly:
+
+   how-tos/embedding-table-from-another-schema.rst
+
+.. toctree::
    :caption: Integrations
    :titlesonly:
 

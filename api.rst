@@ -601,6 +601,8 @@ Embedded resources can be aliased and filters can be applied on these aliases:
 
   GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
 
+.. _embedding_views:
+
 Embedding Views
 ---------------
 
