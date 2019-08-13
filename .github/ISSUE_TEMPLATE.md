@@ -1,3 +1,7 @@
+<!--
+Before reporting a bug:
+If your database schema has changed while the PostgREST server is running, send the server a SIGUSR1 signal or restart it(http://postgrest.org/en/v5.2/admin.html#schema-reloading) to ensure the schema cache is not stale. This sometimes fixes apparent bugs.
+-->
 ### Environment
 
 * PostgreSQL version: (if using docker, specify the image)
