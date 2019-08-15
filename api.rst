@@ -158,6 +158,9 @@ When certain columns are wide (such as those holding binary data), it is more ef
 
 The default is :sql:`*`, meaning all columns. This value will become more important below in :ref:`resource_embedding`.
 
+Renaming Columns
+~~~~~~~~~~~~~~~~
+
 You can rename the columns by prefixing them with an alias followed by the colon ``:`` operator.
 
 .. code-block:: http
@@ -168,6 +171,11 @@ You can rename the columns by prefixing them with an alias followed by the colon
     {"fullName": "John Doe", "birthDate": "04/25/1988"},
     {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
   ]
+
+.. _casting_columns:
+
+Casting Columns
+~~~~~~~~~~~~~~~
 
 Casting the columns is possible by suffixing them with the double colon ``::`` plus the desired type.
 

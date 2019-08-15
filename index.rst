@@ -110,6 +110,7 @@ Translations
    :titlesonly:
 
    how-tos/embedding-table-from-another-schema.rst
+   how-tos/casting-type-to-custom-json.rst
 
 .. toctree::
    :caption: Integrations

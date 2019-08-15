@@ -16,7 +16,7 @@ And you want to :ref:`embed <resource_embedding>` the **people** table with a **
 
    create schema if not exists private;
 
-   -- For simplicity's sake the table is devoid of constraints on email, phone, etc.
+   -- For simplicity's sake the table is devoid of constraints/domains on email, phone, etc.
    create table private.details(
      id         int  primary key references public.people
    , email      text
