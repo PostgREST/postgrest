@@ -113,12 +113,6 @@ Translations
    how-tos/casting-type-to-custom-json.rst
 
 .. toctree::
-   :caption: Integrations
-   :titlesonly:
-
-   integrations/timescaledb.rst
-
-.. toctree::
    :caption: Installation
    :titlesonly:
 
