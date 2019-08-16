@@ -50,13 +50,15 @@ Big thanks to our sponsors! You can join them by supporting PostgREST on [Patreo
     ```bash
     postgrest --help
     ```
+## [Documentation](http://postgrest.org)
+
+Latest documentation is at [postgrest.org](http://postgrest.org). You can contribute to the docs in [PostgREST/postgrest-docs](https://github.com/PostgREST/postgrest-docs).
 
 ## Performance
 
 TLDR; subsecond response times for up to 2000 requests/sec on Heroku
-free tier. If you're used to servers written in interpreted languages
-(or named after precious gems), prepare to be pleasantly surprised by
-PostgREST performance.
+free tier. If you're used to servers written in interpreted languages, 
+prepare to be pleasantly surprised by PostgREST performance.
 
 Three factors contribute to the speed. First the server is written
 in [Haskell](https://www.haskell.org/) using the
