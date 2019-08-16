@@ -565,8 +565,8 @@ this:
 
   Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
 
-Embeddeding through join tables
--------------------------------
+Embedding through join tables
+-----------------------------
 
 PostgREST can also detect relationships going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles). You can also reverse the direction of inclusion, asking for all Directors with each including the list of their Films:
 
@@ -634,6 +634,7 @@ Since it contains ``competition_id`` and ``film_id``—and each one has a **fore
 
   GET /nominations_view?select=rank,competitions(name,year),films(title)&rank=eq.5 HTTP/1.1
 
+It's also possible to embed `Materialized Views <https://www.postgresql.org/docs/11/rules-materializedviews.html>`_.
 
 .. warning::
 
