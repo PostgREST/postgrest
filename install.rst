@@ -78,6 +78,7 @@ db-pool               Int     10
 db-extra-search-path  String  public
 server-host           String  127.0.0.1
 server-port           Int     3000
+server-unix-socket    String
 server-proxy-uri      String
 jwt-secret            String
 jwt-aud               String
@@ -153,7 +154,17 @@ server-host
 server-port
 -----------
 
-  The port to bind the web server.
+  The TCP port to bind the web server.
+
+server-unix-socket
+------------------
+
+  `Unix domain socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ where to bind the PostgREST web server.
+  If specified, this takes precedence over :ref:`server-port`. Example:
+
+  .. code:: bash
+
+    server-unix-socket = "/tmp/pgrst.sock"
 
 .. _server-proxy-uri:
 
