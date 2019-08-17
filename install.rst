@@ -75,6 +75,7 @@ db-uri                String             Y
 db-schema             String             Y
 db-anon-role          String             Y
 db-pool               Int     10
+db-pool-timeout       Int     10
 db-extra-search-path  String  public
 server-host           String  127.0.0.1
 server-port           Int     3000
@@ -124,6 +125,11 @@ db-pool
 -------
 
   Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
+
+db-pool-timeout
+---------------
+
+   Time to live for an idle database pool connection.
 
 .. _db-extra-search-path:
 
