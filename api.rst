@@ -811,6 +811,27 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
+Bulk Call
+---------
+
+It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert`.
+
+.. code-block:: http
+
+   POST /rpc/add_them HTTP/1.1
+   Content-Type: application/json
+
+   [
+      {"a": 1, "b": 2},
+      {"a": 3, "b": 4}
+   ]
+
+Result:
+
+.. code-block:: json
+
+   [ 3, 7 ]
+
 Function filters
 ----------------
 
