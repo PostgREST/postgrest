@@ -832,6 +832,8 @@ Result:
 
    [ 3, 7 ]
 
+It's also possible to :ref:`Specify Columns <specify_columns>` on functions calls.
+
 Function filters
 ----------------
 
@@ -1065,6 +1067,34 @@ To bulk insert JSON post an array of objects having all-matching keys
     { "name": "J Doe", "age": 62, "height": 70 },
     { "name": "Janus", "age": 10, "height": 55 }
   ]
+
+.. _specify_columns:
+
+Specifying Columns
+------------------
+
+By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted/updated
+and ignore the rest of the payload.
+
+.. code-block:: http
+
+   POST /datasets?columns=source,publication_date,figure HTTP/1.1
+   Content-Type: application/json
+
+   {
+     "source": "Natural Disaster Prevention and Control",
+     "publication_date": "2015-09-11",
+     "figure": 1100,
+     "location": "...",
+     "comment": "...",
+     "extra": "...",
+     "stuff": "..."
+   }
+
+In this case, only **source**, **publication_date** and **figure** will be inserted. The rest of the JSON keys will be ignored.
+
+Using this also has the side-effect of being more efficient for :ref:`bulk_insert` since PostgREST will not process the JSON and
+it'll send it directly to PostgreSQL.
 
 Upsert
 ------
