@@ -272,7 +272,7 @@ As discussed in :ref:`singular_plural`, there are no special URL forms for singu
 
 .. code:: http
 
-  GET /people?id=eq.1
+  GET /people?id=eq.1 HTTP/1.1
   Accept: application/vnd.pgrst.object+json
 
 This allows compound primary keys and makes the intent for singular response independent of a URL convention.

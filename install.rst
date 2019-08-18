@@ -297,10 +297,11 @@ The database connection string above is just an example. Adjust the role and pas
   .. code-block:: bash
 
     listen_addresses = 'localhost,10.0.0.10'
+
   You might also need to add a new IPv4 local connection within pg_hba.conf. For instance:
-  
+
   .. code-block:: bash
-  
+
     host    all             all             10.0.0.10/32            trust
 
 Containerized PostgREST *and* db with docker-compose
