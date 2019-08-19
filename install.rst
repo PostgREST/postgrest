@@ -88,6 +88,7 @@ max-rows              Int     ∞
 pre-request           String
 app.settings.*        String
 role-claim-key        String  .role
+raw-media-types       String
 ====================  ======  =========  ========
 
 .. _db-uri:
@@ -253,6 +254,22 @@ role-claim-key
     # {"https://www.example.com/role": { "key": "author }}
     # non-alphanumerical characters can go inside quotes(escaped in the config value)
     role-claim-key = ".\"https://www.example.com/role\".key"
+
+.. _raw-media-types:
+
+raw-media-types
+---------------
+
+ This serves to extend the media types that PostgREST currently accepts through an ``Accept`` header.
+
+ These media types can be requested by following the same rules as the ones defined in :ref:`binary_output`.
+
+ As an example, the below config would allow you to request an **image** and an **xml** by doing a request with ``Accept: image/png`` 
+ and a request with ``Accept: text/xml``, respectively.
+
+ .. code:: bash
+
+   raw-media-types="image/png, text/xml"
 
 Running the Server
 ==================
