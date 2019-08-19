@@ -480,12 +480,12 @@ spec actualPgVersion = do
 
     describe "path fixed" $ do
       it "works when requesting children 2 levels" $
-        get "/clients?id=eq.1&select=id,projects:projects%2Bclient_id(id,tasks(id))" `shouldRespondWith`
+        get "/clients?id=eq.1&select=id,projects:projects!client_id(id,tasks(id))" `shouldRespondWith`
           [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
       it "works with parent relation" $
-        get "/message?select=id,body,sender:person%2Bsender(name),recipient:person%2Brecipient(name)&id=lt.4" `shouldRespondWith`
+        get "/message?select=id,body,sender:person!sender(name),recipient:person!recipient(name)&id=lt.4" `shouldRespondWith`
           [json|
             [{"id":1,"body":"Hello Jane","sender":{"name":"John"},"recipient":{"name":"Jane"}},
              {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
@@ -499,7 +499,7 @@ spec actualPgVersion = do
           , matchHeaders = [matchContentTypeJson] }
 
       it "works with a parent view relation" $
-        get "/message?select=id,body,sender:person_detail%2Bsender(name,sent),recipient:person_detail%2Brecipient(name,received)&id=lt.4" `shouldRespondWith`
+        get "/message?select=id,body,sender:person_detail!sender(name,sent),recipient:person_detail!recipient(name,received)&id=lt.4" `shouldRespondWith`
           [json|
             [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
              {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
@@ -507,10 +507,11 @@ spec actualPgVersion = do
           { matchHeaders = [matchContentTypeJson] }
 
       it "works with many<->many relation" $
-        get "/tasks?select=id,users:users%2Busers_tasks(id)" `shouldRespondWith`
+        get "/tasks?select=id,users:users!users_tasks(id)" `shouldRespondWith`
           [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      -- TODO Remove in next major version(7.0)
       describe "old dot '.' symbol, deprecated" $
         it "still works" $ do
           get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`
@@ -588,7 +589,7 @@ spec actualPgVersion = do
             { matchHeaders = [matchContentTypeJson] }
 
         it "embeds childs recursively" $
-          get "/family_tree?id=eq.1&select=id,name, childs:family_tree%2Bparent(id,name,childs:family_tree%2Bparent(id,name))" `shouldRespondWith`
+          get "/family_tree?id=eq.1&select=id,name, childs:family_tree!parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
             [json|[{
               "id": "1", "name": "Parental Unit", "childs": [
                 { "id": "2", "name": "Kid One", "childs": [ { "id": "4", "name": "Grandkid One" } ] },
@@ -597,7 +598,7 @@ spec actualPgVersion = do
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds parent and then embeds childs" $
-          get "/family_tree?id=eq.2&select=id,name,parent(id,name,childs:family_tree%2Bparent(id,name))" `shouldRespondWith`
+          get "/family_tree?id=eq.2&select=id,name,parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
             [json|[{
               "id": "2", "name": "Kid One", "parent": {
                 "id": "1", "name": "Parental Unit", "childs": [ { "id": "2", "name": "Kid One" }, { "id": "3", "name": "Kid Two"} ]
@@ -620,7 +621,7 @@ spec actualPgVersion = do
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds childs" $ do
-          get "/organizations?select=id,name,refereeds:organizations%2Breferee(id,name)&id=eq.1" `shouldRespondWith`
+          get "/organizations?select=id,name,refereeds:organizations!referee(id,name)&id=eq.1" `shouldRespondWith`
             [json|[{
               "id": 1, "name": "Referee Org",
               "refereeds": [
@@ -634,7 +635,7 @@ spec actualPgVersion = do
                 }
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
-          get "/organizations?select=id,name,auditees:organizations%2Bauditor(id,name)&id=eq.2" `shouldRespondWith`
+          get "/organizations?select=id,name,auditees:organizations!auditor(id,name)&id=eq.2" `shouldRespondWith`
             [json|[{
               "id": 2, "name": "Auditor Org",
               "auditees": [
@@ -668,7 +669,7 @@ spec actualPgVersion = do
                   "manager":{"name":"Referee Manager"}}}
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-          get "/organizations?select=name,manager(name),auditees:organizations%2Bauditor(name,manager(name),refereeds:organizations%2Breferee(name,manager(name)))&id=eq.2" `shouldRespondWith`
+          get "/organizations?select=name,manager(name),auditees:organizations!auditor(name,manager(name),refereeds:organizations!referee(name,manager(name)))&id=eq.2" `shouldRespondWith`
             [json|[{
               "name":"Auditor Org",
               "manager":{"name":"Auditor Manager"},

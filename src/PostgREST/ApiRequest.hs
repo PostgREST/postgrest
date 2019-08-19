@@ -138,14 +138,14 @@ userApiRequest schema rootSpec req reqBody
       , iCanonicalQS = toS $ urlEncodeVars
         . L.sortOn fst
         . map (join (***) toS . second (fromMaybe BS.empty))
-        $ queryStringWPlus
+        $ qString
       , iJWT = tokenStr
       , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       }
  where
-  -- queryString with '+' not converted to ' '
-  queryStringWPlus = parseQueryReplacePlus False $ rawQueryString req
+  -- queryString with '+' converted to ' '(space)
+  qString = parseQueryReplacePlus True $ rawQueryString req
   -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
   (filters, rpcQParams) =
     case action of
@@ -215,7 +215,7 @@ userApiRequest schema rootSpec req reqBody
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req
-  qParams         = [(toS k, v)|(k,v) <- queryStringWPlus]
+  qParams         = [(toS k, v)|(k,v) <- qString]
   lookupHeader    = flip lookup hdrs
   hasPrefer :: Text -> Bool
   hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs

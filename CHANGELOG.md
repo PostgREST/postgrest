@@ -10,6 +10,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - #1369, Change `raw-media-types` to accept a string of comma separated MIME types - @Dansvidania
+- #1348, Go back to converting plus "+" to space " " in querystrings by default - @steve-chavez
+
+### Deprecated
+
+- #1348, Deprecate `.` symbol for disambiguating resource embedding(added in #918). The url-safe '!' should be used instead. We refrained from using `+` as part of our syntax because it conflicts with some http clients and proxies.
 
 ## [6.0.1] - 2019-07-30
 

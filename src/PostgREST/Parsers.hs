@@ -131,7 +131,7 @@ pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
     relationDetail <- optionMaybe (
-        try ( char '+' *> pFieldName ) <|>
+        try ( char '!' *> pFieldName ) <|>
         try ( char '.' *> pFieldName ) -- TODO deprecated, remove in next major version
       )
 
