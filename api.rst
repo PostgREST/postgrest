@@ -914,6 +914,20 @@ Stored procedures can access request headers, cookies and jwt claims by reading 
 
   ``request.jwt.claim.role`` defaults to the value of :ref:`db-anon-role`.
 
+Setting Response Headers
+------------------------
+
+PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
+
+.. code-block:: sql
+
+  -- tell client to cache response for two days
+
+  SET LOCAL "response.headers" =
+    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
+
+Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
+
 Errors and HTTP Status Codes
 ----------------------------
 
@@ -961,20 +975,6 @@ Returns:
   Content-Type: application/json; charset=utf-8
 
   {"hint":"Upgrade your plan","details":"Quota exceeded"}
-
-Setting Response Headers
-------------------------
-
-PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
-
-.. code-block:: sql
-
-  -- tell client to cache response for two days
-
-  SET LOCAL "response.headers" =
-    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
-
-Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
 Insertions / Updates
 ====================
