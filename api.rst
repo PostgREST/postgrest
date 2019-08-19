@@ -452,44 +452,6 @@ When a singular response is requested but no entries are found, the server respo
 
   Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
 
-Binary output
--------------
-
-If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
-and select a single column :code:`?select=bin_data`.
-
-.. code-block:: http
-
-  GET /items?select=bin_data&id=eq.1 HTTP/1.1
-  Accept: application/octet-stream
-
-You can also request binary output when calling `Stored Procedures`_ and since they can return a scalar value you are not forced to use :code:`select`
-for this case.
-
-.. code-block:: postgres
-
-  CREATE FUNCTION closest_point(..) RETURNS bytea ..
-
-.. code-block:: http
-
-  POST /rpc/closest_point HTTP/1.1
-  Accept: application/octet-stream
-
-If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
-
-.. code-block:: sql
-
-  CREATE FUNCTION overlapping_regions(..) RETURNS SETOF TABLE(geom_twkb bytea, ..) ..
-
-.. code-block:: http
-
-  POST /rpc/overlapping_regions?select=geom_twkb HTTP/1.1
-  Accept: application/octet-stream
-
-.. note::
-
-  If more than one row would be returned the binary results will be concatenated with no delimiter.
-
 .. _resource_embedding:
 
 Resource Embedding
@@ -1144,6 +1106,63 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 .. warning::
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+.. _binary_output:
+
+Binary Output
+=============
+
+If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
+and select a single column :code:`?select=bin_data`.
+
+.. code-block:: http
+
+  GET /items?select=bin_data&id=eq.1 HTTP/1.1
+  Accept: application/octet-stream
+
+You can also request binary output when calling `Stored Procedures`_ and since they can return a scalar value you are not forced to use :code:`select`
+for this case.
+
+.. code-block:: postgres
+
+  CREATE FUNCTION closest_point(..) RETURNS bytea ..
+
+.. code-block:: http
+
+  POST /rpc/closest_point HTTP/1.1
+  Accept: application/octet-stream
+
+If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
+
+.. code-block:: sql
+
+  CREATE FUNCTION overlapping_regions(..) RETURNS SETOF TABLE(geom_twkb bytea, ..) ..
+
+.. code-block:: http
+
+  POST /rpc/overlapping_regions?select=geom_twkb HTTP/1.1
+  Accept: application/octet-stream
+
+.. note::
+
+  If more than one row would be returned the binary results will be concatenated with no delimiter.
+
+Plain Text Output
+-----------------
+
+You can get raw output from a ``text`` column by using ``Accept: text/plain``.
+
+.. code-block:: http
+
+  GET /workers?select=custom_psv_format HTTP/1.1
+  Accept: text/plain
+
+  09310817|JOHN|DOE|15/04/88|
+  42152780|FRED|BLOGGS|20/02/85|
+  43006541|OTTO|NORMALVERBRAUCHER|01/07/90|
+  02452492|ERIKA|MUSTERMANN|11/01/80|
+
+This follows the same rules as :ref:`binary_output`.
 
 OpenAPI Support
 ===============
