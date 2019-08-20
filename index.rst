@@ -141,96 +141,18 @@ Ecosystem
 
 PostgREST has a growing ecosystem of examples, and libraries, experiments, and users. Here is a selection.
 
-Example Apps
-------------
+.. toctree::
+   :caption: Ecosystem
+   :hidden:
 
-* `subzerocloud/postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - Boilerplate for new project
-* `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - Calling to external translation service
-* `CodeforAustralia/heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
-* `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - An excel-like database table editor
-* `Recmo/PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
-* `benoror/ember-postgrest-dynamic-ui <https://github.com/benoror/ember-postgrest-dynamic-ui>`_ - generating Ember forms to edit data
-* `ruslantalpa/blogdemo <https://github.com/ruslantalpa/blogdemo>`_ - blog api demo in a vagrant image
-* `timwis/ext-postgrest-crud <https://github.com/timwis/ext-postgrest-crud>`_ - browser-based spreadsheet
-* `srid/chronicle <https://github.com/srid/chronicle>`_ - tracking a tree of personal memories
-* `diogob/elm-workshop <https://github.com/diogob/elm-workshop>`_ - building a simple database query UI
-* `marmelab/ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
-* `myfreeweb/moneylog <https://github.com/myfreeweb/moneylog>`_ - accounting web app in Polymer + PostgREST
-* `tyrchen/goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film api
-* `begriffs/postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
-* `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
-* `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth back-end
+   ecosystem.rst
 
-
-.. _clientside_libraries:
-
-Client-Side Libraries
----------------------
-
-* `tomberek/aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
-* `hugomrdias/postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
-* `john-kelly/elm-postgrest <https://github.com/john-kelly/elm-postgrest>`_ - Elm
-* `mithril.postgrest <https://github.com/catarse/mithril.postgrest>`_ - JS, Mithril
-* `lewisjared/postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
-* `JarvusInnovations/jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
-* `davidthewatson/postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
-* `datrium/postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
-* `calebmer/postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
-* `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
-* `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
-* `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
-* `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over Postgrest.
-
-External Notification
----------------------
-
-These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
-
-* `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
-* `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
-* `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
-* `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
-* `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
-* `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
-* `daurnimator/pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
-
-Extensions
-----------
-
-* `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
-* `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
-* `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
-* `wildsurfer/postgrest-oauth-server <https://github.com/wildsurfer/postgrest-oauth-server>`_ - OAuth2 server
-* `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
-* `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
-* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
-
-Commercial
----------------
-
-* `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered in part by PostgREST)
-
-In Production
--------------
-
-* `Moat <https://moat.com/>`_
-* `Catarse <https://www.catarse.me/>`_
-* `Redsmin <https://www.redsmin.com/>`_
-* `Image-charts <https://image-charts.com/>`_
-* `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
-* `Drip Depot <https://www.dripdepot.com/>`_
-* `OpenBooking <http://openbooking.ch>`_
-* `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
-* `eGull <http://www.egull.co>`_
-* `Elyios <https://elyios.com>`_
-* `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
-* `Nimbus <https://nimbusforwork.com/>`_
-
-  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
-
-* `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
-* `Datrium <https://www.datrium.com>`_
-
+* :ref:`eco_external_notification`
+* :ref:`eco_example_apps`
+* :ref:`eco_extensions`
+* :ref:`clientside_libraries`
+* :ref:`eco_commercial`
+* :ref:`eco_production`
 
 Testimonials
 ------------

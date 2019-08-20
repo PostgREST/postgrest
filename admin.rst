@@ -84,9 +84,9 @@ However including the request header :code:`Prefer: count=exact` calculates and 
 
 This is fine in small tables, but count performance degrades in big tables due to the MVCC architecture of PostgreSQL. For very large tables it can take a very long time to retrieve the results which allows a denial of service attack. The solution is to strip this header from all requests:
 
-.. code::
+.. code-block:: postgres
 
-  Nginx stuff. Remove any prefer header which contains the word count
+  -- Pending nginx config: Remove any prefer header which contains the word count
 
 .. note::
 
