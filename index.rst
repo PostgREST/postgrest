@@ -54,20 +54,10 @@ Leak-proof Abstraction
 
 There is no ORM involved. Creating new views happens in SQL with known performance implications. A database administrator can now create an API from scratch with no custom programming.
 
-Embracing the Relational Model
-------------------------------
-
-In 1970 E. F. Codd criticized the then-dominant hierarchical model of databases in his article A Relational Model of Data for Large Shared Data Banks. Reading the article reveals a striking similarity between hierarchical databases and nested http routes. With PostgREST we attempt to use flexible filtering and embedding rather than nested routes.
-
 One Thing Well
 --------------
 
 PostgREST has a focused scope. It works well with other tools like Nginx. This forces you to cleanly separate the data-centric CRUD operations from other concerns. Use a collection of sharp tools rather than building a big ball of mud.
-
-Shared Improvements
--------------------
-
-As with any open source project, we all gain from features and fixes in the tool. It's more beneficial than improvements locked inextricably within custom code-bases.
 
 Getting Support
 ----------------
@@ -95,6 +85,7 @@ Translations
 .. toctree::
    :caption: Release Notes
    :titlesonly:
+   :hidden:
 
    release_notes.rst
 
@@ -107,6 +98,7 @@ Translations
 
 .. toctree::
    :caption: How-to guides
+   :name: how-tos
    :titlesonly:
 
    how-tos/embedding-table-from-another-schema.rst
