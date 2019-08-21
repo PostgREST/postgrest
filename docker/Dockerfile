@@ -38,7 +38,8 @@ ENV PGRST_DB_URI= \
     PGRST_MAX_ROWS= \
     PGRST_PRE_REQUEST= \
     PGRST_ROLE_CLAIM_KEY=".role" \
-    PGRST_ROOT_SPEC=
+    PGRST_ROOT_SPEC= \
+    PGRST_RAW_MEDIA_TYPES=
 
 RUN groupadd -g 1000 postgrest && \
     useradd -r -u 1000 -g postgrest postgrest && \
