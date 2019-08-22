@@ -64,24 +64,6 @@ Getting Support
 
 The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/begriffs/postgrest/issues>`_ page.
 
-.. _supporting-dev:
-
-Supporting development
-----------------------
-
-You can help PostgREST ongoing maintenance and development by:
-
-- Making a regular donation through `Patreon <https://www.patreon.com/postgrest>`_
-
-- Alternatively, you can make a one-time donation via `Paypal <https://www.paypal.me/postgrest>`_
-
-Every donation will be spent on making PostgREST better for the whole community.
-
-Translations
-~~~~~~~~~~~~
-
-* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
-
 .. toctree::
    :caption: Release Notes
    :titlesonly:
@@ -89,26 +71,40 @@ Translations
 
    release_notes.rst
 
+Tutorials
+---------
+
+Start here if you're new to PostgREST.
+
 .. toctree::
+   :glob:
    :caption: Tutorials
-   :titlesonly:
+   :hidden:
 
-   tutorials/tut0.rst
-   tutorials/tut1.rst
+   tutorials/*
+
+- :doc:`tutorials/tut0`
+- :doc:`tutorials/tut1`
+
+How-to guides
+-------------
+
+Goal-oriented guides that show how to solve a specific problem.
 
 .. toctree::
+   :glob:
    :caption: How-to guides
-   :name: how-tos
-   :titlesonly:
+   :hidden:
 
-   how-tos/embedding-table-from-another-schema.rst
-   how-tos/casting-type-to-custom-json.rst
+   how-tos/*
 
-.. toctree::
-   :caption: Installation
-   :titlesonly:
+- :doc:`how-tos/embedding-table-from-another-schema`
+- :doc:`how-tos/casting-type-to-custom-json`
 
-   install.rst
+Reference guides
+----------------
+
+Technical references for PostgREST's API and Configuration.
 
 .. toctree::
    :caption: API
@@ -117,10 +113,26 @@ Translations
    api.rst
 
 .. toctree::
+   :caption: Configuration
+
+   configuration.rst
+
+Topic guides
+------------
+
+Explanations of some key concepts in PostgREST.
+
+.. toctree::
    :caption: Authentication
    :titlesonly:
 
    auth.rst
+
+.. toctree::
+   :caption: Installation
+   :titlesonly:
+
+   install.rst
 
 .. toctree::
    :caption: Administration
@@ -145,6 +157,24 @@ PostgREST has a growing ecosystem of examples, and libraries, experiments, and u
 * :ref:`clientside_libraries`
 * :ref:`eco_commercial`
 * :ref:`eco_production`
+
+.. _supporting-dev:
+
+Supporting development
+----------------------
+
+You can help PostgREST ongoing maintenance and development by:
+
+- Making a regular donation through `Patreon <https://www.patreon.com/postgrest>`_
+
+- Alternatively, you can make a one-time donation via `Paypal <https://www.paypal.me/postgrest>`_
+
+Every donation will be spent on making PostgREST better for the whole community.
+
+Translations
+------------
+
+* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
 
 Testimonials
 ------------
