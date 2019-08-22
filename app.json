@@ -10,7 +10,7 @@
     },
     "POSTGREST_VER": {
       "description": "Version of PostgREST to deploy",
-      "value": "6.0.1"
+      "value": "6.0.2"
     },
     "DB_URI": {
       "description": "Database connection string, e.g. postgres://user:pass@xxxxxxx.rds.amazonaws.com/mydb",
