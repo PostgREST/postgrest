@@ -3,6 +3,31 @@
 Configuration
 =============
 
+PostgREST reads a configuration file to determine information about the database and how to serve client requests. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
+
+.. code:: bash
+
+  ./postgrest /path/to/postgrest.conf
+
+The configuration file must contain a set of key value pairs. At minimum you must include these keys:
+
+.. code::
+
+  # postgrest.conf
+
+  # The standard connection URI format, documented at
+  # https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347
+  db-uri       = "postgres://user:pass@host:5432/dbname"
+
+  # The name of which database schema to expose to REST clients
+  db-schema    = "api"
+
+  # The database role to use when no client authentication is provided.
+  # Can (and should) differ from user in db-uri
+  db-anon-role = "anon"
+
+The user specified in the db-uri is also known as the authenticator role. For more information about the anonymous vs authenticator roles see the :ref:`roles`.
+
 Here is the full list of configuration parameters.
 
 ====================  ======  =========  ========
@@ -14,7 +39,7 @@ db-anon-role          String             Y
 db-pool               Int     10
 db-pool-timeout       Int     10
 db-extra-search-path  String  public
-server-host           String  127.0.0.1
+server-host           String  !4
 server-port           Int     3000
 server-unix-socket    String
 server-proxy-uri      String
@@ -41,6 +66,7 @@ db-uri
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
 
+
 .. _db-schema:
 
 db-schema
@@ -55,7 +81,7 @@ db-schema
 db-anon-role
 ------------
 
-  The database role to use when executing commands on behalf of unauthenticated clients.
+  The database role to use when executing commands on behalf of unauthenticated clients. For more information, see :ref:`roles`.
 
 .. _db-pool:
 
@@ -197,11 +223,11 @@ role-claim-key
 raw-media-types
 ---------------
 
- This serves to extend the media types that PostgREST currently accepts through an ``Accept`` header.
+ This serves to extend the `Media Types <https://en.wikipedia.org/wiki/Media_type>`_ that PostgREST currently accepts through an ``Accept`` header.
 
  These media types can be requested by following the same rules as the ones defined in :ref:`binary_output`.
 
- As an example, the below config would allow you to request an **image** and an **xml** by doing a request with ``Accept: image/png`` 
+ As an example, the below config would allow you to request an **image** and an **xml** by doing a request with ``Accept: image/png``
  and a request with ``Accept: text/xml``, respectively.
 
  .. code:: bash

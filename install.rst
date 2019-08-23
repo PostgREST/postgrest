@@ -39,32 +39,13 @@ On Windows, PostgREST will fail to run unless the PostgreSQL binaries are on the
 Configuration
 =============
 
-The PostgREST server reads a configuration file to determine information about the database and how to serve client requests. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
+The PostgREST server reads a configuration file as its only argument:
 
 .. code:: bash
 
   ./postgrest /path/to/postgrest.conf
 
-The configuration file must contain a set of key value pairs. At minimum you must include these keys:
-
-.. code::
-
-  # postgrest.conf
-
-  # The standard connection URI format, documented at
-  # https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347
-  db-uri       = "postgres://user:pass@host:5432/dbname"
-
-  # The name of which database schema to expose to REST clients
-  db-schema    = "api"
-
-  # The database role to use when no client authentication is provided.
-  # Can (and probably should) differ from user in db-uri
-  db-anon-role = "anon"
-
-The user specified in the db-uri is also known as the authenticator role. For more information about the anonymous vs authenticator roles see the :ref:`roles`.
-
-For a complete reference of the configuration parameters, see :ref:`configuration`.
+For a complete reference of the configuration file, see :ref:`configuration`.
 
 Running the Server
 ==================
