@@ -1,18 +1,3 @@
-.. _eco_external_notification:
-
-External Notification
----------------------
-
-These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
-
-* `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
-* `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
-* `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
-* `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
-* `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
-* `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
-* `daurnimator/pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
-
 .. _eco_example_apps:
 
 Example Apps
@@ -37,6 +22,22 @@ Example Apps
 * `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
 * `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth back-end
 * `marmelab/ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
+
+.. _eco_external_notification:
+
+External Notification
+---------------------
+
+These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
+
+* `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
+* `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
+* `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
+* `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
+* `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
+* `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
+* `daurnimator/pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
+
 
 .. _eco_extensions:
 
@@ -77,26 +78,3 @@ Commercial
 ---------------
 
 * `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered in part by PostgREST)
-
-.. _eco_production:
-
-In Production
--------------
-
-* `Moat <https://moat.com/>`_
-* `Catarse <https://www.catarse.me/>`_
-* `Redsmin <https://www.redsmin.com/>`_
-* `Image-charts <https://image-charts.com/>`_
-* `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
-* `Drip Depot <https://www.dripdepot.com/>`_
-* `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
-* `eGull <http://www.egull.co>`_
-* `Elyios <https://elyios.com>`_
-* `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
-* `Nimbus <https://nimbusforwork.com/>`_
-
-  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
-* `Datrium <https://www.datrium.com>`_
-
-.. * `OpenBooking <http://openbooking.ch>`_
-.. * `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_

@@ -74,7 +74,7 @@ The project has a friendly and growing community. Join our `chat room <https://g
 Tutorials
 ---------
 
-Start here if you're new to PostgREST.
+Are you new to PostgREST? This is the place to start!
 
 .. toctree::
    :glob:
@@ -86,10 +86,12 @@ Start here if you're new to PostgREST.
 - :doc:`tutorials/tut0`
 - :doc:`tutorials/tut1`
 
+Also have a look at :doc:`Installation <install>`.
+
 How-to guides
 -------------
 
-Goal-oriented guides that show how to solve a specific problem.
+These are recipes that'll help you address specific use-cases.
 
 .. toctree::
    :glob:
@@ -104,18 +106,22 @@ Goal-oriented guides that show how to solve a specific problem.
 Reference guides
 ----------------
 
-Technical references for PostgREST's API and Configuration.
+Technical references for PostgREST's functionality.
 
 .. toctree::
    :caption: API
-   :titlesonly:
+   :hidden:
 
    api.rst
 
 .. toctree::
    :caption: Configuration
+   :hidden:
 
    configuration.rst
+
+- :doc:`API <api>`
+- :doc:`configuration`
 
 Topic guides
 ------------
@@ -124,26 +130,30 @@ Explanations of some key concepts in PostgREST.
 
 .. toctree::
    :caption: Authentication
-   :titlesonly:
+   :hidden:
 
    auth.rst
 
 .. toctree::
    :caption: Installation
-   :titlesonly:
+   :hidden:
 
    install.rst
 
 .. toctree::
    :caption: Administration
-   :titlesonly:
+   :hidden:
 
    admin.rst
+
+- :doc:`Authentication <auth>`
+- :doc:`Installation <install>`
+- :doc:`Administration <admin>`
 
 Ecosystem
 ---------
 
-PostgREST has a growing ecosystem of examples, and libraries, experiments, and users. Here is a selection.
+PostgREST has a growing ecosystem of examples, libraries, and experiments. Here is a selection.
 
 .. toctree::
    :caption: Ecosystem
@@ -151,30 +161,33 @@ PostgREST has a growing ecosystem of examples, and libraries, experiments, and u
 
    ecosystem.rst
 
-* :ref:`eco_external_notification`
 * :ref:`eco_example_apps`
+* :ref:`eco_external_notification`
 * :ref:`eco_extensions`
 * :ref:`clientside_libraries`
 * :ref:`eco_commercial`
-* :ref:`eco_production`
 
-.. _supporting-dev:
+In Production
+-------------
 
-Supporting development
-----------------------
+Here are some companies that use PostgREST in production.
 
-You can help PostgREST ongoing maintenance and development by:
+* `Datrium <https://www.datrium.com>`_
+* `Nimbus <https://nimbusforwork.com/>`_
+  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
+* `Catarse <https://www.catarse.me/>`_
+* `Moat <https://moat.com/>`_
+* `Redsmin <https://www.redsmin.com/>`_
+* `Image-charts <https://image-charts.com/>`_
+* `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
+* `Drip Depot <https://www.dripdepot.com/>`_
+* `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
+* `eGull <http://www.egull.co>`_
+* `Elyios <https://elyios.com>`_
+* `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
 
-- Making a regular donation through `Patreon <https://www.patreon.com/postgrest>`_
-
-- Alternatively, you can make a one-time donation via `Paypal <https://www.paypal.me/postgrest>`_
-
-Every donation will be spent on making PostgREST better for the whole community.
-
-Translations
-------------
-
-* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
+.. * `OpenBooking <http://openbooking.ch>`_
+.. * `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
 
 Testimonials
 ------------
@@ -215,3 +228,8 @@ Testimonials
   Couldn't be happier."
 
   -- Anupam Garg, Datrium, Inc.
+
+Translations
+------------
+
+* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
