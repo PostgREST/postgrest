@@ -90,10 +90,13 @@ db-pool
 
   Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
 
+.. _db-pool-timeout:
+
 db-pool-timeout
 ---------------
 
-   Time to live for an idle database pool connection.
+   Time to live for an idle database pool connection. If the timeout is reached the connection will be closed.
+   Once a new request arrives a new connection will be started.
 
 .. _db-extra-search-path:
 
@@ -125,6 +128,8 @@ server-port
 -----------
 
   The TCP port to bind the web server.
+
+.. _server-unix-socket:
 
 server-unix-socket
 ------------------

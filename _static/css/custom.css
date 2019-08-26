@@ -21,3 +21,23 @@ div.line-block {
 #sponsors img{
   margin: 10px;
 }
+
+#thanks{
+  text-align: center;
+}
+
+#thanks img{
+  margin: 10px;
+}
+
+#thanks h2{
+  text-align: left;
+}
+
+#thanks p{
+  text-align: left;
+}
+
+#thanks ul{
+  text-align: left;
+}

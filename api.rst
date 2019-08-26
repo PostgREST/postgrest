@@ -45,6 +45,8 @@ Complex logic can also be applied:
 
   GET /people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null)) HTTP/1.1
 
+.. _operators:
+
 Operators
 ~~~~~~~~~
 
@@ -773,6 +775,8 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
+.. _bulk_call:
+
 Bulk Call
 ---------
 
@@ -1146,6 +1150,8 @@ If the stored procedure returns non-scalar values, you need to do a :code:`selec
 .. note::
 
   If more than one row would be returned the binary results will be concatenated with no delimiter.
+
+.. _plain_text_output:
 
 Plain Text Output
 -----------------

@@ -65,11 +65,13 @@ Getting Support
 The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/begriffs/postgrest/issues>`_ page.
 
 .. toctree::
+   :glob:
+   :reversed:
    :caption: Release Notes
    :titlesonly:
    :hidden:
 
-   release_notes.rst
+   releases/*
 
 Tutorials
 ---------
@@ -87,21 +89,6 @@ Are you new to PostgREST? This is the place to start!
 - :doc:`tutorials/tut1`
 
 Also have a look at :doc:`Installation <install>`.
-
-How-to guides
--------------
-
-These are recipes that'll help you address specific use-cases.
-
-.. toctree::
-   :glob:
-   :caption: How-to guides
-   :hidden:
-
-   how-tos/*
-
-- :doc:`how-tos/embedding-table-from-another-schema`
-- :doc:`how-tos/casting-type-to-custom-json`
 
 Reference guides
 ----------------
@@ -122,6 +109,23 @@ Technical references for PostgREST's functionality.
 
 - :doc:`API <api>`
 - :doc:`configuration`
+
+.. _how_tos:
+
+How-to guides
+-------------
+
+These are recipes that'll help you address specific use-cases.
+
+.. toctree::
+   :glob:
+   :caption: How-to guides
+   :hidden:
+
+   how-tos/*
+
+- :doc:`how-tos/embedding-table-from-another-schema`
+- :doc:`how-tos/casting-type-to-custom-json`
 
 Topic guides
 ------------
@@ -166,6 +170,15 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 * :ref:`eco_extensions`
 * :ref:`clientside_libraries`
 * :ref:`eco_commercial`
+
+Release Notes
+-------------
+
+Here we'll include the most relevant changes so you can migrate to newer versions easily.
+You can see the full changelog of each release in the `PostgREST repository <https://github.com/PostgREST/postgrest/releases>`_.
+
+- :doc:`releases/v6.0.2`
+- :doc:`releases/v5.2.0`
 
 In Production
 -------------
