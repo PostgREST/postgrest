@@ -17,6 +17,11 @@ Or if you use [nix](https://nixos.org/nix/), you can just run:
 
 Both of these options will build the docs and start a livereload server on `http://localhost:5500`.
 
+## Documentation structure
+
+This documentation is structured according to tutorials-howtos-topics-references. For more details on the rationale of this structure, 
+see https://www.divio.com/blog/documentation.
+
 ## Translations
 
 Translations are maintained in separate repositories forked from this one. Once you finish translating in your fork you can upload the project
