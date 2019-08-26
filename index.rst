@@ -124,8 +124,8 @@ These are recipes that'll help you address specific use-cases.
 
    how-tos/*
 
-- :doc:`how-tos/embedding-table-from-another-schema`
 - :doc:`how-tos/casting-type-to-custom-json`
+- :doc:`how-tos/embedding-table-from-another-schema`
 
 Topic guides
 ------------
