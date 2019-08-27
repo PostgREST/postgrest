@@ -3,94 +3,10 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages:
-- completed:
-    hackage: Ranged-sets-0.4.0@sha256:04bb4ce482fbdc052c9ee3346ba210986b33002b8c3440b714d62750144f86b6,1373
-    pantry-tree:
-      size: 566
-      sha256: ae6809a20be4da39729ac3c6e10b5c311b80628c767184da95903ecff6efc095
-  original:
-    hackage: Ranged-sets-0.4.0
-- completed:
-    hackage: configurator-pg-0.1.0.3@sha256:ddccf34fef0a5c4f1364ec4c6fda459f089a592e18662b0263ed85ea943c9c70,2885
-    pantry-tree:
-      size: 1008
-      sha256: 5eb16e5536e8bfd921286fb4c97eaaf0c1cb9bdbdf9630a7ffdf1cc64942b79b
-  original:
-    hackage: configurator-pg-0.1.0.3
-- completed:
-    hackage: http-types-0.12.3@sha256:f35229edb1bc7b3ae27f961b2407dadb5bfa69d43a8f5337ab46cdc79ca4afe9,2035
-    pantry-tree:
-      size: 833
-      sha256: c9b77e1ba204fffbe4e1be80412bc48e47440a07e4b7db4cdc77d573a3e21b9a
-  original:
-    hackage: http-types-0.12.3
-- completed:
-    hackage: hasql-1.4@sha256:fcb1b0046c1e888b6c4cad53c972d23318dbc6ababa9ceb7d9cfd3b546732bcd,6515
-    pantry-tree:
-      size: 2567
-      sha256: 2e253e7f3052ae4f838d26191355eb0c0b9f344e265b7dec50e13b799ef32450
-  original:
-    hackage: hasql-1.4
-- completed:
-    hackage: hasql-pool-0.5.1@sha256:a98f2fc38f60eb037a8ac6c5e17591b090089e305f367219c4879812592aaafe,2436
-    pantry-tree:
-      size: 412
-      sha256: 22e4cea8c23ea0eaa871388236c1d3e10349d993fd1bbc602f40aeb4909d6100
-  original:
-    hackage: hasql-pool-0.5.1
-- completed:
-    hackage: hasql-transaction-0.7.2@sha256:d6d8ceb0b32be75686fe31c4b5bc15c569a71023fc60394893508ea733e8714b,2835
-    pantry-tree:
-      size: 1028
-      sha256: 9bd8c7bf3e30d033192ff53c97e5f1f5e9c08ebfe9a1b3364ab0f9e8f2c2872e
-  original:
-    hackage: hasql-transaction-0.7.2
-- completed:
-    hackage: text-builder-0.6.5.1@sha256:547f292707c7488c0fbee415adb5fa107d725b720f8697e966a3e3e00cac02cd,4210
-    pantry-tree:
-      size: 542
-      sha256: 5b2be8c9530d3460cadfe142429e0f82bb4b5c238737de473b6f9a25a33e232f
-  original:
-    hackage: text-builder-0.6.5.1
-- completed:
-    hackage: deferred-folds-0.9.10.1@sha256:eb2634488e2a836da7d5aed9afd15ad2bead38817249f60bb68e459cc32fb0b0,2928
-    pantry-tree:
-      size: 958
-      sha256: b9132db4ffe78f11254871ed88071c5abe1ff41eeffcbec30ce484f24db81c19
-  original:
-    hackage: deferred-folds-0.9.10.1
-- completed:
-    hackage: primitive-0.6.4.0@sha256:5b6a2c3cc70a35aabd4565fcb9bb1dd78fe2814a36e62428a9a1aae8c32441a1,2079
-    pantry-tree:
-      size: 1517
-      sha256: 5d5e591311664886e88ade3da6880c32adf0d1fe80c55f40a3c93bb91df8fdeb
-  original:
-    hackage: primitive-0.6.4.0
-- completed:
-    hackage: jose-0.8.1.0@sha256:904e64203f0e074c4601529be2b57c94eec9fd588b19e16165391f8f9e84a6a0,3353
-    pantry-tree:
-      size: 1935
-      sha256: 8d5f80f184b61e89fedbf61d4d7b54ce85326fe67d8ec888117387522c06504d
-  original:
-    hackage: jose-0.8.1.0
-- completed:
-    hackage: text-printer-0.5.0.1@sha256:9171204826a67c97bc3578968d8b3dcfbd81be08dfd18fef2af71eaf7b2737b1,1502
-    pantry-tree:
-      size: 461
-      sha256: 656053744f42551bc9cffd76746bfae77a249f54ca69497f6835e35312c7b5bb
-  original:
-    hackage: text-printer-0.5.0.1
-- completed:
-    hackage: network-2.7.0.1@sha256:e8ab30822597c44f0520875699e005c8b284d19000bdacfddbc980c7dfa00bec,2823
-    pantry-tree:
-      size: 2313
-      sha256: 5729e7f6993505243e13fde01833e768024303052becb72f915d8cff1c20e177
-  original:
-    hackage: network-2.7.0.1
+packages: []
 snapshots:
 - completed:
-    size: 500539
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/13/29.yaml
-    sha256: 006398c5e92d1d64737b7e98ae4d63987c36808814504d1451f56ebd98093f75
-  original: lts-13.29
+    size: 523878
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/3.yaml
+    sha256: 470c46c27746a48c7c50f829efc0cf00112787a7804ee4ac7a27754658f6d92c
+  original: lts-14.3
