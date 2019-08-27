@@ -84,6 +84,10 @@ jobs:
             rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
             stack install hlint stylish-haskell
       - run:
+          name: Add stack tools to $PATH
+          command: |
+            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
+      - run:
           name: build src and tests dependencies
           command: |
             stack build --fast -j1 --only-dependencies
