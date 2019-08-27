@@ -1,5 +1,5 @@
 resolver: lts-14.3
 ghc-options:
-  postgrest: -O2 -Werror -Wall -fwarn-identities -fno-warn-redundant-constraints -optP-Wno-nonportable-include-path
+  postgrest: -O2 -Werror -Wall -fno-spec-constr -fwarn-identities -fno-warn-redundant-constraints -optP-Wno-nonportable-include-path
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
