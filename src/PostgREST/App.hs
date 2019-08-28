@@ -1,3 +1,14 @@
+{-|
+Module      : PostgREST.App
+Description : PostgREST main application
+
+This module is in charge of mapping HTTP requests to PostgreSQL queries.
+Some of its functionality includes:
+
+- Mapping HTTP request methods to proper SQL statements. For example, a GET request is translated to executing a SELECT query in a read-only TRANSACTION.
+- Producing HTTP Headers according to RFCs.
+- Content Negotiation
+-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -44,12 +55,12 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (ResultsWithCount, callProc,
+import PostgREST.QueryBuilder     (callProc,
                                    createReadStatement,
                                    createWriteStatement,
                                    requestToCountQuery,
                                    requestToQuery)
-import PostgREST.RangeQuery       (allRange, rangeOffset)
+import PostgREST.RangeQuery       (allRange, contentRangeH, rangeStatusHeader)
 import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate)
 
@@ -118,18 +129,13 @@ app dbStructure proc cols conf apiRequest =
                                             (contentType == CTTextCSV) bField
               row <- H.statement () stm
               let (tableTotal, queryTotal, _ , body) = row
-                  (status, contentRange) = rangeHeader queryTotal tableTotal
-                  canonical = iCanonicalQS apiRequest
+                  (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
                   then errorResponseFor . singularityError $ queryTotal
                   else responseLBS status
                     [toHeader contentType, contentRange,
-                      ("Content-Location",
-                        "/" <> toS (qiName qi) <>
-                          if BS.null canonical then "" else "?" <> toS canonical
-                      )
-                    ] (toS body)
+                     contentLocationH (qiName qi) (iCanonicalQS apiRequest)] (toS body)
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
@@ -140,11 +146,11 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTSingularJSON) True
                     (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
               row <- H.statement (toS $ pjRaw pJson) stm
-              let (_, queryTotal, fs, body) = extractQueryResult row
+              let (_, queryTotal, fs, body) = row
                   headers = catMaybes [
                       if null fs
                         then Nothing
-                        else Just (hLocation, "/" <> toS tName <> renderLocationFields fs)
+                        else Just $ locationH tName fs
                     , if iPreferRepresentation apiRequest == Full
                         then Just $ toHeader contentType
                         else Nothing
@@ -173,7 +179,7 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
               row <- H.statement (toS $ pjRaw pJson) stm
-              let (_, queryTotal, _, body) = extractQueryResult row
+              let (_, queryTotal, _, body) = row
 
                   updateIsNoOp       = S.null cols
                   contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
@@ -215,7 +221,7 @@ app dbStructure proc cols conf apiRequest =
                 row <- H.statement (toS pjRaw) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) []
-                let (_, queryTotal, _, body) = extractQueryResult row
+                let (_, queryTotal, _, body) = row
                 -- Makes sure the querystring pk matches the payload pk
                 -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted, PUT /items?id=eq.14 { "id" : 2, .. } is rejected
                 -- If this condition is not satisfied then nothing is inserted, check the WHERE for INSERT in QueryBuilder.hs to see how it's done
@@ -237,7 +243,7 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
-              let (_, queryTotal, _, body) = extractQueryResult row
+              let (_, queryTotal, _, body) = row
                   r = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
@@ -256,8 +262,9 @@ app dbStructure proc cols conf apiRequest =
           case mTable of
             Nothing -> return notFound
             Just table ->
-              let acceptH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET") in
-              return $ responseLBS status200 [allOrigins, acceptH] ""
+              let allowH = (hAllow, if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET")
+                  allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
+              return $ responseLBS status200 [allOrigins, allowH] mempty
 
         (ActionInvoke _, TargetProc qi _, Just pJson) ->
           let returnsScalar = case proc of
@@ -277,9 +284,8 @@ app dbStructure proc cols conf apiRequest =
                          (contentType == CTTextCSV)
                          (contentType `elem` rawContentTypes) bField
                          (pgVersion dbStructure)
-              let (tableTotal, queryTotal, body, jsonHeaders) =
-                    fromMaybe (Just 0, 0, "[]", "[]") row
-                  (status, contentRange) = rangeHeader queryTotal tableTotal
+              let (tableTotal, queryTotal, body, jsonHeaders) = row
+                  (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
                   decodedHeaders = first toS $ JSON.eitherDecode $ toS jsonHeaders :: Either Text [GucHeader]
               case decodedHeaders of
                 Left _ -> return . errorResponseFor $ GucHeadersError
@@ -308,17 +314,9 @@ app dbStructure proc cols conf apiRequest =
 
     where
       notFound = responseLBS status404 [] ""
-      allOrigins = ("Access-Control-Allow-Origin", "*") :: Header
       shouldCount = iPreferCount apiRequest
+      topLevelRange = iTopLevelRange apiRequest
       schema = toS $ configSchema conf
-      topLevelRange = fromMaybe allRange $ M.lookup "limit" $ iRange apiRequest
-      rangeHeader queryTotal tableTotal =
-        let lower = rangeOffset topLevelRange
-            upper = lower + toInteger queryTotal - 1
-            contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
-            status = rangeStatus lower upper (toInteger <$> tableTotal)
-        in (status, contentRange)
-
       readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) proc apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
@@ -366,32 +364,18 @@ binaryField ct rawContentTypes fldNames
         else Left . errorResponseFor $ BinaryFieldError ct
   | otherwise = Right Nothing
 
-splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
-splitKeyValue kv = (k, BS.tail v)
-  where (k, v) = BS.break (== '=') kv
+locationH :: TableName -> [BS.ByteString] -> Header
+locationH tName fields =
+  let
+    locationFields = renderSimpleQuery True $ map splitKeyValue fields
+  in
+    (hLocation, "/" <> toS tName <> locationFields)
+  where
+    splitKeyValue :: BS.ByteString -> (BS.ByteString, BS.ByteString)
+    splitKeyValue kv =
+      let (k, v) = BS.break (== '=') kv
+      in (k, BS.tail v)
 
-renderLocationFields :: [BS.ByteString] -> BS.ByteString
-renderLocationFields fields =
-  renderSimpleQuery True $ map splitKeyValue fields
-
-rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
-rangeStatus _ _ Nothing = status200
-rangeStatus lower upper (Just total)
-  | lower > total            = status416
-  | (1 + upper - lower) < total = status206
-  | otherwise               = status200
-
-contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
-contentRangeH lower upper total =
-    ("Content-Range", headerValue)
-    where
-      headerValue   = rangeString <> "/" <> totalString
-      rangeString
-        | totalNotZero && fromInRange = show lower <> "-" <> show upper
-        | otherwise = "*"
-      totalString   = maybe "*" show total
-      totalNotZero  = maybe True (0 /=) total
-      fromInRange   = lower <= upper
-
-extractQueryResult :: Maybe ResultsWithCount -> ResultsWithCount
-extractQueryResult = fromMaybe (Nothing, 0, [], "")
+contentLocationH :: TableName -> ByteString -> Header
+contentLocationH tName qString =
+  ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)

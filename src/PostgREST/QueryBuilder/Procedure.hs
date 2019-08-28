@@ -12,9 +12,10 @@ import           Protolude                      hiding (cast,
 import           Text.InterpolatedString.Perl6  (qc)
 
 type ProcResults = (Maybe Int64, Int64, ByteString, ByteString)
+
 callProc :: QualifiedIdentifier -> [PgArg] -> Bool -> SqlQuery -> SqlQuery -> Bool ->
             Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
-            H.Statement ByteString (Maybe ProcResults)
+            H.Statement ByteString ProcResults
 callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle paramsAsSingleObject asCsv asBinary binaryField pgVer =
   unicodeStatement sql (param HE.unknown) decodeProc True
   where
@@ -79,7 +80,9 @@ callProc qi pgArgs returnsScalar selectQuery countQuery countTotal isSingle para
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
         else "'[]'" :: Text
 
-    decodeProc = HD.rowMaybe procRow
+decodeProc :: HD.Result ProcResults
+decodeProc =
+  fromMaybe (Just 0, 0, "[]", "[]") <$> HD.rowMaybe procRow
+  where
     procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                     <*> column HD.bytea <*> column HD.bytea
-

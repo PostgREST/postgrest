@@ -40,6 +40,10 @@ param = HE.param . HE.nonNullable
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString)
 
+{-| Read and Write api requests use a similar response format which includes
+    various record counts and possible location header. This is the decoder
+    for that common type of query.
+-}
 standardRow :: HD.Row ResultsWithCount
 standardRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                     <*> column header <*> column HD.bytea
@@ -48,18 +52,6 @@ standardRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 noLocationF :: Text
 noLocationF = "array[]::text[]"
-
-{-| Read and Write api requests use a similar response format which includes
-    various record counts and possible location header. This is the decoder
-    for that common type of query.
--}
-decodeStandard :: HD.Result ResultsWithCount
-decodeStandard =
-  HD.singleRow standardRow
-
-decodeStandardMay :: HD.Result (Maybe ResultsWithCount)
-decodeStandardMay =
-  HD.rowMaybe standardRow
 
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
 removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl

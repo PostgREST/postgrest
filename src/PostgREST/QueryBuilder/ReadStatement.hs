@@ -2,6 +2,7 @@ module PostgREST.QueryBuilder.ReadStatement where
 
 import           Data.Maybe
 import           Data.Text                      (intercalate)
+import qualified Hasql.Decoders                 as HD
 import qualified Hasql.Encoders                 as HE
 import qualified Hasql.Statement                as H
 import           PostgREST.QueryBuilder.Private
@@ -30,3 +31,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
     | isSingle = asJsonSingleF
     | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF
+
+decodeStandard :: HD.Result ResultsWithCount
+decodeStandard =
+  HD.singleRow standardRow

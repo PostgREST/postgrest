@@ -2,6 +2,7 @@ module PostgREST.QueryBuilder.WriteStatement where
 
 import           Data.Maybe
 import           Data.Text                      (intercalate, unwords)
+import qualified Hasql.Decoders                 as HD
 import qualified Hasql.Encoders                 as HE
 import qualified Hasql.Statement                as H
 import           PostgREST.ApiRequest           (PreferRepresentation (..))
@@ -13,7 +14,7 @@ import           Text.InterpolatedString.Perl6  (qc)
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] ->
-                        H.Statement ByteString (Maybe ResultsWithCount)
+                        H.Statement ByteString ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
   unicodeStatement sql (param HE.unknown) decodeStandardMay True
 
@@ -51,3 +52,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
     | asCsv = asCsvF
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF
+
+decodeStandardMay :: HD.Result ResultsWithCount
+decodeStandardMay =
+ fromMaybe (Nothing, 0, [], "") <$> HD.rowMaybe standardRow
