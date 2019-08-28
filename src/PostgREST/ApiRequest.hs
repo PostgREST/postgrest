@@ -78,6 +78,8 @@ data ApiRequest = ApiRequest {
     iAction                      :: Action
   -- | Requested range of rows within response
   , iRange                       :: M.HashMap ByteString NonnegRange
+  -- | Requested range of rows from the top level
+  , iTopLevelRange               :: NonnegRange
   -- | The target, be it calling a proc or accessing a table
   , iTarget                      :: Target
   -- | Content types the client will accept, [CTAny] if no Accept header
@@ -122,6 +124,7 @@ userApiRequest schema rootSpec req reqBody
       iAction = action
       , iTarget = target
       , iRange = ranges
+      , iTopLevelRange = topLevelRange
       , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
@@ -186,7 +189,7 @@ userApiRequest schema rootSpec req reqBody
         Right $ ProcessedJSON (JSON.encode json) PJObject keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
-  topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges
+  topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
       "GET"      | target == TargetDefaultSpec -> ActionInspect
