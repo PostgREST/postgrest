@@ -92,65 +92,71 @@ main = do
         , ("Feature.RawOutputTypesSpec"     , Feature.RawOutputTypesSpec.spec)
         , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
-        , ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
-        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RpcSpec"                , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
-        , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec actualPgVersion)
         ] ++ extraSpecs
 
+      mutSpecs = uncurry describe <$> [
+          ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
+        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
+        , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
+        ]
+
   hspec $ do
-    mapM_ (beforeAll_ reset . before withApp) specs
+    -- Only certain Specs need a database reset, this should be used with care as it slows down the whole test suite.
+    mapM_ (afterAll_ reset . before withApp) mutSpecs
+
+    mapM_ (before withApp) specs
 
     -- this test runs with a raw-output-media-types set to text/html
-    beforeAll_ reset . before htmlRawOutputApp $
+    before htmlRawOutputApp $
       describe "Feature.HtmlRawOutputSpec" Feature.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
-    beforeAll_ reset . before ltdApp $
+    before ltdApp $
       describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
 
     -- this test runs with a different schema
-    beforeAll_ reset . before unicodeApp $
+    before unicodeApp $
       describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
 
     -- this test runs with a proxy
-    beforeAll_ reset . before proxyApp $
+    before proxyApp $
       describe "Feature.ProxySpec" Feature.ProxySpec.spec
 
     -- this test runs without a JWT secret
-    beforeAll_ reset . before noJwtApp $
+    before noJwtApp $
       describe "Feature.NoJwtSpec" Feature.NoJwtSpec.spec
 
     -- this test runs with a binary JWT secret
-    beforeAll_ reset . before binaryJwtApp $
+    before binaryJwtApp $
       describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
 
     -- this test runs with a binary JWT secret and an audience claim
-    beforeAll_ reset . before audJwtApp $
+    before audJwtApp $
       describe "Feature.AudienceJwtSecretSpec" Feature.AudienceJwtSecretSpec.spec
 
     -- this test runs with asymmetric JWK
-    beforeAll_ reset . before asymJwkApp $
+    before asymJwkApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
     -- this test runs with asymmetric JWKSet
-    beforeAll_ reset . before asymJwkSetApp $
+    before asymJwkSetApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
     -- this test runs with a nonexistent db-schema
-    beforeAll_ reset . before nonexistentSchemaApp $
+    before nonexistentSchemaApp $
       describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
 
     -- this test runs with an extra search path
-    beforeAll_ reset . before extraSearchPathApp $
+    before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
     -- this test runs with a root spec function override
     when (actualPgVersion >= pgVersion96) $
-      beforeAll_ reset . before rootSpecApp $
+      before rootSpecApp $
         describe "Feature.RootSpec" Feature.RootSpec.spec
