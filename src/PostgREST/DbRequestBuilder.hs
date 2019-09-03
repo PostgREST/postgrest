@@ -72,7 +72,9 @@ readRequest maxRows allRels proc apiRequest  =
     buildReadRequest :: [Tree SelectItem] -> ReadRequest
     buildReadRequest fieldTree =
       let rootDepth = 0
-          rootNodeName = if action == ActionRead then rootTableName else sourceCTEName in
+          rootNodeName = case action of
+            ActionRead _ -> rootTableName
+            _            -> sourceCTEName in
       foldr (treeEntry rootDepth) (Node (Select [] rootNodeName Nothing [] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing, rootDepth)) []) fieldTree
       where
         treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
@@ -278,7 +280,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
     (flts, logFrst) =
       case action of
         ActionInvoke _ -> (iFilters apiRequest, iLogic apiRequest)
-        ActionRead     -> (iFilters apiRequest, iLogic apiRequest)
+        ActionRead _   -> (iFilters apiRequest, iLogic apiRequest)
         _              -> join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
     orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
     orders = mapM pRequestOrder $ iOrder apiRequest

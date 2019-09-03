@@ -34,6 +34,12 @@ spec actualPgVersion =
             { matchStatus = 200
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
+        request methodHead "/rpc/getitemrange?min=2&max=4"
+                (rangeHdrs (ByteRangeFromTo 0 0)) ""
+           `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            }
 
       it "includes total count if requested" $ do
         request methodPost "/rpc/getitemrange"
@@ -46,6 +52,12 @@ spec actualPgVersion =
         request methodGet "/rpc/getitemrange?min=2&max=4"
                 (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
            `shouldRespondWith` [json| [{"id":3}] |]
+            { matchStatus = 206
+            , matchHeaders = ["Content-Range" <:> "0-0/2"]
+            }
+        request methodHead "/rpc/getitemrange?min=2&max=4"
+                (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
+           `shouldRespondWith` ""
             { matchStatus = 206
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
@@ -69,6 +81,12 @@ spec actualPgVersion =
         request methodGet "/rpc/getitemrange?min=2&max=4"
                 (acceptHdrs "text/csv") ""
            `shouldRespondWith` "id\n3\n4"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            }
+        request methodHead "/rpc/getitemrange?min=2&max=4"
+                (acceptHdrs "text/csv") ""
+           `shouldRespondWith` ""
             { matchStatus = 200
             , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }

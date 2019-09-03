@@ -6,6 +6,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 
 module PostgREST.ApiRequest (
   ApiRequest(..)
+, InvokeMethod(..)
 , ContentType(..)
 , Action(..)
 , Target(..)
@@ -51,11 +52,12 @@ import Protolude
 
 type RequestBody = BL.ByteString
 
+data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
-data Action = ActionCreate  | ActionRead
-            | ActionUpdate  | ActionDelete
-            | ActionInfo    | ActionInvoke{isReadOnly :: Bool}
-            | ActionInspect | ActionSingleUpsert
+data Action = ActionCreate       | ActionRead{isHead :: Bool}
+            | ActionUpdate       | ActionDelete
+            | ActionSingleUpsert | ActionInvoke InvokeMethod
+            | ActionInfo         | ActionInspect{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
@@ -117,7 +119,7 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: Schema -> Maybe QualifiedIdentifier -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema rootSpec req reqBody
-  | isTargetingProc && method `notElem` ["GET", "POST"] = Left ActionInappropriate
+  | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | otherwise = Right ApiRequest {
@@ -152,8 +154,10 @@ userApiRequest schema rootSpec req reqBody
   -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
   (filters, rpcQParams) =
     case action of
-      ActionInvoke{isReadOnly=True} -> partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
-      _ -> (flts, [])
+      ActionInvoke InvGet  -> partitionFlts
+      ActionInvoke InvHead -> partitionFlts
+      _                    -> (flts, [])
+  partitionFlts = partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
   flts =
     [ (toS k, toS $ fromJust v) |
       (k,v) <- qParams, isJust v,
@@ -167,12 +171,13 @@ userApiRequest schema rootSpec req reqBody
     TargetProc _ _ -> True
     _              -> False
   contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
-  columns | action `elem` [ActionCreate, ActionUpdate, ActionInvoke{isReadOnly=False}] = toS <$> join (lookup "columns" qParams)
-          | otherwise = Nothing
+  columns
+    | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
+    | otherwise = Nothing
   payload =
     case (contentType, action) of
-      (_, ActionInvoke{isReadOnly=True}) ->
-        Right $ ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) PJObject (S.fromList $ fst <$> rpcQParams)
+      (_, ActionInvoke InvGet)  -> Right rpcPrmsToJson
+      (_, ActionInvoke InvHead) -> Right rpcPrmsToJson
       (CTApplicationJSON, _) ->
         if isJust columns
           then Right $ RawJSON reqBody
@@ -189,21 +194,27 @@ userApiRequest schema rootSpec req reqBody
         Right $ ProcessedJSON (JSON.encode json) PJObject keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
+  rpcPrmsToJson = ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams)
+                  PJObject (S.fromList $ fst <$> rpcQParams)
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
-      "GET"      | target == TargetDefaultSpec -> ActionInspect
-                 | isTargetingProc -> ActionInvoke{isReadOnly=True}
-                 | otherwise -> ActionRead
-
+      -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
+      -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
+      "HEAD"     | target == TargetDefaultSpec -> ActionInspect{isHead=True}
+                 | isTargetingProc             -> ActionInvoke InvHead
+                 | otherwise                   -> ActionRead{isHead=True}
+      "GET"      | target == TargetDefaultSpec -> ActionInspect{isHead=False}
+                 | isTargetingProc             -> ActionInvoke InvGet
+                 | otherwise                   -> ActionRead{isHead=False}
       "POST"    -> if isTargetingProc
-                    then ActionInvoke{isReadOnly=False}
+                    then ActionInvoke InvPost
                     else ActionCreate
       "PATCH"   -> ActionUpdate
       "PUT"     -> ActionSingleUpsert
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
-      _         -> ActionInspect
+      _         -> ActionInspect{isHead=False}
   target = case path of
     []            -> case rootSpec of
                        Just rsQi -> TargetProc rsQi True
@@ -212,7 +223,14 @@ userApiRequest schema rootSpec req reqBody
     ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
     other         -> TargetUnknown other
 
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke{isReadOnly=False}, ActionInvoke{isReadOnly=True}]
+  shouldParsePayload =
+    action `elem`
+    [ActionCreate, ActionUpdate, ActionSingleUpsert,
+    ActionInvoke InvPost,
+    -- Though ActionInvoke{isGet=True}(a GET /rpc/..) doesn't really have a payload, we use the payload variable as a way
+    -- to store the query string arguments to the function.
+    ActionInvoke InvGet,
+    ActionInvoke InvHead]
   relevantPayload | shouldParsePayload = rightToMaybe payload
                   | otherwise = Nothing
   path            = pathInfo req
