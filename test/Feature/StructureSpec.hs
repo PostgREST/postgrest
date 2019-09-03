@@ -21,8 +21,10 @@ spec :: SpecWith Application
 spec = do
 
   describe "OpenAPI" $ do
-    it "root path returns a valid openapi spec" $
+    it "root path returns a valid openapi spec" $ do
       validateOpenApiResponse [("Accept", "application/openapi+json")]
+      request methodHead "/" (acceptHdrs "application/openapi+json") ""
+        `shouldRespondWith` "" { matchStatus  = 200 }
 
     it "should respond to openapi request on none root path with 415" $
       request methodGet "/items"

@@ -155,9 +155,14 @@ spec = do
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-      it "limit and offset works on first level" $
+      it "limit and offset works on first level" $ do
         get "/items?select=id&order=id.asc&limit=3&offset=2"
           `shouldRespondWith` [json|[{"id":3},{"id":4},{"id":5}]|]
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "2-4/*"]
+          }
+        request methodHead "/items?select=id&order=id.asc&limit=3&offset=2" [] mempty
+          `shouldRespondWith` ""
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "2-4/*"]
           }

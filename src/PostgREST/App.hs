@@ -41,6 +41,7 @@ import Network.Wai
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    ContentType (..),
+                                   InvokeMethod (..),
                                    PreferRepresentation (..),
                                    Target (..), mutuallyAgreeable,
                                    userApiRequest)
@@ -55,12 +56,12 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (callProc,
-                                   createReadStatement,
+import PostgREST.QueryBuilder     (callProc, createReadStatement,
                                    createWriteStatement,
                                    requestToCountQuery,
                                    requestToQuery)
-import PostgREST.RangeQuery       (allRange, contentRangeH, rangeStatusHeader)
+import PostgREST.RangeQuery       (allRange, contentRangeH,
+                                   rangeStatusHeader)
 import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate)
 
@@ -101,15 +102,16 @@ postgrest conf refDbStructure pool getTime worker =
 transactionMode :: Maybe ProcDescription -> Action -> HT.Mode
 transactionMode proc action =
   case action of
-    ActionRead -> HT.Read
-    ActionInfo -> HT.Read
-    ActionInspect -> HT.Read
-    ActionInvoke{isReadOnly=False} ->
+    ActionRead _         -> HT.Read
+    ActionInfo           -> HT.Read
+    ActionInspect _      -> HT.Read
+    ActionInvoke InvGet  -> HT.Read
+    ActionInvoke InvHead -> HT.Read
+    ActionInvoke InvPost ->
       let v = maybe Volatile pdVolatility proc in
       if v == Stable || v == Immutable
          then HT.Read
          else HT.Write
-    ActionInvoke{isReadOnly=True} -> HT.Read
     _ -> HT.Write
 
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
@@ -119,7 +121,7 @@ app dbStructure proc cols conf apiRequest =
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
-        (ActionRead, TargetIdent qi, Nothing) ->
+        (ActionRead headersOnly, TargetIdent qi, Nothing) ->
           let partsField = (,) <$> readSqlParts
                 <*> (binaryField contentType rawContentTypes =<< fldNames) in
           case partsField of
@@ -135,7 +137,8 @@ app dbStructure proc cols conf apiRequest =
                   then errorResponseFor . singularityError $ queryTotal
                   else responseLBS status
                     [toHeader contentType, contentRange,
-                     contentLocationH (qiName qi) (iCanonicalQS apiRequest)] (toS body)
+                     contentLocationH (qiName qi) (iCanonicalQS apiRequest)]
+                    (if headersOnly then mempty else toS body)
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
@@ -266,7 +269,7 @@ app dbStructure proc cols conf apiRequest =
                   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
-        (ActionInvoke _, TargetProc qi _, Just pJson) ->
+        (ActionInvoke invMethod, TargetProc qi _, Just pJson) ->
           let returnsScalar = case proc of
                 Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
                 _ -> False
@@ -294,9 +297,11 @@ app dbStructure proc cols conf apiRequest =
                     then do
                       HT.condemn
                       return . errorResponseFor . singularityError $ queryTotal
-                    else return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs) (toS body)
+                    else
+                      return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs)
+                      (if invMethod == InvHead then mempty else toS body)
 
-        (ActionInspect, TargetDefaultSpec, Nothing) -> do
+        (ActionInspect headersOnly, TargetDefaultSpec, Nothing) -> do
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configProxyUri conf
@@ -308,7 +313,7 @@ app dbStructure proc cols conf apiRequest =
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
 
           body <- encodeApi <$> H.statement schema accessibleTables <*> H.statement schema schemaDescription <*> H.statement schema accessibleProcs
-          return $ responseLBS status200 [toHeader CTOpenAPI] $ toS body
+          return $ responseLBS status200 [toHeader CTOpenAPI] (if headersOnly then mempty else toS body)
 
         _ -> return notFound
 
@@ -335,7 +340,7 @@ responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target
 responseContentTypeOrError accepts rawContentTypes action target = serves contentTypesForRequest accepts
   where
     contentTypesForRequest = case action of
-      ActionRead         ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+      ActionRead _       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
                              ++ rawContentTypes
       ActionCreate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionUpdate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
@@ -343,7 +348,7 @@ responseContentTypeOrError accepts rawContentTypes action target = serves conten
       ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
                              ++ rawContentTypes
                              ++ [CTOpenAPI | tpIsRootSpec target]
-      ActionInspect      ->  [CTOpenAPI, CTApplicationJSON]
+      ActionInspect _    ->  [CTOpenAPI, CTApplicationJSON]
       ActionInfo         ->  [CTTextCSV]
       ActionSingleUpsert ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
     serves sProduces cAccepts =

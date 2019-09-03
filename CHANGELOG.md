@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #1383, Add support for HEAD request - @steve-chavez
+
 ### Fixed
 
 ## [6.0.2] - 2019-08-22
