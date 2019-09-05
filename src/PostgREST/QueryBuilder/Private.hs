@@ -5,50 +5,21 @@ Description : Helper functions for PostgREST.QueryBuilder.
 -}
 module PostgREST.QueryBuilder.Private where
 
-import qualified Data.ByteString.Char8         as BS
+import qualified Data.Aeson                    as JSON
 import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
+import           Data.Scientific               (FPFormat (..),
+                                                formatScientific,
+                                                isInteger)
 import           Data.Text                     (intercalate,
                                                 isInfixOf, replace,
                                                 toLower, unwords)
 import qualified Data.Text                     as T (map, null,
                                                      takeWhile)
-import qualified Data.Text.Encoding            as T
-import qualified Hasql.Decoders                as HD
-import qualified Hasql.Encoders                as HE
-import qualified Hasql.Statement               as H
 import           PostgREST.Types
 import           Protolude                     hiding (cast,
                                                 intercalate, replace)
 import           Text.InterpolatedString.Perl6 (qc)
-
-column :: HD.Value a -> HD.Row a
-column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-element :: HD.Value a -> HD.Array a
-element = HD.element . HD.nonNullable
-
-param :: HE.Value a -> HE.Params a
-param = HE.param . HE.nonNullable
-
-{-| The generic query result format used by API responses. The location header
-    is represented as a list of strings containing variable bindings like
-    @"k1=eq.42"@, or the empty list if there is no location header.
--}
-type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString)
-
-{-| Read and Write api requests use a similar response format which includes
-    various record counts and possible location header. This is the decoder
-    for that common type of query.
--}
-standardRow :: HD.Row ResultsWithCount
-standardRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                    <*> column header <*> column HD.bytea
-  where
-    header = HD.array $ HD.dimension replicateM $ element HD.bytea
 
 noLocationF :: Text
 noLocationF = "array[]::text[]"
@@ -130,9 +101,6 @@ fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
     s = qiSchema t
-
-unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
-unicodeStatement = H.Statement . T.encodeUtf8
 
 emptyOnFalse :: Text -> Bool -> Text
 emptyOnFalse val cond = if cond then "" else val
@@ -227,3 +195,10 @@ pgFmtSetLocalSearchPath vals =
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
+
+unquoted :: JSON.Value -> Text
+unquoted (JSON.String t) = t
+unquoted (JSON.Number n) =
+  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+unquoted (JSON.Bool b) = show b
+unquoted v = toS $ JSON.encode v

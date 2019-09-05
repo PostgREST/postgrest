@@ -36,13 +36,11 @@ library
                       PostgREST.OpenAPI
                       PostgREST.Parsers
                       PostgREST.QueryBuilder
+                      PostgREST.Statements
                       PostgREST.RangeQuery
                       PostgREST.Types
   other-modules:      Paths_postgrest
                       PostgREST.QueryBuilder.Private
-                      PostgREST.QueryBuilder.Procedure
-                      PostgREST.QueryBuilder.ReadStatement
-                      PostgREST.QueryBuilder.WriteStatement
   hs-source-dirs:     src
   build-depends:      base                      >= 4.9 && < 4.13
                     , HTTP                      >= 4000.3.7 && < 4000.4

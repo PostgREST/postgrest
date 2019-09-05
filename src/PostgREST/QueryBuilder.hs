@@ -4,44 +4,35 @@
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
 Module      : PostgREST.QueryBuilder
-Description : PostgREST SQL generating functions.
+Description : PostgREST SQL fragments generating functions.
 
 This module provides functions to consume data types that
 represent database objects (e.g. Relation, Schema, SqlQuery)
-and produces SQL Statements.
+and produces SQL fragments.
 
 Any function that outputs a SQL fragment should be in this module.
 -}
 module PostgREST.QueryBuilder (
-    callProc
-  , createReadStatement
-  , createWriteStatement
-  , requestToQuery
+    requestToQuery
   , requestToCountQuery
   , unquoted
-  , ResultsWithCount
   , pgFmtSetLocal
   , pgFmtSetLocalSearchPath
   ) where
 
-import qualified Data.Aeson as JSON
-import qualified Data.Set   as S
+import qualified Data.Set as S
 
-import Data.Scientific (FPFormat (..), formatScientific, isInteger)
-import Data.Text       (intercalate, unwords)
-import Data.Tree       (Tree (..))
+import Data.Text (intercalate, unwords)
+import Data.Tree (Tree (..))
 
 import Data.Maybe
 
 import PostgREST.QueryBuilder.Private
-import PostgREST.QueryBuilder.Procedure
-import PostgREST.QueryBuilder.ReadStatement
-import PostgREST.QueryBuilder.WriteStatement
-import PostgREST.RangeQuery                  (allRange, rangeLimit,
-                                              rangeOffset)
+import PostgREST.RangeQuery           (allRange, rangeLimit,
+                                       rangeOffset)
 import PostgREST.Types
-import Protolude                             hiding (cast,
-                                              intercalate, replace)
+import Protolude                      hiding (cast, intercalate,
+                                       replace)
 
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = witness
@@ -144,10 +135,3 @@ requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
     ]
   where
     qi = QualifiedIdentifier schema mainTbl
-
-unquoted :: JSON.Value -> Text
-unquoted (JSON.String t) = t
-unquoted (JSON.Number n) =
-  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = show b
-unquoted v = toS $ JSON.encode v
