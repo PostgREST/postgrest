@@ -26,7 +26,6 @@ import qualified Hasql.Transaction          as H
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
-import Data.Aeson                           as JSON
 import Data.Function                        (id)
 import Data.IORef                           (IORef, readIORef)
 import Data.Time.Clock                      (UTCTime)
@@ -56,12 +55,13 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (callProc, createReadStatement,
-                                   createWriteStatement,
-                                   requestToCountQuery,
+import PostgREST.QueryBuilder     (requestToCountQuery,
                                    requestToQuery)
 import PostgREST.RangeQuery       (allRange, contentRangeH,
                                    rangeStatusHeader)
+import PostgREST.Statements       (callProcStatement,
+                                   createReadStatement,
+                                   createWriteStatement)
 import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate)
 
@@ -282,15 +282,14 @@ app dbStructure proc cols conf apiRequest =
             Right ((q, cq), bField) -> do
               let singular = contentType == CTSingularJSON
               row <- H.statement (toS $ pjRaw pJson) $
-                callProc qi (specifiedProcArgs cols proc) returnsScalar q cq shouldCount
+                callProcStatement qi (specifiedProcArgs cols proc) returnsScalar q cq shouldCount
                          singular (iPreferSingleObjectParameter apiRequest)
                          (contentType == CTTextCSV)
                          (contentType `elem` rawContentTypes) bField
                          (pgVersion dbStructure)
-              let (tableTotal, queryTotal, body, jsonHeaders) = row
+              let (tableTotal, queryTotal, body, gucHeaders) = row
                   (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
-                  decodedHeaders = first toS $ JSON.eitherDecode $ toS jsonHeaders :: Either Text [GucHeader]
-              case decodedHeaders of
+              case gucHeaders of
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right hs ->
                   if singular && queryTotal /= 1
