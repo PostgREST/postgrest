@@ -56,6 +56,12 @@ decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
   "*/*"                               -> CTAny
   ct'                                 -> CTOther ct'
 
+-- | A SQL query that can be executed independently
+type SqlQuery = Text
+
+-- | A part of a SQL query that cannot be executed independently
+type SqlFragment = Text
+
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
 instance Show PreferResolution where
   show MergeDuplicates  = "resolution=merge-duplicates"
@@ -135,10 +141,13 @@ specifiedProcArgs keys proc =
   in
   (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) args)) <$> S.toList keys
 
+procReturnsScalar :: ProcDescription -> Bool
+procReturnsScalar proc = case proc of
+  ProcDescription{pdReturnType = (Single (Scalar _))} -> True
+  _                                                   -> False
+
 type Schema = Text
 type TableName = Text
-type SqlQuery = Text
-type SqlFragment = Text
 
 data Table = Table {
   tableSchema      :: Schema
@@ -440,8 +449,6 @@ sourceCTEName = "pg_source"
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"
 data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
-
-
 
 -- | Current database connection status data ConnectionStatus
 data ConnectionStatus

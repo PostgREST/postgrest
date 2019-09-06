@@ -4,20 +4,18 @@
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
 Module      : PostgREST.QueryBuilder
-Description : PostgREST SQL fragments generating functions.
+Description : PostgREST SQL queries generating functions.
 
 This module provides functions to consume data types that
-represent database objects (e.g. Relation, Schema, SqlQuery)
-and produces SQL fragments.
-
-Any function that outputs a SQL fragment should be in this module.
+represent database objects (e.g. Relation, Schema) and SqlFragment
+to produce SqlQuery type outputs.
 -}
 module PostgREST.QueryBuilder (
     requestToQuery
   , requestToCountQuery
-  , unquoted
-  , pgFmtSetLocal
-  , pgFmtSetLocalSearchPath
+  , requestToCallProcQuery
+  , setLocalQuery
+  , setLocalSearchPathQuery
   ) where
 
 import qualified Data.Set as S
@@ -135,3 +133,47 @@ requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
     ]
   where
     qi = QualifiedIdentifier schema mainTbl
+
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Bool -> SqlQuery
+requestToCallProcQuery qi pgArgs returnsScalar paramsAsSingleObject =
+  unwords [
+    "WITH",
+    argsRecord,
+    sourceBody ]
+  where
+    (argsRecord, args)
+      | null pgArgs = (ignoredBody, "")
+      | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
+      | otherwise = (
+          unwords [
+            normalizedBody <> ",",
+            "_args_record AS (",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
+                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
+            ")"]
+         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
+
+    sourceBody :: SqlFragment
+    sourceBody
+      | paramsAsSingleObject || null pgArgs =
+          if returnsScalar
+            then "SELECT " <> callIt <> " AS _scalar_res"
+            else "SELECT * FROM " <> callIt
+      | otherwise =
+          if returnsScalar
+            then "SELECT " <> callIt <> " AS _scalar_res FROM _args_record"
+            else unwords [
+              "SELECT _.*",
+              "FROM _args_record,",
+              "LATERAL ( SELECT * FROM " <> callIt <> " ) _" ]
+
+    callIt :: SqlFragment
+    callIt = fromQi qi <> "(" <> args <> ")"
+
+setLocalQuery :: Text -> (Text, Text) -> SqlQuery
+setLocalQuery prefix (k, v) =
+  "SET LOCAL " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
+
+setLocalSearchPathQuery :: [Text] -> SqlQuery
+setLocalSearchPathQuery vals =
+  "SET LOCAL search_path = " <> intercalate ", " (pgFmtLit <$> vals) <> ";"

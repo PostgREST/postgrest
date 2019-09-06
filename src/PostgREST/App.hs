@@ -55,7 +55,8 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (requestToCountQuery,
+import PostgREST.QueryBuilder     (requestToCallProcQuery,
+                                   requestToCountQuery,
                                    requestToQuery)
 import PostgREST.RangeQuery       (allRange, contentRangeH,
                                    rangeStatusHeader)
@@ -270,9 +271,7 @@ app dbStructure proc cols conf apiRequest =
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
         (ActionInvoke invMethod, TargetProc qi _, Just pJson) ->
-          let returnsScalar = case proc of
-                Just ProcDescription{pdReturnType = (Single (Scalar _))} -> True
-                _ -> False
+          let returnsScalar = maybe False procReturnsScalar proc
               rpcBinaryField = if returnsScalar
                                  then Right Nothing
                                  else binaryField contentType rawContentTypes =<< fldNames
@@ -280,19 +279,18 @@ app dbStructure proc cols conf apiRequest =
           case parts of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let singular = contentType == CTSingularJSON
-              row <- H.statement (toS $ pjRaw pJson) $
-                callProcStatement qi (specifiedProcArgs cols proc) returnsScalar q cq shouldCount
-                         singular (iPreferSingleObjectParameter apiRequest)
-                         (contentType == CTTextCSV)
-                         (contentType `elem` rawContentTypes) bField
-                         (pgVersion dbStructure)
+              let
+                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar $
+                        iPreferSingleObjectParameter apiRequest
+                stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
+                        (contentType == CTTextCSV) (contentType `elem` rawContentTypes) bField (pgVersion dbStructure)
+              row <- H.statement (toS $ pjRaw pJson) stm
               let (tableTotal, queryTotal, body, gucHeaders) = row
                   (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
               case gucHeaders of
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right hs ->
-                  if singular && queryTotal /= 1
+                  if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn
                       return . errorResponseFor . singularityError $ queryTotal
