@@ -10,6 +10,8 @@ module PostgREST.Middleware where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
+import           Data.Scientific     (FPFormat (..), formatScientific,
+                                      isInteger)
 import qualified Hasql.Transaction   as H
 
 import Network.Wai                   (Application, Response)
@@ -24,8 +26,7 @@ import PostgREST.Auth         (JWTAttempt (..))
 import PostgREST.Config       (AppConfig (..), corsPolicy)
 import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
                                errorResponseFor)
-import PostgREST.QueryBuilder (pgFmtSetLocal, pgFmtSetLocalSearchPath,
-                               unquoted)
+import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
 import Protolude
 
 runWithClaims :: AppConfig -> JWTAttempt ->
@@ -41,13 +42,13 @@ runWithClaims conf eClaims app req =
       mapM_ H.sql customReqCheck
       app req
       where
-        headersSql = pgFmtSetLocal "request.header." <$> iHeaders req
-        cookiesSql = pgFmtSetLocal "request.cookie." <$> iCookies req
-        claimsSql = pgFmtSetLocal "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
-        appSettingsSql = pgFmtSetLocal mempty <$> configSettings conf
+        headersSql = setLocalQuery "request.header." <$> iHeaders req
+        cookiesSql = setLocalQuery "request.cookie." <$> iCookies req
+        claimsSql = setLocalQuery "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
+        appSettingsSql = setLocalQuery mempty <$> configSettings conf
         setRoleSql = maybeToList $ (\x ->
-          pgFmtSetLocal mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
-        setSearchPathSql = pgFmtSetLocalSearchPath $ configSchema conf : configExtraSearchPath conf
+          setLocalQuery mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
+        setSearchPathSql = setLocalSearchPathQuery $ configSchema conf : configExtraSearchPath conf
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)
         anon = JSON.String . toS $ configAnonRole conf
@@ -58,3 +59,10 @@ defaultMiddle =
     gzip def
   . cors corsPolicy
   . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+
+unquoted :: JSON.Value -> Text
+unquoted (JSON.String t) = t
+unquoted (JSON.Number n) =
+  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+unquoted (JSON.Bool b) = show b
+unquoted v = toS $ JSON.encode v

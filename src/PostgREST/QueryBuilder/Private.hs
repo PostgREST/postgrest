@@ -2,15 +2,13 @@
 {-|
 Module      : PostgREST.QueryBuilder.Private
 Description : Helper functions for PostgREST.QueryBuilder.
+
+Any function that outputs a SqlFragment should be in this module.
 -}
 module PostgREST.QueryBuilder.Private where
 
-import qualified Data.Aeson                    as JSON
 import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
-import           Data.Scientific               (FPFormat (..),
-                                                formatScientific,
-                                                isInteger)
 import           Data.Text                     (intercalate,
                                                 isInfixOf, replace,
                                                 toLower, unwords)
@@ -21,11 +19,8 @@ import           Protolude                     hiding (cast,
                                                 intercalate, replace)
 import           Text.InterpolatedString.Perl6 (qc)
 
-noLocationF :: Text
+noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
-
-removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
-removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
 
 -- Due to the use of the `unknown` encoder we need to cast '$1' when the value is not used in the main query
 -- otherwise the query will err with a `could not determine data type of parameter $1`.
@@ -185,20 +180,8 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> ""
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-pgFmtSetLocal :: Text -> (Text, Text) -> SqlFragment
-pgFmtSetLocal prefix (k, v) =
-  "SET LOCAL " <> pgFmtIdent (prefix <> k) <> " = " <> pgFmtLit v <> ";"
-
-pgFmtSetLocalSearchPath :: [Text] -> SqlFragment
-pgFmtSetLocalSearchPath vals =
-  "SET LOCAL search_path = " <> intercalate ", " (pgFmtLit <$> vals) <> ";"
-
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
-unquoted :: JSON.Value -> Text
-unquoted (JSON.String t) = t
-unquoted (JSON.Number n) =
-  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = show b
-unquoted v = toS $ JSON.encode v
+removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
+removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
