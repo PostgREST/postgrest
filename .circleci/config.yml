@@ -144,7 +144,7 @@ jobs:
             stack build --fast --test --no-run-tests
       - run:
           name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
 
   build-test-10:
     docker:
@@ -176,7 +176,7 @@ jobs:
             stack build --fast --test --no-run-tests
       - run:
           name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
 
   build-test-11:
     docker:
@@ -208,7 +208,7 @@ jobs:
             stack build --fast --test --no-run-tests
       - run:
           name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
 
   build-prof-test:
     docker:
