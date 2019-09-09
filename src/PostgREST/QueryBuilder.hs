@@ -134,38 +134,45 @@ requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
   where
     qi = QualifiedIdentifier schema mainTbl
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Bool -> SqlQuery
-requestToCallProcQuery qi pgArgs returnsScalar paramsAsSingleObject =
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> SqlQuery
+requestToCallProcQuery qi pgArgs returnsScalar preferParams =
   unwords [
     "WITH",
-    argsRecord,
+    argsCTE,
     sourceBody ]
   where
-    (argsRecord, args)
+    paramsAsSingleObject    = preferParams == Just SingleObject
+    paramsAsMulitpleObjects = preferParams == Just MultipleObjects
+
+    (argsCTE, args)
       | null pgArgs = (ignoredBody, "")
-      | paramsAsSingleObject = ("_args_record AS (SELECT NULL)", "$1::json")
+      | paramsAsSingleObject = ("pgrst_args AS (SELECT NULL)", "$1::json")
       | otherwise = (
           unwords [
             normalizedBody <> ",",
-            "_args_record AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <>
-                intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " " <> pgaType a) <$> pgArgs) <> ")",
+            "pgrst_args AS (",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (\a -> " " <> pgaType a) <> ")",
             ")"]
-         , intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> " := _args_record." <> pgFmtIdent (pgaName a)) <$> pgArgs))
+         , if paramsAsMulitpleObjects
+             then fmtArgs (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
+             else fmtArgs (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
+        )
+
+    fmtArgs :: (PgArg -> SqlFragment) -> SqlFragment
+    fmtArgs argFrag = intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> argFrag a) <$> pgArgs)
 
     sourceBody :: SqlFragment
     sourceBody
-      | paramsAsSingleObject || null pgArgs =
+      | paramsAsMulitpleObjects =
           if returnsScalar
-            then "SELECT " <> callIt <> " AS _scalar_res"
-            else "SELECT * FROM " <> callIt
+            then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
+            else unwords [ "SELECT pgrst_lat_args.*"
+                         , "FROM pgrst_args,"
+                         , "LATERAL ( SELECT * FROM " <> callIt <> " ) pgrst_lat_args" ]
       | otherwise =
           if returnsScalar
-            then "SELECT " <> callIt <> " AS _scalar_res FROM _args_record"
-            else unwords [
-              "SELECT _.*",
-              "FROM _args_record,",
-              "LATERAL ( SELECT * FROM " <> callIt <> " ) _" ]
+            then "SELECT " <> callIt <> " AS pgrst_scalar"
+            else "SELECT * FROM " <> callIt
 
     callIt :: SqlFragment
     callIt = fromQi qi <> "(" <> args <> ")"

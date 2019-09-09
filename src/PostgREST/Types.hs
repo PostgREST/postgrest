@@ -67,6 +67,15 @@ instance Show PreferResolution where
   show MergeDuplicates  = "resolution=merge-duplicates"
   show IgnoreDuplicates = "resolution=ignore-duplicates"
 
+data PreferParameters
+  = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure
+  | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure
+  deriving Eq
+
+instance Show PreferParameters where
+  show SingleObject    = "params=single-object"
+  show MultipleObjects = "params=multiple-objects"
+
 data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]

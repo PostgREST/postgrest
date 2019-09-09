@@ -27,7 +27,7 @@ noLocationF = "array[]::text[]"
 -- This happens because `unknown` relies on the context to determine the value type.
 -- The error also happens on raw libpq used with C.
 ignoredBody :: SqlFragment
-ignoredBody = "ignored_body AS (SELECT $1::text) "
+ignoredBody = "pgrst_ignored_body AS (SELECT $1::text) "
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads

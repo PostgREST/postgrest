@@ -433,24 +433,34 @@ spec actualPgVersion =
 
       it "ignores json keys not included in ?columns" $
         post "/rpc/sayhello?columns=name"
-          [json|{"name": "John", "smth": "here", "other": "stuff", "fake_id": 13}|] `shouldRespondWith`
+          [json|{"name": "John", "smth": "here", "other": "stuff", "fake_id": 13}|]
+          `shouldRespondWith`
           [json|"Hello, John"|]
           { matchHeaders = [matchContentTypeJson] }
 
-    context "bulk RPC" $ do
-      it "works with a scalar function an returns a json array" $
+      it "only takes the first object in case of array of objects payload" $
         post "/rpc/add_them"
           [json|[
             {"a": 1, "b": 2},
             {"a": 4, "b": 6},
-            {"a": 100, "b": 200}
-          ]|] `shouldRespondWith`
+            {"a": 100, "b": 200} ]|]
+          `shouldRespondWith` "3"
+          { matchHeaders = [matchContentTypeJson] }
+
+    context "bulk RPC with params=multiple-objects" $ do
+      it "works with a scalar function an returns a json array" $
+        request methodPost "/rpc/add_them" [("Prefer", "params=multiple-objects")]
+          [json|[
+            {"a": 1, "b": 2},
+            {"a": 4, "b": 6},
+            {"a": 100, "b": 200} ]|]
+          `shouldRespondWith`
           [json|
             [3, 10, 300]
           |] { matchHeaders = [matchContentTypeJson] }
 
       it "works with a scalar function an returns a json array when posting CSV" $
-        request methodPost "/rpc/add_them" [("Content-Type", "text/csv")]
+        request methodPost "/rpc/add_them" [("Content-Type", "text/csv"), ("Prefer", "params=multiple-objects")]
           "a,b\n1,2\n4,6\n100,200"
           `shouldRespondWith`
           [json|
@@ -461,11 +471,11 @@ spec actualPgVersion =
           }
 
       it "works with a non-scalar result" $
-        post "/rpc/get_projects_below?select=id,name"
+        request methodPost "/rpc/get_projects_below?select=id,name" [("Prefer", "params=multiple-objects")]
           [json|[
             {"id": 1},
-            {"id": 5}
-          ]|] `shouldRespondWith`
+            {"id": 5} ]|]
+          `shouldRespondWith`
           [json|
             [{"id":1,"name":"Windows 7"},
              {"id":2,"name":"Windows 10"},
