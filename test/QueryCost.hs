@@ -13,8 +13,7 @@ import           Text.Heredoc
 import Protolude hiding (get)
 
 import PostgREST.QueryBuilder (requestToCallProcQuery)
-import PostgREST.Types        (PgArg (..), QualifiedIdentifier (..),
-                               SqlQuery)
+import PostgREST.Types
 
 import SpecHelper (getEnvVarWithDefault)
 
@@ -30,21 +29,36 @@ main = do
     context "call proc query" $ do
       it "should not exceed cost when calling setof composite proc" $ do
         cost <- exec pool [str| {"id": 3} |] $
-          requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False False
+          requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False Nothing
         liftIO $
-          cost `shouldSatisfy` (< Just 2100)
+          cost `shouldSatisfy` (< Just 40)
 
       it "should not exceed cost when calling setof composite proc with empty params" $ do
         cost <- exec pool mempty $
-          requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] False False
+          requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] False Nothing
         liftIO $
           cost `shouldSatisfy` (< Just 20)
 
       it "should not exceed cost when calling scalar proc" $ do
         cost <- exec pool [str| {"a": 3, "b": 4} |] $
-          requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True False
+          requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True Nothing
         liftIO $
           cost `shouldSatisfy` (< Just 10)
+
+      context "params=multiple-objects" $ do
+        it "should not exceed cost when calling setof composite proc" $ do
+          cost <- exec pool [str| [{"id": 1}, {"id": 4}] |] $
+            requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False (Just MultipleObjects)
+          liftIO $ do
+            cost `shouldSatisfy` (> Just 2000)
+            cost `shouldSatisfy` (< Just 2100)
+
+        it "should not exceed cost when calling scalar proc" $ do
+          cost <- exec pool [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |] $
+            requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True Nothing
+          liftIO $
+            cost `shouldSatisfy` (< Just 10)
+
 
 exec :: P.Pool -> ByteString -> SqlQuery -> IO (Maybe Int64)
 exec pool input query =

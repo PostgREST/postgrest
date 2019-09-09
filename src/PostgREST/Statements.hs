@@ -118,9 +118,9 @@ standardRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Text [GucHeader])
 
 callProcStatement :: Bool -> SqlQuery -> SqlQuery -> SqlQuery -> Bool ->
-                     Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                      H.Statement ByteString ProcResults
-callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary binaryField pgVer =
+callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
   unicodeStatement sql (param HE.unknown) decodeProc True
   where
     sql = [qc|
@@ -134,21 +134,18 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
 
     bodyF
      | returnsScalar = scalarBodyF
-     | isSingle = asJsonSingleF
+     | isSingle     = asJsonSingleF
      | asCsv = asCsvF
      | isJust binaryField = asBinaryF $ fromJust binaryField
      | otherwise = asJsonF
 
     scalarBodyF
-     | asBinary = asBinaryF "_scalar_res"
-     | otherwise = unwords [
-        "CASE",
-          "WHEN pg_catalog.count(_postgrest_t) = 1",
-            "THEN (json_agg(_postgrest_t._scalar_res)->0)::character varying",
-            "ELSE (json_agg(_postgrest_t._scalar_res))::character varying",
-        "END"]
+     | asBinary    = asBinaryF "pgrst_scalar"
+     | multObjects = "json_agg(_postgrest_t.pgrst_scalar)::character varying"
+     | otherwise   = "(json_agg(_postgrest_t.pgrst_scalar)->0)::character varying"
 
     countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
+
     responseHeaders =
       if pgVer >= pgVersion96
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15

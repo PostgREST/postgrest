@@ -3,6 +3,7 @@ Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module PostgREST.ApiRequest (
   ApiRequest(..)
@@ -65,6 +66,7 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetDefaultSpec -- The default spec offered at root "/"
             | TargetUnknown [Text]
             deriving Eq
+
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 
@@ -77,43 +79,43 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 -}
 data ApiRequest = ApiRequest {
   -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-    iAction                      :: Action
+    iAction               :: Action
   -- | Requested range of rows within response
-  , iRange                       :: M.HashMap ByteString NonnegRange
+  , iRange                :: M.HashMap ByteString NonnegRange
   -- | Requested range of rows from the top level
-  , iTopLevelRange               :: NonnegRange
+  , iTopLevelRange        :: NonnegRange
   -- | The target, be it calling a proc or accessing a table
-  , iTarget                      :: Target
+  , iTarget               :: Target
   -- | Content types the client will accept, [CTAny] if no Accept header
-  , iAccepts                     :: [ContentType]
+  , iAccepts              :: [ContentType]
   -- | Data sent by client and used for mutation actions
-  , iPayload                     :: Maybe PayloadJSON
+  , iPayload              :: Maybe PayloadJSON
   -- | If client wants created items echoed back
-  , iPreferRepresentation        :: PreferRepresentation
-  -- | Pass all parameters as a single json object to a stored procedure
-  , iPreferSingleObjectParameter :: Bool
+  , iPreferRepresentation :: PreferRepresentation
+  -- | How to pass parameters to a stored procedure
+  , iPreferParameters     :: Maybe PreferParameters
   -- | Whether the client wants a result count (slower)
-  , iPreferCount                 :: Bool
+  , iPreferCount          :: Bool
   -- | Whether the client wants to UPSERT or ignore records on PK conflict
-  , iPreferResolution            :: Maybe PreferResolution
+  , iPreferResolution     :: Maybe PreferResolution
   -- | Filters on the result ("id", "eq.10")
-  , iFilters                     :: [(Text, Text)]
+  , iFilters              :: [(Text, Text)]
   -- | &and and &or parameters used for complex boolean logic
-  , iLogic                       :: [(Text, Text)]
+  , iLogic                :: [(Text, Text)]
   -- | &select parameter used to shape the response
-  , iSelect                      :: Text
+  , iSelect               :: Text
   -- | &columns parameter used to shape the payload
-  , iColumns                     :: Maybe Text
+  , iColumns              :: Maybe Text
   -- | &order parameters for each level
-  , iOrder                       :: [(Text, Text)]
+  , iOrder                :: [(Text, Text)]
   -- | Alphabetized (canonical) request query string for response URLs
-  , iCanonicalQS                 :: ByteString
+  , iCanonicalQS          :: ByteString
   -- | JSON Web Token
-  , iJWT                         :: Text
+  , iJWT                  :: Text
   -- | HTTP request headers
-  , iHeaders                     :: [(Text, Text)]
+  , iHeaders              :: [(Text, Text)]
   -- | Request Cookies
-  , iCookies                     :: [(Text, Text)]
+  , iCookies              :: [(Text, Text)]
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -130,11 +132,13 @@ userApiRequest schema rootSpec req reqBody
       , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
-      , iPreferSingleObjectParameter = singleObject
+      , iPreferParameters = if | hasPrefer (show SingleObject)     -> Just SingleObject
+                               | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
+                               | otherwise                         -> Nothing
       , iPreferCount = hasPrefer "count=exact"
-      , iPreferResolution = if hasPrefer (show MergeDuplicates) then Just MergeDuplicates
-                            else if hasPrefer (show IgnoreDuplicates) then Just IgnoreDuplicates
-                            else Nothing
+      , iPreferResolution = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
+                               | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
+                               | otherwise                         -> Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS $ fromMaybe "*" $ join $ lookup "select" qParams
@@ -243,7 +247,6 @@ userApiRequest schema rootSpec req reqBody
     where
         split :: BS.ByteString -> [Text]
         split = map T.strip . T.split (==',') . toS
-  singleObject    = hasPrefer "params=single-object"
   representation
     | hasPrefer "return=representation" = Full
     | hasPrefer "return=minimal" = None

@@ -91,7 +91,7 @@ postgrest conf refDbStructure pool getTime worker =
                     (Just RawJSON{}, Just cls)      -> cls
                     _                               -> S.empty
                   proc = case iTarget apiRequest of
-                    TargetProc qi _ -> findProc qi cols (iPreferSingleObjectParameter apiRequest) $ dbProcs dbStructure
+                    TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
                     _ -> Nothing
                   handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
                   txMode = transactionMode proc (iAction apiRequest)
@@ -280,10 +280,11 @@ app dbStructure proc cols conf apiRequest =
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
               let
-                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar $
-                        iPreferSingleObjectParameter apiRequest
+                preferParams = iPreferParameters apiRequest
+                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
-                        (contentType == CTTextCSV) (contentType `elem` rawContentTypes) bField (pgVersion dbStructure)
+                        (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
+                        bField (pgVersion dbStructure)
               row <- H.statement (toS $ pjRaw pJson) stm
               let (tableTotal, queryTotal, body, gucHeaders) = row
                   (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal

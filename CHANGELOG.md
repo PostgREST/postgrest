@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1383, Add support for HEAD request - @steve-chavez
 
+### Changed
+
+- #1385, bulk RPC call now should be done by specifying a `Prefer: params=multiple-objects` header - @steve-chavez
+
 ### Fixed
 
 ## [6.0.2] - 2019-08-22
