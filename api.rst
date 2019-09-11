@@ -602,7 +602,7 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
 
 .. warning::
 
-   Is not guaranteed that all kinds of views will be embeddable. In particular, views that contain
+   It's not guaranteed that all kinds of views will be embeddable. In particular, views that contain
    UNIONs will not be made embeddable.
 
    Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/11/catalog-pg-rewrite.html>`_.
@@ -780,12 +780,14 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
 Bulk Call
 ---------
 
-It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert`.
+It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert`. To do this, you need to add the
+``Prefer: params=multiple-objects`` header to your request.
 
 .. code-block:: http
 
    POST /rpc/add_them HTTP/1.1
    Content-Type: application/json
+   Prefer: params=multiple-objects
 
    [
       {"a": 1, "b": 2},
