@@ -61,6 +61,7 @@ import PostgREST.QueryBuilder     (requestToCallProcQuery,
 import PostgREST.RangeQuery       (allRange, contentRangeH,
                                    rangeStatusHeader)
 import PostgREST.Statements       (callProcStatement,
+                                   createExplainStatement,
                                    createReadStatement,
                                    createWriteStatement)
 import PostgREST.Types
@@ -130,9 +131,14 @@ app dbStructure proc cols conf apiRequest =
             Right ((q, cq), bField) -> do
               let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount
                                             (contentType == CTTextCSV) bField
+                  estimatedCount = iPreferCount apiRequest == Just EstimatedCount
               row <- H.statement () stm
+              estimatedTotal <- if estimatedCount
+                                  then H.statement () $ createExplainStatement cq
+                                  else pure Nothing
               let (tableTotal, queryTotal, _ , body) = row
-                  (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
+                  (status, contentRange) = rangeStatusHeader topLevelRange queryTotal $
+                                           if estimatedCount then estimatedTotal else tableTotal
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
                   then errorResponseFor . singularityError $ queryTotal
@@ -317,14 +323,14 @@ app dbStructure proc cols conf apiRequest =
 
     where
       notFound = responseLBS status404 [] ""
-      shouldCount = iPreferCount apiRequest
+      shouldCount = iPreferCount apiRequest == Just ExactCount
       topLevelRange = iTopLevelRange apiRequest
       schema = toS $ configSchema conf
       readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) proc apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       selectQuery = requestToQuery schema False <$> readDbRequest
-      countQuery = requestToCountQuery schema <$> readDbRequest
+      countQuery = requestToCountQuery schema shouldCount <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames
       mutateSqlParts s t =

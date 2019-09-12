@@ -1100,7 +1100,7 @@ CREATE FUNCTION getallprojects() RETURNS SETOF projects
     LANGUAGE sql
     AS $_$
     SELECT * FROM test.projects;
-$_$;
+$_$ ROWS 2019;
 
 CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF projects
     LANGUAGE sql
@@ -1730,3 +1730,6 @@ select $$
 </html>
 $$::text;
 $_$ language sql;
+
+create view getallprojects_view as
+select * from getallprojects();

@@ -70,6 +70,7 @@ data Target = TargetIdent QualifiedIdentifier
 -- | How to return the inserted data
 data PreferRepresentation = Full | HeadersOnly | None deriving Eq
 
+
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
@@ -94,8 +95,8 @@ data ApiRequest = ApiRequest {
   , iPreferRepresentation :: PreferRepresentation
   -- | How to pass parameters to a stored procedure
   , iPreferParameters     :: Maybe PreferParameters
-  -- | Whether the client wants a result count (slower)
-  , iPreferCount          :: Bool
+  -- | Whether the client wants a result count
+  , iPreferCount          :: Maybe PreferCount
   -- | Whether the client wants to UPSERT or ignore records on PK conflict
   , iPreferResolution     :: Maybe PreferResolution
   -- | Filters on the result ("id", "eq.10")
@@ -135,7 +136,9 @@ userApiRequest schema rootSpec req reqBody
       , iPreferParameters = if | hasPrefer (show SingleObject)     -> Just SingleObject
                                | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
                                | otherwise                         -> Nothing
-      , iPreferCount = hasPrefer "count=exact"
+      , iPreferCount      = if | hasPrefer (show ExactCount)       -> Just ExactCount
+                               | hasPrefer (show EstimatedCount)   -> Just EstimatedCount
+                               | otherwise                         -> Nothing
       , iPreferResolution = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
                                | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
                                | otherwise                         -> Nothing

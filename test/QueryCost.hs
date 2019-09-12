@@ -37,7 +37,7 @@ main = do
         cost <- exec pool mempty $
           requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] False Nothing
         liftIO $
-          cost `shouldSatisfy` (< Just 20)
+          cost `shouldSatisfy` (< Just 30)
 
       it "should not exceed cost when calling scalar proc" $ do
         cost <- exec pool [str| {"a": 3, "b": 4} |] $

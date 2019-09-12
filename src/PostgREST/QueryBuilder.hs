@@ -32,17 +32,6 @@ import PostgREST.Types
 import Protolude                      hiding (cast, intercalate,
                                        replace)
 
-requestToCountQuery :: Schema -> DbRequest -> SqlQuery
-requestToCountQuery _ (DbMutate _) = witness
-requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
- unwords [
-   "SELECT pg_catalog.count(*)",
-   "FROM ", fromQi qi,
-    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
-   ]
- where
-   qi = removeSourceCTESchema schema mainTbl
-
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias implJoins logicForest joinConditions_ ordts range, _) forest)) =
   unwords [
@@ -176,6 +165,21 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
 
     callIt :: SqlFragment
     callIt = fromQi qi <> "(" <> args <> ")"
+
+
+-- | SQL query that only counts the root node of the DbRead Tree. It doesn't consider other nodes of the tree.
+-- | It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the real COUNT.
+-- | doCount is used for actual COUNTing, if it's not used, EXPLAIN is used for obtaining an estimate COUNT.
+requestToCountQuery :: Schema -> Bool -> DbRequest -> SqlQuery
+requestToCountQuery _ _ (DbMutate _) = witness
+requestToCountQuery schema doCount (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
+ unwords [
+   "SELECT " <> if doCount then "pg_catalog.count(*)" else "*",
+   "FROM ", fromQi qi,
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
+   ]
+ where
+   qi = removeSourceCTESchema schema mainTbl
 
 setLocalQuery :: Text -> (Text, Text) -> SqlQuery
 setLocalQuery prefix (k, v) =

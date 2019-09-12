@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - #1383, Add support for HEAD request - @steve-chavez
+- #1378, Add support for `Prefer: count=estimated` on GET /table - @steve-chavez
 
 ### Changed
 

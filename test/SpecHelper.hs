@@ -149,6 +149,10 @@ setupDb dbConn = do
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"
 
+analyzeTable :: Text -> Text -> IO ()
+analyzeTable dbConn tableName =
+  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
+
 loadFixture :: Text -> FilePath -> IO()
 loadFixture dbConn name =
   void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []

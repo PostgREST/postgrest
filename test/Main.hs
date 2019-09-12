@@ -78,8 +78,11 @@ main = do
       rootSpecApp          = return $ postgrest (testCfgRootSpec testDbConn)          refDbStructure pool getTime $ pure ()
       htmlRawOutputApp     = return $ postgrest (testCfgHtmlRawOutput testDbConn)     refDbStructure pool getTime $ pure ()
 
-  let reset :: IO ()
+  let reset, analyze :: IO ()
       reset = resetDb testDbConn
+      analyze = do
+        analyzeTable testDbConn "items"
+        analyzeTable testDbConn "child_entities"
 
       actualPgVersion = pgVersion dbStructure
       extraSpecs =
@@ -95,7 +98,6 @@ main = do
         , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"              , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RpcSpec"                , Feature.RpcSpec.spec actualPgVersion)
-        , ("Feature.RangeSpec"              , Feature.RangeSpec.spec)
         , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec actualPgVersion)
         ] ++ extraSpecs
@@ -111,6 +113,10 @@ main = do
     mapM_ (afterAll_ reset . before withApp) mutSpecs
 
     mapM_ (before withApp) specs
+
+    -- we analyze to get accurate results from EXPLAIN
+    beforeAll_ analyze . before withApp $
+      describe "Feature.RangeSpec" Feature.RangeSpec.spec
 
     -- this test runs with a raw-output-media-types set to text/html
     before htmlRawOutputApp $

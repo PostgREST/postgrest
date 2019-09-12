@@ -13,9 +13,13 @@ module PostgREST.Statements (
     createWriteStatement
   , createReadStatement
   , callProcStatement
+  , createExplainStatement
 ) where
 
+
+import           Control.Lens                   ((^?))
 import           Data.Aeson                     as JSON
+import qualified Data.Aeson.Lens                as L
 import qualified Data.ByteString.Char8          as BS
 import           Data.Maybe
 import           Data.Text                      (intercalate, unwords)
@@ -88,7 +92,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
   sql = [qc|
       WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
       FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
-  countResultF = if countTotal then "("<>countQuery<>")" else "null"
+  countResultF = if countTotal then "(" <> countQuery <> ")" else "null"
   cols = intercalate ", " [
       countResultF <> " AS total_result_set",
       "pg_catalog.count(_postgrest_t) AS page_total",
@@ -158,6 +162,24 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
       where
         procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                         <*> column HD.bytea <*> column HD.bytea
+
+createExplainStatement :: SqlQuery -> H.Statement () (Maybe Int64)
+createExplainStatement countQuery =
+  unicodeStatement sql HE.noParams decodeExplain False
+  where
+    sql = [qc| EXPLAIN (FORMAT JSON) {countQuery} |]
+    -- |
+    -- An `EXPLAIN (FORMAT JSON) select * from items;` output looks like this:
+    -- [{
+    --   "Plan": {
+    --     "Node Type": "Seq Scan", "Parallel Aware": false, "Relation Name": "items",
+    --     "Alias": "items", "Startup Cost": 0.00, "Total Cost": 32.60,
+    --     "Plan Rows": 2260,"Plan Width": 8} }]
+    -- We only obtain the Plan Rows here.
+    decodeExplain :: HD.Result (Maybe Int64)
+    decodeExplain =
+      let row = HD.singleRow $ column HD.bytea in
+      (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
 unicodeStatement = H.Statement . encodeUtf8

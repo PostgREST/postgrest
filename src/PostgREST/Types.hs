@@ -76,6 +76,15 @@ instance Show PreferParameters where
   show SingleObject    = "params=single-object"
   show MultipleObjects = "params=multiple-objects"
 
+data PreferCount
+  = ExactCount     -- ^ exact count(slower)
+  | EstimatedCount -- ^ estimated count using EXPLAIN rows
+  deriving Eq
+
+instance Show PreferCount where
+  show ExactCount     = "count=exact"
+  show EstimatedCount = "count=estimated"
+
 data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]
