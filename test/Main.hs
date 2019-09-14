@@ -65,7 +65,7 @@ main = do
   refDbStructure <- newIORef $ Just dbStructure
 
   let withApp              = return $ postgrest (testCfg testDbConn)                  refDbStructure pool getTime $ pure ()
-      ltdApp               = return $ postgrest (testLtdRowsCfg testDbConn)           refDbStructure pool getTime $ pure ()
+      maxRowsApp           = return $ postgrest (testMaxRowsCfg testDbConn)           refDbStructure pool getTime $ pure ()
       unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)           refDbStructure pool getTime $ pure ()
       proxyApp             = return $ postgrest (testProxyCfg testDbConn)             refDbStructure pool getTime $ pure ()
       noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)             refDbStructure pool getTime $ pure ()
@@ -123,7 +123,7 @@ main = do
       describe "Feature.HtmlRawOutputSpec" Feature.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
-    before ltdApp $
+    before maxRowsApp $
       describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
 
     -- this test runs with a different schema

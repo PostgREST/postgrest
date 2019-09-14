@@ -138,6 +138,7 @@ userApiRequest schema rootSpec req reqBody
                                | otherwise                         -> Nothing
       , iPreferCount      = if | hasPrefer (show ExactCount)       -> Just ExactCount
                                | hasPrefer (show EstimatedCount)   -> Just EstimatedCount
+                               | hasPrefer (show OverfetchedCount) -> Just OverfetchedCount
                                | otherwise                         -> Nothing
       , iPreferResolution = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
                                | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates

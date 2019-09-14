@@ -90,15 +90,18 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
   unicodeStatement sql HE.noParams decodeStandard False
  where
   sql = [qc|
-      WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
+      WITH
+      {sourceCTEName} AS ({selectQuery})
+      {countCTEF}
+      SELECT
+        {countResultF} AS total_result_set,
+        pg_catalog.count(_postgrest_t) AS page_total,
+        {noLocationF} AS header,
+        {bodyF} AS body
       FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
-  countResultF = if countTotal then "(" <> countQuery <> ")" else "null"
-  cols = intercalate ", " [
-      countResultF <> " AS total_result_set",
-      "pg_catalog.count(_postgrest_t) AS page_total",
-      noLocationF <> " AS header",
-      bodyF <> " AS body"
-    ]
+
+  (countCTEF, countResultF) = countF countQuery countTotal
+
   bodyF
     | asCsv = asCsvF
     | isSingle = asJsonSingleF
@@ -129,12 +132,15 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
   where
     sql = [qc|
       WITH {sourceCTEName} AS ({callProcQuery})
+      {countCTEF}
       SELECT
         {countResultF} AS total_result_set,
         pg_catalog.count(_postgrest_t) AS page_total,
         {bodyF} AS body,
         {responseHeaders} AS response_headers
       FROM ({selectQuery}) _postgrest_t;|]
+
+    (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
      | returnsScalar = scalarBodyF
@@ -147,8 +153,6 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
      | asBinary    = asBinaryF "pgrst_scalar"
      | multObjects = "json_agg(_postgrest_t.pgrst_scalar)::character varying"
      | otherwise   = "(json_agg(_postgrest_t.pgrst_scalar)->0)::character varying"
-
-    countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
 
     responseHeaders =
       if pgVer >= pgVersion96

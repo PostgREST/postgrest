@@ -10,6 +10,7 @@ Some of its functionality includes:
 - Content Negotiation
 -}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -55,7 +56,8 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (requestToCallProcQuery,
+import PostgREST.QueryBuilder     (limitedQuery,
+                                   requestToCallProcQuery,
                                    requestToCountQuery,
                                    requestToQuery)
 import PostgREST.RangeQuery       (allRange, contentRangeH,
@@ -129,16 +131,20 @@ app dbStructure proc cols conf apiRequest =
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let stm = createReadStatement q cq (contentType == CTSingularJSON) shouldCount
-                                            (contentType == CTTextCSV) bField
-                  estimatedCount = iPreferCount apiRequest == Just EstimatedCount
+              let cQuery = if overfetchedCount
+                             then limitedQuery cq ((+ 1) <$> maxRows) -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
+                             else cq
+                  stm = createReadStatement q cQuery (contentType == CTSingularJSON) shouldCount
+                        (contentType == CTTextCSV) bField
+                  explStm = createExplainStatement cq
               row <- H.statement () stm
-              estimatedTotal <- if estimatedCount
-                                  then H.statement () $ createExplainStatement cq
-                                  else pure Nothing
               let (tableTotal, queryTotal, _ , body) = row
-                  (status, contentRange) = rangeStatusHeader topLevelRange queryTotal $
-                                           if estimatedCount then estimatedTotal else tableTotal
+              total <- if | estimatedCount   -> H.statement () explStm
+                          | overfetchedCount -> if tableTotal > (fromIntegral <$> maxRows)
+                                                  then H.statement () explStm
+                                                  else pure tableTotal
+                          | otherwise        -> pure tableTotal
+              let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
                   then errorResponseFor . singularityError $ queryTotal
@@ -323,14 +329,18 @@ app dbStructure proc cols conf apiRequest =
 
     where
       notFound = responseLBS status404 [] ""
-      shouldCount = iPreferCount apiRequest == Just ExactCount
-      topLevelRange = iTopLevelRange apiRequest
       schema = toS $ configSchema conf
-      readReq = readRequest (configMaxRows conf) (dbRelations dbStructure) proc apiRequest
+      maxRows = configMaxRows conf
+      exactCount = iPreferCount apiRequest == Just ExactCount
+      estimatedCount = iPreferCount apiRequest == Just EstimatedCount
+      overfetchedCount = iPreferCount apiRequest == Just OverfetchedCount
+      shouldCount = exactCount || overfetchedCount
+      topLevelRange = iTopLevelRange apiRequest
+      readReq = readRequest maxRows (dbRelations dbStructure) proc apiRequest
       fldNames = fieldNames <$> readReq
       readDbRequest = DbRead <$> readReq
       selectQuery = requestToQuery schema False <$> readDbRequest
-      countQuery = requestToCountQuery schema shouldCount <$> readDbRequest
+      countQuery = requestToCountQuery schema <$> readDbRequest
       readSqlParts = (,) <$> selectQuery <*> countQuery
       mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames
       mutateSqlParts s t =

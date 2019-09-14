@@ -77,13 +77,15 @@ instance Show PreferParameters where
   show MultipleObjects = "params=multiple-objects"
 
 data PreferCount
-  = ExactCount     -- ^ exact count(slower)
-  | EstimatedCount -- ^ estimated count using EXPLAIN rows
+  = ExactCount       -- ^ exact count(slower)
+  | EstimatedCount   -- ^ estimated count using EXPLAIN rows
+  | OverfetchedCount -- ^ use EXPLAIN rows if the count is superior to max-rows, otherwise get the real count.
   deriving Eq
 
 instance Show PreferCount where
-  show ExactCount     = "count=exact"
-  show EstimatedCount = "count=estimated"
+  show ExactCount       = "count=exact"
+  show EstimatedCount   = "count=estimated"
+  show OverfetchedCount = "count=estimated-overfetched"
 
 data DbStructure = DbStructure {
   dbTables      :: [Table]

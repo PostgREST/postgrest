@@ -93,8 +93,8 @@ testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 testUnicodeCfg :: Text -> AppConfig
 testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
 
-testLtdRowsCfg :: Text -> AppConfig
-testLtdRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
+testMaxRowsCfg :: Text -> AppConfig
+testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
 
 testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }

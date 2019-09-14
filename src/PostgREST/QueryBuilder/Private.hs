@@ -185,3 +185,13 @@ trimNullChars = T.takeWhile (/= '\x0')
 
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
 removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
+
+countF :: SqlQuery -> Bool -> (SqlFragment, SqlFragment)
+countF countQuery shouldCount =
+  if shouldCount
+    then (
+        ", pg_source_count AS (" <> countQuery <> ")"
+      , "(SELECT pg_catalog.count(*) FROM pg_source_count)" )
+    else (
+        mempty
+      , "null::bigint")
