@@ -141,7 +141,8 @@ app dbStructure proc cols conf apiRequest =
               let (tableTotal, queryTotal, _ , body) = row
               total <- if | estimatedCount   -> H.statement () explStm
                           | overfetchedCount -> if tableTotal > (fromIntegral <$> maxRows)
-                                                  then H.statement () explStm
+                                                  then do estTotal <- H.statement () explStm
+                                                          pure $ if estTotal > tableTotal then estTotal else tableTotal
                                                   else pure tableTotal
                           | otherwise        -> pure tableTotal
               let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total

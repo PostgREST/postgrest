@@ -1096,6 +1096,12 @@ CREATE FUNCTION get_projects_below(id int) RETURNS SETOF projects
     SELECT * FROM test.projects WHERE id < $1;
 $_$;
 
+CREATE FUNCTION get_projects_above(id int) RETURNS SETOF projects
+    LANGUAGE sql
+    AS $_$
+    SELECT * FROM test.projects WHERE id > $1;
+$_$ ROWS 1;
+
 CREATE FUNCTION getallprojects() RETURNS SETOF projects
     LANGUAGE sql
     AS $_$
@@ -1733,3 +1739,6 @@ $_$ language sql;
 
 create view getallprojects_view as
 select * from getallprojects();
+
+create view get_projects_above_view as
+select * from get_projects_above(1);

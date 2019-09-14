@@ -57,3 +57,10 @@ spec =
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-1/2"]
           }
+
+      it "only uses the estimate if it's indeed greater than maxRows" $
+        request methodHead "/get_projects_above_view" [("Prefer", "count=estimated-overfetched")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-1/3"]
+          }
