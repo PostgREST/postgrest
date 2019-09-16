@@ -43,23 +43,23 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
-    context "count=estimated-overfetched" $ do
-      it "estimates when query rows > maxRows" $
-        request methodHead "/getallprojects_view" [("Prefer", "count=estimated-overfetched")] ""
+    context "count=estimated" $ do
+      it "uses the query planner guess when query rows > maxRows" $
+        request methodHead "/getallprojects_view" [("Prefer", "count=estimated")] ""
           `shouldRespondWith` ""
           { matchStatus  = 206
           , matchHeaders = ["Content-Range" <:> "0-1/2019"]
           }
 
       it "gives exact count when query rows <= maxRows" $
-        request methodHead "/getallprojects_view?id=lt.3" [("Prefer", "count=estimated-overfetched")] ""
+        request methodHead "/getallprojects_view?id=lt.3" [("Prefer", "count=estimated")] ""
           `shouldRespondWith` ""
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-1/2"]
           }
 
-      it "only uses the estimate if it's indeed greater than maxRows" $
-        request methodHead "/get_projects_above_view" [("Prefer", "count=estimated-overfetched")] ""
+      it "only uses the query planner guess if it's indeed greater than the exact count" $
+        request methodHead "/get_projects_above_view" [("Prefer", "count=estimated")] ""
           `shouldRespondWith` ""
           { matchStatus  = 206
           , matchHeaders = ["Content-Range" <:> "0-1/3"]

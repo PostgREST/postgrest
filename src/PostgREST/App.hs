@@ -131,7 +131,7 @@ app dbStructure proc cols conf apiRequest =
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
-              let cQuery = if overfetchedCount
+              let cQuery = if estimatedCount
                              then limitedQuery cq ((+ 1) <$> maxRows) -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
                              else cq
                   stm = createReadStatement q cQuery (contentType == CTSingularJSON) shouldCount
@@ -139,12 +139,12 @@ app dbStructure proc cols conf apiRequest =
                   explStm = createExplainStatement cq
               row <- H.statement () stm
               let (tableTotal, queryTotal, _ , body) = row
-              total <- if | estimatedCount   -> H.statement () explStm
-                          | overfetchedCount -> if tableTotal > (fromIntegral <$> maxRows)
-                                                  then do estTotal <- H.statement () explStm
-                                                          pure $ if estTotal > tableTotal then estTotal else tableTotal
-                                                  else pure tableTotal
-                          | otherwise        -> pure tableTotal
+              total <- if | plannedCount   -> H.statement () explStm
+                          | estimatedCount -> if tableTotal > (fromIntegral <$> maxRows)
+                                                then do estTotal <- H.statement () explStm
+                                                        pure $ if estTotal > tableTotal then estTotal else tableTotal
+                                                else pure tableTotal
+                          | otherwise      -> pure tableTotal
               let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total
               return $
                 if contentType == CTSingularJSON && queryTotal /= 1
@@ -334,8 +334,8 @@ app dbStructure proc cols conf apiRequest =
       maxRows = configMaxRows conf
       exactCount = iPreferCount apiRequest == Just ExactCount
       estimatedCount = iPreferCount apiRequest == Just EstimatedCount
-      overfetchedCount = iPreferCount apiRequest == Just OverfetchedCount
-      shouldCount = exactCount || overfetchedCount
+      plannedCount = iPreferCount apiRequest == Just PlannedCount
+      shouldCount = exactCount || estimatedCount
       topLevelRange = iTopLevelRange apiRequest
       readReq = readRequest maxRows (dbRelations dbStructure) proc apiRequest
       fldNames = fieldNames <$> readReq
