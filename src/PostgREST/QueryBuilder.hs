@@ -170,6 +170,8 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
 
 -- | SQL query meant for COUNTing the root node of the DbRead Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
+-- SELECT 1 is done instead of SELECT * to prevent doing expensive operations(like functions based on the columns)
+-- inside the FROM target.
 requestToCountQuery :: Schema -> DbRequest -> SqlQuery
 requestToCountQuery _ (DbMutate _) = witness
 requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
