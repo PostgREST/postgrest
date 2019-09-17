@@ -10,7 +10,7 @@ All views and tables in the exposed schema and accessible by the active database
 
   GET /people HTTP/1.1
 
-There are no deeply/nested/routes. Each route provides OPTIONS, GET, POST, PATCH, and DELETE verbs depending entirely on database permissions.
+There are no deeply/nested/routes. Each route provides OPTIONS, GET, HEAD, POST, PATCH, and DELETE verbs depending entirely on database permissions.
 
 .. note::
 
