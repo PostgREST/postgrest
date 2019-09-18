@@ -371,12 +371,16 @@ The other way to request a limit or offset is with query parameters. For example
 
 This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
 
-In order to obtain the total size of the table or view (such as when rendering the last page link in a pagination control), specify your preference in a request header:
+.. _exact_count:
 
+Exact Count
+~~~~~~~~~~~
+
+In order to obtain the total size of the table or view (such as when rendering the last page link in a pagination control), specify ``Prefer: count=exact`` as a request header:
 
 .. code-block:: http
 
-  GET /bigtable HTTP/1.1
+  HEAD /bigtable HTTP/1.1
   Range-Unit: items
   Range: 0-24
   Prefer: count=exact
@@ -388,6 +392,28 @@ Note that the larger the table the slower this query runs in the database. The s
   HTTP/1.1 206 Partial Content
   Range-Unit: items
   Content-Range: 0-24/3573458
+
+.. _planned_count:
+
+Planned Count
+~~~~~~~~~~~~~
+
+To avoid the shortcomings of :ref:`exact count <exact_count>`, PostgREST can leverage PostgreSQL statistics and get a fairly accurate and fast count.
+To do this, specify the ``Prefer: count=planned`` header.
+
+.. code-block:: http
+
+  HEAD /bigtable?limit=25 HTTP/1.1
+  Prefer: count=planned
+
+.. code-block:: http
+
+  HTTP/1.1 206 Partial Content
+  Content-Range: 0-24/3572000
+
+Note that the accuracy of this count depends how up-to-date are the PostgreSQL statistics tables.
+For example in this case, to increase the accuracy of the count you can do ``ANALYZE bigtable``.
+See `ANALYZE <https://www.postgresql.org/docs/11/sql-analyze.html>`_ for more details.
 
 .. _res_format:
 

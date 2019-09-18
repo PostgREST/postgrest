@@ -32,7 +32,7 @@ The first step is to create an Nginx configuration file that proxies requests to
 
 .. note::
 
-  For ubuntu, if you already installed nginx through :code:`apt` you can add this to the config file in 
+  For ubuntu, if you already installed nginx through :code:`apt` you can add this to the config file in
   :code:`/etc/nginx/sites-enabled/default`.
 
 .. _block_fulltable:
@@ -87,10 +87,6 @@ This is fine in small tables, but count performance degrades in big tables due t
 .. code-block:: postgres
 
   -- Pending nginx config: Remove any prefer header which contains the word count
-
-.. note::
-
-  In future versions we will support :code:`Prefer: count=estimated` to leverage the PostgreSQL statistics tables for a fast (and fairly accurate) result.
 
 .. _hardening_https:
 
