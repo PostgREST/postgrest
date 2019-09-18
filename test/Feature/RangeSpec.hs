@@ -197,6 +197,65 @@ spec = do
           , matchHeaders = [matchContentTypeJson]
           }
 
+    context "when count=planned" $ do
+      it "obtains a filtered range" $ do
+        request methodGet "/items?select=id&id=gt.8" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` [json|[{"id":9}, {"id":10}, {"id":11}, {"id":12}, {"id":13}, {"id":14}, {"id":15}]|]
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-6/8"]
+          }
+        request methodGet "/child_entities?select=id&id=gt.3" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` [json|[{"id":4}, {"id":5}, {"id":6}]|]
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-2/4"]
+          }
+        request methodGet "/getallprojects_view?select=id&id=lt.3" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` [json|[{"id":1}, {"id":2}]|]
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-1/673"]
+          }
+
+      it "obtains the full range" $ do
+        request methodHead "/items" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "0-14/15"]
+          }
+        request methodHead "/child_entities" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "0-5/6"]
+          }
+        request methodHead "/getallprojects_view" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-4/2019"]
+          }
+
+      it "ignores limit/offset on the planned count" $ do
+        request methodHead "/items?limit=2&offset=3" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "3-4/15"]
+          }
+        request methodHead "/child_entities?limit=2" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-1/6"]
+          }
+        request methodHead "/getallprojects_view?limit=2" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 206
+          , matchHeaders = ["Content-Range" <:> "0-1/2019"]
+          }
+
+      it "works with two levels" $
+        request methodHead "/child_entities?select=*,entities(*)" [("Prefer", "count=planned")] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "0-5/6"]
+          }
+
     context "with range headers" $ do
       context "of acceptable range" $ do
         it "succeeds with partial content" $ do

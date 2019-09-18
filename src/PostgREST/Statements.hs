@@ -13,9 +13,13 @@ module PostgREST.Statements (
     createWriteStatement
   , createReadStatement
   , callProcStatement
+  , createExplainStatement
 ) where
 
+
+import           Control.Lens                   ((^?))
 import           Data.Aeson                     as JSON
+import qualified Data.Aeson.Lens                as L
 import qualified Data.ByteString.Char8          as BS
 import           Data.Maybe
 import           Data.Text                      (intercalate, unwords)
@@ -86,15 +90,18 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
   unicodeStatement sql HE.noParams decodeStandard False
  where
   sql = [qc|
-      WITH {sourceCTEName} AS ({selectQuery}) SELECT {cols}
+      WITH
+      {sourceCTEName} AS ({selectQuery})
+      {countCTEF}
+      SELECT
+        {countResultF} AS total_result_set,
+        pg_catalog.count(_postgrest_t) AS page_total,
+        {noLocationF} AS header,
+        {bodyF} AS body
       FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
-  countResultF = if countTotal then "("<>countQuery<>")" else "null"
-  cols = intercalate ", " [
-      countResultF <> " AS total_result_set",
-      "pg_catalog.count(_postgrest_t) AS page_total",
-      noLocationF <> " AS header",
-      bodyF <> " AS body"
-    ]
+
+  (countCTEF, countResultF) = countF countQuery countTotal
+
   bodyF
     | asCsv = asCsvF
     | isSingle = asJsonSingleF
@@ -125,12 +132,15 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
   where
     sql = [qc|
       WITH {sourceCTEName} AS ({callProcQuery})
+      {countCTEF}
       SELECT
         {countResultF} AS total_result_set,
         pg_catalog.count(_postgrest_t) AS page_total,
         {bodyF} AS body,
         {responseHeaders} AS response_headers
       FROM ({selectQuery}) _postgrest_t;|]
+
+    (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
      | returnsScalar = scalarBodyF
@@ -144,8 +154,6 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
      | multObjects = "json_agg(_postgrest_t.pgrst_scalar)::character varying"
      | otherwise   = "(json_agg(_postgrest_t.pgrst_scalar)->0)::character varying"
 
-    countResultF = if countTotal then "( "<> countQuery <> ")" else "null::bigint" :: Text
-
     responseHeaders =
       if pgVer >= pgVersion96
         then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
@@ -158,6 +166,24 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
       where
         procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                         <*> column HD.bytea <*> column HD.bytea
+
+createExplainStatement :: SqlQuery -> H.Statement () (Maybe Int64)
+createExplainStatement countQuery =
+  unicodeStatement sql HE.noParams decodeExplain False
+  where
+    sql = [qc| EXPLAIN (FORMAT JSON) {countQuery} |]
+    -- |
+    -- An `EXPLAIN (FORMAT JSON) select * from items;` output looks like this:
+    -- [{
+    --   "Plan": {
+    --     "Node Type": "Seq Scan", "Parallel Aware": false, "Relation Name": "items",
+    --     "Alias": "items", "Startup Cost": 0.00, "Total Cost": 32.60,
+    --     "Plan Rows": 2260,"Plan Width": 8} }]
+    -- We only obtain the Plan Rows here.
+    decodeExplain :: HD.Result (Maybe Int64)
+    decodeExplain =
+      let row = HD.singleRow $ column HD.bytea in
+      (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
 unicodeStatement = H.Statement . encodeUtf8

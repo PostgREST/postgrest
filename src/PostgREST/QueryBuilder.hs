@@ -14,6 +14,7 @@ module PostgREST.QueryBuilder (
     requestToQuery
   , requestToCountQuery
   , requestToCallProcQuery
+  , limitedQuery
   , setLocalQuery
   , setLocalSearchPathQuery
   ) where
@@ -31,17 +32,6 @@ import PostgREST.RangeQuery           (allRange, rangeLimit,
 import PostgREST.Types
 import Protolude                      hiding (cast, intercalate,
                                        replace)
-
-requestToCountQuery :: Schema -> DbRequest -> SqlQuery
-requestToCountQuery _ (DbMutate _) = witness
-requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
- unwords [
-   "SELECT pg_catalog.count(*)",
-   "FROM ", fromQi qi,
-    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
-   ]
- where
-   qi = removeSourceCTESchema schema mainTbl
 
 requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
 requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias implJoins logicForest joinConditions_ ordts range, _) forest)) =
@@ -176,6 +166,25 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
 
     callIt :: SqlFragment
     callIt = fromQi qi <> "(" <> args <> ")"
+
+
+-- | SQL query meant for COUNTing the root node of the DbRead Tree.
+-- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
+-- SELECT 1 is done instead of SELECT * to prevent doing expensive operations(like functions based on the columns)
+-- inside the FROM target.
+requestToCountQuery :: Schema -> DbRequest -> SqlQuery
+requestToCountQuery _ (DbMutate _) = witness
+requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
+ unwords [
+   "SELECT 1",
+   "FROM " <> fromQi qi,
+   ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
+   ]
+ where
+   qi = removeSourceCTESchema schema mainTbl
+
+limitedQuery :: SqlQuery -> Maybe Integer -> SqlQuery
+limitedQuery query maxRows = query <> maybe mempty (\x -> " LIMIT " <> show x) maxRows
 
 setLocalQuery :: Text -> (Text, Text) -> SqlQuery
 setLocalQuery prefix (k, v) =

@@ -93,8 +93,8 @@ testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 testUnicodeCfg :: Text -> AppConfig
 testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
 
-testLtdRowsCfg :: Text -> AppConfig
-testLtdRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
+testMaxRowsCfg :: Text -> AppConfig
+testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
 
 testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }
@@ -148,6 +148,10 @@ setupDb dbConn = do
 
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"
+
+analyzeTable :: Text -> Text -> IO ()
+analyzeTable dbConn tableName =
+  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
 
 loadFixture :: Text -> FilePath -> IO()
 loadFixture dbConn name =

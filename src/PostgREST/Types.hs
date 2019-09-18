@@ -76,6 +76,17 @@ instance Show PreferParameters where
   show SingleObject    = "params=single-object"
   show MultipleObjects = "params=multiple-objects"
 
+data PreferCount
+  = ExactCount     -- ^ exact count(slower)
+  | PlannedCount   -- ^ PostgreSQL query planner rows count guess. Done by using EXPLAIN {query}.
+  | EstimatedCount -- ^ use the query planner rows if the count is superior to max-rows, otherwise get the exact count.
+  deriving Eq
+
+instance Show PreferCount where
+  show ExactCount     = "count=exact"
+  show PlannedCount   = "count=planned"
+  show EstimatedCount = "count=estimated"
+
 data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]
