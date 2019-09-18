@@ -13,7 +13,7 @@ Added
 * Support for HTTP HEAD requests.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Support for :ref:`planned_count`.
+* Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 Changed
