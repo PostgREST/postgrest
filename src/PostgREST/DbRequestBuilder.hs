@@ -14,7 +14,6 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
-, fieldNames
 ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -22,8 +21,6 @@ import qualified Data.HashMap.Strict   as M
 import qualified Data.Set              as S
 
 import Control.Arrow           ((***))
-import Control.Lens.Getter     (view)
-import Control.Lens.Tuple      (_1)
 import Data.Either.Combinators (mapLeft)
 import Data.Foldable           (foldr1)
 import Data.List               (delete)
@@ -37,77 +34,61 @@ import Data.Tree
 import Network.Wai
 
 import PostgREST.ApiRequest (Action (..), ApiRequest (..),
-                             PreferRepresentation (..),
-                             PreferRepresentation (..), Target (..))
+                             PreferRepresentation (..))
 import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
 import PostgREST.Parsers
 import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
 import PostgREST.Types
 import Protolude            hiding (from)
 
-readRequest :: Maybe Integer -> [Relation] -> Maybe ProcDescription -> ApiRequest -> Either Response ReadRequest
-readRequest maxRows allRels proc apiRequest  =
+readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Response ReadRequest
+readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft errorResponseFor $
   treeRestrictRange maxRows =<<
-  augumentRequestWithJoin schema relations =<<
+  augumentRequestWithJoin schema rootRels =<<
   addFiltersOrdersRanges apiRequest <*>
-  (buildReadRequest <$> pRequestSelect (iSelect apiRequest))
+  (initReadRequest rootName <$> pRequestSelect (iSelect apiRequest))
   where
-    action = iAction apiRequest
-    (schema, rootTableName) = fromJust $ -- Make it safe
-      let target = iTarget apiRequest in
-      case target of
-        (TargetIdent (QualifiedIdentifier s t) ) -> Just (s, t)
-        (TargetProc  (QualifiedIdentifier s pName) _ ) -> Just (s, tName)
-          where
-            tName = case pdReturnType <$> proc of
-              Just (SetOf (Composite qi))  -> qiName qi
-              Just (Single (Composite qi)) -> qiName qi
-              _                            -> pName
+    (rootName, rootRels) = rootWithRelations rootTableName allRels (iAction apiRequest)
 
-        _ -> Nothing
+-- Get the root table name with its relations according to the Action type.
+-- This is done because of the shape of the final SQL Query. The mutation cases are wrapped in a WITH {sourceCTEName}(see Statements.hs).
+-- So we need a FROM {sourceCTEName} instead of FROM {tableName}.
+rootWithRelations :: TableName -> [Relation] -> Action -> (TableName, [Relation])
+rootWithRelations rootTableName allRels action = case action of
+  ActionRead _ -> (rootTableName, allRels) -- normal read case
+  _            -> (sourceCTEName, mapMaybe toSourceRelation allRels ++ allRels) -- mutation cases and calling proc
+  where
+    -- in a relation where one of the tables matches "TableName"
+    -- replace the name to that table with pg_source
+    -- this "fake" relations is needed so that in a mutate query or proc call
+    -- we can look at the "returning *" part which is wrapped with a "with pg_source"
+    -- as just another table that has relations with other tables
+    toSourceRelation :: Relation -> Maybe Relation
+    toSourceRelation r@(Relation t _ ft _ _ rt _ _)
+      | rootTableName == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+      | rootTableName == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
+      | Just rootTableName == (tableName <$> rt) = Just $ r {relLinkTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
+      | otherwise = Nothing
 
-    -- Build tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
-    -- an alias like "table_depth", this is related to issue #987.
-    buildReadRequest :: [Tree SelectItem] -> ReadRequest
-    buildReadRequest fieldTree =
-      let rootDepth = 0
-          rootNodeName = case action of
-            ActionRead _ -> rootTableName
-            _            -> sourceCTEName in
-      foldr (treeEntry rootDepth) (Node (Select [] rootNodeName Nothing [] [] [] [] allRange, (rootNodeName, Nothing, Nothing, Nothing, rootDepth)) []) fieldTree
-      where
-        treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
-        treeEntry depth (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
-          let nxtDepth = succ depth in
-          case fldForest of
-            [] -> Node (q {select=fld:select q}, i) rForest
-            _  -> Node (q, i) $
-                  foldr (treeEntry nxtDepth) (Node (Select [] fn Nothing [] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtDepth)) []) fldForest:rForest
-
-    relations :: [Relation]
-    relations = case action of
-      ActionCreate   -> fakeSourceRelations ++ allRels
-      ActionUpdate   -> fakeSourceRelations ++ allRels
-      ActionDelete   -> fakeSourceRelations ++ allRels
-      ActionInvoke _ -> fakeSourceRelations ++ allRels
-      _              -> allRels
-      where fakeSourceRelations = mapMaybe (toSourceRelation rootTableName) allRels
-
--- in a relation where one of the tables matches "TableName"
--- replace the name to that table with pg_source
--- this "fake" relations is needed so that in a mutate query
--- we can look at the "returning *" part which is wrapped with a "with"
--- as just another table that has relations with other tables
-toSourceRelation :: TableName -> Relation -> Maybe Relation
-toSourceRelation mt r@(Relation t _ ft _ _ rt _ _)
-  | mt == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
-  | mt == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
-  | Just mt == (tableName <$> rt) = Just $ r {relLinkTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
-  | otherwise = Nothing
+-- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
+-- an alias like "table_depth", this is related to http://github.com/PostgREST/postgrest/issues/987.
+initReadRequest :: TableName -> [Tree SelectItem] -> ReadRequest
+initReadRequest rootTableName =
+  foldr (treeEntry rootDepth) initial
+  where
+    rootDepth = 0
+    initial = Node (Select [] rootTableName Nothing [] [] [] [] allRange, (rootTableName, Nothing, Nothing, Nothing, rootDepth)) []
+    treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
+    treeEntry depth (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
+      let nxtDepth = succ depth in
+      case fldForest of
+        [] -> Node (q {select=fld:select q}, i) rForest
+        _  -> Node (q, i) $
+              foldr (treeEntry nxtDepth) (Node (Select [] fn Nothing [] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtDepth)) []) fldForest:rForest
 
 treeRestrictRange :: Maybe Integer -> ReadRequest -> Either ApiRequestError ReadRequest
-treeRestrictRange maxRows_ request = pure $ nodeRestrictRange maxRows_ `fmap` request
+treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
   where
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
@@ -268,7 +249,7 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
   ]
   {-
   The esence of what is going on above is that we are composing tree functions
-  of type (ReadRequest->ReadRequest) that are in (Either ParseError a) context
+  of type (ReadRequest->ReadRequest) that are in (Either ApiRequestError a) context
   -}
   where
     filters :: Either ApiRequestError [(EmbedPath, Filter)]
@@ -347,14 +328,6 @@ mutateRequest apiRequest tName cols pkCols fldNames = mapLeft errorResponseFor $
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
-
-fieldNames :: ReadRequest -> [FieldName]
-fieldNames (Node (sel, _) forest) =
-  map (fst . view _1) (select sel) ++ map colName fks
-  where
-    fks = concatMap (fromMaybe [] . f) forest
-    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _) = Just cols
-    f _ = Nothing
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder
