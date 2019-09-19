@@ -420,12 +420,12 @@ See `ANALYZE <https://www.postgresql.org/docs/11/sql-analyze.html>`_ for more de
 Estimated Count
 ~~~~~~~~~~~~~~~
 
-When you are interested in the count, the relative error is important. If you have an estimated count of 1000000 and the exact count is
-1001000, the error is small enough to be ignored. But with an estimated count of 7, an exact count of 28 would be a huge misprediction.
+When you are interested in the count, the relative error is important. If you have a :ref:`planned count <planned_count>` of 1000000 and the exact count is
+1001000, the error is small enough to be ignored. But with a planned count of 7, an exact count of 28 would be a huge misprediction.
 
 In general, when having smaller row-counts, the estimated count should be as close to the exact count as possible.
 
-To help with these cases, PostgREST can get the exact count up until a threshold and get the estimated count when
+To help with these cases, PostgREST can get the exact count up until a threshold and get the planned count when
 that threshold is surpassed. To use this behavior, you can specify the ``Prefer: count=estimated`` header. The **threshold** is
 defined by :ref:`max-rows`.
 
@@ -441,7 +441,7 @@ Here's an example. Suppose we set ``max-rows=1000`` and *smalltable* has 321 row
   HTTP/1.1 206 Partial Content
   Content-Range: 0-24/321
 
-If we make a similar request on *bigtable*, which has 3573458 rows, we would get the estimated count:
+If we make a similar request on *bigtable*, which has 3573458 rows, we would get the planned count:
 
 .. code-block:: http
 
