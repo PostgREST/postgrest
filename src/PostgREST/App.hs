@@ -48,8 +48,7 @@ import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
 import PostgREST.Auth             (containsRole, jwtClaims,
                                    parseSecret)
 import PostgREST.Config           (AppConfig (..))
-import PostgREST.DbRequestBuilder (fieldNames, mutateRequest,
-                                   readRequest)
+import PostgREST.DbRequestBuilder (mutateRequest, readRequest)
 import PostgREST.DbStructure
 import PostgREST.Error            (PgError (..), SimpleError (..),
                                    errorResponseFor, singularityError)
@@ -125,9 +124,9 @@ app dbStructure proc cols conf apiRequest =
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
-        (ActionRead headersOnly, TargetIdent qi, Nothing) ->
-          let partsField = (,) <$> readSqlParts
-                <*> (binaryField contentType rawContentTypes =<< fldNames) in
+        (ActionRead headersOnly, TargetIdent (QualifiedIdentifier _ tName), Nothing) ->
+          let partsField = (,) <$> readSqlParts tName
+                <*> (binaryField contentType rawContentTypes =<< fldNames tName) in
           case partsField of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
@@ -151,7 +150,7 @@ app dbStructure proc cols conf apiRequest =
                   then errorResponseFor . singularityError $ queryTotal
                   else responseLBS status
                     [toHeader contentType, contentRange,
-                     contentLocationH (qiName qi) (iCanonicalQS apiRequest)]
+                     contentLocationH tName (iCanonicalQS apiRequest)]
                     (if headersOnly then mempty else toS body)
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
@@ -283,12 +282,13 @@ app dbStructure proc cols conf apiRequest =
                   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
-        (ActionInvoke invMethod, TargetProc qi _, Just pJson) ->
+        (ActionInvoke invMethod, TargetProc qi@(QualifiedIdentifier _ pName) _, Just pJson) ->
           let returnsScalar = maybe False procReturnsScalar proc
+              tName = fromMaybe pName $ procTableName =<< proc
               rpcBinaryField = if returnsScalar
                                  then Right Nothing
-                                 else binaryField contentType rawContentTypes =<< fldNames
-              parts = (,) <$> readSqlParts <*> rpcBinaryField in
+                                 else binaryField contentType rawContentTypes =<< fldNames tName
+              parts = (,) <$> readSqlParts tName <*> rpcBinaryField in
           case parts of
             Left errorResponse -> return errorResponse
             Right ((q, cq), bField) -> do
@@ -337,15 +337,15 @@ app dbStructure proc cols conf apiRequest =
       plannedCount = iPreferCount apiRequest == Just PlannedCount
       shouldCount = exactCount || estimatedCount
       topLevelRange = iTopLevelRange apiRequest
-      readReq = readRequest maxRows (dbRelations dbStructure) proc apiRequest
-      fldNames = fieldNames <$> readReq
-      readDbRequest = DbRead <$> readReq
-      selectQuery = requestToQuery schema False <$> readDbRequest
-      countQuery = requestToCountQuery schema <$> readDbRequest
-      readSqlParts = (,) <$> selectQuery <*> countQuery
-      mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames
+      readReq tableName = readRequest schema tableName maxRows (dbRelations dbStructure) apiRequest
+      fldNames tableName = fieldNames <$> readReq tableName
+      readDbRequest tableName = DbRead <$> readReq tableName
+      selectQuery tableName = requestToQuery schema False <$> readDbRequest tableName
+      countQuery tableName = requestToCountQuery schema <$> readDbRequest tableName
+      readSqlParts tableName = (,) <$> selectQuery tableName <*> countQuery tableName
+      mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames t
       mutateSqlParts s t =
-        (,) <$> selectQuery
+        (,) <$> selectQuery t
             <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
       rawContentTypes =
         (decodeContentType <$> configRawMediaTypes conf) `L.union`

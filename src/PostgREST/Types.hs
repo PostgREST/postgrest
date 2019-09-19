@@ -6,6 +6,9 @@ Description : PostgREST common types and functions used by the rest of the modul
 
 module PostgREST.Types where
 
+import Control.Lens.Getter (view)
+import Control.Lens.Tuple  (_1)
+
 import qualified Data.Aeson               as JSON
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
@@ -165,6 +168,12 @@ procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
   ProcDescription{pdReturnType = (Single (Scalar _))} -> True
   _                                                   -> False
+
+procTableName :: ProcDescription -> Maybe TableName
+procTableName proc = case pdReturnType proc of
+  SetOf  (Composite qi) -> Just $ qiName qi
+  Single (Composite qi) -> Just $ qiName qi
+  _                     -> Nothing
 
 type Schema = Text
 type TableName = Text
@@ -425,6 +434,14 @@ type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe Relati
 -- Depth of the ReadRequest tree
 type Depth = Integer
 type MutateRequest = MutateQuery
+
+fieldNames :: ReadRequest -> [FieldName]
+fieldNames (Node (sel, _) forest) =
+  map (fst . view _1) (select sel) ++ map colName fks
+  where
+    fks = concatMap (fromMaybe [] . f) forest
+    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _) = Just cols
+    f _ = Nothing
 
 data PgVersion = PgVersion {
   pgvNum  :: Int32
