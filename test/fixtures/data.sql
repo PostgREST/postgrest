@@ -499,3 +499,11 @@ COPY pgrst_reserved_chars ("*id*", ":arr->ow::cast", "(inside,parens)", "a.dotte
 2 | arrow-2 | parens-2 | dotted-2 | space-2
 3 | arrow-3 | parens-3 | dotted-3 | space-3
 \.
+
+TRUNCATE TABLE web_content CASCADE;
+INSERT INTO web_content VALUES (5, 'wat', null);
+INSERT INTO web_content VALUES (0, 'tardis', 5);
+INSERT INTO web_content VALUES (1, 'fezz', 0);
+INSERT INTO web_content VALUES (2, 'foo', 0);
+INSERT INTO web_content VALUES (3, 'bar', 0);
+INSERT INTO web_content VALUES (4, 'wut', 1);

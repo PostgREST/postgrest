@@ -103,6 +103,7 @@ GRANT ALL ON TABLE
     , openapi_types
     , getallprojects_view
     , get_projects_above_view
+    , web_content
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
