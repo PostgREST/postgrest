@@ -588,3 +588,60 @@ spec actualPgVersion = do
       liftIO $ do
         simpleBody p2 `shouldBe` [str|[{"owner":"jroe","secret":"lolcat"}]|]
         simpleStatus p2 `shouldBe` created201
+
+  context "tables with self reference foreign keys" $ do
+    it "embeds parent after insert" $
+      request methodPost "/web_content?select=id,name,parent_content:p_web_id(name)"
+              [("Prefer", "return=representation")]
+        [json|{"id":6, "name":"wot", "p_web_id":4}|]
+        `shouldRespondWith`
+        [json|[{"id":6,"name":"wot","parent_content":{"name":"wut"}}]|]
+        { matchStatus  = 201
+        , matchHeaders = [ matchContentTypeJson , "Location" <:> "/web_content?id=eq.6" ]
+        }
+
+    it "embeds childs after update" $
+      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
+              [("Prefer", "return=representation")]
+        [json|{"name": "tardis-patched"}|]
+        `shouldRespondWith`
+        [json|
+          [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
+        |]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }
+
+    it "embeds parent, childs and grandchilds after update" $
+      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
+              [("Prefer", "return=representation")]
+        [json|{"name": "tardis-patched-2"}|]
+        `shouldRespondWith`
+        [json| [
+          {
+            "id": 0,
+            "name": "tardis-patched-2",
+            "parent_content": { "name": "wat" },
+            "web_content": [
+                { "name": "fezz", "web_content": [ { "name": "wut" } ] },
+                { "name": "foo",  "web_content": [] },
+                { "name": "bar",  "web_content": [] }
+            ]
+          }
+        ] |]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }
+
+    it "embeds childs after update without explicitly including the id in the ?select" $ do
+      pendingWith "currently failing"
+      request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
+              [("Prefer", "return=representation")]
+        [json|{"name": "tardis-patched"}|]
+        `shouldRespondWith`
+        [json|
+          [ { "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
+        |]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }

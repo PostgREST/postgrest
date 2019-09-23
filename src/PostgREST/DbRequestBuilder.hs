@@ -59,17 +59,12 @@ rootWithRelations rootTableName allRels action = case action of
   ActionRead _ -> (rootTableName, allRels) -- normal read case
   _            -> (sourceCTEName, mapMaybe toSourceRelation allRels ++ allRels) -- mutation cases and calling proc
   where
-    -- in a relation where one of the tables matches "TableName"
-    -- replace the name to that table with pg_source
-    -- this "fake" relations is needed so that in a mutate query or proc call
-    -- we can look at the "returning *" part which is wrapped with a "with pg_source"
-    -- as just another table that has relations with other tables
+    -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
+    -- with {sourceCTEName}. This way findRelation can find Relations with sourceCTEName.
     toSourceRelation :: Relation -> Maybe Relation
-    toSourceRelation r@(Relation t _ ft _ _ rt _ _)
-      | rootTableName == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
-      | rootTableName == tableName ft = Just $ r {relFTable=t {tableName=sourceCTEName}}
-      | Just rootTableName == (tableName <$> rt) = Just $ r {relLinkTable=(\tbl -> tbl {tableName=sourceCTEName}) <$> rt}
-      | otherwise = Nothing
+    toSourceRelation r@Relation{relFTable=ft}
+      | rootTableName == tableName ft = Just $ r {relFTable=ft {tableName=sourceCTEName}}
+      | otherwise                     = Nothing
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
 -- an alias like "table_depth", this is related to http://github.com/PostgREST/postgrest/issues/987.

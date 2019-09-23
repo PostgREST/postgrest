@@ -1742,3 +1742,10 @@ select * from getallprojects();
 
 create view get_projects_above_view as
 select * from get_projects_above(1);
+
+CREATE TABLE web_content (
+  id integer,
+  name text,
+  p_web_id integer references web_content(id),
+  primary key (id)
+);
