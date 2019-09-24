@@ -428,12 +428,11 @@ data MutateQuery =
   , returning :: [FieldName]
   } deriving (Show, Eq)
 
-data DbRequest = DbRead ReadRequest | DbMutate MutateRequest
 type ReadRequest = Tree ReadNode
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
--- Depth of the ReadRequest tree
-type Depth = Integer
 type MutateRequest = MutateQuery
+
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
+type Depth = Integer
 
 fieldNames :: ReadRequest -> [FieldName]
 fieldNames (Node (sel, _) forest) =
