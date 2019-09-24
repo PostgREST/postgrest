@@ -104,7 +104,7 @@ data ApiRequest = ApiRequest {
   -- | &and and &or parameters used for complex boolean logic
   , iLogic                :: [(Text, Text)]
   -- | &select parameter used to shape the response
-  , iSelect               :: Text
+  , iSelect               :: Maybe Text
   -- | &columns parameter used to shape the payload
   , iColumns              :: Maybe Text
   -- | &order parameters for each level
@@ -145,7 +145,7 @@ userApiRequest schema rootSpec req reqBody
                                | otherwise                         -> Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
-      , iSelect = toS $ fromMaybe "*" $ join $ lookup "select" qParams
+      , iSelect = toS <$> join (lookup "select" qParams)
       , iColumns = columns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars

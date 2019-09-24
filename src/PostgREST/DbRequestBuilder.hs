@@ -47,8 +47,9 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
   treeRestrictRange maxRows =<<
   augumentRequestWithJoin schema rootRels =<<
   addFiltersOrdersRanges apiRequest <*>
-  (initReadRequest rootName <$> pRequestSelect (iSelect apiRequest))
+  (initReadRequest rootName <$> pRequestSelect sel)
   where
+    sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
     (rootName, rootRels) = rootWithRelations rootTableName allRels (iAction apiRequest)
 
 -- Get the root table name with its relations according to the Action type.
@@ -296,8 +297,8 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
   where
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
-mutateRequest :: ApiRequest -> TableName -> S.Set FieldName -> [FieldName] -> [FieldName] -> Either Response MutateRequest
-mutateRequest apiRequest tName cols pkCols fldNames = mapLeft errorResponseFor $
+mutateRequest :: ApiRequest -> TableName -> S.Set FieldName -> [FieldName] -> ReadRequest -> Either Response MutateRequest
+mutateRequest apiRequest tName cols pkCols readReq = mapLeft errorResponseFor $
   case action of
     ActionCreate -> Right $ Insert tName cols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
     ActionUpdate -> Update tName cols <$> combinedLogic <*> pure returnings
@@ -316,13 +317,28 @@ mutateRequest apiRequest tName cols pkCols fldNames = mapLeft errorResponseFor $
     _            -> Left UnsupportedVerb
   where
     action = iAction apiRequest
-    returnings = if iPreferRepresentation apiRequest == None then [] else fldNames
+    returnings =
+      if iPreferRepresentation apiRequest == None
+        then []
+        else returningCols readReq
     filters = map snd <$> mapM pRequestFilter mutateFilters
     logic = map snd <$> mapM pRequestLogicTree logicFilters
     combinedLogic = foldr addFilterToLogicForest <$> logic <*> filters
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
+
+returningCols :: ReadRequest -> [FieldName]
+returningCols rr@(Node _ forest) = fstFieldNames rr ++ (colName <$> fkCols)
+  where
+    -- Without fkCols, when a mutateRequest to /projects?select=name,clients(name) occurs, the RETURNING SQL part would be
+    -- `RETURNING name`(see QueryBuilder).
+    -- This would make the embedding fail because the following JOIN would need the "client_id" column from projects.
+    -- So this adds the foreign key columns to ensure the embedding succeeds, result would be `RETURNING name, client_id`.
+    fkCols = concat $ mapMaybe (\case
+        Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _ -> Just cols
+        _ -> Nothing
+      ) forest
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder

@@ -434,13 +434,10 @@ type MutateRequest = MutateQuery
 type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
 type Depth = Integer
 
-fieldNames :: ReadRequest -> [FieldName]
-fieldNames (Node (sel, _) forest) =
-  map (fst . view _1) (select sel) ++ map colName fks
-  where
-    fks = concatMap (fromMaybe [] . f) forest
-    f (Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _) = Just cols
-    f _ = Nothing
+-- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
+fstFieldNames :: ReadRequest -> [FieldName]
+fstFieldNames (Node (sel, _) _) =
+  fst . view _1 <$> select sel
 
 data PgVersion = PgVersion {
   pgvNum  :: Int32
