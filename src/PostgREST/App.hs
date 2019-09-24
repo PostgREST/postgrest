@@ -57,8 +57,8 @@ import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
 import PostgREST.QueryBuilder     (limitedQuery,
                                    requestToCallProcQuery,
-                                   requestToCountQuery,
-                                   requestToQuery)
+                                   readRequestToCountQuery,
+                                   readRequestToQuery, mutateRequestToQuery)
 import PostgREST.RangeQuery       (allRange, contentRangeH,
                                    rangeStatusHeader)
 import PostgREST.Statements       (callProcStatement,
@@ -339,14 +339,14 @@ app dbStructure proc cols conf apiRequest =
       topLevelRange = iTopLevelRange apiRequest
       readReq tableName = readRequest schema tableName maxRows (dbRelations dbStructure) apiRequest
       fldNames tableName = fieldNames <$> readReq tableName
-      readDbRequest tableName = DbRead <$> readReq tableName
-      selectQuery tableName = requestToQuery schema False <$> readDbRequest tableName
-      countQuery tableName = requestToCountQuery schema <$> readDbRequest tableName
+      readReqst tableName = readReq tableName
+      selectQuery tableName = readRequestToQuery schema False <$> readReqst tableName
+      countQuery tableName = readRequestToCountQuery schema <$> readReqst tableName
       readSqlParts tableName = (,) <$> selectQuery tableName <*> countQuery tableName
-      mutationDbRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames t
+      mutationRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames t
       mutateSqlParts s t =
         (,) <$> selectQuery t
-            <*> (requestToQuery schema False . DbMutate <$> mutationDbRequest s t)
+            <*> (mutateRequestToQuery schema <$> mutationRequest s t)
       rawContentTypes =
         (decodeContentType <$> configRawMediaTypes conf) `L.union`
         [ CTOctetStream, CTTextPlain ]

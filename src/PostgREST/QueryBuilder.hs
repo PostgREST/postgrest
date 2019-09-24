@@ -11,8 +11,9 @@ represent database objects (e.g. Relation, Schema) and SqlFragment
 to produce SqlQuery type outputs.
 -}
 module PostgREST.QueryBuilder (
-    requestToQuery
-  , requestToCountQuery
+    readRequestToQuery
+  , mutateRequestToQuery
+  , readRequestToCountQuery
   , requestToCallProcQuery
   , limitedQuery
   , setLocalQuery
@@ -33,8 +34,8 @@ import PostgREST.Types
 import Protolude                      hiding (cast, intercalate,
                                        replace)
 
-requestToQuery :: Schema -> Bool -> DbRequest -> SqlQuery
-requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias implJoins logicForest joinConditions_ ordts range, _) forest)) =
+readRequestToQuery :: Schema -> Bool -> ReadRequest -> SqlQuery
+readRequestToQuery schema isParent (Node (Select colSelects tbl tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
   unwords [
     "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
     "FROM " <> intercalate ", " (tabl : implJs),
@@ -59,26 +60,29 @@ requestToQuery schema isParent (DbRead (Node (Select colSelects tbl tblAlias imp
            <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema False (DbRead (Node n forst))
+           where subquery = readRequestToQuery schema False (Node n forst)
     getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (joi:j,sel:s)
       where
         aliasOrName = fromMaybe name alias
         localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
         sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
         joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE "
-          where subquery = requestToQuery schema True (DbRead (Node n forst))
+          where subquery = readRequestToQuery schema True (Node n forst)
     getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (j,sel:s)
       where
         sel = "COALESCE (("
            <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
            <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
            <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = requestToQuery schema False (DbRead (Node n forst))
+           where subquery = readRequestToQuery schema False (Node n forst)
     --the following is just to remove the warning
-    --getQueryParts is not total but requestToQuery is called only after addJoinConditions which ensures the only
+    --getQueryParts is not total but readRequestToQuery is called only after addJoinConditions which ensures the only
     --posible relations are Child Parent Many
     getQueryParts _ _ = witness
-requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions returnings)) =
+
+
+mutateRequestToQuery :: Schema -> MutateRequest -> SqlQuery
+mutateRequestToQuery schema (Insert mainTbl iCols onConflct putConditions returnings) =
   unwords [
     "WITH " <> normalizedBody,
     "INSERT INTO ", fromQi qi, if S.null iCols then " " else "(" <> cols <> ")",
@@ -100,7 +104,7 @@ requestToQuery schema _ (DbMutate (Insert mainTbl iCols onConflct putConditions 
   where
     qi = QualifiedIdentifier schema mainTbl
     cols = intercalate ", " $ pgFmtIdent <$> S.toList iCols
-requestToQuery schema _ (DbMutate (Update mainTbl uCols logicForest returnings)) =
+mutateRequestToQuery schema (Update mainTbl uCols logicForest returnings) =
   if S.null uCols
     then "WITH " <> ignoredBody <> "SELECT null WHERE false" -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     else
@@ -114,7 +118,7 @@ requestToQuery schema _ (DbMutate (Update mainTbl uCols logicForest returnings))
   where
     qi = QualifiedIdentifier schema mainTbl
     cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
-requestToQuery schema _ (DbMutate (Delete mainTbl logicForest returnings)) =
+mutateRequestToQuery schema (Delete mainTbl logicForest returnings) =
   unwords [
     "WITH " <> ignoredBody,
     "DELETE FROM ", fromQi qi,
@@ -168,13 +172,12 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
     callIt = fromQi qi <> "(" <> args <> ")"
 
 
--- | SQL query meant for COUNTing the root node of the DbRead Tree.
+-- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
 -- SELECT 1 is done instead of SELECT * to prevent doing expensive operations(like functions based on the columns)
 -- inside the FROM target.
-requestToCountQuery :: Schema -> DbRequest -> SqlQuery
-requestToCountQuery _ (DbMutate _) = witness
-requestToCountQuery schema (DbRead (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _)) =
+readRequestToCountQuery :: Schema -> ReadRequest -> SqlQuery
+readRequestToCountQuery schema (Node (Select{where_=logicForest}, (mainTbl, _, _, _, _)) _) =
  unwords [
    "SELECT 1",
    "FROM " <> fromQi qi,
