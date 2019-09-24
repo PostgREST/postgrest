@@ -55,10 +55,10 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
 import PostgREST.Middleware
 import PostgREST.OpenAPI
 import PostgREST.Parsers          (pRequestColumns)
-import PostgREST.QueryBuilder     (limitedQuery,
-                                   requestToCallProcQuery,
+import PostgREST.QueryBuilder     (limitedQuery, mutateRequestToQuery,
                                    readRequestToCountQuery,
-                                   readRequestToQuery, mutateRequestToQuery)
+                                   readRequestToQuery,
+                                   requestToCallProcQuery)
 import PostgREST.RangeQuery       (allRange, contentRangeH,
                                    rangeStatusHeader)
 import PostgREST.Statements       (callProcStatement,
@@ -119,17 +119,16 @@ transactionMode proc action =
 
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure proc cols conf apiRequest =
+  let rawContentTypes = (decodeContentType <$> configRawMediaTypes conf) `L.union` [ CTOctetStream, CTTextPlain ] in
   case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
         (ActionRead headersOnly, TargetIdent (QualifiedIdentifier _ tName), Nothing) ->
-          let partsField = (,) <$> readSqlParts tName
-                <*> (binaryField contentType rawContentTypes =<< fldNames tName) in
-          case partsField of
+          case readSqlParts tName of
             Left errorResponse -> return errorResponse
-            Right ((q, cq), bField) -> do
+            Right (q, cq, bField) -> do
               let cQuery = if estimatedCount
                              then limitedQuery cq ((+ 1) <$> maxRows) -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
                              else cq
@@ -283,15 +282,10 @@ app dbStructure proc cols conf apiRequest =
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
         (ActionInvoke invMethod, TargetProc qi@(QualifiedIdentifier _ pName) _, Just pJson) ->
-          let returnsScalar = maybe False procReturnsScalar proc
-              tName = fromMaybe pName $ procTableName =<< proc
-              rpcBinaryField = if returnsScalar
-                                 then Right Nothing
-                                 else binaryField contentType rawContentTypes =<< fldNames tName
-              parts = (,) <$> readSqlParts tName <*> rpcBinaryField in
-          case parts of
+          let tName = fromMaybe pName $ procTableName =<< proc in
+          case readSqlParts tName of
             Left errorResponse -> return errorResponse
-            Right ((q, cq), bField) -> do
+            Right (q, cq, bField) -> do
               let
                 preferParams = iPreferParameters apiRequest
                 pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams
@@ -328,28 +322,35 @@ app dbStructure proc cols conf apiRequest =
 
         _ -> return notFound
 
-    where
-      notFound = responseLBS status404 [] ""
-      schema = toS $ configSchema conf
-      maxRows = configMaxRows conf
-      exactCount = iPreferCount apiRequest == Just ExactCount
-      estimatedCount = iPreferCount apiRequest == Just EstimatedCount
-      plannedCount = iPreferCount apiRequest == Just PlannedCount
-      shouldCount = exactCount || estimatedCount
-      topLevelRange = iTopLevelRange apiRequest
-      readReq tableName = readRequest schema tableName maxRows (dbRelations dbStructure) apiRequest
-      fldNames tableName = fieldNames <$> readReq tableName
-      readReqst tableName = readReq tableName
-      selectQuery tableName = readRequestToQuery schema False <$> readReqst tableName
-      countQuery tableName = readRequestToCountQuery schema <$> readReqst tableName
-      readSqlParts tableName = (,) <$> selectQuery tableName <*> countQuery tableName
-      mutationRequest s t = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< fldNames t
-      mutateSqlParts s t =
-        (,) <$> selectQuery t
-            <*> (mutateRequestToQuery schema <$> mutationRequest s t)
-      rawContentTypes =
-        (decodeContentType <$> configRawMediaTypes conf) `L.union`
-        [ CTOctetStream, CTTextPlain ]
+      where
+        notFound = responseLBS status404 [] ""
+        schema = toS $ configSchema conf
+        maxRows = configMaxRows conf
+        exactCount = iPreferCount apiRequest == Just ExactCount
+        estimatedCount = iPreferCount apiRequest == Just EstimatedCount
+        plannedCount = iPreferCount apiRequest == Just PlannedCount
+        shouldCount = exactCount || estimatedCount
+        topLevelRange = iTopLevelRange apiRequest
+        returnsScalar = maybe False procReturnsScalar proc
+
+        selectQuery = readRequestToQuery schema False
+        countQuery = readRequestToCountQuery schema
+        readSqlParts tableName =
+          let
+            readReq = readRequest schema tableName maxRows (dbRelations dbStructure) apiRequest
+          in
+          (,,) <$>
+          (selectQuery <$> readReq) <*>
+          (countQuery <$> readReq) <*>
+          (binaryField contentType rawContentTypes returnsScalar =<< readReq)
+        mutateSqlParts s t =
+          let
+            readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
+            mutReq = mutateRequest apiRequest t cols (tablePKCols dbStructure s t) =<< readReq
+          in
+          (,) <$>
+          (selectQuery <$> readReq) <*>
+          (mutateRequestToQuery s <$> mutReq)
 
 responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target -> Either Response ContentType
 responseContentTypeOrError accepts rawContentTypes action target = serves contentTypesForRequest accepts
@@ -375,14 +376,17 @@ responseContentTypeOrError accepts rawContentTypes action target = serves conten
   | If raw(binary) output is requested, check that ContentType is one of the admitted rawContentTypes and that
   | `?select=...` contains only one field other than `*`
 -}
-binaryField :: ContentType -> [ContentType]-> [FieldName] -> Either Response (Maybe FieldName)
-binaryField ct rawContentTypes fldNames
+binaryField :: ContentType -> [ContentType] -> Bool -> ReadRequest -> Either Response (Maybe FieldName)
+binaryField ct rawContentTypes isScalarProc readReq
+  | isScalarProc = Right Nothing
   | ct `elem` rawContentTypes =
       let fieldName = headMay fldNames in
       if length fldNames == 1 && fieldName /= Just "*"
         then Right fieldName
         else Left . errorResponseFor $ BinaryFieldError ct
   | otherwise = Right Nothing
+  where
+    fldNames = fstFieldNames readReq
 
 locationH :: TableName -> [BS.ByteString] -> Header
 locationH tName fields =
