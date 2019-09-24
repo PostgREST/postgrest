@@ -329,16 +329,22 @@ mutateRequest apiRequest tName cols pkCols readReq = mapLeft errorResponseFor $
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
 
 returningCols :: ReadRequest -> [FieldName]
-returningCols rr@(Node _ forest) = fstFieldNames rr ++ (colName <$> fkCols)
+returningCols rr@(Node _ forest) = returnings
   where
+    fldNames = fstFieldNames rr
     -- Without fkCols, when a mutateRequest to /projects?select=name,clients(name) occurs, the RETURNING SQL part would be
     -- `RETURNING name`(see QueryBuilder).
     -- This would make the embedding fail because the following JOIN would need the "client_id" column from projects.
     -- So this adds the foreign key columns to ensure the embedding succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
         Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _ -> Just cols
+        Node (_, (_, Just Relation{relFColumns=cols, relType=Child}, _, _, _)) _  -> Just cols
         _ -> Nothing
       ) forest
+    -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)
+    -- we would get `RETURNING client_id, name, client_id` and then we would produce the "column reference \"client_id\" is ambiguous"
+    -- error from PostgreSQL. So we deduplicate with Set:
+    returnings = S.toList . S.fromList $ fldNames ++ (colName <$> fkCols)
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder
