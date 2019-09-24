@@ -633,8 +633,7 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds childs after update without explicitly including the id in the ?select" $ do
-      pendingWith "currently failing"
+    it "embeds childs after update without explicitly including the id in the ?select" $
       request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]
