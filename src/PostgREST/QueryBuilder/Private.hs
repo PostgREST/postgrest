@@ -150,9 +150,9 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      (find ((==) . toLower $ v) ["null","true","false"])
 
 pgFmtJoinCondition :: JoinCondition -> SqlFragment
-pgFmtJoinCondition (JoinCondition (qi, col1) (QualifiedIdentifier schema fTable, col2)) =
-  pgFmtColumn qi col1 <> " = " <>
-  pgFmtColumn (removeSourceCTESchema schema fTable) col2
+pgFmtJoinCondition (JoinCondition (QualifiedIdentifier schema1 tName, col1) (QualifiedIdentifier schema2 ftName, col2)) =
+  pgFmtColumn (removeSourceCTESchema schema1 tName) col1 <> " = " <>
+  pgFmtColumn (removeSourceCTESchema schema2 ftName) col2
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
 pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
@@ -183,8 +183,11 @@ pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
+-- On mutation and calling proc cases we wrap the target table in a WITH {sourceCTEName}
+-- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
+-- `FROM "{sourceCTEName}"`. If the schema remains the FROM would be invalid.
 removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
-removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then "" else schema) tbl
+removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then mempty else schema) tbl
 
 countF :: SqlQuery -> Bool -> (SqlFragment, SqlFragment)
 countF countQuery shouldCount =

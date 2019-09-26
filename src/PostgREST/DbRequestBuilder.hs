@@ -336,9 +336,13 @@ returningCols rr@(Node _ forest) = returnings
     -- `RETURNING name`(see QueryBuilder).
     -- This would make the embedding fail because the following JOIN would need the "client_id" column from projects.
     -- So this adds the foreign key columns to ensure the embedding succeeds, result would be `RETURNING name, client_id`.
+    -- This also works for the other relType's.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relation{relFColumns=cols, relType=Parent}, _, _, _)) _ -> Just cols
-        Node (_, (_, Just Relation{relFColumns=cols, relType=Child}, _, _, _)) _  -> Just cols
+        Node (_, (_, Just Relation{relFColumns=cols, relType=relTyp}, _, _, _)) _ -> case relTyp of
+          Parent -> Just cols
+          Child  -> Just cols
+          Many   -> Just cols
+          _      -> Nothing
         _ -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)

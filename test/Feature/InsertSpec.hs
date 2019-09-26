@@ -644,3 +644,23 @@ spec actualPgVersion = do
         { matchStatus  = 200,
           matchHeaders = [matchContentTypeJson]
         }
+
+    it "embeds an M2M relationship plus parent after update" $
+      request methodPatch "/users?id=eq.1&select=name,tasks(name,project:projects(name))"
+              [("Prefer", "return=representation")]
+        [json|{"name": "Kevin Malone"}|]
+        `shouldRespondWith`
+        [json|[
+          {
+            "name": "Kevin Malone",
+            "tasks": [
+                { "name": "Design w7", "project": { "name": "Windows 7" } },
+                { "name": "Code w7", "project": { "name": "Windows 7" } },
+                { "name": "Design w10", "project": { "name": "Windows 10" } },
+                { "name": "Code w10", "project": { "name": "Windows 10" } }
+            ]
+          }
+        ]|]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }

@@ -1749,3 +1749,7 @@ CREATE TABLE web_content (
   p_web_id integer references web_content(id),
   primary key (id)
 );
+
+CREATE FUNCTION getallusers() RETURNS SETOF users AS $$
+  SELECT * FROM test.users;
+$$ LANGUAGE sql;
