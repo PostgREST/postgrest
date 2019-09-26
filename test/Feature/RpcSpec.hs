@@ -179,6 +179,29 @@ spec actualPgVersion =
           `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "can embed an M2M relationship table" $
+        get "/rpc/getallusers?select=name,tasks(name)&id=gt.1"
+          `shouldRespondWith` [json|[
+            {"name":"Michael Scott", "tasks":[{"name":"Design IOS"}, {"name":"Code IOS"}, {"name":"Design OSX"}]},
+            {"name":"Dwight Schrute","tasks":[{"name":"Design w7"}, {"name":"Design IOS"}]}
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can embed an M2M relationship table that has a parent relationship table" $
+        get "/rpc/getallusers?select=name,tasks(name,project:projects(name))&id=gt.1"
+          `shouldRespondWith` [json|[
+            {"name":"Michael Scott","tasks":[
+              {"name":"Design IOS","project":{"name":"IOS"}},
+              {"name":"Code IOS","project":{"name":"IOS"}},
+              {"name":"Design OSX","project":{"name":"OSX"}}
+            ]},
+            {"name":"Dwight Schrute","tasks":[
+              {"name":"Design w7","project":{"name":"Windows 7"}},
+              {"name":"Design IOS","project":{"name":"IOS"}}
+            ]}
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $ do
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
