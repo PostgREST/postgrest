@@ -16,6 +16,8 @@ Added
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Documentation reference for :ref:`s_proc_embed`.
+
 Changed
 -------
 

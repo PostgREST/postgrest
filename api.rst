@@ -681,6 +681,38 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
 
   If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
 
+.. _s_proc_embed:
+
+Embedding on Stored Procedures
+------------------------------
+
+If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can embed its related tables.
+
+Here's a sample function(notice the ``RETURNS SETOF films``).
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION getallfilms() RETURNS SETOF films AS $$
+    SELECT * FROM films;
+  $$ LANGUAGE SQL IMMUTABLE;
+
+A request with ``directors`` embedded:
+
+.. code-block:: http
+
+   GET /rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers* HTTP/1.1
+
+.. code-block:: json
+
+   [
+     { "title": "Workers Leaving The Lumière Factory In Lyon",
+       "directors": {
+         "id": 2,
+         "last_name": "Lumière"
+       }
+     }
+   ]
+
 .. _custom_queries:
 
 Custom Queries
