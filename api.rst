@@ -686,7 +686,7 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
 Embedding on Stored Procedures
 ------------------------------
 
-If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can embed its related tables.
+If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can embed its related resources.
 
 Here's a sample function(notice the ``RETURNS SETOF films``).
 
@@ -712,6 +712,39 @@ A request with ``directors`` embedded:
        }
      }
    ]
+
+.. _mutation_embed:
+
+Embedding after Insertions/Updates/Deletions
+--------------------------------------------
+
+You can embed related resources after doing :ref:`insert_update` or :ref:`delete`.
+
+Say you want to insert a **film** and then get some of its attributes plus embed its **director**.
+
+.. code-block:: http
+
+   POST /films?select=title,year,director:directors(first_name,last_name) HTTP/1.1
+   Prefer: return=representation
+
+   {
+    "id": 100, "director_id": 40,
+    "title": "127 hours", "year": 2010,
+    "rating": 7.6, "language": "english"
+   }
+
+Response:
+
+.. code-block:: json
+
+   {
+    "title": "127 hours",
+    "year": 2010,
+    "director": {
+      "first_name": "Danny",
+      "last_name": "Boyle"
+    }
+   }
 
 .. _custom_queries:
 
@@ -1040,6 +1073,8 @@ Returns:
 
   {"hint":"Upgrade your plan","details":"Quota exceeded"}
 
+.. _insert_update:
+
 Insertions / Updates
 ====================
 
@@ -1195,6 +1230,8 @@ All the columns must be specified in the request body, including the primary key
 .. note::
 
   This feature is only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/9.5/static/sql-insert.html#SQL-ON-CONFLICT>`_.
+
+.. _delete:
 
 Deletions
 =========
