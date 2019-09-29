@@ -109,10 +109,10 @@ jobs:
             test/io-tests.sh
       - run:
           name: run linter
-          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$@"
+          command: make lint
       - run:
           name: run styler
-          command: git ls-files | grep '\.l\?hs$' | xargs stack exec -- stylish-haskell -i && git diff-index --exit-code HEAD -- '*.hs' '*.lhs'
+          command: make style
 
   build-test-9.6:
     docker:

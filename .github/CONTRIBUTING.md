@@ -42,14 +42,13 @@ your contributions.
 * All contributions must pass the tests before being merged. When
   you create a pull request your code will automatically be tested.
 
-* All code must also pass [hlint](http://community.haskell.org/~ndm/hlint/)
-  with no warnings. This helps enforce a uniform style for all
-  committers. Continuous integration will check this as well on every
-  pull request.
+* All code must also pass [hlint](http://community.haskell.org/~ndm/hlint/) and [stylish-haskell](https://github.com/jaspervdj/stylish-haskell)
+  with no warnings. This helps enforce a uniform style for all committers. Continuous integration will check this as well on every
+  pull request. There's a useful Makefile that helps with checking this locally. You can run `make commit-check` to do this manually but
+  we recommend adding it to `.git/hooks/pre-commit` to automatically check this before doing a commit.
 
 * For help building the Haskell code on your computer check out the [building from
-source](https://postgrest.com/en/stable/install.html#build-from-source)
-wiki page.
+  source](https://postgrest.com/en/stable/install.html#build-from-source) docs section.
 
 ### Running Tests
 
