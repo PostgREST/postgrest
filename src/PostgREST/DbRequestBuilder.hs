@@ -50,15 +50,15 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
   (initReadRequest rootName <$> pRequestSelect sel)
   where
     sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
-    (rootName, rootRels) = rootWithRelations rootTableName allRels (iAction apiRequest)
+    (rootName, rootRels) = rootWithRelations schema rootTableName allRels (iAction apiRequest)
 
 -- Get the root table name with its relations according to the Action type.
 -- This is done because of the shape of the final SQL Query. The mutation cases are wrapped in a WITH {sourceCTEName}(see Statements.hs).
 -- So we need a FROM {sourceCTEName} instead of FROM {tableName}.
-rootWithRelations :: TableName -> [Relation] -> Action -> (TableName, [Relation])
-rootWithRelations rootTableName allRels action = case action of
-  ActionRead _ -> (rootTableName, allRels) -- normal read case
-  _            -> (sourceCTEName, mapMaybe toSourceRelation allRels ++ allRels) -- mutation cases and calling proc
+rootWithRelations :: Schema -> TableName -> [Relation] -> Action -> (QualifiedIdentifier, [Relation])
+rootWithRelations schema rootTableName allRels action = case action of
+  ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
+  _            -> (QualifiedIdentifier mempty sourceCTEName, mapMaybe toSourceRelation allRels ++ allRels) -- mutation cases and calling proc
   where
     -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
     -- with {sourceCTEName}. This way findRelation can find Relations with sourceCTEName.
@@ -69,19 +69,24 @@ rootWithRelations rootTableName allRels action = case action of
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
 -- an alias like "table_depth", this is related to http://github.com/PostgREST/postgrest/issues/987.
-initReadRequest :: TableName -> [Tree SelectItem] -> ReadRequest
-initReadRequest rootTableName =
+initReadRequest :: QualifiedIdentifier -> [Tree SelectItem] -> ReadRequest
+initReadRequest rootQi =
   foldr (treeEntry rootDepth) initial
   where
     rootDepth = 0
-    initial = Node (Select [] rootTableName Nothing [] [] [] [] allRange, (rootTableName, Nothing, Nothing, Nothing, rootDepth)) []
+    rootSchema = qiSchema rootQi
+    rootName = qiName rootQi
+    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, rootDepth)) []
     treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry depth (Node fld@((fn, _),_,alias,relationDetail) fldForest) (Node (q, i) rForest) =
       let nxtDepth = succ depth in
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
         _  -> Node (q, i) $
-              foldr (treeEntry nxtDepth) (Node (Select [] fn Nothing [] [] [] [] allRange, (fn, Nothing, alias, relationDetail, nxtDepth)) []) fldForest:rForest
+              foldr (treeEntry nxtDepth)
+              (Node (Select [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] [] allRange,
+                (fn, Nothing, alias, relationDetail, nxtDepth)) [])
+              fldForest:rForest
 
 treeRestrictRange :: Maybe Integer -> ReadRequest -> Either ApiRequestError ReadRequest
 treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
@@ -97,9 +102,10 @@ augumentRequestWithJoin schema allRels request =
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, relationDetail, depth)) forest) =
   case parentNode of
-    Just (Node (Select{from=parentNodeTable}, _) _) ->
-      let newFrom r = if tbl == nodeName then tableName (relTable r) else tbl
+    Just (Node (Select{from=parentNodeQi}, _) _) ->
+      let newFrom r = if qiName tbl == nodeName then tableQi (relTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
+          parentNodeTable = qiName parentNodeQi
           rel :: Either ApiRequestError Relation
           rel = note (NoRelationBetween parentNodeTable nodeName) $
                 findRelation schema allRelations nodeName parentNodeTable relationDetail in
@@ -201,12 +207,12 @@ addJoinConditions schema previousAlias (Node node@(query@Select{from=tbl}, nodeP
     Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Many, relLinkTable=(Just linkTable)} ->
       let rq = augmentQuery rel in
-      Node (rq{implicitJoins=tableName linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
+      Node (rq{implicitJoins=tableQi linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
     _ -> Left UnknownRelation
   where
     newAlias = case isSelfJoin <$> relation of
       Just True
-        | depth /= 0 -> Just (tbl <> "_" <> show depth) -- root node doesn't get aliased
+        | depth /= 0 -> Just (qiName tbl <> "_" <> show depth) -- root node doesn't get aliased
         | otherwise  -> Nothing
       _              -> Nothing
     augmentQuery rel =
@@ -231,10 +237,16 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =
-      let qi1 = QualifiedIdentifier tSchema tb
-          qi2 = QualifiedIdentifier tSchema ftb in
+      let qi1 = removeSourceCTESchema tSchema tb
+          qi2 = removeSourceCTESchema tSchema ftb in
         JoinCondition (maybe qi1 (QualifiedIdentifier mempty) newAlias, colName c)
                       (maybe qi2 (QualifiedIdentifier mempty) previousAlias, colName fc)
+
+    -- On mutation and calling proc cases we wrap the target table in a WITH {sourceCTEName}
+    -- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
+    -- `FROM "{sourceCTEName}"`. If the schema remains the FROM would be invalid.
+    removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
+    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then mempty else schema) tbl
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
@@ -297,11 +309,11 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
   where
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
-mutateRequest :: ApiRequest -> TableName -> S.Set FieldName -> [FieldName] -> ReadRequest -> Either Response MutateRequest
-mutateRequest apiRequest tName cols pkCols readReq = mapLeft errorResponseFor $
+mutateRequest :: Schema -> TableName -> ApiRequest -> S.Set FieldName -> [FieldName] -> ReadRequest -> Either Response MutateRequest
+mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorResponseFor $
   case action of
-    ActionCreate -> Right $ Insert tName cols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
-    ActionUpdate -> Update tName cols <$> combinedLogic <*> pure returnings
+    ActionCreate -> Right $ Insert qi cols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
+    ActionUpdate -> Update qi cols <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
         if null (iLogic apiRequest) &&
@@ -310,12 +322,13 @@ mutateRequest apiRequest tName cols pkCols readReq = mapLeft errorResponseFor $
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
               _ -> False) flts
-          then Insert tName cols (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+          then Insert qi cols (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
-    ActionDelete -> Delete tName <$> combinedLogic <*> pure returnings
+    ActionDelete -> Delete qi <$> combinedLogic <*> pure returnings
     _            -> Left UnsupportedVerb
   where
+    qi = QualifiedIdentifier schema tName
     action = iAction apiRequest
     returnings =
       if iPreferRepresentation apiRequest == None

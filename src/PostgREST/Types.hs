@@ -188,6 +188,9 @@ data Table = Table {
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
 
+tableQi :: Table -> QualifiedIdentifier
+tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
+
 newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
 
 data Column =
@@ -397,11 +400,11 @@ data JoinCondition = JoinCondition (QualifiedIdentifier, FieldName)
 
 data ReadQuery = Select {
     select         :: [SelectItem]
-  , from           :: TableName
+  , from           :: QualifiedIdentifier
 -- | A table alias is used in case of self joins
   , fromAlias      :: Maybe Alias
 -- | Only used for Many to Many joins. Parent and Child joins use explicit joins.
-  , implicitJoins  :: [TableName]
+  , implicitJoins  :: [QualifiedIdentifier]
   , where_         :: [LogicTree]
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
@@ -410,20 +413,20 @@ data ReadQuery = Select {
 
 data MutateQuery =
   Insert {
-    in_        :: TableName
+    in_        :: QualifiedIdentifier
   , insCols    :: S.Set FieldName
   , onConflict :: Maybe (PreferResolution, [FieldName])
   , where_     :: [LogicTree]
   , returning  :: [FieldName]
   }|
   Update {
-    in_       :: TableName
+    in_       :: QualifiedIdentifier
   , updCols   :: S.Set FieldName
   , where_    :: [LogicTree]
   , returning :: [FieldName]
   }|
   Delete {
-    in_       :: TableName
+    in_       :: QualifiedIdentifier
   , where_    :: [LogicTree]
   , returning :: [FieldName]
   } deriving (Show, Eq)
