@@ -17,22 +17,25 @@ module PostgREST.Statements (
 ) where
 
 
-import           Control.Lens                   ((^?))
-import           Data.Aeson                     as JSON
-import qualified Data.Aeson.Lens                as L
-import qualified Data.ByteString.Char8          as BS
+import           Control.Lens                    ((^?))
+import           Data.Aeson                      as JSON
+import qualified Data.Aeson.Lens                 as L
+import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
-import           Data.Text                      (intercalate, unwords)
-import           Data.Text.Encoding             (encodeUtf8)
-import qualified Hasql.Decoders                 as HD
-import qualified Hasql.Encoders                 as HE
-import qualified Hasql.Statement                as H
-import           PostgREST.ApiRequest           (PreferRepresentation (..))
-import           PostgREST.QueryBuilder.Private
+import           Data.Text                       (intercalate,
+                                                  unwords)
+import           Data.Text.Encoding              (encodeUtf8)
+import qualified Hasql.Decoders                  as HD
+import qualified Hasql.Encoders                  as HE
+import qualified Hasql.Statement                 as H
+import           PostgREST.ApiRequest            (PreferRepresentation (..))
+import           PostgREST.Private.Common
+import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
-import           Protolude                      hiding (cast,
-                                                 intercalate, replace)
-import           Text.InterpolatedString.Perl6  (qc)
+import           Protolude                       hiding (cast,
+                                                  intercalate,
+                                                  replace)
+import           Text.InterpolatedString.Perl6   (qc)
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -187,17 +190,3 @@ createExplainStatement countQuery =
 
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
 unicodeStatement = H.Statement . encodeUtf8
-
--- Helper hasql functions
-
-column :: HD.Value a -> HD.Row a
-column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-element :: HD.Value a -> HD.Array a
-element = HD.element . HD.nonNullable
-
-param :: HE.Value a -> HE.Params a
-param = HE.param . HE.nonNullable

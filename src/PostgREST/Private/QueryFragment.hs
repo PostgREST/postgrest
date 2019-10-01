@@ -1,11 +1,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-|
-Module      : PostgREST.QueryBuilder.Private
+Module      : PostgREST.Private.QueryFragment
 Description : Helper functions for PostgREST.QueryBuilder.
 
 Any function that outputs a SqlFragment should be in this module.
 -}
-module PostgREST.QueryBuilder.Private where
+module PostgREST.Private.QueryFragment where
 
 import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
