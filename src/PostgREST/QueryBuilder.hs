@@ -27,12 +27,12 @@ import Data.Tree (Tree (..))
 
 import Data.Maybe
 
-import PostgREST.QueryBuilder.Private
-import PostgREST.RangeQuery           (allRange, rangeLimit,
-                                       rangeOffset)
+import PostgREST.Private.QueryFragment
+import PostgREST.RangeQuery            (allRange, rangeLimit,
+                                        rangeOffset)
 import PostgREST.Types
-import Protolude                      hiding (cast, intercalate,
-                                       replace)
+import Protolude                       hiding (cast, intercalate,
+                                        replace)
 
 readRequestToQuery :: Bool -> ReadRequest -> SqlQuery
 readRequestToQuery isParent (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
