@@ -125,8 +125,8 @@ app dbStructure proc cols conf apiRequest =
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
 
-        (ActionRead headersOnly, TargetIdent (QualifiedIdentifier _ tName), Nothing) ->
-          case readSqlParts tName of
+        (ActionRead headersOnly, TargetIdent (QualifiedIdentifier tSchema tName), Nothing) ->
+          case readSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (q, cq, bField) -> do
               let cQuery = if estimatedCount
@@ -281,9 +281,9 @@ app dbStructure proc cols conf apiRequest =
                   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
-        (ActionInvoke invMethod, TargetProc qi@(QualifiedIdentifier _ pName) _, Just pJson) ->
+        (ActionInvoke invMethod, TargetProc qi@(QualifiedIdentifier tSchema pName) _, Just pJson) ->
           let tName = fromMaybe pName $ procTableName =<< proc in
-          case readSqlParts tName of
+          case readSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (q, cq, bField) -> do
               let
@@ -306,7 +306,7 @@ app dbStructure proc cols conf apiRequest =
                       return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs)
                       (if invMethod == InvHead then mempty else toS body)
 
-        (ActionInspect headersOnly, TargetDefaultSpec, Nothing) -> do
+        (ActionInspect headersOnly, TargetDefaultSpec tSchema, Nothing) -> do
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configProxyUri conf
@@ -317,14 +317,16 @@ app dbStructure proc cols conf apiRequest =
               toTableInfo = map (\t -> let (s, tn) = (tableSchema t, tableName t) in (t, tableCols dbStructure s tn, tablePKCols dbStructure s tn))
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
 
-          body <- encodeApi <$> H.statement schema accessibleTables <*> H.statement schema schemaDescription <*> H.statement schema accessibleProcs
+          body <- encodeApi <$>
+            H.statement tSchema accessibleTables <*>
+            H.statement tSchema schemaDescription <*>
+            H.statement tSchema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] (if headersOnly then mempty else toS body)
 
         _ -> return notFound
 
       where
         notFound = responseLBS status404 [] ""
-        schema = toS $ configSchema conf
         maxRows = configMaxRows conf
         exactCount = iPreferCount apiRequest == Just ExactCount
         estimatedCount = iPreferCount apiRequest == Just EstimatedCount
@@ -334,9 +336,9 @@ app dbStructure proc cols conf apiRequest =
         returnsScalar = maybe False procReturnsScalar proc
 
         selectQuery = readRequestToQuery False
-        readSqlParts tableName =
+        readSqlParts s t =
           let
-            readReq = readRequest schema tableName maxRows (dbRelations dbStructure) apiRequest
+            readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
           in
           (,,) <$>
           (selectQuery <$> readReq) <*>
