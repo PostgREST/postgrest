@@ -63,7 +63,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tpQi :: QualifiedIdentifier, tpIsRootSpec :: Bool}
-            | TargetDefaultSpec -- The default spec offered at root "/"
+            | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown [Text]
             deriving Eq
 
@@ -120,7 +120,7 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Maybe QualifiedIdentifier -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest :: Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schema rootSpec req reqBody
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
@@ -178,6 +178,9 @@ userApiRequest schema rootSpec req reqBody
   isTargetingProc = case target of
     TargetProc _ _ -> True
     _              -> False
+  isTargetingDefaultSpec = case target of
+    TargetDefaultSpec _ -> True
+    _                   -> False
   contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
@@ -209,12 +212,12 @@ userApiRequest schema rootSpec req reqBody
     case method of
       -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
       -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
-      "HEAD"     | target == TargetDefaultSpec -> ActionInspect{isHead=True}
-                 | isTargetingProc             -> ActionInvoke InvHead
-                 | otherwise                   -> ActionRead{isHead=True}
-      "GET"      | target == TargetDefaultSpec -> ActionInspect{isHead=False}
-                 | isTargetingProc             -> ActionInvoke InvGet
-                 | otherwise                   -> ActionRead{isHead=False}
+      "HEAD"     | isTargetingDefaultSpec -> ActionInspect{isHead=True}
+                 | isTargetingProc        -> ActionInvoke InvHead
+                 | otherwise              -> ActionRead{isHead=True}
+      "GET"      | isTargetingDefaultSpec -> ActionInspect{isHead=False}
+                 | isTargetingProc        -> ActionInvoke InvGet
+                 | otherwise              -> ActionRead{isHead=False}
       "POST"    -> if isTargetingProc
                     then ActionInvoke InvPost
                     else ActionCreate
@@ -225,8 +228,8 @@ userApiRequest schema rootSpec req reqBody
       _         -> ActionInspect{isHead=False}
   target = case path of
     []            -> case rootSpec of
-                       Just rsQi -> TargetProc rsQi True
-                       Nothing   -> TargetDefaultSpec
+                       Just pName -> TargetProc (QualifiedIdentifier schema pName) True
+                       Nothing    -> TargetDefaultSpec schema
     [table]       -> TargetIdent $ QualifiedIdentifier schema table
     ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
     other         -> TargetUnknown other

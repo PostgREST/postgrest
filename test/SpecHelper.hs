@@ -23,7 +23,7 @@ import Test.Hspec.Wai
 import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..))
-import PostgREST.Types  (JSPathExp (..), QualifiedIdentifier (..))
+import PostgREST.Types  (JSPathExp (..))
 import Protolude
 
 matchContentTypeJson :: MatchHeader
@@ -131,7 +131,7 @@ testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
 
 testCfgRootSpec :: Text -> AppConfig
-testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just $ QualifiedIdentifier "test" "root"}
+testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just "root"}
 
 testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }

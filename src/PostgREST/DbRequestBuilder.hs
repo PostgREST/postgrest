@@ -94,10 +94,10 @@ treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augumentRequestWithJoin :: Schema ->  [Relation] ->  ReadRequest -> Either ApiRequestError ReadRequest
+augumentRequestWithJoin :: Schema -> [Relation] -> ReadRequest -> Either ApiRequestError ReadRequest
 augumentRequestWithJoin schema allRels request =
   addRelations schema allRels Nothing request
-  >>= addJoinConditions schema Nothing
+  >>= addJoinConditions Nothing
 
 addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, relationDetail, depth)) forest) =
@@ -199,8 +199,8 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
   ) allRelations
 
 -- previousAlias is only used for the case of self joins
-addJoinConditions :: Schema -> Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions schema previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, relation, _, _, depth)) forest) =
+addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
+addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, relation, _, _, depth)) forest) =
   case relation of
     Just Relation{relType=Root} -> Node node <$> updatedForest -- this is the root node
     Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
@@ -220,7 +220,7 @@ addJoinConditions schema previousAlias (Node node@(query@Select{from=tbl}, nodeP
         (\jc rq@Select{joinConditions=jcs} -> rq{joinConditions=jc:jcs})
         query{fromAlias=newAlias}
         (getJoinConditions previousAlias newAlias rel)
-    updatedForest = mapM (addJoinConditions schema newAlias) forest
+    updatedForest = mapM (addJoinConditions newAlias) forest
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]

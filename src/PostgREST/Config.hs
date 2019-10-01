@@ -58,8 +58,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
 import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
-import PostgREST.Types   (JSPath, JSPathExp (..),
-                          QualifiedIdentifier (..))
+import PostgREST.Types   (JSPath, JSPathExp (..))
 import Protolude         hiding (concat, hPutStrLn, intercalate, null,
                           take, (<>))
 
@@ -87,7 +86,7 @@ data AppConfig = AppConfig {
   , configRoleClaimKey      :: Either ApiRequestError JSPath
   , configExtraSearchPath   :: [Text]
 
-  , configRootSpec          :: Maybe QualifiedIdentifier
+  , configRootSpec          :: Maybe Text
   , configRawMediaTypes     :: [B.ByteString]
   }
 
@@ -147,13 +146,12 @@ readOptions = do
       return appConf
 
   where
-    dbSchema = reqString "db-schema"
     parseConfig =
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
         <*> optString "server-proxy-uri"
-        <*> dbSchema
+        <*> reqString "db-schema"
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
@@ -168,7 +166,7 @@ readOptions = do
         <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
-        <*> ((\x y -> QualifiedIdentifier x <$> y) <$> dbSchema <*> optString "root-spec")
+        <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
