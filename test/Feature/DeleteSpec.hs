@@ -5,6 +5,7 @@ import Network.Wai (Application)
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
 import Protolude hiding (get)
@@ -62,3 +63,24 @@ spec =
     context "totally unknown route" $
       it "fails with 404" $
         request methodDelete "/foozle?id=eq.101" [] "" `shouldRespondWith` 404
+
+    context "table with limited privileges" $ do
+      it "fails deleting the row when return=representation and selecting all the columns" $
+        request methodDelete "/app_users?id=eq.1" [("Prefer", "return=representation")] mempty
+            `shouldRespondWith` 401
+
+      it "succeeds deleting the row when return=representation and selecting only the privileged columns" $
+        request methodDelete "/app_users?id=eq.1&select=id,email" [("Prefer", "return=representation")]
+          [json| { "password": "passxyz" } |]
+            `shouldRespondWith` [json|[ { "id": 1, "email": "test@123.com" } ]|]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+      it "suceeds deleting the row with no explicit select when using return=minimal" $
+        request methodDelete "/app_users?id=eq.2" [("Prefer", "return=minimal")] mempty
+            `shouldRespondWith` 204
+
+      it "suceeds deleting the row with no explicit select by default" $
+        request methodDelete "/app_users?id=eq.3" [] mempty
+            `shouldRespondWith` 204

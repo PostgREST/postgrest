@@ -41,10 +41,8 @@ import Network.Wai
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    ContentType (..),
-                                   InvokeMethod (..),
-                                   PreferRepresentation (..),
-                                   Target (..), mutuallyAgreeable,
-                                   userApiRequest)
+                                   InvokeMethod (..), Target (..),
+                                   mutuallyAgreeable, userApiRequest)
 import PostgREST.Auth             (containsRole, jwtClaims,
                                    parseSecret)
 import PostgREST.Config           (AppConfig (..))

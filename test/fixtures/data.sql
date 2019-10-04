@@ -507,3 +507,8 @@ INSERT INTO web_content VALUES (1, 'fezz', 0);
 INSERT INTO web_content VALUES (2, 'foo', 0);
 INSERT INTO web_content VALUES (3, 'bar', 0);
 INSERT INTO web_content VALUES (4, 'wut', 1);
+
+TRUNCATE TABLE app_users CASCADE;
+INSERT INTO app_users (id, email, "password") VALUES (1, 'test@123.com','pass');
+INSERT INTO app_users (id, email, "password") VALUES (2, 'abc@123.com','pass');
+INSERT INTO app_users (id, email, "password") VALUES (3, 'def@123.com','pass');

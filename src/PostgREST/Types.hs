@@ -70,6 +70,16 @@ instance Show PreferResolution where
   show MergeDuplicates  = "resolution=merge-duplicates"
   show IgnoreDuplicates = "resolution=ignore-duplicates"
 
+-- | How to return the mutated data. From https://tools.ietf.org/html/rfc7240#section-4.2
+data PreferRepresentation = Full        -- ^ Return the body plus the Location header(in case of POST).
+                          | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
+                          | None        -- ^ Return nothing from the mutated data.
+                          deriving Eq
+instance Show PreferRepresentation where
+  show Full        = "return=representation"
+  show None        = "return=minimal"
+  show HeadersOnly = mempty
+
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure
   | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure

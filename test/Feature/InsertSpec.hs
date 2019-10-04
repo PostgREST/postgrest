@@ -148,15 +148,6 @@ spec actualPgVersion = do
             simpleBody p `shouldBe` [json| [] |]
             simpleStatus p `shouldBe` created201
 
-        it "can insert in tables with no select privileges" $ do
-          p <- request methodPost "/insertonly"
-                       [("Prefer", "return=minimal")]
-                       [json| { "v":"some value" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` ""
-            simpleStatus p `shouldBe` created201
-
-
         it "can post nulls" $ do
           p <- request methodPost "/no_pk"
                        [("Prefer", "return=representation")]
@@ -257,36 +248,6 @@ spec actualPgVersion = do
       it "successfully inserts two rows with all-default columns" $
         post "/items" "[{}, {}]" `shouldRespondWith` ""
           { matchStatus  = 201
-          , matchHeaders = []
-          }
-
-    context "table with limited privileges" $ do
-      it "succeeds if correct select is applied" $
-        request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
-          [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` [str|[{"article_id":2,"user_id":1}]|]
-          { matchStatus  = 201
-          , matchHeaders = []
-          }
-      it "fails if more columns are selected" $
-        request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
-          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
-        if actualPgVersion >= pgVersion112 then
-        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-           else
-        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                        )
-          { matchStatus  = 401
-          , matchHeaders = []
-          }
-      it "fails if select is not specified" $
-        request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
-          [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
-        if actualPgVersion >= pgVersion112 then
-        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-           else
-        [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                        )
-          { matchStatus  = 401
           , matchHeaders = []
           }
 
@@ -664,3 +625,53 @@ spec actualPgVersion = do
         { matchStatus  = 200,
           matchHeaders = [matchContentTypeJson]
         }
+
+  context "table with limited privileges" $ do
+    it "succeeds inserting if correct select is applied" $
+      request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
+        [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` [str|[{"article_id":2,"user_id":1}]|]
+        { matchStatus  = 201
+        , matchHeaders = []
+        }
+
+    it "fails inserting if more columns are selected" $
+      request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
+        [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
+      if actualPgVersion >= pgVersion112 then
+      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+         else
+      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+                                                                      )
+        { matchStatus  = 401
+        , matchHeaders = []
+        }
+
+    it "fails inserting if select is not specified" $
+      request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
+        [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
+      if actualPgVersion >= pgVersion112 then
+      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+         else
+      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+                                                                      )
+        { matchStatus  = 401
+        , matchHeaders = []
+        }
+
+    it "can insert in a table with no select and return=minimal" $ do
+      p <- request methodPost "/insertonly"
+                   [("Prefer", "return=minimal")]
+                   [json| { "v":"some value" } |]
+      liftIO $ do
+        simpleBody p `shouldBe` ""
+        simpleStatus p `shouldBe` created201
+
+    it "succeeds updating row and gives a 204 when using return=minimal" $
+      request methodPatch "/app_users?id=eq.1" [("Prefer", "return=minimal")]
+        [json| { "password": "passxyz" } |]
+          `shouldRespondWith` 204
+
+    it "can update without return=minimal and no explicit select" $
+      request methodPatch "/app_users?id=eq.1" []
+        [json| { "password": "passabc" } |]
+          `shouldRespondWith` 204

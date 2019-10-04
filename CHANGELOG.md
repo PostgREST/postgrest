@@ -9,14 +9,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1383, Add support for HEAD request - @steve-chavez
 - #1378, Add support for `Prefer: count=planned` and `Prefer: count=estimated` on GET /table - @steve-chavez
+
+### Fixed
+
 - #1301, Fix self join resource embedding on PATCH - @herulume, @steve-chavez
 - #1389, Fix many to many resource embedding on RPC/PATCH - @steve-chavez
+- #1355, Allow PATCH/DELETE without `return=minimal` on tables with no select privileges - @steve-chavez
 
 ### Changed
 
 - #1385, bulk RPC call now should be done by specifying a `Prefer: params=multiple-objects` header - @steve-chavez
-
-### Fixed
 
 ## [6.0.2] - 2019-08-22
 

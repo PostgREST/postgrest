@@ -1753,3 +1753,9 @@ CREATE TABLE web_content (
 CREATE FUNCTION getallusers() RETURNS SETOF users AS $$
   SELECT * FROM test.users;
 $$ LANGUAGE sql;
+
+create table app_users (
+  id       integer    primary key,
+  email    text       unique not null,
+  password text       not null
+);

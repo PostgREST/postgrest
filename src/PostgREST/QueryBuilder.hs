@@ -96,7 +96,8 @@ mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
            then "DO NOTHING"
            else "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
                                    ) `emptyOnFalse` null oncCols) onConflct,
-    ("RETURNING " <> intercalate ", " (map (pgFmtColumn mainQi) returnings)) `emptyOnFalse` null returnings]
+    returningF mainQi returnings
+    ]
   where
     cols = intercalate ", " $ pgFmtIdent <$> S.toList iCols
 mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
@@ -108,7 +109,7 @@ mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
         "UPDATE " <> fromQi mainQi <> " SET " <> cols,
         "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi mainQi, ", " <> selectBody <> ")) _ ",
         ("WHERE " <> intercalate " AND " (pgFmtLogicTree mainQi <$> logicForest)) `emptyOnFalse` null logicForest,
-        ("RETURNING " <> intercalate ", " (pgFmtColumn mainQi <$> returnings)) `emptyOnFalse` null returnings
+        returningF mainQi returnings
         ]
   where
     cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
@@ -117,7 +118,7 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
     "WITH " <> ignoredBody,
     "DELETE FROM ", fromQi mainQi,
     ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree mainQi) logicForest)) `emptyOnFalse` null logicForest,
-    ("RETURNING " <> intercalate ", " (map (pgFmtColumn mainQi) returnings)) `emptyOnFalse` null returnings
+    returningF mainQi returnings
     ]
 
 requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> SqlQuery
