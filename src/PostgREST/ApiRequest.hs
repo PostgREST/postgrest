@@ -11,7 +11,6 @@ module PostgREST.ApiRequest (
 , ContentType(..)
 , Action(..)
 , Target(..)
-, PreferRepresentation (..)
 , mutuallyAgreeable
 , userApiRequest
 ) where
@@ -67,10 +66,6 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetUnknown [Text]
             deriving Eq
 
--- | How to return the inserted data
-data PreferRepresentation = Full | HeadersOnly | None deriving Eq
-
-
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
@@ -79,44 +74,25 @@ data PreferRepresentation = Full | HeadersOnly | None deriving Eq
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-  -- | Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-    iAction               :: Action
-  -- | Requested range of rows within response
-  , iRange                :: M.HashMap ByteString NonnegRange
-  -- | Requested range of rows from the top level
-  , iTopLevelRange        :: NonnegRange
-  -- | The target, be it calling a proc or accessing a table
-  , iTarget               :: Target
-  -- | Content types the client will accept, [CTAny] if no Accept header
-  , iAccepts              :: [ContentType]
-  -- | Data sent by client and used for mutation actions
-  , iPayload              :: Maybe PayloadJSON
-  -- | If client wants created items echoed back
-  , iPreferRepresentation :: PreferRepresentation
-  -- | How to pass parameters to a stored procedure
-  , iPreferParameters     :: Maybe PreferParameters
-  -- | Whether the client wants a result count
-  , iPreferCount          :: Maybe PreferCount
-  -- | Whether the client wants to UPSERT or ignore records on PK conflict
-  , iPreferResolution     :: Maybe PreferResolution
-  -- | Filters on the result ("id", "eq.10")
-  , iFilters              :: [(Text, Text)]
-  -- | &and and &or parameters used for complex boolean logic
-  , iLogic                :: [(Text, Text)]
-  -- | &select parameter used to shape the response
-  , iSelect               :: Maybe Text
-  -- | &columns parameter used to shape the payload
-  , iColumns              :: Maybe Text
-  -- | &order parameters for each level
-  , iOrder                :: [(Text, Text)]
-  -- | Alphabetized (canonical) request query string for response URLs
-  , iCanonicalQS          :: ByteString
-  -- | JSON Web Token
-  , iJWT                  :: Text
-  -- | HTTP request headers
-  , iHeaders              :: [(Text, Text)]
-  -- | Request Cookies
-  , iCookies              :: [(Text, Text)]
+    iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
+  , iRange                :: M.HashMap ByteString NonnegRange -- ^ Requested range of rows within response
+  , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
+  , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
+  , iAccepts              :: [ContentType]                    -- ^ Content types the client will accept, [CTAny] if no Accept header
+  , iPayload              :: Maybe PayloadJSON                -- ^ Data sent by client and used for mutation actions
+  , iPreferRepresentation :: PreferRepresentation             -- ^ If client wants created items echoed back
+  , iPreferParameters     :: Maybe PreferParameters           -- ^ How to pass parameters to a stored procedure
+  , iPreferCount          :: Maybe PreferCount                -- ^ Whether the client wants a result count
+  , iPreferResolution     :: Maybe PreferResolution           -- ^ Whether the client wants to UPSERT or ignore records on PK conflict
+  , iFilters              :: [(Text, Text)]                   -- ^ Filters on the result ("id", "eq.10")
+  , iLogic                :: [(Text, Text)]                   -- ^ &and and &or parameters used for complex boolean logic
+  , iSelect               :: Maybe Text                       -- ^ &select parameter used to shape the response
+  , iColumns              :: Maybe Text                       -- ^ &columns parameter used to shape the payload
+  , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
+  , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
+  , iJWT                  :: Text                             -- ^ JSON Web Token
+  , iHeaders              :: [(Text, Text)]                   -- ^ HTTP request headers
+  , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -255,9 +231,11 @@ userApiRequest schema rootSpec req reqBody
         split :: BS.ByteString -> [Text]
         split = map T.strip . T.split (==',') . toS
   representation
-    | hasPrefer "return=representation" = Full
-    | hasPrefer "return=minimal" = None
-    | otherwise = HeadersOnly
+    | hasPrefer (show Full) = Full
+    | hasPrefer (show None) = None
+    | otherwise             = if action == ActionCreate
+                                then HeadersOnly -- Assume the user wants the Location header(for POST) by default
+                                else None
   auth = fromMaybe "" $ lookupHeader hAuthorization
   tokenStr = case T.split (== ' ') (toS auth) of
     ("Bearer" : t : _) -> t

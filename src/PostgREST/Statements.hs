@@ -22,18 +22,15 @@ import           Data.Aeson                      as JSON
 import qualified Data.Aeson.Lens                 as L
 import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
-import           Data.Text                       (intercalate,
-                                                  unwords)
+import           Data.Text                       (unwords)
 import           Data.Text.Encoding              (encodeUtf8)
 import qualified Hasql.Decoders                  as HD
 import qualified Hasql.Encoders                  as HE
 import qualified Hasql.Statement                 as H
-import           PostgREST.ApiRequest            (PreferRepresentation (..))
 import           PostgREST.Private.Common
 import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
 import           Protolude                       hiding (cast,
-                                                  intercalate,
                                                   replace)
 import           Text.InterpolatedString.Perl6   (qc)
 
@@ -49,36 +46,27 @@ createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
   unicodeStatement sql (param HE.unknown) decodeStandard True
  where
-  sql = case rep of
-    None -> [qc|
-      WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT '', 0, {noLocationF}, '' |]
-    HeadersOnly -> [qc|
-      WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT {cols}
-      FROM (SELECT 1 FROM {sourceCTEName}) _postgrest_t |]
-    Full -> [qc|
-      WITH {sourceCTEName} AS ({mutateQuery})
-      SELECT {cols}
+  sql = [qc|
+      WITH
+      {sourceCTEName} AS ({mutateQuery})
+      SELECT
+        '' AS total_result_set,
+        pg_catalog.count(_postgrest_t) AS page_total,
+        {locF} AS header,
+        {bodyF} AS body
       FROM ({selectQuery}) _postgrest_t |]
 
-  cols = intercalate ", " [
-      "'' AS total_result_set", -- when updateing it does not make sense
-      "pg_catalog.count(_postgrest_t) AS page_total",
-      if isInsert
-        then unwords [
-          "CASE",
-            "WHEN pg_catalog.count(_postgrest_t) = 1 THEN",
-              "coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
-            "ELSE " <> noLocationF,
-          "END AS header"]
-        else noLocationF <> "AS header",
-      if rep == Full
-         then bodyF <> " AS body"
-         else "''"
-    ]
+  locF =
+    if isInsert && rep `elem` [Full, HeadersOnly]
+      then unwords [
+        "CASE WHEN pg_catalog.count(_postgrest_t) = 1",
+          "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
+          "ELSE " <> noLocationF,
+        "END"]
+      else noLocationF
 
   bodyF
+    | rep `elem` [None, HeadersOnly] = "''"
     | asCsv = asCsvF
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF

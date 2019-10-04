@@ -33,8 +33,7 @@ import Control.Applicative
 import Data.Tree
 import Network.Wai
 
-import PostgREST.ApiRequest (Action (..), ApiRequest (..),
-                             PreferRepresentation (..))
+import PostgREST.ApiRequest (Action (..), ApiRequest (..))
 import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
 import PostgREST.Parsers
 import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)

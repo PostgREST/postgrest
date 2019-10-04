@@ -191,3 +191,9 @@ countF countQuery shouldCount =
     else (
         mempty
       , "null::bigint")
+
+returningF :: QualifiedIdentifier -> [FieldName] -> SqlFragment
+returningF qi returnings =
+  if null returnings
+    then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
+    else "RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)
