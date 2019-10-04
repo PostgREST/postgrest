@@ -335,22 +335,22 @@ app dbStructure proc cols conf apiRequest =
         topLevelRange = iTopLevelRange apiRequest
         returnsScalar = maybe False procReturnsScalar proc
 
-        selectQuery = readRequestToQuery False
         readSqlParts s t =
           let
             readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
           in
           (,,) <$>
-          (selectQuery <$> readReq) <*>
+          (readRequestToQuery <$> readReq) <*>
           (readRequestToCountQuery <$> readReq) <*>
           (binaryField contentType rawContentTypes returnsScalar =<< readReq)
+
         mutateSqlParts s t =
           let
             readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
             mutReq = mutateRequest s t apiRequest cols (tablePKCols dbStructure s t) =<< readReq
           in
           (,) <$>
-          (selectQuery <$> readReq) <*>
+          (readRequestToQuery <$> readReq) <*>
           (mutateRequestToQuery <$> mutReq)
 
 responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target -> Either Response ContentType

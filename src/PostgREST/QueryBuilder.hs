@@ -34,8 +34,8 @@ import PostgREST.Types
 import Protolude                       hiding (cast, intercalate,
                                         replace)
 
-readRequestToQuery :: Bool -> ReadRequest -> SqlQuery
-readRequestToQuery isParent (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
+readRequestToQuery :: ReadRequest -> SqlQuery
+readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
   unwords [
     "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
     "FROM " <> intercalate ", " (tabl : implJs),
@@ -43,42 +43,39 @@ readRequestToQuery isParent (Node (Select colSelects mainQi tblAlias implJoins l
     ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
       `emptyOnFalse` (null logicForest && null joinConditions_),
     ("ORDER BY " <> intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
-    ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (isParent || range == allRange) ]
-
+    ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (range == allRange)
+    ]
   where
     implJs = fromQi <$> implJoins
     tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
     qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
+    (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
-    (joins, selects) = foldr getQueryParts ([],[]) forest
-
-    getQueryParts :: Tree ReadNode -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Child,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (j,sel:s)
-      where
-        sel = "COALESCE(("
-           <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
-           <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
-           <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = readRequestToQuery False (Node n forst)
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Parent,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (joi:j,sel:s)
-      where
-        aliasOrName = fromMaybe name alias
-        localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
-        sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
-        joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE "
-          where subquery = readRequestToQuery True (Node n forst)
-    getQueryParts (Node n@(_, (name, Just Relation{relType=Many,relTable=Table{tableName=table}}, alias, _, _)) forst) (j,s) = (j,sel:s)
-      where
-        sel = "COALESCE (("
-           <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
-           <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
-           <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias)
-           where subquery = readRequestToQuery False (Node n forst)
-    --the following is just to remove the warning
-    --getQueryParts is not total but readRequestToQuery is called only after addJoinConditions which ensures the only
-    --posible relations are Child Parent Many
-    getQueryParts _ _ = witness
-
+getJoinsSelects :: ReadRequest -> ([SqlFragment], [SqlFragment]) -> ([SqlFragment], [SqlFragment])
+getJoinsSelects rr@(Node (_, (name, Just Relation{relType=relTyp,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
+  let subquery = readRequestToQuery rr in
+  case relTyp of
+    Child ->
+      let sel = "COALESCE(("
+             <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
+             <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
+             <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias) in
+      (j, sel:s)
+    Parent ->
+      let aliasOrName = fromMaybe name alias
+          localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
+          sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
+          joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE " in
+      (joi:j,sel:s)
+    Many ->
+      let sel = "COALESCE (("
+             <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
+             <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
+             <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias) in
+      (j,sel:s)
+--readRequestToQuery is called only after addJoinConditions which ensures the only posible relations are Child Parent Many
+    Root -> witness
+getJoinsSelects _ _ = witness
 
 mutateRequestToQuery :: MutateRequest -> SqlQuery
 mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
