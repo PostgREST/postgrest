@@ -36,9 +36,16 @@ spec =
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
 
-    it "is not applied to parent embeds" $
+    it "succeeds in getting parent embeds despite the limit, see #647" $
       get "/tasks?select=id,project(id)&id=gt.5"
         `shouldRespondWith` [json|[{"id":6,"project":{"id":3}},{"id":7,"project":{"id":4}}]|]
+        { matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-1/*"]
+        }
+
+    it "can offset the parent embed, being consistent with the other embed types" $
+      get "/tasks?select=id,project:projects(id)&id=gt.5&project.offset=1"
+        `shouldRespondWith` [json|[{"id":6,"project":null}, {"id":7,"project":null}]|]
         { matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/*"]
         }
