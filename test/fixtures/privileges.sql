@@ -104,6 +104,8 @@ GRANT ALL ON TABLE
     , getallprojects_view
     , get_projects_above_view
     , web_content
+    , pages
+    , referrals
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

@@ -512,3 +512,11 @@ TRUNCATE TABLE app_users CASCADE;
 INSERT INTO app_users (id, email, "password") VALUES (1, 'test@123.com','pass');
 INSERT INTO app_users (id, email, "password") VALUES (2, 'abc@123.com','pass');
 INSERT INTO app_users (id, email, "password") VALUES (3, 'def@123.com','pass');
+
+TRUNCATE TABLE private.pages CASCADE;
+INSERT INTO private.pages VALUES (1, 'http://postgrest.org/en/v6.0/api.html');
+INSERT INTO private.pages VALUES (2, 'http://postgrest.org/en/v6.0/admin.html');
+
+TRUNCATE TABLE private.referrals CASCADE;
+INSERT INTO private.referrals VALUES ('github.com', 1);
+INSERT INTO private.referrals VALUES ('hub.docker.com', 2);

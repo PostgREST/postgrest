@@ -393,7 +393,7 @@ allColumns tabs =
         array_to_string(enum_info.vals, ',') AS enum
     FROM (
         /*
-        -- CTE based on pg_catalog to get only Primary and Foreign key columns outside api schema
+        -- CTE based on pg_catalog to get PRIMARY/FOREIGN key and UNIQUE columns outside api schema
         */
         WITH key_columns AS (
              SELECT

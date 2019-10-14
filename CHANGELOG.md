@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1301, Fix self join resource embedding on PATCH - @herulume, @steve-chavez
 - #1389, Fix many to many resource embedding on RPC/PATCH - @steve-chavez
 - #1355, Allow PATCH/DELETE without `return=minimal` on tables with no select privileges - @steve-chavez
+- #1361, Fix embedding a VIEW when its source foreign key is UNIQUE - @bwbroersma
 
 ### Changed
 
