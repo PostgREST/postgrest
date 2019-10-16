@@ -1112,3 +1112,12 @@ spec actualPgVersion = do
 
   it "cannot use ltree(in public schema) extension operators if no extra search path added" $
     get "/ltree_sample?path=cd.Top.Science.Astronomy" `shouldRespondWith` 400
+
+  context "VIEW that has a source FK based on a UNIQUE key" $
+    it "can be embedded" $
+      get "/referrals?select=site,link:pages(url)" `shouldRespondWith`
+        [json| [
+         {"site":"github.com",     "link":{"url":"http://postgrest.org/en/v6.0/api.html"}},
+         {"site":"hub.docker.com", "link":{"url":"http://postgrest.org/en/v6.0/admin.html"}}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }

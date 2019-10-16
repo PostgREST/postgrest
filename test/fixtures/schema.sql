@@ -1759,3 +1759,17 @@ create table app_users (
   email    text       unique not null,
   password text       not null
 );
+
+create table private.pages (
+  link int not null unique
+, url text
+);
+
+create table private.referrals (
+  site text
+, link int references private.pages(link) not null
+);
+
+create view test.pages as select * from private.pages;
+
+create view test.referrals as select * from private.referrals;
