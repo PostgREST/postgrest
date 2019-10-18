@@ -3,6 +3,8 @@
 Tutorial 1 - The Golden Key
 ===========================
 
+:author: `begriffs <https://github.com/begriffs>`_
+
 In :ref:`tut0` we created a read-only API with a single endpoint to list todos. There are many directions we can go to make this API more interesting, but one good place to start would be allowing some users to change data in addition to reading it.
 
 Step 1. Add a Trusted User

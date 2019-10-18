@@ -3,6 +3,8 @@
 Tutorial 0 - Get it Running
 ===========================
 
+:author: `begriffs <https://github.com/begriffs>`_
+
 Welcome to PostgREST! In this pre-tutorial we're going to get things running so you can create your first simple API.
 
 PostgREST is a standalone web server which turns a PostgreSQL database into a RESTful API. It serves an API that is customized based on the structure of the underlying database.

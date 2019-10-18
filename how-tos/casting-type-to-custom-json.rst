@@ -1,6 +1,8 @@
 Casting a type to a custom JSON object
 ======================================
 
+:author: `steve-chavez <https://github.com/steve-chavez>`_
+
 While using PostgREST you might have noticed that certain PostgreSQL types translate to JSON strings when you would
 have expected a JSON object or array. For example, let's see the case of `range types <https://www.postgresql.org/docs/11/rangetypes.html>`_.
 
@@ -82,7 +84,7 @@ You can use the same idea for creating custom CASTs for different types.
 
 .. note::
 
-   If you don't want to modify CASTs for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_ 
+   If you don't want to modify CASTs for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_
    for your own ``tsrange`` and add its own CAST.
 
    .. code-block:: postgres
