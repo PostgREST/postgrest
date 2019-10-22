@@ -1403,5 +1403,5 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 | 42501                    | | if authenticated 403, | insufficient privileges         |
 |                          | | else 401              |                                 |
 +--------------------------+-------------------------+---------------------------------+
-| other                    | 500                     |                                 |
+| other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
