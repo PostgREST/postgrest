@@ -222,8 +222,8 @@ data Column =
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
 
--- | A view column that refers to a table column
-type Synonym = (Column, ViewColumn)
+-- | The source table column a view column refers to
+type SourceColumn = (Column, ViewColumn)
 type ViewColumn = Column
 
 data PrimaryKey = PrimaryKey {
