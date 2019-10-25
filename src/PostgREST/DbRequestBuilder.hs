@@ -110,9 +110,7 @@ addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (node
                 findRelation schema allRelations nodeName parentNodeTable relationDetail in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
     _ ->
-      let rn = (query, (nodeName, Just r, alias, Nothing, depth))
-          r = Relation t [] t [] Root Nothing Nothing Nothing
-          t = Table schema nodeName Nothing True in -- !!! TODO find another way to get the table from the query
+      let rn = (query, (nodeName, Nothing, alias, Nothing, depth)) in
       Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
@@ -201,13 +199,16 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, relation, _, _, depth)) forest) =
   case relation of
-    Just Relation{relType=Root} -> Node node <$> updatedForest -- this is the root node
     Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
     Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
-    Just rel@Relation{relType=Many, relLinkTable=(Just linkTable)} ->
-      let rq = augmentQuery rel in
-      Node (rq{implicitJoins=tableQi linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
-    _ -> Left UnknownRelation
+    Just rel@Relation{relType=Many, relLinkTable=lTable} ->
+      case lTable of
+        Just linkTable ->
+          let rq = augmentQuery rel in
+          Node (rq{implicitJoins=tableQi linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
+        Nothing ->
+          Left UnknownRelation
+    Nothing -> Node node <$> updatedForest
   where
     newAlias = case isSelfJoin <$> relation of
       Just True
@@ -232,7 +233,6 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
     Many   ->
         let ltN = maybe "" tableName lt in
         zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
-    Root   -> witness
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =
@@ -354,7 +354,6 @@ returningCols rr@(Node _ forest) = returnings
           Parent -> Just cols
           Child  -> Just cols
           Many   -> Just cols
-          _      -> Nothing
         _ -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)
