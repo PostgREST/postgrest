@@ -73,9 +73,7 @@ getJoinsSelects rr@(Node (_, (name, Just Relation{relType=relTyp,relTable=Table{
              <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
              <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias) in
       (j,sel:s)
---readRequestToQuery is called only after addJoinConditions which ensures the only posible relations are Child Parent Many
-    Root -> witness
-getJoinsSelects _ _ = witness
+getJoinsSelects (Node (_, (_, Nothing, _, _, _)) _) _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> SqlQuery
 mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =

@@ -257,7 +257,12 @@ data QualifiedIdentifier = QualifiedIdentifier {
 } deriving (Show, Eq, Ord)
 
 
-data RelationType = Child | Parent | Many | Root deriving (Show, Eq)
+-- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
+-- | TODO: missing one-to-one
+data Cardinality = Child  -- ^ a.k.a. many-to-one
+                 | Parent -- ^ a.k.a. one-to-many
+                 | Many   -- ^ a.k.a. many-to-many
+                 deriving (Show, Eq)
 
 {-|
   The name 'Relation' here is used with the meaning
@@ -272,15 +277,15 @@ data Relation = Relation {
 , relColumns   :: [Column]
 , relFTable    :: Table
 , relFColumns  :: [Column]
-, relType      :: RelationType
--- The Link attrs are used when RelationType == Many
+, relType      :: Cardinality
+-- The Link attrs are used when Cardinality == Many
 , relLinkTable :: Maybe Table
 , relLinkCols1 :: Maybe [Column]
 , relLinkCols2 :: Maybe [Column]
 } deriving (Show, Eq)
 
 isSelfJoin :: Relation -> Bool
-isSelfJoin r = relType r /= Root && relTable r == relFTable r
+isSelfJoin r = relTable r == relFTable r
 
 data PayloadJSON =
   -- | Cached attributes of a JSON payload
