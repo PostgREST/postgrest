@@ -23,7 +23,7 @@ import qualified Data.Set              as S
 import Control.Arrow           ((***))
 import Data.Either.Combinators (mapLeft)
 import Data.Foldable           (foldr1)
-import Data.List               (delete)
+import Data.List               (delete, head, (!!))
 import Data.Maybe              (fromJust)
 import Data.Text               (isInfixOf)
 import Text.Regex.TDFA         ((=~))
@@ -38,7 +38,7 @@ import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
 import PostgREST.Parsers
 import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
 import PostgREST.Types
-import Protolude            hiding (from)
+import Protolude            hiding (from, head)
 
 readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Response ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
@@ -105,9 +105,20 @@ addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (node
       let newFrom r = if qiName tbl == nodeName then tableQi (relTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
           parentNodeTable = qiName parentNodeQi
+          results = findRelation schema allRelations nodeName parentNodeTable relationDetail
           rel :: Either ApiRequestError Relation
-          rel = note (NoRelationBetween parentNodeTable nodeName) $
-                findRelation schema allRelations nodeName parentNodeTable relationDetail in
+          rel = case results of
+            []  -> Left $ NoRelBetween parentNodeTable nodeName
+            [r] -> Right r
+            rs  ->
+              -- Temporary hack for handling a self reference relationship. In this case we get a parent and child rel with the same relTable/relFtable.
+              -- We output the child rel, the parent can be obtained by using the fk column as an embed hint.
+              let rel0 = head rs
+                  rel1 = rs !! 1 in
+              if length rs == 2 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
+                then note (NoRelBetween parentNodeTable nodeName) (find (\r -> relType r == Child) rs)
+                else Left $ AmbiguousRelBetween parentNodeTable nodeName rs
+      in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
     _ ->
       let rn = (query, (nodeName, Nothing, alias, Nothing, depth)) in
@@ -116,9 +127,9 @@ addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (node
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = mapM (addRelations schema allRelations rq) forest
 
-findRelation :: Schema -> [Relation] -> NodeName -> TableName -> Maybe RelationDetail -> Maybe Relation
+findRelation :: Schema -> [Relation] -> NodeName -> TableName -> Maybe RelationDetail -> [Relation]
 findRelation schema allRelations nodeTableName parentNodeTableName relationDetail =
-  find (\Relation{relTable, relColumns, relFTable, relFColumns, relType, relLinkTable} ->
+  filter (\Relation{relTable, relColumns, relFTable, relFColumns, relType, relLinkTable} ->
     -- Both relation ends need to be on the exposed schema
     schema == tableSchema relTable && schema == tableSchema relFTable &&
     case relationDetail of
@@ -210,7 +221,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
           Left UnknownRelation
     Nothing -> Node node <$> updatedForest
   where
-    newAlias = case isSelfJoin <$> relation of
+    newAlias = case isSelfReference <$> relation of
       Just True
         | depth /= 0 -> Just (qiName tbl <> "_" <> show depth) -- root node doesn't get aliased
         | otherwise  -> Nothing

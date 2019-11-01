@@ -37,7 +37,7 @@ spec =
         request methodDelete "/complex_items?id=eq.3&select=ciId:id::text,ciName:name" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [str|[{"ciId":"3","ciName":"Three"}]|]
       it "can embed (parent) entities" $
-        request methodDelete "/tasks?id=eq.8&select=id,name,project(id)" [("Prefer", "return=representation")] ""
+        request methodDelete "/tasks?id=eq.8&select=id,name,project:projects(id)" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [str|[{"id":8,"name":"Code OSX","project":{"id":4}}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]

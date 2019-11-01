@@ -284,8 +284,8 @@ data Relation = Relation {
 , relLinkCols2 :: Maybe [Column]
 } deriving (Show, Eq)
 
-isSelfJoin :: Relation -> Bool
-isSelfJoin r = relTable r == relFTable r
+isSelfReference :: Relation -> Bool
+isSelfReference r = relTable r == relFTable r
 
 data PayloadJSON =
   -- | Cached attributes of a JSON payload
