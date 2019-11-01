@@ -127,6 +127,7 @@ test-suite spec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.DeleteSpec
+                      Feature.EmbedDisambiguationSpec
                       Feature.ExtraSearchPathSpec
                       Feature.InsertSpec
                       Feature.JsonOperatorSpec

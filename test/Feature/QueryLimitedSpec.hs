@@ -37,7 +37,7 @@ spec =
         }
 
     it "succeeds in getting parent embeds despite the limit, see #647" $
-      get "/tasks?select=id,project(id)&id=gt.5"
+      get "/tasks?select=id,project:projects(id)&id=gt.5"
         `shouldRespondWith` [json|[{"id":6,"project":{"id":3}},{"id":7,"project":{"id":4}}]|]
         { matchStatus  = 200
         , matchHeaders = ["Content-Range" <:> "0-1/*"]

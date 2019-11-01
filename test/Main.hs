@@ -26,6 +26,7 @@ import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
+import qualified Feature.EmbedDisambiguationSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.InsertSpec
@@ -91,15 +92,16 @@ main = do
         [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
 
       specs = uncurry describe <$> [
-          ("Feature.AuthSpec"               , Feature.AuthSpec.spec actualPgVersion)
-        , ("Feature.RawOutputTypesSpec"     , Feature.RawOutputTypesSpec.spec)
-        , ("Feature.ConcurrentSpec"         , Feature.ConcurrentSpec.spec)
-        , ("Feature.CorsSpec"               , Feature.CorsSpec.spec)
-        , ("Feature.JsonOperatorSpec"       , Feature.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.QuerySpec"              , Feature.QuerySpec.spec actualPgVersion)
-        , ("Feature.RpcSpec"                , Feature.RpcSpec.spec actualPgVersion)
-        , ("Feature.StructureSpec"          , Feature.StructureSpec.spec)
-        , ("Feature.AndOrParamsSpec"        , Feature.AndOrParamsSpec.spec actualPgVersion)
+          ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
+        , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
+        , ("Feature.ConcurrentSpec"          , Feature.ConcurrentSpec.spec)
+        , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
+        , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
+        , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
+        , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
+        , ("Feature.StructureSpec"           , Feature.StructureSpec.spec)
+        , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
         ] ++ extraSpecs
 
       mutSpecs = uncurry describe <$> [

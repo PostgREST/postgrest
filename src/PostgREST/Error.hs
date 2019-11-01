@@ -16,12 +16,12 @@ module PostgREST.Error (
 ) where
 
 import qualified Data.Aeson                as JSON
+import qualified Data.Text                 as T
 import qualified Hasql.Pool                as P
 import qualified Hasql.Session             as H
 import qualified Network.HTTP.Types.Status as HT
 
 import Data.Aeson  ((.=))
-import Data.Text   (unwords)
 import Network.Wai (Response, responseLBS)
 import Text.Read   (readMaybe)
 
@@ -48,7 +48,8 @@ data ApiRequestError
   | InvalidRange
   | InvalidBody ByteString
   | ParseRequestError Text Text
-  | NoRelationBetween Text Text
+  | NoRelBetween Text Text
+  | AmbiguousRelBetween Text Text [Relation]
   | InvalidFilters
   | UnknownRelation                -- Unreachable?
   | UnsupportedVerb                -- Unreachable?
@@ -62,7 +63,8 @@ instance PgrstError ApiRequestError where
   status UnknownRelation         = HT.status404
   status ActionInappropriate     = HT.status405
   status (ParseRequestError _ _) = HT.status400
-  status (NoRelationBetween _ _) = HT.status400
+  status (NoRelBetween _ _)      = HT.status400
+  status AmbiguousRelBetween{}   = HT.status300
 
   headers _ = [toHeader CTApplicationJSON]
 
@@ -77,13 +79,41 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("HTTP Range error" :: Text)]
   toJSON UnknownRelation = JSON.object [
     "message" .= ("Unknown relation" :: Text)]
-  toJSON (NoRelationBetween parent child) = JSON.object [
+  toJSON (NoRelBetween parent child) = JSON.object [
     "message" .= ("Could not find foreign keys between these entities, No relation found between " <> parent <> " and " <> child :: Text)]
+  toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
+    "hint"    .= ("Disambiguate by choosing a relationship from the `details` key" :: Text),
+    "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
+    "details" .= (compressedRel <$> rels) ]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [
     "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
 
+compressedRel :: Relation -> JSON.Value
+compressedRel rel =
+  let
+    -- | Format like "test.orders[billing_address_id]". For easier debugging the format is compressed instead of structured.
+    fmt sch tbl cols = schTbl sch tbl <> joinCols cols
+    fmtMany sch tbl cols1 cols2 = schTbl sch tbl <> joinCols cols1 <> joinCols cols2
+    schTbl sch tbl = sch <> "." <> tbl
+    joinCols cols  = "[" <> T.intercalate ", " cols <> "]"
+
+    tab = relTable rel
+    fTab = relFTable rel
+  in
+  JSON.object $ [
+    "source"      .= fmt (tableSchema tab) (tableName tab) (colName <$> relColumns rel)
+  , "target"      .= fmt (tableSchema fTab) (tableName fTab) (colName <$> relFColumns rel)
+  , "cardinality" .= (show $ relType rel :: Text)
+  ] ++
+  if relType rel == Many
+    then [
+     "junction" .= case (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel) of
+        (Just lt, Just lc1, Just lc2) -> fmtMany (tableSchema lt) (tableName lt) (colName <$> lc1) (colName <$> lc2)
+        _                             -> toS $ JSON.encode JSON.Null
+      ]
+    else mempty
 
 data PgError = PgError Authenticated P.UsageError
 type Authenticated = Bool
@@ -241,7 +271,7 @@ instance JSON.ToJSON SimpleError where
     "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
   toJSON (SingularityError n)      = JSON.object [
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= unwords ["Results contain", show n, "rows,", toS (toMime CTSingularJSON), "requires 1 row"]]
+    "details" .= T.unwords ["Results contain", show n, "rows,", toS (toMime CTSingularJSON), "requires 1 row"]]
 
   toJSON JwtTokenMissing           = JSON.object [
     "message" .= ("Server lacks JWT secret" :: Text)]
