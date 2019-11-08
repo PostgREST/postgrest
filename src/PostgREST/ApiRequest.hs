@@ -212,9 +212,10 @@ userApiRequest schema rootSpec req reqBody
     []            -> case rootSpec of
                        Just pName -> TargetProc (QualifiedIdentifier schema pName) True
                        Nothing    -> TargetDefaultSpec schema
-    [table]       -> TargetIdent $ QualifiedIdentifier schema table
-    ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
-    other         -> TargetUnknown other
+    ["rpc", proc]          -> TargetProc (QualifiedIdentifier schema proc) False
+    [dynamicSchema, table] -> TargetIdent $ QualifiedIdentifier dynamicSchema table
+    [table]                -> TargetIdent $ QualifiedIdentifier schema table
+    other                  -> TargetUnknown other
 
   shouldParsePayload =
     action `elem`
