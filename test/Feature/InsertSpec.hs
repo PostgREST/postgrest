@@ -498,7 +498,7 @@ spec actualPgVersion = do
             matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-      it "makes no updates and and returns 200, when patching with an empty json object and return=rep" $
+      it "makes no updates and returns 200, when patching with an empty json object and return=rep" $
         request methodPatch "/items" [("Prefer", "return=representation")] [json| {} |]
           `shouldRespondWith` "[]"
           {
