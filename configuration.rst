@@ -95,7 +95,7 @@ db-pool
 db-pool-timeout
 ---------------
 
-   Time to live for an idle database pool connection. If the timeout is reached the connection will be closed.
+   Time to live, in seconds, for an idle database pool connection. If the timeout is reached the connection will be closed.
    Once a new request arrives a new connection will be started.
 
 .. _db-extra-search-path:
