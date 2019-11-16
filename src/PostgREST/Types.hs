@@ -259,10 +259,14 @@ data QualifiedIdentifier = QualifiedIdentifier {
 
 -- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
 -- | TODO: missing one-to-one
-data Cardinality = Child  -- ^ a.k.a. many-to-one
-                 | Parent -- ^ a.k.a. one-to-many
-                 | Many   -- ^ a.k.a. many-to-many
-                 deriving (Show, Eq)
+data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
+                 | M2O -- ^ many-to-one,  previously known as Child
+                 | M2M -- ^ many-to-many, previously known as Many
+                 deriving Eq
+instance Show Cardinality where
+  show O2M = "one-to-many"
+  show M2O = "many-to-one"
+  show M2M = "many-to-many"
 
 {-|
   The name 'Relation' here is used with the meaning

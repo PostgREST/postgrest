@@ -62,9 +62,9 @@ rootWithRelations schema rootTableName allRels action = case action of
     -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
     -- with {sourceCTEName}. This way findRelation can find Relations with sourceCTEName.
     toSourceRelation :: Relation -> Maybe Relation
-    toSourceRelation r@Relation{relFTable=ft}
-      | rootTableName == tableName ft = Just $ r {relFTable=ft {tableName=sourceCTEName}}
-      | otherwise                     = Nothing
+    toSourceRelation r@Relation{relTable=t}
+      | rootTableName == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+      | otherwise                    = Nothing
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
 -- an alias like "table_depth", this is related to http://github.com/PostgREST/postgrest/issues/987.
@@ -102,21 +102,22 @@ addRelations :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Eith
 addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, relationDetail, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
-      let newFrom r = if qiName tbl == nodeName then tableQi (relTable r) else tbl
+      let newFrom r = if qiName tbl == nodeName then tableQi (relFTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
           parentNodeTable = qiName parentNodeQi
-          results = findRelation schema allRelations nodeName parentNodeTable relationDetail
+          results = findRelation schema allRelations parentNodeTable nodeName relationDetail
           rel :: Either ApiRequestError Relation
           rel = case results of
             []  -> Left $ NoRelBetween parentNodeTable nodeName
             [r] -> Right r
             rs  ->
-              -- Temporary hack for handling a self reference relationship. In this case we get a parent and child rel with the same relTable/relFtable.
-              -- We output the child rel, the parent can be obtained by using the fk column as an embed hint.
+              -- Hack for handling a self reference relationship.
+              -- In this case we get an O2M and M2O rels with the same relTable and relFtable.
+              -- We output the O2M rel, the M2O rel can be obtained by using the fk column as an embed hint in findRelation.
               let rel0 = head rs
                   rel1 = rs !! 1 in
               if length rs == 2 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
-                then note (NoRelBetween parentNodeTable nodeName) (find (\r -> relType r == Child) rs)
+                then note (NoRelBetween parentNodeTable nodeName) (find (\r -> relType r == O2M) rs)
                 else Left $ AmbiguousRelBetween parentNodeTable nodeName rs
       in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
@@ -127,8 +128,8 @@ addRelations schema allRelations parentNode (Node (query@Select{from=tbl}, (node
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = mapM (addRelations schema allRelations rq) forest
 
-findRelation :: Schema -> [Relation] -> NodeName -> TableName -> Maybe RelationDetail -> [Relation]
-findRelation schema allRelations nodeTableName parentNodeTableName relationDetail =
+findRelation :: Schema -> [Relation] -> TableName -> NodeName -> Maybe RelationDetail -> [Relation]
+findRelation schema allRelations parentTableName nodeName relationDetail =
   filter (\Relation{relTable, relColumns, relFTable, relFColumns, relType, relLinkTable} ->
     -- Both relation ends need to be on the exposed schema
     schema == tableSchema relTable && schema == tableSchema relFTable &&
@@ -137,29 +138,30 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
 
         -- (request)        => projects { ..., clients{...} }
         -- will match
-        -- (relation type)  => parent
+        -- (relation type)  => M2O
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
         (
-          nodeTableName == tableName relTable && -- match relation table name
-          parentNodeTableName == tableName relFTable -- match relation foreign table name
+          parentTableName == tableName relTable && -- projects
+          nodeName == tableName relFTable -- clients
         ) ||
 
         -- (request)        => projects { ..., client_id{...} }
         -- will match
-        -- (relation type)  => parent
+        -- (relation type)  => M2O
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
         (
-          parentNodeTableName == tableName relFTable &&
-          length relFColumns == 1 &&
+          parentTableName == tableName relTable && -- projects
+          length relColumns == 1 &&
           -- match common foreign key names(table_name_id, table_name_fk) to table_name
-          (toS ("^" <> colName (unsafeHead relFColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~ (toS nodeTableName :: BS.ByteString)
+          (toS ("^" <> colName (unsafeHead relColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~
+          (toS nodeName :: BS.ByteString) -- client_id
         )
 
         -- (request)        => project_id { ..., client_id{...} }
         -- will match
-        -- (relation type)  => parent
+        -- (relation type)  => M2O
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
         -- this case works becasue before reaching this place
@@ -167,42 +169,42 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
 
       Just rd ->
 
-        -- (request)        => clients { ..., projects.client_id{...} }
+        -- (request)        => clients { ..., projects!client_id{...} }
         -- will match
-        -- (relation type)  => child
+        -- (relation type)  => O2M
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
         (
-          relType == Child &&
-          nodeTableName == tableName relTable && -- match relation table name
-          parentNodeTableName == tableName relFTable && -- match relation foreign table name
-          length relColumns == 1 &&
-          rd == colName (unsafeHead relColumns)
+          relType == O2M &&
+          parentTableName == tableName relTable && -- clients
+          nodeName == tableName relFTable && -- projects
+          length relFColumns == 1 &&
+          rd == colName (unsafeHead relFColumns) -- rd is client_id
         ) ||
 
-        -- (request)        => message { ..., person_detail.sender{...} }
+        -- (request)        => message { ..., person_detail!sender{...} }
         -- will match
-        -- (relation type)  => parent
+        -- (relation type)  => M2O
         -- (entity)         => message  {sender}
         -- (foriegn entity) => person_detail {id}
         (
-          relType == Parent &&
-          nodeTableName == tableName relTable && -- match relation table name
-          parentNodeTableName == tableName relFTable && -- match relation foreign table name
-          length relFColumns == 1 &&
-          rd == colName (unsafeHead relFColumns)
+          relType == M2O &&
+          parentTableName == tableName relTable && -- message
+          nodeName == tableName relFTable && -- person_detail
+          length relColumns == 1 &&
+          rd == colName (unsafeHead relColumns) -- rd is sender
         ) ||
 
         -- (request)        => tasks { ..., users.tasks_users{...} }
         -- will match
-        -- (relation type)  => many
+        -- (relation type)  => M2M
         -- (entity)         => users
         -- (foriegn entity) => tasks
         (
-          relType == Many &&
-          nodeTableName == tableName relTable && -- match relation table name
-          parentNodeTableName == tableName relFTable && -- match relation foreign table name
-          rd == tableName (fromJust relLinkTable)
+          relType == M2M &&
+          parentTableName == tableName relTable && -- tasks
+          nodeName == tableName relFTable && -- users
+          rd == tableName (fromJust relLinkTable) -- rd is tasks_users
         )
   ) allRelations
 
@@ -210,9 +212,9 @@ findRelation schema allRelations nodeTableName parentNodeTableName relationDetai
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, relation, _, _, depth)) forest) =
   case relation of
-    Just rel@Relation{relType=Parent} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
-    Just rel@Relation{relType=Child} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
-    Just rel@Relation{relType=Many, relLinkTable=lTable} ->
+    Just rel@Relation{relType=O2M} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
+    Just rel@Relation{relType=M2O} -> Node (augmentQuery rel, nodeProps) <$> updatedForest
+    Just rel@Relation{relType=M2M, relLinkTable=lTable} ->
       case lTable of
         Just linkTable ->
           let rq = augmentQuery rel in
@@ -237,11 +239,11 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
 getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols typ lt lc1 lc2) =
   case typ of
-    Child  ->
+    O2M ->
         zipWith (toJoinCondition tN ftN) cols fCols
-    Parent ->
+    M2O ->
         zipWith (toJoinCondition tN ftN) cols fCols
-    Many   ->
+    M2M ->
         let ltN = maybe "" tableName lt in
         zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
   where
@@ -249,8 +251,8 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
     toJoinCondition tb ftb c fc =
       let qi1 = removeSourceCTESchema tSchema tb
           qi2 = removeSourceCTESchema tSchema ftb in
-        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) newAlias, colName c)
-                      (maybe qi2 (QualifiedIdentifier mempty) previousAlias, colName fc)
+        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) previousAlias, colName c)
+                      (maybe qi2 (QualifiedIdentifier mempty) newAlias, colName fc)
 
     -- On mutation and calling proc cases we wrap the target table in a WITH {sourceCTEName}
     -- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
@@ -361,10 +363,10 @@ returningCols rr@(Node _ forest) = returnings
     -- So this adds the foreign key columns to ensure the embedding succeeds, result would be `RETURNING name, client_id`.
     -- This also works for the other relType's.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relation{relFColumns=cols, relType=relTyp}, _, _, _)) _ -> case relTyp of
-          Parent -> Just cols
-          Child  -> Just cols
-          Many   -> Just cols
+        Node (_, (_, Just Relation{relColumns=cols, relType=relTyp}, _, _, _)) _ -> case relTyp of
+          O2M -> Just cols
+          M2O -> Just cols
+          M2M -> Just cols
         _ -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)

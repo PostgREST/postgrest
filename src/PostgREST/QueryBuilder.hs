@@ -55,19 +55,13 @@ getJoinsSelects :: ReadRequest -> ([SqlFragment], [SqlFragment]) -> ([SqlFragmen
 getJoinsSelects rr@(Node (_, (name, Just Relation{relType=relTyp,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
   let subquery = readRequestToQuery rr in
   case relTyp of
-    Child ->
-      let sel = "COALESCE(("
-             <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
-             <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
-             <> "), '[]') AS " <> pgFmtIdent (fromMaybe name alias) in
-      (j, sel:s)
-    Parent ->
+    M2O ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
           sel = "row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName
           joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> localTableName <> " ON TRUE " in
       (joi:j,sel:s)
-    Many ->
+    _ ->
       let sel = "COALESCE (("
              <> "SELECT json_agg(" <> pgFmtIdent table <> ".*) "
              <> "FROM (" <> subquery <> ") " <> pgFmtIdent table
