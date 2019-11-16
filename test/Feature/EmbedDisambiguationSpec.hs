@@ -20,14 +20,14 @@ spec =
           {
             "details": [
             {
-              "cardinality": "Parent",
-              "source": "test.person[id]",
-              "target": "test.message[sender]"
+              "cardinality": "many-to-one",
+              "source": "test.message[sender]",
+              "target": "test.person[id]"
             },
             {
-              "cardinality": "Parent",
-              "source": "test.person_detail[id]",
-              "target": "test.message[sender]"
+              "cardinality": "many-to-one",
+              "source": "test.message[sender]",
+              "target": "test.person_detail[id]"
             }
             ],
             "hint": "Disambiguate by choosing a relationship from the `details` key",
@@ -42,85 +42,85 @@ spec =
         [json|
           {
             "details": [
-                {
-                    "cardinality": "Child",
-                    "source": "test.articleStars[userId]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Child",
-                    "source": "test.limited_article_stars[user_id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Child",
-                    "source": "test.comments[commenter_id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Child",
-                    "source": "test.users_projects[user_id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Child",
-                    "source": "test.users_tasks[user_id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "private.article_stars[article_id][user_id]",
-                    "source": "test.articles[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.articleStars[articleId][userId]",
-                    "source": "test.articles[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.limited_article_stars[article_id][user_id]",
-                    "source": "test.articles[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_projects[project_id][user_id]",
-                    "source": "test.projects[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_projects[project_id][user_id]",
-                    "source": "test.materialized_projects[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_projects[project_id][user_id]",
-                    "source": "test.projects_view[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_projects[project_id][user_id]",
-                    "source": "test.projects_view_alt[t_id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_tasks[task_id][user_id]",
-                    "source": "test.tasks[id]",
-                    "target": "test.users[id]"
-                },
-                {
-                    "cardinality": "Many",
-                    "junction": "test.users_tasks[task_id][user_id]",
-                    "source": "test.filtered_tasks[myId]",
-                    "target": "test.users[id]"
-                }
+              {
+                "cardinality": "one-to-many",
+                "source": "test.users[id]",
+                "target": "test.articleStars[userId]"
+              },
+              {
+                "cardinality": "one-to-many",
+                "source": "test.users[id]",
+                "target": "test.limited_article_stars[user_id]"
+              },
+              {
+                "cardinality": "one-to-many",
+                "source": "test.users[id]",
+                "target": "test.comments[commenter_id]"
+              },
+              {
+                "cardinality": "one-to-many",
+                "source": "test.users[id]",
+                "target": "test.users_projects[user_id]"
+              },
+              {
+                "cardinality": "one-to-many",
+                "source": "test.users[id]",
+                "target": "test.users_tasks[user_id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "private.article_stars[user_id][article_id]",
+                "source": "test.users[id]",
+                "target": "test.articles[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.articleStars[userId][articleId]",
+                "source": "test.users[id]",
+                "target": "test.articles[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.limited_article_stars[user_id][article_id]",
+                "source": "test.users[id]",
+                "target": "test.articles[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_projects[user_id][project_id]",
+                "source": "test.users[id]",
+                "target": "test.projects[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_projects[user_id][project_id]",
+                "source": "test.users[id]",
+                "target": "test.materialized_projects[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_projects[user_id][project_id]",
+                "source": "test.users[id]",
+                "target": "test.projects_view[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_projects[user_id][project_id]",
+                "source": "test.users[id]",
+                "target": "test.projects_view_alt[t_id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_tasks[user_id][task_id]",
+                "source": "test.users[id]",
+                "target": "test.tasks[id]"
+              },
+              {
+                "cardinality": "many-to-many",
+                "junction": "test.users_tasks[user_id][task_id]",
+                "source": "test.users[id]",
+                "target": "test.filtered_tasks[myId]"
+              }
             ],
             "hint": "Disambiguate by choosing a relationship from the `details` key",
             "message": "More than one relationship was found for users and id"

@@ -107,7 +107,7 @@ compressedRel rel =
   , "target"      .= fmt (tableSchema fTab) (tableName fTab) (colName <$> relFColumns rel)
   , "cardinality" .= (show $ relType rel :: Text)
   ] ++
-  if relType rel == Many
+  if relType rel == M2M
     then [
      "junction" .= case (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel) of
         (Just lt, Just lc1, Just lc2) -> fmtMany (tableSchema lt) (tableName lt) (colName <$> lc1) (colName <$> lc2)
