@@ -31,6 +31,8 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
 import System.Directory         (removeFile)
 import System.IO                (BufferMode (..), hSetBuffering)
 import System.IO.Error          (isDoesNotExistError)
+import System.Posix.Files       (setFileMode)
+import System.Posix.Types       (FileMode)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
@@ -163,6 +165,7 @@ main = do
       port = configPort conf
       proxy = configProxyUri conf
       maybeSocketAddr = configSocket conf
+      maybeSocketFileMode = configSocketMode conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
       roleClaimKey = configRoleClaimKey conf
       appSettings =
@@ -249,8 +252,9 @@ main = do
              putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
              runSettings appSettings postgrestApplication
          Just socketAddr -> do
+             let socketFileMode = fromMaybe 432 maybeSocketFileMode
              -- run postgrest application with user defined socket
-             sock <- createAndBindSocket (unpack socketAddr)
+             sock <- createAndBindSocket (unpack socketAddr) socketFileMode
              listen sock maxListenQueue
              putStrLn $ ("Listening on unix socket " :: Text) <> show socketAddr
              runSettingsSocket appSettings sock postgrestApplication
@@ -324,11 +328,12 @@ loadDbUriFile conf = extractDbUri mDbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}
 
-createAndBindSocket :: FilePath -> IO Socket
-createAndBindSocket filePath = do
-  deleteSocketFileIfExist filePath
+createAndBindSocket :: FilePath -> FileMode -> IO Socket
+createAndBindSocket socketFilePath socketFileMode = do
+  deleteSocketFileIfExist socketFilePath
   sock <- socket AF_UNIX Stream defaultProtocol
-  bind sock $ SockAddrUnix filePath
+  bind sock $ SockAddrUnix socketFilePath
+  setFileMode socketFilePath socketFileMode
   return sock
   where
     deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist

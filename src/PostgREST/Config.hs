@@ -46,8 +46,10 @@ import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
 import Development.GitRev          (gitHash)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
+import Numeric                     (readOct)
 import Paths_postgrest             (version)
 import System.IO.Error             (IOError)
+import System.Posix.Types          (FileMode)
 
 import Control.Applicative
 import Data.Monoid
@@ -63,6 +65,7 @@ import Protolude         hiding (concat, hPutStrLn, intercalate, null,
                           take, (<>))
 
 
+
 -- | Config file settings for the server
 data AppConfig = AppConfig {
     configDatabase          :: Text
@@ -72,6 +75,7 @@ data AppConfig = AppConfig {
   , configHost              :: Text
   , configPort              :: Int
   , configSocket            :: Maybe Text
+  , configSocketMode        :: Maybe FileMode
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -155,6 +159,7 @@ readOptions = do
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
+        <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> (fromMaybe False <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
@@ -168,6 +173,15 @@ readOptions = do
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
         <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
+
+    parseSocketFileMode :: C.Key -> C.Parser C.Config (Maybe FileMode)
+    parseSocketFileMode k =
+      C.optional k C.string >>= \case
+        Nothing -> pure Nothing
+        Just fileModeText ->
+          case (readOct . unpack) fileModeText of
+            []              -> pure Nothing
+            (fileMode, _):_ -> pure (Just fileMode)
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -248,6 +262,9 @@ readOptions = do
           |## unix socket location
           |## if specified it takes precedence over server-port
           |# server-unix-socket = "/tmp/pgrst.sock"
+          |## unix socket file mode
+          |## if server-unix-socket is in use, but an invalid mode or none is provided, 660 is applied
+          |# server-unix-socket-mode = "777"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""
