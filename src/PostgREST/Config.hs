@@ -75,7 +75,7 @@ data AppConfig = AppConfig {
   , configHost              :: Text
   , configPort              :: Int
   , configSocket            :: Maybe Text
-  , configSocketMode        :: Maybe FileMode
+  , configSocketMode        :: Either Text FileMode
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -174,14 +174,18 @@ readOptions = do
         <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
 
-    parseSocketFileMode :: C.Key -> C.Parser C.Config (Maybe FileMode)
+    parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
       C.optional k C.string >>= \case
-        Nothing -> pure Nothing
+        Nothing -> pure $ Right 493 -- return default 755 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
-            []              -> pure Nothing
-            (fileMode, _):_ -> pure (Just fileMode)
+            []              ->
+              pure $ Left "Invalid server-unix-socket-mode: not an octal"
+            (fileMode, _):_ ->
+              if fileMode < 384 || fileMode > 511
+                then pure $ Left "Invalid server-unix-socket-mode: needs to be between 600 and 777"
+                else pure $ Right fileMode
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -263,8 +267,8 @@ readOptions = do
           |## if specified it takes precedence over server-port
           |# server-unix-socket = "/tmp/pgrst.sock"
           |## unix socket file mode
-          |## if server-unix-socket is in use, but an invalid mode or none is provided, 660 is applied
-          |# server-unix-socket-mode = "777"
+          |## when none is provided, 755 is applied by default
+          |# server-unix-socket-mode = "755"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""
