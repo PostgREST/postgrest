@@ -12,7 +12,6 @@ The first step is to create an Nginx configuration file that proxies requests to
     # upstream configuration
     upstream postgrest {
       server localhost:3000;
-      keepalive 64;
     }
     # ...
     server {
