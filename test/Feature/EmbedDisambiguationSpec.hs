@@ -15,6 +15,7 @@ spec =
   describe "resource embedding disambiguation" $ do
 
     it "gives a 300 Multiple Choices error when the request is ambiguous" $ do
+      pendingWith "duck typing removed: see what to do with single fk column embed"
       get "/message?select=id,body,sender(name,sent)" `shouldRespondWith`
         [json|
           {
@@ -163,24 +164,28 @@ spec =
         { matchHeaders = [matchContentTypeJson] }
 
     context "using FK col to specify the relationship" $ do
-      it "can embed by FK column name" $
-        get "/projects?id=in.(1,3)&select=id,name,client_id(id,name)" `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        it "can embed by FK column name" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
+          get "/projects?id=in.(1,3)&select=id,name,client_id(id,name)" `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
-      it "can embed by FK column name and select the FK value at the same time, if aliased" $
-        get "/projects?id=in.(1,3)&select=id,name,client_id,client:client_id(id,name)" `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        it "can embed by FK column name and select the FK value at the same time, if aliased" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
+          get "/projects?id=in.(1,3)&select=id,name,client_id,client:client_id(id,name)" `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
-      it "requests parents two levels up" $
-        get "/tasks?id=eq.1&select=id,name,project:projects!project_id(id,name,client:client_id(id,name))" `shouldRespondWith`
-          [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+        it "requests parents two levels up" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
+          get "/tasks?id=eq.1&select=id,name,project:projects!project_id(id,name,client:client_id(id,name))" `shouldRespondWith`
+            [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
 
 
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
-        it "embeds parents recursively" $
+        it "embeds parents recursively" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
           get "/family_tree?id=in.(3,4)&select=id,parent(id,name,parent(*))" `shouldRespondWith`
             [json|[
               { "id": "3", "parent": { "id": "1", "name": "Parental Unit", "parent": null } },
@@ -197,7 +202,8 @@ spec =
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-        it "embeds parent and then embeds childs" $
+        it "embeds parent and then embeds childs" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
           get "/family_tree?id=eq.2&select=id,name,parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
             [json|[{
               "id": "2", "name": "Kid One", "parent": {
@@ -206,7 +212,8 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
       context "two self reference foreign keys" $ do
-        it "embeds parents" $
+        it "embeds parents" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
           get "/organizations?select=id,name,referee(id,name),auditor(id,name)&id=eq.3" `shouldRespondWith`
             [json|[{
               "id": 3, "name": "Acme",
@@ -221,6 +228,7 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds childs" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
           get "/organizations?select=id,name,refereeds:organizations!referee(id,name)&id=eq.1" `shouldRespondWith`
             [json|[{
               "id": 1, "name": "Referee Org",
@@ -251,6 +259,7 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds other relations(manager) besides the self reference" $ do
+          pendingWith "duck typing removed: see what to do with single fk column embed"
           get "/organizations?select=name,manager(name),referee(name,manager(name),auditor(name,manager(name))),auditor(name,manager(name),referee(name,manager(name)))&id=eq.5" `shouldRespondWith`
             [json|[{
               "name":"Cyberdyne",
