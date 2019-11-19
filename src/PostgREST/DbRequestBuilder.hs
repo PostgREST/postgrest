@@ -16,9 +16,8 @@ module PostgREST.DbRequestBuilder (
 , mutateRequest
 ) where
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashMap.Strict   as M
-import qualified Data.Set              as S
+import qualified Data.HashMap.Strict as M
+import qualified Data.Set            as S
 
 import Control.Arrow           ((***))
 import Data.Either.Combinators (mapLeft)
@@ -26,7 +25,6 @@ import Data.Foldable           (foldr1)
 import Data.List               (delete, head, (!!))
 import Data.Maybe              (fromJust)
 import Data.Text               (isInfixOf)
-import Text.Regex.TDFA         ((=~))
 import Unsafe                  (unsafeHead)
 
 import Control.Applicative
@@ -141,31 +139,8 @@ findRelation schema allRelations parentTableName nodeName relationDetail =
         -- (relation type)  => M2O
         -- (entity)         => clients  {id}
         -- (foriegn entity) => projects {client_id}
-        (
-          parentTableName == tableName relTable && -- projects
-          nodeName == tableName relFTable -- clients
-        ) ||
-
-        -- (request)        => projects { ..., client_id{...} }
-        -- will match
-        -- (relation type)  => M2O
-        -- (entity)         => clients  {id}
-        -- (foriegn entity) => projects {client_id}
-        (
-          parentTableName == tableName relTable && -- projects
-          length relColumns == 1 &&
-          -- match common foreign key names(table_name_id, table_name_fk) to table_name
-          (toS ("^" <> colName (unsafeHead relColumns) <> "_?(?:|[iI][dD]|[fF][kK])$") :: BS.ByteString) =~
-          (toS nodeName :: BS.ByteString) -- client_id
-        )
-
-        -- (request)        => project_id { ..., client_id{...} }
-        -- will match
-        -- (relation type)  => M2O
-        -- (entity)         => clients  {id}
-        -- (foriegn entity) => projects {client_id}
-        -- this case works becasue before reaching this place
-        -- addRelation will turn project_id to project so the above condition will match
+        parentTableName == tableName relTable && -- projects
+        nodeName == tableName relFTable -- clients
 
       Just rd ->
 
