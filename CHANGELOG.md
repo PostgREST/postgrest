@@ -22,7 +22,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - #1385, bulk RPC call now should be done by specifying a `Prefer: params=multiple-objects` header - @steve-chavez
 - #1401, resource embedding now outputs an error when multiple relationships between two tables are found - @steve-chavez
-- Remove embedding with duck typed column names `GET /projects?select=client_id(*)`- @steve-chavez
+- Removed the ability to embed with duck typed column names `GET /projects?select=client_id(*)`- @steve-chavez
+- Removed the `.` symbol for disambiguating resource embedding. '!' should be used instead `GET /projects?select=clients!client_id(*)`.
 
 ## [6.0.2] - 2019-08-22
 
