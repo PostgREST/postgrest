@@ -264,28 +264,28 @@ data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2M -- ^ many-to-many, previously known as Many
                  deriving Eq
 instance Show Cardinality where
-  show O2M = "one-to-many"
-  show M2O = "many-to-one"
-  show M2M = "many-to-many"
+  show O2M = "o2m(one-to-many)"
+  show M2O = "m2o(many-to-one)"
+  show M2M = "m2m(many-to-many)"
+
+type ConstraintName = Text
 
 {-|
-  The name 'Relation' here is used with the meaning
-  "What is the relation between the current node and the parent node".
-  It has nothing to do with PostgreSQL referring to tables/views as relations.
-  The order of the relColumns and relFColumns should be maintained to get
-  the join conditions right.
+  "Relation"ship between two tables.
+  The order of the relColumns and relFColumns should be maintained to get the join conditions right.
   TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
-  relTable     :: Table
-, relColumns   :: [Column]
-, relFTable    :: Table
-, relFColumns  :: [Column]
-, relType      :: Cardinality
--- The Link attrs are used when Cardinality == Many
-, relLinkTable :: Maybe Table
-, relLinkCols1 :: Maybe [Column]
-, relLinkCols2 :: Maybe [Column]
+  relTable      :: Table
+, relColumns    :: [Column]
+, relConstraint :: Maybe ConstraintName -- ^ Just on O2M/M2O, Nothing on M2M
+, relFTable     :: Table
+, relFColumns   :: [Column]
+, relType       :: Cardinality
+-- The Link attrs are used when Cardinality == M2M
+, relLinkTable  :: Maybe Table
+, relLinkCols1  :: Maybe [Column]
+, relLinkCols2  :: Maybe [Column]
 } deriving (Show, Eq)
 
 isSelfReference :: Relation -> Bool
@@ -409,8 +409,11 @@ toHeaders = map $ \(GucHeader (k, v)) -> (CI.mk $ toS k, toS v)
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
   Specifically, it will contain the name of the foreign key or the join table in many to many relations.
 -}
-type RelationDetail = Text
-type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
+-- | Disambiguates an embedding operation when there's multiple relationships between two tables.
+-- | Text can be the name of a foreign key column or the junction table in a many-to-many relationship.
+-- | Cardinality is also useful for disambiguating. e.g. to choose a parent or child in a self reference case.
+type EmbedHint = (Maybe Text, Maybe Cardinality)
+type SelectItem = (Field, Maybe Cast, Maybe Alias, EmbedHint)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
@@ -453,7 +456,7 @@ data MutateQuery =
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, EmbedHint, Depth))
 type Depth = Integer
 
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))

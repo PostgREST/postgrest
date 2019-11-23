@@ -13,180 +13,341 @@ import SpecHelper
 spec :: SpecWith Application
 spec =
   describe "resource embedding disambiguation" $ do
-
-    it "gives a 300 Multiple Choices error when the request is ambiguous" $ do
-      pendingWith "duck typing removed: see what to do with single fk column embed"
-      get "/message?select=id,body,sender(name,sent)" `shouldRespondWith`
-        [json|
-          {
-            "details": [
+    context "ambiguous requests that give 300 Multiple Choices" $ do
+      it "errs when there's a table and view that point to the same fk" $
+        get "/message?select=id,body,sender(name,sent)" `shouldRespondWith`
+          [json|
             {
-              "cardinality": "many-to-one",
-              "source": "test.message[sender]",
-              "target": "test.person[id]"
-            },
-            {
-              "cardinality": "many-to-one",
-              "source": "test.message[sender]",
-              "target": "test.person_detail[id]"
+              "details": [
+                {
+                    "cardinality": "m2o(many-to-one)",
+                    "foreignKey": "sender[sender][id]",
+                    "source": "test.message",
+                    "target": "test.person"
+                },
+                {
+                    "cardinality": "m2o(many-to-one)",
+                    "foreignKey": "sender[sender][id]",
+                    "source": "test.message",
+                    "target": "test.person_detail"
+                }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for message and sender"
             }
-            ],
-            "hint": "Disambiguate by choosing a relationship from the `details` key",
-            "message": "More than one relationship was found for message and sender"
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
           }
-        |]
-        { matchStatus  = 300
-        , matchHeaders = [matchContentTypeJson]
-        }
 
-      get "/users?select=*,id(*)" `shouldRespondWith`
-        [json|
-          {
-            "details": [
+      it "errs when there's a self reference and no cardinality is specified" $
+        get "/web_content?select=*,web_content(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                    "cardinality": "m2o(many-to-one)",
+                    "foreignKey": "p_web_id[p_web_id][id]",
+                    "source": "test.web_content",
+                    "target": "test.web_content"
+                },
+                {
+                    "cardinality": "o2m(one-to-many)",
+                    "foreignKey": "p_web_id[id][p_web_id]",
+                    "source": "test.web_content",
+                    "target": "test.web_content"
+                }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for web_content and web_content"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs when there are o2m and m2m cardinalities to the target table" $
+        get "/sites?select=*,big_projects(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                    "cardinality": "m2o(many-to-one)",
+                    "foreignKey": "sites_main_project_id_fkey[main_project_id][big_project_id]",
+                    "source": "test.sites",
+                    "target": "test.big_projects"
+                },
+                {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.jobs[site_id][big_project_id]",
+                    "source": "test.sites",
+                    "target": "test.big_projects"
+                },
+                {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.main_jobs[site_id][big_project_id]",
+                    "source": "test.sites",
+                    "target": "test.big_projects"
+                }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for sites and big_projects"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs when there are two junctions on an m2m relationship" $
+        get "/sites?select=*,big_projects!m2m(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                  {
+                      "cardinality": "m2m(many-to-many)",
+                      "junction": "test.jobs[site_id][big_project_id]",
+                      "source": "test.sites",
+                      "target": "test.big_projects"
+                  },
+                  {
+                      "cardinality": "m2m(many-to-many)",
+                      "junction": "test.main_jobs[site_id][big_project_id]",
+                      "source": "test.sites",
+                      "target": "test.big_projects"
+                  }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for sites and big_projects"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs when there are two junctions on a m2m cardinality" $
+        get "/sites?select=*,big_projects!m2m(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                  {
+                      "cardinality": "m2m(many-to-many)",
+                      "junction": "test.jobs[site_id][big_project_id]",
+                      "source": "test.sites",
+                      "target": "test.big_projects"
+                  },
+                  {
+                      "cardinality": "m2m(many-to-many)",
+                      "junction": "test.main_jobs[site_id][big_project_id]",
+                      "source": "test.sites",
+                      "target": "test.big_projects"
+                  }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for sites and big_projects"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs on a circular reference" $
+        get "/agents?select=*,departments(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                  "cardinality": "m2o(many-to-one)",
+                  "foreignKey": "agents_department_id_fkey[department_id][id]",
+                  "source": "test.agents",
+                  "target": "test.departments"
+                },
+                {
+                  "cardinality": "o2m(one-to-many)",
+                  "foreignKey": "departments_head_id_fkey[id][head_id]",
+                  "source": "test.agents",
+                  "target": "test.departments"
+                }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for agents and departments"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs when there are more than two fks on a junction table(currently impossible to disambiguate, only choice is to split the table)" $
+        get "/whatev_sites?select=*,whatev_projects!m2m(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                  {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.whatev_jobs[site_id_1][project_id_1]",
+                    "source": "test.whatev_sites",
+                    "target": "test.whatev_projects"
+                  },
+                  {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.whatev_jobs[site_id_1][project_id_2]",
+                    "source": "test.whatev_sites",
+                    "target": "test.whatev_projects"
+                  },
+                  {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.whatev_jobs[site_id_2][project_id_1]",
+                    "source": "test.whatev_sites",
+                    "target": "test.whatev_projects"
+                  },
+                  {
+                    "cardinality": "m2m(many-to-many)",
+                    "junction": "test.whatev_jobs[site_id_2][project_id_2]",
+                    "source": "test.whatev_sites",
+                    "target": "test.whatev_projects"
+                  }
+              ],
+              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "message": "More than one relationship was found for whatev_sites and whatev_projects"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    context "disambiguating requests with embed hints" $ do
+      it "can specify a cardinality hint" $ do
+        get "/sites?select=name,big_projects!m2o(name)&limit=1" `shouldRespondWith`
+          [json|
+            [
               {
-                "cardinality": "one-to-many",
-                "source": "test.users[id]",
-                "target": "test.articleStars[userId]"
-              },
-              {
-                "cardinality": "one-to-many",
-                "source": "test.users[id]",
-                "target": "test.limited_article_stars[user_id]"
-              },
-              {
-                "cardinality": "one-to-many",
-                "source": "test.users[id]",
-                "target": "test.comments[commenter_id]"
-              },
-              {
-                "cardinality": "one-to-many",
-                "source": "test.users[id]",
-                "target": "test.users_projects[user_id]"
-              },
-              {
-                "cardinality": "one-to-many",
-                "source": "test.users[id]",
-                "target": "test.users_tasks[user_id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "private.article_stars[user_id][article_id]",
-                "source": "test.users[id]",
-                "target": "test.articles[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.articleStars[userId][articleId]",
-                "source": "test.users[id]",
-                "target": "test.articles[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.limited_article_stars[user_id][article_id]",
-                "source": "test.users[id]",
-                "target": "test.articles[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_projects[user_id][project_id]",
-                "source": "test.users[id]",
-                "target": "test.projects[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_projects[user_id][project_id]",
-                "source": "test.users[id]",
-                "target": "test.materialized_projects[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_projects[user_id][project_id]",
-                "source": "test.users[id]",
-                "target": "test.projects_view[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_projects[user_id][project_id]",
-                "source": "test.users[id]",
-                "target": "test.projects_view_alt[t_id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_tasks[user_id][task_id]",
-                "source": "test.users[id]",
-                "target": "test.tasks[id]"
-              },
-              {
-                "cardinality": "many-to-many",
-                "junction": "test.users_tasks[user_id][task_id]",
-                "source": "test.users[id]",
-                "target": "test.filtered_tasks[myId]"
+                "big_projects": {
+                    "name": "big project 1"
+                },
+                "name": "site 1"
               }
-            ],
-            "hint": "Disambiguate by choosing a relationship from the `details` key",
-            "message": "More than one relationship was found for users and id"
-          }
-        |]
-        { matchStatus  = 300
-        , matchHeaders = [matchContentTypeJson]
-        }
+            ]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/agents?select=name,departments!m2o(name)&id=eq.1" `shouldRespondWith`
+          [json|
+            [
+                {
+                    "departments": {
+                        "name": "dep 1"
+                    },
+                    "name": "agent 1"
+                }
+            ]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "works when requesting children 2 levels" $
-      get "/clients?id=eq.1&select=id,projects:projects!client_id(id,tasks(id))" `shouldRespondWith`
-        [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
+      it "embeds by using two fks pointing to the same table" $
+        get "/orders?id=eq.1&select=id, name, billing_address_id(id), shipping_address_id(id)" `shouldRespondWith`
+          [str|[{"id":1,"name":"order 1","billing_address_id":{"id":1},"shipping_address_id":{"id":2}}]|]
 
-    it "works with parent relation" $
-      get "/message?select=id,body,sender:person!sender(name),recipient:person!recipient(name)&id=lt.4" `shouldRespondWith`
-        [json|
-          [{"id":1,"body":"Hello Jane","sender":{"name":"John"},"recipient":{"name":"Jane"}},
-           {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
-           {"id":3,"body":"How are you doing?","sender":{"name":"John"},"recipient":{"name":"Jane"}}] |]
-        { matchHeaders = [matchContentTypeJson] }
+      it "will embed using an fk that has an uppercase character" $
+        get "/ghostBusters?select=escapeId(*)" `shouldRespondWith`
+          [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "fails with an unknown relation" $
-      get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
-        [json|{"message":"Could not find foreign keys between these entities, No relation found between message and person"}|]
-        { matchStatus = 400
-        , matchHeaders = [matchContentTypeJson] }
+      it "can specify an fk hint and request children 2 levels" $
+        get "/clients?id=eq.1&select=id,projects:projects!client_id(id,tasks(id))" `shouldRespondWith`
+          [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "works with a parent view relation" $
-      get "/message?select=id,body,sender:person_detail!sender(name,sent),recipient:person_detail!recipient(name,received)&id=lt.4" `shouldRespondWith`
-        [json|
-          [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
-           {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
-           {"id":3,"body":"How are you doing?","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}}] |]
-        { matchHeaders = [matchContentTypeJson] }
+      it "can specify two different fk hints to the same table" $
+        get "/message?select=id,body,sender:person!sender(name),recipient:person!recipient(name)&id=lt.4" `shouldRespondWith`
+          [json|
+            [{"id":1,"body":"Hello Jane","sender":{"name":"John"},"recipient":{"name":"Jane"}},
+             {"id":2,"body":"Hi John","sender":{"name":"Jane"},"recipient":{"name":"John"}},
+             {"id":3,"body":"How are you doing?","sender":{"name":"John"},"recipient":{"name":"Jane"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "works with many<->many relation" $
-      get "/tasks?select=id,users:users!users_tasks(id)" `shouldRespondWith`
-        [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
-        { matchHeaders = [matchContentTypeJson] }
+      it "fails if the fk is not known" $
+        get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
+          [json|{"message":"Could not find foreign keys between these entities. No relationship found between message and person"}|]
+          { matchStatus = 400
+          , matchHeaders = [matchContentTypeJson] }
 
-    context "using FK col to specify the relationship" $ do
-        it "can embed by FK column name" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
+      it "can specify an fk on a view" $
+        get "/message?select=id,body,sender:person_detail!sender(name,sent),recipient:person_detail!recipient(name,received)&id=lt.4" `shouldRespondWith`
+          [json|
+            [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
+             {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},
+             {"id":3,"body":"How are you doing?","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can specify the junction on an m2m relationship" $ do
+        get "/sites?select=*,big_projects!jobs(name)&site_id=in.(1,2)" `shouldRespondWith`
+          [json|
+            [
+                {
+                    "big_projects": [
+                        {
+                            "name": "big project 1"
+                        }
+                    ],
+                    "main_project_id": 1,
+                    "name": "site 1",
+                    "site_id": 1
+                },
+                {
+                    "big_projects": [
+                        {
+                            "name": "big project 1"
+                        },
+                        {
+                            "name": "big project 2"
+                        }
+                    ],
+                    "main_project_id": null,
+                    "name": "site 2",
+                    "site_id": 2
+                }
+            ]
+          |]
+        get "/sites?select=*,big_projects!main_jobs(name)&site_id=in.(1,2)" `shouldRespondWith`
+          [json|
+            [
+                {
+                    "big_projects": [
+                        {
+                            "name": "big project 1"
+                        }
+                    ],
+                    "main_project_id": 1,
+                    "name": "site 1",
+                    "site_id": 1
+                },
+                {
+                    "big_projects": [],
+                    "main_project_id": null,
+                    "name": "site 2",
+                    "site_id": 2
+                }
+            ]
+          |]
+          { matchHeaders = [matchContentTypeJson] }         { matchHeaders = [matchContentTypeJson] }
+
+      context "using FK to specify the relationship" $ do
+        it "can embed by FK name" $
           get "/projects?id=in.(1,3)&select=id,name,client_id(id,name)" `shouldRespondWith`
             [json|[{"id":1,"name":"Windows 7","client_id":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":{"id":2,"name":"Apple"}}]|]
             { matchHeaders = [matchContentTypeJson] }
 
-        it "can embed by FK column name and select the FK value at the same time, if aliased" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
+        it "can embed by FK name and select the FK column at the same time, if aliased" $
           get "/projects?id=in.(1,3)&select=id,name,client_id,client:client_id(id,name)" `shouldRespondWith`
             [json|[{"id":1,"name":"Windows 7","client_id":1,"client":{"id":1,"name":"Microsoft"}},{"id":3,"name":"IOS","client_id":2,"client":{"id":2,"name":"Apple"}}]|]
             { matchHeaders = [matchContentTypeJson] }
 
-        it "requests parents two levels up" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
+        it "can embed parent and grandparent by using the FK" $
           get "/tasks?id=eq.1&select=id,name,project:projects!project_id(id,name,client:client_id(id,name))" `shouldRespondWith`
             [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
 
-
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
-        it "embeds parents recursively" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
-          get "/family_tree?id=in.(3,4)&select=id,parent(id,name,parent(*))" `shouldRespondWith`
+        it "embeds parents recursively" $
+          get "/family_tree?id=in.(3,4)&select=id,parent:family_tree!m2o(id,name,parent:family_tree!m2o(*))" `shouldRespondWith`
             [json|[
               { "id": "3", "parent": { "id": "1", "name": "Parental Unit", "parent": null } },
               { "id": "4", "parent": { "id": "2", "name": "Kid One", "parent": { "id": "1", "name": "Parental Unit", "parent": null } } }
@@ -194,7 +355,7 @@ spec =
             { matchHeaders = [matchContentTypeJson] }
 
         it "embeds childs recursively" $
-          get "/family_tree?id=eq.1&select=id,name, childs:family_tree!parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
+          get "/family_tree?id=eq.1&select=id,name, childs:family_tree!o2m(id,name,childs:family_tree!o2m(id,name))" `shouldRespondWith`
             [json|[{
               "id": "1", "name": "Parental Unit", "childs": [
                 { "id": "2", "name": "Kid One", "childs": [ { "id": "4", "name": "Grandkid One" } ] },
@@ -202,9 +363,8 @@ spec =
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-        it "embeds parent and then embeds childs" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
-          get "/family_tree?id=eq.2&select=id,name,parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
+        it "embeds parent and then embeds childs" $
+          get "/family_tree?id=eq.2&select=id,name,parent:family_tree!m2o(id,name,childs:family_tree!o2m(id,name))" `shouldRespondWith`
             [json|[{
               "id": "2", "name": "Kid One", "parent": {
                 "id": "1", "name": "Parental Unit", "childs": [ { "id": "2", "name": "Kid One" }, { "id": "3", "name": "Kid Two"} ]
@@ -212,9 +372,8 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
       context "two self reference foreign keys" $ do
-        it "embeds parents" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
-          get "/organizations?select=id,name,referee(id,name),auditor(id,name)&id=eq.3" `shouldRespondWith`
+        it "embeds parents" $
+          get "/organizations?select=id,name,referee!m2o(id,name),auditor!m2o(id,name)&id=eq.3" `shouldRespondWith`
             [json|[{
               "id": 3, "name": "Acme",
               "referee": {
@@ -228,8 +387,7 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds childs" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
-          get "/organizations?select=id,name,refereeds:organizations!referee(id,name)&id=eq.1" `shouldRespondWith`
+          get "/organizations?select=id,name,refereeds:referee!o2m(id,name)&id=eq.1" `shouldRespondWith`
             [json|[{
               "id": 1, "name": "Referee Org",
               "refereeds": [
@@ -243,7 +401,7 @@ spec =
                 }
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
-          get "/organizations?select=id,name,auditees:organizations!auditor(id,name)&id=eq.2" `shouldRespondWith`
+          get "/organizations?select=id,name,auditees:auditor!o2m(id,name)&id=eq.2" `shouldRespondWith`
             [json|[{
               "id": 2, "name": "Auditor Org",
               "auditees": [
@@ -259,8 +417,7 @@ spec =
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds other relations(manager) besides the self reference" $ do
-          pendingWith "duck typing removed: see what to do with single fk column embed"
-          get "/organizations?select=name,manager(name),referee(name,manager(name),auditor(name,manager(name))),auditor(name,manager(name),referee(name,manager(name)))&id=eq.5" `shouldRespondWith`
+          get "/organizations?select=name,manager(name),referee!m2o(name,manager(name),auditor!m2o(name,manager(name))),auditor!m2o(name,manager(name),referee!m2o(name,manager(name)))&id=eq.5" `shouldRespondWith`
             [json|[{
               "name":"Cyberdyne",
               "manager":{"name":"Cyberdyne Manager"},
@@ -278,7 +435,7 @@ spec =
                   "manager":{"name":"Referee Manager"}}}
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-          get "/organizations?select=name,manager(name),auditees:organizations!auditor(name,manager(name),refereeds:organizations!referee(name,manager(name)))&id=eq.2" `shouldRespondWith`
+          get "/organizations?select=name,manager(name),auditees:auditor!o2m(name,manager(name),refereeds:referee!o2m(name,manager(name)))&id=eq.2" `shouldRespondWith`
             [json|[{
               "name":"Auditor Org",
               "manager":{"name":"Auditor Manager"},

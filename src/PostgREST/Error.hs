@@ -80,7 +80,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON UnknownRelation = JSON.object [
     "message" .= ("Unknown relation" :: Text)]
   toJSON (NoRelBetween parent child) = JSON.object [
-    "message" .= ("Could not find foreign keys between these entities, No relation found between " <> parent <> " and " <> child :: Text)]
+    "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "hint"    .= ("Disambiguate by choosing a relationship from the `details` key" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
@@ -93,27 +93,26 @@ instance JSON.ToJSON ApiRequestError where
 compressedRel :: Relation -> JSON.Value
 compressedRel rel =
   let
-    -- | Format like "test.orders[billing_address_id]". For easier debugging the format is compressed instead of structured.
-    fmt sch tbl cols = schTbl sch tbl <> joinCols cols
-    fmtMany sch tbl cols1 cols2 = schTbl sch tbl <> joinCols cols1 <> joinCols cols2
-    schTbl sch tbl = sch <> "." <> tbl
-    joinCols cols  = "[" <> T.intercalate ", " cols <> "]"
-
-    tab = relTable rel
-    fTab = relFTable rel
+    fmtTbl tbl = tableSchema tbl <> "." <> tableName tbl
+    -- | Format like "[id][client_id]". For easier debugging the format is compressed instead of structured.
+    fmtJoinCols cols1 cols2 =
+      let joinCols cols  = "[" <> T.intercalate ", " cols <> "]" in
+      joinCols cols1 <> joinCols cols2
   in
   JSON.object $ [
-    "source"      .= fmt (tableSchema tab) (tableName tab) (colName <$> relColumns rel)
-  , "target"      .= fmt (tableSchema fTab) (tableName fTab) (colName <$> relFColumns rel)
+    "source"      .= fmtTbl (relTable rel)
+  , "target"      .= fmtTbl (relFTable rel)
   , "cardinality" .= (show $ relType rel :: Text)
   ] ++
-  if relType rel == M2M
-    then [
-     "junction" .= case (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel) of
-        (Just lt, Just lc1, Just lc2) -> fmtMany (tableSchema lt) (tableName lt) (colName <$> lc1) (colName <$> lc2)
-        _                             -> toS $ JSON.encode JSON.Null
+  case (relType rel, (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel), relConstraint rel) of
+    (M2M, (Just lt, Just lc1, Just lc2), _) -> [
+      "junction" .= (fmtTbl lt <> fmtJoinCols (colName <$> lc1) (colName <$> lc2))
       ]
-    else mempty
+    (_, _, Just relCon) -> [
+      "foreignKey" .= (relCon <> fmtJoinCols (colName <$> relColumns rel) (colName <$> relFColumns rel))
+      ]
+    (_, _, _) ->
+      mempty
 
 data PgError = PgError Authenticated P.UsageError
 type Authenticated = Bool

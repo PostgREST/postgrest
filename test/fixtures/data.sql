@@ -520,3 +520,36 @@ INSERT INTO private.pages VALUES (2, 'http://postgrest.org/en/v6.0/admin.html');
 TRUNCATE TABLE private.referrals CASCADE;
 INSERT INTO private.referrals VALUES ('github.com', 1);
 INSERT INTO private.referrals VALUES ('hub.docker.com', 2);
+
+TRUNCATE TABLE big_projects CASCADE;
+INSERT INTO big_projects (big_project_id, name)
+VALUES (1, 'big project 1'),
+       (2, 'big project 2');
+
+TRUNCATE TABLE sites CASCADE;
+INSERT INTO sites (site_id, name, main_project_id)
+VALUES (1, 'site 1', 1),
+       (2, 'site 2', null),
+       (3, 'site 3', 2),
+       (4, 'site 4', null);
+
+TRUNCATE TABLE jobs CASCADE;
+INSERT INTO jobs (job_id, name, site_id, big_project_id)
+VALUES ('bc5d5362-b881-438f-b9f5-7417e08704ed', 'job 1-1', 1, 1),
+       ('3bd52697-033b-4edd-8a28-46a9c04b7c1e', 'job 2-1', 2, 1),
+       ('e6e67e4e-19b1-11e9-ab14-d663bd873d93', 'job 2-2', 2, 2);
+
+TRUNCATE TABLE departments CASCADE;
+TRUNCATE TABLE agents CASCADE;
+INSERT INTO agents (id, name)
+VALUES (1, 'agent 1'),
+       (2, 'agent 2'),
+       (3, 'agent 3'),
+       (4, 'agent 4');
+
+INSERT INTO departments (id, name, head_id)
+VALUES (1, 'dep 1', 1),
+       (2, 'dep 3', 3);
+
+UPDATE agents SET department_id = 1 WHERE id in (1, 2);
+UPDATE agents SET department_id = 2 WHERE id in (3, 4);

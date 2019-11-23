@@ -130,8 +130,14 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    relationDetail <- optionMaybe $ try ( char '!' *> pFieldName )
-    return (fld, Nothing, alias, relationDetail)
+    cardHint <- optionMaybe (
+        try ( char '!' *> string "o2m" $> O2M) <|>
+        try ( char '!' *> string "m2o" $> M2O) <|>
+        try ( char '!' *> string "m2m" $> M2M)
+      )
+    fkHint <- optionMaybe $ try ( char '!' *> pFieldName )
+
+    return (fld, Nothing, alias, (fkHint, cardHint))
   )
 
 pFieldSelect :: Parser SelectItem
@@ -141,11 +147,11 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many letter)
-      return (fld, toS <$> cast', alias, Nothing)
+      return (fld, toS <$> cast', alias, (Nothing, Nothing))
   )
   <|> do
     s <- pStar
-    return ((s, []), Nothing, Nothing, Nothing)
+    return ((s, []), Nothing, Nothing, (Nothing, Nothing))
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation

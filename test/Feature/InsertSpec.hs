@@ -551,9 +551,8 @@ spec actualPgVersion = do
         simpleStatus p2 `shouldBe` created201
 
   context "tables with self reference foreign keys" $ do
-    it "embeds parent after insert" $ do
-      pendingWith "Removing duck typing"
-      request methodPost "/web_content?select=id,name,parent_content:p_web_id(name)"
+    it "embeds parent after insert" $
+      request methodPost "/web_content?select=id,name,parent_content:web_content!m2o(name)"
               [("Prefer", "return=representation")]
         [json|{"id":6, "name":"wot", "p_web_id":4}|]
         `shouldRespondWith`
@@ -563,7 +562,7 @@ spec actualPgVersion = do
         }
 
     it "embeds childs after update" $
-      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
+      request methodPatch "/web_content?id=eq.0&select=id,name,web_content!o2m(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]
         `shouldRespondWith`
@@ -574,9 +573,8 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds parent, childs and grandchilds after update" $ do
-      pendingWith "Removing duck typing"
-      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
+    it "embeds parent, childs and grandchilds after update" $
+      request methodPatch "/web_content?id=eq.0&select=id,name,web_content!o2m(name,web_content!o2m(name)),parent_content:web_content!m2o(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched-2"}|]
         `shouldRespondWith`
@@ -597,7 +595,7 @@ spec actualPgVersion = do
         }
 
     it "embeds childs after update without explicitly including the id in the ?select" $
-      request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
+      request methodPatch "/web_content?id=eq.0&select=name,web_content!o2m(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]
         `shouldRespondWith`
