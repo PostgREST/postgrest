@@ -12,6 +12,7 @@ import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
+import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
@@ -31,6 +32,8 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
 import System.Directory         (removeFile)
 import System.IO                (BufferMode (..), hSetBuffering)
 import System.IO.Error          (isDoesNotExistError)
+import System.Posix.Files       (setFileMode)
+import System.Posix.Types       (FileMode)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
@@ -163,6 +166,7 @@ main = do
       port = configPort conf
       proxy = configProxyUri conf
       maybeSocketAddr = configSocket conf
+      socketFileMode = configSocketMode conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
       roleClaimKey = configRoleClaimKey conf
       appSettings =
@@ -171,13 +175,15 @@ main = do
         . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
 
+  whenLeft socketFileMode panic
+
   -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> proxy) $
     panic
       "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
   -- Checks that the provided jspath is valid
-  when (isLeft roleClaimKey) $
+  whenLeft roleClaimKey $
     panic $ show roleClaimKey
 
   --
@@ -250,7 +256,7 @@ main = do
              runSettings appSettings postgrestApplication
          Just socketAddr -> do
              -- run postgrest application with user defined socket
-             sock <- createAndBindSocket (unpack socketAddr)
+             sock <- createAndBindSocket (unpack socketAddr) (rightToMaybe socketFileMode)
              listen sock maxListenQueue
              putStrLn $ ("Listening on unix socket " :: Text) <> show socketAddr
              runSettingsSocket appSettings sock postgrestApplication
@@ -324,11 +330,12 @@ loadDbUriFile conf = extractDbUri mDbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}
 
-createAndBindSocket :: FilePath -> IO Socket
-createAndBindSocket filePath = do
-  deleteSocketFileIfExist filePath
+createAndBindSocket :: FilePath -> Maybe FileMode -> IO Socket
+createAndBindSocket socketFilePath maybeSocketFileMode = do
+  deleteSocketFileIfExist socketFilePath
   sock <- socket AF_UNIX Stream defaultProtocol
-  bind sock $ SockAddrUnix filePath
+  bind sock $ SockAddrUnix socketFilePath
+  mapM_ (setFileMode socketFilePath) maybeSocketFileMode
   return sock
   where
     deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist

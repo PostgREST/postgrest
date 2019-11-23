@@ -66,6 +66,8 @@ _baseCfg =  -- Connection Settings
   AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
             -- No user configured Unix Socket
             Nothing
+            -- No user configured Unix Socket file mode (defaults to 755)
+            (Right 493)
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
