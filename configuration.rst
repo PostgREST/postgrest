@@ -30,28 +30,29 @@ The user specified in the db-uri is also known as the authenticator role. For mo
 
 Here is the full list of configuration parameters.
 
-====================  ======  =========  ========
-Name                  Type    Default    Required
-====================  ======  =========  ========
-db-uri                String             Y
-db-schema             String             Y
-db-anon-role          String             Y
-db-pool               Int     10
-db-pool-timeout       Int     10
-db-extra-search-path  String  public
-server-host           String  !4
-server-port           Int     3000
-server-unix-socket    String
-server-proxy-uri      String
-jwt-secret            String
-jwt-aud               String
-secret-is-base64      Bool    False
-max-rows              Int     ∞
-pre-request           String
-app.settings.*        String
-role-claim-key        String  .role
-raw-media-types       String
-====================  ======  =========  ========
+======================= ======  =========  ========
+Name                    Type    Default    Required
+======================= ======  =========  ========
+db-uri                  String             Y
+db-schema               String             Y
+db-anon-role            String             Y
+db-pool                 Int     10
+db-pool-timeout         Int     10
+db-extra-search-path    String  public
+server-host             String  !4
+server-port             Int     3000
+server-unix-socket      String
+server-unix-socket-mode String  755        
+server-proxy-uri        String
+jwt-secret              String
+jwt-aud                 String
+secret-is-base64        Bool    False
+max-rows                Int     ∞
+pre-request             String
+app.settings.*          String
+role-claim-key          String  .role
+raw-media-types         String
+======================= ======  =========  ========
 
 .. _db-uri:
 
@@ -140,6 +141,18 @@ server-unix-socket
   .. code:: bash
 
     server-unix-socket = "/tmp/pgrst.sock"
+
+.. _server-unix-socket-mode:
+
+server-unix-socket-mode
+-----------------------
+
+  `Unix file mode <https://en.wikipedia.org/wiki/File_system_permissions>`_ to be set for the socket specified in :ref:`server-unix-socket`
+  Needs to be a valid octal between 600 and 777.
+  
+  .. code:: bash
+
+    server-unix-socket-mode = "755"
 
 .. _server-proxy-uri:
 
@@ -238,4 +251,5 @@ raw-media-types
  .. code:: bash
 
    raw-media-types="image/png, text/xml"
+
 
