@@ -270,7 +270,7 @@ instance JSON.ToJSON SimpleError where
   toJSON (ContentTypeError cts)    = JSON.object [
     "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
   toJSON (SingularityError n)      = JSON.object [
-    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
+    "message" .= ("JSON object requested, multiple rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", toS (toMime CTSingularJSON), "requires 1 row"]]
 
   toJSON JwtTokenMissing           = JSON.object [

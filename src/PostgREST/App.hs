@@ -175,7 +175,6 @@ app dbStructure proc cols conf apiRequest =
                     ]
               if contentType == CTSingularJSON
                  && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
@@ -193,28 +192,24 @@ app dbStructure proc cols conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = row
-
-                  updateIsNoOp       = S.null cols
-                  contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
-                                          if shouldCount then Just queryTotal else Nothing
-                  minimalHeaders     = [contentRangeHeader]
-                  fullHeaders        = toHeader contentType : minimalHeaders
-
+                  updateIsNoOp = S.null cols
+                  r = contentRangeH 0 (queryTotal - 1) $
+                        if shouldCount then Just queryTotal else Nothing
+                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, r]
+                          | otherwise                                = [r]
                   status | queryTotal == 0 && not updateIsNoOp      = status404
                          | iPreferRepresentation apiRequest == Full = status200
                          | otherwise                                = status204
-
-              case (contentType, iPreferRepresentation apiRequest) of
-                (CTSingularJSON, Full)
-                      | queryTotal == 1 -> return $ responseLBS status fullHeaders (toS body)
-                      | otherwise       -> HT.condemn >> (return . errorResponseFor . singularityError) queryTotal
-
-                (_, Full) ->
-                  return $ responseLBS status fullHeaders (toS body)
-
-                (_, _) ->
-                  return $ responseLBS status minimalHeaders mempty
-
+              if contentType == CTSingularJSON
+                 && queryTotal > 1
+                then do
+                  HT.condemn
+                  return . errorResponseFor . singularityError $ queryTotal
+              else
+                return . responseLBS status headers $
+                  if iPreferRepresentation apiRequest == Full
+                     && queryTotal > 0
+                    then toS body else ""
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
@@ -259,16 +254,21 @@ app dbStructure proc cols conf apiRequest =
               let (_, queryTotal, _, body) = row
                   r = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
+                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, r]
+                          | otherwise                                = [r]
+                  status | queryTotal == 0                          = status404
+                         | iPreferRepresentation apiRequest == Full = status200
+                         | otherwise                                = status204
               if contentType == CTSingularJSON
-                 && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
+                 && queryTotal > 1
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
-                else
-                  return $ if iPreferRepresentation apiRequest == Full
-                    then responseLBS status200 [toHeader contentType, r] (toS body)
-                    else responseLBS status204 [r] ""
+              else
+                return . responseLBS status headers $
+                  if iPreferRepresentation apiRequest == Full
+                     && queryTotal > 0
+                    then toS body else ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
