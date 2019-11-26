@@ -201,15 +201,14 @@ app dbStructure proc cols conf apiRequest =
                          | iPreferRepresentation apiRequest == Full = status200
                          | otherwise                                = status204
               if contentType == CTSingularJSON
-                 && queryTotal > 1
+                 && queryTotal /= 1
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
-              else
-                return . responseLBS status headers $
-                  if iPreferRepresentation apiRequest == Full
-                     && queryTotal > 0
-                    then toS body else ""
+                else
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS status headers (toS body)
+                    else responseLBS status headers mempty
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
@@ -254,21 +253,15 @@ app dbStructure proc cols conf apiRequest =
               let (_, queryTotal, _, body) = row
                   r = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
-                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, r]
-                          | otherwise                                = [r]
-                  status | queryTotal == 0                          = status404
-                         | iPreferRepresentation apiRequest == Full = status200
-                         | otherwise                                = status204
               if contentType == CTSingularJSON
-                 && queryTotal > 1
+                 && queryTotal /= 1
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
-              else
-                return . responseLBS status headers $
-                  if iPreferRepresentation apiRequest == Full
-                     && queryTotal > 0
-                    then toS body else ""
+                else
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS status200 [toHeader contentType, r] (toS body)
+                    else responseLBS status204 [r] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
