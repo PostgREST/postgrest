@@ -675,7 +675,7 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
    `Report an issue <https://github.com/PostgREST/postgrest/issues>`_ if your view is not made embeddable so we can
    keep continue improving foreign key detection.
 
-   In the future we'll include include a way to manually specify views source foreign keys to address this limitation.
+   In the future we'll include a way to manually specify views source foreign keys to address this limitation.
 
 .. important::
 
