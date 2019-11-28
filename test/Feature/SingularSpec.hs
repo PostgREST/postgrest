@@ -56,7 +56,7 @@ spec =
         _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
         _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
         p <- request methodPatch "/addresses?id=gt.0"
-                [("Prefer", "return=representation"), singular]
+                [singular]
                 [json| { address: "zzz" } |]
         liftIO $ do
           simpleStatus p `shouldBe` notAcceptable406
@@ -67,7 +67,7 @@ spec =
 
       it "raises an error for zero rows" $
         request methodPatch "/items?id=gt.0&id=lt.0"
-                [("Prefer", "return=representation"), singular] [json|{"id":1}|]
+                [singular] [json|{"id":1}|]
           `shouldRespondWith`
                   [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
                   { matchStatus  = 406
@@ -100,25 +100,13 @@ spec =
       it "raises an error when attempting to create multiple entities" $ do
         p <- request methodPost
           "/addresses"
-          [("Prefer", "return=representation"), singular]
+          [singular]
           [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
         liftIO $ simpleStatus p `shouldBe` notAcceptable406
 
-        -- the rows should not exist, either
-        get "/addresses?id=eq.200" `shouldRespondWith` "[]"
-
-      it "return=minimal allows request to create multiple elements" $
-        request methodPost "/addresses"
-          [("Prefer", "return=minimal"), singular]
-          [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
-          `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
-
       it "raises an error when creating zero entities" $
         request methodPost "/addresses"
-                [("Prefer", "return=representation"), singular]
+                [singular]
                 [json| [ ] |]
           `shouldRespondWith`
                   [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
@@ -136,7 +124,7 @@ spec =
       it "raises an error when attempting to delete multiple entities" $ do
         let firstItems = "/items?id=gt.0&id=lt.11"
         request methodDelete firstItems
-          [("Prefer", "return=representation"), singular] ""
+          [singular] ""
           `shouldRespondWith` 406
 
         get firstItems
@@ -147,7 +135,7 @@ spec =
 
       it "raises an error when deleting zero entities" $
         request methodDelete "/items?id=lt.0"
-                [("Prefer", "return=representation"), singular] ""
+                [singular] ""
           `shouldRespondWith`
                 [str|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
                 { matchStatus  = 406
