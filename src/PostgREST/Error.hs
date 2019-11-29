@@ -82,7 +82,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (NoRelBetween parent child) = JSON.object [
     "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("Disambiguate by choosing a relationship from the `details` key" :: Text),
+    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON UnsupportedVerb = JSON.object [
@@ -94,22 +94,18 @@ compressedRel :: Relation -> JSON.Value
 compressedRel rel =
   let
     fmtTbl tbl = tableSchema tbl <> "." <> tableName tbl
-    -- | Format like "[id][client_id]". For easier debugging the format is compressed instead of structured.
-    fmtJoinCols cols1 cols2 =
-      let joinCols cols  = "[" <> T.intercalate ", " cols <> "]" in
-      joinCols cols1 <> joinCols cols2
   in
   JSON.object $ [
     "source"      .= fmtTbl (relTable rel)
   , "target"      .= fmtTbl (relFTable rel)
   , "cardinality" .= (show $ relType rel :: Text)
   ] ++
-  case (relType rel, (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel), relConstraint rel) of
-    (M2M, (Just lt, Just lc1, Just lc2), _) -> [
-      "junction" .= (fmtTbl lt <> fmtJoinCols (colName <$> lc1) (colName <$> lc2))
+  case (relType rel, relLinkTable rel, relConstraint rel) of
+    (M2M, Just lt, _) -> [
+      "junction" .= fmtTbl lt
       ]
     (_, _, Just relCon) -> [
-      "foreignKey" .= (relCon <> fmtJoinCols (colName <$> relColumns rel) (colName <$> relFColumns rel))
+      "relationship" .= relCon
       ]
     (_, _, _) ->
       mempty

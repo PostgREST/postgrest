@@ -264,9 +264,9 @@ data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2M -- ^ many-to-many, previously known as Many
                  deriving Eq
 instance Show Cardinality where
-  show O2M = "o2m(one-to-many)"
-  show M2O = "m2o(many-to-one)"
-  show M2M = "m2m(many-to-many)"
+  show O2M = "o2m"
+  show M2O = "m2o"
+  show M2M = "m2m"
 
 type ConstraintName = Text
 

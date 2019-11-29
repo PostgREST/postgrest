@@ -20,19 +20,19 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "m2o(many-to-one)",
-                    "foreignKey": "sender[sender][id]",
+                    "cardinality": "m2o",
+                    "relationship": "sender",
                     "source": "test.message",
                     "target": "test.person"
                 },
                 {
-                    "cardinality": "m2o(many-to-one)",
-                    "foreignKey": "sender[sender][id]",
+                    "cardinality": "m2o",
+                    "relationship": "sender",
                     "source": "test.message",
                     "target": "test.person_detail"
                 }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for message and sender"
             }
           |]
@@ -46,19 +46,19 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "m2o(many-to-one)",
-                    "foreignKey": "p_web_id[p_web_id][id]",
+                    "cardinality": "m2o",
+                    "relationship": "p_web_id",
                     "source": "test.web_content",
                     "target": "test.web_content"
                 },
                 {
-                    "cardinality": "o2m(one-to-many)",
-                    "foreignKey": "p_web_id[id][p_web_id]",
+                    "cardinality": "o2m",
+                    "relationship": "p_web_id",
                     "source": "test.web_content",
                     "target": "test.web_content"
                 }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for web_content and web_content"
             }
           |]
@@ -72,25 +72,25 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "m2o(many-to-one)",
-                    "foreignKey": "sites_main_project_id_fkey[main_project_id][big_project_id]",
+                    "cardinality": "m2o",
+                    "relationship": "sites_main_project_id_fkey",
                     "source": "test.sites",
                     "target": "test.big_projects"
                 },
                 {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.jobs[site_id][big_project_id]",
+                    "cardinality": "m2m",
+                    "junction": "test.jobs",
                     "source": "test.sites",
                     "target": "test.big_projects"
                 },
                 {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.main_jobs[site_id][big_project_id]",
+                    "cardinality": "m2m",
+                    "junction": "test.main_jobs",
                     "source": "test.sites",
                     "target": "test.big_projects"
                 }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -104,19 +104,19 @@ spec =
             {
               "details": [
                   {
-                      "cardinality": "m2m(many-to-many)",
-                      "junction": "test.jobs[site_id][big_project_id]",
+                      "cardinality": "m2m",
+                      "junction": "test.jobs",
                       "source": "test.sites",
                       "target": "test.big_projects"
                   },
                   {
-                      "cardinality": "m2m(many-to-many)",
-                      "junction": "test.main_jobs[site_id][big_project_id]",
+                      "cardinality": "m2m",
+                      "junction": "test.main_jobs",
                       "source": "test.sites",
                       "target": "test.big_projects"
                   }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -130,19 +130,19 @@ spec =
             {
               "details": [
                   {
-                      "cardinality": "m2m(many-to-many)",
-                      "junction": "test.jobs[site_id][big_project_id]",
+                      "cardinality": "m2m",
+                      "junction": "test.jobs",
                       "source": "test.sites",
                       "target": "test.big_projects"
                   },
                   {
-                      "cardinality": "m2m(many-to-many)",
-                      "junction": "test.main_jobs[site_id][big_project_id]",
+                      "cardinality": "m2m",
+                      "junction": "test.main_jobs",
                       "source": "test.sites",
                       "target": "test.big_projects"
                   }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -156,19 +156,19 @@ spec =
             {
               "details": [
                 {
-                  "cardinality": "m2o(many-to-one)",
-                  "foreignKey": "agents_department_id_fkey[department_id][id]",
+                  "cardinality": "m2o",
+                  "relationship": "agents_department_id_fkey",
                   "source": "test.agents",
                   "target": "test.departments"
                 },
                 {
-                  "cardinality": "o2m(one-to-many)",
-                  "foreignKey": "departments_head_id_fkey[id][head_id]",
+                  "cardinality": "o2m",
+                  "relationship": "departments_head_id_fkey",
                   "source": "test.agents",
                   "target": "test.departments"
                 }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for agents and departments"
             }
           |]
@@ -177,36 +177,41 @@ spec =
           }
 
       it "errs when there are more than two fks on a junction table(currently impossible to disambiguate, only choice is to split the table)" $
+        -- We have 4 possibilities for doing the junction JOIN here, using these columns:
+        -- [site_id_1][project_id_1]
+        -- [site_id_1][project_id_2]
+        -- [site_id_2][project_id_1]
+        -- [site_id_2][project_id_2]
         get "/whatev_sites?select=*,whatev_projects!m2m(*)" `shouldRespondWith`
           [json|
             {
               "details": [
                   {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.whatev_jobs[site_id_1][project_id_1]",
+                    "cardinality": "m2m",
+                    "junction": "test.whatev_jobs",
                     "source": "test.whatev_sites",
                     "target": "test.whatev_projects"
                   },
                   {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.whatev_jobs[site_id_1][project_id_2]",
+                    "cardinality": "m2m",
+                    "junction": "test.whatev_jobs",
                     "source": "test.whatev_sites",
                     "target": "test.whatev_projects"
                   },
                   {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.whatev_jobs[site_id_2][project_id_1]",
+                    "cardinality": "m2m",
+                    "junction": "test.whatev_jobs",
                     "source": "test.whatev_sites",
                     "target": "test.whatev_projects"
                   },
                   {
-                    "cardinality": "m2m(many-to-many)",
-                    "junction": "test.whatev_jobs[site_id_2][project_id_2]",
+                    "cardinality": "m2m",
+                    "junction": "test.whatev_jobs",
                     "source": "test.whatev_sites",
                     "target": "test.whatev_projects"
                   }
               ],
-              "hint": "Disambiguate by choosing a relationship from the `details` key",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
               "message": "More than one relationship was found for whatev_sites and whatev_projects"
             }
           |]
