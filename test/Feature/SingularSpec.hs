@@ -141,8 +141,8 @@ spec =
 
       it "singular behavior holds priority over return=minimal" $
         request methodPost "/addresses"
-          [("Prefer", "return=minimal"), singular]
-          [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
+                [("Prefer", "return=minimal"), singular]
+                [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
           `shouldRespondWith`
                   [str|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
                   { matchStatus  = 406
