@@ -216,7 +216,7 @@ userApiRequest schemas rootSpec req reqBody
                        Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
                        Nothing    -> TargetDefaultSpec defaultSchema
     ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
-    [table]                -> TargetIdent $ QualifiedIdentifier (case (lookupHeader "schema") of
+    [table]                -> TargetIdent $ QualifiedIdentifier (case lookupHeader "schema" of
                                                                    Nothing -> defaultSchema
                                                                    Just(schema) -> if | toS schema `elem` schemas -> toS schema
                                                                                       | otherwise -> defaultSchema) table
