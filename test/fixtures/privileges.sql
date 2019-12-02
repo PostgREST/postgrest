@@ -115,6 +115,9 @@ GRANT ALL ON TABLE
     , whatev_jobs
     , agents
     , departments
+    , schedules
+    , activities
+    , unit_workdays
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

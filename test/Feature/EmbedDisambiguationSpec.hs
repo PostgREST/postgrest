@@ -349,6 +349,28 @@ spec =
           get "/tasks?id=eq.1&select=id,name,project:projects!project_id(id,name,client:client_id(id,name))" `shouldRespondWith`
             [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
 
+        it "can embed by using a composite FK name" $
+          get "/unit_workdays?select=unit_id,day,fst_shift(car_id,schedule(name)),snd_shift(camera_id,schedule(name))" `shouldRespondWith`
+            [json| [
+              {
+                "day": "2019-12-02",
+                "fst_shift": {
+                    "car_id": "CAR-349",
+                    "schedule": {
+                        "name": "morning"
+                    }
+                },
+                "snd_shift": {
+                    "camera_id": "CAM-123",
+                    "schedule": {
+                        "name": "night"
+                    }
+                },
+                "unit_id": 1
+              }
+            ] |]
+            { matchHeaders = [matchContentTypeJson] }
+
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
         it "embeds parents recursively" $

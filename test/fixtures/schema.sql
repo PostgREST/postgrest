@@ -1722,3 +1722,37 @@ create table departments (
 
 ALTER TABLE agents
     ADD CONSTRAINT agents_department_id_fkey foreign key (department_id) REFERENCES departments(id);
+
+-- composite key disambiguation
+create table schedules (
+  id        int primary key
+, name      text
+, start_at  timetz
+, end_at    timetz
+);
+
+create table activities (
+  id             int
+, schedule_id    int
+, car_id         text
+, camera_id      text
+, primary key (id, schedule_id)
+);
+alter table activities
+add constraint schedule foreign key          (schedule_id)
+                        references schedules (id);
+
+create table unit_workdays (
+  unit_id int
+, day date
+, fst_shift_activity_id int
+, fst_shift_schedule_id int
+, snd_shift_activity_id int
+, snd_shift_schedule_id int
+, primary key (unit_id, day)
+);
+alter table unit_workdays
+add constraint fst_shift foreign key           (fst_shift_activity_id, fst_shift_schedule_id)
+                         references activities (id, schedule_id),
+add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift_schedule_id)
+                         references activities (id, schedule_id);
