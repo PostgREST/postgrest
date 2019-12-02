@@ -79,7 +79,7 @@ postgrest conf refDbStructure pool getTime worker =
       Just dbStructure -> do
         response <- do
           -- Need to parse ?columns early because findProc needs it to solve overloaded functions
-          let apiReq = userApiRequest (configSchema conf) (configRootSpec conf) req body
+          let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) req body
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
           case apiReqCols of
             Left err -> return . errorResponseFor $ err

@@ -175,6 +175,11 @@ main = do
         . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
 
+  -- the first value in the db-schema configuration parameter is used as default
+  let defaultSchema = case configSchemas conf of
+                        [] -> ""
+                        (schema : _) -> schema
+
   whenLeft socketFileMode panic
 
   -- Checks that the provided proxy uri is formated correctly
@@ -205,7 +210,7 @@ main = do
   connectionWorker
     mainTid
     pool
-    (configSchema conf)
+    defaultSchema
     refDbStructure
     refIsWorkerOn
   --
@@ -227,7 +232,7 @@ main = do
     Catch $ connectionWorker
               mainTid
               pool
-              (configSchema conf)
+              defaultSchema
               refDbStructure
               refIsWorkerOn
     ) Nothing
@@ -246,7 +251,7 @@ main = do
           (connectionWorker
              mainTid
              pool
-             (configSchema conf)
+             defaultSchema
              refDbStructure
              refIsWorkerOn)
     in case maybeSocketAddr of

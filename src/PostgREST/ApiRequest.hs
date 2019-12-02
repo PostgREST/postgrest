@@ -28,7 +28,7 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (last, lookup, partition)
+import Data.List                 (last, lookup, partition, elem)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
@@ -99,8 +99,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest schema rootSpec req reqBody
+userApiRequest :: [Schema] -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest schemas rootSpec req reqBody
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -208,13 +208,18 @@ userApiRequest schema rootSpec req reqBody
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
+  defaultSchema = case schemas of
+                    [] -> ""
+                    (schema : _) -> schema
   target = case path of
     []            -> case rootSpec of
-                       Just pName -> TargetProc (QualifiedIdentifier schema pName) True
-                       Nothing    -> TargetDefaultSpec schema
-    ["rpc", proc]          -> TargetProc (QualifiedIdentifier schema proc) False
-    [dynamicSchema, table] -> TargetIdent $ QualifiedIdentifier dynamicSchema table
-    [table]                -> TargetIdent $ QualifiedIdentifier schema table
+                       Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
+                       Nothing    -> TargetDefaultSpec defaultSchema
+    ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
+    [table]                -> TargetIdent $ QualifiedIdentifier (case (lookupHeader "schema") of
+                                                                   Nothing -> defaultSchema
+                                                                   Just(schema) -> if | toS schema `elem` schemas -> toS schema
+                                                                                      | otherwise -> defaultSchema) table
     other                  -> TargetUnknown other
 
   shouldParsePayload =

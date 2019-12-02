@@ -71,7 +71,7 @@ data AppConfig = AppConfig {
     configDatabase          :: Text
   , configAnonRole          :: Text
   , configOpenAPIProxyUri   :: Maybe Text
-  , configSchema            :: Text
+  , configSchemas           :: [Text]
   , configHost              :: Text
   , configPort              :: Int
   , configSocket            :: Maybe Text
@@ -155,7 +155,7 @@ readOptions = do
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
         <*> optString "openapi-server-proxy-uri"
-        <*> reqString "db-schema"
+        <*> (splitOnCommas <$> reqValue "db-schema")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
@@ -198,6 +198,9 @@ readOptions = do
 
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string
+
+    reqValue :: C.Key -> C.Parser C.Config C.Value
+    reqValue k = C.required k C.value
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> C.optional k C.string
