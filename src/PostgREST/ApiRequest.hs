@@ -216,10 +216,9 @@ userApiRequest schemas rootSpec req reqBody
                        Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
                        Nothing    -> TargetDefaultSpec defaultSchema
     ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
-    [table]                -> TargetIdent $ QualifiedIdentifier (case lookupHeader "schema" of
-                                                                   Nothing      -> defaultSchema
-                                                                   Just(schema) -> if | toS schema `elem` schemas -> toS schema
-                                                                                      | otherwise                 -> defaultSchema) table
+    [schema, table]        -> if | schema `elem` schemas -> TargetIdent $ QualifiedIdentifier schema table
+                                 | otherwise             -> TargetUnknown [schema, table]
+    [table]                -> TargetIdent $ QualifiedIdentifier defaultSchema table
     other                  -> TargetUnknown other
 
   shouldParsePayload =
