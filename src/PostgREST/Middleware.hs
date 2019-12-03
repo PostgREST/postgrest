@@ -51,7 +51,7 @@ runWithClaims conf eClaims app req =
         setRoleSql = maybeToList $ (\x ->
           setLocalQuery mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
         setSearchPathSql = setLocalSearchPathQuery $ (case configSchemas conf of
-                                                        [] -> ""
+                                                        []           -> ""
                                                         (schema : _) -> schema) : configExtraSearchPath conf
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)

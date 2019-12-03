@@ -177,7 +177,7 @@ main = do
 
   -- the first value in the db-schema configuration parameter is used as default
   let defaultSchema = case configSchemas conf of
-                        [] -> ""
+                        []           -> ""
                         (schema : _) -> schema
 
   whenLeft socketFileMode panic

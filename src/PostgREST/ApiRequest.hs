@@ -209,7 +209,7 @@ userApiRequest schemas rootSpec req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
   defaultSchema = case schemas of
-                    [] -> ""
+                    []           -> ""
                     (schema : _) -> schema
   target = case path of
     []            -> case rootSpec of
@@ -217,9 +217,9 @@ userApiRequest schemas rootSpec req reqBody
                        Nothing    -> TargetDefaultSpec defaultSchema
     ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
     [table]                -> TargetIdent $ QualifiedIdentifier (case lookupHeader "schema" of
-                                                                   Nothing -> defaultSchema
+                                                                   Nothing      -> defaultSchema
                                                                    Just(schema) -> if | toS schema `elem` schemas -> toS schema
-                                                                                      | otherwise -> defaultSchema) table
+                                                                                      | otherwise                 -> defaultSchema) table
     other                  -> TargetUnknown other
 
   shouldParsePayload =
