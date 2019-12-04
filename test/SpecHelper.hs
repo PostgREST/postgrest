@@ -63,7 +63,7 @@ getEnvVarWithDefault var def = toS <$>
 
 _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
-  AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
+  AppConfig mempty "postgrest_test_anonymous" Nothing ["test"] "localhost" 3000
             -- No user configured Unix Socket
             Nothing
             -- No user configured Unix Socket file mode (defaults to 660)
@@ -93,7 +93,7 @@ testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
-testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
+testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchemas = ["تست"] }
 
 testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
@@ -127,7 +127,7 @@ testCfgAsymJWKSet testDbConn = (testCfg testDbConn) {
   }
 
 testNonexistentSchemaCfg :: Text -> AppConfig
-testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchema = "nonexistent" }
+testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = ["nonexistent"] }
 
 testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }

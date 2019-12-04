@@ -26,7 +26,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
-        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
+        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"baz\""} |]
         { matchStatus  = 400 , matchHeaders = [] }
 
     it "obtains a json subfield two levels (string)" $

@@ -834,7 +834,7 @@ spec actualPgVersion = do
     it "only returns an empty result set if the in value is empty" $
       get "/items_with_different_col_types?int_data=in.( ,3,4)"
         `shouldRespondWith`
-        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"\""} |]
+        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"\""} |]
         { matchStatus = 400
         , matchHeaders = [matchContentTypeJson]
         }
