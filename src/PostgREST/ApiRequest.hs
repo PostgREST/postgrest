@@ -212,9 +212,9 @@ userApiRequest schemas rootSpec req reqBody
                     []           -> ""
                     (schema : _) -> schema
   target = case path of
-    []            -> case rootSpec of
-                       Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
-                       Nothing    -> TargetDefaultSpec defaultSchema
+    []                     -> case rootSpec of
+                                Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
+                                Nothing    -> TargetDefaultSpec defaultSchema
     ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
     [schema, table]        -> if | schema `elem` schemas -> TargetIdent $ QualifiedIdentifier schema table
                                  | otherwise             -> TargetUnknown [schema, table]
