@@ -67,7 +67,7 @@ _baseCfg =  -- Connection Settings
             -- No user configured Unix Socket
             Nothing
             -- No user configured Unix Socket file mode (defaults to 755)
-            (Right 493)
+            (Right 511)
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers

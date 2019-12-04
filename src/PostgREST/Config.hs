@@ -177,7 +177,7 @@ readOptions = do
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
       C.optional k C.string >>= \case
-        Nothing -> pure $ Right 493 -- return default 755 mode if no value was provided
+        Nothing -> pure $ Right 511 -- return default 777 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
             []              ->
@@ -267,8 +267,8 @@ readOptions = do
           |## if specified it takes precedence over server-port
           |# server-unix-socket = "/tmp/pgrst.sock"
           |## unix socket file mode
-          |## when none is provided, 755 is applied by default
-          |# server-unix-socket-mode = "755"
+          |## when none is provided, 777 is applied by default
+          |# server-unix-socket-mode = "777"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""
