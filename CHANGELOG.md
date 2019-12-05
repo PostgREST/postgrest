@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- #1417, Improvement singular/plural logic - @dwagin
 - #1415, Add support for user defined socket permission via `server-unix-socket-mode` config option - @Dansvidania
 - #1383, Add support for HEAD request - @steve-chavez
 - #1378, Add support for `Prefer: count=planned` and `Prefer: count=estimated` on GET /table - @steve-chavez
