@@ -139,7 +139,7 @@ spec =
         -- the rows should not exist, either
         get "/addresses?id=eq.202" `shouldRespondWith` "[]"
 
-      it "singular behavior holds priority over return=minimal" $ do
+      it "raises an error regardless of return=minimal" $ do
         request methodPost "/addresses"
                 [("Prefer", "return=minimal"), singular]
                 [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
