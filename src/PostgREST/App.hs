@@ -193,10 +193,10 @@ app dbStructure proc cols conf apiRequest =
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = row
                   updateIsNoOp = S.null cols
-                  r = contentRangeH 0 (queryTotal - 1) $
+                  contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
                         if shouldCount then Just queryTotal else Nothing
-                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, r]
-                          | otherwise                                = [r]
+                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, contentRangeHeader]
+                          | otherwise                                = [contentRangeHeader]
                   status | queryTotal == 0 && not updateIsNoOp      = status404
                          | iPreferRepresentation apiRequest == Full = status200
                          | otherwise                                = status204
