@@ -261,7 +261,7 @@ app dbStructure proc cols conf apiRequest =
                 else
                   return $ if iPreferRepresentation apiRequest == Full
                     then responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
-                    else responseLBS status204 [r] ""
+                    else responseLBS status204 [contentRangeHeader] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
