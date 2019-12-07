@@ -251,7 +251,7 @@ app dbStructure proc cols conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = row
-                  r = contentRangeH 1 0 $
+                  contentRangeHeader = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
                  && queryTotal /= 1
@@ -260,7 +260,7 @@ app dbStructure proc cols conf apiRequest =
                   return . errorResponseFor . singularityError $ queryTotal
                 else
                   return $ if iPreferRepresentation apiRequest == Full
-                    then responseLBS status200 [toHeader contentType, r] (toS body)
+                    then responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
                     else responseLBS status204 [r] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
