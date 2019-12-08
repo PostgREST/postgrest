@@ -213,9 +213,9 @@ Then run the `pg_listen <https://github.com/begriffs/pg_listen>`_ utility to mon
 
 .. code-block:: bash
 
-  pg_listen <db-uri> ddl_command_end "killall -SIGUSR1 postgrest"
+  pg_listen <db-uri> ddl_command_end $(which killall) -SIGUSR1 postgrest
 
-Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache.
+Now, whenever the structure of the database schema changes, PostgreSQL will notify the ``ddl_command_end`` channel, which will cause ``pg_listen`` to send PostgREST the signal to reload its cache. Note that pg_listen requires full path to the executable in the example above.
 
 Daemonizing
 ===========
