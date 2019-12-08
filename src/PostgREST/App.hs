@@ -175,7 +175,6 @@ app dbStructure proc cols conf apiRequest =
                     ]
               if contentType == CTSingularJSON
                  && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
@@ -193,28 +192,23 @@ app dbStructure proc cols conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = row
-
-                  updateIsNoOp       = S.null cols
+                  updateIsNoOp = S.null cols
                   contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
-                                          if shouldCount then Just queryTotal else Nothing
-                  minimalHeaders     = [contentRangeHeader]
-                  fullHeaders        = toHeader contentType : minimalHeaders
-
+                        if shouldCount then Just queryTotal else Nothing
+                  headers | iPreferRepresentation apiRequest == Full = [toHeader contentType, contentRangeHeader]
+                          | otherwise                                = [contentRangeHeader]
                   status | queryTotal == 0 && not updateIsNoOp      = status404
                          | iPreferRepresentation apiRequest == Full = status200
                          | otherwise                                = status204
-
-              case (contentType, iPreferRepresentation apiRequest) of
-                (CTSingularJSON, Full)
-                      | queryTotal == 1 -> return $ responseLBS status fullHeaders (toS body)
-                      | otherwise       -> HT.condemn >> (return . errorResponseFor . singularityError) queryTotal
-
-                (_, Full) ->
-                  return $ responseLBS status fullHeaders (toS body)
-
-                (_, _) ->
-                  return $ responseLBS status minimalHeaders mempty
-
+              if contentType == CTSingularJSON
+                 && queryTotal /= 1
+                then do
+                  HT.condemn
+                  return . errorResponseFor . singularityError $ queryTotal
+                else
+                  return $ if iPreferRepresentation apiRequest == Full
+                    then responseLBS status headers (toS body)
+                    else responseLBS status headers mempty
 
         (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
           case mutateSqlParts tSchema tName of
@@ -257,18 +251,17 @@ app dbStructure proc cols conf apiRequest =
                     (iPreferRepresentation apiRequest) []
               row <- H.statement mempty stm
               let (_, queryTotal, _, body) = row
-                  r = contentRangeH 1 0 $
+                  contentRangeHeader = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
                  && queryTotal /= 1
-                 && iPreferRepresentation apiRequest == Full
                 then do
                   HT.condemn
                   return . errorResponseFor . singularityError $ queryTotal
                 else
                   return $ if iPreferRepresentation apiRequest == Full
-                    then responseLBS status200 [toHeader contentType, r] (toS body)
-                    else responseLBS status204 [r] ""
+                    then responseLBS status200 [toHeader contentType, contentRangeHeader] (toS body)
+                    else responseLBS status204 [contentRangeHeader] ""
 
         (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
