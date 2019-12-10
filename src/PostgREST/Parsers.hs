@@ -130,15 +130,17 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    cardHint <- optionMaybe (
-        try ( char '!' *> string "o2m" $> O2M) <|>
-        try ( char '!' *> string "m2o" $> M2O) <|>
-        try ( char '!' *> string "m2m" $> M2M)
-      )
-    fkHint <- optionMaybe $ try ( char '!' *> pFieldName )
-
-    return (fld, Nothing, alias, (fkHint, cardHint))
+    hint1 <- pEmbedHint
+    hint2 <- pEmbedHint
+    return (fld, Nothing, alias, catMaybes [hint1, hint2])
   )
+  where
+    pEmbedHint =  optionMaybe (
+        try ( char '!' *> string "o2m" $> CardHint O2M) <|>
+        try ( char '!' *> string "m2o" $> CardHint M2O) <|>
+        try ( char '!' *> string "m2m" $> CardHint M2M) <|>
+        try ( char '!' *> (FkOrJunctionHint <$> pFieldName) )
+      )
 
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
@@ -147,11 +149,11 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many letter)
-      return (fld, toS <$> cast', alias, (Nothing, Nothing))
+      return (fld, toS <$> cast', alias, [])
   )
   <|> do
     s <- pStar
-    return ((s, []), Nothing, Nothing, (Nothing, Nothing))
+    return ((s, []), Nothing, Nothing, [])
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation

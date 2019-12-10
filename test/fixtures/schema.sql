@@ -1686,6 +1686,11 @@ create view main_jobs as
 select * from jobs
 where site_id in (select site_id from sites where main_project_id is not null);
 
+-- junction in a private schema, just to make sure we don't leak it on resource embedding
+-- if it leaks it would show on the disambiguation error tests
+create view private.priv_jobs as
+  select * from jobs;
+
 -- tables to show our limitation when trying to do an m2m embed
 -- with a junction table that has more than two foreign keys
 create table whatev_projects (

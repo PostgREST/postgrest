@@ -409,11 +409,11 @@ toHeaders = map $ \(GucHeader (k, v)) -> (CI.mk $ toS k, toS v)
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
   Specifically, it will contain the name of the foreign key or the join table in many to many relations.
 -}
+type SelectItem = (Field, Maybe Cast, Maybe Alias, [EmbedHint])
 -- | Disambiguates an embedding operation when there's multiple relationships between two tables.
--- | Text can be the name of a foreign key column or the junction table in a many-to-many relationship.
--- | Cardinality is also useful for disambiguating. e.g. to choose a parent or child in a self reference case.
-type EmbedHint = (Maybe Text, Maybe Cardinality)
-type SelectItem = (Field, Maybe Cast, Maybe Alias, EmbedHint)
+data EmbedHint = FkOrJunctionHint Text -- ^ Can be the name of a foreign key constraint or the junction in an m2m relationship.
+               | CardHint Cardinality  -- ^ Cardinality is also useful for disambiguating. e.g. to choose a parent or child in a self reference case.
+               deriving (Show, Eq)
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
@@ -456,7 +456,7 @@ data MutateQuery =
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, EmbedHint, Depth))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, [EmbedHint], Depth))
 type Depth = Integer
 
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))

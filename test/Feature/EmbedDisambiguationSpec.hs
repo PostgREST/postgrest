@@ -124,32 +124,6 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
-      it "errs when there are two junctions on a m2m cardinality" $
-        get "/sites?select=*,big_projects!m2m(*)" `shouldRespondWith`
-          [json|
-            {
-              "details": [
-                  {
-                      "cardinality": "m2m",
-                      "junction": "test.jobs",
-                      "source": "test.sites",
-                      "target": "test.big_projects"
-                  },
-                  {
-                      "cardinality": "m2m",
-                      "junction": "test.main_jobs",
-                      "source": "test.sites",
-                      "target": "test.big_projects"
-                  }
-              ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|cardinality|junction>(*)",
-              "message": "More than one relationship was found for sites and big_projects"
-            }
-          |]
-          { matchStatus  = 300
-          , matchHeaders = [matchContentTypeJson]
-          }
-
       it "errs on a circular reference" $
         get "/agents?select=*,departments(*)" `shouldRespondWith`
           [json|
@@ -182,6 +156,7 @@ spec =
         -- [site_id_1][project_id_2]
         -- [site_id_2][project_id_1]
         -- [site_id_2][project_id_2]
+        -- could be solved by specifying two additional fks, like whatev_projects!m2m!fk1!fk2(*) but the url would be too complex
         get "/whatev_sites?select=*,whatev_projects!m2m(*)" `shouldRespondWith`
           [json|
             {
@@ -245,6 +220,12 @@ spec =
             ]
           |]
           { matchHeaders = [matchContentTypeJson] }
+
+      it "suceeds with the same result despite switching cardinality and hint order(!m2o!fk or !fk!m2o)" $ do
+        get "/agents?select=name,departments!agents_department_id_fkey!m2o(name)&id=eq.1" `shouldRespondWith`
+          [json| [ { "departments": { "name": "dep 1" }, "name": "agent 1" } ] |] { matchHeaders = [matchContentTypeJson] }
+        get "/agents?select=name,departments!m2o!agents_department_id_fkey(name)&id=eq.1" `shouldRespondWith`
+          [json| [ { "departments": { "name": "dep 1" }, "name": "agent 1" } ] |] { matchHeaders = [matchContentTypeJson] }
 
       it "embeds by using two fks pointing to the same table" $
         get "/orders?id=eq.1&select=id, name, billing_address_id(id), shipping_address_id(id)" `shouldRespondWith`

@@ -71,7 +71,7 @@ initReadRequest rootQi =
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, (Nothing, Nothing), rootDepth)) []
+    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, [], rootDepth)) []
     treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry depth (Node fld@((fn, _),_,alias, embedHint) fldForest) (Node (q, i) rForest) =
       let nxtDepth = succ depth in
@@ -95,13 +95,13 @@ augumentRequestWithJoin schema allRels request =
   >>= addJoinConditions Nothing
 
 addRels :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, embedHint, depth)) forest) =
+addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hints, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
       let newFrom r = if qiName tbl == nodeName then tableQi (relFTable r) else tbl
-          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, (Nothing, Nothing), depth))) <$> rel
+          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, [], depth))) <$> rel
           parentNodeTable = qiName parentNodeQi
-          results = findRel schema allRels parentNodeTable nodeName embedHint
+          results = findRel schema allRels parentNodeTable nodeName hints
           rel :: Either ApiRequestError Relation
           rel = case results of
             []  -> Left $ NoRelBetween parentNodeTable nodeName
@@ -110,14 +110,15 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
       in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
     _ ->
-      let rn = (query, (nodeName, Nothing, alias, (Nothing, Nothing), depth)) in
+      let rn = (query, (nodeName, Nothing, alias, [], depth)) in
       Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = mapM (addRels schema allRels rq) forest
 
-findRel :: Schema -> [Relation] -> TableName -> NodeName -> EmbedHint -> [Relation]
-findRel schema allRels source target (fkHint, cardHint) =
+findRel :: Schema -> [Relation] -> TableName -> NodeName -> [EmbedHint] -> [Relation]
+findRel schema allRels source target hints =
+  -- (fkHint, cardHint)
   filter (\Relation{relTable, relConstraint, relFTable, relType, relLinkTable} ->
     -- Both relationship ends need to be on the exposed schema
     schema == tableSchema relTable && schema == tableSchema relFTable &&
@@ -133,27 +134,20 @@ findRel schema allRels source target (fkHint, cardHint) =
         source == tableName relTable && -- projects
         Just target == relConstraint    -- projects_client_id_fkey
       )
-    ) && (
-      isNothing fkHint || -- fkHint is optional
-
-      -- /projects?select=clients!projects_client_id_fkey(*)
-      (
-      fkHint == relConstraint -- projects_client_id_fkey
-      ) ||
-
-      -- /tasks?select=users!tasks_users(*)
-      (
-        relType == M2M &&                      -- many-to-many between tasks and users
-        fkHint == (tableName <$> relLinkTable) -- tasks_users
-      )
-    ) && (
-      isNothing cardHint || -- cardHint is optional
-
-      -- /web_content?select=web_content!o2m(*)
-      (
-        cardHint == Just relType  -- o2m
-      )
-    )
+    ) &&
+    and ((\case
+      FkOrJunctionHint txt ->
+        -- /projects?select=clients!projects_client_id_fkey(*)
+        Just txt == relConstraint || -- projects_client_id_fkey
+        (
+        -- /tasks?select=users!tasks_users(*)
+        relType == M2M &&                        -- many-to-many between tasks and users
+        Just txt == (tableName <$> relLinkTable) -- tasks_users
+        )
+      CardHint c ->
+        -- /web_content?select=web_content!o2m(*)
+        c == relType  -- o2m
+    ) <$> hints)
   ) allRels
 
 -- previousAlias is only used for the case of self joins
