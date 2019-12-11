@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #1423, Changed default Unix Socket file mode from 755 to 660 - @dwagin
 - #1369, Change `raw-media-types` to accept a string of comma separated MIME types - @Dansvidania
 - #1368, Fix long column descriptions being truncated at 63 characters in PostgreSQL 12 - @amedeedaboville
 - #1348, Go back to converting plus "+" to space " " in querystrings by default - @steve-chavez

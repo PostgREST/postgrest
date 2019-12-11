@@ -177,7 +177,7 @@ readOptions = do
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
       C.optional k C.string >>= \case
-        Nothing -> pure $ Right 511 -- return default 777 mode if no value was provided
+        Nothing -> pure $ Right 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
             []              ->
