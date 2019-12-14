@@ -267,8 +267,8 @@ readOptions = do
           |## if specified it takes precedence over server-port
           |# server-unix-socket = "/tmp/pgrst.sock"
           |## unix socket file mode
-          |## when none is provided, 777 is applied by default
-          |# server-unix-socket-mode = "777"
+          |## when none is provided, 660 is applied by default
+          |# server-unix-socket-mode = "660"
           |
           |## base url for swagger output
           |# server-proxy-uri = ""
