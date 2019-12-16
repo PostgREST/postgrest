@@ -1,3 +1,11 @@
+.. _community_tutorials:
+
+Community Tutorials
+-------------------
+
+* `Building a Contacts List with PostgREST and Vue.js <https://www.youtube.com/playlist?list=PLseEp7p6EwibFjhfO6LhMx5_SFkVxt_gf>`_ -
+  In this video series, DigitalOcean shows how to build and deploy an Nginx + PostgREST(using a managed PostgreSQL database) + Vue.js webapp in an Ubuntu server droplet.
+
 .. _eco_example_apps:
 
 Example Apps

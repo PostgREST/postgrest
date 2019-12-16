@@ -88,7 +88,7 @@ Are you new to PostgREST? This is the place to start!
 - :doc:`tutorials/tut0`
 - :doc:`tutorials/tut1`
 
-Also have a look at :doc:`Installation <install>`.
+Also have a look at :doc:`Installation <install>` and :ref:`community_tutorials`.
 
 Reference guides
 ----------------
