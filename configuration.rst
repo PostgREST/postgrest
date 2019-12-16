@@ -42,7 +42,7 @@ db-extra-search-path    String  public
 server-host             String  !4
 server-port             Int     3000
 server-unix-socket      String
-server-unix-socket-mode String  755        
+server-unix-socket-mode String  660
 server-proxy-uri        String
 jwt-secret              String
 jwt-aud                 String
@@ -152,7 +152,7 @@ server-unix-socket-mode
   
   .. code:: bash
 
-    server-unix-socket-mode = "755"
+    server-unix-socket-mode = "660"
 
 .. _server-proxy-uri:
 
