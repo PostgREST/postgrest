@@ -198,7 +198,7 @@ spec actualPgVersion = do
 
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects(id,tasks2(id,name))&projects.tasks.name=like.Design*"
-        `shouldRespondWith` [json| {"message":"Could not find foreign keys between these entities, No relation found between projects and tasks2"}|]
+        `shouldRespondWith` [json| {"message":"Could not find foreign keys between these entities. No relationship found between projects and tasks2"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -265,9 +265,8 @@ spec actualPgVersion = do
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "requesting parent and renaming primary key" $ do
-      pendingWith "duck typing removed: see what to do with single fk column embed"
-      get "/projects?select=name,client(clientId:id,name)" `shouldRespondWith`
+    it "requesting parent and renaming primary key" $
+      get "/projects?select=name,client:clients(clientId:id,name)" `shouldRespondWith`
         [json|[
           {"name":"Windows 7","client":{"name": "Microsoft", "clientId": 1}},
           {"name":"Windows 10","client":{"name": "Microsoft", "clientId": 1}},
@@ -285,15 +284,8 @@ spec actualPgVersion = do
         [json|[{"id":1,"commenter_id":1,"user_id":2,"task_id":6,"content":"Needs to be delivered ASAP","users_tasks":{"taskId": 6}}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "embed data with two fk pointing to the same table" $ do
-      pendingWith "duck typing removed: see what to do with single fk column embed"
-      get "/orders?id=eq.1&select=id, name, billing_address_id(id), shipping_address_id(id)" `shouldRespondWith`
-        [str|[{"id":1,"name":"order 1","billing_address_id":{"id":1},"shipping_address_id":{"id":2}}]|]
-
-
-    it "requesting parents and children while renaming them" $ do
-      pendingWith "duck typing removed: see what to do with single fk column embed"
-      get "/projects?id=eq.1&select=myId:id, name, project_client:client_id(*), project_tasks:tasks(id, name)" `shouldRespondWith`
+    it "requesting parents and children while renaming them" $
+      get "/projects?id=eq.1&select=myId:id, name, project_client:clients(*), project_tasks:tasks(id, name)" `shouldRespondWith`
         [json|[{"myId":1,"name":"Windows 7","project_client":{"id":1,"name":"Microsoft"},"project_tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
@@ -342,9 +334,8 @@ spec actualPgVersion = do
       it "can detect fk relations through materialized views to tables in the public schema" $
         get "/materialized_projects?select=*,users(*)" `shouldRespondWith` 200
 
-      it "can request parent without specifying primary key" $ do
-        pendingWith "duck typing removed: see what to do with single fk column embed"
-        get "/articleStars?select=createdAt,article(owner),user(name)&limit=1" `shouldRespondWith`
+      it "can request two parents" $
+        get "/articleStars?select=createdAt,article:articles(owner),user:users(name)&limit=1" `shouldRespondWith`
           [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
           { matchHeaders = [matchContentTypeJson] }
 
@@ -435,9 +426,8 @@ spec actualPgVersion = do
              {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "can embed a view that has group by" $ do
-        pendingWith "duck typing removed: see what to do with single fk column embed"
-        get "/projects_count_grouped_by?select=number_of_projects,client(name)&order=number_of_projects" `shouldRespondWith`
+      it "can embed a view that has group by" $
+        get "/projects_count_grouped_by?select=number_of_projects,client:clients(name)&order=number_of_projects" `shouldRespondWith`
           [json|
             [{"number_of_projects":1,"client":null},
              {"number_of_projects":2,"client":{"name":"Microsoft"}},
@@ -728,12 +718,6 @@ spec actualPgVersion = do
     it "will embed a collection" $
       get "/Escap3e;?select=ghostBusters(*)" `shouldRespondWith`
         [json| [{"ghostBusters":[{"escapeId":1}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":3}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":5}]}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "will embed using a column" $ do
-      pendingWith "duck typing removed: see what to do with single fk column embed"
-      get "/ghostBusters?select=escapeId(*)" `shouldRespondWith`
-        [json| [{"escapeId":{"so6meIdColumn":1}},{"escapeId":{"so6meIdColumn":3}},{"escapeId":{"so6meIdColumn":5}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "will select and filter a column that has spaces" $

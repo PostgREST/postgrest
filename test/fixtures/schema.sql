@@ -103,14 +103,9 @@ SET default_tablespace = '';
 
 SET default_with_oids = false;
 
---
--- Name: items; Type: TABLE; Schema: test; Owner: -
---
-
 CREATE TABLE items (
-    id bigint NOT NULL
+    id bigserial primary key
 );
-
 
 CREATE FUNCTION always_true(test.items) RETURNS boolean
     LANGUAGE sql STABLE
@@ -364,58 +359,7 @@ CREATE TABLE auth (
     pass character(60) NOT NULL
 );
 
-
-SET search_path = private, pg_catalog;
-
---
--- Name: article_stars; Type: TABLE; Schema: private; Owner: -
---
-
-CREATE TABLE article_stars (
-    article_id integer NOT NULL,
-    user_id integer NOT NULL,
-    created_at timestamp without time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: articles; Type: TABLE; Schema: private; Owner: -
---
-
-CREATE TABLE articles (
-    id integer NOT NULL,
-    body text,
-    owner name NOT NULL
-);
-
-
 SET search_path = test, pg_catalog;
-
-CREATE VIEW limited_article_stars AS
-  SELECT article_id, user_id, created_at FROM private.article_stars;
-
-
---
--- Name: articleStars; Type: VIEW; Schema: test; Owner: -
---
-
-CREATE VIEW "articleStars" AS
- SELECT article_stars.article_id AS "articleId",
-    article_stars.user_id AS "userId",
-    article_stars.created_at AS "createdAt"
-   FROM private.article_stars;
-
-
---
--- Name: articles; Type: VIEW; Schema: test; Owner: -
---
-
-CREATE VIEW articles AS
- SELECT articles.id,
-    articles.body,
-    articles.owner
-   FROM private.articles;
-
 
 --
 -- Name: authors_only; Type: TABLE; Schema: test; Owner: -
@@ -463,23 +407,9 @@ ALTER SEQUENCE auto_incrementing_pk_id_seq OWNED BY auto_incrementing_pk.id;
 --
 
 CREATE TABLE clients (
-    id integer NOT NULL,
+    id integer primary key,
     name text NOT NULL
 );
-
-
---
--- Name: comments; Type: TABLE; Schema: test; Owner: -
---
-
-CREATE TABLE comments (
-    id integer NOT NULL,
-    commenter_id integer NOT NULL,
-    user_id integer NOT NULL,
-    task_id integer NOT NULL,
-    content text NOT NULL
-);
-
 
 --
 -- Name: complex_items; Type: TABLE; Schema: test; Owner: -
@@ -574,26 +504,6 @@ CREATE VIEW insertable_view_with_join AS
    FROM (has_fk
      JOIN auto_incrementing_pk USING (id));
 
-
---
--- Name: items_id_seq; Type: SEQUENCE; Schema: test; Owner: -
---
-
-CREATE SEQUENCE items_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: items_id_seq; Type: SEQUENCE OWNED BY; Schema: test; Owner: -
---
-
-ALTER SEQUENCE items_id_seq OWNED BY items.id;
-
-
 --
 -- Name: json; Type: TABLE; Schema: test; Owner: -
 --
@@ -663,11 +573,11 @@ CREATE TABLE insertonly (
 --
 
 CREATE TABLE projects (
-    id integer NOT NULL,
+    id integer primary key,
     name text NOT NULL,
-    client_id integer
+    client_id integer REFERENCES clients(id)
 );
-
+alter table projects rename constraint projects_client_id_fkey to client;
 
 --
 -- Name: projects_view; Type: VIEW; Schema: test; Owner: -
@@ -695,25 +605,23 @@ CREATE TABLE simple_pk (
     extra character varying NOT NULL
 );
 
---
--- Name: users_projects; Type: TABLE; Schema: test; Owner: -
---
+CREATE TABLE users (
+    id integer primary key,
+    name text NOT NULL
+);
 
 CREATE TABLE users_projects (
-    user_id integer NOT NULL,
-    project_id integer NOT NULL
+    user_id integer NOT NULL REFERENCES users(id),
+    project_id integer NOT NULL REFERENCES projects(id),
+    PRIMARY KEY (project_id, user_id)
 );
-
-
---
--- Name: tasks; Type: TABLE; Schema: test; Owner: -
---
 
 CREATE TABLE tasks (
-    id integer NOT NULL,
+    id integer primary key,
     name text NOT NULL,
-    project_id integer
+    project_id integer REFERENCES projects(id)
 );
+alter table tasks rename constraint tasks_project_id_fkey to project;
 
 CREATE OR REPLACE VIEW filtered_tasks AS
 SELECT id AS "myId", name, project_id AS "projectID"
@@ -725,6 +633,53 @@ project_id IN (
 	SELECT project_id FROM users_projects WHERE user_id = 1
 );
 
+CREATE TABLE users_tasks (
+  user_id integer NOT NULL REFERENCES users(id),
+  task_id integer NOT NULL REFERENCES tasks(id),
+  primary key (task_id, user_id)
+);
+
+CREATE TABLE comments (
+    id integer primary key,
+    commenter_id integer NOT NULL,
+    user_id integer NOT NULL,
+    task_id integer NOT NULL,
+    content text NOT NULL
+);
+alter table only comments
+    add constraint "user" foreign key (commenter_id) references users(id),
+    add constraint comments_task_id_fkey foreign key (task_id, user_id) references users_tasks(task_id, user_id);
+
+create table private.articles (
+    id integer primary key,
+    body text,
+    owner name not null
+);
+
+create table private.article_stars (
+    article_id integer not null,
+    user_id integer not null,
+    created_at timestamp without time zone default now() not null,
+    primary key (article_id, user_id)
+);
+alter table only private.article_stars
+  add constraint article foreign key (article_id) references private.articles(id),
+  add constraint "user" foreign key (user_id) references test.users(id);
+
+CREATE VIEW limited_article_stars AS
+  SELECT article_id, user_id, created_at FROM private.article_stars;
+
+CREATE VIEW "articleStars" AS
+ SELECT article_stars.article_id AS "articleId",
+    article_stars.user_id AS "userId",
+    article_stars.created_at AS "createdAt"
+   FROM private.article_stars;
+
+CREATE VIEW articles AS
+ SELECT articles.id,
+    articles.body,
+    articles.owner
+   FROM private.articles;
 
 --
 -- Name: tsearch; Type: TABLE; Schema: test; Owner: -
@@ -733,28 +688,6 @@ project_id IN (
 CREATE TABLE tsearch (
     text_search_vector tsvector
 );
-
-
---
--- Name: users; Type: TABLE; Schema: test; Owner: -
---
-
-CREATE TABLE users (
-    id integer NOT NULL,
-    name text NOT NULL
-);
-
-
-
---
--- Name: users_tasks; Type: TABLE; Schema: test; Owner: -
---
-
-CREATE TABLE users_tasks (
-    user_id integer NOT NULL,
-    task_id integer NOT NULL
-);
-
 
 CREATE TABLE "Escap3e;" (
 		"so6meIdColumn" integer primary key
@@ -773,7 +706,6 @@ CREATE TABLE clashing_column (
     t text
 );
 
-
 --
 -- Name: id; Type: DEFAULT; Schema: test; Owner: -
 --
@@ -788,13 +720,6 @@ ALTER TABLE ONLY auto_incrementing_pk ALTER COLUMN id SET DEFAULT nextval('auto_
 ALTER TABLE ONLY has_fk ALTER COLUMN id SET DEFAULT nextval('has_fk_id_seq'::regclass);
 
 
---
--- Name: id; Type: DEFAULT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY items ALTER COLUMN id SET DEFAULT nextval('items_id_seq'::regclass);
-
-
 SET search_path = postgrest, pg_catalog;
 
 --
@@ -803,24 +728,6 @@ SET search_path = postgrest, pg_catalog;
 
 ALTER TABLE ONLY auth
     ADD CONSTRAINT auth_pkey PRIMARY KEY (id);
-
-
-SET search_path = private, pg_catalog;
-
---
--- Name: articles_pkey; Type: CONSTRAINT; Schema: private; Owner: -
---
-
-ALTER TABLE ONLY articles
-    ADD CONSTRAINT articles_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_article; Type: CONSTRAINT; Schema: private; Owner: -
---
-
-ALTER TABLE ONLY article_stars
-    ADD CONSTRAINT user_article PRIMARY KEY (article_id, user_id);
 
 
 SET search_path = test, pg_catalog;
@@ -839,23 +746,6 @@ ALTER TABLE ONLY authors_only
 
 ALTER TABLE ONLY auto_incrementing_pk
     ADD CONSTRAINT auto_incrementing_pk_pkey PRIMARY KEY (id);
-
-
---
--- Name: clients_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY clients
-    ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
-
-
---
--- Name: comments_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY comments
-    ADD CONSTRAINT comments_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: complex_items_pkey; Type: CONSTRAINT; Schema: test; Owner: -
@@ -888,61 +778,12 @@ ALTER TABLE ONLY simple_pk
 ALTER TABLE ONLY has_fk
     ADD CONSTRAINT has_fk_pkey PRIMARY KEY (id);
 
-
---
--- Name: items_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY items
-    ADD CONSTRAINT items_pkey PRIMARY KEY (id);
-
-
 --
 -- Name: menagerie_pkey; Type: CONSTRAINT; Schema: test; Owner: -
 --
 
 ALTER TABLE ONLY menagerie
     ADD CONSTRAINT menagerie_pkey PRIMARY KEY ("integer");
-
-
---
--- Name: project_user; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_projects
-    ADD CONSTRAINT project_user PRIMARY KEY (project_id, user_id);
-
-
---
--- Name: projects_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY projects
-    ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
-
-
---
--- Name: task_user; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_tasks
-    ADD CONSTRAINT task_user PRIMARY KEY (task_id, user_id);
-
-
---
--- Name: tasks_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY tasks
-    ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
-
-
---
--- Name: users_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users
-    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
 SET search_path = postgrest, pg_catalog;
@@ -971,42 +812,7 @@ SET search_path = test, pg_catalog;
 
 CREATE TRIGGER secrets_owner_track BEFORE INSERT OR UPDATE ON authors_only FOR EACH ROW EXECUTE PROCEDURE postgrest.set_authors_only_owner();
 
-
-SET search_path = private, pg_catalog;
-
---
--- Name: article_stars_article_id_fkey; Type: FK CONSTRAINT; Schema: private; Owner: -
---
-
-ALTER TABLE ONLY article_stars
-    ADD CONSTRAINT article_stars_article_id_fkey FOREIGN KEY (article_id) REFERENCES articles(id);
-
-
---
--- Name: article_stars_user_id_fkey; Type: FK CONSTRAINT; Schema: private; Owner: -
---
-
-ALTER TABLE ONLY article_stars
-    ADD CONSTRAINT article_stars_user_id_fkey FOREIGN KEY (user_id) REFERENCES test.users(id);
-
-
 SET search_path = test, pg_catalog;
-
---
--- Name: comments_commenter_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY comments
-    ADD CONSTRAINT comments_commenter_id_fkey FOREIGN KEY (commenter_id) REFERENCES users(id);
-
-
---
--- Name: comments_task_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY comments
-    ADD CONSTRAINT comments_task_id_fkey FOREIGN KEY (task_id, user_id) REFERENCES users_tasks(task_id, user_id);
-
 
 --
 -- Name: has_fk_fk_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
@@ -1023,55 +829,6 @@ ALTER TABLE ONLY has_fk
 ALTER TABLE ONLY has_fk
     ADD CONSTRAINT has_fk_simple_fk_fkey FOREIGN KEY (simple_fk) REFERENCES simple_pk(k);
 
-
---
--- Name: projects_client_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY projects
-    ADD CONSTRAINT projects_client_id_fkey FOREIGN KEY (client_id) REFERENCES clients(id);
-
-
---
--- Name: tasks_project_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY tasks
-    ADD CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
-
-
---
--- Name: users_projects_project_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_projects
-    ADD CONSTRAINT users_projects_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
-
-
---
--- Name: users_projects_user_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_projects
-    ADD CONSTRAINT users_projects_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
-
-
---
--- Name: users_tasks_task_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_tasks
-    ADD CONSTRAINT users_tasks_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks(id);
-
-
---
--- Name: users_tasks_user_id_fkey; Type: FK CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY users_tasks
-    ADD CONSTRAINT users_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
-
-
 create table addresses (
 	id                   int not null unique,
 	address              text not null
@@ -1083,6 +840,8 @@ create table orders (
 	billing_address_id   int references addresses(id),
 	shipping_address_id  int references addresses(id)
 );
+alter table orders rename constraint orders_billing_address_id_fkey to billing;
+alter table orders rename constraint orders_shipping_address_id_fkey to shipping;
 
 CREATE FUNCTION getproject(id int) RETURNS SETOF projects
     LANGUAGE sql
@@ -1406,12 +1165,11 @@ create table test.managers (
 create table test.organizations (
   id integer primary key,
   name text,
-  referee integer,
-  auditor integer,
+  referee integer references organizations(id),
+  auditor integer references organizations(id),
   manager_id integer references managers(id)
 );
-alter table only test.organizations add constraint pptr1 foreign key (referee) references test.organizations(id);
-alter table only test.organizations add constraint pptr2 foreign key (auditor) references test.organizations(id);
+alter table only test.organizations rename constraint organizations_manager_id_fkey to manager;
 
 create table private.authors(
   id integer primary key,
@@ -1785,3 +1543,101 @@ create table private.referrals (
 create view test.pages as select * from private.pages;
 
 create view test.referrals as select * from private.referrals;
+
+create table big_projects (
+  big_project_id  serial  primary key,
+  name text
+);
+
+create table sites (
+  site_id         serial  primary key
+, name text
+, main_project_id int     null references big_projects (big_project_id)
+);
+
+create table jobs (
+  job_id          uuid    primary key
+, name text
+, site_id         int     not null references sites (site_id)
+, big_project_id  int     not null references big_projects (big_project_id)
+);
+
+create view main_jobs as
+select * from jobs
+where site_id in (select site_id from sites where main_project_id is not null);
+
+-- junction in a private schema, just to make sure we don't leak it on resource embedding
+-- if it leaks it would show on the disambiguation error tests
+create view private.priv_jobs as
+  select * from jobs;
+
+-- tables to show our limitation when trying to do an m2m embed
+-- with a junction table that has more than two foreign keys
+create table whatev_projects (
+  id  serial  primary key,
+  name text
+);
+
+create table whatev_sites (
+  id              serial  primary key
+, name text
+);
+
+create table whatev_jobs (
+  job_id        uuid    primary key
+, name text
+, site_id_1     int not null references whatev_sites (id)
+, project_id_1  int not null references whatev_projects (id)
+, site_id_2     int not null references whatev_sites (id)
+, project_id_2  int not null references whatev_projects (id)
+);
+
+-- circular reference
+create table agents (
+  id int primary key
+, name text
+, department_id int
+);
+
+create table departments (
+  id int primary key
+, name text
+, head_id int references agents(id)
+);
+
+ALTER TABLE agents
+    ADD CONSTRAINT agents_department_id_fkey foreign key (department_id) REFERENCES departments(id);
+
+-- composite key disambiguation
+create table schedules (
+  id        int primary key
+, name      text
+, start_at  timetz
+, end_at    timetz
+);
+
+create table activities (
+  id             int
+, schedule_id    int
+, car_id         text
+, camera_id      text
+, primary key (id, schedule_id)
+);
+alter table activities
+add constraint schedule foreign key          (schedule_id)
+                        references schedules (id);
+
+create table unit_workdays (
+  unit_id int
+, day date
+, fst_shift_activity_id int
+, fst_shift_schedule_id int
+, snd_shift_activity_id int
+, snd_shift_schedule_id int
+, primary key (unit_id, day)
+);
+alter table unit_workdays
+add constraint fst_shift foreign key           (fst_shift_activity_id, fst_shift_schedule_id)
+                         references activities (id, schedule_id),
+add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift_schedule_id)
+                         references activities (id, schedule_id);
