@@ -187,7 +187,7 @@ Here are some companies that use PostgREST in production.
 
 * `Datrium <https://www.datrium.com>`_
 * `Nimbus <https://nimbusforwork.com/>`_
-  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html#products>`_.
+  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
 * `Catarse <https://www.catarse.me/>`_
 * `Moat <https://moat.com/>`_
 * `Redsmin <https://www.redsmin.com/>`_
