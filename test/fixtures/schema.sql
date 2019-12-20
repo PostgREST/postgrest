@@ -1554,6 +1554,7 @@ create table sites (
 , name text
 , main_project_id int     null references big_projects (big_project_id)
 );
+alter table sites rename constraint sites_main_project_id_fkey to main_project;
 
 create table jobs (
   job_id          uuid    primary key

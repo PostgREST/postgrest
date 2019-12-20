@@ -47,7 +47,7 @@ spec =
               "details": [
                 {
                   "cardinality": "m2o",
-                  "relationship": "sites_main_project_id_fkey[main_project_id][big_project_id]",
+                  "relationship": "main_project[main_project_id][big_project_id]",
                   "source": "test.sites",
                   "target": "test.big_projects"
                 },
@@ -212,6 +212,11 @@ spec =
             [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
             { matchHeaders = [matchContentTypeJson] }
 
+        it "can disambiguate with the fk in case of an o2m and m2m relationship to the same table" $
+          get "/sites?select=name,main_project(name)&site_id=eq.1" `shouldRespondWith`
+            [json| [ { "name": "site 1", "main_project": { "name": "big project 1" } } ] |]
+            { matchHeaders = [matchContentTypeJson] }
+
       context "using the column name of the FK to specify the relationship" $ do
         it "can embed by column" $
           get "/projects?id=in.(1,3)&select=id,name,client_id(id,name)" `shouldRespondWith`
@@ -243,6 +248,64 @@ spec =
         it "embeds by using two columns pointing to the same table" $
           get "/orders?id=eq.1&select=id, name, billing_address_id(id), shipping_address_id(id)" `shouldRespondWith`
             [json|[{"id":1,"name":"order 1","billing_address_id":{"id":1},"shipping_address_id":{"id":2}}]|]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can disambiguate with the column in case of an o2m and m2m relationship to the same table" $
+          get "/sites?select=name,main_project_id(name)&site_id=eq.1" `shouldRespondWith`
+            [json| [ { "name": "site 1", "main_project_id": { "name": "big project 1" } } ] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+      context "using the junction to disambiguate the request" $
+        it "can specify the junction of an m2m relationship" $ do
+          get "/sites?select=*,big_projects!jobs(name)&site_id=in.(1,2)" `shouldRespondWith`
+            [json|
+              [
+                {
+                  "big_projects": [
+                    {
+                      "name": "big project 1"
+                    }
+                  ],
+                  "main_project_id": 1,
+                  "name": "site 1",
+                  "site_id": 1
+                },
+                {
+                  "big_projects": [
+                    {
+                      "name": "big project 1"
+                    },
+                    {
+                      "name": "big project 2"
+                    }
+                  ],
+                  "main_project_id": null,
+                  "name": "site 2",
+                  "site_id": 2
+                }
+              ]
+            |]
+          get "/sites?select=*,big_projects!main_jobs(name)&site_id=in.(1,2)" `shouldRespondWith`
+            [json|
+              [
+                {
+                  "big_projects": [
+                    {
+                      "name": "big project 1"
+                    }
+                  ],
+                  "main_project_id": 1,
+                  "name": "site 1",
+                  "site_id": 1
+                },
+                {
+                  "big_projects": [],
+                  "main_project_id": null,
+                  "name": "site 2",
+                  "site_id": 2
+                }
+              ]
+            |]
             { matchHeaders = [matchContentTypeJson] }
 
       context "using a FK column and a FK to specify the relationship" $
