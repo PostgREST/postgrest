@@ -9,5 +9,5 @@ server.watch('tutorials/*.rst', shell('sphinx-build -b html -a -n . _build'))
 server.watch('how-tos/*.rst', shell('sphinx-build -b html -a -n . _build'))
 server.watch('releases/*.rst', shell('sphinx-build -b html -a -n . _build'))
 # For custom port and host
-server.serve(root='_build/', host='192.168.1.2')
-# server.serve(root='_build/')
+# server.serve(root='_build/', host='192.168.1.2')
+server.serve(root='_build/')
