@@ -169,7 +169,7 @@ app dbStructure proc cols conf apiRequest =
                         else Nothing
                     , Just $ contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
-                    , if null pkCols
+                    , if null pkCols && isNothing (iOnConflict apiRequest)
                         then Nothing
                         else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
                     ]

@@ -87,6 +87,7 @@ data ApiRequest = ApiRequest {
   , iFilters              :: [(Text, Text)]                   -- ^ Filters on the result ("id", "eq.10")
   , iLogic                :: [(Text, Text)]                   -- ^ &and and &or parameters used for complex boolean logic
   , iSelect               :: Maybe Text                       -- ^ &select parameter used to shape the response
+  , iOnConflict           :: Maybe Text                       -- ^ &on_conflict parameter used to upsert on specific unique keys
   , iColumns              :: Maybe Text                       -- ^ &columns parameter used to shape the payload
   , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
   , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
@@ -122,6 +123,7 @@ userApiRequest schema rootSpec req reqBody
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS <$> join (lookup "select" qParams)
+      , iOnConflict = toS <$> join (lookup "on_conflict" qParams)
       , iColumns = columns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars

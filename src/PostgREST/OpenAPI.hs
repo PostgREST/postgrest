@@ -133,6 +133,13 @@ makeParamDefs ti =
       & schema .~ ParamOther ((mempty :: ParamOtherSchema)
         & in_ .~ ParamQuery
         & type_ ?~ SwaggerString))
+  , ("on_conflict", (mempty :: Param)
+      & name        .~ "on_conflict"
+      & description ?~ "On Conflict"
+      & required    ?~ False
+      & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+        & in_ .~ ParamQuery
+        & type_ ?~ SwaggerString))
   , ("order", (mempty :: Param)
       & name        .~ "order"
       & description ?~ "Ordering"

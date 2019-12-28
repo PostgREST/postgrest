@@ -344,6 +344,12 @@ INSERT INTO employees VALUES
 TRUNCATE TABLE tiobe_pls CASCADE;
 INSERT INTO tiobe_pls VALUES ('Java', 1), ('C', 2), ('Python', 4);
 
+TRUNCATE TABLE single_unique CASCADE;
+INSERT INTO single_unique (unique_key, value) VALUES (1, 'A');
+
+TRUNCATE TABLE compound_unique CASCADE;
+INSERT INTO compound_unique (key1, key2, value) VALUES (1, 1, 'A');
+
 TRUNCATE TABLE only_pk CASCADE;
 INSERT INTO only_pk VALUES (1), (2);
 

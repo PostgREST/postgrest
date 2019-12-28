@@ -324,7 +324,11 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
 mutateRequest :: Schema -> TableName -> ApiRequest -> S.Set FieldName -> [FieldName] -> ReadRequest -> Either Response MutateRequest
 mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorResponseFor $
   case action of
-    ActionCreate -> Right $ Insert qi cols ((,) <$> iPreferResolution apiRequest <*> Just pkCols) [] returnings
+    ActionCreate -> do
+        confCols <- case iOnConflict apiRequest of
+            Nothing -> pure pkCols
+            Just param -> pRequestOnConflict param
+        pure $ Insert qi cols ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
     ActionUpdate -> Update qi cols <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
