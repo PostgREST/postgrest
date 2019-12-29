@@ -49,6 +49,31 @@ spec =
             [json|[]|] `shouldRespondWith`
             [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
 
+        it "INSERTs and UPDATEs rows on single unique key conflict" $
+          request methodPost "/single_unique?on_conflict=unique_key" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json| [
+              { "unique_key": 1, "value": "B" },
+              { "unique_key": 2, "value": "C" }
+            ]|] `shouldRespondWith` [json| [
+              { "unique_key": 1, "value": "B" },
+              { "unique_key": 2, "value": "C" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            }
+
+        it "INSERTs and UPDATEs rows on compound unique keys conflict" $
+          request methodPost "/compound_unique?on_conflict=key1,key2" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json| [
+              { "key1": 1, "key2": 1, "value": "B" },
+              { "key1": 1, "key2": 2, "value": "C" }
+            ]|] `shouldRespondWith` [json| [
+              { "key1": 1, "key2": 1, "value": "B" },
+              { "key1": 1, "key2": 2, "value": "C" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            }
 
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
         it "INSERTs and ignores rows on pk conflict" $
@@ -70,6 +95,32 @@ spec =
               { "first_name": "Sara M.", "last_name": "Torpey", "salary": 60000, "company": "Burstein-Applebee", "occupation": "Soil scientist" }
             ]|] `shouldRespondWith` [json|[
               { "first_name": "Sara M.", "last_name": "Torpey", "salary": "$60,000.00", "company": "Burstein-Applebee", "occupation": "Soil scientist" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+            }
+
+        it "INSERTs and ignores rows on single unique key conflict" $
+          request methodPost "/single_unique?on_conflict=unique_key" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json| [
+              { "unique_key": 1, "value": "B" },
+              { "unique_key": 2, "value": "C" },
+              { "unique_key": 3, "value": "D" }
+            ]|] `shouldRespondWith` [json| [
+              { "unique_key": 3, "value": "D" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+            }
+
+        it "INSERTs and UPDATEs rows on compound unique keys conflict" $
+          request methodPost "/compound_unique?on_conflict=key1,key2" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json| [
+              { "key1": 1, "key2": 1, "value": "B" },
+              { "key1": 1, "key2": 2, "value": "C" },
+              { "key1": 1, "key2": 3, "value": "D" }
+            ]|] `shouldRespondWith` [json| [
+              { "key1": 1, "key2": 3, "value": "D" }
             ]|]
             { matchStatus = 201
             , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]

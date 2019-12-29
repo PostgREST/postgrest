@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1415, Add support for user defined socket permission via `server-unix-socket-mode` config option - @Dansvidania
 - #1383, Add support for HEAD request - @steve-chavez
 - #1378, Add support for `Prefer: count=planned` and `Prefer: count=estimated` on GET /table - @steve-chavez
+- #1327, Add support for optional query parameter `on_conflict` to upsert with specified keys for POST - @ykst
 
 ### Fixed
 

@@ -66,6 +66,8 @@ GRANT ALL ON TABLE
     , perf_articles
     , employees
     , tiobe_pls
+    , single_unique
+    , compound_unique
     , only_pk
     , family_tree
     , managers

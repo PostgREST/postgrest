@@ -1379,6 +1379,18 @@ create table test.tiobe_pls(
   rank smallint
 );
 
+create table test.single_unique(
+  unique_key integer unique not null,
+  value text
+);
+
+create table test.compound_unique(
+  key1 integer not null,
+  key2 integer not null,
+  value text,
+  unique(key1, key2)
+);
+
 create table test.family_tree (
   id text not null primary key,
   name text not null,
