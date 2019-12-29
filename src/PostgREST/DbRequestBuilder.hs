@@ -326,7 +326,7 @@ mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorRespons
   case action of
     ActionCreate -> do
         confCols <- case iOnConflict apiRequest of
-            Nothing -> pure pkCols
+            Nothing    -> pure pkCols
             Just param -> pRequestOnConflict param
         pure $ Insert qi cols ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
     ActionUpdate -> Update qi cols <$> combinedLogic <*> pure returnings

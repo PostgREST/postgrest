@@ -32,9 +32,7 @@ pRequestSelect selStr =
 
 pRequestOnConflict :: Text -> Either ApiRequestError  [FieldName]
 pRequestOnConflict oncStr =
-  mapError $ parse columns ("failed to parse on_conflict parameter (" <> toS oncStr <> ")") (toS oncStr)
-  where
-    columns = pFieldName `sepBy1` char ','
+  mapError $ parse pColumns ("failed to parse on_conflict parameter (" <> toS oncStr <> ")") (toS oncStr)
 
 pRequestFilter :: (Text, Text) -> Either ApiRequestError (EmbedPath, Filter)
 pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
