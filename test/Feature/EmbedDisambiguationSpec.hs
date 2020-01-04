@@ -22,17 +22,17 @@ spec =
                 {
                     "cardinality": "m2o",
                     "relationship": "message_sender_fkey[sender][id]",
-                    "source": "test.message",
+                    "origin": "test.message",
                     "target": "test.person"
                 },
                 {
                     "cardinality": "m2o",
                     "relationship": "message_sender_fkey[sender][id]",
-                    "source": "test.message",
+                    "origin": "test.message",
                     "target": "test.person_detail"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
               "message": "More than one relationship was found for message and sender"
             }
           |]
@@ -48,23 +48,23 @@ spec =
                 {
                   "cardinality": "m2o",
                   "relationship": "main_project[main_project_id][big_project_id]",
-                  "source": "test.sites",
+                  "origin": "test.sites",
                   "target": "test.big_projects"
                 },
                 {
                   "cardinality": "m2m",
                   "relationship": "test.jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
-                  "source": "test.sites",
+                  "origin": "test.sites",
                   "target": "test.big_projects"
                 },
                 {
                   "cardinality": "m2m",
                   "relationship": "test.main_jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
-                  "source": "test.sites",
+                  "origin": "test.sites",
                   "target": "test.big_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -80,17 +80,17 @@ spec =
                 {
                     "cardinality": "m2o",
                     "relationship": "agents_department_id_fkey[department_id][id]",
-                    "source": "test.agents",
+                    "origin": "test.agents",
                     "target": "test.departments"
                 },
                 {
                     "cardinality": "o2m",
                     "relationship": "departments_head_id_fkey[id][head_id]",
-                    "source": "test.agents",
+                    "origin": "test.agents",
                     "target": "test.departments"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
               "message": "More than one relationship was found for agents and departments"
             }
            |]
@@ -109,29 +109,29 @@ spec =
                 {
                   "cardinality": "m2m",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_1_fkey]",
-                  "source": "test.whatev_sites",
+                  "origin": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_2_fkey]",
-                  "source": "test.whatev_sites",
+                  "origin": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_1_fkey]",
-                  "source": "test.whatev_sites",
+                  "origin": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_2_fkey]",
-                  "source": "test.whatev_sites",
+                  "origin": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
               "message": "More than one relationship was found for whatev_sites and whatev_projects"
             }
           |]

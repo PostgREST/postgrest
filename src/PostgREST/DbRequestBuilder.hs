@@ -110,28 +110,29 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = mapM (addRels schema allRels rq) forest
 
--- Finds a relationship between a source and target in the request: /source?select=target(*)
+-- Finds a relationship between an origin and a target in the request: /origin?select=target(*)
 -- If more than one relationship is found then the request is ambiguous and we return an error.
--- In that case the request can be disambiguated by adding precision to the target or by using a hint: /source?select=target!hint(*)
+-- In that case the request can be disambiguated by adding precision to the target or by using a hint: /origin?select=target!hint(*)
 -- The elements will be matched according to these rules:
--- source = table / view
--- target = table / view / constraint / column-from-source
--- hint   = constraint / column-from-source / column-from-target / junction
+-- origin = table / view
+-- target = table / view / constraint / column-from-origin
+-- hint   = table / view / constraint / column-from-origin / column-from-target
+-- (hint can take table / view values to aid in finding the junction in an m2m relationship)
 findRel :: Schema -> [Relation] -> NodeName -> NodeName -> Maybe EmbedHint -> Either ApiRequestError Relation
-findRel schema allRels source target hint =
+findRel schema allRels origin target hint =
   case rel of
-    []  -> Left $ NoRelBetween source target
+    []  -> Left $ NoRelBetween origin target
     [r] -> Right r
     rs  ->
       -- Return error if more than one relationship is found, unless we're in a self reference case.
       --
       -- Here we handle a self reference relationship to not cause a breaking change:
       -- In a self reference we get two relationships with the same foreign key and relTable/relFtable but with different cardinalities(m2o/o2m)
-      -- We output the O2M rel, the M2O rel can be obtained by using the source column as an embed hint.
+      -- We output the O2M rel, the M2O rel can be obtained by using the origin column as an embed hint.
       let [rel0, rel1] = take 2 rs in
       if length rs == 2 && relConstraint rel0 == relConstraint rel1 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
-        then note (NoRelBetween source target) (find (\r -> relType r == O2M) rs)
-        else Left $ AmbiguousRelBetween source target rs
+        then note (NoRelBetween origin target) (find (\r -> relType r == O2M) rs)
+        else Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ cols = length cols == 1 && hint_ == (colName <$> head cols)
     rel = filter (
@@ -140,17 +141,17 @@ findRel schema allRels source target hint =
         schema == tableSchema relTable && schema == tableSchema relFTable &&
         (
           -- /projects?select=clients(*)
-          source == tableName relTable  &&  -- projects
+          origin == tableName relTable  &&  -- projects
           target == tableName relFTable ||  -- clients
 
           -- /projects?select=projects_client_id_fkey(*)
           (
-            source == tableName relTable && -- projects
+            origin == tableName relTable && -- projects
             Just target == relConstraint    -- projects_client_id_fkey
           ) ||
           -- /projects?select=client_id(*)
           (
-            source == tableName relTable &&           -- projects
+            origin == tableName relTable &&           -- projects
             matchFKSingleCol (Just target) relColumns -- client_id
           )
         ) && (

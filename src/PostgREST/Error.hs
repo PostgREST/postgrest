@@ -82,7 +82,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (NoRelBetween parent child) = JSON.object [
     "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)" :: Text),
+    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON UnsupportedVerb = JSON.object [
@@ -97,7 +97,7 @@ compressedRel rel =
     fmtEls els = "[" <> T.intercalate ", " els <> "]"
   in
   JSON.object $ [
-    "source"      .= fmtTbl (relTable rel)
+    "origin"      .= fmtTbl (relTable rel)
   , "target"      .= fmtTbl (relFTable rel)
   , "cardinality" .= (show $ relType rel :: Text)
   ] ++
