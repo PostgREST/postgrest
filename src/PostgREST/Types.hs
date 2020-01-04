@@ -282,10 +282,16 @@ data Relation = Relation {
 , relFTable     :: Table
 , relFColumns   :: [Column]
 , relType       :: Cardinality
--- The Link attrs are used when Cardinality == M2M
-, relLinkTable  :: Maybe Table
-, relLinkCols1  :: Maybe [Column]
-, relLinkCols2  :: Maybe [Column]
+, relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
+} deriving (Show, Eq)
+
+-- | Junction table on an M2M relationship
+data Junction = Junction {
+  junTable       :: Table
+, junConstraint1 :: Maybe ConstraintName
+, junCols1       :: [Column]
+, junConstraint2 :: Maybe ConstraintName
+, junCols2       :: [Column]
 } deriving (Show, Eq)
 
 isSelfReference :: Relation -> Bool

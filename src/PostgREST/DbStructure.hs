@@ -309,21 +309,21 @@ addViewM2ORels allSrcCols = concatMap (\rel ->
           viewTableM2O =
             [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
                        relConstraint relFTable relFColumns
-                       M2O Nothing Nothing Nothing
+                       M2O Nothing
             | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
           tableViewM2O =
             [ Relation relTable relColumns
                        relConstraint
                        (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing Nothing Nothing
+                       M2O Nothing
             | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
           viewViewM2O =
             [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
                        relConstraint
                        (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing Nothing Nothing
+                       M2O Nothing
             | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
             , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
@@ -332,12 +332,12 @@ addViewM2ORels allSrcCols = concatMap (\rel ->
     _ -> [])
 
 addO2MRels :: [Relation] -> [Relation]
-addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _ _ _) -> [rel, Relation ft fc cn t c O2M Nothing Nothing Nothing])
+addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _) -> [rel, Relation ft fc cn t c O2M Nothing])
 
 addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ addMirrorRelation (mapMaybe link2Relation links)
+addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
   where
-    links = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==M2O). relType) rels
+    junctions = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==M2O). relType) rels
     groupFn :: Relation -> Text
     groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s <> "_" <> t
     -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
@@ -345,14 +345,15 @@ addM2MRels rels = rels ++ addMirrorRelation (mapMaybe link2Relation links)
     combinations 0 _  = [ [] ]
     combinations n xs = [ y:ys | y:xs' <- tails xs
                                , ys <- combinations (n-1) xs']
-    addMirrorRelation = concatMap (\rel@(Relation t c _ ft fc _ lt lc1 lc2) -> [rel, Relation ft fc Nothing t c M2M lt lc2 lc1])
-    link2Relation [
-      Relation{relTable=lt, relColumns=lc1, relFTable=t,  relFColumns=c},
-      Relation{             relColumns=lc2, relFTable=ft, relFColumns=fc}
+    junction2Rel [
+      Relation{relTable=jt, relColumns=jc1, relConstraint=const1, relFTable=t,  relFColumns=c},
+      Relation{             relColumns=jc2, relConstraint=const2, relFTable=ft, relFColumns=fc}
       ]
-      | lc1 /= lc2 && length lc1 == 1 && length lc2 == 1 = Just $ Relation t c Nothing ft fc M2M (Just lt) (Just lc1) (Just lc2)
+      | jc1 /= jc2 && length jc1 == 1 && length jc2 == 1 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
       | otherwise = Nothing
-    link2Relation _ = Nothing
+    junction2Rel _ = Nothing
+    addMirrorRel = concatMap (\rel@(Relation t c _ ft fc _ (Just (Junction jt const1 jc1 const2 jc2))) ->
+      [rel, Relation ft fc Nothing t c M2M (Just (Junction jt const2 jc2 const1 jc1))])
 
 addViewPrimaryKeys :: [SourceColumn] -> [PrimaryKey] -> [PrimaryKey]
 addViewPrimaryKeys srcCols = concatMap (\pk ->
@@ -599,7 +600,7 @@ allM2ORels tabs cols =
 
 relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relation <$> table <*> cols <*> pure (Just cn) <*> tableF <*> colsF <*> pure M2O <*> pure Nothing <*> pure Nothing <*> pure Nothing
+  Relation <$> table <*> cols <*> pure (Just cn) <*> tableF <*> colsF <*> pure M2O <*> pure Nothing
   where
     findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols

@@ -32,7 +32,7 @@ spec =
                     "target": "test.person_detail"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|junction>(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
               "message": "More than one relationship was found for message and sender"
             }
           |]
@@ -53,18 +53,18 @@ spec =
                 },
                 {
                   "cardinality": "m2m",
-                  "junction": "test.jobs[site_id][site_id][big_project_id][big_project_id]",
+                  "relationship": "test.jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
                   "source": "test.sites",
                   "target": "test.big_projects"
                 },
                 {
                   "cardinality": "m2m",
-                  "junction": "test.main_jobs[site_id][site_id][big_project_id][big_project_id]",
+                  "relationship": "test.main_jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
                   "source": "test.sites",
                   "target": "test.big_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|junction>(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -90,7 +90,7 @@ spec =
                     "target": "test.departments"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|junction>(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
               "message": "More than one relationship was found for agents and departments"
             }
            |]
@@ -100,7 +100,7 @@ spec =
 
       it "errs when there are more than two fks on a junction table(currently impossible to disambiguate, only choice is to split the table)" $
         -- We have 4 possibilities for doing the junction JOIN here.
-        -- This could be solved by specifying two additional fks, like whatev_projects!m2m!fk1!fk2(*) but the url would be too complex
+        -- This could be solved by specifying two additional fks, like whatev_projects!fk1!fk2(*)
         -- If the need arises this capability can be added later without causing a breaking change
         get "/whatev_sites?select=*,whatev_projects(*)" `shouldRespondWith`
           [json|
@@ -108,30 +108,30 @@ spec =
               "details": [
                 {
                   "cardinality": "m2m",
-                  "junction": "test.whatev_jobs[id][site_id_1][id][project_id_1]",
+                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_1_fkey]",
                   "source": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
-                  "junction": "test.whatev_jobs[id][site_id_1][id][project_id_2]",
+                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_2_fkey]",
                   "source": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
-                  "junction": "test.whatev_jobs[id][site_id_2][id][project_id_1]",
+                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_1_fkey]",
                   "source": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 },
                 {
                   "cardinality": "m2m",
-                  "junction": "test.whatev_jobs[id][site_id_2][id][project_id_2]",
+                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_2_fkey]",
                   "source": "test.whatev_sites",
                   "target": "test.whatev_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|junction>(*)",
+              "hint": "By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)",
               "message": "More than one relationship was found for whatev_sites and whatev_projects"
             }
           |]

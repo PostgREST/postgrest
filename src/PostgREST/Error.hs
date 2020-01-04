@@ -82,7 +82,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (NoRelBetween parent child) = JSON.object [
     "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!<relationship|junction>(*)" :: Text),
+    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /source?select=relationship(*) or /source?select=target!relationship(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON UnsupportedVerb = JSON.object [
@@ -94,20 +94,19 @@ compressedRel :: Relation -> JSON.Value
 compressedRel rel =
   let
     fmtTbl tbl = tableSchema tbl <> "." <> tableName tbl
-    fmtJoinCols cols = "[" <> T.intercalate ", " (colName <$> cols) <> "]"
+    fmtEls els = "[" <> T.intercalate ", " els <> "]"
   in
   JSON.object $ [
     "source"      .= fmtTbl (relTable rel)
   , "target"      .= fmtTbl (relFTable rel)
   , "cardinality" .= (show $ relType rel :: Text)
   ] ++
-  case (relType rel, (relLinkTable rel, relLinkCols1 rel, relLinkCols2 rel), relConstraint rel) of
-    (M2M, (Just lt, Just lc1, Just lc2), _) -> [
-      "junction" .= (fmtTbl lt <> T.intercalate mempty (fmtJoinCols <$> [relColumns rel, lc1, relFColumns rel, lc2]))
+  case (relType rel, relJunction rel, relConstraint rel) of
+    (M2M, Just (Junction jt (Just const1) _ (Just const2) _), _) -> [
+      "relationship" .= (fmtTbl jt <> fmtEls [const1] <> fmtEls [const2])
       ]
     (_, _, Just relCon) -> [
-      -- Format like "[id][client_id]". For easier debugging the format is compressed instead of structured.
-      "relationship" .= (relCon <> T.intercalate mempty (fmtJoinCols <$> [relColumns rel, relFColumns rel]))
+      "relationship" .= (relCon <> fmtEls (colName <$> relColumns rel) <> fmtEls (colName <$> relFColumns rel))
       ]
     (_, _, _) ->
       mempty

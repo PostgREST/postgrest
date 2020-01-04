@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1383, Add support for HEAD request - @steve-chavez
 - #1378, Add support for `Prefer: count=planned` and `Prefer: count=estimated` on GET /table - @steve-chavez
 - #1327, Add support for optional query parameter `on_conflict` to upsert with specified keys for POST - @ykst
-- #1430, Allow specifying the constraint name(`/source?select=constraint`) to disambiguate an embedding - @steve-chavez
+- #1430, Allow specifying the foreign key constraint name(`/source?select=fk_constraint(*)`) to disambiguate an embedding - @steve-chavez
 
 ### Fixed
 

@@ -135,7 +135,7 @@ findRel schema allRels source target hint =
   where
     matchFKSingleCol hint_ cols = length cols == 1 && hint_ == (colName <$> head cols)
     rel = filter (
-      \Relation{relTable, relColumns, relConstraint, relFTable, relFColumns, relType, relLinkTable} ->
+      \Relation{relTable, relColumns, relConstraint, relFTable, relFColumns, relType, relJunction} ->
         -- Both relationship ends need to be on the exposed schema
         schema == tableSchema relTable && schema == tableSchema relFTable &&
         (
@@ -163,10 +163,10 @@ findRel schema allRels source target hint =
           matchFKSingleCol hint relColumns  || -- client_id
           matchFKSingleCol hint relFColumns || -- id
 
-          -- /tasks?select=users!tasks_users(*)
+          -- /users?select=tasks!users_tasks(*)
           (
-            relType == M2M &&                    -- many-to-many between tasks and users
-            hint == (tableName <$> relLinkTable) -- tasks_users
+            relType == M2M &&                              -- many-to-many between users and tasks
+            hint == (tableName . junTable <$> relJunction) -- users_tasks
           )
         )
       ) allRels
@@ -177,11 +177,11 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
   case rel of
     Just r@Relation{relType=O2M} -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Just r@Relation{relType=M2O} -> Node (augmentQuery r, nodeProps) <$> updatedForest
-    Just r@Relation{relType=M2M, relLinkTable=lTable} ->
-      case lTable of
-        Just linkTable ->
+    Just r@Relation{relType=M2M, relJunction=junction} ->
+      case junction of
+        Just Junction{junTable} ->
           let rq = augmentQuery r in
-          Node (rq{implicitJoins=tableQi linkTable:implicitJoins rq}, nodeProps) <$> updatedForest
+          Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
         Nothing ->
           Left UnknownRelation
     Nothing -> Node node <$> updatedForest
@@ -200,15 +200,17 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols _ Table{tableName=ftN} fCols typ lt lc1 lc2) =
+getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols _ Table{tableName=ftN} fCols typ jun) =
   case typ of
     O2M ->
         zipWith (toJoinCondition tN ftN) cols fCols
     M2O ->
         zipWith (toJoinCondition tN ftN) cols fCols
-    M2M ->
-        let ltN = maybe "" tableName lt in
-        zipWith (toJoinCondition tN ltN) cols (fromMaybe [] lc1) ++ zipWith (toJoinCondition ftN ltN) fCols (fromMaybe [] lc2)
+    M2M -> case jun of
+        Just (Junction jt _ jc1 _ jc2) ->
+          let jtn = tableName jt in
+          zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
+        Nothing -> []
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =
