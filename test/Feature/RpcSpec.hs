@@ -158,10 +158,10 @@ spec actualPgVersion =
 
     context "foreign entities embedding" $ do
       it "can embed if related tables are in the exposed schema" $ do
-        post "/rpc/getproject?select=id,name,client(id),tasks(id)" [json| { "id": 1} |] `shouldRespondWith`
+        post "/rpc/getproject?select=id,name,client:clients(id),tasks(id)" [json| { "id": 1} |] `shouldRespondWith`
           [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
           { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/getproject?id=1&select=id,name,client(id),tasks(id)" `shouldRespondWith`
+        get "/rpc/getproject?id=1&select=id,name,client:clients(id),tasks(id)" `shouldRespondWith`
           [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 

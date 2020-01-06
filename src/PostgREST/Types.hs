@@ -264,28 +264,34 @@ data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2M -- ^ many-to-many, previously known as Many
                  deriving Eq
 instance Show Cardinality where
-  show O2M = "one-to-many"
-  show M2O = "many-to-one"
-  show M2M = "many-to-many"
+  show O2M = "o2m"
+  show M2O = "m2o"
+  show M2M = "m2m"
+
+type ConstraintName = Text
 
 {-|
-  The name 'Relation' here is used with the meaning
-  "What is the relation between the current node and the parent node".
-  It has nothing to do with PostgreSQL referring to tables/views as relations.
-  The order of the relColumns and relFColumns should be maintained to get
-  the join conditions right.
+  "Relation"ship between two tables.
+  The order of the relColumns and relFColumns should be maintained to get the join conditions right.
   TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
-  relTable     :: Table
-, relColumns   :: [Column]
-, relFTable    :: Table
-, relFColumns  :: [Column]
-, relType      :: Cardinality
--- The Link attrs are used when Cardinality == Many
-, relLinkTable :: Maybe Table
-, relLinkCols1 :: Maybe [Column]
-, relLinkCols2 :: Maybe [Column]
+  relTable      :: Table
+, relColumns    :: [Column]
+, relConstraint :: Maybe ConstraintName -- ^ Just on O2M/M2O, Nothing on M2M
+, relFTable     :: Table
+, relFColumns   :: [Column]
+, relType       :: Cardinality
+, relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
+} deriving (Show, Eq)
+
+-- | Junction table on an M2M relationship
+data Junction = Junction {
+  junTable       :: Table
+, junConstraint1 :: Maybe ConstraintName
+, junCols1       :: [Column]
+, junConstraint2 :: Maybe ConstraintName
+, junCols2       :: [Column]
 } deriving (Show, Eq)
 
 isSelfReference :: Relation -> Bool
@@ -409,8 +415,10 @@ toHeaders = map $ \(GucHeader (k, v)) -> (CI.mk $ toS k, toS v)
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
   Specifically, it will contain the name of the foreign key or the join table in many to many relations.
 -}
-type RelationDetail = Text
-type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe RelationDetail)
+type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)
+-- | Disambiguates an embedding operation when there's multiple relationships between two tables.
+-- | Can be the name of a foreign key constraint, column name or the junction in an m2m relationship.
+type EmbedHint = Text
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
 data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
@@ -453,7 +461,7 @@ data MutateQuery =
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 
-type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe RelationDetail, Depth))
+type ReadNode = (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe EmbedHint, Depth))
 type Depth = Integer
 
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))

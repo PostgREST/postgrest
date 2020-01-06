@@ -108,6 +108,18 @@ GRANT ALL ON TABLE
     , web_content
     , pages
     , referrals
+    , big_projects
+    , sites
+    , jobs
+    , main_jobs
+    , whatev_projects
+    , whatev_sites
+    , whatev_jobs
+    , agents
+    , departments
+    , schedules
+    , activities
+    , unit_workdays
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
