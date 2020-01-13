@@ -197,3 +197,9 @@ returningF qi returnings =
   if null returnings
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
     else "RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)
+
+responseHeadersF :: PgVersion -> SqlFragment
+responseHeadersF pgVer =
+  if pgVer >= pgVersion96
+    then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
+    else "'[]'" :: Text

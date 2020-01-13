@@ -1,6 +1,7 @@
 module Feature.PgVersion96Spec where
 
-import Network.Wai (Application)
+import Network.HTTP.Types
+import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
@@ -12,7 +13,7 @@ import SpecHelper
 spec :: SpecWith Application
 spec =
   describe "features supported on PostgreSQL 9.6" $ do
-    context "GUC headers" $ do
+    context "GUC headers on function calls" $ do
       it "succeeds setting the headers" $ do
         get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
           `shouldRespondWith` [json|[{"id": 2}]|]
@@ -66,6 +67,50 @@ spec =
               matchContentTypeJson,
               "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/",
               "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"]}
+
+    context "GUC headers on all other methods via pre-request" $ do
+      it "succeeds setting the headers on GET and HEAD" $ do
+        request methodGet "/items?id=eq.1" [("User-Agent", "MSIE 6.0")] mempty
+          `shouldRespondWith` [json|[{"id": 1}]|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "Cache-Control" <:> "no-cache, no-store, must-revalidate"]}
+
+        request methodHead "/items?id=eq.1" [("User-Agent", "MSIE 7.0")] mempty
+          `shouldRespondWith` ""
+          {matchHeaders = ["Cache-Control" <:> "no-cache, no-store, must-revalidate"]}
+
+        request methodHead "/projects" [("Accept", "text/csv")] mempty
+          `shouldRespondWith` ""
+          {matchHeaders = ["Content-Disposition" <:> "attachment; filename=projects.csv"]}
+
+      it "succeeds setting the headers on POST" $
+        request methodPost "/items" [] [json|[{"id": 11111}]|]
+          `shouldRespondWith` ""
+          { matchStatus = 201
+          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          }
+
+      it "succeeds setting the headers on PATCH" $
+        request methodPatch "/items?id=eq.11111" [] [json|[{"id": 11111}]|]
+          `shouldRespondWith` ""
+          { matchStatus = 204
+          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          }
+
+      it "succeeds setting the headers on PUT" $
+        request methodPut "/items?id=eq.11111" [] [json|[{"id": 11111}]|]
+          `shouldRespondWith` ""
+          { matchStatus = 204
+          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          }
+
+      it "succeeds setting the headers on DELETE" $
+        request methodDelete "/items?id=eq.11111" [] mempty
+          `shouldRespondWith` ""
+          { matchStatus = 204
+          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          }
 
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $
