@@ -138,6 +138,9 @@ testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just "root"
 testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
+testCfgResponseHeaders :: Text -> AppConfig
+testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just "custom_headers" }
+
 setupDb :: Text -> IO ()
 setupDb dbConn = do
   loadFixture dbConn "database"

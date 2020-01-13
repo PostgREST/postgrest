@@ -1642,3 +1642,22 @@ add constraint fst_shift foreign key           (fst_shift_activity_id, fst_shift
                          references activities (id, schedule_id),
 add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift_schedule_id)
                          references activities (id, schedule_id);
+
+-- for a pre-request function
+create or replace function custom_headers() returns void as $$
+declare
+  user_agent text := current_setting('request.header.user-agent', true);
+  req_path   text := current_setting('request.path', true);
+  req_accept text := current_setting('request.header.accept', true);
+begin
+  if user_agent similar to 'MSIE (6.0|7.0)' then
+    perform set_config('response.headers',
+      '[{"Cache-Control": "no-cache, no-store, must-revalidate"}]', false);
+  elsif req_path similar to '/(items|projects)' and req_accept = 'text/csv' then
+    perform set_config('response.headers',
+      format('[{"Content-Disposition": "attachment; filename=%s.csv"}]', trim('/' from req_path)), false);
+  else
+    perform set_config('response.headers',
+      '[{"X-Custom-Header": "mykey=myval"}]', false);
+  end if;
+end; $$ language plpgsql;
