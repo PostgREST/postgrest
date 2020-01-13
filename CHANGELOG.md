@@ -13,8 +13,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1378, Add support for `Prefer: count=planned` and `Prefer: count=estimated` on GET /table - @steve-chavez
 - #1327, Add support for optional query parameter `on_conflict` to upsert with specified keys for POST - @ykst
 - #1430, Allow specifying the foreign key constraint name(`/source?select=fk_constraint(*)`) to disambiguate an embedding - @steve-chavez
-- #1168, Allow access to the Authorization header through the request.header.authorization GUC - @steve-chavez
-- #1435, Add request.method and request.path GUCs - @steve-chavez
+- #1168, Allow access to the `Authorization` header through the `request.header.authorization` GUC - @steve-chavez
+- #1435, Add `request.method` and `request.path` GUCs - @steve-chavez
+- #1088, Allow adding headers to GET/POST/PATCH/PUT/DELETE responses through the `response.headers` GUC - @steve-chavez
 
 ### Fixed
 

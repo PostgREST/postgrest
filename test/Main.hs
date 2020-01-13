@@ -78,6 +78,7 @@ main = do
       extraSearchPathApp   = return $ postgrest (testCfgExtraSearchPath testDbConn)   refDbStructure pool getTime $ pure ()
       rootSpecApp          = return $ postgrest (testCfgRootSpec testDbConn)          refDbStructure pool getTime $ pure ()
       htmlRawOutputApp     = return $ postgrest (testCfgHtmlRawOutput testDbConn)     refDbStructure pool getTime $ pure ()
+      responseHeadersApp   = return $ postgrest (testCfgResponseHeaders testDbConn)   refDbStructure pool getTime $ pure ()
 
   let reset, analyze :: IO ()
       reset = resetDb testDbConn
@@ -88,8 +89,7 @@ main = do
       actualPgVersion = pgVersion dbStructure
       extraSpecs =
         [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
-        [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95] ++
-        [("Feature.PgVersion96Spec", Feature.PgVersion96Spec.spec) | actualPgVersion >= pgVersion96]
+        [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95]
 
       specs = uncurry describe <$> [
           ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
@@ -165,6 +165,8 @@ main = do
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
     -- this test runs with a root spec function override
-    when (actualPgVersion >= pgVersion96) $
+    when (actualPgVersion >= pgVersion96) $ do
       before rootSpecApp $
         describe "Feature.RootSpec" Feature.RootSpec.spec
+      before responseHeadersApp $
+        describe "Feature.PgVersion96Spec" Feature.PgVersion96Spec.spec
