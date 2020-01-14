@@ -131,7 +131,7 @@ userApiRequest schema rootSpec req reqBody
         . map (join (***) toS . second (fromMaybe BS.empty))
         $ qString
       , iJWT = tokenStr
-      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hAuthorization, k /= hCookie]
+      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hCookie]
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       }
  where

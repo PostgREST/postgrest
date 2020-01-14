@@ -506,6 +506,66 @@ spec actualPgVersion =
              {"id":4,"name":"OSX"}]
           |] { matchHeaders = [matchContentTypeJson] }
 
+    context "HTTP request env vars" $ do
+      it "custom header is set" $
+        request methodPost "/rpc/get_guc_value"
+                  [("Custom-Header", "test")]
+            [json| { "name": "request.header.custom-header" } |]
+            `shouldRespondWith`
+            [str|"test"|]
+            { matchStatus  = 200
+            , matchHeaders = [ matchContentTypeJson ]
+            }
+      it "standard header is set" $
+        request methodPost "/rpc/get_guc_value"
+                  [("Origin", "http://example.com")]
+            [json| { "name": "request.header.origin" } |]
+            `shouldRespondWith`
+            [str|"http://example.com"|]
+            { matchStatus  = 200
+            , matchHeaders = [ matchContentTypeJson ]
+            }
+      it "current role is available as GUC claim" $
+        request methodPost "/rpc/get_guc_value" []
+            [json| { "name": "request.jwt.claim.role" } |]
+            `shouldRespondWith`
+            [str|"postgrest_test_anonymous"|]
+            { matchStatus  = 200
+            , matchHeaders = [ matchContentTypeJson ]
+            }
+      it "single cookie ends up as claims" $
+        request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
+          [json| {"name":"request.cookie.acookie"} |]
+            `shouldRespondWith`
+            [str|"cookievalue"|]
+            { matchStatus = 200
+            , matchHeaders = []
+            }
+      it "multiple cookies ends up as claims" $
+        request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
+          [json| {"name":"request.cookie.secondcookie"} |]
+            `shouldRespondWith`
+            [str|"anothervalue"|]
+            { matchStatus = 200
+            , matchHeaders = []
+            }
+      it "app settings available" $
+        request methodPost "/rpc/get_guc_value" []
+          [json| { "name": "app.settings.app_host" } |]
+            `shouldRespondWith`
+            [str|"localhost"|]
+            { matchStatus  = 200
+            , matchHeaders = [ matchContentTypeJson ]
+            }
+      it "allows getting the Authorization value" $
+        request methodPost "/rpc/get_guc_value" [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
+          [json| {"name":"request.header.authorization"} |]
+            `shouldRespondWith`
+            [str|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
+            { matchStatus = 200
+            , matchHeaders = []
+            }
+
     context "binary output" $ do
       context "Proc that returns scalar" $ do
         it "can query without selecting column" $
