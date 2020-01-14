@@ -768,58 +768,6 @@ spec actualPgVersion = do
         , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
         }
 
-  describe "HTTP request env vars" $ do
-    it "custom header is set" $
-      request methodPost "/rpc/get_guc_value"
-                [("Custom-Header", "test")]
-          [json| { "name": "request.header.custom-header" } |]
-          `shouldRespondWith`
-          [str|"test"|]
-          { matchStatus  = 200
-          , matchHeaders = [ matchContentTypeJson ]
-          }
-    it "standard header is set" $
-      request methodPost "/rpc/get_guc_value"
-                [("Origin", "http://example.com")]
-          [json| { "name": "request.header.origin" } |]
-          `shouldRespondWith`
-          [str|"http://example.com"|]
-          { matchStatus  = 200
-          , matchHeaders = [ matchContentTypeJson ]
-          }
-    it "current role is available as GUC claim" $
-      request methodPost "/rpc/get_guc_value" []
-          [json| { "name": "request.jwt.claim.role" } |]
-          `shouldRespondWith`
-          [str|"postgrest_test_anonymous"|]
-          { matchStatus  = 200
-          , matchHeaders = [ matchContentTypeJson ]
-          }
-    it "single cookie ends up as claims" $
-      request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
-        [json| {"name":"request.cookie.acookie"} |]
-          `shouldRespondWith`
-          [str|"cookievalue"|]
-          { matchStatus = 200
-          , matchHeaders = []
-          }
-    it "multiple cookies ends up as claims" $
-      request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
-        [json| {"name":"request.cookie.secondcookie"} |]
-          `shouldRespondWith`
-          [str|"anothervalue"|]
-          { matchStatus = 200
-          , matchHeaders = []
-          }
-    it "app settings available" $
-      request methodPost "/rpc/get_guc_value" []
-        [json| { "name": "app.settings.app_host" } |]
-          `shouldRespondWith`
-          [str|"localhost"|]
-          { matchStatus  = 200
-          , matchHeaders = [ matchContentTypeJson ]
-          }
-
   describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.(\"Hebdon, John\")" `shouldRespondWith`
