@@ -16,6 +16,7 @@ Some of its functionality includes:
 
 module PostgREST.App (
   postgrest
+, useConnOrPool
 ) where
 
 import qualified Data.ByteString.Char8      as BS
@@ -39,6 +40,8 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
 import Network.Wai
 
+import Hasql.Connection           (Connection)
+import qualified Hasql.Session as Hsq
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    ContentType (..),
                                    InvokeMethod (..), Target (..),
@@ -66,8 +69,11 @@ import PostgREST.Statements       (callProcStatement,
 import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate)
 
-postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
-postgrest conf refDbStructure pool getTime worker =
+useConnOrPool :: Either Connection P.Pool -> Hsq.Session a -> IO (Either P.UsageError a)
+useConnOrPool poolOrConn = either (\c -> fmap (first P.SessionError) . flip Hsq.run c) P.use poolOrConn
+
+postgrest :: AppConfig -> IORef (Maybe DbStructure) -> Either Connection P.Pool -> IO UTCTime -> IO () -> Application
+postgrest conf refDbStructure poolOrConn getTime worker =
   let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
       jwtSecret = parseSecret <$> configJwtSecret conf in
   middle $ \ req respond -> do
@@ -95,7 +101,7 @@ postgrest conf refDbStructure pool getTime worker =
                     _ -> Nothing
                   handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
                   txMode = transactionMode proc (iAction apiRequest)
-              response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
+              response <- useConnOrPool poolOrConn $ HT.transaction HT.ReadCommitted txMode handleReq
               return $ either (errorResponseFor . PgError authed) identity response
         when (responseStatus response == status503) worker
         respond response

@@ -241,7 +241,7 @@ main = do
         postgrest
           conf
           refDbStructure
-          pool
+          (Right pool)
           getTime
           (connectionWorker
              mainTid
