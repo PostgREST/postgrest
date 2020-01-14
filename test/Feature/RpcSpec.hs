@@ -557,11 +557,27 @@ spec actualPgVersion =
             { matchStatus  = 200
             , matchHeaders = [ matchContentTypeJson ]
             }
-      it "allows getting the Authorization value" $
+      it "gets the Authorization value" $
         request methodPost "/rpc/get_guc_value" [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
           [json| {"name":"request.header.authorization"} |]
             `shouldRespondWith`
             [str|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
+            { matchStatus = 200
+            , matchHeaders = []
+            }
+      it "gets the http method" $
+        request methodPost "/rpc/get_guc_value" []
+          [json| {"name":"request.method"} |]
+            `shouldRespondWith`
+            [str|"POST"|]
+            { matchStatus = 200
+            , matchHeaders = []
+            }
+      it "gets the http path" $
+        request methodPost "/rpc/get_guc_value" []
+          [json| {"name":"request.path"} |]
+            `shouldRespondWith`
+            [str|"/rpc/get_guc_value"|]
             { matchStatus = 200
             , matchHeaders = []
             }
