@@ -94,6 +94,8 @@ data ApiRequest = ApiRequest {
   , iJWT                  :: Text                             -- ^ JSON Web Token
   , iHeaders              :: [(Text, Text)]                   -- ^ HTTP request headers
   , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
+  , iPath                 :: ByteString                       -- ^ Raw request path
+  , iMethod               :: ByteString                       -- ^ Raw request method
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -133,6 +135,8 @@ userApiRequest schema rootSpec req reqBody
       , iJWT = tokenStr
       , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hCookie]
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
+      , iPath = rawPathInfo req
+      , iMethod = method
       }
  where
   -- queryString with '+' converted to ' '(space)
