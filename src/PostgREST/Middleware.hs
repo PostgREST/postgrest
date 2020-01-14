@@ -38,10 +38,12 @@ runWithClaims conf eClaims app req =
     JWTInvalid JWTExpired -> return . errorResponseFor . JwtTokenInvalid $ "JWT expired"
     JWTInvalid e          -> return . errorResponseFor . JwtTokenInvalid . show $ e
     JWTClaims claims      -> do
-      H.sql $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
+      H.sql $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql
       mapM_ H.sql customReqCheck
       app req
       where
+        methodSql = setLocalQuery mempty ("request.method", toS $ iMethod req)
+        pathSql = setLocalQuery mempty ("request.path", toS $ iPath req)
         headersSql = setLocalQuery "request.header." <$> iHeaders req
         cookiesSql = setLocalQuery "request.cookie." <$> iCookies req
         claimsSql = setLocalQuery "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
