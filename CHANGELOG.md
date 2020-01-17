@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1168, Allow access to the `Authorization` header through the `request.header.authorization` GUC - @steve-chavez
 - #1435, Add `request.method` and `request.path` GUCs - @steve-chavez
 - #1088, Allow adding headers to GET/POST/PATCH/PUT/DELETE responses through the `response.headers` GUC - @steve-chavez
+- #1427, Allow overriding provided headers(Location, Content-Type, etc) through the `response.headers` GUC - @steve-chavez
 
 ### Fixed
 

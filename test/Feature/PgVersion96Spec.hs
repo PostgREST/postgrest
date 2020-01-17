@@ -112,6 +112,26 @@ spec =
           , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
           }
 
+    context "Override provided headers by using GUC headers" $ do
+      it "can override the Content-Type header" $ do
+        request methodHead "/clients?id=eq.1" [] mempty
+          `shouldRespondWith` ""
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/geo+json"]
+          }
+        request methodHead "/rpc/getallprojects" [] mempty
+          `shouldRespondWith` ""
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "application/geo+json"]
+          }
+
+      it "can override the Location header" $
+        request methodPost "/stuff" [] [json|[{"id": 1, "name": "stuff 1"}]|]
+          `shouldRespondWith` ""
+          { matchStatus = 201
+          , matchHeaders = ["Location" <:> "/stuff?id=eq.1&overriden=true"]
+          }
+
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $
         get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
