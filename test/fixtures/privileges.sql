@@ -120,6 +120,7 @@ GRANT ALL ON TABLE
     , schedules
     , activities
     , unit_workdays
+    , stuff
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

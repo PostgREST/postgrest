@@ -1656,8 +1656,35 @@ begin
   elsif req_path similar to '/(items|projects)' and req_accept = 'text/csv' then
     perform set_config('response.headers',
       format('[{"Content-Disposition": "attachment; filename=%s.csv"}]', trim('/' from req_path)), false);
+  elsif req_path similar to '/(clients|rpc/getallprojects)' then
+    perform set_config('response.headers',
+      '[{"Content-Type": "application/geo+json"}]', false);
   else
     perform set_config('response.headers',
       '[{"X-Custom-Header": "mykey=myval"}]', false);
   end if;
 end; $$ language plpgsql;
+
+create table private.stuff(
+  id integer primary key
+, name text
+);
+
+create view test.stuff as select * from private.stuff;
+
+create or replace function location_for_stuff() returns trigger
+    as $$
+begin
+    insert into private.stuff values (new.id, new.name);
+    if new.id is not null
+    then
+      perform set_config(
+        'response.headers'
+      , format('[{"Location": "/%s?id=eq.%s&overriden=true"}]', tg_table_name, new.id)
+      , false
+      );
+    end if;
+    return new;
+end
+$$ language plpgsql security definer;
+create trigger location_for_stuff instead of insert on test.stuff for each row execute procedure test.location_for_stuff();

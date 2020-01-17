@@ -399,17 +399,24 @@ type RpcQParam = (Text, Text)
   Custom guc header, it's obtained by parsing the json in a:
   `SET LOCAL "response.headers" = '[{"Set-Cookie": ".."}]'
 -}
-newtype GucHeader = GucHeader (Text, Text)
+newtype GucHeader = GucHeader (CI.CI ByteString, ByteString)
+  deriving (Show, Eq)
 
 instance JSON.FromJSON GucHeader where
   parseJSON (JSON.Object o) = case headMay (M.toList o) of
-    Just (k, JSON.String s) | M.size o == 1 -> pure $ GucHeader (k, s)
+    Just (k, JSON.String s) | M.size o == 1 -> pure $ GucHeader (CI.mk $ toS k, toS s)
                             | otherwise     -> mzero
     _ -> mzero
   parseJSON _          = mzero
 
-gucHToHeader :: GucHeader -> Header
-gucHToHeader (GucHeader (k, v)) = (CI.mk $ toS k, toS v)
+unwrapGucHeader :: GucHeader -> Header
+unwrapGucHeader (GucHeader (k, v)) = (k, v)
+
+-- | Add headers not already included to allow the user to override them instead of duplicating them
+addHeadersIfNotIncluded :: [Header] -> [Header] -> [Header]
+addHeadersIfNotIncluded newHeaders initialHeaders =
+  filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
+  initialHeaders
 
 {-|
   This type will hold information about which particular 'Relation' between two tables to choose when there are multiple ones.
