@@ -14,6 +14,7 @@ Community Tutorials
 Example Apps
 ------------
 
+* `monacoremo/postgrest-sessions-example <https://github.com/monacoremo/postgrest-sessions-example>`_ - example for cookie-based sessions
 * `tatut/postgrest-ui <https://github.com/tatut/postgrest-ui>`_ - ClojureScript UI components for PostgREST
 * `priyank-purohit/PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
 * `Qu4tro/pgrst-dev-setup <https://github.com/Qu4tro/pgrst-dev-setup>`_ - docker-compose and tmuxp setup for experimentation.
