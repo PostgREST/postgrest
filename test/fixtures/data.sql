@@ -572,3 +572,11 @@ INSERT INTO activities(id, schedule_id, camera_id) VALUES(2, 3, 'CAM-123');
 
 TRUNCATE TABLE unit_workdays CASCADE;
 INSERT INTO unit_workdays VALUES(1, '2019-12-02', 1, 1, 2, 3);
+
+-- Data for Name: table; Type: TABLE DATA; Schema: v1; Owner: -
+INSERT INTO v1.table VALUES(1, 'value1');
+INSERT INTO v1.table VALUES(2, 'value2');
+
+-- Data for Name: table; Type: TABLE DATA; Schema: v2; Owner: -
+INSERT INTO v2.table VALUES(1, 'value3');
+INSERT INTO v2.table VALUES(2, 'value4');
