@@ -1,4 +1,4 @@
-{-|
+{-
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
@@ -208,18 +208,19 @@ userApiRequest schemas rootSpec req reqBody
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
-  defaultSchema = case schemas of
-                    []           -> ""
-                    (schema : _) -> schema
+  schema = case lookupHeader "Accept-Version" of
+             Nothing      -> case schemas of
+                               []           -> ""
+                               (defaultSchema : _) -> defaultSchema
+             Just(schemaPassedInHeader) -> toS schemaPassedInHeader
   target = case path of
     []                     -> case rootSpec of
-                                Just pName -> TargetProc (QualifiedIdentifier defaultSchema pName) True
-                                Nothing    -> TargetDefaultSpec defaultSchema
-    ["rpc", proc]          -> TargetProc (QualifiedIdentifier defaultSchema proc) False
-    [table]                -> case lookupHeader "Accept-Version" of
-                                Nothing      -> TargetIdent $ QualifiedIdentifier defaultSchema table
-                                Just(schema) -> if | toS schema `elem` schemas -> TargetIdent $ QualifiedIdentifier (toS schema) table
-                                                   | otherwise                 -> TargetUnknown [toS schema, table]
+                                Just pName -> TargetProc (QualifiedIdentifier schema pName) True
+                                Nothing    -> if | schema `elem` schemas -> TargetDefaultSpec schema
+                                                 | otherwise             -> TargetUnknown [schema]
+    ["rpc", proc]          -> TargetProc (QualifiedIdentifier schema proc) False
+    [table]                -> if | schema `elem` schemas -> TargetIdent $ QualifiedIdentifier schema table
+                                 | otherwise             -> TargetUnknown [schema, table]
     other                  -> TargetUnknown other
 
   shouldParsePayload =
