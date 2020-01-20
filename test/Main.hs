@@ -46,6 +46,7 @@ import qualified Feature.SingularSpec
 import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.UpsertSpec
+import qualified Feature.MultipleSchemaSpec
 
 
 main :: IO ()
@@ -81,6 +82,7 @@ main = do
       rootSpecApp          = app testCfgRootSpec
       htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
+      multipleSchemaApp    = app testMultipleSchemaCfg
 
   let reset, analyze :: IO ()
       reset = resetDb testDbConn
@@ -172,3 +174,7 @@ main = do
         describe "Feature.RootSpec" Feature.RootSpec.spec
       before responseHeadersApp $
         describe "Feature.PgVersion96Spec" Feature.PgVersion96Spec.spec
+
+    -- this test runs with multiple schemas
+    before multipleSchemaApp $
+      describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec

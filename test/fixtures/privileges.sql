@@ -6,6 +6,8 @@ GRANT USAGE ON SCHEMA
     , public
     , "تست"
     , extensions
+    , v1
+    , v2
 TO postgrest_test_anonymous;
 
 -- Schema test objects
@@ -122,6 +124,8 @@ GRANT ALL ON TABLE
     , unit_workdays
     , stuff
     , loc_test
+    , v1.table
+    , v2.table
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

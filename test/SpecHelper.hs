@@ -141,6 +141,9 @@ testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = [
 testCfgResponseHeaders :: Text -> AppConfig
 testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just "custom_headers" }
 
+testMultipleSchemaCfg :: Text -> AppConfig
+testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = ["v1", "v2"] }
+
 setupDb :: Text -> IO ()
 setupDb dbConn = do
   loadFixture dbConn "database"
