@@ -212,7 +212,7 @@ userApiRequest schemas rootSpec req reqBody
              Nothing      -> case schemas of
                                []           -> ""
                                (defaultSchema : _) -> defaultSchema
-             Just(schemaPassedInHeader) -> toS schemaPassedInHeader
+             Just schemaPassedInHeader -> toS schemaPassedInHeader
   target = case path of
     []                     -> case rootSpec of
                                 Just pName -> TargetProc (QualifiedIdentifier schema pName) True
