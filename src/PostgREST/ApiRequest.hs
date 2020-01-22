@@ -28,7 +28,7 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (last, lookup, partition, elem)
+import Data.List                 (elem, last, lookup, partition)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
@@ -210,7 +210,7 @@ userApiRequest schemas rootSpec req reqBody
       _         -> ActionInspect{isHead=False}
   schema = case lookupHeader "Accept-Version" of
              Nothing      -> case schemas of
-                               []           -> ""
+                               []                  -> ""
                                (defaultSchema : _) -> defaultSchema
              Just schemaPassedInHeader -> toS schemaPassedInHeader
   target = case path of

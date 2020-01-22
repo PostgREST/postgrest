@@ -31,6 +31,7 @@ import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
+import qualified Feature.MultipleSchemaSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
 import qualified Feature.PgVersion95Spec
@@ -46,7 +47,6 @@ import qualified Feature.SingularSpec
 import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.UpsertSpec
-import qualified Feature.MultipleSchemaSpec
 
 
 main :: IO ()

@@ -1,7 +1,7 @@
 module Feature.MultipleSchemaSpec where
 
-import Network.Wai (Application)
 import Network.HTTP.Types
+import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
