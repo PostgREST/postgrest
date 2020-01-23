@@ -69,6 +69,7 @@ Extensions
 Client-Side Libraries
 ---------------------
 
+* `SocialGouv/postgrester <https://github.com/SocialGouv/postgrester>`_ - JS + Typescript
 * `Kong/py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
 * `datrium/postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
 * `tomberek/aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
