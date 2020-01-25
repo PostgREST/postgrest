@@ -12,7 +12,6 @@ import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import           Data.Scientific     (FPFormat (..), formatScientific,
                                       isInteger)
-import qualified Hasql.Transaction   as H
 
 import Network.Wai                   (Application, Response)
 import Network.Wai.Middleware.Cors   (cors)
@@ -29,17 +28,20 @@ import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
 import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
 import Protolude
 
-runWithClaims :: AppConfig -> JWTAttempt ->
-                 (ApiRequest -> H.Transaction Response) ->
-                 ApiRequest -> H.Transaction Response
-runWithClaims conf eClaims app req =
+-- | m could be Hasql.Transaction or Hasql.Session 
+runWithClaims :: Monad m =>
+                 (ByteString -> m ()) ->
+                 AppConfig -> JWTAttempt ->
+                 (ApiRequest -> m Response) ->
+                 ApiRequest -> m Response
+runWithClaims bM conf eClaims app req =
   case eClaims of
     JWTMissingSecret      -> return . errorResponseFor $ JwtTokenMissing
     JWTInvalid JWTExpired -> return . errorResponseFor . JwtTokenInvalid $ "JWT expired"
     JWTInvalid e          -> return . errorResponseFor . JwtTokenInvalid . show $ e
     JWTClaims claims      -> do
-      H.sql $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
-      mapM_ H.sql customReqCheck
+      bM $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ headersSql ++ cookiesSql ++ appSettingsSql
+      mapM_ bM customReqCheck
       app req
       where
         headersSql = setLocalQuery "request.header." <$> iHeaders req

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {-|
 Module      : PostgREST.App
 Description : PostgREST main application
@@ -24,7 +25,10 @@ import qualified Data.HashMap.Strict        as M
 import qualified Data.List                  as L (union)
 import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
-import qualified Hasql.Transaction          as H
+import qualified Hasql.Statement            as H
+import qualified Hasql.Session              as HS
+import qualified Hasql.Encoders             as E
+import qualified Hasql.Decoders             as D
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
@@ -97,11 +101,16 @@ postgrest conf refDbStructure poolOrConn getTime worker =
                     (Just RawJSON{}, Just cls)      -> cls
                     _                               -> S.empty
                   proc = case iTarget apiRequest of
-                    TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
-                    _ -> Nothing
-                  handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
-                  txMode = transactionMode proc (iAction apiRequest)
-              response <- useConnOrPool poolOrConn $ HT.transaction HT.ReadCommitted txMode handleReq
+                           TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
+                           _ -> Nothing
+              let session = case poolOrConn of
+                          Left  _ ->
+                            withSavepointTransaction $ runWithClaims HS.sql conf eClaims (app HS.statement rollbackSavepoint dbStructure proc cols conf) apiRequest
+                          Right _ -> do
+                            let handleReq = runWithClaims HT.sql conf eClaims (app HT.statement HT.condemn dbStructure proc cols conf) apiRequest
+                                txMode = transactionMode proc (iAction apiRequest)
+                            HT.transaction HT.ReadCommitted txMode handleReq
+              response <- useConnOrPool poolOrConn session
               return $ either (errorResponseFor . PgError authed) identity response
         when (responseStatus response == status503) worker
         respond response
@@ -121,8 +130,9 @@ transactionMode proc action =
          else HT.Write
     _ -> HT.Write
 
-app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
-app dbStructure proc cols conf apiRequest =
+app :: Monad m => (forall a b . a -> H.Statement a b -> m b) -> m () ->
+       DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> m Response
+app mStm mRollback dbStructure proc cols conf apiRequest =
   let rawContentTypes = (decodeContentType <$> configRawMediaTypes conf) `L.union` [ CTOctetStream, CTTextPlain ] in
   case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
@@ -139,11 +149,11 @@ app dbStructure proc cols conf apiRequest =
                   stm = createReadStatement q cQuery (contentType == CTSingularJSON) shouldCount
                         (contentType == CTTextCSV) bField
                   explStm = createExplainStatement cq
-              row <- H.statement () stm
+              row <- mStm () stm
               let (tableTotal, queryTotal, _ , body) = row
-              total <- if | plannedCount   -> H.statement () explStm
+              total <- if | plannedCount   -> mStm () explStm
                           | estimatedCount -> if tableTotal > (fromIntegral <$> maxRows)
-                                                then do estTotal <- H.statement () explStm
+                                                then do estTotal <- mStm () explStm
                                                         pure $ if estTotal > tableTotal then estTotal else tableTotal
                                                 else pure tableTotal
                           | otherwise      -> pure tableTotal
@@ -164,7 +174,7 @@ app dbStructure proc cols conf apiRequest =
                   stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) True
                     (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- mStm (toS $ pjRaw pJson) stm
               let (_, queryTotal, fs, body) = row
                   headers = catMaybes [
                       if null fs
@@ -182,7 +192,7 @@ app dbStructure proc cols conf apiRequest =
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                 then do
-                  HT.condemn
+                  mRollback
                   return . errorResponseFor . singularityError $ queryTotal
               else
                 return . responseLBS status201 headers $
@@ -196,7 +206,7 @@ app dbStructure proc cols conf apiRequest =
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- mStm (toS $ pjRaw pJson) stm
               let (_, queryTotal, _, body) = row
                   updateIsNoOp = S.null cols
                   contentRangeHeader = contentRangeH 0 (queryTotal - 1) $
@@ -209,7 +219,7 @@ app dbStructure proc cols conf apiRequest =
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                 then do
-                  HT.condemn
+                  mRollback
                   return . errorResponseFor . singularityError $ queryTotal
                 else
                   return $ if iPreferRepresentation apiRequest == Full
@@ -231,7 +241,7 @@ app dbStructure proc cols conf apiRequest =
               else if S.fromList colNames /= pjKeys
                 then return . errorResponseFor $ PutPayloadIncompleteError
               else do
-                row <- H.statement (toS pjRaw) $
+                row <- mStm (toS pjRaw) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) []
                 let (_, queryTotal, _, body) = row
@@ -240,7 +250,7 @@ app dbStructure proc cols conf apiRequest =
                 -- If this condition is not satisfied then nothing is inserted, check the WHERE for INSERT in QueryBuilder.hs to see how it's done
                 if queryTotal /= 1
                   then do
-                    HT.condemn
+                    mRollback
                     return . errorResponseFor $ PutMatchingPkError
                   else
                     return $ if iPreferRepresentation apiRequest == Full
@@ -255,14 +265,14 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTSingularJSON) False
                     (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) []
-              row <- H.statement mempty stm
+              row <- mStm mempty stm
               let (_, queryTotal, _, body) = row
                   contentRangeHeader = contentRangeH 1 0 $
                         if shouldCount then Just queryTotal else Nothing
               if contentType == CTSingularJSON
                  && queryTotal /= 1
                 then do
-                  HT.condemn
+                  mRollback
                   return . errorResponseFor . singularityError $ queryTotal
                 else
                   return $ if iPreferRepresentation apiRequest == Full
@@ -289,7 +299,7 @@ app dbStructure proc cols conf apiRequest =
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField (pgVersion dbStructure)
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- mStm (toS $ pjRaw pJson) stm
               let (tableTotal, queryTotal, body, gucHeaders) = row
                   (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
               case gucHeaders of
@@ -297,7 +307,7 @@ app dbStructure proc cols conf apiRequest =
                 Right hs ->
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
-                      HT.condemn
+                      mRollback
                       return . errorResponseFor . singularityError $ queryTotal
                     else
                       return $ responseLBS status ([toHeader contentType, contentRange] ++ toHeaders hs)
@@ -315,9 +325,9 @@ app dbStructure proc cols conf apiRequest =
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
 
           body <- encodeApi <$>
-            H.statement tSchema accessibleTables <*>
-            H.statement tSchema schemaDescription <*>
-            H.statement tSchema accessibleProcs
+            mStm tSchema accessibleTables <*>
+            mStm tSchema schemaDescription <*>
+            mStm tSchema accessibleProcs
           return $ responseLBS status200 [toHeader CTOpenAPI] (if headersOnly then mempty else toS body)
 
         _ -> return notFound
@@ -401,3 +411,24 @@ locationH tName fields =
 contentLocationH :: TableName -> ByteString -> Header
 contentLocationH tName qString =
   ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)
+
+-- | Sub-transaction mechanism using savepoints
+savepoint :: H.Statement () ()
+savepoint = H.Statement "SAVEPOINT postgrestsession;" E.noParams D.noResult False
+
+rollbackSavepoint :: HS.Session () 
+rollbackSavepoint =
+  HS.statement () $ H.Statement "ROLLBACK TO SAVEPOINT postgrestsession;" E.noParams D.noResult False
+
+rollbackOrReleaseSavepoint :: HS.Session () 
+rollbackOrReleaseSavepoint = do
+  HS.statement () $ H.Statement " RELEASE postgrestsession;" E.noParams D.noResult False
+  HS.statement () $ H.Statement " SAVEPOINT postgrestsession;" E.noParams D.noResult False
+  HS.statement () $ H.Statement " ROLLBACK TO SAVEPOINT postgrestsession;" E.noParams D.noResult False
+  
+withSavepointTransaction :: HS.Session a -> HS.Session a
+withSavepointTransaction s = do
+  HS.statement () savepoint
+  r <- s
+  _ <- rollbackOrReleaseSavepoint
+  return r
