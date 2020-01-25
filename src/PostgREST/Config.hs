@@ -155,7 +155,8 @@ readOptions = do
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
-        <*> ((fromList . splitOnCommas) <$> reqValue "db-schema")
+        <*> optString "server-proxy-uri"
+        <*> (fromList . splitOnCommas <$> reqValue "db-schema")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
