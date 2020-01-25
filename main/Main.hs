@@ -15,6 +15,7 @@ import Control.Retry            (RetryStatus, capDelay,
 import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
+import Data.List.NonEmpty       (head)
 import Data.String              (IsString (..))
 import Data.Text                (pack, replace, strip, stripPrefix,
                                  unpack)
@@ -45,7 +46,7 @@ import PostgREST.OpenAPI     (isMalformedProxyUri)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
                               PgVersion (..), Schema,
                               minimumPgVersion)
-import Protolude             hiding (hPutStrLn, replace)
+import Protolude             hiding (hPutStrLn, head, replace)
 
 
 #ifndef mingw32_HOST_OS
@@ -176,9 +177,7 @@ main = do
         defaultSettings
 
   -- the first value in the db-schema configuration parameter is used as default
-  let defaultSchema = case configSchemas conf of
-                        []           -> ""
-                        (schema : _) -> schema
+  let defaultSchema = head $ configSchemas conf
 
   whenLeft socketFileMode panic
 

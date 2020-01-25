@@ -29,6 +29,7 @@ import qualified Data.Vector          as V
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (elem, last, lookup, partition)
+import Data.List.NonEmpty        (NonEmpty, head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
@@ -48,7 +49,7 @@ import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
 import PostgREST.Types
-import Protolude
+import Protolude            hiding (head)
 
 type RequestBody = BL.ByteString
 
@@ -99,7 +100,7 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: [Schema] -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest :: NonEmpty Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest schemas rootSpec req reqBody
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
@@ -209,9 +210,7 @@ userApiRequest schemas rootSpec req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
   schema = case lookupHeader "Accept-Version" of
-             Nothing      -> case schemas of
-                               []                  -> ""
-                               (defaultSchema : _) -> defaultSchema
+             Nothing                   -> head schemas
              Just schemaPassedInHeader -> toS schemaPassedInHeader
   target = case path of
     []                     -> case rootSpec of

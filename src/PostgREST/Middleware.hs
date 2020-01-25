@@ -10,6 +10,7 @@ module PostgREST.Middleware where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
+import           Data.List.NonEmpty  (head)
 import           Data.Scientific     (FPFormat (..), formatScientific,
                                       isInteger)
 import qualified Hasql.Transaction   as H
@@ -27,7 +28,7 @@ import PostgREST.Config       (AppConfig (..), corsPolicy)
 import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
                                errorResponseFor)
 import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
-import Protolude
+import Protolude              hiding (head)
 
 runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->
@@ -50,9 +51,7 @@ runWithClaims conf eClaims app req =
         appSettingsSql = setLocalQuery mempty <$> configSettings conf
         setRoleSql = maybeToList $ (\x ->
           setLocalQuery mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
-        setSearchPathSql = setLocalSearchPathQuery $ (case configSchemas conf of
-                                                        []           -> ""
-                                                        (schema : _) -> schema) : configExtraSearchPath conf
+        setSearchPathSql = setLocalSearchPathQuery $ ((head $ configSchemas conf) : configExtraSearchPath conf)
         -- role claim defaults to anon if not specified in jwt
         claimsWithRole = M.union claims (M.singleton "role" anon)
         anon = JSON.String . toS $ configAnonRole conf

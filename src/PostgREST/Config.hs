@@ -37,6 +37,7 @@ import Control.Lens                (preview)
 import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
+import Data.List.NonEmpty          (NonEmpty, fromList)
 import Data.Scientific             (floatingOrInteger)
 import Data.Text                   (dropEnd, dropWhileEnd,
                                     intercalate, lines, splitOn,
@@ -71,7 +72,7 @@ data AppConfig = AppConfig {
     configDatabase          :: Text
   , configAnonRole          :: Text
   , configOpenAPIProxyUri   :: Maybe Text
-  , configSchemas           :: [Text]
+  , configSchemas           :: NonEmpty Text
   , configHost              :: Text
   , configPort              :: Int
   , configSocket            :: Maybe Text
@@ -154,8 +155,7 @@ readOptions = do
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
-        <*> optString "openapi-server-proxy-uri"
-        <*> (splitOnCommas <$> reqValue "db-schema")
+        <*> ((fromList . splitOnCommas) <$> reqValue "db-schema")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> optString "server-unix-socket"
