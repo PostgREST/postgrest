@@ -311,7 +311,7 @@ app dbStructure proc cols conf apiRequest =
         (ActionInspect headersOnly, TargetDefaultSpec tSchema, Nothing) -> do
           let host = configHost conf
               port = toInteger $ configPort conf
-              proxy = pickProxy $ toS <$> configProxyUri conf
+              proxy = pickProxy $ toS <$> configOpenAPIProxyUri conf
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
