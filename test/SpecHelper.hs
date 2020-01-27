@@ -99,7 +99,7 @@ testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
 
 testProxyCfg :: Text -> AppConfig
-testProxyCfg testDbConn = (testCfg testDbConn) { configProxyUri = Just "https://postgrest.com/openapi.json" }
+testProxyCfg testDbConn = (testCfg testDbConn) { configOpenAPIProxyUri = Just "https://postgrest.com/openapi.json" }
 
 testCfgBinaryJWT :: Text -> AppConfig
 testCfgBinaryJWT testDbConn = (testCfg testDbConn) {

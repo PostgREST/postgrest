@@ -70,7 +70,7 @@ import Protolude         hiding (concat, hPutStrLn, intercalate, null,
 data AppConfig = AppConfig {
     configDatabase          :: Text
   , configAnonRole          :: Text
-  , configProxyUri          :: Maybe Text
+  , configOpenAPIProxyUri   :: Maybe Text
   , configSchema            :: Text
   , configHost              :: Text
   , configPort              :: Int
@@ -154,7 +154,7 @@ readOptions = do
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
-        <*> optString "server-proxy-uri"
+        <*> optString "openapi-server-proxy-uri"
         <*> reqString "db-schema"
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
@@ -271,7 +271,7 @@ readOptions = do
           |# server-unix-socket-mode = "660"
           |
           |## base url for swagger output
-          |# server-proxy-uri = ""
+          |# openapi-server-proxy-uri = ""
           |
           |## choose a secret, JSON Web Key (or set) to enable JWT auth
           |## (use "@filename" to load from separate file)
