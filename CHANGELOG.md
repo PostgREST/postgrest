@@ -32,6 +32,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1423, default Unix Socket file mode from 755 to 660 - @dwagin
 - #1430, Remove embedding with duck typed column names `GET /projects?select=client(*)`- @steve-chavez
   + You can rename the foreign key to `client` to make this request work in the new version: `alter table projects rename constraint projects_client_id_fkey to client`
+- #1413, Change `server-proxy-uri` config option to `openapi-server-proxy-uri` - @steve-chavez
 
 ## [6.0.2] - 2019-08-22
 

@@ -164,7 +164,7 @@ main = do
   conf <- loadDbUriFile =<< loadSecretFile =<< readOptions
   let host = configHost conf
       port = configPort conf
-      proxy = configProxyUri conf
+      proxy = configOpenAPIProxyUri conf
       maybeSocketAddr = configSocket conf
       socketFileMode = configSocketMode conf
       pgSettings = toS (configDatabase conf) -- is the db-uri
