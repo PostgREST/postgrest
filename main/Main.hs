@@ -6,6 +6,7 @@ import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base64     as B64
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Transaction          as HTr
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
                                  updateAction)
@@ -93,7 +94,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
         NotConnected                -> return ()               -- Unreachable
         Connected actualPgVersion   -> do                      -- Procede with initialization
           result <- P.use pool $ do
-            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schema actualPgVersion
+            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure HTr.statement HTr.sql schema actualPgVersion
             liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
           case result of
             Left e -> do

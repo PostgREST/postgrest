@@ -14,6 +14,7 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE RankNTypes            #-}
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
@@ -29,7 +30,6 @@ import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
 import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
-import qualified Hasql.Transaction   as HT
 
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
@@ -44,15 +44,16 @@ import PostgREST.Private.Common
 import PostgREST.Types
 import Protolude
 
-getDbStructure :: Schema -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schema pgVer = do
-  HT.sql "set local schema ''" -- for getting the fully qualified name(schema.name) of every db object
-  tabs    <- HT.statement () allTables
-  cols    <- HT.statement schema $ allColumns tabs
-  srcCols <- HT.statement schema $ allSourceColumns cols pgVer
-  m2oRels <- HT.statement () $ allM2ORels tabs cols
-  keys    <- HT.statement () $ allPrimaryKeys tabs
-  procs   <- HT.statement schema allProcs
+getDbStructure :: Monad m => (forall a b . a -> H.Statement a b -> m b) -> (ByteString -> m ()) ->
+  Schema -> PgVersion -> m DbStructure
+getDbStructure mStm mSql schema pgVer = do
+  mSql "set local schema ''" -- for getting the fully qualified name(schema.name) of every db object
+  tabs    <- mStm () allTables
+  cols    <- mStm schema $ allColumns tabs
+  srcCols <- mStm schema $ allSourceColumns cols pgVer
+  m2oRels <- mStm () $ allM2ORels tabs cols
+  keys    <- mStm () $ allPrimaryKeys tabs
+  procs   <- mStm schema allProcs
 
   let rels = addM2MRels . addO2MRels $ addViewM2ORels srcCols m2oRels
       cols' = addForeignKeys rels cols
