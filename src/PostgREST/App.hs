@@ -105,9 +105,9 @@ postgrest conf refDbStructure poolOrConn getTime worker =
                            _ -> Nothing
               let session = case poolOrConn of
                           Left  _ ->
-                            withSavepointTransaction $ runWithClaims HS.sql conf eClaims (app HS.statement rollbackSavepoint dbStructure proc cols conf) apiRequest
+                            withSavepointTransaction $ runWithClaims HS.sql conf eClaims (appS dbStructure proc cols conf) apiRequest
                           Right _ -> do
-                            let handleReq = runWithClaims HT.sql conf eClaims (app HT.statement HT.condemn dbStructure proc cols conf) apiRequest
+                            let handleReq = runWithClaims HT.sql conf eClaims (appT dbStructure proc cols conf) apiRequest
                                 txMode = transactionMode proc (iAction apiRequest)
                             HT.transaction HT.ReadCommitted txMode handleReq
               response <- useConnOrPool poolOrConn session
@@ -129,6 +129,12 @@ transactionMode proc action =
          then HT.Read
          else HT.Write
     _ -> HT.Write
+
+appS :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> HS.Session Response
+appS = app HS.statement rollbackSavepoint
+  
+appT :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> HT.Transaction Response
+appT = app HT.statement HT.condemn
 
 app :: Monad m => (forall a b . a -> H.Statement a b -> m b) -> m () ->
        DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> m Response

@@ -16,7 +16,8 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE RankNTypes            #-}
 module PostgREST.DbStructure (
-  getDbStructure
+  getDbStructureT
+, getDbStructureS  
 , accessibleTables
 , accessibleProcs
 , schemaDescription
@@ -30,6 +31,7 @@ import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
 import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
+import qualified Hasql.Transaction   as HT
 
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
@@ -43,6 +45,12 @@ import Control.Applicative
 import PostgREST.Private.Common
 import PostgREST.Types
 import Protolude
+
+getDbStructureS :: Schema -> PgVersion -> H.Session DbStructure
+getDbStructureS = getDbStructure H.statement H.sql
+
+getDbStructureT :: Schema -> PgVersion -> HT.Transaction DbStructure
+getDbStructureT = getDbStructure HT.statement HT.sql
 
 getDbStructure :: Monad m => (forall a b . a -> H.Statement a b -> m b) -> (ByteString -> m ()) ->
   Schema -> PgVersion -> m DbStructure
