@@ -45,7 +45,6 @@ import Network.HTTP.Types.Status
 import Network.Wai
 
 import Hasql.Connection           (Connection)
-import qualified Hasql.Session as Hsq
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    ContentType (..),
                                    InvokeMethod (..), Target (..),
@@ -73,8 +72,8 @@ import PostgREST.Statements       (callProcStatement,
 import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate)
 
-useConnOrPool :: Either Connection P.Pool -> Hsq.Session a -> IO (Either P.UsageError a)
-useConnOrPool poolOrConn = either (\c -> fmap (first P.SessionError) . flip Hsq.run c) P.use poolOrConn
+useConnOrPool :: Either Connection P.Pool -> HS.Session a -> IO (Either P.UsageError a)
+useConnOrPool poolOrConn = either (\c -> fmap (first P.SessionError) . flip HS.run c) P.use poolOrConn
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> Either Connection P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure poolOrConn getTime worker =
