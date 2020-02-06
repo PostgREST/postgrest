@@ -24,3 +24,5 @@ Changed
 -------
 
 * :ref:`bulk_call` should now be done by specifying a ``Prefer: params=multiple-objects`` header.
+
+* ``server-proxy-uri`` config option has been renamed to :ref:`openapi-server-proxy-uri`.
