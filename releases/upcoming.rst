@@ -16,13 +16,18 @@ Added
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Reference for :ref:`s_proc_embed`.
+* Support for :ref:`Resource Embedding Disambiguation <embed_disamb>`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Reference for :ref:`mutation_embed`.
+* Documentation reference for :ref:`s_proc_embed`.
+
+* Documentation reference for :ref:`mutation_embed`.
 
 Changed
 -------
 
 * :ref:`bulk_call` should now be done by specifying a ``Prefer: params=multiple-objects`` header.
+
+* Resource Embedding now outputs an error when multiple relationships between two tables are found, see :ref:`embed_disamb`.
 
 * ``server-proxy-uri`` config option has been renamed to :ref:`openapi-server-proxy-uri`.
