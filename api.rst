@@ -1096,87 +1096,6 @@ You can call overloaded functions with different number of arguments.
 .. code-block:: http
 
   GET /rpc/rental_duration?customer_id=232&from_date=2018-07-01 HTTP/1.1
-
-Accessing Request Headers, Cookies and JWT claims
--------------------------------------------------
-
-Stored procedures can access request headers, cookies and jwt claims by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ`, :code:`request.cookie.XYZ` and :code:`request.jwt.claim.XYZ`.
-
-.. code-block:: postgresql
-
-  -- To read the value of the Origin request header:
-  SELECT current_setting('request.header.origin', true);
-  -- To read the value of sessionId in a cookie:
-  SELECT current_setting('request.cookie.sessionId', true);
-  -- To read the value of the email claim in a jwt:
-  SELECT current_setting('request.jwt.claim.email', true);
-
-.. note::
-
-  ``request.jwt.claim.role`` defaults to the value of :ref:`db-anon-role`.
-
-Setting Response Headers
-------------------------
-
-PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
-
-.. code-block:: sql
-
-  -- tell client to cache response for two days
-
-  SET LOCAL "response.headers" =
-    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
-
-Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
-
-Errors and HTTP Status Codes
-----------------------------
-
-Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
-
-.. code-block:: postgresql
-
-  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-  BEGIN
-    RAISE EXCEPTION 'I refuse!'
-      USING DETAIL = 'Pretty simple',
-            HINT = 'There is nothing you can do.';
-  END
-  $$;
-
-Calling the function returns HTTP 400 with the body
-
-.. code-block:: json
-
-  {
-    "message":"I refuse!",
-    "details":"Pretty simple",
-    "hint":"There is nothing you can do.",
-    "code":"P0001"
-  }
-
-One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
-
-For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise 'PT402':
-
-.. code-block:: sql
-
-  RAISE sqlstate 'PT402' using
-    message = 'Payment Required',
-    detail = 'Quota exceeded',
-    hint = 'Upgrade your plan';
-
-Returns:
-
-.. code-block:: http
-
-  HTTP/1.1 402 Payment Required
-  Content-Type: application/json; charset=utf-8
-
-  {"hint":"Upgrade your plan","details":"Quota exceeded"}
-
 .. _insert_update:
 
 Insertions / Updates
@@ -1444,10 +1363,110 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
 
+HTTP Logic
+==========
+
+.. _guc_req_headers_cookies_claims:
+
+Accessing Request Headers, Cookies and JWT claims
+-------------------------------------------------
+
+You can access request headers, cookies and jwt claims by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ`, :code:`request.cookie.XYZ` and :code:`request.jwt.claim.XYZ`.
+
+.. code-block:: postgresql
+
+  -- To read the value of the Origin request header:
+  SELECT current_setting('request.header.origin', true);
+  -- To read the value of sessionId in a cookie:
+  SELECT current_setting('request.cookie.sessionId', true);
+  -- To read the value of the email claim in a jwt:
+  SELECT current_setting('request.jwt.claim.email', true);
+
+.. note::
+
+  ``request.jwt.claim.role`` defaults to the value of :ref:`db-anon-role`.
+
+.. _guc_req_path_method:
+
+Accessing Request Path and Method
+---------------------------------
+
+You can also access the request path and method with :code:`request.path` and :code:`request.method`.
+
+.. code-block:: postgresql
+
+  -- You can get the path of the request with
+  SELECT current_setting('request.path', true);
+
+  -- You can get the method of the request with
+  SELECT current_setting('request.method', true);
+
+Setting Response Headers
+------------------------
+
+PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
+
+.. code-block:: sql
+
+  -- tell client to cache response for two days
+
+  SET LOCAL "response.headers" =
+    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
+
+Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
+
+Errors and HTTP Status Codes
+----------------------------
+
+Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    RAISE EXCEPTION 'I refuse!'
+      USING DETAIL = 'Pretty simple',
+            HINT = 'There is nothing you can do.';
+  END
+  $$;
+
+Calling the function returns HTTP 400 with the body
+
+.. code-block:: json
+
+  {
+    "message":"I refuse!",
+    "details":"Pretty simple",
+    "hint":"There is nothing you can do.",
+    "code":"P0001"
+  }
+
+One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
+
+For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise 'PT402':
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PT402' using
+    message = 'Payment Required',
+    detail = 'Quota exceeded',
+    hint = 'Upgrade your plan';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+
+  {"hint":"Upgrade your plan","details":"Quota exceeded"}
+
 .. _status_codes:
 
 HTTP Status Codes
-=================
+-----------------
 
 PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/static/errcodes-appendix.html>`_ into HTTP status as follows:
 

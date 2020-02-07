@@ -13,6 +13,9 @@ Added
 * Support for HTTP HEAD requests.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Add GUCs for :ref:`guc_req_path_method`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
