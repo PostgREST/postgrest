@@ -600,7 +600,7 @@ PostgREST can also detect relationships going through join tables. Thus you can 
 
 .. code-block:: http
 
-  GET /directors?select=films(title,year) HTTP/1.1
+  GET /actors?select=films(title,year) HTTP/1.1
 
 Embedded Filters
 ----------------
