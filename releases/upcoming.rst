@@ -10,17 +10,17 @@ These are changes yet unreleased. If you'd like to try them out before a new off
 Added
 -----
 
-* Support for HTTP HEAD requests.
-  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
-
-* Add GUCs for :ref:`guc_req_path_method`.
-  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
-
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Support for :ref:`Resource Embedding Disambiguation <embed_disamb>`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* HTTP improvements -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+   + Support for HTTP HEAD requests.
+   + GUCs for :ref:`guc_req_path_method`.
+   + Support for :ref:`pre_req_headers`.
 
 * Documentation reference for :ref:`s_proc_embed`.
 

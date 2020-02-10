@@ -1415,6 +1415,43 @@ PostgREST reads the ``response.headers`` SQL variable to add extra headers to th
 
 Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
+.. _pre_req_headers:
+
+Setting headers via pre-request
+-------------------------------
+
+By using a :ref:`pre-request` function, you can add headers to GET/POST/PATCH/PUT/DELETE responses.
+As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
+
+.. code-block:: postgresql
+
+   create or replace function custom_headers() returns void as $$
+   declare
+     user_agent text := current_setting('request.header.user-agent', true);
+   begin
+     if user_agent similar to '%MSIE (6.0|7.0)%' then
+       perform set_config('response.headers',
+         '[{"Cache-Control": "no-cache, no-store, must-revalidate"}]', false);
+     end if;
+   end; $$ language plpgsql;
+
+   -- set this function on postgrest.conf
+   -- pre-request = custom_headers
+
+Now when you make a GET request to a table or view, you'll get the cache headers.
+
+.. code-block:: http
+
+  GET /people HTTP/1.1
+  User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: no-cache, no-store, must-revalidate
+
+  ...
+
+
 Errors and HTTP Status Codes
 ----------------------------
 
