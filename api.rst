@@ -1415,6 +1415,10 @@ PostgREST reads the ``response.headers`` SQL variable to add extra headers to th
 
 Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
+.. note::
+
+  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way.
+
 .. _pre_req_headers:
 
 Setting headers via pre-request
