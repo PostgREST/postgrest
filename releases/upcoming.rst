@@ -29,6 +29,24 @@ Added
 
 * Documentation reference for :ref:`mutation_embed`.
 
+Fixed
+-----
+
+* Allow embedding a VIEW when its source table foreign key is UNIQUE
+  |br| -- `@bwbroersma <https://github.com/bwbroersma>`_
+
+* ``Accept: application/vnd.pgrst.object+json`` behavior is now enforced for POST/PATCH/DELETE regardless of ``Prefer: return=minimal``
+  |br| -- `@dwagin <https://github.com/dwagin>`_
+
+* Fix self join resource embedding on PATCH
+  |br| -- `@herulume <https://github.com/herulume>`_, `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Allow PATCH/DELETE without ``Prefer: return=minimal`` on tables with no SELECT privileges
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix many to many resource embedding for RPC/PATCH
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 Changed
 -------
 
