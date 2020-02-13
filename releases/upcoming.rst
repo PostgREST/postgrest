@@ -16,6 +16,9 @@ Added
 * Support for :ref:`Resource Embedding Disambiguation <embed_disamb>`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Support for user defined socket permission via :ref:`server-unix-socket-mode` config option
+  |br| -- `@Dansvidania <https://github.com/Dansvidania>`_
+
 * HTTP improvements -- `@steve-chavez <https://github.com/steve-chavez>`_
 
    + Support for HTTP HEAD requests.
@@ -34,3 +37,5 @@ Changed
 * Resource Embedding now outputs an error when multiple relationships between two tables are found, see :ref:`embed_disamb`.
 
 * ``server-proxy-uri`` config option has been renamed to :ref:`openapi-server-proxy-uri`.
+
+* Default Unix Socket file mode from 755 to 660
