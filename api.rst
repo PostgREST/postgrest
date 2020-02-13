@@ -1401,6 +1401,8 @@ You can also access the request path and method with :code:`request.path` and :c
   -- You can get the method of the request with
   SELECT current_setting('request.method', true);
 
+.. _guc_resp_hdrs:
+
 Setting Response Headers
 ------------------------
 

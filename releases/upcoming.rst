@@ -19,11 +19,13 @@ Added
 * Support for user defined socket permission via :ref:`server-unix-socket-mode` config option
   |br| -- `@Dansvidania <https://github.com/Dansvidania>`_
 
-* HTTP improvements -- `@steve-chavez <https://github.com/steve-chavez>`_
+* HTTP logic improvements -- `@steve-chavez <https://github.com/steve-chavez>`_
 
    + Support for HTTP HEAD requests.
    + GUCs for :ref:`guc_req_path_method`.
    + Support for :ref:`pre_req_headers`.
+   + Allow overriding provided headers(Content-Type, Location, etc) by :ref:`guc_resp_hdrs`
+   + Access to the ``Authorization`` header value through ``request.header.authorization``
 
 * Documentation reference for :ref:`s_proc_embed`.
 
