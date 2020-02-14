@@ -10,6 +10,9 @@ These are changes yet unreleased. If you'd like to try them out before a new off
 Added
 -----
 
+* Support for the :ref:`on_conflict <on_conflict>` query parameter to UPSERT based on a unique constraint.
+  |br| -- `@ykst <https://github.com/ykst>`_
+
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
