@@ -10,3 +10,8 @@ ghc-options:
              -fno-spec-constr -optP-Wno-nonportable-include-path
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
+
+# needed by stylish haskell, this only runs on ci
+extra-deps:
+  - HsYAML-0.2.1.0@sha256:e4677daeba57f7a1e9a709a1f3022fe937336c91513e893166bd1f023f530d68,5311
+  - HsYAML-aeson-0.2.0.0@sha256:04796abfc01cffded83f37a10e6edba4f0c0a15d45bef44fc5bb4313d9c87757,1791
