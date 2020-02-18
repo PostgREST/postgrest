@@ -1052,32 +1052,6 @@ A function that returns a table type response can be shaped using the same filte
 
   GET /rpc/best_films_2017?rating=gt.8&order=title.desc HTTP/1.1
 
-.. _func_privs:
-
-Function privileges
--------------------
-
-By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
-
-Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY>`_ for more details.
-
-.. warning::
-
-  Unlike tables/views, functions privileges work as a blacklist, so they're executable for all the roles by default. You can workaround this by revoking the PUBLIC privileges of the function and then granting privileges to specific roles:
-
-  .. code-block:: postgres
-
-    REVOKE ALL PRIVILEGES ON FUNCTION private_func() FROM PUBLIC;
-    GRANT EXECUTE ON FUNCTION private_func() TO a_role;
-
-  Also to avoid doing ``REVOKE`` on every function you can enable this behavior by default with:
-
-  .. code-block:: postgres
-
-    ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
-
-  See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/static/sql-alterdefaultprivileges.html>`_ for more details.
-
 Overloaded functions
 --------------------
 
@@ -1591,3 +1565,4 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
+

@@ -150,9 +150,16 @@ Explanations of some key concepts in PostgREST.
 
    admin.rst
 
+.. toctree::
+   :caption: Best Practices
+   :hidden:
+
+   best_practices.rst
+
 - :doc:`Authentication <auth>`
 - :doc:`Installation <install>`
 - :doc:`Administration <admin>`
+- :doc:`Best Practices <best_practices>`
 
 Ecosystem
 ---------
