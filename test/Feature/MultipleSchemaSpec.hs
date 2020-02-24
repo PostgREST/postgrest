@@ -48,8 +48,8 @@ spec =
 
     it "read table in unkown schema" $
       request methodGet "/table" [("Accept-Version", "unkown")] "" `shouldRespondWith`
-        ""
+        [json|{"message":"The schema must be one of the following: v1, v2"}|]
         {
-          matchStatus = 404
+          matchStatus = 406
         , matchHeaders = []
         }

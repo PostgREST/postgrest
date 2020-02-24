@@ -44,15 +44,15 @@ import PostgREST.Private.Common
 import PostgREST.Types
 import Protolude
 
-getDbStructure :: Schema -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schema pgVer = do
-  HT.sql "set local schema ''" -- for getting the fully qualified name(schema.name) of every db object
+getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
+getDbStructure schemas pgVer = do
+  HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () allTables
-  cols    <- HT.statement schema $ allColumns tabs
-  srcCols <- HT.statement schema $ allSourceColumns cols pgVer
+  cols    <- HT.statement schemas $ allColumns tabs
+  srcCols <- HT.statement schemas $ allSourceColumns cols pgVer
   m2oRels <- HT.statement () $ allM2ORels tabs cols
   keys    <- HT.statement () $ allPrimaryKeys tabs
-  procs   <- HT.statement schema allProcs
+  procs   <- HT.statement schemas allProcs
 
   let rels = addM2MRels . addO2MRels $ addViewM2ORels srcCols m2oRels
       cols' = addForeignKeys rels cols
@@ -176,31 +176,33 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
-allProcs = H.Statement (toS procsSqlQuery) (param HE.text) decodeProcs True
+allProcs :: H.Statement [Schema] (M.HashMap Text [ProcDescription])
+allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs True
+  where
+    sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
 accessibleProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
 accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
   where
-    sql = procsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
+    sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
 procsSqlQuery :: SqlQuery
 procsSqlQuery = [q|
-  SELECT p.proname as "proc_name",
-         d.description as "proc_description",
-         pg_get_function_arguments(p.oid) as "args",
-         tn.nspname as "rettype_schema",
-         coalesce(comp.relname, t.typname) as "rettype_name",
-         p.proretset as "rettype_is_setof",
-         t.typtype as "rettype_typ",
-         p.provolatile
+  SELECT
+    p.proname as "proc_name",
+    d.description as "proc_description",
+    pg_get_function_arguments(p.oid) as "args",
+    tn.nspname as "rettype_schema",
+    coalesce(comp.relname, t.typname) as "rettype_name",
+    p.proretset as "rettype_is_setof",
+    t.typtype as "rettype_typ",
+    p.provolatile
   FROM pg_proc p
     JOIN pg_namespace pn ON pn.oid = p.pronamespace
     JOIN pg_type t ON t.oid = p.prorettype
     JOIN pg_namespace tn ON tn.oid = t.typnamespace
     LEFT JOIN pg_class comp ON comp.oid = t.typrelid
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
-  WHERE  pn.nspname = $1
 |]
 
 schemaDescription :: H.Statement Schema (Maybe Text)
@@ -384,9 +386,9 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> H.Statement Schema [Column]
+allColumns :: [Table] -> H.Statement [Schema] [Column]
 allColumns tabs =
-  H.Statement sql (param HE.text) (decodeColumns tabs) True
+ H.Statement sql (arrayParam HE.text) (decodeColumns tabs) True
  where
   sql = [q|
     SELECT DISTINCT
@@ -424,7 +426,7 @@ allColumns tabs =
                AND c.relkind IN ('r', 'v', 'f', 'm')
                AND r.conrelid = c.oid
                AND c.relnamespace = n.oid
-               AND n.nspname NOT IN ('pg_catalog', 'information_schema', $1)
+               AND n.nspname <> ANY (ARRAY['pg_catalog', 'information_schema'] || $1)
         ),
         /*
         -- CTE based on information_schema.columns
@@ -526,7 +528,7 @@ allColumns tabs =
                 AND a.attnum > 0
                 AND NOT a.attisdropped
                 AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char", 'm'::"char"]))
-                AND (nc.nspname = $1 OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
+                AND (nc.nspname = ANY ($1) OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
               /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
         SELECT
@@ -719,9 +721,9 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSourceColumns :: [Column] -> PgVersion -> H.Statement Schema [SourceColumn]
+allSourceColumns :: [Column] -> PgVersion -> H.Statement [Schema] [SourceColumn]
 allSourceColumns cols pgVer =
-  H.Statement sql (param HE.text) (decodeSourceColumns cols) True
+  H.Statement sql (arrayParam HE.text) (decodeSourceColumns cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
@@ -740,7 +742,7 @@ allSourceColumns cols pgVer =
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where (c.relkind in ('v', 'm')) and n.nspname = $1
+        where (c.relkind in ('v', 'm')) and n.nspname = ANY ($1)
       ),
       removed_subselects as(
         select

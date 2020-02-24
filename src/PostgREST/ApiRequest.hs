@@ -1,4 +1,4 @@
-{-
+{-|
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
@@ -97,11 +97,13 @@ data ApiRequest = ApiRequest {
   , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
+  , iSchema               :: Schema                           -- ^ The request schema, it can be specified with the `Accept-Version` header
   }
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: NonEmpty Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest schemas rootSpec req reqBody
+userApiRequest confSchemas rootSpec req reqBody
+  | schema `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -138,6 +140,7 @@ userApiRequest schemas rootSpec req reqBody
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
+      , iSchema = schema
       }
  where
   -- queryString with '+' converted to ' '(space)
@@ -210,17 +213,15 @@ userApiRequest schemas rootSpec req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
   schema = case lookupHeader "Accept-Version" of
-             Nothing                   -> head schemas
+             Nothing                   -> head confSchemas
              Just schemaPassedInHeader -> toS schemaPassedInHeader
   target = case path of
-    []                     -> case rootSpec of
-                                Just pName -> TargetProc (QualifiedIdentifier schema pName) True
-                                Nothing    -> if | schema `elem` schemas -> TargetDefaultSpec schema
-                                                 | otherwise             -> TargetUnknown [schema]
-    ["rpc", proc]          -> TargetProc (QualifiedIdentifier schema proc) False
-    [table]                -> if | schema `elem` schemas -> TargetIdent $ QualifiedIdentifier schema table
-                                 | otherwise             -> TargetUnknown [schema, table]
-    other                  -> TargetUnknown other
+    []            -> case rootSpec of
+                       Just pName -> TargetProc (QualifiedIdentifier schema pName) True
+                       Nothing    -> TargetDefaultSpec schema
+    [table]       -> TargetIdent $ QualifiedIdentifier schema table
+    ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
+    other         -> TargetUnknown other
 
   shouldParsePayload =
     action `elem`

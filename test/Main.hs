@@ -58,7 +58,7 @@ main = do
 
   result <- P.use pool $ do
     ver <- getPgVersion
-    HT.transaction HT.ReadCommitted HT.Read $ getDbStructure "test" ver
+    HT.transaction HT.ReadCommitted HT.Read $ getDbStructure ["test"] ver
 
   let dbStructure = either (panic.show) id result
 

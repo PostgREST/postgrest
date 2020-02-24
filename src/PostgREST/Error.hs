@@ -51,6 +51,7 @@ data ApiRequestError
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relation]
   | InvalidFilters
+  | UnacceptableSchema [Text]
   | UnknownRelation                -- Unreachable?
   | UnsupportedVerb                -- Unreachable?
   deriving (Show, Eq)
@@ -65,6 +66,7 @@ instance PgrstError ApiRequestError where
   status (ParseRequestError _ _) = HT.status400
   status (NoRelBetween _ _)      = HT.status400
   status AmbiguousRelBetween{}   = HT.status300
+  status (UnacceptableSchema _)  = HT.status406
 
   headers _ = [toHeader CTApplicationJSON]
 
@@ -89,6 +91,8 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [
     "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
+  toJSON (UnacceptableSchema schemas) = JSON.object [
+    "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
 
 compressedRel :: Relation -> JSON.Value
 compressedRel rel =

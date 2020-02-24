@@ -15,7 +15,6 @@ import Control.Retry            (RetryStatus, capDelay,
 import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
-import Data.List.NonEmpty       (head)
 import Data.String              (IsString (..))
 import Data.Text                (pack, replace, strip, stripPrefix,
                                  unpack)
@@ -74,11 +73,11 @@ import System.Posix.Signals
 connectionWorker
   :: ThreadId -- ^ This thread is killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
-  -> Schema   -- ^ Schema PostgREST is serving up
+  -> [Schema] -- ^ Schemas PostgREST is serving up
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> IO ()
-connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -94,7 +93,7 @@ connectionWorker mainTid pool schema refDbStructure refIsWorkerOn = do
         NotConnected                -> return ()               -- Unreachable
         Connected actualPgVersion   -> do                      -- Procede with initialization
           result <- P.use pool $ do
-            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schema actualPgVersion
+            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
             liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
           case result of
             Left e -> do
@@ -163,7 +162,8 @@ main = do
   -- readOptions builds the 'AppConfig' from the config file specified on the
   -- command line
   conf <- loadDbUriFile =<< loadSecretFile =<< readOptions
-  let host = configHost conf
+  let schemas = toList $ configSchemas conf
+      host = configHost conf
       port = configPort conf
       proxy = configOpenAPIProxyUri conf
       maybeSocketAddr = configSocket conf
@@ -176,8 +176,6 @@ main = do
         . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
 
-  -- the first value in the db-schema configuration parameter is used as default
-  let defaultSchema = head $ configSchemas conf
 
   whenLeft socketFileMode panic
 
@@ -209,7 +207,7 @@ main = do
   connectionWorker
     mainTid
     pool
-    defaultSchema
+    schemas
     refDbStructure
     refIsWorkerOn
   --
@@ -231,7 +229,7 @@ main = do
     Catch $ connectionWorker
               mainTid
               pool
-              defaultSchema
+              schemas
               refDbStructure
               refIsWorkerOn
     ) Nothing
@@ -250,7 +248,7 @@ main = do
           (connectionWorker
              mainTid
              pool
-             defaultSchema
+             schemas
              refDbStructure
              refIsWorkerOn)
     in case maybeSocketAddr of
