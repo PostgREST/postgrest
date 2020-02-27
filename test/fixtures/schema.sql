@@ -1706,3 +1706,8 @@ create table v2.table (
   id    int primary key
 , value text
 );
+
+create table v2.another_table (
+  id    int primary key
+, value text
+);

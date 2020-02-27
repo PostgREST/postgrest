@@ -580,3 +580,7 @@ INSERT INTO v1.table VALUES(1, 'value1'), (2, 'value2');
 -- Data for Name: table; Type: TABLE DATA; Schema: v2; Owner: -
 TRUNCATE TABLE v2.table CASCADE;
 INSERT INTO v2.table VALUES(1, 'value3'), (2, 'value4');
+
+-- Data for Name: another_table; Type: TABLE DATA; Schema: v2; Owner: -
+TRUNCATE TABLE v2.another_table CASCADE;
+INSERT INTO v2.another_table VALUES(1, 'value5'), (2, 'value6');
