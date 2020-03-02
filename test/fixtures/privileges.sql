@@ -126,6 +126,7 @@ GRANT ALL ON TABLE
     , loc_test
     , v1.table
     , v2.table
+    , v2.another_table
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
