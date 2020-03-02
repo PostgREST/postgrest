@@ -51,6 +51,17 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
+    it "read another_table from other schema(v2)" $
+      request methodGet "/another_table" [("Accept-Version", "v2")] "" `shouldRespondWith`
+        [json|[
+          {"id":1,"value":"value5"},
+          {"id":2,"value":"value6"}
+        ]|]
+        {
+          matchStatus = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
     it "read table from unkown schema" $
       request methodGet "/table" [("Accept-Version", "unkown")] "" `shouldRespondWith`
         [json|{"message":"The schema must be one of the following: v1, v2"}|]
@@ -87,3 +98,70 @@ spec =
                   "type" : "object"
                 }
               |]
+
+    it "read table definition from default schema (v2)" $ do
+        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
+
+        let def = r ^? key "definitions" . key "table"
+
+        liftIO $
+
+          def `shouldBe` Just
+              [aesonQQ|
+                {
+                  "properties" : {
+                    "id" : {
+                      "description" : "Note:\nThis is a Primary Key.<pk/>",
+                      "format" : "integer",
+                      "type" : "integer"
+                    },
+                    "value" : {
+                      "format" : "text",
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [
+                    "id",
+                    "value"
+                  ],
+                  "type" : "object"
+                }
+              |]
+
+    it "read another_table definition from default schema (v2)" $ do
+        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
+
+        let def = r ^? key "definitions" . key "another_table"
+
+        liftIO $
+
+          def `shouldBe` Just
+              [aesonQQ|
+                {
+                  "properties" : {
+                    "id" : {
+                      "description" : "Note:\nThis is a Primary Key.<pk/>",
+                      "format" : "integer",
+                      "type" : "integer"
+                    },
+                    "value" : {
+                      "format" : "text",
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [
+                    "id",
+                    "value"
+                  ],
+                  "type" : "object"
+                }
+              |]
+
+    it "read table definition from unkown schema" $ do
+        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "unkown")] ""
+
+        let def = r ^? key "definitions" . key "table"
+
+        liftIO $
+
+          def `shouldBe` Nothing
