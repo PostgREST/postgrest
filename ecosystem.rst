@@ -11,6 +11,8 @@ Community Tutorials
 * `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-in-5-minutes>`_ -
   In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`s_procs` interface.
 
+* `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>` 
+
 .. _eco_example_apps:
 
 Example Apps
