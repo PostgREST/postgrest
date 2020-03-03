@@ -99,7 +99,36 @@ spec =
                 }
               |]
 
-    it "read table definition from default schema (v2)" $ do
+    it "read table definition from default schema (v1) after explicitly passing it in the header" $ do
+        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v1")] ""
+
+        let def = r ^? key "definitions" . key "table"
+
+        liftIO $
+
+          def `shouldBe` Just
+              [aesonQQ|
+                {
+                  "properties" : {
+                    "id" : {
+                      "description" : "Note:\nThis is a Primary Key.<pk/>",
+                      "format" : "integer",
+                      "type" : "integer"
+                    },
+                    "value" : {
+                      "format" : "text",
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [
+                    "id",
+                    "value"
+                  ],
+                  "type" : "object"
+                }
+              |]
+
+    it "read table definition from other schema (v2)" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
 
         let def = r ^? key "definitions" . key "table"
@@ -128,7 +157,7 @@ spec =
                 }
               |]
 
-    it "read another_table definition from default schema (v2)" $ do
+    it "read another_table definition from other schema (v2)" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
 
         let def = r ^? key "definitions" . key "another_table"
