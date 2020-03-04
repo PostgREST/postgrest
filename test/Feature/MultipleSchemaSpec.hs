@@ -54,8 +54,8 @@ spec =
     it "read another_table from other schema(v2)" $
       request methodGet "/another_table" [("Accept-Version", "v2")] "" `shouldRespondWith`
         [json|[
-          {"id":1,"value":"value5"},
-          {"id":2,"value":"value6"}
+          {"id":1,"another_value":"value5"},
+          {"id":2,"another_value":"value6"}
         ]|]
         {
           matchStatus = 200
@@ -173,14 +173,14 @@ spec =
                       "format" : "integer",
                       "type" : "integer"
                     },
-                    "value" : {
+                    "another_value" : {
                       "format" : "text",
                       "type" : "string"
                     }
                   },
                   "required" : [
                     "id",
-                    "value"
+                    "another_value"
                   ],
                   "type" : "object"
                 }

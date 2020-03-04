@@ -1708,6 +1708,6 @@ create table v2.table (
 );
 
 create table v2.another_table (
-  id    int primary key
-, value text
+  id            int primary key
+, another_value text
 );
