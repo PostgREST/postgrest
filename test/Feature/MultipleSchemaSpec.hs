@@ -1,6 +1,6 @@
 module Feature.MultipleSchemaSpec where
 
-import Control.Lens       ((^?))
+import Control.Lens    ((^?))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 
@@ -18,7 +18,7 @@ import SpecHelper
 spec :: SpecWith ((), Application)
 spec =
   describe "multiple schemas in single instance" $ do
-    it "read table from default schema(v1) if no schema is selected via header" $
+    it "succeeds in reading table from default schema v1 if no schema is selected via header" $
       request methodGet "/table" [] "" `shouldRespondWith`
         [json|[
           {"id":1,"value":"value1"},
@@ -29,7 +29,7 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "read table from default schema(v1) after explicitly passing it in the header" $
+    it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $
       request methodGet "/table" [("Accept-Version", "v1")] "" `shouldRespondWith`
         [json|[
           {"id":1,"value":"value1"},
@@ -40,7 +40,7 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "read table from other schema(v2)" $
+    it "succeeds in reading table from schema v2" $
       request methodGet "/table" [("Accept-Version", "v2")] "" `shouldRespondWith`
         [json|[
           {"id":1,"value":"value3"},
@@ -51,7 +51,7 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "read another_table from other schema(v2)" $
+    it "succeeds in reading another_table from schema v2" $
       request methodGet "/another_table" [("Accept-Version", "v2")] "" `shouldRespondWith`
         [json|[
           {"id":1,"another_value":"value5"},
@@ -62,7 +62,7 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "read table from unkown schema" $
+    it "fail trying to read table from unkown schema" $
       request methodGet "/table" [("Accept-Version", "unkown")] "" `shouldRespondWith`
         [json|{"message":"The schema must be one of the following: v1, v2"}|]
         {
@@ -70,7 +70,7 @@ spec =
         , matchHeaders = []
         }
 
-    it "read table definition from default schema (v1)" $ do
+    it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do
         r <- simpleBody <$> request methodGet "/" [] ""
 
         let def = r ^? key "definitions" . key "table"
@@ -98,7 +98,7 @@ spec =
                 }
               |]
 
-    it "read table definition from default schema (v1) after explicitly passing it in the header" $ do
+    it "succeeds in reading table definition from default schema v1 after explicitly passing it in the header" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v1")] ""
 
         let def = r ^? key "definitions" . key "table"
@@ -126,7 +126,7 @@ spec =
                 }
               |]
 
-    it "read table definition from other schema (v2)" $ do
+    it "succeeds in reading table definition from schema v2" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
 
         let def = r ^? key "definitions" . key "table"
@@ -154,7 +154,7 @@ spec =
                 }
               |]
 
-    it "read another_table definition from other schema (v2)" $ do
+    it "succeeds in reading another_table definition from schema v2" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
 
         let def = r ^? key "definitions" . key "another_table"
@@ -182,7 +182,7 @@ spec =
                 }
               |]
 
-    it "read table definition from unkown schema" $ do
+    it "fails trying to read table definition from unkown schema" $ do
         r <- simpleBody <$> request methodGet "/" [("Accept-Version", "unkown")] ""
 
         let def = r ^? key "definitions" . key "table"
