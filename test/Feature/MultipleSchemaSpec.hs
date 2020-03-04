@@ -80,6 +80,7 @@ spec =
           def `shouldBe` Just
               [aesonQQ|
                 {
+                  "type" : "object",
                   "properties" : {
                     "id" : {
                       "description" : "Note:\nThis is a Primary Key.<pk/>",
@@ -92,10 +93,8 @@ spec =
                     }
                   },
                   "required" : [
-                    "id",
-                    "value"
-                  ],
-                  "type" : "object"
+                    "id"
+                  ]
                 }
               |]
 
@@ -109,6 +108,7 @@ spec =
           def `shouldBe` Just
               [aesonQQ|
                 {
+                  "type" : "object",
                   "properties" : {
                     "id" : {
                       "description" : "Note:\nThis is a Primary Key.<pk/>",
@@ -121,10 +121,8 @@ spec =
                     }
                   },
                   "required" : [
-                    "id",
-                    "value"
-                  ],
-                  "type" : "object"
+                    "id"
+                  ]
                 }
               |]
 
@@ -138,6 +136,7 @@ spec =
           def `shouldBe` Just
               [aesonQQ|
                 {
+                  "type" : "object",
                   "properties" : {
                     "id" : {
                       "description" : "Note:\nThis is a Primary Key.<pk/>",
@@ -150,10 +149,8 @@ spec =
                     }
                   },
                   "required" : [
-                    "id",
-                    "value"
-                  ],
-                  "type" : "object"
+                    "id"
+                  ]
                 }
               |]
 
@@ -167,6 +164,7 @@ spec =
           def `shouldBe` Just
               [aesonQQ|
                 {
+                  "type" : "object",
                   "properties" : {
                     "id" : {
                       "description" : "Note:\nThis is a Primary Key.<pk/>",
@@ -179,10 +177,8 @@ spec =
                     }
                   },
                   "required" : [
-                    "id",
-                    "another_value"
-                  ],
-                  "type" : "object"
+                    "id"
+                  ]
                 }
               |]
 
