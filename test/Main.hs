@@ -6,16 +6,17 @@ import qualified Hasql.Transaction.Sessions as HT
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 import Data.Function      (id)
+import Data.List.NonEmpty (toList)
 import Data.Time.Clock    (getCurrentTime)
 
 import Data.IORef
 import Test.Hspec
 
 import PostgREST.App         (postgrest)
+import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types       (DbStructure (..), pgVersion95,
-                              pgVersion96)
-import Protolude
+import PostgREST.Types       (pgVersion95, pgVersion96)
+import Protolude             hiding (toList)
 import SpecHelper
 
 import qualified Feature.AndOrParamsSpec
@@ -51,38 +52,42 @@ import qualified Feature.UpsertSpec
 
 main :: IO ()
 main = do
+  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
   setupDb testDbConn
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
-  result <- P.use pool $ do
-    ver <- getPgVersion
-    HT.transaction HT.ReadCommitted HT.Read $ getDbStructure ["v1", "v2", "test"] ver
+  actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
 
-  let dbStructure = either (panic.show) id result
+  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ testCfg testDbConn) actualPgVersion
 
-  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+  let
+    -- For tests that run with the same refDbStructure
+    app cfg = return ((), postgrest (cfg testDbConn) refDbStructure pool getTime $ pure ())
 
-  refDbStructure <- newIORef $ Just dbStructure
-
-  let app cfg = return ((), postgrest (cfg testDbConn) refDbStructure pool getTime $ pure ())
+    -- For tests that run with a different DbStructure(depends on configSchemas)
+    appDbs cfg = do
+      dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
+      return ((), postgrest (cfg testDbConn) dbs pool getTime $ pure ())
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
-      unicodeApp           = app testUnicodeCfg
       proxyApp             = app testProxyCfg
       noJwtApp             = app testCfgNoJWT
       binaryJwtApp         = app testCfgBinaryJWT
       audJwtApp            = app testCfgAudienceJWT
       asymJwkApp           = app testCfgAsymJWK
       asymJwkSetApp        = app testCfgAsymJWKSet
-      nonexistentSchemaApp = app testNonexistentSchemaCfg
       extraSearchPathApp   = app testCfgExtraSearchPath
       rootSpecApp          = app testCfgRootSpec
       htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
-      multipleSchemaApp    = app testMultipleSchemaCfg
+
+      unicodeApp           = appDbs testUnicodeCfg
+      nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
+      multipleSchemaApp    = appDbs testMultipleSchemaCfg
 
   let reset, analyze :: IO ()
       reset = resetDb testDbConn
@@ -90,7 +95,6 @@ main = do
         analyzeTable testDbConn "items"
         analyzeTable testDbConn "child_entities"
 
-      actualPgVersion = pgVersion dbStructure
       extraSpecs =
         [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
         [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95]
@@ -178,3 +182,7 @@ main = do
     -- this test runs with multiple schemas
     before multipleSchemaApp $
       describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec
+
+  where
+    setupDbStructure pool schemas ver =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) ver)
