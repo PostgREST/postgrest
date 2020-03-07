@@ -40,7 +40,6 @@ import Network.HTTP.Types.Status
 import Network.Wai
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
-                                   ContentType (..),
                                    InvokeMethod (..), Target (..),
                                    mutuallyAgreeable, userApiRequest)
 import PostgREST.Auth             (containsRole, jwtClaims,

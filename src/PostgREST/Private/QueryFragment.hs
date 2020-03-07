@@ -11,7 +11,7 @@ import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
 import           Data.Text                     (intercalate,
                                                 isInfixOf, replace,
-                                                toLower, unwords)
+                                                toLower)
 import qualified Data.Text                     as T (map, null,
                                                      takeWhile)
 import           PostgREST.Types

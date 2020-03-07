@@ -18,8 +18,7 @@ import Data.IORef               (IORef, atomicWriteIORef, newIORef,
 import Data.String              (IsString (..))
 import Data.Text                (pack, replace, strip, stripPrefix,
                                  unpack)
-import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
-import Data.Text.IO             (hPutStrLn, readFile)
+import Data.Text.IO             (hPutStrLn)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Socket           (Family (AF_UNIX),
                                  SockAddr (SockAddrUnix), Socket,

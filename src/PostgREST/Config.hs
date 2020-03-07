@@ -39,9 +39,8 @@ import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
 import Data.Scientific             (floatingOrInteger)
 import Data.Text                   (dropEnd, dropWhileEnd,
-                                    intercalate, lines, splitOn,
-                                    strip, take, unpack)
-import Data.Text.Encoding          (encodeUtf8)
+                                    intercalate, splitOn, strip, take,
+                                    unpack)
 import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
 import Development.GitRev          (gitHash)
