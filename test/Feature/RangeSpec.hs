@@ -19,7 +19,7 @@ defaultRange = [json| { "min": 0, "max": 15 } |]
 emptyRange :: BL.ByteString
 emptyRange = [json| { "min": 2, "max": 2 } |]
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = do
   describe "POST /rpc/getitemrange" $ do
     context "without range headers" $ do

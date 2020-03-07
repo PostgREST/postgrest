@@ -32,7 +32,7 @@ matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
 matchContentTypeSingular :: MatchHeader
 matchContentTypeSingular = "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
 
-validateOpenApiResponse :: [Header] -> WaiSession ()
+validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do
   r <- request methodGet "/" headers ""
   liftIO $

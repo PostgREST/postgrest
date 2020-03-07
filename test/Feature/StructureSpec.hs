@@ -17,7 +17,7 @@ import PostgREST.Config (docsVersion)
 import Protolude        hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = do
 
   describe "OpenAPI" $ do

@@ -18,6 +18,20 @@ packages:
       sha256: 67cc9ba17c79e71d3abdb465a3ee2825477856fff3b8b7d543cbbbefdae9a9d9
   original:
     hackage: HsYAML-aeson-0.2.0.0@sha256:04796abfc01cffded83f37a10e6edba4f0c0a15d45bef44fc5bb4313d9c87757,1791
+- completed:
+    hackage: hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
+    pantry-tree:
+      size: 809
+      sha256: 17af1c2e709cd84bfda066b9ebb04cdde7f92660c51a1f7401a1e9f766524e93
+  original:
+    hackage: hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
+- completed:
+    hackage: hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
+    pantry-tree:
+      size: 349
+      sha256: fb9e89b79cde3276baa484c860c6b9eeebdbc1a5c43301293351a25bc4c08e87
+  original:
+    hackage: hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
 snapshots:
 - completed:
     size: 523878

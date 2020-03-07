@@ -10,7 +10,7 @@ import Text.Heredoc
 import Protolude  hiding (get)
 import SpecHelper (acceptHdrs)
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = describe "When raw-media-types is set to \"text/html\"" $
   it "can get raw output with Accept: text/html" $
     request methodGet "/rpc/welcome.html" (acceptHdrs "text/html") ""

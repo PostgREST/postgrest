@@ -11,7 +11,7 @@ import Protolude hiding (get)
 
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "root spec function" $ do
     it "accepts application/openapi+json" $

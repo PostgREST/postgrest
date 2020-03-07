@@ -17,7 +17,7 @@ import PostgREST.Types (PgVersion, pgVersion100, pgVersion109,
 import Protolude       hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith Application
+spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion =
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do

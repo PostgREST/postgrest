@@ -65,20 +65,22 @@ main = do
 
   refDbStructure <- newIORef $ Just dbStructure
 
-  let withApp              = return $ postgrest (testCfg testDbConn)                  refDbStructure pool getTime $ pure ()
-      maxRowsApp           = return $ postgrest (testMaxRowsCfg testDbConn)           refDbStructure pool getTime $ pure ()
-      unicodeApp           = return $ postgrest (testUnicodeCfg testDbConn)           refDbStructure pool getTime $ pure ()
-      proxyApp             = return $ postgrest (testProxyCfg testDbConn)             refDbStructure pool getTime $ pure ()
-      noJwtApp             = return $ postgrest (testCfgNoJWT testDbConn)             refDbStructure pool getTime $ pure ()
-      binaryJwtApp         = return $ postgrest (testCfgBinaryJWT testDbConn)         refDbStructure pool getTime $ pure ()
-      audJwtApp            = return $ postgrest (testCfgAudienceJWT testDbConn)       refDbStructure pool getTime $ pure ()
-      asymJwkApp           = return $ postgrest (testCfgAsymJWK testDbConn)           refDbStructure pool getTime $ pure ()
-      asymJwkSetApp        = return $ postgrest (testCfgAsymJWKSet testDbConn)        refDbStructure pool getTime $ pure ()
-      nonexistentSchemaApp = return $ postgrest (testNonexistentSchemaCfg testDbConn) refDbStructure pool getTime $ pure ()
-      extraSearchPathApp   = return $ postgrest (testCfgExtraSearchPath testDbConn)   refDbStructure pool getTime $ pure ()
-      rootSpecApp          = return $ postgrest (testCfgRootSpec testDbConn)          refDbStructure pool getTime $ pure ()
-      htmlRawOutputApp     = return $ postgrest (testCfgHtmlRawOutput testDbConn)     refDbStructure pool getTime $ pure ()
-      responseHeadersApp   = return $ postgrest (testCfgResponseHeaders testDbConn)   refDbStructure pool getTime $ pure ()
+  let app cfg = return ((), postgrest (cfg testDbConn) refDbStructure pool getTime $ pure ())
+
+  let withApp              = app testCfg
+      maxRowsApp           = app testMaxRowsCfg
+      unicodeApp           = app testUnicodeCfg
+      proxyApp             = app testProxyCfg
+      noJwtApp             = app testCfgNoJWT
+      binaryJwtApp         = app testCfgBinaryJWT
+      audJwtApp            = app testCfgAudienceJWT
+      asymJwkApp           = app testCfgAsymJWK
+      asymJwkSetApp        = app testCfgAsymJWKSet
+      nonexistentSchemaApp = app testNonexistentSchemaCfg
+      extraSearchPathApp   = app testCfgExtraSearchPath
+      rootSpecApp          = app testCfgRootSpec
+      htmlRawOutputApp     = app testCfgHtmlRawOutput
+      responseHeadersApp   = app testCfgResponseHeaders
 
   let reset, analyze :: IO ()
       reset = resetDb testDbConn
