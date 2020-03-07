@@ -12,7 +12,7 @@ import PostgREST.Types (PgVersion, pgVersion112)
 import Protolude       hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith Application
+spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion = describe "authorization" $ do
   let single = ("Accept","application/vnd.pgrst.object+json")
 

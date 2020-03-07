@@ -11,7 +11,7 @@ import Protolude  hiding (get)
 import SpecHelper
 -- }}}
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = describe "test handling of aud claims in JWT" $ do
 
   -- this test will stop working 9999999999s after the UNIX EPOCH

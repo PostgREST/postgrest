@@ -9,7 +9,7 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = describe "features supported on PostgreSQL 9.5" $
   context "json array negative index" $ do
     it "can select with negative indexes" $ do

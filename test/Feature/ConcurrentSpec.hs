@@ -19,7 +19,7 @@ import Test.Hspec.Wai.JSON
 
 import Protolude hiding (get)
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "Queryiny in parallel" $
     it "should not raise 'transaction in progress' error" $
@@ -35,13 +35,13 @@ spec =
           , matchHeaders = []
           }
 
-raceTest :: Int -> WaiExpectation -> WaiExpectation
+raceTest :: Int -> WaiExpectation st -> WaiExpectation st
 raceTest times = liftBaseDiscard go
  where
   go test = void $ mapConcurrently (const test) [1..times]
 
-instance MonadBaseControl IO WaiSession where
-  type StM WaiSession a = StM Session a
+instance MonadBaseControl IO (WaiSession st) where
+  type StM (WaiSession st) a = StM Session a
   liftBaseWith f = WaiSession $
     liftBaseWith $ \runInBase ->
       f $ \k -> runInBase (unWaiSession k)
@@ -49,5 +49,5 @@ instance MonadBaseControl IO WaiSession where
   {-# INLINE liftBaseWith #-}
   {-# INLINE restoreM #-}
 
-instance MonadBase IO WaiSession where
+instance MonadBase IO (WaiSession st) where
   liftBase = liftIO

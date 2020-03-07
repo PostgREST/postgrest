@@ -6,7 +6,7 @@ import Test.Hspec  hiding (pendingWith)
 import Protolude
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "GET / with proxy" $
     it "returns a valid openapi spec with proxy" $

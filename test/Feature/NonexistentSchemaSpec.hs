@@ -7,7 +7,7 @@ import Test.Hspec.Wai
 
 import Protolude hiding (get)
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "Non existent api schema" $ do
     it "succeeds when requesting root path" $

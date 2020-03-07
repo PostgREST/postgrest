@@ -14,7 +14,7 @@ import PostgREST.Types (PgVersion, pgVersion112)
 import Protolude       hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith Application
+spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion = do
 
   describe "Querying a table with a column called count" $

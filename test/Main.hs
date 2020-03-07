@@ -65,22 +65,22 @@ main = do
 
   refDbStructure <- newIORef $ Just dbStructure
 
-  let postgrest' cfg = postgrest cfg refDbStructure (Right pool) getTime $ pure ()
+  let app cfg = return ((), postgrest (cfg testDbConn) refDbStructure (Right pool) getTime $ pure ())
 
-  let withApp              = return $ postgrest' (testCfg testDbConn)
-      maxRowsApp           = return $ postgrest' (testMaxRowsCfg testDbConn)
-      unicodeApp           = return $ postgrest' (testUnicodeCfg testDbConn)
-      proxyApp             = return $ postgrest' (testProxyCfg testDbConn)
-      noJwtApp             = return $ postgrest' (testCfgNoJWT testDbConn)
-      binaryJwtApp         = return $ postgrest' (testCfgBinaryJWT testDbConn)
-      audJwtApp            = return $ postgrest' (testCfgAudienceJWT testDbConn)
-      asymJwkApp           = return $ postgrest' (testCfgAsymJWK testDbConn)
-      asymJwkSetApp        = return $ postgrest' (testCfgAsymJWKSet testDbConn)
-      nonexistentSchemaApp = return $ postgrest' (testNonexistentSchemaCfg testDbConn)
-      extraSearchPathApp   = return $ postgrest' (testCfgExtraSearchPath testDbConn)
-      rootSpecApp          = return $ postgrest' (testCfgRootSpec testDbConn)
-      htmlRawOutputApp     = return $ postgrest' (testCfgHtmlRawOutput testDbConn)
-      responseHeadersApp   = return $ postgrest' (testCfgResponseHeaders testDbConn)
+  let withApp              = app testCfg
+      maxRowsApp           = app testMaxRowsCfg
+      unicodeApp           = app testUnicodeCfg
+      proxyApp             = app testProxyCfg
+      noJwtApp             = app testCfgNoJWT
+      binaryJwtApp         = app testCfgBinaryJWT
+      audJwtApp            = app testCfgAudienceJWT
+      asymJwkApp           = app testCfgAsymJWK
+      asymJwkSetApp        = app testCfgAsymJWKSet
+      nonexistentSchemaApp = app testNonexistentSchemaCfg
+      extraSearchPathApp   = app testCfgExtraSearchPath
+      rootSpecApp          = app testCfgRootSpec
+      htmlRawOutputApp     = app testCfgHtmlRawOutput
+      responseHeadersApp   = app testCfgResponseHeaders
 
   let reset, analyze :: IO ()
       reset = resetDb testDbConn

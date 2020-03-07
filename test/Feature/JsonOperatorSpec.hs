@@ -11,7 +11,7 @@ import PostgREST.Types (PgVersion, pgVersion112)
 import Protolude       hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith Application
+spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion = describe "json and jsonb operators" $ do
   context "Shaping response with select parameter" $ do
     it "obtains a json subfield one level with casting" $

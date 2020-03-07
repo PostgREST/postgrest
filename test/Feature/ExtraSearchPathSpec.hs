@@ -9,7 +9,7 @@ import Test.Hspec.Wai.JSON
 import Protolude
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = describe "extra search path" $ do
 
   it "finds the ltree <@ operator on the public schema" $

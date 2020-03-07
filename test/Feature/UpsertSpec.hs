@@ -11,7 +11,7 @@ import Text.Heredoc
 import Protolude  hiding (get, put)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "UPSERT" $ do
     context "with POST" $ do
