@@ -43,7 +43,7 @@ library
                       PostgREST.Private.Common
                       PostgREST.Private.QueryFragment
   hs-source-dirs:     src
-  build-depends:      base                      >= 4.9 && < 4.13
+  build-depends:      base                      >= 4.9 && < 4.14
                     , HTTP                      >= 4000.3.7 && < 4000.4
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 0.11.3 && < 1.5
@@ -61,23 +61,23 @@ library
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-pool                >= 0.5 && < 0.6
-                    , hasql-transaction         >= 0.7.2 && < 0.8
+                    , hasql-transaction         >= 0.7.2 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , interpolatedstring-perl6  >= 1 && < 1.1
                     , jose                      >= 0.8.1 && < 0.9
-                    , lens                      >= 4.14 && < 4.18
-                    , lens-aeson                >= 1.0.1 && < 1.1
+                    , lens                      >= 4.14 && < 4.19
+                    , lens-aeson                >= 1.0.1 && < 1.2
                     , network-uri               >= 2.6.1 && < 2.7
-                    , optparse-applicative      >= 0.13 && < 0.15
+                    , optparse-applicative      >= 0.13 && < 0.16
                     , parsec                    >= 3.1.11 && < 3.2
                     , protolude                 >= 0.2.2 && < 0.3
-                    , regex-tdfa                >= 1.2.2 && < 1.3
+                    , regex-tdfa                >= 1.2.2 && < 1.4
                     , scientific                >= 0.3.4 && < 0.4
-                    , swagger2                  >= 2.4 && < 2.5
+                    , swagger2                  >= 2.4 && < 2.6
                     , text                      >= 1.2.2 && < 1.3
-                    , time                      >= 1.6 && < 1.9
+                    , time                      >= 1.6 && < 1.10
                     , unordered-containers      >= 0.2.8 && < 0.3
                     , vector                    >= 0.11 && < 0.13
                     , wai                       >= 3.2.1 && < 3.3
@@ -92,7 +92,7 @@ library
 executable postgrest
   main-is:            Main.hs
   hs-source-dirs:     main
-  build-depends:      base              >= 4.9 && < 4.13
+  build-depends:      base              >= 4.9 && < 4.14
                     , auto-update       >= 0.1.4 && < 0.2
                     , base64-bytestring >= 1 && < 1.1
                     , bytestring        >= 0.10.8 && < 0.11
@@ -100,14 +100,14 @@ executable postgrest
                     , either            >= 4.4.1 && < 5.1
                     , hasql             >= 1.4 && < 1.5
                     , hasql-pool        >= 0.5 && < 0.6
-                    , hasql-transaction >= 0.7.2 && < 0.8
-                    , network           < 2.9
+                    , hasql-transaction >= 0.7.2 && < 1.1
+                    , network           < 3.2
                     , postgrest
                     , protolude         >= 0.2.2 && < 0.3
                     , retry             >= 0.7.4 && < 0.9
                     , text              >= 1.2.2 && < 1.3
-                    , time              >= 1.6 && < 1.9
-                    , warp              >= 3.2.12 && < 3.3
+                    , time              >= 1.6 && < 1.10
+                    , warp              >= 3.2.12 && < 3.4
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
                       QuasiQuotes
@@ -151,7 +151,7 @@ test-suite spec
                       SpecHelper
                       TestTypes
   hs-source-dirs:     test
-  build-depends:      base              >= 4.9 && < 4.13
+  build-depends:      base              >= 4.9 && < 4.14
                     , aeson             >= 0.11.3 && < 1.5
                     , aeson-qq          >= 0.8.1 && < 0.9
                     , async             >= 2.1.1 && < 2.3
@@ -164,21 +164,21 @@ test-suite spec
                     , contravariant     >= 1.4 && < 1.6
                     , hasql             >= 1.4 && < 1.5
                     , hasql-pool        >= 0.5 && < 0.6
-                    , hasql-transaction >= 0.7.2 && < 0.8
+                    , hasql-transaction >= 0.7.2 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.8
                     , hspec-wai         >= 0.10 && < 0.11
                     , hspec-wai-json    >= 0.10 && < 0.11
                     , http-types        >= 0.12.3 && < 0.13
-                    , lens              >= 4.14 && < 4.18
-                    , lens-aeson        >= 1.0.1 && < 1.1
+                    , lens              >= 4.14 && < 4.19
+                    , lens-aeson        >= 1.0.1 && < 1.2
                     , monad-control     >= 1.0.1 && < 1.1
                     , postgrest
                     , process           >= 1.4.2 && < 1.7
                     , protolude         >= 0.2.2 && < 0.3
-                    , regex-tdfa        >= 1.2.2 && < 1.3
+                    , regex-tdfa        >= 1.2.2 && < 1.4
                     , text              >= 1.2.2 && < 1.3
-                    , time              >= 1.6 && < 1.9
+                    , time              >= 1.6 && < 1.10
                     , transformers-base >= 0.4.4 && < 0.5
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.1
@@ -195,7 +195,7 @@ Test-Suite spec-querycost
   Hs-Source-Dirs:      test
   Main-Is:             QueryCost.hs
   Other-Modules:       SpecHelper
-  Build-Depends:       base              >= 4.9 && < 4.13
+  Build-Depends:       base              >= 4.9 && < 4.14
                      , aeson             >= 0.11.3 && < 1.5
                      , aeson-qq          >= 0.8.1 && < 0.9
                      , async             >= 2.1.1 && < 2.3
@@ -208,21 +208,21 @@ Test-Suite spec-querycost
                      , contravariant     >= 1.4 && < 1.6
                      , hasql             >= 1.4 && < 1.5
                      , hasql-pool        >= 0.5 && < 0.6
-                     , hasql-transaction >= 0.7.2 && < 0.8
+                     , hasql-transaction >= 0.7.2 && < 1.1
                      , heredoc           >= 0.2 && < 0.3
                      , hspec             >= 2.3 && < 2.8
                      , hspec-wai         >= 0.10 && < 0.11
                      , hspec-wai-json    >= 0.10 && < 0.11
                      , http-types        >= 0.12.3 && < 0.13
-                     , lens              >= 4.14 && < 4.18
-                     , lens-aeson        >= 1.0.1 && < 1.1
+                     , lens              >= 4.14 && < 4.19
+                     , lens-aeson        >= 1.0.1 && < 1.2
                      , monad-control     >= 1.0.1 && < 1.1
                      , postgrest
                      , process           >= 1.4.2 && < 1.7
                      , protolude         >= 0.2.2 && < 0.3
-                     , regex-tdfa        >= 1.2.2 && < 1.3
+                     , regex-tdfa        >= 1.2.2 && < 1.4
                      , text              >= 1.2.2 && < 1.3
-                     , time              >= 1.6 && < 1.9
+                     , time              >= 1.6 && < 1.10
                      , transformers-base >= 0.4.4 && < 0.5
                      , wai               >= 3.2.1 && < 3.3
                      , wai-extra         >= 3.0.19 && < 3.1
