@@ -10,7 +10,7 @@ import Text.Heredoc
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "resource embedding disambiguation" $ do
     context "ambiguous requests that give 300 Multiple Choices" $ do

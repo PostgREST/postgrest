@@ -11,7 +11,7 @@ import PostgREST.Types (PgVersion, pgVersion112)
 import Protolude       hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith Application
+spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion =
   describe "and/or params used for complex boolean logic" $ do
     context "used with GET" $ do

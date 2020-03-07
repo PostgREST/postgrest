@@ -14,7 +14,7 @@ import Protolude
 import SpecHelper
 -- }}}
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "CORS" $ do
     let preflightHeaders = [

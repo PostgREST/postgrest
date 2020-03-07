@@ -10,7 +10,7 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "features supported on PostgreSQL 9.6" $ do
     context "GUC headers on function calls" $ do

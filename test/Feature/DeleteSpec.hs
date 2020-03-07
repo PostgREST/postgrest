@@ -10,7 +10,7 @@ import Text.Heredoc
 
 import Protolude hiding (get)
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "Deleting" $ do
     context "existing record" $ do

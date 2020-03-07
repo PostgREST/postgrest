@@ -11,7 +11,7 @@ import Protolude
 import SpecHelper
 -- }}}
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec = describe "server started with binary JWT secret" $
 
   -- this test will stop working 9999999999s after the UNIX EPOCH

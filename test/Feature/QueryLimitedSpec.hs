@@ -11,7 +11,7 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith Application
+spec :: SpecWith ((), Application)
 spec =
   describe "Requesting many items with server limits(max-rows) enabled" $ do
     it "restricts results" $
