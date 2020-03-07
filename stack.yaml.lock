@@ -19,6 +19,13 @@ packages:
   original:
     hackage: HsYAML-aeson-0.2.0.0@sha256:04796abfc01cffded83f37a10e6edba4f0c0a15d45bef44fc5bb4313d9c87757,1791
 - completed:
+    hackage: configurator-pg-0.1.0.5@sha256:94235f91a24e4e6f890906c331c71f6cd3542056afb1fceb429322cc9f5a2aa0,2885
+    pantry-tree:
+      size: 1008
+      sha256: afcedce62419e74ad06d9f0bdff76c006e43749791240d90083348a5f7284e91
+  original:
+    hackage: configurator-pg-0.1.0.5@sha256:94235f91a24e4e6f890906c331c71f6cd3542056afb1fceb429322cc9f5a2aa0,2885
+- completed:
     hackage: hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
     pantry-tree:
       size: 809
