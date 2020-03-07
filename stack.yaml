@@ -1,5 +1,5 @@
 # stack is used for circleci and appveyor CI builds
-resolver: lts-14.3
+resolver: lts-15.2
 ghc-options:
   # -fno-spec-constr may help keep compile time memory use in check,
   #   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
@@ -18,3 +18,4 @@ extra-deps:
   - configurator-pg-0.1.0.5@sha256:94235f91a24e4e6f890906c331c71f6cd3542056afb1fceb429322cc9f5a2aa0,2885
   - hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
   - hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
+  - interpolatedstring-perl6-1.0.2@sha256:7ce49c8a69a2a1b89c001ed79db2aab656ffd0faf2a7a701a553b6deb5c8ba7f,1073
