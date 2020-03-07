@@ -21,7 +21,7 @@ import Protolude hiding (get)
 
 spec :: SpecWith ((), Application)
 spec =
-  describe "Queryiny in parallel" $
+  describe "Querying in parallel" $
     it "should not raise 'transaction in progress' error" $
       raceTest 10 $
         get "/fakefake"
