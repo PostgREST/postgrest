@@ -140,7 +140,7 @@ readOptions = do
   -- Now read the actual config file
   conf <- catches (C.load cfgPath)
     [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
-    , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n\t" <> err)
+    , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
     ]
 
   case C.runParser parseConfig conf of
