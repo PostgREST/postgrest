@@ -406,6 +406,11 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
 
 .. code-block:: postgres
 
+  -- add type
+  CREATE TYPE basic_auth.jwt_token AS (
+    token text
+  );
+
   -- login should be on your exposed schema
   create or replace function
   login(email text, pass text) returns basic_auth.jwt_token as $$
