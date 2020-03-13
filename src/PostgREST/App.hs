@@ -168,17 +168,19 @@ app dbStructure proc cols conf apiRequest =
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right ghdrs -> do
                   let
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full then (toHeader contentType, toS body) else (mempty, mempty)
-                    headers = addHeadersIfNotIncluded [
+                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then (Just $ toHeader contentType, toS body)
+                                          else (Nothing, mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes [
                           if null fields
-                            then mempty
-                            else locationH tName fields
+                            then Nothing
+                            else Just $ locationH tName fields
                         , ctHeader
-                        , contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
+                        , Just $ contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                         , if null pkCols && isNothing (iOnConflict apiRequest)
-                            then mempty
-                            else maybe mempty (\x -> ("Preference-Applied", show x)) $ iPreferResolution apiRequest
-                        ] (unwrapGucHeader <$> ghdrs)
+                            then Nothing
+                            else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
+                        ]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn
@@ -204,8 +206,10 @@ app dbStructure proc cols conf apiRequest =
                            | iPreferRepresentation apiRequest == Full = status200
                            | otherwise                                = status204
                     contentRangeHeader = contentRangeH 0 (queryTotal - 1) $ if shouldCount then Just queryTotal else Nothing
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full then (toHeader contentType, toS body) else (mempty, mempty)
-                    headers = addHeadersIfNotIncluded [contentRangeHeader, ctHeader] (unwrapGucHeader <$> ghdrs)
+                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then (Just $ toHeader contentType, toS body)
+                                          else (Nothing, mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes [Just contentRangeHeader, ctHeader]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn
@@ -263,8 +267,10 @@ app dbStructure proc cols conf apiRequest =
                   let
                     status = if iPreferRepresentation apiRequest == Full then status200 else status204
                     contentRangeHeader = contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full then (toHeader contentType, toS body) else (mempty, mempty)
-                    headers = addHeadersIfNotIncluded [contentRangeHeader, ctHeader] (unwrapGucHeader <$> ghdrs)
+                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then (Just $ toHeader contentType, toS body)
+                                          else (Nothing, mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes [Just contentRangeHeader, ctHeader]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON
                      && queryTotal /= 1
                     then do
