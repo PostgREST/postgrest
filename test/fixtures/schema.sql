@@ -1681,10 +1681,15 @@ begin
       perform set_config(
         'response.headers'
       , format('[{"Location": "/%s?id=eq.%s&overriden=true"}]', tg_table_name, new.id)
-      , false
+      , true
       );
     end if;
     return new;
 end
 $$ language plpgsql security definer;
 create trigger location_for_stuff instead of insert on test.stuff for each row execute procedure test.location_for_stuff();
+
+create table loc_test (
+  id int primary key
+, c text
+);

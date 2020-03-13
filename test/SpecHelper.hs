@@ -178,6 +178,9 @@ matchHeader :: CI BS.ByteString -> BS.ByteString -> [Header] -> Bool
 matchHeader name valRegex headers =
   maybe False (=~ valRegex) $ lookup name headers
 
+noBlankHeader :: [Header] -> Bool
+noBlankHeader = notElem mempty
+
 authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
   (hAuthorization, "Basic " <> (toS . B64.encode . toS $ u <> ":" <> p))

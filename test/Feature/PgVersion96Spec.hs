@@ -2,6 +2,7 @@ module Feature.PgVersion96Spec where
 
 import Network.HTTP.Types
 import Network.Wai        (Application)
+import Network.Wai.Test   (SResponse (simpleHeaders))
 
 import Test.Hspec
 import Test.Hspec.Wai
@@ -131,6 +132,34 @@ spec =
           { matchStatus = 201
           , matchHeaders = ["Location" <:> "/stuff?id=eq.1&overriden=true"]
           }
+
+    -- On https://github.com/PostgREST/postgrest/issues/1427#issuecomment-595907535
+    -- it was reported that blank headers ` : ` where added and that cause proxies to fail the requests.
+    -- These tests are to ensure no blank headers are added.
+    context "Blank headers bug" $ do
+      it "shouldn't add blank headers on POST" $ do
+        r <- request methodPost "/loc_test" [] [json|{"id": "1", "c": "c1"}|]
+        liftIO $ do
+          let respHeaders = simpleHeaders r
+          respHeaders `shouldSatisfy` noBlankHeader
+
+      it "shouldn't add blank headers on PATCH" $ do
+        r <- request methodPatch "/loc_test?id=eq.1" [] [json|{"c": "c2"}|]
+        liftIO $ do
+          let respHeaders = simpleHeaders r
+          respHeaders `shouldSatisfy` noBlankHeader
+
+      it "shouldn't add blank headers on GET" $ do
+        r <- request methodGet "/loc_test" [] ""
+        liftIO $ do
+          let respHeaders = simpleHeaders r
+          respHeaders `shouldSatisfy` noBlankHeader
+
+      it "shouldn't add blank headers on DELETE" $ do
+        r <- request methodDelete "/loc_test?id=eq.1" [] ""
+        liftIO $ do
+          let respHeaders = simpleHeaders r
+          respHeaders `shouldSatisfy` noBlankHeader
 
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $
