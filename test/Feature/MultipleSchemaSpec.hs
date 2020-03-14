@@ -37,7 +37,7 @@ spec =
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v1")]
+        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
         }
 
     it "succeeds in reading table from schema v2" $
@@ -48,7 +48,7 @@ spec =
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v2")]
+        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
         }
 
     it "succeeds in reading another_table from schema v2" $
@@ -59,10 +59,10 @@ spec =
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v2")]
+        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
         }
 
-    it "fail trying to read table from unkown schema" $
+    it "fails trying to read table from unkown schema" $
       request methodGet "/table" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
         [json|{"message":"The schema must be one of the following: v1, v2"}|]
         {
