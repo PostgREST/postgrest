@@ -30,40 +30,40 @@ spec =
         }
 
     it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $
-      request methodGet "/table" [("Accept-Version", "v1")] "" `shouldRespondWith`
+      request methodGet "/table" [("Accept-Profile", "v1")] "" `shouldRespondWith`
         [json|[
           {"id":1,"value":"value1"},
           {"id":2,"value":"value2"}
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v1")]
         }
 
     it "succeeds in reading table from schema v2" $
-      request methodGet "/table" [("Accept-Version", "v2")] "" `shouldRespondWith`
+      request methodGet "/table" [("Accept-Profile", "v2")] "" `shouldRespondWith`
         [json|[
           {"id":1,"value":"value3"},
           {"id":2,"value":"value4"}
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v2")]
         }
 
     it "succeeds in reading another_table from schema v2" $
-      request methodGet "/another_table" [("Accept-Version", "v2")] "" `shouldRespondWith`
+      request methodGet "/another_table" [("Accept-Profile", "v2")] "" `shouldRespondWith`
         [json|[
           {"id":1,"another_value":"value5"},
           {"id":2,"another_value":"value6"}
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeJson, ("Content-Profile" <:> "v2")]
         }
 
     it "fail trying to read table from unkown schema" $
-      request methodGet "/table" [("Accept-Version", "unkown")] "" `shouldRespondWith`
+      request methodGet "/table" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
         [json|{"message":"The schema must be one of the following: v1, v2"}|]
         {
           matchStatus = 406
@@ -99,7 +99,7 @@ spec =
               |]
 
     it "succeeds in reading table definition from default schema v1 after explicitly passing it in the header" $ do
-        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v1")] ""
+        r <- simpleBody <$> request methodGet "/" [("Accept-Profile", "v1")] ""
 
         let def = r ^? key "definitions" . key "table"
 
@@ -127,7 +127,7 @@ spec =
               |]
 
     it "succeeds in reading table definition from schema v2" $ do
-        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
+        r <- simpleBody <$> request methodGet "/" [("Accept-Profile", "v2")] ""
 
         let def = r ^? key "definitions" . key "table"
 
@@ -155,7 +155,7 @@ spec =
               |]
 
     it "succeeds in reading another_table definition from schema v2" $ do
-        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "v2")] ""
+        r <- simpleBody <$> request methodGet "/" [("Accept-Profile", "v2")] ""
 
         let def = r ^? key "definitions" . key "another_table"
 
@@ -183,7 +183,7 @@ spec =
               |]
 
     it "fails trying to read table definition from unkown schema" $ do
-        r <- simpleBody <$> request methodGet "/" [("Accept-Version", "unkown")] ""
+        r <- simpleBody <$> request methodGet "/" [("Accept-Profile", "unkown")] ""
 
         let def = r ^? key "definitions" . key "table"
 

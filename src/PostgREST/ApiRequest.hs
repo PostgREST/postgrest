@@ -212,7 +212,7 @@ userApiRequest confSchemas rootSpec req reqBody
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
-  schema = case lookupHeader "Accept-Version" of
+  schema = case lookupHeader "Accept-Profile" of
              Nothing                   -> head confSchemas
              Just schemaPassedInHeader -> toS schemaPassedInHeader
   target = case path of

@@ -20,7 +20,7 @@ module PostgREST.App (
 
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.HashMap.Strict        as M
-import qualified Data.List                  as L (union)
+import qualified Data.List                  as L (lookup, union)
 import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as H
@@ -152,7 +152,10 @@ app dbStructure proc cols conf apiRequest =
                   return $
                     if contentType == CTSingularJSON && queryTotal /= 1
                       then errorResponseFor . singularityError $ queryTotal
-                      else responseLBS status headers rBody
+                      else responseLBS status (
+                        case L.lookup "accept-profile" $ iHeaders apiRequest of
+                          Just profile -> ("Content-Profile", toS profile) : headers
+                          Nothing      -> headers ) rBody
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
