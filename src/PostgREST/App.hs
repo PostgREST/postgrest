@@ -153,8 +153,8 @@ app dbStructure proc cols conf apiRequest =
                     if contentType == CTSingularJSON && queryTotal /= 1
                       then errorResponseFor . singularityError $ queryTotal
                       else responseLBS status (
-                        case L.lookup "accept-profile" $ iHeaders apiRequest of
-                          Just profile -> ("Content-Profile", toS profile) : headers
+                        case maybeProfile $ iHeaders apiRequest of
+                          Just profile -> contentProfileH profile : headers
                           Nothing      -> headers ) rBody
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
@@ -416,3 +416,9 @@ locationH tName fields =
 contentLocationH :: TableName -> ByteString -> Header
 contentLocationH tName qString =
   ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)
+
+maybeProfile :: [(Text, Text)] -> Maybe Text
+maybeProfile headers = L.lookup "accept-profile" headers
+
+contentProfileH :: Text -> Header
+contentProfileH value = ("Content-Profile", toS value)
