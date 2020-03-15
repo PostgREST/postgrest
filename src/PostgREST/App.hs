@@ -418,7 +418,7 @@ contentLocationH tName qString =
   ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)
 
 maybeProfile :: [(Text, Text)] -> Maybe Text
-maybeProfile headers = L.lookup "accept-profile" headers
+maybeProfile = L.lookup "accept-profile"
 
 contentProfileH :: Text -> Header
 contentProfileH value = ("Content-Profile", toS value)
