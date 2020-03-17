@@ -126,6 +126,7 @@ These are recipes that'll help you address specific use-cases.
 
 - :doc:`how-tos/casting-type-to-custom-json`
 - :doc:`how-tos/embedding-table-from-another-schema`
+- :doc:`how-tos/providing-images-for-img`
 
 Topic guides
 ------------
