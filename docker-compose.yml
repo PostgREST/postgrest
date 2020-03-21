@@ -1,0 +1,30 @@
+version: "3.6"
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: test/Dockerfile.test
+    depends_on:
+      - postgres
+    working_dir: /root/postgrest
+    volumes:
+      - ./:/root/postgrest
+      - stack-linux:/root/.stack
+      - stack-work:/root/postgrest/.stack-work
+    command: bash -c "POSTGREST_TEST_CONNECTION=$$(test/create_test_db 'postgres://postgres:postgres@postgres' test_db) stack test"
+
+  postgres:
+    image: postgres:11
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+volumes:
+  postgres:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  stack-linux:
+  stack-work:
