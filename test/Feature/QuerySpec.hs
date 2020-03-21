@@ -331,6 +331,12 @@ spec actualPgVersion = do
         [json|[{"id":1,"always_true":true}]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "overloaded computed columns are found #1" $
+      get "/items?select=computed_overload" `shouldRespondWith` 200
+
+    it "overloaded computed columns are found #2" $
+      get "/items2?select=computed_overload" `shouldRespondWith` 200
+
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $
         get "/consumers_view?select=*,orders_view(*)" `shouldRespondWith` 200

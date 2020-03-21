@@ -107,7 +107,19 @@ CREATE TABLE items (
     id bigserial primary key
 );
 
+CREATE TABLE items2 (
+    id bigserial primary key
+);
+
 CREATE FUNCTION always_true(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT true $$;
+
+CREATE FUNCTION computed_overload(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT true $$;
+
+CREATE FUNCTION computed_overload(test.items2) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
 
