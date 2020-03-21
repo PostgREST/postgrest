@@ -275,7 +275,7 @@ readOptions = do
           |
           |## choose a secret, JSON Web Key (or set) to enable JWT auth
           |## (use "@filename" to load from separate file)
-          |# jwt-secret = "foo"
+          |# jwt-secret = "secret_with_at_least_32_characters"
           |# secret-is-base64 = false
           |# jwt-aud = "your_audience_claim"
           |
