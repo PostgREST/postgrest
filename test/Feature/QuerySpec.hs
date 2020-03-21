@@ -237,7 +237,6 @@ spec actualPgVersion = do
         [json| [{"myId":1}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
         [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
@@ -325,6 +324,11 @@ spec actualPgVersion = do
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "computed columns are returned" $
+      get "/items?id=eq.1&select=id,always_true" `shouldRespondWith`
+        [json|[{"id":1,"always_true":true}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     describe "view embedding" $ do
