@@ -326,16 +326,29 @@ spec actualPgVersion = do
         [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "computed columns are returned" $
-      get "/items?id=eq.1&select=id,always_true" `shouldRespondWith`
-        [json|[{"id":1,"always_true":true}]|]
-        { matchHeaders = [matchContentTypeJson] }
+    describe "computed columns" $ do
+      it "computed column on table" $
+        get "/items?id=eq.1&select=id,always_true" `shouldRespondWith`
+          [json|[{"id":1,"always_true":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "overloaded computed columns are found #1" $
-      get "/items?select=computed_overload" `shouldRespondWith` 200
+      it "computed column on rpc" $
+        get "/rpc/search?id=1&select=id,always_true" `shouldRespondWith`
+          [json|[{"id":1,"always_true":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
-    it "overloaded computed columns are found #2" $
-      get "/items2?select=computed_overload" `shouldRespondWith` 200
+      it "overloaded computed columns on both tables" $ do
+        get "/items?id=eq.1&select=id,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/items2?id=eq.1&select=id,computed_overload" `shouldRespondWith`
+          [json|[]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "overloaded computed column on rpc" $
+        get "/rpc/search?id=1&select=computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $

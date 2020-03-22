@@ -13,6 +13,7 @@ SET search_path = test, "تست", pg_catalog;
 
 GRANT ALL ON TABLE
     items
+    , items2
     , "articleStars"
     , articles
     , auto_incrementing_pk

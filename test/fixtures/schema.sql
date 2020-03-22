@@ -111,6 +111,12 @@ CREATE TABLE items2 (
     id bigserial primary key
 );
 
+CREATE FUNCTION search(id BIGINT) RETURNS SETOF items
+    LANGUAGE plpgsql
+    AS $$BEGIN
+        RETURN QUERY SELECT items.id FROM items WHERE items.id=search.id;
+    END$$;
+
 CREATE FUNCTION always_true(test.items) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
