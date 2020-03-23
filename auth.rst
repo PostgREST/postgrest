@@ -60,6 +60,8 @@ You can use row-level security to flexibly restrict visibility and access for th
     message_subject VARCHAR(64) NOT NULL,
     message_body    TEXT
   );
+  
+  ALTER TABLE chat ENABLE ROW LEVEL SECURITY;
 
 We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
 
@@ -95,7 +97,7 @@ SQL code can access claims through GUC variables set by PostgREST per request. F
 
   current_setting('request.jwt.claim.email', true)
 
-This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user.  The second 'true' argument tells current_setting to return NULL if the setting is missing from the current configuration.
+This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user. The second 'true' argument tells current_setting to return NULL if the setting is missing from the current configuration.
 
 Hybrid User-Group Roles
 ~~~~~~~~~~~~~~~~~~~~~~~
