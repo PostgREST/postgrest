@@ -4,12 +4,12 @@ services:
   test:
     build:
       context: .
-      dockerfile: test/Dockerfile.test
+      dockerfile: Dockerfile.test
     depends_on:
       - postgres
     working_dir: /root/postgrest
     volumes:
-      - ./:/root/postgrest
+      - ../:/root/postgrest
       - stack-linux:/root/.stack
       - stack-work:/root/postgrest/.stack-work
     command: bash -c "POSTGREST_TEST_CONNECTION=$$(test/create_test_db 'postgres://postgres:postgres@postgres' test_db) stack test"
