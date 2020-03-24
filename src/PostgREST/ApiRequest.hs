@@ -97,7 +97,7 @@ data ApiRequest = ApiRequest {
   , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
-  , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in https://www.w3.org/TR/dx-prof-conneg/.
+  , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
   , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
   }
 
@@ -216,12 +216,15 @@ userApiRequest confSchemas rootSpec req reqBody
       _         -> ActionInspect{isHead=False}
 
   defaultSchema = head confSchemas
-  profile =
-    if length confSchemas > 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
-    then Just $ case lookupHeader "Accept-Profile" of
-      Nothing                   -> head confSchemas
-      Just schemaPassedInHeader -> toS schemaPassedInHeader
-    else Nothing
+  profile
+    | length confSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
+      = Nothing
+    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
+      = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
+    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead, ActionInvoke InvPost,
+                     ActionInspect False, ActionInspect True, ActionInfo]
+      = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
+    | otherwise = Nothing
   schema = fromMaybe defaultSchema profile
   target = case path of
     []            -> case rootSpec of
