@@ -160,7 +160,7 @@ analyzeTable dbConn tableName =
 
 loadFixture :: Text -> FilePath -> IO()
 loadFixture dbConn name =
-  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-f", "test/fixtures/" ++ name ++ ".sql"] []
+  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-q", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
