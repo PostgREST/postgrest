@@ -26,7 +26,7 @@ spec =
         ]|]
         {
           matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
         }
 
     it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $

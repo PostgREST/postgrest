@@ -185,6 +185,9 @@ matchHeader name valRegex headers =
 noBlankHeader :: [Header] -> Bool
 noBlankHeader = notElem mempty
 
+noProfileHeader :: [Header] -> Bool
+noProfileHeader headers = isNothing $ find ((== "Content-Profile") . fst) headers
+
 authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
   (hAuthorization, "Basic " <> (toS . B64.encode . toS $ u <> ":" <> p))

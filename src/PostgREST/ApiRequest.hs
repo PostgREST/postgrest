@@ -97,13 +97,14 @@ data ApiRequest = ApiRequest {
   , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
-  , iSchema               :: Schema                           -- ^ The request schema, it can be specified with the `Accept-Version` header
+  , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in https://www.w3.org/TR/dx-prof-conneg/.
+  , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
   }
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: NonEmpty Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest confSchemas rootSpec req reqBody
-  | schema `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
+  | isJust profile && fromJust profile `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -140,6 +141,7 @@ userApiRequest confSchemas rootSpec req reqBody
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
+      , iProfile = profile
       , iSchema = schema
       }
  where
@@ -212,9 +214,15 @@ userApiRequest confSchemas rootSpec req reqBody
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
-  schema = case lookupHeader "Accept-Profile" of
-             Nothing                   -> head confSchemas
-             Just schemaPassedInHeader -> toS schemaPassedInHeader
+
+  defaultSchema = head confSchemas
+  profile =
+    if length confSchemas > 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
+    then Just $ case lookupHeader "Accept-Profile" of
+      Nothing                   -> head confSchemas
+      Just schemaPassedInHeader -> toS schemaPassedInHeader
+    else Nothing
+  schema = fromMaybe defaultSchema profile
   target = case path of
     []            -> case rootSpec of
                        Just pName -> TargetProc (QualifiedIdentifier schema pName) True

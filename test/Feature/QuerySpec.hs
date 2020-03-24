@@ -874,3 +874,9 @@ spec actualPgVersion = do
          {"site":"hub.docker.com", "link":{"url":"http://postgrest.org/en/v6.0/admin.html"}}
         ]|]
         { matchHeaders = [matchContentTypeJson] }
+
+  it "shouldn't produce a Content-Profile header since only a single schema is exposed" $ do
+    r <- get "/items"
+    liftIO $ do
+      let respHeaders = simpleHeaders r
+      respHeaders `shouldSatisfy` noProfileHeader

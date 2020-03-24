@@ -20,7 +20,7 @@ module PostgREST.App (
 
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.HashMap.Strict        as M
-import qualified Data.List                  as L (lookup, union)
+import qualified Data.List                  as L (union)
 import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as H
@@ -145,17 +145,15 @@ app dbStructure proc cols conf apiRequest =
                                                     else pure tableTotal
                               | otherwise      -> pure tableTotal
                   let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total
-                      headers = addHeadersIfNotIncluded
-                                [toHeader contentType, contentRange, contentLocationH tName (iCanonicalQS apiRequest)]
+                      headers = addHeadersIfNotIncluded (catMaybes [
+                                  Just $ toHeader contentType, Just contentRange,
+                                  Just $ contentLocationH tName (iCanonicalQS apiRequest), profileH])
                                 (unwrapGucHeader <$> ghdrs)
                       rBody = if headersOnly then mempty else toS body
                   return $
                     if contentType == CTSingularJSON && queryTotal /= 1
                       then errorResponseFor . singularityError $ queryTotal
-                      else responseLBS status (
-                        case maybeProfile $ iHeaders apiRequest of
-                          Just profile -> contentProfileH profile : headers
-                          Nothing      -> headers ) rBody
+                      else responseLBS status headers rBody
 
         (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
@@ -346,6 +344,7 @@ app dbStructure proc cols conf apiRequest =
         topLevelRange = iTopLevelRange apiRequest
         returnsScalar = maybe False procReturnsScalar proc
         pgVer = pgVersion dbStructure
+        profileH = contentProfileH <$> iProfile apiRequest
 
         readSqlParts s t =
           let
@@ -417,8 +416,6 @@ contentLocationH :: TableName -> ByteString -> Header
 contentLocationH tName qString =
   ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)
 
-maybeProfile :: [(Text, Text)] -> Maybe Text
-maybeProfile = L.lookup "accept-profile"
-
-contentProfileH :: Text -> Header
-contentProfileH value = ("Content-Profile", toS value)
+contentProfileH :: Schema -> Header
+contentProfileH schema =
+   ("Content-Profile", toS schema)
