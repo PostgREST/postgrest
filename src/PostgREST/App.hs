@@ -169,19 +169,18 @@ app dbStructure proc cols conf apiRequest =
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right ghdrs -> do
                   let
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
-                                          then (Just $ toHeader contentType, toS body)
-                                          else (Nothing, mempty)
-                    headers = addHeadersIfNotIncluded (catMaybes [
+                    (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then ([Just $ toHeader contentType, profileH], toS body)
+                                          else ([], mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes ([
                           if null fields
                             then Nothing
                             else Just $ locationH tName fields
-                        , ctHeader
                         , Just $ contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                         , if null pkCols && isNothing (iOnConflict apiRequest)
                             then Nothing
                             else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
-                        ]) (unwrapGucHeader <$> ghdrs)
+                        ] ++ ctHeaders)) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn

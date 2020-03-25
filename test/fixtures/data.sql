@@ -573,14 +573,11 @@ INSERT INTO activities(id, schedule_id, camera_id) VALUES(2, 3, 'CAM-123');
 TRUNCATE TABLE unit_workdays CASCADE;
 INSERT INTO unit_workdays VALUES(1, '2019-12-02', 1, 1, 2, 3);
 
--- Data for Name: table; Type: TABLE DATA; Schema: v1; Owner: -
-TRUNCATE TABLE v1.table CASCADE;
-INSERT INTO v1.table VALUES(1, 'value1'), (2, 'value2');
+TRUNCATE TABLE v1.parents CASCADE;
+INSERT INTO v1.parents VALUES(1, 'parent v1-1'), (2, 'parent v1-2');
 
--- Data for Name: table; Type: TABLE DATA; Schema: v2; Owner: -
-TRUNCATE TABLE v2.table CASCADE;
-INSERT INTO v2.table VALUES(1, 'value3'), (2, 'value4');
+TRUNCATE TABLE v2.parents CASCADE;
+INSERT INTO v2.parents VALUES(3, 'parent v2-3'), (4, 'parent v2-4');
 
--- Data for Name: another_table; Type: TABLE DATA; Schema: v2; Owner: -
 TRUNCATE TABLE v2.another_table CASCADE;
-INSERT INTO v2.another_table VALUES(1, 'value5'), (2, 'value6');
+INSERT INTO v2.another_table VALUES(5, 'value 5'), (6, 'value 6');

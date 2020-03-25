@@ -1697,14 +1697,26 @@ create table loc_test (
 );
 
 -- tables to test multi schema access in one instance
-create table v1.table (
+create table v1.parents (
   id    int primary key
-, value text
+, name text
 );
 
-create table v2.table (
+create table v1.childs (
+  id       serial primary key
+, name    text
+, table_id int references v1.parents(id)
+);
+
+create table v2.parents (
   id    int primary key
-, value text
+, name text
+);
+
+create table v2.childs (
+  id    serial primary key
+, name text
+, table_id int references v2.parents(id)
 );
 
 create table v2.another_table (

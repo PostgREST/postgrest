@@ -6,7 +6,7 @@ import Data.Aeson.QQ
 
 import Network.HTTP.Types
 import Network.Wai        (Application)
-import Network.Wai.Test   (simpleBody, SResponse (simpleHeaders))
+import Network.Wai.Test   (SResponse (simpleHeaders), simpleBody)
 
 import Test.Hspec
 import Test.Hspec.Wai
@@ -18,60 +18,99 @@ import SpecHelper
 spec :: SpecWith ((), Application)
 spec =
   describe "multiple schemas in single instance" $ do
-    it "succeeds in reading table from default schema v1 if no schema is selected via header" $
-      request methodGet "/table" [] "" `shouldRespondWith`
-        [json|[
-          {"id":1,"value":"value1"},
-          {"id":2,"value":"value2"}
-        ]|]
-        {
-          matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
-        }
+    context "Reading tables on different schemas" $ do
+      it "succeeds in reading table from default schema v1 if no schema is selected via header" $
+        request methodGet "/parents" [] "" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":"parent v1-1"},
+            {"id":2,"name":"parent v1-2"}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
 
-    it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $
-      request methodGet "/table" [("Accept-Profile", "v1")] "" `shouldRespondWith`
-        [json|[
-          {"id":1,"value":"value1"},
-          {"id":2,"value":"value2"}
-        ]|]
-        {
-          matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
-        }
+      it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $
+        request methodGet "/parents" [("Accept-Profile", "v1")] "" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":"parent v1-1"},
+            {"id":2,"name":"parent v1-2"}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
 
-    it "succeeds in reading table from schema v2" $
-      request methodGet "/table" [("Accept-Profile", "v2")] "" `shouldRespondWith`
-        [json|[
-          {"id":1,"value":"value3"},
-          {"id":2,"value":"value4"}
-        ]|]
-        {
-          matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-        }
+      it "succeeds in reading table from schema v2" $
+        request methodGet "/parents" [("Accept-Profile", "v2")] "" `shouldRespondWith`
+          [json|[
+            {"id":3,"name":"parent v2-3"},
+            {"id":4,"name":"parent v2-4"}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
 
-    it "succeeds in reading another_table from schema v2" $
-      request methodGet "/another_table" [("Accept-Profile", "v2")] "" `shouldRespondWith`
-        [json|[
-          {"id":1,"another_value":"value5"},
-          {"id":2,"another_value":"value6"}
-        ]|]
-        {
-          matchStatus = 200
-        , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-        }
+      it "succeeds in reading another_table from schema v2" $
+        request methodGet "/another_table" [("Accept-Profile", "v2")] "" `shouldRespondWith`
+          [json|[
+            {"id":5,"another_value":"value 5"},
+            {"id":6,"another_value":"value 6"}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
 
-    it "doesn't find another_table in schema v1" $
-      request methodGet "/another_table" [("Accept-Profile", "v1")] "" `shouldRespondWith` 404
+      it "doesn't find another_table in schema v1" $
+        request methodGet "/another_table" [("Accept-Profile", "v1")] "" `shouldRespondWith` 404
 
-    it "fails trying to read table from unkown schema" $
-      request methodGet "/table" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-        [json|{"message":"The schema must be one of the following: v1, v2"}|]
-        {
-          matchStatus = 406
-        , matchHeaders = []
-        }
+      it "fails trying to read table from unkown schema" $
+        request methodGet "/parents" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
+          [json|{"message":"The schema must be one of the following: v1, v2"}|]
+          {
+            matchStatus = 406
+          }
+
+    context "Modifying tables on different schemas" $ do
+      it "succeeds inserting on default schema and returning it" $
+        request methodPost "/childs" [("Prefer", "return=representation")] [json|{"name": "child 1", "table_id": 1}|]
+         `shouldRespondWith`
+         [json|[{"id":1, "name": "child 1", "table_id": 1}]|]
+         {
+           matchStatus = 201
+         , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+         }
+
+      it "succeeds inserting on the v1 schema and returning its parent" $
+        request methodPost "/childs?select=id,parents(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
+          [json|{"name": "child 2", "table_id": 2}|]
+          `shouldRespondWith`
+          [json|[{"id":2, "parents": {"id": 2, "name": "parent v1-2"}}]|]
+          {
+            matchStatus = 201
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
+
+      it "succeeds inserting on the v2 schema and returning its parent" $
+        request methodPost "/childs?select=id,parents(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
+          [json|{"name": "child 3", "table_id": 3}|]
+          `shouldRespondWith`
+          [json|[{"id":1, "parents": {"id": 3, "name": "parent v2-3"}}]|]
+          {
+            matchStatus = 201
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
+      it "fails when inserting on an unknown schema" $
+        request methodPost "/childs" [("Content-Profile", "unknown")]
+          [json|{"name": "child 4", "table_id": 4}|]
+          `shouldRespondWith`
+          [json|{"message":"The schema must be one of the following: v1, v2"}|]
+          {
+            matchStatus = 406
+          }
 
     context "OpenAPI output" $ do
       it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do
@@ -80,7 +119,7 @@ spec =
           liftIO $ do
             simpleHeaders r `shouldSatisfy` matchHeader "Content-Profile" "v1"
 
-            let def = simpleBody r ^? key "definitions" . key "table"
+            let def = simpleBody r ^? key "definitions" . key "parents"
 
             def `shouldBe` Just
                 [aesonQQ|
@@ -92,7 +131,7 @@ spec =
                         "format" : "integer",
                         "type" : "integer"
                       },
-                      "value" : {
+                      "name" : {
                         "format" : "text",
                         "type" : "string"
                       }
@@ -109,7 +148,7 @@ spec =
           liftIO $ do
             simpleHeaders r `shouldSatisfy` matchHeader "Content-Profile" "v1"
 
-            let def = simpleBody r ^? key "definitions" . key "table"
+            let def = simpleBody r ^? key "definitions" . key "parents"
 
             def `shouldBe` Just
                 [aesonQQ|
@@ -121,7 +160,7 @@ spec =
                         "format" : "integer",
                         "type" : "integer"
                       },
-                      "value" : {
+                      "name" : {
                         "format" : "text",
                         "type" : "string"
                       }
@@ -138,7 +177,7 @@ spec =
           liftIO $ do
             simpleHeaders r `shouldSatisfy` matchHeader "Content-Profile" "v2"
 
-            let def = simpleBody r ^? key "definitions" . key "table"
+            let def = simpleBody r ^? key "definitions" . key "parents"
 
             def `shouldBe` Just
                 [aesonQQ|
@@ -150,7 +189,7 @@ spec =
                         "format" : "integer",
                         "type" : "integer"
                       },
-                      "value" : {
+                      "name" : {
                         "format" : "text",
                         "type" : "string"
                       }
@@ -197,10 +236,9 @@ spec =
           let def = simpleBody r ^? key "definitions" . key "another_table"
           def `shouldBe` Nothing
 
-      it "fails trying to read definitions from unkown schema" $ do
+      it "fails trying to read definitions from unkown schema" $
         request methodGet "/" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
           [json|{"message":"The schema must be one of the following: v1, v2"}|]
           {
             matchStatus = 406
-          , matchHeaders = []
           }
