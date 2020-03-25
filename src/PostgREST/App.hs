@@ -330,7 +330,7 @@ app dbStructure proc cols conf apiRequest =
             H.statement tSchema accessibleTables <*>
             H.statement tSchema schemaDescription <*>
             H.statement tSchema accessibleProcs
-          return $ responseLBS status200 [toHeader CTOpenAPI] (if headersOnly then mempty else toS body)
+          return $ responseLBS status200 (catMaybes [Just $ toHeader CTOpenAPI, profileH]) (if headersOnly then mempty else toS body)
 
         _ -> return notFound
 
