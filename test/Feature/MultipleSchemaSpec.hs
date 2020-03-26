@@ -112,14 +112,46 @@ spec =
             matchStatus = 406
           }
 
+    context "calling procs on different schemas" $ do
+      it "succeeds in calling the default schema proc" $
+        request methodGet "/rpc/get_parents_below?id=6" [] ""
+          `shouldRespondWith`
+          [json|[{"id":1,"name":"parent v1-1"}, {"id":2,"name":"parent v1-2"}]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
+
+      it "succeeds in calling the v1 schema proc and embedding" $
+        request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v1")] ""
+          `shouldRespondWith`
+          [json| [
+            {"id":1,"name":"parent v1-1","childs":[{"id":1,"name":"child 1"}]},
+            {"id":2,"name":"parent v1-2","childs":[{"id":2,"name":"child 2"}]}] |]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
+
+      it "succeeds in calling the v2 schema proc and embedding" $
+        request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v2")] ""
+          `shouldRespondWith`
+          [json| [
+            {"id":3,"name":"parent v2-3","childs":[{"id":1,"name":"child 3"}]},
+            {"id":4,"name":"parent v2-4","childs":[]}] |]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
     context "OpenAPI output" $ do
       it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do
-          r <- request methodGet "/" [] ""
+          req <- request methodGet "/" [] ""
 
           liftIO $ do
-            simpleHeaders r `shouldSatisfy` matchHeader "Content-Profile" "v1"
+            simpleHeaders req `shouldSatisfy` matchHeader "Content-Profile" "v1"
 
-            let def = simpleBody r ^? key "definitions" . key "parents"
+            let def = simpleBody req ^? key "definitions" . key "parents"
 
             def `shouldBe` Just
                 [aesonQQ|

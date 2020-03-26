@@ -1708,6 +1708,11 @@ create table v1.childs (
 , table_id int references v1.parents(id)
 );
 
+create function v1.get_parents_below(id int)
+returns setof v1.parents as $$
+  select * from v1.parents where id < $1;
+$$ language sql;
+
 create table v2.parents (
   id    int primary key
 , name text
@@ -1723,3 +1728,8 @@ create table v2.another_table (
   id            int primary key
 , another_value text
 );
+
+create function v2.get_parents_below(id int)
+returns setof v2.parents as $$
+  select * from v2.parents where id < $1;
+$$ language sql;

@@ -126,13 +126,14 @@ sourceColumnFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
     col2 = findCol s2 t2 c2
     findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
 
-decodeProcs :: HD.Result (M.HashMap Text [ProcDescription])
+decodeProcs :: HD.Result ProcsMap
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addName) <$> HD.rowList tblRow
+  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
   where
-    tblRow = ProcDescription
+    procRow = ProcDescription
               <$> column HD.text
+              <*> column HD.text
               <*> nullableColumn HD.text
               <*> (parseArgs <$> column HD.text)
               <*> (parseRetType
@@ -142,8 +143,8 @@ decodeProcs =
                   <*> column HD.char)
               <*> (parseVolatility <$> column HD.char)
 
-    addName :: ProcDescription -> (Text, ProcDescription)
-    addName pd = (pdName pd, pd)
+    addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
+    addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
     parseArgs :: Text -> [PgArg]
     parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
@@ -176,12 +177,12 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: H.Statement [Schema] (M.HashMap Text [ProcDescription])
+allProcs :: H.Statement [Schema] ProcsMap
 allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs True
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
-accessibleProcs :: H.Statement Schema (M.HashMap Text [ProcDescription])
+accessibleProcs :: H.Statement Schema ProcsMap
 accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
@@ -189,6 +190,7 @@ accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
 procsSqlQuery :: SqlQuery
 procsSqlQuery = [q|
   SELECT
+    pn.nspname as "proc_schema",
     p.proname as "proc_name",
     d.description as "proc_description",
     pg_get_function_arguments(p.oid) as "args",

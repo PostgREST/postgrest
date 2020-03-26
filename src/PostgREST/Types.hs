@@ -2,6 +2,7 @@
 Module      : PostgREST.Types
 Description : PostgREST common types and functions used by the rest of the modules
 -}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.Types where
@@ -105,8 +106,7 @@ data DbStructure = DbStructure {
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
 , dbPrimaryKeys :: [PrimaryKey]
--- ProcDescription is a list because a function can be overloaded
-, dbProcs       :: M.HashMap Text [ProcDescription]
+, dbProcs       :: ProcsMap
 , pgVersion     :: PgVersion
 } deriving (Show, Eq)
 
@@ -132,7 +132,8 @@ data ProcVolatility = Volatile | Stable | Immutable
   deriving (Eq, Show, Ord)
 
 data ProcDescription = ProcDescription {
-  pdName        :: Text
+  pdSchema      :: Schema
+, pdName        :: Text
 , pdDescription :: Maybe Text
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
@@ -141,18 +142,23 @@ data ProcDescription = ProcDescription {
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription name1 des1 args1 rt1 vol1 `compare` ProcDescription name2 des2 args2 rt2 vol2
-    | name1 == name2 && length args1 < length args2  = LT
-    | name1 == name2 && length args1 > length args2  = GT
-    | otherwise = (name1, des1, args1, rt1, vol1) `compare` (name2, des2, args2, rt2, vol2)
+  ProcDescription schema1 name1 des1 args1 rt1 vol1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2
+    | schema1 == schema2 && name1 == name2 && length args1 < length args2  = LT
+    | schema2 == schema2 && name1 == name2 && length args1 > length args2  = GT
+    | otherwise = (schema1, name1, des1, args1, rt1, vol1) `compare` (schema2, name2, des2, args2, rt2, vol2)
+
+-- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
+-- | It uses a HashMap for a faster lookup.
+type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
 
 {-|
   Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
   An overloaded function can have a different volatility or even a different return type.
+  Ideally, handling overloaded functions should be left to pg itself. But we need to know certain proc attributes in advance.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> M.HashMap Text [ProcDescription] -> Maybe ProcDescription
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Maybe ProcDescription
 findProc qi payloadKeys paramsAsSingleObject allProcs =
-  case M.lookup (qiName qi) allProcs of
+  case M.lookup qi allProcs of
     Nothing     -> Nothing
     Just [proc] -> Just proc           -- if it's not an overloaded function then immediately get the ProcDescription
     Just procs  -> find matches procs  -- Handle overloaded functions case
@@ -254,8 +260,8 @@ data OrderTerm = OrderTerm {
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
 , qiName   :: TableName
-} deriving (Show, Eq, Ord)
-
+} deriving (Show, Eq, Ord, Generic)
+instance Hashable QualifiedIdentifier
 
 -- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
 -- | TODO: missing one-to-one

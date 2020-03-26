@@ -78,7 +78,8 @@ postgrest conf refDbStructure pool getTime worker =
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
-          -- Need to parse ?columns early because findProc needs it to solve overloaded functions
+          -- Need to parse ?columns early because findProc needs it to solve overloaded functions.
+          -- TODO: move this logic to the app function
           let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) req body
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
           case apiReqCols of
@@ -305,7 +306,9 @@ app dbStructure proc cols conf apiRequest =
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right ghdrs -> do
                   let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
-                      headers = addHeadersIfNotIncluded [toHeader contentType, contentRange] (unwrapGucHeader <$> ghdrs)
+                      headers = addHeadersIfNotIncluded
+                        (catMaybes [Just $ toHeader contentType, Just contentRange, profileH])
+                        (unwrapGucHeader <$> ghdrs)
                       rBody = if invMethod == InvHead then mempty else toS body
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
