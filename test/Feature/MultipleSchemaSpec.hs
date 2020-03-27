@@ -73,31 +73,31 @@ spec =
             matchStatus = 406
           }
 
-    context "Modifying tables on different schemas" $ do
+    context "Inserting tables on different schemas" $ do
       it "succeeds inserting on default schema and returning it" $
-        request methodPost "/childs" [("Prefer", "return=representation")] [json|{"name": "child 1", "table_id": 1}|]
+        request methodPost "/childs" [("Prefer", "return=representation")] [json|{"name": "child v1-1", "parent_id": 1}|]
          `shouldRespondWith`
-         [json|[{"id":1, "name": "child 1", "table_id": 1}]|]
+         [json|[{"id":1, "name": "child v1-1", "parent_id": 1}]|]
          {
            matchStatus = 201
          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
          }
 
       it "succeeds inserting on the v1 schema and returning its parent" $
-        request methodPost "/childs?select=id,parents(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
-          [json|{"name": "child 2", "table_id": 2}|]
+        request methodPost "/childs?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
+          [json|{"name": "child v1-2", "parent_id": 2}|]
           `shouldRespondWith`
-          [json|[{"id":2, "parents": {"id": 2, "name": "parent v1-2"}}]|]
+          [json|[{"id":2, "parent": {"id": 2, "name": "parent v1-2"}}]|]
           {
             matchStatus = 201
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
           }
 
       it "succeeds inserting on the v2 schema and returning its parent" $
-        request methodPost "/childs?select=id,parents(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
-          [json|{"name": "child 3", "table_id": 3}|]
+        request methodPost "/childs?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
+          [json|{"name": "child v2-3", "parent_id": 3}|]
           `shouldRespondWith`
-          [json|[{"id":1, "parents": {"id": 3, "name": "parent v2-3"}}]|]
+          [json|[{"id":1, "parent": {"id": 3, "name": "parent v2-3"}}]|]
           {
             matchStatus = 201
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
@@ -105,7 +105,7 @@ spec =
 
       it "fails when inserting on an unknown schema" $
         request methodPost "/childs" [("Content-Profile", "unknown")]
-          [json|{"name": "child 4", "table_id": 4}|]
+          [json|{"name": "child 4", "parent_id": 4}|]
           `shouldRespondWith`
           [json|{"message":"The schema must be one of the following: v1, v2"}|]
           {
@@ -126,8 +126,8 @@ spec =
         request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v1")] ""
           `shouldRespondWith`
           [json| [
-            {"id":1,"name":"parent v1-1","childs":[{"id":1,"name":"child 1"}]},
-            {"id":2,"name":"parent v1-2","childs":[{"id":2,"name":"child 2"}]}] |]
+            {"id":1,"name":"parent v1-1","childs":[{"id":1,"name":"child v1-1"}]},
+            {"id":2,"name":"parent v1-2","childs":[{"id":2,"name":"child v1-2"}]}] |]
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
@@ -137,8 +137,29 @@ spec =
         request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v2")] ""
           `shouldRespondWith`
           [json| [
-            {"id":3,"name":"parent v2-3","childs":[{"id":1,"name":"child 3"}]},
+            {"id":3,"name":"parent v2-3","childs":[{"id":1,"name":"child v2-3"}]},
             {"id":4,"name":"parent v2-4","childs":[]}] |]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
+    context "Modifying tables on different schemas" $ do
+      it "succeeds in patching on the v1 schema and returning its parent" $
+        request methodPatch "/childs?select=name,parent(name)&id=eq.1" [("Content-Profile", "v1"), ("Prefer", "return=representation")]
+          [json|{"name": "child v1-1 updated"}|]
+          `shouldRespondWith`
+          [json|[{"name":"child v1-1 updated", "parent": {"name": "parent v1-1"}}]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+          }
+
+      it "succeeds in patching on the v2 schema and returning its parent" $
+        request methodPatch "/childs?select=name,parent(name)&id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
+          [json|{"name": "child v2-1 updated"}|]
+          `shouldRespondWith`
+          [json|[{"name":"child v2-1 updated", "parent": {"name": "parent v2-3"}}]|]
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]

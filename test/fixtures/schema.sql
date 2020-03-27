@@ -1705,7 +1705,9 @@ create table v1.parents (
 create table v1.childs (
   id       serial primary key
 , name    text
-, table_id int references v1.parents(id)
+, parent_id int
+, constraint parent foreign key(parent_id)
+  references v1.parents(id)
 );
 
 create function v1.get_parents_below(id int)
@@ -1721,7 +1723,9 @@ create table v2.parents (
 create table v2.childs (
   id    serial primary key
 , name text
-, table_id int references v2.parents(id)
+, parent_id int
+, constraint parent foreign key(parent_id)
+  references v2.parents(id)
 );
 
 create table v2.another_table (
