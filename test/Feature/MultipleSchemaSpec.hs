@@ -15,8 +15,10 @@ import Test.Hspec.Wai.JSON
 import Protolude
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+import PostgREST.Types (PgVersion, pgVersion96)
+
+spec :: PgVersion -> SpecWith ((), Application)
+spec actualPgVersion =
   describe "multiple schemas in single instance" $ do
     context "Reading tables on different schemas" $ do
       it "succeeds in reading table from default schema v1 if no schema is selected via header" $
@@ -179,15 +181,16 @@ spec =
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
           }
 
-      it "succeeds on PUT on the v2 schema" $
-        request methodPut "/childs?id=eq.111" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
-          [json| [ { "id": 111, "name": "child v2-111", "parent_id": null } ]|]
-          `shouldRespondWith`
-          [json|[{ "id": 111, "name": "child v2-111", "parent_id": null }]|]
-          {
-            matchStatus = 200
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-          }
+      when (actualPgVersion >= pgVersion96) $
+        it "succeeds on PUT on the v2 schema" $
+          request methodPut "/childs?id=eq.111" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
+            [json| [ { "id": 111, "name": "child v2-111", "parent_id": null } ]|]
+            `shouldRespondWith`
+            [json|[{ "id": 111, "name": "child v2-111", "parent_id": null }]|]
+            {
+              matchStatus = 200
+            , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+            }
 
     context "OpenAPI output" $ do
       it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do

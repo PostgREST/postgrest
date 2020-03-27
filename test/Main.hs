@@ -181,7 +181,7 @@ main = do
 
     -- this test runs with multiple schemas
     before multipleSchemaApp $
-      describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec
+      describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
 
   where
     setupDbStructure pool schemas ver =
