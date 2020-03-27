@@ -98,17 +98,17 @@ jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "13M"
 jsonKeyTest "1M" "POST" "/leak?columns=blob" "13M"
 jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "13M"
 
-jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "40M"
-jsonKeyTest "10M" "POST" "/leak?columns=blob" "40M"
-jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "40M"
+jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "41M"
+jsonKeyTest "10M" "POST" "/leak?columns=blob" "41M"
+jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "41M"
 
-jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "170M"
-jsonKeyTest "50M" "POST" "/leak?columns=blob" "170M"
-jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "170M"
+jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "171M"
+jsonKeyTest "50M" "POST" "/leak?columns=blob" "171M"
+jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "171M"
 
-postJsonArrayTest "1000" "/perf_articles?columns=id,body" "10M"
+postJsonArrayTest "1000" "/perf_articles?columns=id,body" "11M"
 postJsonArrayTest "10000" "/perf_articles?columns=id,body" "11M"
-postJsonArrayTest "100000" "/perf_articles?columns=id,body" "20M"
+postJsonArrayTest "100000" "/perf_articles?columns=id,body" "21M"
 
 cleanUp
 
