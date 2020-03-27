@@ -94,9 +94,9 @@ setUp
 
 echo "Running memory usage tests.."
 
-jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "12M"
+jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "13M"
 jsonKeyTest "1M" "POST" "/leak?columns=blob" "13M"
-jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "12M"
+jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "13M"
 
 jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "40M"
 jsonKeyTest "10M" "POST" "/leak?columns=blob" "40M"

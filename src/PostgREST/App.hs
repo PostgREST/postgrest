@@ -240,7 +240,7 @@ app dbStructure proc cols conf apiRequest =
                 case gucHeaders of
                   Left _ -> return . errorResponseFor $ GucHeadersError
                   Right ghdrs -> do
-                    let headers = addHeadersIfNotIncluded [toHeader contentType] (unwrapGucHeader <$> ghdrs)
+                    let headers = addHeadersIfNotIncluded (catMaybes [Just $ toHeader contentType, profileH]) (unwrapGucHeader <$> ghdrs)
                         (status, rBody) = if iPreferRepresentation apiRequest == Full then (status200, toS body) else (status204, mempty)
                     -- Makes sure the querystring pk matches the payload pk
                     -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted, PUT /items?id=eq.14 { "id" : 2, .. } is rejected
