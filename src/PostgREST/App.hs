@@ -268,10 +268,10 @@ app dbStructure proc cols conf apiRequest =
                   let
                     status = if iPreferRepresentation apiRequest == Full then status200 else status204
                     contentRangeHeader = contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
-                                          then (Just $ toHeader contentType, toS body)
-                                          else (Nothing, mempty)
-                    headers = addHeadersIfNotIncluded (catMaybes [Just contentRangeHeader, ctHeader]) (unwrapGucHeader <$> ghdrs)
+                    (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then ([Just $ toHeader contentType, profileH], toS body)
+                                          else ([], mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes ctHeaders ++ [contentRangeHeader]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON
                      && queryTotal /= 1
                     then do

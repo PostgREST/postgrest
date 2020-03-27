@@ -165,6 +165,20 @@ spec =
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
           }
 
+      it "succeeds on deleting on the v2 schema" $ do
+        request methodDelete "/childs?id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")] ""
+          `shouldRespondWith` [json|[{"id": 1, "name": "child v2-1 updated", "parent_id": 3}]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+        request methodGet "/childs?id=eq.1" [("Accept-Profile", "v2")] ""
+          `shouldRespondWith` "[]"
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
     context "OpenAPI output" $ do
       it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do
           req <- request methodGet "/" [] ""
