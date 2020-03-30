@@ -9,6 +9,8 @@ Community Tutorials
 * `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-in-5-minutes>`_ -
   In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`s_procs` interface.
 
+* `PostgREST + Auth0: Create REST API in mintutes and add social login using Auth0 <https://samkhawase.com/blog/postgrest_introduction/>`_ - A step-by-step tutorial to show how to Dockerize and integrate Auth0 to PostgREST service. 
+
 .. _eco_example_apps:
 
 Example Apps
