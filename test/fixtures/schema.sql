@@ -18,6 +18,8 @@ CREATE SCHEMA private;
 CREATE SCHEMA test;
 CREATE SCHEMA تست;
 CREATE SCHEMA extensions;
+CREATE SCHEMA v1;
+CREATE SCHEMA v2;
 
 --
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
@@ -1693,3 +1695,45 @@ create table loc_test (
   id int primary key
 , c text
 );
+
+-- tables to test multi schema access in one instance
+create table v1.parents (
+  id    int primary key
+, name text
+);
+
+create table v1.childs (
+  id       serial primary key
+, name    text
+, parent_id int
+, constraint parent foreign key(parent_id)
+  references v1.parents(id)
+);
+
+create function v1.get_parents_below(id int)
+returns setof v1.parents as $$
+  select * from v1.parents where id < $1;
+$$ language sql;
+
+create table v2.parents (
+  id    int primary key
+, name text
+);
+
+create table v2.childs (
+  id    serial primary key
+, name text
+, parent_id int
+, constraint parent foreign key(parent_id)
+  references v2.parents(id)
+);
+
+create table v2.another_table (
+  id            int primary key
+, another_value text
+);
+
+create function v2.get_parents_below(id int)
+returns setof v2.parents as $$
+  select * from v2.parents where id < $1;
+$$ language sql;

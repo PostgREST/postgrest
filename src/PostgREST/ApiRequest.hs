@@ -28,7 +28,8 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (last, lookup, partition)
+import Data.List                 (elem, last, lookup, partition)
+import Data.List.NonEmpty        (NonEmpty, head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
@@ -48,7 +49,7 @@ import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
 import PostgREST.Types
-import Protolude
+import Protolude            hiding (head)
 
 type RequestBody = BL.ByteString
 
@@ -96,11 +97,14 @@ data ApiRequest = ApiRequest {
   , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
+  , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
+  , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest schema rootSpec req reqBody
+userApiRequest :: NonEmpty Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest confSchemas rootSpec req reqBody
+  | isJust profile && fromJust profile `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -137,6 +141,8 @@ userApiRequest schema rootSpec req reqBody
       , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
+      , iProfile = profile
+      , iSchema = schema
       }
  where
   -- queryString with '+' converted to ' '(space)
@@ -208,6 +214,18 @@ userApiRequest schema rootSpec req reqBody
       "DELETE"  -> ActionDelete
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
+
+  defaultSchema = head confSchemas
+  profile
+    | length confSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
+      = Nothing
+    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
+      = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
+    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead, ActionInvoke InvPost,
+                     ActionInspect False, ActionInspect True, ActionInfo]
+      = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
+    | otherwise = Nothing
+  schema = fromMaybe defaultSchema profile
   target = case path of
     []            -> case rootSpec of
                        Just pName -> TargetProc (QualifiedIdentifier schema pName) True

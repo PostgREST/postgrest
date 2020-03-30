@@ -7,7 +7,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Types (PgVersion, pgVersion112)
+import PostgREST.Types (PgVersion, pgVersion112, pgVersion121)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -26,7 +26,12 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
-        `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
+        `shouldRespondWith` (
+        if actualPgVersion >= pgVersion121 then
+        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"baz\""} |]
+        else
+        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
+                            )
         { matchStatus  = 400 , matchHeaders = [] }
 
     it "obtains a json subfield two levels (string)" $
