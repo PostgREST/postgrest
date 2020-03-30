@@ -20,3 +20,6 @@ element = HD.element . HD.nonNullable
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
+
+arrayParam :: HE.Value a -> HE.Params [a]
+arrayParam = param . HE.array . HE.dimension foldl' . HE.element . HE.nonNullable

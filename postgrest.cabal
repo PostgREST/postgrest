@@ -148,6 +148,7 @@ test-suite spec
                       Feature.UpsertSpec
                       Feature.RawOutputTypesSpec
                       Feature.HtmlRawOutputSpec
+                      Feature.MultipleSchemaSpec
                       SpecHelper
                       TestTypes
   hs-source-dirs:     test

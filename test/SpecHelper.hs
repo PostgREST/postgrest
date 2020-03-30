@@ -11,6 +11,7 @@ import Control.Monad        (void)
 import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..))
 import Data.List            (lookup)
+import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.Environment   (getEnv)
 import System.Process       (readProcess)
@@ -63,7 +64,7 @@ getEnvVarWithDefault var def = toS <$>
 
 _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
-  AppConfig mempty "postgrest_test_anonymous" Nothing "test" "localhost" 3000
+  AppConfig mempty "postgrest_test_anonymous" Nothing (fromList ["test"]) "localhost" 3000
             -- No user configured Unix Socket
             Nothing
             -- No user configured Unix Socket file mode (defaults to 660)
@@ -93,7 +94,7 @@ testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
-testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchema = "تست" }
+testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["تست"] }
 
 testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
@@ -127,7 +128,7 @@ testCfgAsymJWKSet testDbConn = (testCfg testDbConn) {
   }
 
 testNonexistentSchemaCfg :: Text -> AppConfig
-testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchema = "nonexistent" }
+testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["nonexistent"] }
 
 testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
@@ -140,6 +141,9 @@ testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = [
 
 testCfgResponseHeaders :: Text -> AppConfig
 testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just "custom_headers" }
+
+testMultipleSchemaCfg :: Text -> AppConfig
+testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["v1", "v2"] }
 
 setupDb :: Text -> IO ()
 setupDb dbConn = do
@@ -180,6 +184,9 @@ matchHeader name valRegex headers =
 
 noBlankHeader :: [Header] -> Bool
 noBlankHeader = notElem mempty
+
+noProfileHeader :: [Header] -> Bool
+noProfileHeader headers = isNothing $ find ((== "Content-Profile") . fst) headers
 
 authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
