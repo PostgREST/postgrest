@@ -1,4 +1,7 @@
-FROM debian:stretch-slim
+# To build use:
+# docker build --build-arg POSTGREST_VERSION=<v5.2.0 or another version> -t postgrest ./docker/
+
+FROM debian:buster-slim
 
 ARG POSTGREST_VERSION
 
