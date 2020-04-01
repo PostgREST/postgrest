@@ -30,9 +30,11 @@ Added
    + Allow overriding provided headers(Content-Type, Location, etc) by :ref:`guc_resp_hdrs`
    + Access to the ``Authorization`` header value through ``request.header.authorization``
 
-* Documentation reference for :ref:`s_proc_embed`.
+* Documentation improvements
 
-* Documentation reference for :ref:`mutation_embed`.
+  + Reference for :ref:`s_proc_embed`.
+  + Reference for :ref:`mutation_embed`.
+  + Reference for filters on :ref:`json_columns`.
 
 Fixed
 -----

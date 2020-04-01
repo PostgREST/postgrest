@@ -190,6 +190,8 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
     {"full_name": "Jane Doe", "salary": "120000.00"}
   ]
 
+.. _json_columns:
+
 JSON Columns
 ~~~~~~~~~~~~
 
@@ -204,7 +206,16 @@ You can specify a path for a ``json`` or ``jsonb`` column using the arrow operat
     { "id": 2, "blood_type": "O+", "phones": [{"country_code": "43", "number": "512-446-4988"}, {"country_code": "43", "number": "213-891-5979"}] }
   ]
 
-That also works with filters:
+.. code-block:: http
+
+  GET /people?select=id,json_data->phones->0->>number HTTP/1.1
+
+  [
+    { "id": 1, "number": "917-929-5745"},
+    { "id": 2, "number": "512-446-4988"}
+  ]
+
+This also works with filters:
 
 .. code-block:: http
 
@@ -214,6 +225,18 @@ That also works with filters:
     { "id": 1, "blood_type": "A-" },
     { "id": 3, "blood_type": "A-" },
     { "id": 7, "blood_type": "A-" }
+  ]
+
+Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with an integer value use ``->``:
+
+.. code-block:: http
+
+  GET /people?select=id,json_data->age&json_data->age=gt.20 HTTP/1.1
+
+  [
+    { "id": 11, "age": 25 },
+    { "id": 12, "age": 30 },
+    { "id": 15, "age": 35 }
   ]
 
 .. _computed_cols:
