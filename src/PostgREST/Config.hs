@@ -75,7 +75,7 @@ data AppConfig = AppConfig {
   , configSchemas           :: NonEmpty Text
   , configHost              :: Text
   , configPort              :: Int
-  , configSocket            :: Maybe Text
+  , configSocket            :: Maybe FilePath
   , configSocketMode        :: Either Text FileMode
 
   , configJwtSecret         :: Maybe B.ByteString
@@ -159,7 +159,7 @@ readOptions = do
         <*> (fromList . splitOnCommas <$> reqValue "db-schema")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
-        <*> optString "server-unix-socket"
+        <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> (fromMaybe False <$> optBool "secret-is-base64")
