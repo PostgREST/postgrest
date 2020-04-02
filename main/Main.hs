@@ -16,24 +16,13 @@ import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
-import Data.Text                (pack, replace, strip, stripPrefix,
-                                 unpack)
+import Data.Text                (pack, replace, strip, stripPrefix)
 import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
 import Data.Text.IO             (hPutStrLn, readFile)
 import Data.Time.Clock          (getCurrentTime)
-import Network.Socket           (Family (AF_UNIX),
-                                 SockAddr (SockAddrUnix), Socket,
-                                 SocketType (Stream), bind, close,
-                                 defaultProtocol, listen,
-                                 maxListenQueue, socket)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
-                                 runSettingsSocket, setHost, setPort,
-                                 setServerName)
-import System.Directory         (removeFile)
+                                 setHost, setPort, setServerName)
 import System.IO                (BufferMode (..), hSetBuffering)
-import System.IO.Error          (isDoesNotExistError)
-import System.Posix.Files       (setFileMode)
-import System.Posix.Types       (FileMode)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
@@ -50,7 +39,9 @@ import Protolude             hiding (hPutStrLn, head, replace)
 
 #ifndef mingw32_HOST_OS
 import System.Posix.Signals
+import UnixSocket
 #endif
+
 
 {-|
   The purpose of this worker is to fill the refDbStructure created in 'main'
@@ -188,7 +179,6 @@ main = do
   whenLeft roleClaimKey $
     panic $ show roleClaimKey
 
-  --
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (configPool conf, configPoolTimeout' conf, pgSettings)
@@ -251,19 +241,17 @@ main = do
              schemas
              refDbStructure
              refIsWorkerOn)
-    in case maybeSocketAddr of
-         Nothing -> do
-             -- run the postgrest application
-             putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
-             runSettings appSettings postgrestApplication
-         Just socketAddr -> do
-             -- run postgrest application with user defined socket
-             sock <- createAndBindSocket (unpack socketAddr) (rightToMaybe socketFileMode)
-             listen sock maxListenQueue
-             putStrLn $ ("Listening on unix socket " :: Text) <> show socketAddr
-             runSettingsSocket appSettings sock postgrestApplication
-             -- clean socket up when done
-             close sock
+
+  -- run the postgrest application with user defined socket. Only for UNIX systems.
+#ifndef mingw32_HOST_OS
+  whenJust maybeSocketAddr $
+    runAppInSocket appSettings postgrestApplication socketFileMode
+#endif
+
+  -- run the postgrest application
+  whenNothing maybeSocketAddr $ do
+    putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
+    runSettings appSettings postgrestApplication
 
 {-|
   The purpose of this function is to load the JWT secret from a file if
@@ -332,15 +320,11 @@ loadDbUriFile conf = extractDbUri mDbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDatabase = dbUri}
 
-createAndBindSocket :: FilePath -> Maybe FileMode -> IO Socket
-createAndBindSocket socketFilePath maybeSocketFileMode = do
-  deleteSocketFileIfExist socketFilePath
-  sock <- socket AF_UNIX Stream defaultProtocol
-  bind sock $ SockAddrUnix socketFilePath
-  mapM_ (setFileMode socketFilePath) maybeSocketFileMode
-  return sock
-  where
-    deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist
-    handleDoesNotExist e
-      | isDoesNotExistError e = return ()
-      | otherwise = throwIO e
+-- Utilitarian functions.
+whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
+whenJust (Just x) f = f x
+whenJust Nothing _  = pass
+
+whenNothing :: Applicative f => Maybe a -> f () -> f ()
+whenNothing Nothing f = f
+whenNothing _       _ = pass
