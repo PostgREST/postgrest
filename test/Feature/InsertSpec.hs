@@ -561,7 +561,7 @@ spec actualPgVersion = do
         , matchHeaders = [ matchContentTypeJson , "Location" <:> "/web_content?id=eq.6" ]
         }
 
-    it "embeds childs after update" $
+    it "embeds children after update" $
       request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]
@@ -573,7 +573,7 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds parent, childs and grandchilds after update" $
+    it "embeds parent, children and grandchildren after update" $
       request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched-2"}|]
@@ -594,7 +594,7 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds childs after update without explicitly including the id in the ?select" $
+    it "embeds children after update without explicitly including the id in the ?select" $
       request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]

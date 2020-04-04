@@ -505,18 +505,18 @@ spec actualPgVersion = do
               "designTasks":[ ] }
           ]|] { matchHeaders = [matchContentTypeJson] }
 
-      it "works with two aliased childs embeds plus and/or" $
-        get "/entities?select=id,childs:child_entities(id,gChilds:grandchild_entities(id))&childs.and=(id.in.(1,2,3))&childs.gChilds.or=(id.eq.1,id.eq.2)" `shouldRespondWith`
+      it "works with two aliased children embeds plus and/or" $
+        get "/entities?select=id,children:child_entities(id,gChildren:grandchild_entities(id))&children.and=(id.in.(1,2,3))&children.gChildren.or=(id.eq.1,id.eq.2)" `shouldRespondWith`
           [json|[
             { "id":1,
-              "childs":[
-                {"id":1,"gChilds":[{"id":1}, {"id":2}]},
-                {"id":2,"gChilds":[]}]},
+              "children":[
+                {"id":1,"gChildren":[{"id":1}, {"id":2}]},
+                {"id":2,"gChildren":[]}]},
             { "id":2,
-              "childs":[
-                {"id":3,"gChilds":[]}]},
-            { "id":3,"childs":[]},
-            { "id":4,"childs":[]}
+              "children":[
+                {"id":3,"gChildren":[]}]},
+            { "id":3,"children":[]},
+            { "id":4,"children":[]}
           ]|] { matchHeaders = [matchContentTypeJson] }
 
   describe "ordering response" $ do
