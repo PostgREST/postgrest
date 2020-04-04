@@ -183,7 +183,13 @@ specifiedProcArgs keys proc =
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
   ProcDescription{pdReturnType = (Single (Scalar _))} -> True
+  ProcDescription{pdReturnType = (SetOf  (Scalar _))} -> True
   _                                                   -> False
+
+procReturnsSingle :: ProcDescription -> Bool
+procReturnsSingle proc = case proc of
+  ProcDescription{pdReturnType = (Single _)} -> True
+  _                                          -> False
 
 procTableName :: ProcDescription -> Maybe TableName
 procTableName proc = case pdReturnType proc of

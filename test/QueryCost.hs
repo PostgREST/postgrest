@@ -29,33 +29,33 @@ main = do
     context "call proc query" $ do
       it "should not exceed cost when calling setof composite proc" $ do
         cost <- exec pool [str| {"id": 3} |] $
-          requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False Nothing
+          requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False False Nothing
         liftIO $
           cost `shouldSatisfy` (< Just 40)
 
       it "should not exceed cost when calling setof composite proc with empty params" $ do
         cost <- exec pool mempty $
-          requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] False Nothing
+          requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] False False Nothing
         liftIO $
           cost `shouldSatisfy` (< Just 30)
 
       it "should not exceed cost when calling scalar proc" $ do
         cost <- exec pool [str| {"a": 3, "b": 4} |] $
-          requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True Nothing
+          requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True True Nothing
         liftIO $
           cost `shouldSatisfy` (< Just 10)
 
       context "params=multiple-objects" $ do
         it "should not exceed cost when calling setof composite proc" $ do
           cost <- exec pool [str| [{"id": 1}, {"id": 4}] |] $
-            requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False (Just MultipleObjects)
+            requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False False (Just MultipleObjects)
           liftIO $ do
             cost `shouldSatisfy` (> Just 2000)
             cost `shouldSatisfy` (< Just 2100)
 
         it "should not exceed cost when calling scalar proc" $ do
           cost <- exec pool [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |] $
-            requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True Nothing
+            requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [PgArg "a" "int" True, PgArg "b" "int" True] True True Nothing
           liftIO $
             cost `shouldSatisfy` (< Just 10)
 

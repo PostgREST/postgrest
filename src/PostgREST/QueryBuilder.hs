@@ -113,8 +113,8 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
     returningF mainQi returnings
     ]
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> SqlQuery
-requestToCallProcQuery qi pgArgs returnsScalar preferParams =
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Bool -> Maybe PreferParameters -> SqlQuery
+requestToCallProcQuery qi pgArgs returnsScalar returnsSingle preferParams =
   unwords [
     "WITH",
     argsCTE,
@@ -143,13 +143,13 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
     sourceBody :: SqlFragment
     sourceBody
       | paramsAsMultipleObjects =
-          if returnsScalar
+          if returnsScalar && returnsSingle
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
             else unwords [ "SELECT pgrst_lat_args.*"
                          , "FROM pgrst_args,"
                          , "LATERAL ( SELECT * FROM " <> callIt <> " ) pgrst_lat_args" ]
       | otherwise =
-          if returnsScalar
+          if returnsScalar && returnsSingle
             then "SELECT " <> callIt <> " AS pgrst_scalar"
             else "SELECT * FROM " <> callIt
 

@@ -296,8 +296,8 @@ app dbStructure proc cols conf apiRequest =
             Right (q, cq, bField) -> do
               let
                 preferParams = iPreferParameters apiRequest
-                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams
-                stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
+                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar returnsSingle preferParams
+                stm = callProcStatement returnsScalar returnsSingle pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
               row <- H.statement (toS $ pjRaw pJson) stm
@@ -345,6 +345,7 @@ app dbStructure proc cols conf apiRequest =
         shouldCount = exactCount || estimatedCount
         topLevelRange = iTopLevelRange apiRequest
         returnsScalar = maybe False procReturnsScalar proc
+        returnsSingle = maybe False procReturnsSingle proc
         pgVer = pgVersion dbStructure
         profileH = contentProfileH <$> iProfile apiRequest
 
@@ -355,7 +356,7 @@ app dbStructure proc cols conf apiRequest =
           (,,) <$>
           (readRequestToQuery <$> readReq) <*>
           (readRequestToCountQuery <$> readReq) <*>
-          (binaryField contentType rawContentTypes returnsScalar =<< readReq)
+          (binaryField contentType rawContentTypes returnsScalar returnsSingle =<< readReq)
 
         mutateSqlParts s t =
           let
@@ -390,9 +391,9 @@ responseContentTypeOrError accepts rawContentTypes action target = serves conten
   | If raw(binary) output is requested, check that ContentType is one of the admitted rawContentTypes and that
   | `?select=...` contains only one field other than `*`
 -}
-binaryField :: ContentType -> [ContentType] -> Bool -> ReadRequest -> Either Response (Maybe FieldName)
-binaryField ct rawContentTypes isScalarProc readReq
-  | isScalarProc = Right Nothing
+binaryField :: ContentType -> [ContentType] -> Bool -> Bool -> ReadRequest -> Either Response (Maybe FieldName)
+binaryField ct rawContentTypes isScalarProc isSingleProc readReq
+  | isScalarProc && isSingleProc = Right Nothing
   | ct `elem` rawContentTypes =
       let fieldName = headMay fldNames in
       if length fldNames == 1 && fieldName /= Just "*"
