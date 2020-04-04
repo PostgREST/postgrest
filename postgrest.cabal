@@ -1,5 +1,5 @@
 name:               postgrest
-version:            6.0.2
+version:            7.0.0
 synopsis:           REST API for any Postgres database
 description:        Reads the schema of a PostgreSQL database and creates RESTful routes
                     for the tables and views, supporting all HTTP verbs that security
@@ -107,6 +107,7 @@ executable postgrest
                     , retry             >= 0.7.4 && < 0.9
                     , text              >= 1.2.2 && < 1.3
                     , time              >= 1.6 && < 1.10
+                    , wai               >= 3.2.1 && < 3.3
                     , warp              >= 3.2.12 && < 3.4
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
@@ -116,6 +117,7 @@ executable postgrest
 
   if !os(windows)
     build-depends: unix
+    other-modules: UnixSocket
 
 test-suite spec
   type:               exitcode-stdio-1.0
@@ -148,6 +150,7 @@ test-suite spec
                       Feature.UpsertSpec
                       Feature.RawOutputTypesSpec
                       Feature.HtmlRawOutputSpec
+                      Feature.MultipleSchemaSpec
                       SpecHelper
                       TestTypes
   hs-source-dirs:     test
