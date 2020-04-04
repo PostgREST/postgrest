@@ -78,8 +78,9 @@ postgrest conf refDbStructure pool getTime worker =
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
-          -- Need to parse ?columns early because findProc needs it to solve overloaded functions
-          let apiReq = userApiRequest (configSchema conf) (configRootSpec conf) req body
+          -- Need to parse ?columns early because findProc needs it to solve overloaded functions.
+          -- TODO: move this logic to the app function
+          let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) req body
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns =<< iColumns <$> apiReq)
           case apiReqCols of
             Left err -> return . errorResponseFor $ err
@@ -145,8 +146,9 @@ app dbStructure proc cols conf apiRequest =
                                                     else pure tableTotal
                               | otherwise      -> pure tableTotal
                   let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total
-                      headers = addHeadersIfNotIncluded
-                                [toHeader contentType, contentRange, contentLocationH tName (iCanonicalQS apiRequest)]
+                      headers = addHeadersIfNotIncluded (catMaybes [
+                                  Just $ toHeader contentType, Just contentRange,
+                                  Just $ contentLocationH tName (iCanonicalQS apiRequest), profileH])
                                 (unwrapGucHeader <$> ghdrs)
                       rBody = if headersOnly then mempty else toS body
                   return $
@@ -168,19 +170,18 @@ app dbStructure proc cols conf apiRequest =
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right ghdrs -> do
                   let
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
-                                          then (Just $ toHeader contentType, toS body)
-                                          else (Nothing, mempty)
-                    headers = addHeadersIfNotIncluded (catMaybes [
+                    (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then ([Just $ toHeader contentType, profileH], toS body)
+                                          else ([], mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes ([
                           if null fields
                             then Nothing
                             else Just $ locationH tName fields
-                        , ctHeader
                         , Just $ contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                         , if null pkCols && isNothing (iOnConflict apiRequest)
                             then Nothing
                             else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
-                        ]) (unwrapGucHeader <$> ghdrs)
+                        ] ++ ctHeaders)) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn
@@ -206,10 +207,10 @@ app dbStructure proc cols conf apiRequest =
                            | iPreferRepresentation apiRequest == Full = status200
                            | otherwise                                = status204
                     contentRangeHeader = contentRangeH 0 (queryTotal - 1) $ if shouldCount then Just queryTotal else Nothing
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
-                                          then (Just $ toHeader contentType, toS body)
-                                          else (Nothing, mempty)
-                    headers = addHeadersIfNotIncluded (catMaybes [Just contentRangeHeader, ctHeader]) (unwrapGucHeader <$> ghdrs)
+                    (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then ([Just $ toHeader contentType, profileH], toS body)
+                                          else ([], mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes ctHeaders ++ [contentRangeHeader]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
                       HT.condemn
@@ -239,7 +240,7 @@ app dbStructure proc cols conf apiRequest =
                 case gucHeaders of
                   Left _ -> return . errorResponseFor $ GucHeadersError
                   Right ghdrs -> do
-                    let headers = addHeadersIfNotIncluded [toHeader contentType] (unwrapGucHeader <$> ghdrs)
+                    let headers = addHeadersIfNotIncluded (catMaybes [Just $ toHeader contentType, profileH]) (unwrapGucHeader <$> ghdrs)
                         (status, rBody) = if iPreferRepresentation apiRequest == Full then (status200, toS body) else (status204, mempty)
                     -- Makes sure the querystring pk matches the payload pk
                     -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted, PUT /items?id=eq.14 { "id" : 2, .. } is rejected
@@ -267,10 +268,10 @@ app dbStructure proc cols conf apiRequest =
                   let
                     status = if iPreferRepresentation apiRequest == Full then status200 else status204
                     contentRangeHeader = contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
-                    (ctHeader, rBody) = if iPreferRepresentation apiRequest == Full
-                                          then (Just $ toHeader contentType, toS body)
-                                          else (Nothing, mempty)
-                    headers = addHeadersIfNotIncluded (catMaybes [Just contentRangeHeader, ctHeader]) (unwrapGucHeader <$> ghdrs)
+                    (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
+                                          then ([Just $ toHeader contentType, profileH], toS body)
+                                          else ([], mempty)
+                    headers = addHeadersIfNotIncluded (catMaybes ctHeaders ++ [contentRangeHeader]) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON
                      && queryTotal /= 1
                     then do
@@ -305,7 +306,9 @@ app dbStructure proc cols conf apiRequest =
                 Left _ -> return . errorResponseFor $ GucHeadersError
                 Right ghdrs -> do
                   let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
-                      headers = addHeadersIfNotIncluded [toHeader contentType, contentRange] (unwrapGucHeader <$> ghdrs)
+                      headers = addHeadersIfNotIncluded
+                        (catMaybes [Just $ toHeader contentType, Just contentRange, profileH])
+                        (unwrapGucHeader <$> ghdrs)
                       rBody = if invMethod == InvHead then mempty else toS body
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do
@@ -329,7 +332,7 @@ app dbStructure proc cols conf apiRequest =
             H.statement tSchema accessibleTables <*>
             H.statement tSchema schemaDescription <*>
             H.statement tSchema accessibleProcs
-          return $ responseLBS status200 [toHeader CTOpenAPI] (if headersOnly then mempty else toS body)
+          return $ responseLBS status200 (catMaybes [Just $ toHeader CTOpenAPI, profileH]) (if headersOnly then mempty else toS body)
 
         _ -> return notFound
 
@@ -343,6 +346,7 @@ app dbStructure proc cols conf apiRequest =
         topLevelRange = iTopLevelRange apiRequest
         returnsScalar = maybe False procReturnsScalar proc
         pgVer = pgVersion dbStructure
+        profileH = contentProfileH <$> iProfile apiRequest
 
         readSqlParts s t =
           let
@@ -413,3 +417,7 @@ locationH tName fields =
 contentLocationH :: TableName -> ByteString -> Header
 contentLocationH tName qString =
   ("Content-Location", "/" <> toS tName <> if BS.null qString then mempty else "?" <> toS qString)
+
+contentProfileH :: Schema -> Header
+contentProfileH schema =
+   ("Content-Profile", toS schema)
