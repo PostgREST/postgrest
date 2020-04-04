@@ -530,6 +530,9 @@ pgVersion121 = PgVersion 120001 "12.1"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
+nestedRecordName :: SqlFragment
+nestedRecordName = "pgrst_record"
+
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"

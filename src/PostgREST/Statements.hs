@@ -68,7 +68,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
   bodyF
     | rep `elem` [None, HeadersOnly] = "''"
-    | asCsv = asCsvF
+    | asCsv = asCsvF sourceCTEName
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF
 
@@ -96,7 +96,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
   (countCTEF, countResultF) = countF countQuery countTotal
 
   bodyF
-    | asCsv = asCsvF
+    | asCsv = asCsvF sourceCTEName
     | isSingle = asJsonSingleF
     | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF
@@ -138,9 +138,12 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
     bodyF
      | returnsScalar && returnsSingle = scalarBodyF
      | isSingle     = asJsonSingleF
-     | asCsv = asCsvF
+     | asCsv = asCsvF nestedHeader 
      | isJust binaryField = asBinaryF $ fromJust binaryField
      | otherwise = asJsonF
+     where
+      nestedHeader :: SqlFragment
+      nestedHeader = "(SELECT (" <> nestedRecordName <> ").* FROM " <> sourceCTEName <> ")"
 
     scalarBodyF
      | asBinary    = asBinaryF "pgrst_scalar"

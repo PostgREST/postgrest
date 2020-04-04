@@ -60,15 +60,15 @@ pgFmtLit x =
 pgFmtIdent :: SqlFragment -> SqlFragment
 pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
 
-asCsvF :: SqlFragment
-asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
+asCsvF :: SqlFragment -> SqlFragment
+asCsvF headerFrom = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
     asCsvHeaderF =
       "(SELECT coalesce(string_agg(a.k, ','), '')" <>
       "  FROM (" <>
       "    SELECT json_object_keys(r)::TEXT as k" <>
       "    FROM ( " <>
-      "      SELECT row_to_json(hh) as r from " <> sourceCTEName <> " as hh limit 1" <>
+      "      SELECT row_to_json(hh) as r from " <> headerFrom <> " as hh limit 1" <>
       "    ) s" <>
       "  ) a" <>
       ")"
@@ -92,10 +92,13 @@ locationF pKeys = [qc|(
 )|]
 
 fromQi :: QualifiedIdentifier -> SqlFragment
-fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
+fromQi t 
+  | n == nestedRecordName = "(" <> sn <> ")" -- all references to {nestedRecordName} reference a record column and need to be wrapped in brackets, otherwise postgres would look for a table named {nestedRecordName}
+  | otherwise          = sn
   where
     n = qiName t
     s = qiSchema t
+    sn = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
 
 emptyOnFalse :: Text -> Bool -> Text
 emptyOnFalse val cond = if cond then "" else val

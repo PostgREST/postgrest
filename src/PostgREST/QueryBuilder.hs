@@ -47,7 +47,9 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     ]
   where
     implJs = fromQi <$> implJoins
-    tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
+    tabl
+      | qiName mainQi == nestedRecordName = pgFmtIdent sourceCTEName -- for the nested record case, we still need the sourceCTEName in FROM, so override this here
+      | otherwise                         = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
     qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
@@ -142,19 +144,21 @@ requestToCallProcQuery qi pgArgs returnsScalar returnsSingle preferParams =
 
     sourceBody :: SqlFragment
     sourceBody
-      | paramsAsMultipleObjects =
-          if returnsScalar && returnsSingle
-            then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
-            else unwords [ "SELECT pgrst_lat_args.*"
-                         , "FROM pgrst_args,"
-                         , "LATERAL ( SELECT * FROM " <> callIt <> " ) pgrst_lat_args" ]
-      | otherwise =
-          if returnsScalar && returnsSingle
-            then "SELECT " <> callIt <> " AS pgrst_scalar"
-            else "SELECT * FROM " <> callIt
-
-    callIt :: SqlFragment
-    callIt = fromQi qi <> "(" <> args <> ")"
+      | paramsAsMultipleObjects && returnsSingle && returnsScalar = "SELECT " <> nrn <> " FROM (SELECT " <> call <> " AS pgrst_scalar FROM pgrst_args) AS " <> nrn
+      | paramsAsMultipleObjects && returnsSingle                  = "SELECT " <> call <> " AS " <> nrn <> " FROM pgrst_args"
+      | paramsAsMultipleObjects && returnsScalar                  = unwords [ "SELECT pgrst_lat_args.*"
+                                                                      , "FROM pgrst_args,"
+                                                                      , "LATERAL ( SELECT " <> nrn <> " FROM (SELECT * FROM " <> call <> ") AS " <> nrn <> ") pgrst_lat_args" ]
+      | paramsAsMultipleObjects                                   = unwords [ "SELECT pgrst_lat_args.*"
+                                                                      , "FROM pgrst_args,"
+                                                                      , "LATERAL ( SELECT " <> nrn <> " FROM " <> call <> " AS " <> nrn <> ") pgrst_lat_args" ]
+      | returnsSingle && returnsScalar = "SELECT " <> nrn <> " FROM (SELECT " <> call <> " AS pgrst_scalar) AS " <> nrn
+      | returnsSingle                  = "SELECT " <> call <> " AS " <> nrn
+      | returnsScalar                  = "SELECT " <> nrn <> " FROM (SELECT * FROM " <> call <> ") AS " <> nrn
+      | otherwise                      = "SELECT " <> nrn <> " FROM " <> call <> " AS " <> nrn
+      where
+        call = fromQi qi <> "(" <> args <> ")"
+        nrn = pgFmtIdent nestedRecordName
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.
@@ -163,11 +167,15 @@ requestToCallProcQuery qi pgArgs returnsScalar returnsSingle preferParams =
 -- inside the FROM target.
 readRequestToCountQuery :: ReadRequest -> SqlQuery
 readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
- unwords [
-   "SELECT 1",
-   "FROM " <> fromQi qi,
-   ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
-   ]
+  unwords [
+    "SELECT 1",
+    "FROM " <> table,
+    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
+    ]
+  where
+    table
+      | qiName qi == nestedRecordName = pgFmtIdent sourceCTEName -- for the nested record case, we still need the sourceCTEName in FROM, so override this here
+      | otherwise                     = fromQi qi
 
 limitedQuery :: SqlQuery -> Maybe Integer -> SqlQuery
 limitedQuery query maxRows = query <> maybe mempty (\x -> " LIMIT " <> show x) maxRows

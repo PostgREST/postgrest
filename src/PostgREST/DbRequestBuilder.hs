@@ -50,16 +50,19 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
 -- Get the root table name with its relationships according to the Action type.
 -- This is done because of the shape of the final SQL Query. The mutation cases are wrapped in a WITH {sourceCTEName}(see Statements.hs).
 -- So we need a FROM {sourceCTEName} instead of FROM {tableName}.
+-- procedure calls use {sourceCTEName}.{nestedRecordName} to access the record column inside the CTE (the FROM part is corrected in QueryBuilder.readRequestToQuery and QueryBuilder.readRequestToCountQuery)
 rootWithRels :: Schema -> TableName -> [Relation] -> Action -> (QualifiedIdentifier, [Relation])
 rootWithRels schema rootTableName allRels action = case action of
-  ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
-  _            -> (QualifiedIdentifier mempty sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
+  ActionRead   _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
+  ActionInvoke _ -> (QualifiedIdentifier sourceCTEName nestedRecordName, mapMaybe toSourceRel allRels ++ allRels) -- calling proc
+  _              -> (QualifiedIdentifier mempty sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases
   where
     -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
-    -- with {sourceCTEName}. This way findRel can find relationships with sourceCTEName.
+    -- with {sourceCTEName} or {nestedRecordName}. This way findRel can find relationships with sourceCTEName/nestedRecordName.
+    name = case action of ActionInvoke _ -> nestedRecordName; _ -> sourceCTEName
     toSourceRel :: Relation -> Maybe Relation
     toSourceRel r@Relation{relTable=t}
-      | rootTableName == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+      | rootTableName == tableName t = Just $ r {relTable=t {tableName=name}}
       | otherwise                    = Nothing
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
@@ -223,8 +226,9 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
     -- On mutation and calling proc cases we wrap the target table in a WITH {sourceCTEName}
     -- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
     -- `FROM "{sourceCTEName}"`. If the schema remains the FROM would be invalid.
+    -- For calling proc this is the case for `FROM "schema"."{nestedRecordName}"`
     removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
-    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then mempty else schema) tbl
+    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName || tbl == nestedRecordName then mempty else schema) tbl
 
 addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
 addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
