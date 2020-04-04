@@ -186,8 +186,8 @@ countF :: SqlQuery -> Bool -> (SqlFragment, SqlFragment)
 countF countQuery shouldCount =
   if shouldCount
     then (
-        ", pg_source_count AS (" <> countQuery <> ")"
-      , "(SELECT pg_catalog.count(*) FROM pg_source_count)" )
+        ", pgrst_source_count AS (" <> countQuery <> ")"
+      , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)" )
     else (
         mempty
       , "null::bigint")
