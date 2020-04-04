@@ -346,7 +346,7 @@ spec actualPgVersion = do
           { matchHeaders = [matchContentTypeJson] }
 
       it "overloaded computed column on rpc" $
-        get "/rpc/search?id=1&select=computed_overload" `shouldRespondWith`
+        get "/rpc/search?id=1&select=id,computed_overload" `shouldRespondWith`
           [json|[{"id":1,"computed_overload":true}]|]
           { matchHeaders = [matchContentTypeJson] }
 
