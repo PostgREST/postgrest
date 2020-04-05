@@ -464,17 +464,40 @@ spec actualPgVersion = do
               matchHeaders = []
             }
 
-      it "can provide a representation" $ do
-        _ <- post "/items"
-          [json| { id: 1 } |]
-        request methodPatch
-          "/items?id=eq.1"
-          [("Prefer", "return=representation")]
-          [json| { id: 99 } |]
-          `shouldRespondWith` [json| [{id:99}] |]
-          { matchHeaders = [matchContentTypeJson] }
-        -- put value back for other tests
-        void $ request methodPatch "/items?id=eq.99" [] [json| { "id":1 } |]
+      context "with representation requested" $ do
+        it "can provide a representation" $ do
+          _ <- post "/items"
+            [json| { id: 1 } |]
+          request methodPatch
+            "/items?id=eq.1"
+            [("Prefer", "return=representation")]
+            [json| { id: 99 } |]
+            `shouldRespondWith` [json| [{id:99}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          -- put value back for other tests
+          void $ request methodPatch "/items?id=eq.99" [] [json| { "id":1 } |]
+
+        it "can return computed columns" $
+          request methodPatch
+            "/items?id=eq.1&select=id,always_true"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, always_true: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can select overloaded computed columns" $ do
+          request methodPatch
+            "/items?id=eq.1&select=id,computed_overload"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
+          request methodPatch
+            "/items2?id=eq.1&select=id,computed_overload"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "makes no updates and returns 204, when patching with an empty json object/array" $ do
         request methodPatch "/items" [] [json| {} |]
