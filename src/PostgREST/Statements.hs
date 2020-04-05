@@ -138,7 +138,7 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
     bodyF
      | returnsScalar && returnsSingle = scalarBodyF
      | isSingle     = asJsonSingleF
-     | asCsv = asCsvF nestedHeader 
+     | asCsv = asCsvF nestedHeader
      | isJust binaryField = asBinaryF $ fromJust binaryField
      | otherwise = asJsonF
      where

@@ -92,7 +92,7 @@ locationF pKeys = [qc|(
 )|]
 
 fromQi :: QualifiedIdentifier -> SqlFragment
-fromQi t 
+fromQi t
   | n == nestedRecordName = "(" <> sn <> ")" -- all references to {nestedRecordName} reference a record column and need to be wrapped in brackets, otherwise postgres would look for a table named {nestedRecordName}
   | otherwise          = sn
   where
