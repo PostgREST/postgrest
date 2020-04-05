@@ -14,6 +14,7 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
+, returningCols
 ) where
 
 import qualified Data.HashMap.Strict as M

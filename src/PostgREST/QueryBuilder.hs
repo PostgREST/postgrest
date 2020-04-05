@@ -113,8 +113,8 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
     returningF mainQi returnings
     ]
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> SqlQuery
-requestToCallProcQuery qi pgArgs returnsScalar preferParams =
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> [FieldName] -> SqlQuery
+requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
   unwords [
     "WITH",
     argsCTE,
@@ -147,14 +147,19 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
             else unwords [ "SELECT pgrst_lat_args.*"
                          , "FROM pgrst_args,"
-                         , "LATERAL ( SELECT * FROM " <> callIt <> " ) pgrst_lat_args" ]
+                         , "LATERAL ( SELECT " <> returned_columns <> " FROM " <> callIt <> " ) pgrst_lat_args" ]
       | otherwise =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar"
-            else "SELECT * FROM " <> callIt
+            else "SELECT " <> returned_columns <> " FROM " <> callIt
 
     callIt :: SqlFragment
     callIt = fromQi qi <> "(" <> args <> ")"
+
+    returned_columns :: SqlFragment
+    returned_columns
+      | null returnings = "*"
+      | otherwise       = intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.
