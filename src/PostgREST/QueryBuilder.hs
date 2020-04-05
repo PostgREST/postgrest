@@ -94,7 +94,9 @@ mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
     cols = intercalate ", " $ pgFmtIdent <$> S.toList iCols
 mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
   if S.null uCols
-    then "WITH " <> ignoredBody <> "SELECT null WHERE false" -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
+    -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
+    -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
+    then "WITH " <> ignoredBody <> "SELECT * FROM " <> fromQi mainQi <> " WHERE false"
     else
       unwords [
         "WITH " <> normalizedBody,
