@@ -14,6 +14,7 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 module PostgREST.DbRequestBuilder (
   readRequest
 , mutateRequest
+, returningCols
 ) where
 
 import qualified Data.HashMap.Strict as M
@@ -40,7 +41,7 @@ readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest 
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft errorResponseFor $
   treeRestrictRange maxRows =<<
-  augumentRequestWithJoin schema rootRels =<<
+  augmentRequestWithJoin schema rootRels =<<
   addFiltersOrdersRanges apiRequest <*>
   (initReadRequest rootName <$> pRequestSelect sel)
   where
@@ -89,8 +90,8 @@ treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augumentRequestWithJoin :: Schema -> [Relation] -> ReadRequest -> Either ApiRequestError ReadRequest
-augumentRequestWithJoin schema allRels request =
+augmentRequestWithJoin :: Schema -> [Relation] -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin schema allRels request =
   addRels schema allRels Nothing request
   >>= addJoinConditions Nothing
 

@@ -208,6 +208,35 @@ SELECT pg_catalog.setval('items_id_seq', 15, true);
 
 
 --
+-- Data for Name: items2; Type: TABLE DATA; Schema: test; Owner: -
+--
+
+TRUNCATE TABLE items2 CASCADE;
+INSERT INTO items2 VALUES (1);
+INSERT INTO items2 VALUES (2);
+INSERT INTO items2 VALUES (3);
+INSERT INTO items2 VALUES (4);
+INSERT INTO items2 VALUES (5);
+INSERT INTO items2 VALUES (6);
+INSERT INTO items2 VALUES (7);
+INSERT INTO items2 VALUES (8);
+INSERT INTO items2 VALUES (9);
+INSERT INTO items2 VALUES (10);
+INSERT INTO items2 VALUES (11);
+INSERT INTO items2 VALUES (12);
+INSERT INTO items2 VALUES (13);
+INSERT INTO items2 VALUES (14);
+INSERT INTO items2 VALUES (15);
+
+
+--
+-- Name: items_id_seq; Type: SEQUENCE SET; Schema: test; Owner: -
+--
+
+SELECT pg_catalog.setval('items2_id_seq', 15, true);
+
+
+--
 -- Data for Name: json; Type: TABLE DATA; Schema: test; Owner: -
 --
 

@@ -113,15 +113,15 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
     returningF mainQi returnings
     ]
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> SqlQuery
-requestToCallProcQuery qi pgArgs returnsScalar preferParams =
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> [FieldName] -> SqlQuery
+requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
   unwords [
     "WITH",
     argsCTE,
     sourceBody ]
   where
     paramsAsSingleObject    = preferParams == Just SingleObject
-    paramsAsMulitpleObjects = preferParams == Just MultipleObjects
+    paramsAsMultipleObjects = preferParams == Just MultipleObjects
 
     (argsCTE, args)
       | null pgArgs = (ignoredBody, "")
@@ -132,7 +132,7 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
             "pgrst_args AS (",
               "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (\a -> " " <> pgaType a) <> ")",
             ")"]
-         , if paramsAsMulitpleObjects
+         , if paramsAsMultipleObjects
              then fmtArgs (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
              else fmtArgs (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
         )
@@ -142,19 +142,24 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams =
 
     sourceBody :: SqlFragment
     sourceBody
-      | paramsAsMulitpleObjects =
+      | paramsAsMultipleObjects =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
             else unwords [ "SELECT pgrst_lat_args.*"
                          , "FROM pgrst_args,"
-                         , "LATERAL ( SELECT * FROM " <> callIt <> " ) pgrst_lat_args" ]
+                         , "LATERAL ( SELECT " <> returned_columns <> " FROM " <> callIt <> " ) pgrst_lat_args" ]
       | otherwise =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar"
-            else "SELECT * FROM " <> callIt
+            else "SELECT " <> returned_columns <> " FROM " <> callIt
 
     callIt :: SqlFragment
     callIt = fromQi qi <> "(" <> args <> ")"
+
+    returned_columns :: SqlFragment
+    returned_columns
+      | null returnings = "*"
+      | otherwise       = intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.

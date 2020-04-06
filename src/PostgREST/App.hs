@@ -49,7 +49,8 @@ import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
 import PostgREST.Auth             (containsRole, jwtClaims,
                                    parseSecret)
 import PostgREST.Config           (AppConfig (..))
-import PostgREST.DbRequestBuilder (mutateRequest, readRequest)
+import PostgREST.DbRequestBuilder (mutateRequest, readRequest,
+                                   returningCols)
 import PostgREST.DbStructure
 import PostgREST.Error            (PgError (..), SimpleError (..),
                                    errorResponseFor, singularityError)
@@ -133,7 +134,7 @@ app dbStructure proc cols conf apiRequest =
         (ActionRead headersOnly, TargetIdent (QualifiedIdentifier tSchema tName), Nothing) ->
           case readSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
-            Right (q, cq, bField) -> do
+            Right (q, cq, bField, _) -> do
               let cQuery = if estimatedCount
                              then limitedQuery cq ((+ 1) <$> maxRows) -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
                              else cq
@@ -299,10 +300,10 @@ app dbStructure proc cols conf apiRequest =
           let tName = fromMaybe pName $ procTableName =<< proc in
           case readSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
-            Right (q, cq, bField) -> do
+            Right (q, cq, bField, returning) -> do
               let
                 preferParams = iPreferParameters apiRequest
-                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams
+                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams returning
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
@@ -357,11 +358,14 @@ app dbStructure proc cols conf apiRequest =
         readSqlParts s t =
           let
             readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
+            returnings :: ReadRequest -> Either Response [FieldName]
+            returnings rr = Right (returningCols rr)
           in
-          (,,) <$>
+          (,,,) <$>
           (readRequestToQuery <$> readReq) <*>
           (readRequestToCountQuery <$> readReq) <*>
-          (binaryField contentType rawContentTypes returnsScalar =<< readReq)
+          (binaryField contentType rawContentTypes returnsScalar =<< readReq) <*>
+          (returnings =<< readReq)
 
         mutateSqlParts s t =
           let
