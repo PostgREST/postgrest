@@ -912,16 +912,6 @@ For instance, assume we have created this function in the database.
    SELECT a + b;
   $$ LANGUAGE SQL IMMUTABLE;
 
-The client can call it by posting an object like
-
-.. code-block:: http
-
-  POST /rpc/add_them HTTP/1.1
-
-  { "a": 1, "b": 2 }
-
-  3
-
 .. important::
 
   Whenever you create or change a function you must refresh PostgREST's schema cache. See the section :ref:`schema_reloading`.
@@ -938,25 +928,18 @@ The client can call it by posting an object like
       "message":"function test.add_them(a => text, b => text) does not exist"
      }
 
-You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
-
-.. code-block:: plpgsql
-
-  CREATE FUNCTION mult_them(param json) RETURNS int AS $$
-    SELECT (param->>'x')::int * (param->>'y')::int
-  $$ LANGUAGE SQL;
+The client can call it by posting an object like
 
 .. code-block:: http
 
-  POST /rpc/mult_them HTTP/1.1
-  Prefer: params=single-object
+  POST /rpc/add_them HTTP/1.1
 
-  { "x": 4, "y": 2 }
+  { "a": 1, "b": 2 }
 
-  8
+  3
 
 
-Procedures must be declared with named parameters, procedures declared like:
+Procedures must be declared with named parameters. Procedures declared like:
 
 .. code-block:: plpgsql
 
@@ -971,26 +954,6 @@ Note that PostgreSQL converts identifier names to lowercase unless you quote the
   CREATE FUNCTION "someFunc"("someParam" text) ...
 
 PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
-
-.. note::
-
-  For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you need to quote it as a string:
-
-  .. code-block:: http
-
-    POST /rpc/native_array_func HTTP/1.1
-
-    { "arg": "{1,2,3}" }
-
-  In these versions we recommend using function arguments of type json to accept arrays from the client:
-
-  .. code-block:: http
-
-    POST /rpc/json_array_func HTTP/1.1
-
-    { "arg": [1,2,3] }
-
-  Starting from PostgreSQL 10, a json array from the client gets mapped normally to a PostgreSQL native array.
 
 .. note::
 
@@ -1012,6 +975,66 @@ Because ``add_them`` was declared IMMUTABLE, we can alternately call the functio
   GET /rpc/add_them?a=1&b=2 HTTP/1.1
 
 The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
+
+Calling functions with a single json parameter
+----------------------------------------------
+
+You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION mult_them(param json) RETURNS int AS $$
+    SELECT (param->>'x')::int * (param->>'y')::int
+  $$ LANGUAGE SQL;
+
+.. code-block:: http
+
+  POST /rpc/mult_them HTTP/1.1
+  Prefer: params=single-object
+
+  { "x": 4, "y": 2 }
+
+  8
+
+Calling functions with array parameters
+---------------------------------------
+
+You can call a function that takes an array parameter:
+
+.. code-block:: plpgsql
+
+   CREATE FUNCTION native_array_func(arr int[]) RETURNS int[] as $$
+      SELECT arr;
+   $$ LANGUAGE SQL;
+
+.. code-block:: http
+
+ POST /rpc/native_array_func HTTP/1.1
+
+ { "arg": [1,2,3] }
+
+ [1,2,3]
+
+.. note::
+
+   For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you need to quote it as a string:
+
+   .. code-block:: http
+
+    POST /rpc/native_array_func HTTP/1.1
+
+    { "arg": "{1,2,3}" }
+
+   In these versions we recommend using function parameters of type json to accept arrays from the client.
+
+For calling it with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/11/arrays.html#ARRAYS-INPUT>`_;
+as in ``{1,2,3}``. Note that the curly brackets have to be urlencoded(``{`` is ``%7B`` and ``}`` is ``%7D``).
+
+.. code-block:: http
+
+ GET /rpc/native_array_func?arr=%7B1,2,3%7D' HTTP/1.1
+
+ [1,2,3]
 
 Scalar functions
 ----------------
