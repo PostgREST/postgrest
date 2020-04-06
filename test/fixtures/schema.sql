@@ -109,7 +109,25 @@ CREATE TABLE items (
     id bigserial primary key
 );
 
+CREATE TABLE items2 (
+    id bigserial primary key
+);
+
+CREATE FUNCTION search(id BIGINT) RETURNS SETOF items
+    LANGUAGE plpgsql
+    AS $$BEGIN
+        RETURN QUERY SELECT items.id FROM items WHERE items.id=search.id;
+    END$$;
+
 CREATE FUNCTION always_true(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT true $$;
+
+CREATE FUNCTION computed_overload(test.items) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$ SELECT true $$;
+
+CREATE FUNCTION computed_overload(test.items2) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$ SELECT true $$;
 
@@ -1702,7 +1720,7 @@ create table v1.parents (
 , name text
 );
 
-create table v1.childs (
+create table v1.children (
   id       serial primary key
 , name    text
 , parent_id int
@@ -1720,7 +1738,7 @@ create table v2.parents (
 , name text
 );
 
-create table v2.childs (
+create table v2.children (
   id    serial primary key
 , name text
 , parent_id int
