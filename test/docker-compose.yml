@@ -15,7 +15,7 @@ services:
     command: bash -c "POSTGREST_TEST_CONNECTION=$$(test/create_test_db 'postgres://postgres:postgres@postgres' test_db) stack test"
 
   postgres:
-    image: postgres:11
+    image: postgres:12.2
     environment:
       POSTGRES_PASSWORD: postgres
     volumes:
