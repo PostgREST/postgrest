@@ -48,10 +48,17 @@ spec actualPgVersion = do
           , matchHeaders = [matchContentTypeJson]
           }
 
-      it "ignores &select when using return=minimal" $
-        request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=minimal")]
+      it "ignores &select when return not set or using return=minimal" $ do
+        request methodPost "/menagerie?select=integer,varchar" []
           [json| [{
             "integer": 15, "double": 3.14159, "varchar": "testing!"
+          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
+          , "enum": "foo"
+          }] |] `shouldRespondWith` ""
+          { matchStatus  = 201 }
+        request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=minimal")]
+          [json| [{
+            "integer": 16, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
           }] |] `shouldRespondWith` ""
@@ -549,7 +556,13 @@ spec actualPgVersion = do
             `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
             { matchHeaders = [matchContentTypeJson] }
 
-      it "ignores ?select= when return=minimal" $
+      it "ignores ?select= when return not set or return=minimal" $ do
+        request methodPatch "/items?id=eq.1&select=id" [] [json| { id:1 } |]
+          `shouldRespondWith` ""
+          {
+            matchStatus  = 204,
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
+          }
         request methodPatch "/items?id=eq.1&select=id" [("Prefer", "return=minimal")] [json| { id:1 } |]
           `shouldRespondWith` ""
           {
@@ -612,6 +625,14 @@ spec actualPgVersion = do
 
         it "makes no updates and returns 200 with return=rep and with ?select=" $
           request methodPatch "/items?select=id" [("Prefer", "return=representation")] [json| {} |]
+            `shouldRespondWith` "[]"
+            {
+              matchStatus  = 200,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "makes no updates and returns 200 with return=rep and with ?select= for overloaded computed columns" $
+          request methodPatch "/items?select=id,computed_overload" [("Prefer", "return=representation")] [json| {} |]
             `shouldRespondWith` "[]"
             {
               matchStatus  = 200,

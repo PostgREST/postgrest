@@ -28,7 +28,12 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/1"]
           }
 
-      it "ignores ?select= when return=minimal" $
+      it "ignores ?select= when return not set or return=minimal" $ do
+        request methodDelete "/items?id=eq.3&select=id" [] ""
+          `shouldRespondWith` ""
+          { matchStatus  = 204
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
         request methodDelete "/items?id=eq.3&select=id" [("Prefer", "return=minimal")] ""
           `shouldRespondWith` ""
           { matchStatus  = 204

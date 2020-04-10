@@ -96,7 +96,8 @@ mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
   if S.null uCols
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
-    then "WITH " <> ignoredBody <> "SELECT * FROM " <> fromQi mainQi <> " WHERE false"
+    -- the select has to be based on "returnings" to make computed overloaded functions not throw
+    then "WITH " <> ignoredBody <> "SELECT " <> empty_body_returned_columns <> " FROM " <> fromQi mainQi <> " WHERE false"
     else
       unwords [
         "WITH " <> normalizedBody,
@@ -107,6 +108,10 @@ mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
         ]
   where
     cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
+    empty_body_returned_columns :: SqlFragment
+    empty_body_returned_columns
+      | null returnings = "NULL"
+      | otherwise       = intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
 mutateRequestToQuery (Delete mainQi logicForest returnings) =
   unwords [
     "WITH " <> ignoredBody,
