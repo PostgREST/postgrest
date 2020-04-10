@@ -77,7 +77,7 @@ spec actualPgVersion =
 
     context "Inserting tables on different schemas" $ do
       it "succeeds inserting on default schema and returning it" $
-        request methodPost "/childs" [("Prefer", "return=representation")] [json|{"name": "child v1-1", "parent_id": 1}|]
+        request methodPost "/children" [("Prefer", "return=representation")] [json|{"name": "child v1-1", "parent_id": 1}|]
          `shouldRespondWith`
          [json|[{"id":1, "name": "child v1-1", "parent_id": 1}]|]
          {
@@ -86,7 +86,7 @@ spec actualPgVersion =
          }
 
       it "succeeds inserting on the v1 schema and returning its parent" $
-        request methodPost "/childs?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
+        request methodPost "/children?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
           [json|{"name": "child v1-2", "parent_id": 2}|]
           `shouldRespondWith`
           [json|[{"id":2, "parent": {"id": 2, "name": "parent v1-2"}}]|]
@@ -96,7 +96,7 @@ spec actualPgVersion =
           }
 
       it "succeeds inserting on the v2 schema and returning its parent" $
-        request methodPost "/childs?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
+        request methodPost "/children?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
           [json|{"name": "child v2-3", "parent_id": 3}|]
           `shouldRespondWith`
           [json|[{"id":1, "parent": {"id": 3, "name": "parent v2-3"}}]|]
@@ -106,7 +106,7 @@ spec actualPgVersion =
           }
 
       it "fails when inserting on an unknown schema" $
-        request methodPost "/childs" [("Content-Profile", "unknown")]
+        request methodPost "/children" [("Content-Profile", "unknown")]
           [json|{"name": "child 4", "parent_id": 4}|]
           `shouldRespondWith`
           [json|{"message":"The schema must be one of the following: v1, v2"}|]
@@ -125,22 +125,22 @@ spec actualPgVersion =
           }
 
       it "succeeds in calling the v1 schema proc and embedding" $
-        request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v1")] ""
+        request methodGet "/rpc/get_parents_below?id=6&select=id,name,children(id,name)" [("Accept-Profile", "v1")] ""
           `shouldRespondWith`
           [json| [
-            {"id":1,"name":"parent v1-1","childs":[{"id":1,"name":"child v1-1"}]},
-            {"id":2,"name":"parent v1-2","childs":[{"id":2,"name":"child v1-2"}]}] |]
+            {"id":1,"name":"parent v1-1","children":[{"id":1,"name":"child v1-1"}]},
+            {"id":2,"name":"parent v1-2","children":[{"id":2,"name":"child v1-2"}]}] |]
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
           }
 
       it "succeeds in calling the v2 schema proc and embedding" $
-        request methodGet "/rpc/get_parents_below?id=6&select=id,name,childs(id,name)" [("Accept-Profile", "v2")] ""
+        request methodGet "/rpc/get_parents_below?id=6&select=id,name,children(id,name)" [("Accept-Profile", "v2")] ""
           `shouldRespondWith`
           [json| [
-            {"id":3,"name":"parent v2-3","childs":[{"id":1,"name":"child v2-3"}]},
-            {"id":4,"name":"parent v2-4","childs":[]}] |]
+            {"id":3,"name":"parent v2-3","children":[{"id":1,"name":"child v2-3"}]},
+            {"id":4,"name":"parent v2-4","children":[]}] |]
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
@@ -148,7 +148,7 @@ spec actualPgVersion =
 
     context "Modifying tables on different schemas" $ do
       it "succeeds in patching on the v1 schema and returning its parent" $
-        request methodPatch "/childs?select=name,parent(name)&id=eq.1" [("Content-Profile", "v1"), ("Prefer", "return=representation")]
+        request methodPatch "/children?select=name,parent(name)&id=eq.1" [("Content-Profile", "v1"), ("Prefer", "return=representation")]
           [json|{"name": "child v1-1 updated"}|]
           `shouldRespondWith`
           [json|[{"name":"child v1-1 updated", "parent": {"name": "parent v1-1"}}]|]
@@ -158,7 +158,7 @@ spec actualPgVersion =
           }
 
       it "succeeds in patching on the v2 schema and returning its parent" $
-        request methodPatch "/childs?select=name,parent(name)&id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
+        request methodPatch "/children?select=name,parent(name)&id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
           [json|{"name": "child v2-1 updated"}|]
           `shouldRespondWith`
           [json|[{"name":"child v2-1 updated", "parent": {"name": "parent v2-3"}}]|]
@@ -168,13 +168,13 @@ spec actualPgVersion =
           }
 
       it "succeeds on deleting on the v2 schema" $ do
-        request methodDelete "/childs?id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")] ""
+        request methodDelete "/children?id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")] ""
           `shouldRespondWith` [json|[{"id": 1, "name": "child v2-1 updated", "parent_id": 3}]|]
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
           }
-        request methodGet "/childs?id=eq.1" [("Accept-Profile", "v2")] ""
+        request methodGet "/children?id=eq.1" [("Accept-Profile", "v2")] ""
           `shouldRespondWith` "[]"
           {
             matchStatus = 200
@@ -183,7 +183,7 @@ spec actualPgVersion =
 
       when (actualPgVersion >= pgVersion96) $
         it "succeeds on PUT on the v2 schema" $
-          request methodPut "/childs?id=eq.111" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
+          request methodPut "/children?id=eq.111" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
             [json| [ { "id": 111, "name": "child v2-111", "parent_id": null } ]|]
             `shouldRespondWith`
             [json|[{ "id": 111, "name": "child v2-111", "parent_id": null }]|]

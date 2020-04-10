@@ -324,20 +324,20 @@ spec =
             ]|]
             { matchHeaders = [matchContentTypeJson] }
 
-        it "embeds childs recursively" $
-          get "/family_tree?id=eq.1&select=id,name, childs:family_tree!parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
+        it "embeds children recursively" $
+          get "/family_tree?id=eq.1&select=id,name, children:family_tree!parent(id,name,children:family_tree!parent(id,name))" `shouldRespondWith`
             [json|[{
-              "id": "1", "name": "Parental Unit", "childs": [
-                { "id": "2", "name": "Kid One", "childs": [ { "id": "4", "name": "Grandkid One" } ] },
-                { "id": "3", "name": "Kid Two", "childs": [ { "id": "5", "name": "Grandkid Two" } ] }
+              "id": "1", "name": "Parental Unit", "children": [
+                { "id": "2", "name": "Kid One", "children": [ { "id": "4", "name": "Grandkid One" } ] },
+                { "id": "3", "name": "Kid Two", "children": [ { "id": "5", "name": "Grandkid Two" } ] }
               ]
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-        it "embeds parent and then embeds childs" $
-          get "/family_tree?id=eq.2&select=id,name,parent(id,name,childs:family_tree!parent(id,name))" `shouldRespondWith`
+        it "embeds parent and then embeds children" $
+          get "/family_tree?id=eq.2&select=id,name,parent(id,name,children:family_tree!parent(id,name))" `shouldRespondWith`
             [json|[{
               "id": "2", "name": "Kid One", "parent": {
-                "id": "1", "name": "Parental Unit", "childs": [ { "id": "2", "name": "Kid One" }, { "id": "3", "name": "Kid Two"} ]
+                "id": "1", "name": "Parental Unit", "children": [ { "id": "2", "name": "Kid One" }, { "id": "3", "name": "Kid Two"} ]
               }
             }]|] { matchHeaders = [matchContentTypeJson] }
 
@@ -356,7 +356,7 @@ spec =
               }
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-        it "embeds childs" $ do
+        it "embeds children" $ do
           get "/organizations?select=id,name,refereeds:organizations!referee(id,name)&id=eq.1" `shouldRespondWith`
             [json|[{
               "id": 1, "name": "Referee Org",

@@ -237,7 +237,6 @@ spec actualPgVersion = do
         [json| [{"myId":1}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-
     it "one simple column with casting (text)" $
       get "/complex_items?select=id::text" `shouldRespondWith`
         [json| [{"id":"1"},{"id":"2"},{"id":"3"}] |]
@@ -326,6 +325,30 @@ spec actualPgVersion = do
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
+
+    describe "computed columns" $ do
+      it "computed column on table" $
+        get "/items?id=eq.1&select=id,always_true" `shouldRespondWith`
+          [json|[{"id":1,"always_true":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "computed column on rpc" $
+        get "/rpc/search?id=1&select=id,always_true" `shouldRespondWith`
+          [json|[{"id":1,"always_true":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "overloaded computed columns on both tables" $ do
+        get "/items?id=eq.1&select=id,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/items2?id=eq.1&select=id,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "overloaded computed column on rpc" $
+        get "/rpc/search?id=1&select=id,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $
@@ -482,18 +505,18 @@ spec actualPgVersion = do
               "designTasks":[ ] }
           ]|] { matchHeaders = [matchContentTypeJson] }
 
-      it "works with two aliased childs embeds plus and/or" $
-        get "/entities?select=id,childs:child_entities(id,gChilds:grandchild_entities(id))&childs.and=(id.in.(1,2,3))&childs.gChilds.or=(id.eq.1,id.eq.2)" `shouldRespondWith`
+      it "works with two aliased children embeds plus and/or" $
+        get "/entities?select=id,children:child_entities(id,gChildren:grandchild_entities(id))&children.and=(id.in.(1,2,3))&children.gChildren.or=(id.eq.1,id.eq.2)" `shouldRespondWith`
           [json|[
             { "id":1,
-              "childs":[
-                {"id":1,"gChilds":[{"id":1}, {"id":2}]},
-                {"id":2,"gChilds":[]}]},
+              "children":[
+                {"id":1,"gChildren":[{"id":1}, {"id":2}]},
+                {"id":2,"gChildren":[]}]},
             { "id":2,
-              "childs":[
-                {"id":3,"gChilds":[]}]},
-            { "id":3,"childs":[]},
-            { "id":4,"childs":[]}
+              "children":[
+                {"id":3,"gChildren":[]}]},
+            { "id":3,"children":[]},
+            { "id":4,"children":[]}
           ]|] { matchHeaders = [matchContentTypeJson] }
 
   describe "ordering response" $ do

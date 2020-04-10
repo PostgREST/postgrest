@@ -57,10 +57,11 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:9.4.14
+      - image: circleci/postgres:9.4.26
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
     steps:
       - checkout
       - restore_cache:
@@ -119,10 +120,11 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:9.6.2
+      - image: circleci/postgres:9.6.17
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
     steps:
       - checkout
       - restore_cache:
@@ -151,10 +153,11 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:10.5
+      - image: circleci/postgres:10.12
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
     steps:
       - checkout
       - restore_cache:
@@ -183,10 +186,44 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:11.4
+      - image: circleci/postgres:11.7
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+      - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y postgresql-client
+            stack setup
+      - run:
+          name: build src and tests
+          command: |
+            stack build --fast -j1
+            stack build --fast --test --no-run-tests
+      - run:
+          name: run tests
+          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
+
+  build-test-12:
+    docker:
+      - image: circleci/buildpack-deps:trusty
+        environment:
+          - PGHOST=localhost
+      - image: circleci/postgres:12.2
+        environment:
+          - POSTGRES_USER=circleci
+          - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
     steps:
       - checkout
       - restore_cache:
@@ -216,10 +253,11 @@ jobs:
         environment:
           - PGHOST=localhost
           - TERM=xterm
-      - image: circleci/postgres:9.6.2
+      - image: circleci/postgres:9.6.17
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
+          - POSTGRES_HOST_AUTH_METHOD=trust
     steps:
       - checkout
       - restore_cache:
@@ -314,6 +352,10 @@ workflows:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
+      - build-test-12:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
       - build-prof-test:
           filters:
             tags:
@@ -324,6 +366,7 @@ workflows:
             - build-test-9.6
             - build-test-10
             - build-test-11
+            - build-test-12
             - build-prof-test
           filters:
             tags:
@@ -336,6 +379,7 @@ workflows:
             - build-test-9.6
             - build-test-10
             - build-test-11
+            - build-test-12
             - build-prof-test
           filters:
             tags:
@@ -348,6 +392,7 @@ workflows:
             - build-test-9.6
             - build-test-10
             - build-test-11
+            - build-test-12
             - build-prof-test
           filters:
             tags:

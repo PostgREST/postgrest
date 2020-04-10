@@ -522,7 +522,7 @@ pgVersion121 :: PgVersion
 pgVersion121 = PgVersion 120001 "12.1"
 
 sourceCTEName :: SqlFragment
-sourceCTEName = "pg_source"
+sourceCTEName = "pgrst_source"
 
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]

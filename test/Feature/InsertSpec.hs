@@ -514,17 +514,40 @@ spec actualPgVersion = do
               matchHeaders = []
             }
 
-      it "can provide a representation" $ do
-        _ <- post "/items"
-          [json| { id: 1 } |]
-        request methodPatch
-          "/items?id=eq.1"
-          [("Prefer", "return=representation")]
-          [json| { id: 99 } |]
-          `shouldRespondWith` [json| [{id:99}] |]
-          { matchHeaders = [matchContentTypeJson] }
-        -- put value back for other tests
-        void $ request methodPatch "/items?id=eq.99" [] [json| { "id":1 } |]
+      context "with representation requested" $ do
+        it "can provide a representation" $ do
+          _ <- post "/items"
+            [json| { id: 1 } |]
+          request methodPatch
+            "/items?id=eq.1"
+            [("Prefer", "return=representation")]
+            [json| { id: 99 } |]
+            `shouldRespondWith` [json| [{id:99}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          -- put value back for other tests
+          void $ request methodPatch "/items?id=eq.99" [] [json| { "id":1 } |]
+
+        it "can return computed columns" $
+          request methodPatch
+            "/items?id=eq.1&select=id,always_true"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, always_true: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can select overloaded computed columns" $ do
+          request methodPatch
+            "/items?id=eq.1&select=id,computed_overload"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
+          request methodPatch
+            "/items2?id=eq.1&select=id,computed_overload"
+            [("Prefer", "return=representation")]
+            [json| { id: 1 } |]
+            `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "ignores ?select= when return=minimal" $
         request methodPatch "/items?id=eq.1&select=id" [("Prefer", "return=minimal")] [json| { id:1 } |]
@@ -650,7 +673,7 @@ spec actualPgVersion = do
         , matchHeaders = [ matchContentTypeJson , "Location" <:> "/web_content?id=eq.6" ]
         }
 
-    it "embeds childs after update" $
+    it "embeds children after update" $
       request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]
@@ -662,7 +685,7 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds parent, childs and grandchilds after update" $
+    it "embeds parent, children and grandchildren after update" $
       request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched-2"}|]
@@ -683,7 +706,7 @@ spec actualPgVersion = do
           matchHeaders = [matchContentTypeJson]
         }
 
-    it "embeds childs after update without explicitly including the id in the ?select" $
+    it "embeds children after update without explicitly including the id in the ?select" $
       request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
               [("Prefer", "return=representation")]
         [json|{"name": "tardis-patched"}|]

@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- #1473, Fix overloaded computed columns on RPC - @wolfgangwalther
+
 ## [7.0.0] - 2020-04-03
 
 ### Added
