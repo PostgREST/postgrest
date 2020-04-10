@@ -31,6 +31,7 @@ GRANT ALL ON TABLE
     , materialized_view
     , menagerie
     , no_pk
+    , no_pk_but_unique
     , nullable_integer
     , projects
     , projects_view

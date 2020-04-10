@@ -89,6 +89,16 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
+      it "should not throw and return location header when selecting without PK" $
+        request methodPost "/projects?select=name,client_id" [("Prefer", "return=representation")]
+          [str|{"id":10,"name":"New Project","client_id":2}|] `shouldRespondWith`
+          [str|[{"name":"New Project","client_id":2}]|]
+          { matchStatus  = 201
+          , matchHeaders = [ matchContentTypeJson
+                           , "Location" <:> "/projects?id=eq.10"
+                           , "Content-Range" <:> "*/*" ]
+          }
+
     context "from an html form" $
       it "accepts disparate json types" $ do
         p <- request methodPost "/menagerie"
@@ -124,11 +134,11 @@ spec actualPgVersion = do
           }
 
       context "into a table with no pk" $ do
-        it "succeeds with 201 and a link including all fields" $ do
+        it "succeeds with 201 but no location header" $ do
           p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.foo&b=eq.bar"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
         it "returns full details of inserted record if asked" $ do
@@ -137,7 +147,7 @@ spec actualPgVersion = do
                        [json| { "a":"bar", "b":"baz" } |]
           liftIO $ do
             simpleBody p `shouldBe` [json| [{ "a":"bar", "b":"baz" }] |]
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
         it "returns empty array when no items inserted, and return=rep" $ do
@@ -154,7 +164,22 @@ spec actualPgVersion = do
                        [json| { "a":null, "b":"foo" } |]
           liftIO $ do
             simpleBody p `shouldBe` [json| [{ "a":null, "b":"foo" }] |]
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
+            simpleStatus p `shouldBe` created201
+
+      context "into a table with no pk, but unique column" $ do
+        it "returns location header if unique column not null available" $ do
+          p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar", "unique_column": "baz" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` ""
+            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk_but_unique\\?unique_column=eq.baz"
+            simpleStatus p `shouldBe` created201
+
+        it "returns location header if unique column is null" $ do
+          p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar" } |]
+          liftIO $ do
+            simpleBody p `shouldBe` ""
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
     context "with compound pk supplied" $

@@ -566,6 +566,12 @@ CREATE TABLE no_pk (
     b character varying
 );
 
+CREATE TABLE no_pk_but_unique (
+    a character varying,
+    b character varying,
+    unique_column character varying DEFAULT NULL UNIQUE
+);
+
 CREATE TABLE only_pk (
     id integer primary key
 );
