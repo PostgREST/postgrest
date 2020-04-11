@@ -75,7 +75,19 @@ db-schema
 
   The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints.
 
-  This schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+  The chosen schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. Example:
+
+  .. code:: bash
+
+     db-schema = "api"
+
+  You can also specify a list of schemas that can be used for **schema-based multitenancy** and **api versioning** by :ref:`multiple-schemas`. Example:
+
+  .. code:: bash
+
+     db-schema = "tenant1, tenant2"
+     ##or
+     ##db-schema = "v1, v2"
 
 .. _db-anon-role:
 

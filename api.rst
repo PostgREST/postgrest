@@ -1371,6 +1371,8 @@ You can get raw output from a ``text`` column by using ``Accept: text/plain``.
 
 This follows the same rules as :ref:`binary_output`.
 
+.. _open-api:
+
 OpenAPI Support
 ===============
 
@@ -1405,6 +1407,38 @@ You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create 
 .. important::
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+
+.. _multiple-schemas:
+
+Switching Schemas
+=================
+
+You can switch schemas at runtime with the ``Accept-Profile`` and ``Content-Profile`` headers. You can only switch to a schema that is included in :ref:`db-schema`.
+This is useful for **api versioning** and **schema-based multitenancy**.
+
+The schema to be used can be selected through the ``Accept-Profile`` header for GET or HEAD:
+
+.. code-block:: http
+
+   GET /items HTTP/1.1
+   Accept-Profile: tenant2
+
+If you don't specify the ``Accept-Profile`` header, the first schema on :ref:`db-schema` will be used.
+
+For POST, PATCH, PUT, DELETE you can use the ``Content-Profile`` header for selecting the schema:
+
+.. code-block:: http
+
+   POST /items HTTP/1.1
+   Content-Profile: tenant2
+
+   {...}
+
+You can also select the schema for :ref:`s_procs` and :ref:`open-api`.
+
+.. note::
+
+   These headers are based on the nascent "Content Negotiation by Profile" spec: https://www.w3.org/TR/dx-prof-conneg
 
 HTTP Logic
 ==========

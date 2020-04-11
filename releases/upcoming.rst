@@ -10,11 +10,14 @@ These are changes yet unreleased. If you'd like to try them out before a new off
 Added
 -----
 
-* Support for the :ref:`on_conflict <on_conflict>` query parameter to UPSERT based on a unique constraint.
-  |br| -- `@ykst <https://github.com/ykst>`_
+* Support for :ref:`multiple-schemas` at runtime.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@mahmoudkassem <https://github.com/mahmoudkassem>`_
 
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
-  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@LorenzHenk <https://github.com/LorenzHenk>`_
+
+* Support for the :ref:`on_conflict <on_conflict>` query parameter to UPSERT based on a unique constraint.
+  |br| -- `@ykst <https://github.com/ykst>`_
 
 * Support for :ref:`Resource Embedding Disambiguation <embed_disamb>`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
