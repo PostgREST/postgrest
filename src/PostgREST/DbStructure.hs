@@ -462,52 +462,8 @@ allColumns tabs =
                         END
                     END::information_schema.character_data AS data_type,
                 information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
-                information_schema._pg_char_octet_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_octet_length,
                 information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision,
-                information_schema._pg_numeric_precision_radix(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision_radix,
-                information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_scale,
-                information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS datetime_precision,
-                information_schema._pg_interval_type(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.character_data AS interval_type,
-                NULL::integer::information_schema.cardinal_number AS interval_precision,
-                NULL::character varying::information_schema.sql_identifier AS character_set_catalog,
-                NULL::character varying::information_schema.sql_identifier AS character_set_schema,
-                NULL::character varying::information_schema.sql_identifier AS character_set_name,
-                    CASE
-                        WHEN nco.nspname IS NOT NULL THEN current_database()
-                        ELSE NULL::name
-                    END::information_schema.sql_identifier AS collation_catalog,
-                nco.nspname::information_schema.sql_identifier AS collation_schema,
-                co.collname::information_schema.sql_identifier AS collation_name,
-                    CASE
-                        WHEN t.typtype = 'd'::"char" THEN current_database()
-                        ELSE NULL::name
-                    END::information_schema.sql_identifier AS domain_catalog,
-                    CASE
-                        WHEN t.typtype = 'd'::"char" THEN nt.nspname
-                        ELSE NULL::name
-                    END::information_schema.sql_identifier AS domain_schema,
-                    CASE
-                        WHEN t.typtype = 'd'::"char" THEN t.typname
-                        ELSE NULL::name
-                    END::information_schema.sql_identifier AS domain_name,
-                current_database()::information_schema.sql_identifier AS udt_catalog,
-                COALESCE(nbt.nspname, nt.nspname)::information_schema.sql_identifier AS udt_schema,
                 COALESCE(bt.typname, t.typname)::information_schema.sql_identifier AS udt_name,
-                NULL::character varying::information_schema.sql_identifier AS scope_catalog,
-                NULL::character varying::information_schema.sql_identifier AS scope_schema,
-                NULL::character varying::information_schema.sql_identifier AS scope_name,
-                NULL::integer::information_schema.cardinal_number AS maximum_cardinality,
-                a.attnum::information_schema.sql_identifier AS dtd_identifier,
-                'NO'::character varying::information_schema.yes_or_no AS is_self_referencing,
-                'NO'::character varying::information_schema.yes_or_no AS is_identity,
-                NULL::character varying::information_schema.character_data AS identity_generation,
-                NULL::character varying::information_schema.character_data AS identity_start,
-                NULL::character varying::information_schema.character_data AS identity_increment,
-                NULL::character varying::information_schema.character_data AS identity_maximum,
-                NULL::character varying::information_schema.character_data AS identity_minimum,
-                NULL::character varying::information_schema.yes_or_no AS identity_cycle,
-                'NEVER'::character varying::information_schema.character_data AS is_generated,
-                NULL::character varying::information_schema.character_data AS generation_expression,
                 CASE
                     WHEN c.relkind = 'r'::"char" OR (c.relkind = ANY (ARRAY['v'::"char", 'f'::"char"])) AND pg_column_is_updatable(c.oid::regclass, a.attnum, false) THEN 'YES'::text
                     ELSE 'NO'::text
