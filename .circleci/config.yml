@@ -68,6 +68,15 @@ jobs:
           keys:
           - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
+          name: install stack & dependencies
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
+            sudo apt-get update
+            sudo apt-get install -y libgmp-dev
+            sudo apt-get install -y postgresql-client
+            stack setup
+      - run:
           name: install ncat
           command: |
             # utility needed to test socket connection with curl <  7.40
@@ -79,15 +88,8 @@ jobs:
             sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
             sudo apt-get update
             sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y --only-upgrade binutils
             sudo apt-get install -y postgresql-client
             stack setup
-            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
-            stack install hlint stylish-haskell
-      - run:
-          name: Add stack tools to $PATH
-          command: |
-            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
       - run:
           name: build src and tests dependencies
           command: |
