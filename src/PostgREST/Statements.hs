@@ -55,7 +55,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
         {locF} AS header,
         {bodyF} AS body,
         {responseHeadersF pgVer} AS response_headers
-      FROM ({selectQuery}) _postgrest_t |]
+      FROM ({selectF}) _postgrest_t |]
 
   locF =
     if isInsert && rep `elem` [Full, HeadersOnly]
@@ -71,6 +71,11 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
     | asCsv = asCsvF
     | wantSingle = asJsonSingleF
     | otherwise = asJsonF
+
+  selectF
+    -- prevent using any of the column names in ?select= when no response is returned from the CTE
+    | rep `elem` [None, HeadersOnly] = "SELECT * FROM " <> sourceCTEName
+    | otherwise                      = selectQuery
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
