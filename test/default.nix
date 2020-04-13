@@ -49,7 +49,7 @@ let
       pkgs.postgresql_9_6
       pkgs.postgresql_10
       pkgs.postgresql_11
-      #pkgs.postgresql_12
+      pkgs.postgresql_12
     ];
 
   # The 'postgrestTest' function takes a Postgres package as an argument. It
@@ -105,7 +105,7 @@ let
 
           export PATH="${postgresql}/bin:$PATH"
 
-          ${pkgs.stack}/bin/stack test
+          stack test
         '';
 
     # Helper function for pulling all the scripts into 'postgrest-test-all'
