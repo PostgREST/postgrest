@@ -10,7 +10,7 @@ import Test.Hspec.Wai.JSON
 
 import Text.Heredoc
 
-import PostgREST.Types (PgVersion, pgVersion112)
+import PostgREST.Types (PgVersion, pgVersion112, pgVersion122)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -914,9 +914,16 @@ spec actualPgVersion = do
         [json| [] |] { matchHeaders = [matchContentTypeJson] }
 
     it "only returns an empty result set if the in value is empty" $
+      let
+        responseBody =
+          if actualPgVersion >= pgVersion122
+          then
+            [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"\""} |]
+          else
+            [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"\""} |]
+      in
       get "/items_with_different_col_types?int_data=in.( ,3,4)"
-        `shouldRespondWith`
-        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"\""} |]
+        `shouldRespondWith` responseBody
         { matchStatus = 400
         , matchHeaders = [matchContentTypeJson]
         }
