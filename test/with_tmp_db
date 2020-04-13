@@ -54,7 +54,8 @@ trap stop exit
 # Prepare the database for running the tests.
 psql <<EOF
     create extension pgcrypto;
-    alter database $PGDATABASE set request.jwt.claim.id = '-1';
+    alter database $PGDATABASE set request.jwt.claim.id = '-1';# 
+    alter role $PGUSER set default_text_search_config to english;
 EOF
 
 export POSTGREST_TEST_CONNECTION="postgresql://$PGDATABASE?host=$PGDATA&user=$PGUSER"
