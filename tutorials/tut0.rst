@@ -23,9 +23,7 @@ As you begin the tutorial, pop open the project `chat room <https://gitter.im/be
 Step 2. Install PostgreSQL
 --------------------------
 
-You'll need a modern copy of the database running on your system, either natively or in a Docker instance. We require PostgreSQL 9.3 or greater, but recommend at least 9.5 for row-level security features that we'll use in future tutorials.
-
-If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation. For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
+If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation(see :ref:`pg-dependency` for minimum requirements). For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
 
 If Docker is not installed, you can get it `here <https://www.docker.com/community-edition#download>`_. Next, let's pull and start the database image:
 

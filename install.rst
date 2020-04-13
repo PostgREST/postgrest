@@ -24,11 +24,13 @@ The release page has pre-compiled binaries for Mac OS X, Windows, and several Li
 
   It usually lives in :code:`C:\Program Files\PostgreSQL\<version>\bin`. See this `article <https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/>`_ about how to modify the system path.
 
+.. _pg-dependency:
 
 PostgreSQL dependency
 =====================
 
-To use PostgREST you will need an underlying database (PostgreSQL version 9.5 or greater is required). You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development.
+To use PostgREST you will need an underlying database. We require PostgreSQL 9.4 or greater, but recommend at least 9.5 for row-level security features.
+You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development.
 
 * `Instructions for OS X <http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/>`_
 * `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
