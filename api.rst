@@ -1068,19 +1068,35 @@ It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert
 .. code-block:: http
 
    POST /rpc/add_them HTTP/1.1
-   Content-Type: application/json
+   Content-Type: text/csv
    Prefer: params=multiple-objects
 
-   [
-      {"a": 1, "b": 2},
-      {"a": 3, "b": 4}
-   ]
-
-Result:
+   a,b
+   1,2
+   3,4
 
 .. code-block:: json
 
    [ 3, 7 ]
+
+If you have large payloads to process, it's preferrable you instead use a function with an array or json parameter, as this will be more efficient.
+
+.. code-block:: postgres
+
+   create function plus_one(arr int[]) returns int[] as $$
+      SELECT array_agg(n + 1) FROM unnest($1) AS n;
+   $$ language sql;
+
+.. code-block:: http
+
+   POST /rpc/plus_one HTTP/1.1
+   Content-Type: application/json
+
+   {"arr": [1,2,3,4]}
+
+.. code-block:: json
+
+   [2,3,4,5]
 
 It's also possible to :ref:`Specify Columns <specify_columns>` on functions calls.
 

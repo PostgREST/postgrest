@@ -60,7 +60,7 @@ Fixed
 Changed
 -------
 
-* :ref:`bulk_call` should now be done by specifying a ``Prefer: params=multiple-objects`` header.
+* :ref:`bulk_call` should now be done by specifying a ``Prefer: params=multiple-objects`` header. This fixes a performance regression when calling stored procedures.
 
 * Resource Embedding now outputs an error when multiple relationships between two tables are found, see :ref:`embed_disamb`.
 
