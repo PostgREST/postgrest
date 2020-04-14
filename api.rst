@@ -1304,13 +1304,23 @@ Deletions
 
 To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instance deleting inactive users:
 
-.. code-block:: HTTP
+.. code-block:: http
 
   DELETE /user?active=is.false HTTP/1.1
+
+Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+
+.. code-block:: HTTP
+
+  DELETE /user?id=eq.1 HTTP/1.1
+  Prefer: return=representation
+
+  {"id": 1, "email": "johndoe@email.com"}
 
 .. warning::
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+
 
 .. _binary_output:
 
