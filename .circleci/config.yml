@@ -82,12 +82,6 @@ jobs:
             sudo apt-get install -y --only-upgrade binutils
             sudo apt-get install -y postgresql-client
             stack setup
-            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
-            stack install hlint stylish-haskell
-      - run:
-          name: Add stack tools to $PATH
-          command: |
-            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
       - run:
           name: build src and tests dependencies
           command: |
@@ -108,6 +102,15 @@ jobs:
           command: |
             POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
             test/io-tests.sh
+      - run:
+          name: install dependencies
+          command: |
+            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
+            stack install hlint stylish-haskell
+      - run:
+          name: Add stack tools to $PATH
+          command: |
+            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
       - run:
           name: run linter
           command: make lint
