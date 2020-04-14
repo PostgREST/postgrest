@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+    cat << EOF
+
+USAGE: $0 <command>
+
+Runs the given command with the POSTGREST_TEST_CONNECTION environment variable
+set to a temporary database that is ready for running the PostgREST test suite.
+
+You'll need to have the Postgres binaries 'initdb' and 'pg_ctl' on your PATH.
+
+Example:
+
+    $0 stack test
+
+EOF
+    exit -1
+}
+
+if [ "$#" -lt 1 ]; then
+    echo "Please provide a command to be run with the temporary database."
+    usage
+fi
+
+# All data will be stored in a temporary directory.
+tmpdir="$(mktemp -d)"
+
+trap "rm -rf tmpdir" exit
+
+export PGDATA="$tmpdir"
+export PGHOST="$tmpdir"
+export PGUSER=postgrest_test_authenticator
+export PGDATABASE=postgres
+
+# Initialize a database cluster. We try to make it as independent as possible
+# from the host by specifying the timezone, locale and encoding.
+TZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER"
+
+# Start the database cluster. Instead of listening on a local port, we will
+# listen on a unix domain socket. We will reuse the $PGDATA directory for that
+# socket.
+pg_ctl start -o "-F -c listen_addresses=\"\" -k $PGDATA"
+
+stop() {
+    pg_ctl stop -m i
+    rm -rf "$tmpdir"
+}
+
+trap stop exit
+
+# Prepare the database for running the tests.
+psql <<EOF
+    create extension pgcrypto;
+    alter database $PGDATABASE set request.jwt.claim.id = '-1';# 
+    alter role $PGUSER set default_text_search_config to english;
+EOF
+
+export POSTGREST_TEST_CONNECTION="postgresql://$PGDATABASE?host=$PGDATA&user=$PGUSER"
+
+# Run the command that was given as an argument. The `exit` trap above will
+# make sure that the database is shut down and the temporary directory is
+# deleted when the command is done. This is also why we don't `exec` the
+# command - our trap would be lost if we did that.
+$@
