@@ -2,7 +2,6 @@ module Feature.InsertSpec where
 
 import qualified Data.Aeson as JSON
 
-import Control.Monad          (replicateM_, void)
 import Data.List              (lookup)
 import Data.Maybe             (fromJust)
 import Network.Wai            (Application)

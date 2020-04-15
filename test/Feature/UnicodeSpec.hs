@@ -1,7 +1,6 @@
 module Feature.UnicodeSpec where
 
-import Control.Monad (void)
-import Network.Wai   (Application)
+import Network.Wai (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai

@@ -7,7 +7,6 @@ import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
 import qualified System.IO.Error        as E
 
-import Control.Monad        (void)
 import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..))
 import Data.List            (lookup)
