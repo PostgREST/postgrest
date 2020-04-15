@@ -26,22 +26,27 @@ let
     import pinnedPkgs { inherit overlays; };
 
   postgresqlVersions =
-    [
-      pkgs.postgresql_9_5
-      pkgs.postgresql_9_6
-      pkgs.postgresql_10
-      pkgs.postgresql_11
-      pkgs.postgresql_12
-    ];
+    map postgresqlWithPackages
+      [
+        pkgs.postgresql_12
+        pkgs.postgresql_11
+        pkgs.postgresql_10
+        pkgs.postgresql_9_6
+        pkgs.postgresql_9_5
+      ];
+
+  postgresqlWithPackages =
+    postgresql:
+      postgresql.withPackages (p: [ p.pgjwt ]);
 in
 rec {
-  inherit pkgs;
+  inherit pkgs pinnedPkgs;
 
   postgrest =
     pkgs.haskellPackages.callCabal2nixWithOptions name src "--no-check" {};
 
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgresqlVersions; };
+    pkgs.callPackage nix/tests.nix { inherit postgresqlVersions pinnedPkgs; };
 
   style =
     pkgs.callPackage nix/style.nix {};

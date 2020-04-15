@@ -1,4 +1,11 @@
 #! /usr/bin/env bash
+set -eu
+
+export POSTGREST_TEST_CONNECTION=${POSTGREST_TEST_CONNECTION:-"postgres:///postgrest_test"}
+stack_cmd=${POSTGREST_TEST_STACK_CMD:-"stack"}
+
+trap "kill 0" int term exit
+
 currentTest=1
 failedTests=0
 result(){ echo "$1 $currentTest $2"; currentTest=$(( $currentTest + 1 )); }
@@ -7,9 +14,9 @@ ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 
 pgrPort=49421
 
-pgrStopAll(){ pkill -f "$(stack path --profile --local-install-root)/bin/postgrest"; }
+pgrStopAll(){ killall postgrest || true; }
 
-pgrStart(){ stack exec --profile -- postgrest test/memory-tests/config +RTS -p -h >/dev/null & pgrPID="$!"; }
+pgrStart(){ $stack_cmd run --profile postgrest -- test/memory-tests/config +RTS -p -h >/dev/null & pgrPID="$!"; }
 pgrStop(){ kill "$pgrPID" 2>/dev/null; }
 
 setUp(){ pgrStopAll; }
@@ -111,5 +118,7 @@ postJsonArrayTest "10000" "/perf_articles?columns=id,body" "11M"
 postJsonArrayTest "100000" "/perf_articles?columns=id,body" "21M"
 
 cleanUp
+
+trap - int term exit
 
 exit $failedTests
