@@ -43,7 +43,7 @@ library
                       PostgREST.Private.Common
                       PostgREST.Private.QueryFragment
   hs-source-dirs:     src
-  build-depends:      base                      >= 4.9 && < 4.14
+  build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 1.4.7 && < 1.5
@@ -99,7 +99,7 @@ library
 executable postgrest
   main-is:            Main.hs
   hs-source-dirs:     main
-  build-depends:      base              >= 4.9 && < 4.14
+  build-depends:      base              >= 4.9 && < 4.15
                     , auto-update       >= 0.1.4 && < 0.2
                     , base64-bytestring >= 1 && < 1.1
                     , bytestring        >= 0.10.8 && < 0.11
@@ -163,7 +163,7 @@ test-suite spec
                       SpecHelper
                       TestTypes
   hs-source-dirs:     test
-  build-depends:      base              >= 4.9 && < 4.14
+  build-depends:      base              >= 4.9 && < 4.15
                     , aeson             >= 1.4.7 && < 1.5
                     , aeson-qq          >= 0.8.1 && < 0.9
                     , async             >= 2.1.1 && < 2.3
@@ -207,7 +207,7 @@ Test-Suite spec-querycost
   Hs-Source-Dirs:      test
   Main-Is:             QueryCost.hs
   Other-Modules:       SpecHelper
-  Build-Depends:       base              >= 4.9 && < 4.14
+  Build-Depends:       base              >= 4.9 && < 4.15
                      , aeson             >= 1.4.7 && < 1.5
                      , aeson-qq          >= 0.8.1 && < 0.9
                      , async             >= 2.1.1 && < 2.3
