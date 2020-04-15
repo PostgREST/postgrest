@@ -37,12 +37,11 @@ import Control.Lens                (preview)
 import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
-import Data.List.NonEmpty          (NonEmpty, fromList)
+import Data.List.NonEmpty          (fromList)
 import Data.Scientific             (floatingOrInteger)
 import Data.Text                   (dropEnd, dropWhileEnd,
-                                    intercalate, lines, splitOn,
-                                    strip, take, unpack)
-import Data.Text.Encoding          (encodeUtf8)
+                                    intercalate, splitOn, strip, take,
+                                    unpack)
 import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
 import Development.GitRev          (gitHash)

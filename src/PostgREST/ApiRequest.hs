@@ -28,8 +28,8 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (elem, last, lookup, partition)
-import Data.List.NonEmpty        (NonEmpty, head)
+import Data.List                 (last, lookup, partition)
+import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)

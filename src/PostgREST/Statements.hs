@@ -22,8 +22,6 @@ import           Data.Aeson                      as JSON
 import qualified Data.Aeson.Lens                 as L
 import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
-import           Data.Text                       (unwords)
-import           Data.Text.Encoding              (encodeUtf8)
 import qualified Hasql.Decoders                  as HD
 import qualified Hasql.Encoders                  as HE
 import qualified Hasql.Statement                 as H
