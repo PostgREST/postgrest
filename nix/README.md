@@ -17,15 +17,17 @@ artifacts from the `/nix/store`, you can run `nix-collect-garbage`.
 To build PostgREST from your local checkout of the repository, run:
 
 ```bash
-nix-build --attr postgrest
+nix-build --attr postgrestPackage
 
 ```
 
 This will create a `result` directory that contains the PostgREST binary at
 `result/bin/postgrest`. The `--attr` parameter (or short: `-A`) tells Nix to
-build the `postgrest` attribute from the Nix expression it finds in our
+build the `postgrestPackage` attribute from the Nix expression it finds in our
 `default.nix` (see below for details). Nix will take care of getting the right
 GHC version and all the build dependencies.
+
+## Binary cache
 
 We recommend that you use the PostgREST binary cache on
 [cachix](https://cachix.org/):
@@ -66,14 +68,28 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-lint                         postgrest-test-spec-postgresql-10
-postgrest-style                        postgrest-test-spec-postgresql-11
-postgrest-style-check                  postgrest-test-spec-postgresql-12
-postgrest-test-all                     postgrest-test-spec-postgresql-9.4
-postgrest-test-spec                    postgrest-test-spec-postgresql-9.5
-postgrest-test-spec-all                postgrest-test-spec-postgresql-9.6
+postgrest-lint         postgrest-style        postgrest-style-check
 
 [nix-shell]$
+
+```
+
+Some additional modules like `tests`, `docker` and `release` have large
+dependencies that would need to be built before the shell becomes available,
+which could take an especially long time if the cachix binary cache is not used.
+You can activate those by passing a flag to `nix-shell`, which will make the respective
+utilites available:
+
+```
+$ nix-shell --arg tests true
+[nix-shell]$ postgrest-<tab>
+postgrest-lint                      postgrest-test-spec-postgresql-10
+postgrest-style                     postgrest-test-spec-postgresql-11
+postgrest-style-check               postgrest-test-spec-postgresql-12
+postgrest-test-io                   postgrest-test-spec-postgresql-9.4
+postgrest-test-memory               postgrest-test-spec-postgresql-9.5
+postgrest-test-spec                 postgrest-test-spec-postgresql-9.6
+postgrest-test-spec-all
 
 ```
 
@@ -94,19 +110,17 @@ $ nix-shell --run "postgrest-foo --bar"
 A third option is to install utilities that you use very often locally:
 
 ```
-$ nix-env -f default.nix -iA style
+$ nix-env -f default.nix -iA devtools
 
 # `postgrest-style` can now be run directly:
 $ postgrest-style
 
 ```
 
-Note that this does not yet work for all utilities (e.g. `postgrest-test-spec` currently
-needs to be run within the Nix shell environment).
-
-If you use `nix-shell` very often, you might like to use https://github.com/xzfc/cached-nix-shell,
-which skips evaluating all our Nix expressions if nothing changed, reducing startup time for the
-shell considerably.
+If you use `nix-shell` very often, you might like to use
+https://github.com/xzfc/cached-nix-shell, which skips evaluating all our Nix
+expressions if nothing changed, reducing startup time for the shell
+considerably.
 
 ## Testing
 
@@ -116,14 +130,14 @@ temporary test databases:
 
 ```bash
 # Run the tests against the most recent version of PostgreSQL:
-$ nix-shell --run postgrest-test-spec
+$ nix-shell --arg tests true --run postgrest-test-spec
 
 # Run the tests against all supported versions of PostgreSQL:
-$ nix-shell --run postgrest-test-spec-all
+$ nix-shell --arg tests true --run postgrest-test-spec-all
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-$ nix-shell --run postgrest-test-spec-postgresql-9.5.21
+$ nix-shell --arg tests true --run postgrest-test-spec-postgresql-9.5
 
 ```
 

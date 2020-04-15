@@ -2,11 +2,16 @@
 
 { buildEnv
 , cabal-install
+, curl
 , git
+, haskell
 , lib
-, postgrestBuildEnv
+, ncat
 , postgresql
 , postgresqlVersions
+, postgrest
+, postgrestStatic
+, postgrestProfiled
 , runtimeShell
 , writeShellScript
 , writeShellScriptBin
@@ -33,7 +38,7 @@ let
       ''
         set -euo pipefail
 
-        export PATH="$(cat ${postgrestBuildEnv})"/bin:"$PATH"
+        export PATH="$(cat ${postgrest.env})"/bin:"$PATH"
 
         cat << EOF
 
@@ -50,9 +55,6 @@ let
 
         EOF
       '';
-
-  defaultTestSpec =
-    testSpec "postgrest-test-spec" postgresql;
 
   # Create a `testSpec` for each PostgreSQL version that we want to test
   # against.
@@ -73,6 +75,36 @@ let
 
         ${lib.concatStringsSep "\n" testRunners}
       '';
+
+  testIO =
+    name: postgresql:
+    writeShellScriptBin
+      name
+      ''
+        set -euo pipefail
+
+        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
+        cd "$rootdir"
+
+        export PATH="${postgrestStatic}/bin:${curl}/bin:${ncat}/bin:$PATH"
+
+        ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
+      '';
+
+  testMemory =
+    name: postgresql:
+    writeShellScriptBin
+      name
+      ''
+        set -euo pipefail
+
+        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
+        cd "$rootdir"
+
+        export PATH="${postgrestProfiled}/bin:${curl}/bin:$PATH"
+
+        ${withTmpDb postgresql} "$rootdir/test/memory-tests.sh"
+      '';
 in
 # Create an environment that contains all the utility scripts for running tests
   # that we defined above.
@@ -82,7 +114,9 @@ buildEnv {
 
   paths =
     [
-      defaultTestSpec
+      (testSpec "postgrest-test-spec" postgresql)
       testSpecAllVersions
+      (testIO "postgrest-test-io" postgresql)
+      (testMemory "postgrest-test-memory" postgresql)
     ] ++ testSpecVersions;
 }

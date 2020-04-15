@@ -74,6 +74,8 @@ jobs:
       - run:
           name: run io tests
           command: |
+            export PATH="~/.local/bin:$PATH"
+            stack install --fast -j1
             test/io-tests.sh
 
   # Run memory usage tests based on stack and docker.
@@ -111,12 +113,13 @@ jobs:
             - ".stack-work"
           key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
-          name: build with profiling enabled
+          name: install with profiling enabled
           command: |
-            stack build --profile -j1
+            stack install --profile -j1
       - run:
           name: run memory usage tests
           command: |
+            export PATH="~/.local/bin:$PATH"
             test/create_test_db "postgres://circleci@localhost" postgrest_test
             test/memory-tests.sh
 
@@ -196,6 +199,14 @@ jobs:
       # the libraries that are built with Nix. So this should only ever build
       # the PostgREST itself and be reasonably quick. We accelerate that part
       # further by caching `~/.cabal` and `dist-newstyle`.
+      #
+      # CircleCI looks for caches by prefix. When saving to the the cache
+      # below, we append the current time to the key ('-{{ epoch }}'), so a new
+      # cache will always be uploaded. If the `postgrest.cabal` and
+      # `nix/nixpkgs-version.nix` files are unchanged, the latest matching
+      # cache will be used. If there is no cache for those files, CircleCI will
+      # try the next, more general key and use the latest cache that matches
+      # it.
       - restore_cache:
           keys:
             - nix-test-{{ checksum "postgrest.cabal" }}-{{ checksum "nix/nixpkgs-version.nix" }}
@@ -219,6 +230,12 @@ jobs:
       - run:
           name: Run the spec tests against PostgreSQL 12
           command: postgrest-test-spec-postgresql-12
+      - run:
+          name: Run io tests
+          command: postgrest-test-io
+      - run:
+          name: Run memory tests
+          command: postgrest-test-memory
       - save_cache:
           paths:
             - "~/.cabal"

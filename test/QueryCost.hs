@@ -50,6 +50,7 @@ main = do
           cost <- exec pool [str| [{"id": 1}, {"id": 4}] |] $
             requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False (Just MultipleObjects) []
           liftIO $ do
+            -- lower bound needed for now to make sure that cost is not Nothing
             cost `shouldSatisfy` (> Just 2000)
             cost `shouldSatisfy` (< Just 2100)
 
