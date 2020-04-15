@@ -22,7 +22,7 @@ module PostgREST.QueryBuilder (
 
 import qualified Data.Set as S
 
-import Data.Text (intercalate, unwords)
+import Data.Text (intercalate)
 import Data.Tree (Tree (..))
 
 import Data.Maybe

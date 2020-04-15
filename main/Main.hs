@@ -17,8 +17,7 @@ import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
 import Data.Text                (pack, replace, strip, stripPrefix)
-import Data.Text.Encoding       (decodeUtf8, encodeUtf8)
-import Data.Text.IO             (hPutStrLn, readFile)
+import Data.Text.IO             (hPutStrLn)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)

@@ -23,7 +23,6 @@ import qualified Network.HTTP.Types.Status as HT
 
 import Data.Aeson  ((.=))
 import Network.Wai (Response, responseLBS)
-import Text.Read   (readMaybe)
 
 import Network.HTTP.Types.Header
 

@@ -39,6 +39,13 @@ packages:
       sha256: fb9e89b79cde3276baa484c860c6b9eeebdbc1a5c43301293351a25bc4c08e87
   original:
     hackage: hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
+- completed:
+    hackage: protolude-0.2.4@sha256:8bcf18da79be0832fccdd4cd5770e20baa4caec61c141d7119632a830b4096a9,2191
+    pantry-tree:
+      size: 1438
+      sha256: 9d8560e5514bac03fa00a37195d683ee628169a502c263b8d94588bfeb0ba097
+  original:
+    hackage: protolude-0.2.4@sha256:8bcf18da79be0832fccdd4cd5770e20baa4caec61c141d7119632a830b4096a9,2191
 snapshots:
 - completed:
     size: 523878

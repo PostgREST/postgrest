@@ -43,7 +43,6 @@ import Network.Wai
 import Hasql.Connection           (Connection)
 import qualified Hasql.Session as Hsq
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
-                                   ContentType (..),
                                    InvokeMethod (..), Target (..),
                                    mutuallyAgreeable, userApiRequest)
 import PostgREST.Auth             (containsRole, jwtClaims,

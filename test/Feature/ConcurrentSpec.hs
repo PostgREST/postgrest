@@ -5,7 +5,6 @@
 module Feature.ConcurrentSpec where
 
 import Control.Concurrent.Async (mapConcurrently)
-import Control.Monad            (void)
 import Network.Wai              (Application)
 
 import Control.Monad.Base

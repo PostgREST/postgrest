@@ -9,10 +9,8 @@ module PostgREST.Parsers where
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Control.Monad           ((>>))
 import Data.Either.Combinators (mapLeft)
 import Data.Foldable           (foldl1)
-import Data.Functor            (($>))
 import Data.List               (init, last)
 import Data.Text               (intercalate, replace, strip)
 import Text.Read               (read)
