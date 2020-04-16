@@ -78,6 +78,12 @@ These variables match the options shown in our :ref:`configuration` section, exc
 
   docker inspect -f "{{.Config.Env}}" postgrest/postgrest
 
+You can also specify a config file by mounting the file to the container:
+
+.. code-block:: bash
+
+  docker run -v /absolute/path/to/config:/etc/postgrest.conf postgrest/postgrest
+
 There are two ways to run the PostgREST container: with an existing external database, or through docker-compose.
 
 Containerized PostgREST with native PostgreSQL
