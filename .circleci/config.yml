@@ -52,6 +52,33 @@ build-distro-bin: &build-distro-bin
         key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
 
 jobs:
+  style:
+    docker:
+      - image: circleci/buildpack-deps:trusty
+    steps:
+      - checkout
+      - run:
+          name: install stack
+          command: |
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
+            stack setup
+      - run:
+          name: install linters
+          command: |
+            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
+            stack install hlint stylish-haskell
+      - run:
+          name: Add stack tools to $PATH
+          command: |
+            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
+      - run:
+          name: run linter
+          command: make lint
+      - run:
+          name: run styler
+          command: make style
+
   build-test-9.4:
     docker:
       - image: circleci/buildpack-deps:trusty
@@ -102,21 +129,6 @@ jobs:
           command: |
             POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
             test/io-tests.sh
-      - run:
-          name: install dependencies
-          command: |
-            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
-            stack install hlint stylish-haskell
-      - run:
-          name: Add stack tools to $PATH
-          command: |
-            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
-      - run:
-          name: run linter
-          command: make lint
-      - run:
-          name: run styler
-          command: make style
 
   build-test-9.6:
     docker:
@@ -339,6 +351,10 @@ workflows:
   version: 2
   build-test-release:
     jobs:
+      - style:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
       - build-test-9.4:
           filters:
             tags:
