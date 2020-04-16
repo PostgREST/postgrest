@@ -3,18 +3,30 @@
 Function privileges
 -------------------
 
-By default, when a function is created, the right to execute it is is not restricted by role, but this probably isn't consistent with best practices for an API design. If you want functions to be executable exclusively by a given role upon their creation, issue psql instructions similar to this:
+By default, when a function is created, the privilege to execute it is not restricted by role. The function access is PUBLIC—executable by all roles(more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
 
 .. code-block:: postgres
 
-  -- To stop functions from being universally executable upon creation (note the IN SCHEMA part).
+  -- Assuming your schema is named "api"
   ALTER DEFAULT PRIVILEGES IN SCHEMA api REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
-  -- To grant execution rights for functions to a specific role upon function creation.
-  ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT EXECUTE ON FUNCTIONS TO my_role;
+
+  -- Or to stop functions from being executable in the whole database(note the removal of the IN SCHEMA part).
+  ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/static/sql-alterdefaultprivileges.html>`_ for more details.
 
-The foregoing example may not be appropriate in all situations. For instance you may have a situation where different functions are intended to be called by different roles. In that case you will `not` want to grant `EXECUTE` to one specific role by default. Instead you will want to manually grant executability on a case by case basis.
+After that, you'll need to grant EXECUTE privileges on functions explicitly:
+
+.. code-block:: postgres
+
+   GRANT EXECUTE ON FUNCTION login TO anonymous;
+   GRANT EXECUTE ON FUNCTION reset_password TO web_user;
+
+   -- you can also GRANT EXECUTE on all functions to a privileged role
+   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA api TO admin;
+
+Security definer
+----------------
 
 By default, a function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
 
