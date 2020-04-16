@@ -400,7 +400,7 @@ This method is also useful for embedded resources, which we will cover in anothe
 .. _exact_count:
 
 Exact Count
-~~~~~~~~~~~
+-----------
 
 In order to obtain the total size of the table or view (such as when rendering the last page link in a pagination control), specify ``Prefer: count=exact`` as a request header:
 
@@ -422,7 +422,7 @@ Note that the larger the table the slower this query runs in the database. The s
 .. _planned_count:
 
 Planned Count
-~~~~~~~~~~~~~
+-------------
 
 To avoid the shortcomings of :ref:`exact count <exact_count>`, PostgREST can leverage PostgreSQL statistics and get a fairly accurate and fast count.
 To do this, specify the ``Prefer: count=planned`` header.
@@ -444,7 +444,7 @@ See `ANALYZE <https://www.postgresql.org/docs/11/sql-analyze.html>`_ for more de
 .. _estimated_count:
 
 Estimated Count
-~~~~~~~~~~~~~~~
+---------------
 
 When you are interested in the count, the relative error is important. If you have a :ref:`planned count <planned_count>` of 1000000 and the exact count is
 1001000, the error is small enough to be ignored. But with a planned count of 7, an exact count of 28 would be a huge misprediction.
@@ -876,6 +876,208 @@ Here we specify ``central_addresses`` as the **target** and the ``billing_addres
 
 Similarly to the **target**, the **hint** can be a **table name**, **foreign key constraint name** or **column name**.
 
+.. _insert_update:
+
+Insertions / Updates
+====================
+
+All tables and `auto-updatable views <https://www.postgresql.org/docs/current/static/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
+
+To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
+
+.. code-block:: HTTP
+
+  POST /table_name HTTP/1.1
+
+  { "col1": "value1", "col2": "value2" }
+
+The response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
+
+On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
+
+URL encoded payloads can be posted with ``Content-Type: application/x-www-form-urlencoded``.
+
+.. code-block:: http
+
+  POST /people HTTP/1.1
+  Content-Type: application/x-www-form-urlencoded
+
+  name=John+Doe&age=50&weight=80
+
+.. note::
+
+  When inserting a row you must post a JSON object, not quoted JSON.
+
+  .. code::
+
+    Yes
+    { "a": 1, "b": 2 }
+
+    No
+    "{ \"a\": 1, \"b\": 2 }"
+
+  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
+
+To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
+
+.. code-block:: http
+
+  PATCH /people?age=lt.13 HTTP/1.1
+
+  { "category": "child" }
+
+Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+
+.. warning::
+
+  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+.. warning::
+
+   Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
+   It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+   If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+
+.. _bulk_insert:
+
+Bulk Insert
+-----------
+
+Bulk insert works exactly like single row insert except that you provide either a JSON array of objects having uniform keys, or lines in CSV format. This not only minimizes the HTTP requests required but uses a single INSERT statement on the back-end for efficiency. Note that using CSV requires less parsing on the server and is much faster.
+
+To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
+
+.. code-block:: http
+
+  POST /people HTTP/1.1
+  Content-Type: text/csv
+
+  name,age,height
+  J Doe,62,70
+  Jonas,10,55
+
+An empty field (:code:`,,`) is coerced to an empty string and the reserved word :code:`NULL` is mapped to the SQL null value. Note that there should be no spaces between the column names and commas.
+
+To bulk insert JSON post an array of objects having all-matching keys
+
+.. code-block:: http
+
+  POST /people HTTP/1.1
+  Content-Type: application/json
+
+  [
+    { "name": "J Doe", "age": 62, "height": 70 },
+    { "name": "Janus", "age": 10, "height": 55 }
+  ]
+
+.. _specify_columns:
+
+Specifying Columns
+------------------
+
+By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted/updated
+and ignore the rest of the payload.
+
+.. code-block:: http
+
+   POST /datasets?columns=source,publication_date,figure HTTP/1.1
+   Content-Type: application/json
+
+   {
+     "source": "Natural Disaster Prevention and Control",
+     "publication_date": "2015-09-11",
+     "figure": 1100,
+     "location": "...",
+     "comment": "...",
+     "extra": "...",
+     "stuff": "..."
+   }
+
+In this case, only **source**, **publication_date** and **figure** will be inserted. The rest of the JSON keys will be ignored.
+
+Using this also has the side-effect of being more efficient for :ref:`bulk_insert` since PostgREST will not process the JSON and
+it'll send it directly to PostgreSQL.
+
+UPSERT
+------
+
+You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
+
+.. code-block:: http
+
+  POST /employees HTTP/1.1
+  Prefer: resolution=merge-duplicates
+
+  [
+    { "id": 1, "name": "Old employee 1", "salary": 30000 },
+    { "id": 2, "name": "Old employee 2", "salary": 42000 },
+    { "id": 3, "name": "New employee 3", "salary": 50000 }
+  ]
+
+By default, UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
+
+.. important::
+  After creating a table or changing its primary key, you must refresh PostgREST schema cache for UPSERT to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
+
+.. _on_conflict:
+
+On Conflict
+~~~~~~~~~~~
+
+By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a column(s) that has a UNIQUE constraint.
+
+.. code-block:: http
+
+  POST /employees?on_conflict=name HTTP/1.1
+  Prefer: resolution=merge-duplicates
+
+  [
+    { "name": "Old employee 1", "salary": 40000 },
+    { "name": "Old employee 2", "salary": 52000 },
+    { "name": "New employee 3", "salary": 60000 }
+  ]
+
+PUT
+~~~
+
+A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
+
+.. code-block:: http
+
+  PUT /employees?id=eq.4 HTTP/1.1
+
+  { "id": 4, "name": "Sara B.", "salary": 60000 }
+
+All the columns must be specified in the request body, including the primary key columns.
+
+.. note::
+
+  Upsert features are only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/9.5/static/sql-insert.html#SQL-ON-CONFLICT>`_.
+
+.. _delete:
+
+Deletions
+=========
+
+To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instance deleting inactive users:
+
+.. code-block:: http
+
+  DELETE /user?active=is.false HTTP/1.1
+
+Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+
+.. code-block:: HTTP
+
+  DELETE /user?id=eq.1 HTTP/1.1
+  Prefer: return=representation
+
+  {"id": 1, "email": "johndoe@email.com"}
+
+.. warning::
+
+  Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+
 .. _custom_queries:
 
 Custom Queries
@@ -886,7 +1088,6 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 * Table unions
 * More complicated joins than those provided by `Resource Embedding`_
 * Geo-spatial queries that require an argument, like "points near (lat,lon)"
-* More sophisticated full-text search than a simple use of the :sql:`fts` filter
 
 .. _s_procs:
 
@@ -1135,208 +1336,6 @@ You can call overloaded functions with different number of arguments.
 .. code-block:: http
 
   GET /rpc/rental_duration?customer_id=232&from_date=2018-07-01 HTTP/1.1
-.. _insert_update:
-
-Insertions / Updates
-====================
-
-All tables and `auto-updatable views <https://www.postgresql.org/docs/current/static/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
-
-To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
-
-.. code-block:: HTTP
-
-  POST /table_name HTTP/1.1
-
-  { "col1": "value1", "col2": "value2" }
-
-The response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
-
-On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
-
-URL encoded payloads can be posted with ``Content-Type: application/x-www-form-urlencoded``.
-
-.. code-block:: http
-
-  POST /people HTTP/1.1
-  Content-Type: application/x-www-form-urlencoded
-
-  name=John+Doe&age=50&weight=80
-
-.. note::
-
-  When inserting a row you must post a JSON object, not quoted JSON.
-
-  .. code::
-
-    Yes
-    { "a": 1, "b": 2 }
-
-    No
-    "{ \"a\": 1, \"b\": 2 }"
-
-  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
-
-To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
-
-.. code-block:: http
-
-  PATCH /people?age=lt.13 HTTP/1.1
-
-  { "category": "child" }
-
-Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. warning::
-
-  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
-
-.. warning::
-
-   Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
-   It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
-   If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.
-
-.. _bulk_insert:
-
-Bulk Insert
------------
-
-Bulk insert works exactly like single row insert except that you provide either a JSON array of objects having uniform keys, or lines in CSV format. This not only minimizes the HTTP requests required but uses a single INSERT statement on the back-end for efficiency. Note that using CSV requires less parsing on the server and is much faster.
-
-To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
-
-.. code-block:: http
-
-  POST /people HTTP/1.1
-  Content-Type: text/csv
-
-  name,age,height
-  J Doe,62,70
-  Jonas,10,55
-
-An empty field (:code:`,,`) is coerced to an empty string and the reserved word :code:`NULL` is mapped to the SQL null value. Note that there should be no spaces between the column names and commas.
-
-To bulk insert JSON post an array of objects having all-matching keys
-
-.. code-block:: http
-
-  POST /people HTTP/1.1
-  Content-Type: application/json
-
-  [
-    { "name": "J Doe", "age": 62, "height": 70 },
-    { "name": "Janus", "age": 10, "height": 55 }
-  ]
-
-.. _specify_columns:
-
-Specifying Columns
-------------------
-
-By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted/updated
-and ignore the rest of the payload.
-
-.. code-block:: http
-
-   POST /datasets?columns=source,publication_date,figure HTTP/1.1
-   Content-Type: application/json
-
-   {
-     "source": "Natural Disaster Prevention and Control",
-     "publication_date": "2015-09-11",
-     "figure": 1100,
-     "location": "...",
-     "comment": "...",
-     "extra": "...",
-     "stuff": "..."
-   }
-
-In this case, only **source**, **publication_date** and **figure** will be inserted. The rest of the JSON keys will be ignored.
-
-Using this also has the side-effect of being more efficient for :ref:`bulk_insert` since PostgREST will not process the JSON and
-it'll send it directly to PostgreSQL.
-
-UPSERT
-------
-
-You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
-
-.. code-block:: http
-
-  POST /employees HTTP/1.1
-  Prefer: resolution=merge-duplicates
-
-  [
-    { "id": 1, "name": "Old employee 1", "salary": 30000 },
-    { "id": 2, "name": "Old employee 2", "salary": 42000 },
-    { "id": 3, "name": "New employee 3", "salary": 50000 }
-  ]
-
-By default, UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
-
-.. important::
-  After creating a table or changing its primary key, you must refresh PostgREST schema cache for UPSERT to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
-
-.. _on_conflict:
-
-On Conflict
-~~~~~~~~~~~
-
-By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a column(s) that has a UNIQUE constraint.
-
-.. code-block:: http
-
-  POST /employees?on_conflict=name HTTP/1.1
-  Prefer: resolution=merge-duplicates
-
-  [
-    { "name": "Old employee 1", "salary": 40000 },
-    { "name": "Old employee 2", "salary": 52000 },
-    { "name": "New employee 3", "salary": 60000 }
-  ]
-
-PUT
-~~~
-
-A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
-
-.. code-block:: http
-
-  PUT /employees?id=eq.4 HTTP/1.1
-
-  { "id": 4, "name": "Sara B.", "salary": 60000 }
-
-All the columns must be specified in the request body, including the primary key columns.
-
-.. note::
-
-  Upsert features are only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/9.5/static/sql-insert.html#SQL-ON-CONFLICT>`_.
-
-.. _delete:
-
-Deletions
-=========
-
-To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instance deleting inactive users:
-
-.. code-block:: http
-
-  DELETE /user?active=is.false HTTP/1.1
-
-Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. code-block:: HTTP
-
-  DELETE /user?id=eq.1 HTTP/1.1
-  Prefer: return=representation
-
-  {"id": 1, "email": "johndoe@email.com"}
-
-.. warning::
-
-  Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
-
 
 .. _binary_output:
 
