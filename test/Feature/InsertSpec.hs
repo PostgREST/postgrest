@@ -204,7 +204,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
         `shouldRespondWith`
-        [json|{"message":"Error in $: Failed reading: not a valid json value"}|]
+        [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -425,7 +425,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         request methodPatch "/simple_pk" [] "}{ x = 2"
           `shouldRespondWith`
-          [json|{"message":"Error in $: Failed reading: not a valid json value"}|]
+          [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'"}|]
           { matchStatus  = 400,
             matchHeaders = [matchContentTypeJson]
           }
