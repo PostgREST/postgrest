@@ -20,3 +20,22 @@ By default, a function is executed with the privileges of the user who calls it.
 
 Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY>`_ for more details.
 
+Views with RLS
+--------------
+
+Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
+
+.. code-block:: postgres
+
+ -- Workaround:
+ -- non-SUPERUSER role to be used as the owner of the views
+ CREATE ROLE api_views_owner;
+ -- alter the view owner so RLS can work normally
+ ALTER VIEW sample_view OWNER TO api_views_owner;
+
+Views with Rules
+----------------
+
+Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
+It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.

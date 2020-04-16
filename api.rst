@@ -103,18 +103,6 @@ The view will provide a new endpoint:
 
   GET /fresh_stories HTTP/1.1
 
-.. important::
-
-  Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
-
-  .. code-block:: postgres
-
-    -- Workaround:
-    -- non-SUPERUSER role to be used as the owner of the views
-    CREATE ROLE api_views_owner;
-    -- alter the view owner so RLS can work normally
-    ALTER VIEW sample_view OWNER TO api_views_owner;
-
 .. _fts:
 
 Full-Text Search
@@ -931,12 +919,6 @@ Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 .. warning::
 
   Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
-
-.. warning::
-
-   Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
-   It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
-   If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.
 
 .. _bulk_insert:
 
