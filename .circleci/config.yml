@@ -57,6 +57,9 @@ jobs:
       - image: circleci/buildpack-deps:trusty
     steps:
       - checkout
+      - restore_cache:
+          keys:
+          - v1-stack-style-dependencies-{{ checksum "stack.yaml" }}
       - run:
           name: install stack
           command: |
@@ -68,6 +71,11 @@ jobs:
           command: |
             rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
             stack install hlint stylish-haskell
+      - save_cache:
+          paths:
+            - "~/.stack"
+            - ".stack-work"
+          key: v1-stack-style-dependencies-{{ checksum "stack.yaml" }}
       - run:
           name: Add stack tools to $PATH
           command: |
