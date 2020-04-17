@@ -1,2 +1,5 @@
 _build
 Pipfile.lock
+*.aux
+*.log
+diagrams/db.pdf

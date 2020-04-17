@@ -1,3 +1,10 @@
+
+Schema structure
+----------------
+
+.. image:: _static/db.png
+   :align: center
+
 .. _func_privs:
 
 Function privileges
