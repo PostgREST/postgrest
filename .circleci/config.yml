@@ -103,8 +103,9 @@ jobs:
       - run:
           name: install linters
           command: |
-            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
-            stack install hlint stylish-haskell
+            # -fno-spec-constr may help with out-of-memory issues compiling
+            # haskell-src-exts. Compare stack.yaml.
+            stack install --ghc-options=-fno-spec-constr hlint stylish-haskell
       - save_cache:
           paths:
             - "~/.stack"
