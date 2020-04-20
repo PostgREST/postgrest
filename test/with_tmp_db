@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export KEEP_TMP=${KEEP_TMP:-""}
+keeptmp=${KEEP_TMP:-""}
 
 usage() {
   cat << EOF
@@ -16,9 +16,9 @@ PATH.
 
 Example:
 
-    $0 stack v2-test
-    
-    ## Or for when inside nix-shell
+    $0 stack test
+
+    # Or, for when inside nix-shell
     $0 cabal v2-test
 
 If KEEP_TMP is set (e.g. to "1"), the temporary directory will not be deleted
@@ -40,7 +40,7 @@ fixturesdir="$rootdir/test/fixtures"
 # All data will be stored in a temporary directory.
 tmpdir="$(mktemp -d)"
 
-if [ -n "$KEEP_TMP" ]; then
+if [ -n "$keeptmp" ]; then
   echo "The temporary directory at $tmpdir will be preserved after exit."
 else
   trap "rm -rf tmpdir" sigint sigterm exit
@@ -83,7 +83,7 @@ stop() {
   log "Stopping the database cluster..."
   pg_ctl stop -m i >> "$setuplog"
 
-  if [ -n "$KEEP_TMP" ]; then
+  if [ -n "$keeptmp" ]; then
     echo "Keeping the temporary directory at $tmpdir"
   else
     rm -rf "$tmpdir"
