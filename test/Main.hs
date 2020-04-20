@@ -72,6 +72,7 @@ main = do
       dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
       return ((), postgrest (cfg testDbConn) dbs (Right pool) getTime $ pure ())
 
+
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
       proxyApp             = app testProxyCfg
