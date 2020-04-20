@@ -72,4 +72,10 @@ rec {
         inherit postgresqlVersions;
         postgrestBuildEnv = env;
       };
+
+  style =
+    pkgs.callPackage nix/style.nix {};
+
+  lint =
+    pkgs.callPackage nix/lint.nix {};
 }
