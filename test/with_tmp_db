@@ -62,24 +62,21 @@ stop() {
 
 trap stop exit
 
+fixturesdir="$rootdir/test/fixtures"
+
 # Prepare the database for running the tests.
 psql -v ON_ERROR_STOP=1 > "$tmpdir/fixtures.log" << EOF
   create extension pgcrypto;
   alter database $PGDATABASE set request.jwt.claim.id = '-1';
   alter role $PGUSER set default_text_search_config to english;
+
+  \i $fixturesdir/database.sql
+  \i $fixturesdir/roles.sql
+  \i $fixturesdir/schema.sql
+  \i $fixturesdir/jwt.sql
+  \i $fixturesdir/jsonschema.sql
+  \i $fixturesdir/privileges.sql
 EOF
-
-loadfixture() {
-  psql -q -v ON_ERROR_STOP=1 -f "$rootdir/test/fixtures/$1.sql" \
-    > "$tmpdir/fixtures.log"
-}
-
-loadfixture database
-loadfixture roles
-loadfixture schema
-loadfixture jwt
-loadfixture jsonschema
-loadfixture privileges
 
 # Run the command that was given as an argument. The `exit` trap above will
 # make sure that the database is shut down and the temporary directory is
