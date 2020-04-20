@@ -22,12 +22,20 @@ let
 
   pkgs =
     import pinnedPkgs { inherit overlays; };
+
+  drv =
+    pkgs.haskellPackages.callCabal2nix name src {};
 in
 rec {
   inherit pkgs pinnedPkgs;
 
   postgrest =
-    pkgs.haskellPackages.callCabal2nixWithOptions name src "--no-check" {};
+    # Disable running the test suite on Nix builds, as they require a database
+    # to be set up.
+    pkgs.haskell.lib.dontCheck drv;
+
+  env =
+    drv.env;
 
   nixpkgsUpgrade =
     pkgs.callPackage nix/nixpkgs-upgrade.nix {};

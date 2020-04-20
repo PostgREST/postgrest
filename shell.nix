@@ -1,5 +1,5 @@
 with (import ./default.nix);
-pkgs.lib.overrideDerivation postgrest.env (
+pkgs.lib.overrideDerivation env (
   base: {
     buildInputs =
       base.buildInputs ++ [
