@@ -16,6 +16,9 @@ PATH.
 
 Example:
 
+    $0 stack v2-test
+    
+    ## Or for when inside nix-shell
     $0 cabal v2-test
 
 If KEEP_TMP is set (e.g. to "1"), the temporary directory will not be deleted
