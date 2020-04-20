@@ -4,9 +4,9 @@ set -euo pipefail
 export KEEP_TMP=${KEEP_TMP:-""}
 
 usage() {
-    cat << EOF
+  cat << EOF
 
-USAGE: $0 <COMMAND>
+USAGE: $0 COMMAND
 
 Runs the given COMMAND with the POSTGREST_TEST_CONNECTION environment variable
 set to a temporary database that is ready for running the PostgREST test suite.
@@ -23,12 +23,12 @@ after exit. The log files in that directory might be useful for debugging
 purposes.
 
 EOF
-    exit -1
+  exit 1
 }
 
 if [ "$#" -lt 1 ]; then
-    echo "Please provide a command to be run with the temporary database."
-    usage
+  echo "Please provide a command to be run with the temporary database."
+  usage
 fi
 
 rootdir="$(git rev-parse --show-toplevel)"
@@ -37,7 +37,7 @@ fixturesdir="$rootdir/test/fixtures"
 # All data will be stored in a temporary directory.
 tmpdir="$(mktemp -d)"
 
-if [ ! -z "$KEEP_TMP" ]; then
+if [ -n "$KEEP_TMP" ]; then
   echo "The temporary directory at $tmpdir will be preserved after exit."
 else
   trap "rm -rf tmpdir" sigint sigterm exit
@@ -67,7 +67,8 @@ PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER" --auth=trust \
 
 log "Starting the database cluster..."
 # Instead of listening on a local port, we will listen on a unix domain socket.
-pg_ctl -l "$dblog" start -o "-F -c listen_addresses=\"\" -k $PGHOST"
+pg_ctl -l "$dblog" start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
+  >> "$setuplog"
 
 log "Waiting for the database cluster to be ready..."
 # Waiting is required for older versions of Postgres (< 10).
@@ -79,8 +80,8 @@ stop() {
   log "Stopping the database cluster..."
   pg_ctl stop -m i >> "$setuplog"
 
-  if [ ! -z "$KEEP_TMP" ]; then
-    echo "Keeping temporary directory at $tmpdir"
+  if [ -n "$KEEP_TMP" ]; then
+    echo "Keeping the temporary directory at $tmpdir"
   else
     rm -rf "$tmpdir"
   fi
