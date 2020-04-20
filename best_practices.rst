@@ -1,14 +1,20 @@
 
-Schema structure
-----------------
+.. _schema_structure:
+
+Schema Structure
+================
+
+A PostgREST instance exposes all the tables, views, and stored procedures of a single `PostgreSQL schema <https://www.postgresql.org/docs/12/ddl-schemas.html>`_ (a namespace of database objects). This means private data or implementation details can go inside different private schemas and be invisible to HTTP clients.
+
+It is recommended that you don't expose tables on your API schema. Instead expose views and stored procedures which insulate the internal details from the outside world.
+This allows you to change the internals of your schema and maintain backwards compatibility. It also keeps your code easier to refactor, and provides a natural way to do API versioning.
 
 .. image:: _static/db.png
-   :align: center
 
 .. _func_privs:
 
 Function privileges
--------------------
+===================
 
 By default, when a function is created, the privilege to execute it is not restricted by role. The function access is PUBLIC—executable by all roles(more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
 
@@ -17,7 +23,7 @@ By default, when a function is created, the privilege to execute it is not restr
   -- Assuming your schema is named "api"
   ALTER DEFAULT PRIVILEGES IN SCHEMA api REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
-  -- Or to stop functions from being executable in the whole database(note the removal of the IN SCHEMA part).
+  -- Or to stop functions from being PUBLICly executable in the whole database
   ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/static/sql-alterdefaultprivileges.html>`_ for more details.
@@ -40,7 +46,7 @@ By default, a function is executed with the privileges of the user who calls it.
 Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/static/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY>`_ for more details.
 
 Views with RLS
---------------
+==============
 
 Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/static/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
 
@@ -53,7 +59,7 @@ Views are invoked with the privileges of the view owner, much like stored proced
  ALTER VIEW sample_view OWNER TO api_views_owner;
 
 Views with Rules
-----------------
+================
 
 Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
 It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.

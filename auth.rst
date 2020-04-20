@@ -298,7 +298,7 @@ PostgREST uses JWT mainly for authentication and authorization purposes and enco
 Schema Isolation
 ================
 
-A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. This means private data or implementation details can go inside a private schema and be invisible to HTTP clients. You can then expose views and stored procedures which insulate the internal details from the outside world. It keeps you code easier to refactor, and provides a natural way to do API versioning. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
+You can isolate your api schema from internal implementation details, as explained in :ref:`schema_structure`. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
 
 SQL User Management
 ===================

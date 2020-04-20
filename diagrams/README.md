@@ -15,7 +15,7 @@ The schema structure diagram is done with LaTeX. You can use a GUI like https://
 Then use this command to generate the png file.
 
 ```bash
-pdflatex --shell-escape -halt-on-error -output-directory ../_static db.tex
+pdflatex --shell-escape -halt-on-error db.tex
 
 ## and move it to the static folder(it's not easy to do it in one go with the pdflatex)
 mv db.png ../_static/
@@ -27,4 +27,14 @@ You can install the full latex suite with `nix`:
 
 ```
 nix-env -iA texlive.combined.scheme-full
+```
+
+To tweak the file with a live reload environment use:
+
+```bash
+# open the pdf(zathura used as an example)
+zathura db.pdf &
+
+# live reload with entr
+echo db.tex | entr pdflatex --shell-escape -halt-on-error db.tex
 ```
