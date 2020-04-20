@@ -87,12 +87,12 @@ This is fine in small tables, but count performance degrades in big tables due t
 
   -- Pending nginx config: Remove any prefer header which contains the word count
 
-.. _hardening_https:
+.. _https:
 
 HTTPS
 -----
 
-See the :ref:`https` section of the authentication guide.
+PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL database. To keep the code small and focused we do not implement HTTPS. Use a reverse proxy such as NGINX to add this, `here's how <https://nginx.org/en/docs/http/configuring_https_servers.html>`_. Note that some Platforms as a Service like Heroku also add SSL automatically in their load balancer.
 
 Rate Limiting
 -------------

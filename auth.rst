@@ -60,7 +60,7 @@ You can use row-level security to flexibly restrict visibility and access for th
     message_subject VARCHAR(64) NOT NULL,
     message_body    TEXT
   );
-  
+
   ALTER TABLE chat ENABLE ROW LEVEL SECURITY;
 
 We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
@@ -295,13 +295,6 @@ The last type of critique focuses on the misuse of JWT for maintaining web sessi
 
 PostgREST uses JWT mainly for authentication and authorization purposes and encourages users to do the same. For web sessions, using cookies over HTTPS is good enough and well catered for by standard web frameworks.
 
-.. _https:
-
-HTTPS
------
-
-PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL database. To keep the code small and focused we do not implement HTTPS. Use a reverse proxy such as NGINX to add this, `here's how <https://nginx.org/en/docs/http/configuring_https_servers.html>`_. Note that some Platforms as a Service like Heroku also add SSL automatically in their load balancer.
-
 Schema Isolation
 ================
 
@@ -457,8 +450,8 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
 Permissions
 ~~~~~~~~~~~
 
-Your database roles need access to the schema, tables, views and functions in order to service HTTP requests. 
-Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and 
+Your database roles need access to the schema, tables, views and functions in order to service HTTP requests.
+Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and
 anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
 
 .. code-block:: postgres
