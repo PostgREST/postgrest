@@ -7,6 +7,7 @@ pkgs.lib.overrideDerivation env (
         pkgs.cabal2nix
         pkgs.postgresql
         nixpkgsUpgrade
+        tests
       ];
   }
 )

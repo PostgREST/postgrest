@@ -22,11 +22,22 @@ let
 
   overlays =
     [
+      (import nix/overlays/postgresql-legacy.nix)
       (import nix/overlays/gitignore.nix)
     ];
 
   pkgs =
     import pinnedPkgs { inherit overlays; };
+
+  postgresqlVersions =
+    [
+      pkgs.postgresql_12
+      pkgs.postgresql_11
+      pkgs.postgresql_10
+      pkgs.postgresql_9_6
+      pkgs.postgresql_9_5
+      pkgs.postgresql_9_4
+    ];
 
   drv =
     pkgs.haskellPackages.callCabal2nix name src {};
@@ -53,4 +64,11 @@ rec {
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsUpgrade =
     pkgs.callPackage nix/nixpkgs-upgrade.nix {};
+
+  tests =
+    pkgs.callPackage nix/tests.nix
+      {
+        inherit postgresqlVersions;
+        postgrestBuildEnv = env;
+      };
 }
