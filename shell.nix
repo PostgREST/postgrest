@@ -4,9 +4,17 @@ pkgs.lib.overrideDerivation env (
     buildInputs =
       base.buildInputs ++ [
         pkgs.cabal-install
+        pkgs.stack
         pkgs.cabal2nix
         pkgs.postgresql
         nixpkgsUpgrade
       ];
+
+    shellHook =
+      ''
+        # Set our pinned version of Nixpkgs in the NIX_PATH so that
+        # `stack --nix` also uses that version.
+        NIX_PATH="nixpkgs=${pinnedPkgs}"
+      '';
   }
 )
