@@ -1,3 +1,5 @@
+.. _providing_img:
+
 Providing images for <img>
 ==========================
 

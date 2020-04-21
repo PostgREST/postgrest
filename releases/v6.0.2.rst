@@ -65,7 +65,7 @@ This release is sponsored by:
   :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
   :width:  13em
 
-* Daniel Babiak
+* `Daniel Babiak <https://github.com/dbabiak>`_
 * Evans Fernandes
 * Tsingson Qin
 * Michel Pelletier

@@ -16,7 +16,7 @@ Thanks
 
 This release was made possible thanks to:
 
-* `Daniel Babiak <https://github.com/d-babiak>`_
+* `Daniel Babiak <https://github.com/dbabiak>`_
 * `Michel Pelletier <https://github.com/michelp>`_
 * Tsingson Qin
 * Jay Hannah

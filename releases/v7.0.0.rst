@@ -2,10 +2,10 @@
 
    <br />
 
-Upcoming
-========
+v7.0.0
+======
 
-These are changes yet unreleased. If you'd like to try them out before a new official release, you can :ref:`build_source`.
+You can donwload this release at the `PostgREST v7.0.0 release page <https://github.com/PostgREST/postgrest/releases/tag/v7.0.0>`_.
 
 Added
 -----
@@ -35,9 +35,12 @@ Added
 
 * Documentation improvements
 
+  + Explanation for :ref:`Schema Structure <schema_isolation>`.
   + Reference for :ref:`s_proc_embed`.
   + Reference for :ref:`mutation_embed`.
   + Reference for filters on :ref:`json_columns`.
+  + How-to for :ref:`providing_img`.
+  + Added :ref:`community_tutorials` section.
 
 Fixed
 -----
@@ -67,3 +70,37 @@ Changed
 * ``server-proxy-uri`` config option has been renamed to :ref:`openapi-server-proxy-uri`.
 
 * Default Unix Socket file mode from 755 to 660
+
+Thanks
+------
+
+This release was made possible thanks to:
+
+.. image:: ../_static/cybertec.png
+  :target: https://www.cybertec-postgresql.com/en/
+  :width:  13em
+
+.. image:: ../_static/2ndquadrant.png
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+  :width:  13em
+
+.. image:: ../_static/retool.png
+  :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Kofi Gumbs
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#supporting-development>`_.
