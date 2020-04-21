@@ -298,7 +298,7 @@ PostgREST uses JWT mainly for authentication and authorization purposes and enco
 Schema Isolation
 ================
 
-You can isolate your api schema from internal implementation details, as explained in :ref:`schema_structure`. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
+You can isolate your api schema from internal implementation details, as explained in :ref:`schema_isolation`. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
 
 SQL User Management
 ===================

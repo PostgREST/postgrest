@@ -110,6 +110,40 @@ Technical references for PostgREST's functionality.
 - :doc:`API <api>`
 - :doc:`configuration`
 
+Topic guides
+------------
+
+Explanations of some key concepts in PostgREST.
+
+.. toctree::
+   :caption: Authentication
+   :hidden:
+
+   auth.rst
+
+.. toctree::
+   :caption: Schema Structure
+   :hidden:
+
+   schema_structure.rst
+
+.. toctree::
+   :caption: Administration
+   :hidden:
+
+   admin.rst
+
+.. toctree::
+   :caption: Installation
+   :hidden:
+
+   install.rst
+
+- :doc:`Authentication <auth>`
+- :doc:`Schema Structure <schema_structure>`
+- :doc:`Administration <admin>`
+- :doc:`Installation <install>`
+
 .. _how_tos:
 
 How-to guides
@@ -127,40 +161,6 @@ These are recipes that'll help you address specific use-cases.
 - :doc:`how-tos/casting-type-to-custom-json`
 - :doc:`how-tos/embedding-table-from-another-schema`
 - :doc:`how-tos/providing-images-for-img`
-
-Topic guides
-------------
-
-Explanations of some key concepts in PostgREST.
-
-.. toctree::
-   :caption: Authentication
-   :hidden:
-
-   auth.rst
-
-.. toctree::
-   :caption: Installation
-   :hidden:
-
-   install.rst
-
-.. toctree::
-   :caption: Administration
-   :hidden:
-
-   admin.rst
-
-.. toctree::
-   :caption: Best Practices
-   :hidden:
-
-   best_practices.rst
-
-- :doc:`Authentication <auth>`
-- :doc:`Installation <install>`
-- :doc:`Administration <admin>`
-- :doc:`Best Practices <best_practices>`
 
 Ecosystem
 ---------
