@@ -88,6 +88,13 @@ library
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
+  ghc-options:        -O2 -Werror -Wall -fwarn-identities
+                      -fno-spec-constr -optP-Wno-nonportable-include-path
+          -- -fno-spec-constr may help keep compile time memory use in check,
+          --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
+          -- -optP-Wno-nonportable-include-path
+          --   prevents build failures on case-insensitive filesystems (macos),
+          --   see https://github.com/commercialhaskell/stack/issues/3918
 
 executable postgrest
   main-is:            Main.hs
@@ -114,6 +121,8 @@ executable postgrest
                       QuasiQuotes
                       NoImplicitPrelude
   ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I2"
+                      -O2 -Werror -Wall -fwarn-identities
+                      -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if !os(windows)
     build-depends: unix
