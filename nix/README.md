@@ -38,7 +38,9 @@ nix-shell
 
 ```
 
-Within `nix-shell`, you can run Cabal commands as usual.
+Within `nix-shell`, you can run Cabal commands as usual. You can also run
+stack with the `--nix` option, which causes stack to pick up the non-Haskell
+dependencies from the same pinned Nixpkgs version that the Nix builds use.
 
 ## Tour
 
