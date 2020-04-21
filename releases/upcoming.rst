@@ -10,7 +10,7 @@ These are changes yet unreleased. If you'd like to try them out before a new off
 Added
 -----
 
-* Support for :ref:`multiple-schemas` at runtime.
+* Support for :ref:`Switching to a schema <multiple-schemas>` defined in :ref:`db-schema`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@mahmoudkassem <https://github.com/mahmoudkassem>`_
 
 * Support for :ref:`planned_count` and :ref:`estimated_count`.
