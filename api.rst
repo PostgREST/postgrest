@@ -1179,45 +1179,50 @@ You can also call a function that takes a single parameter of type json by sendi
 
   8
 
+.. _s_procs_array:
+
 Calling functions with array parameters
 ---------------------------------------
 
 You can call a function that takes an array parameter:
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
-   CREATE FUNCTION native_array_func(arr int[]) RETURNS int[] as $$
-      SELECT arr;
-   $$ LANGUAGE SQL;
+   create function plus_one(arr int[]) returns int[] as $$
+      SELECT array_agg(n + 1) FROM unnest($1) AS n;
+   $$ language sql;
 
 .. code-block:: http
 
- POST /rpc/native_array_func HTTP/1.1
+   POST /rpc/plus_one HTTP/1.1
+   Content-Type: application/json
 
- { "arg": [1,2,3] }
+   {"arr": [1,2,3,4]}
 
- [1,2,3]
+.. code-block:: json
+
+   [2,3,4,5]
+
+For calling the function with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/11/arrays.html#ARRAYS-INPUT>`_,
+as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is ``%7B`` and ``}`` is ``%7D``).
+
+.. code-block:: http
+
+ GET /rpc/plus_one?arr=%7B1,2,3,4%7D' HTTP/1.1
+
+ [2,3,4,5]
 
 .. note::
 
-   For versions prior to PostgreSQL 10, to pass a PostgreSQL native array you need to quote it as a string:
+   For versions prior to PostgreSQL 10, to pass a PostgreSQL native array on a POST payload, you need to quote it and use an array literal:
 
    .. code-block:: http
 
-    POST /rpc/native_array_func HTTP/1.1
+    POST /rpc/plus_one HTTP/1.1
 
-    { "arg": "{1,2,3}" }
+    { "arr": "{1,2,3,4}" }
 
    In these versions we recommend using function parameters of type json to accept arrays from the client.
-
-For calling it with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/11/arrays.html#ARRAYS-INPUT>`_;
-as in ``{1,2,3}``. Note that the curly brackets have to be urlencoded(``{`` is ``%7B`` and ``}`` is ``%7D``).
-
-.. code-block:: http
-
- GET /rpc/native_array_func?arr=%7B1,2,3%7D' HTTP/1.1
-
- [1,2,3]
 
 Scalar functions
 ----------------
@@ -1262,24 +1267,7 @@ It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert
 
    [ 3, 7 ]
 
-If you have large payloads to process, it's preferrable you instead use a function with an array or json parameter, as this will be more efficient.
-
-.. code-block:: postgres
-
-   create function plus_one(arr int[]) returns int[] as $$
-      SELECT array_agg(n + 1) FROM unnest($1) AS n;
-   $$ language sql;
-
-.. code-block:: http
-
-   POST /rpc/plus_one HTTP/1.1
-   Content-Type: application/json
-
-   {"arr": [1,2,3,4]}
-
-.. code-block:: json
-
-   [2,3,4,5]
+If you have large payloads to process, it's preferrable you instead use a function with an :ref:`array parameter <s_procs_array>` or json parameter, as this will be more efficient.
 
 It's also possible to :ref:`Specify Columns <specify_columns>` on functions calls.
 
