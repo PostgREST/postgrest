@@ -385,6 +385,25 @@ jobs:
             docker tag postgrest postgrest/postgrest:latest
             docker push postgrest/postgrest:latest
 
+  build-nix:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
+      - run:
+          name: Install and use Cachix
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Build and cache all changed derivations
+          command: |
+            nix-build | cachix push postgrest
+
 workflows:
   version: 2
   build-test-release:
@@ -475,6 +494,10 @@ workflows:
             - centos7
             - ubuntu
             - ubuntui386
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+      - build-nix:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
