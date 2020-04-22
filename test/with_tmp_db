@@ -1,67 +1,114 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
+keeptmp=${KEEP_TMP:-""}
+
 usage() {
-    cat << EOF
+  cat << EOF
 
-USAGE: $0 <command>
+USAGE: $0 COMMAND
 
-Runs the given command with the POSTGREST_TEST_CONNECTION environment variable
+Runs the given COMMAND with the POSTGREST_TEST_CONNECTION environment variable
 set to a temporary database that is ready for running the PostgREST test suite.
 
-You'll need to have the Postgres binaries 'initdb' and 'pg_ctl' on your PATH.
+You'll need to have the Postgres binaries 'initdb', 'pg_ctl' and 'psql' on your
+PATH.
 
 Example:
 
     $0 stack test
 
+    # Or, for when inside nix-shell
+    $0 cabal v2-test
+
+If KEEP_TMP is set (e.g. to "1"), the temporary directory will not be deleted
+after exit. The log files in that directory might be useful for debugging
+purposes.
+
 EOF
-    exit -1
+  exit 1
 }
 
 if [ "$#" -lt 1 ]; then
-    echo "Please provide a command to be run with the temporary database."
-    usage
+  echo "Please provide a command to be run with the temporary database."
+  usage
 fi
+
+rootdir="$(git rev-parse --show-toplevel)"
+fixturesdir="$rootdir/test/fixtures"
 
 # All data will be stored in a temporary directory.
 tmpdir="$(mktemp -d)"
 
-trap "rm -rf tmpdir" exit
+if [ -n "$keeptmp" ]; then
+  echo "The temporary directory at $tmpdir will be preserved after exit."
+else
+  trap "rm -rf tmpdir" sigint sigterm exit
+fi
 
-export PGDATA="$tmpdir"
-export PGHOST="$tmpdir"
-export PGUSER=postgrest_test_authenticator
-export PGDATABASE=postgres
+dblog="$tmpdir/db.log"
+setuplog="$tmpdir/setup.log"
 
-# Initialize a database cluster. We try to make it as independent as possible
-# from the host by specifying the timezone, locale and encoding.
-TZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER"
-
-# Start the database cluster. Instead of listening on a local port, we will
-# listen on a unix domain socket. We will reuse the $PGDATA directory for that
-# socket.
-pg_ctl start -o "-F -c listen_addresses=\"\" -k $PGDATA"
-
-stop() {
-    pg_ctl stop -m i
-    rm -rf "$tmpdir"
+log() {
+  echo "$1" >> "$setuplog"
 }
 
-trap stop exit
+mkdir -p "$tmpdir"/{db,socket}
 
-# Prepare the database for running the tests.
-psql <<EOF
-    create extension pgcrypto;
-    alter database $PGDATABASE set request.jwt.claim.id = '-1';# 
-    alter role $PGUSER set default_text_search_config to english;
+export PGDATA="$tmpdir/db"
+export PGHOST="$tmpdir/socket"
+export PGUSER=postgrest_test_authenticator
+export PGDATABASE=postgres
+export DB_URI="postgresql://$PGDATABASE?host=$PGHOST&user=$PGUSER"
+export POSTGREST_TEST_CONNECTION="$DB_URI"
+
+log "Initializing database cluster..."
+# We try to make the database cluster as independent as possible from the host
+# by specifying the timezone, locale and encoding.
+PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER" --auth=trust \
+  >> "$setuplog"
+
+log "Starting the database cluster..."
+# Instead of listening on a local port, we will listen on a unix domain socket.
+pg_ctl -l "$dblog" start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
+  >> "$setuplog"
+
+log "Waiting for the database cluster to be ready..."
+# Waiting is required for older versions of Postgres (< 10).
+until pg_isready >> "$setuplog"; do
+  sleep 0.1
+done
+
+stop() {
+  log "Stopping the database cluster..."
+  pg_ctl stop -m i >> "$setuplog"
+
+  if [ -n "$keeptmp" ]; then
+    echo "Keeping the temporary directory at $tmpdir"
+  else
+    rm -rf "$tmpdir"
+  fi
+}
+
+trap stop sigint sigterm exit
+
+log "Loading fixtures..."
+psql -v ON_ERROR_STOP=1 >> "$setuplog" << EOF
+  create extension pgcrypto;
+  alter database $PGDATABASE set request.jwt.claim.id = '-1';
+  alter role $PGUSER set default_text_search_config to english;
+
+  \i $fixturesdir/database.sql
+  \i $fixturesdir/roles.sql
+  \i $fixturesdir/schema.sql
+  \i $fixturesdir/jwt.sql
+  \i $fixturesdir/jsonschema.sql
+  \i $fixturesdir/privileges.sql
 EOF
 
-export POSTGREST_TEST_CONNECTION="postgresql://$PGDATABASE?host=$PGDATA&user=$PGUSER"
-
+log "Done. Running command..."
 # Run the command that was given as an argument. The `exit` trap above will
 # make sure that the database is shut down and the temporary directory is
 # deleted when the command is done. This is also why we don't `exec` the
 # command - our trap would be lost if we did that.
-$@
+"$@"
