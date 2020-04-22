@@ -395,14 +395,24 @@ jobs:
             curl -L https://nixos.org/nix/install | sh
             echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
       - run:
-          name: Install and use Cachix
+          name: Install and use the Cachix binary cache
           command: |
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use postgrest
       - run:
-          name: Build and cache all changed derivations
+          name: Build all derivations from default.nix
           command: |
-            nix-build | cachix push postgrest
+            # Skip caching if the build was triggered through a pull request
+            # from a fork. CircleCI will not make the CACHIX_SIGNING_KEY
+            # available to those builds, which is required for pushing to the
+            # cache.
+            if [ -z "${CI_PULL_REQUEST:-""}" ] && [ "${CIRCLE_PR_USERNAME:-""}" != "PostgREST" ]; then
+              echo "Building and caching all derivations..."
+              nix-build | cachix push postgrest
+            else
+              echo "Building all derivations (caching skipped)..."
+              nix-build
+            fi
 
 workflows:
   version: 2
