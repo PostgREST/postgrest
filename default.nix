@@ -16,7 +16,7 @@ let
 
   pinnedPkgs =
     builtins.fetchTarball {
-      url = "https://github.com/nixos/nixpkgs/archive/${nixpkgsVersion.rev}.tar.gz";
+      url = "https://github.com/monacoremo/nixpkgs/archive/${nixpkgsVersion.rev}.tar.gz";
       sha256 = nixpkgsVersion.tarballHash;
     };
 
@@ -40,8 +40,19 @@ let
       pkgs.postgresql_9_4
     ];
 
+  # Base dynamic derivation for the PostgREST package.
   drv =
     pkgs.haskellPackages.callCabal2nix name src {};
+
+  # Static derivation for the PostgREST executable.
+  drvStatic =
+    import nix/static {
+      inherit pkgs name src;
+      compiler = "ghc883";
+    };
+
+  lib =
+    pkgs.haskell.lib;
 in
 rec {
   inherit pkgs pinnedPkgs;
@@ -50,12 +61,14 @@ rec {
   # libraries and documentation. We disable running the test suite on Nix
   # builds, as they require a database to be set up.
   postgrestWithLib =
-    pkgs.haskell.lib.dontCheck drv;
+    lib.dontCheck drv;
 
   # Derivation for just the PostgREST binary, where we strip all dynamic
-  # libraries and documentation, leaving only the executable.
+  # libraries and documentation, leaving only the executable. Note that the
+  # executable is static with regards to Haskell libraries, but not system
+  # libraries like glibc and libpq.
   postgrest =
-    pkgs.haskell.lib.justStaticExecutables postgrestWithLib;
+    lib.justStaticExecutables postgrestWithLib;
 
   # Environment in which PostgREST can be built with cabal, useful e.g. for
   # defining a shell for nix-shell.
@@ -78,4 +91,8 @@ rec {
 
   lint =
     pkgs.callPackage nix/lint.nix {};
+
+  # Static executable.
+  postgrestStatic =
+    lib.justStaticExecutables (lib.dontCheck drvStatic);
 }
