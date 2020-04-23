@@ -32,7 +32,6 @@ import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
-import Control.Exception           (Handler (..))
 import Control.Lens                (preview)
 import Control.Monad               (fail)
 import Crypto.JWT                  (StringOrURI, stringOrUri)
@@ -62,8 +61,8 @@ import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
 import PostgREST.Types   (JSPath, JSPathExp (..))
 import Protolude         hiding (concat, hPutStrLn, intercalate, null,
-                          take, (<>))
-
+                          take, toS, (<>))
+import Protolude.Conv    (toS)
 
 
 -- | Config file settings for the server

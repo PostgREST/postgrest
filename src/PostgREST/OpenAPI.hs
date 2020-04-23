@@ -32,7 +32,8 @@ import PostgREST.Types      (Column (..), ForeignKey (..), PgArg (..),
                              PrimaryKey (..), ProcDescription (..),
                              Proxy (..), Table (..), toMime)
 import Protolude            hiding (Proxy, dropWhile, get,
-                             intercalate, (&))
+                             intercalate, toLower, toS, (&))
+import Protolude.Conv       (toS)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs

@@ -27,7 +27,8 @@ import PostgREST.Config       (AppConfig (..), corsPolicy)
 import PostgREST.Error        (SimpleError (JwtTokenInvalid, JwtTokenMissing),
                                errorResponseFor)
 import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
-import Protolude              hiding (head)
+import Protolude              hiding (head, toS)
+import Protolude.Conv         (toS)
 
 runWithClaims :: AppConfig -> JWTAttempt ->
                  (ApiRequest -> H.Transaction Response) ->

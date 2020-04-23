@@ -16,7 +16,8 @@ import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Types       (pgVersion95, pgVersion96)
-import Protolude             hiding (toList)
+import Protolude             hiding (toList, toS)
+import Protolude.Conv        (toS)
 import SpecHelper
 
 import qualified Feature.AndOrParamsSpec

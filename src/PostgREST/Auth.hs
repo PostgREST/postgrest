@@ -31,7 +31,8 @@ import Control.Lens.Operators
 import Crypto.JWT
 
 import PostgREST.Types
-import Protolude
+import Protolude       hiding (toS)
+import Protolude.Conv  (toS)
 
 {-|
   Possible situations encountered with client JWTs

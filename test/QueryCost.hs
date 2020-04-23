@@ -10,7 +10,8 @@ import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 import           Text.Heredoc
 
-import Protolude hiding (get)
+import Protolude      hiding (get, toS)
+import Protolude.Conv (toS)
 
 import PostgREST.QueryBuilder (requestToCallProcQuery)
 import PostgREST.Types

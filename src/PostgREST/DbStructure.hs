@@ -35,14 +35,13 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
 import GHC.Exts                      (groupWith)
+import Protolude                     hiding (toS)
+import Protolude.Conv                (toS)
+import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q, qc)
-import Unsafe                        (unsafeHead)
-
-import Control.Applicative
 
 import PostgREST.Private.Common
 import PostgREST.Types
-import Protolude
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schemas pgVer = do

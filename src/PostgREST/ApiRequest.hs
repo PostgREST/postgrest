@@ -49,7 +49,8 @@ import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
 import PostgREST.Types
-import Protolude            hiding (head)
+import Protolude            hiding (head, toS)
+import Protolude.Conv       (toS)
 
 type RequestBody = BL.ByteString
 
