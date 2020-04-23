@@ -39,7 +39,8 @@ let
 
           # TODO: Make this work outside nix-shell when installed with nix-env.
           # Probably using postgrestBuildEnv somehow?
-          ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test
+          ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test \
+            --test-show-detail=streaming
 
           cat << EOF
 
