@@ -24,7 +24,8 @@ import Network.HTTP.Types.Header (Header, hContentType)
 import Data.Tree
 
 import PostgREST.RangeQuery (NonnegRange)
-import Protolude
+import Protolude            hiding (toS)
+import Protolude.Conv       (toS)
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTSingularJSON

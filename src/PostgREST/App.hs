@@ -64,7 +64,8 @@ import PostgREST.Statements       (callProcStatement,
                                    createReadStatement,
                                    createWriteStatement)
 import PostgREST.Types
-import Protolude                  hiding (Proxy, intercalate)
+import Protolude                  hiding (Proxy, intercalate, toS)
+import Protolude.Conv             (toS)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
@@ -180,7 +181,7 @@ app dbStructure proc cols conf apiRequest =
                         , Just $ contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                         , if null pkCols && isNothing (iOnConflict apiRequest)
                             then Nothing
-                            else (\x -> ("Preference-Applied", show x)) <$> iPreferResolution apiRequest
+                            else (\x -> ("Preference-Applied", encodeUtf8 (show x))) <$> iPreferResolution apiRequest
                         ] ++ ctHeaders)) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do

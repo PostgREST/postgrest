@@ -26,7 +26,8 @@ import Data.Ranged.Ranges
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
 
-import Protolude
+import Protolude      hiding (toS)
+import Protolude.Conv (toS)
 
 type NonnegRange = Range Integer
 
@@ -91,9 +92,9 @@ rangeStatusHeader topLevelRange queryTotal tableTotal =
 
 contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
-    ("Content-Range", headerValue)
+    ("Content-Range", toUtf8 headerValue)
     where
-      headerValue   = rangeString <> "/" <> totalString
+      headerValue   = rangeString <> "/" <> totalString :: Text
       rangeString
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"

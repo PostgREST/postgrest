@@ -27,7 +27,8 @@ import Network.Wai (Response, responseLBS)
 import Network.HTTP.Types.Header
 
 import PostgREST.Types
-import Protolude
+import Protolude       hiding (toS)
+import Protolude.Conv  (toS)
 
 
 class (JSON.ToJSON a) => PgrstError a where
@@ -279,7 +280,7 @@ instance JSON.ToJSON SimpleError where
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
-  ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> show m)
+  ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
 
 singularityError :: (Integral a) => a -> SimpleError
 singularityError = SingularityError . toInteger

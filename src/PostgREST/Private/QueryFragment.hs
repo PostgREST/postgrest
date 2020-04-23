@@ -16,7 +16,8 @@ import qualified Data.Text                     as T (map, null,
                                                      takeWhile)
 import           PostgREST.Types
 import           Protolude                     hiding (cast,
-                                                intercalate, replace)
+                                                intercalate, replace,
+                                                toLower)
 import           Text.InterpolatedString.Perl6 (qc)
 
 noLocationF :: SqlFragment

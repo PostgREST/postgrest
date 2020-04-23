@@ -33,7 +33,8 @@ import PostgREST.OpenAPI     (isMalformedProxyUri)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
                               PgVersion (..), Schema,
                               minimumPgVersion)
-import Protolude             hiding (hPutStrLn, head, replace)
+import Protolude             hiding (hPutStrLn, head, replace, toS)
+import Protolude.Conv        (toS)
 
 
 #ifndef mingw32_HOST_OS

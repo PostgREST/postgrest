@@ -29,7 +29,8 @@ import           PostgREST.Private.Common
 import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
 import           Protolude                       hiding (cast,
-                                                  replace)
+                                                  replace, toS)
+import           Protolude.Conv                  (toS)
 import           Text.InterpolatedString.Perl6   (qc)
 
 {-| The generic query result format used by API responses. The location header

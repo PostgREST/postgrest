@@ -24,7 +24,8 @@ import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Types  (JSPathExp (..))
-import Protolude
+import Protolude        hiding (toS)
+import Protolude.Conv   (toS)
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
