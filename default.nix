@@ -23,6 +23,7 @@ let
   overlays =
     [
       (import nix/overlays/gitignore.nix)
+      (import nix/overlays/haskell-packages)
     ];
 
   pkgs =
