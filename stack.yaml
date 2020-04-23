@@ -1,13 +1,5 @@
 # stack is used for circleci and appveyor CI builds
 resolver: lts-15.8
-ghc-options:
-  # -fno-spec-constr may help keep compile time memory use in check,
-  #   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
-  # -optP-Wno-nonportable-include-path
-  #   prevents build failures on case-insensitive filesystems (macos),
-  #   see https://github.com/commercialhaskell/stack/issues/3918
-  postgrest: -O2 -Werror -Wall -fwarn-identities
-             -fno-spec-constr -optP-Wno-nonportable-include-path
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
   # disable pure by default so that the test enviroment can be passed 
