@@ -10,6 +10,8 @@ ghc-options:
              -fno-spec-constr -optP-Wno-nonportable-include-path
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
+  # disable pure by default so that the test enviroment can be passed 
+  pure: false
 extra-deps:
 - configurator-pg-0.2.2@sha256:8f3f7c66dd4a53852283c70806ebc101a7219f8b01c3e80c5130e9749c998dc8,2987
 - hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
