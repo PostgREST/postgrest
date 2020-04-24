@@ -42,6 +42,25 @@ Within `nix-shell`, you can run Cabal commands as usual. You can also run
 stack with the `--nix` option, which causes stack to pick up the non-Haskell
 dependencies from the same pinned Nixpkgs version that the Nix builds use.
 
+## Testing
+
+In nix-shell, you'll find utility scripts that make it very easy to run the
+Haskell test suite, including setting up all required dependencies and
+temporary test databases:
+
+```bash
+# Run the tests against the most recent version of PostgreSQL:
+nix-shell --run postgrest-test-spec
+
+# Run the tests against all supported versions of PostgreSQL:
+nix-shell --run postgrest-test-spec-all
+
+# Run the tests against a specific version of PostgreSQL (use tab-completion in
+# nix-shell to see all available versions):
+nix-shell --run postgrest-test-spec-postgresql-9.5.21
+
+```
+
 ## Tour
 
 The following is not required for working on PostgREST with Nix, but it will
