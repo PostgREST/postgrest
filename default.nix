@@ -24,6 +24,7 @@ let
     [
       (import nix/overlays/postgresql-legacy.nix)
       (import nix/overlays/gitignore.nix)
+      (import nix/overlays/haskell-packages)
     ];
 
   pkgs =
