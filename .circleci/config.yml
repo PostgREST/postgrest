@@ -400,25 +400,33 @@ jobs:
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use postgrest
       - run:
-          name: Build the dynamic Postgrest executable
+          name: Build the dynamic PostgREST executable
           command: |
             # We build the dynamic postgrest executable first in order to fail fast if anything
             # should be wrong with the source code.
             nix-build -A postgrest
-       - run:
+      - restore_cache:
+          keys:
+            - v1-cabal-nix-dependencies-{{ checksum "postgrest.cabal" }}
+      - run:
           name: Run the spec tests against all supported PostgreSQL versions
           command: |
-            # Our utility scripts use cabal to run the tests, which will pick up the libraries that
-            # were built with Nix. So this should only ever build the PostgREST itself and be reasonably
-            # quick. It could be accelerated further by caching `~/.cabal` and `dist-newstyle`.
+            # Our utility scripts use cabal to run the tests, which will pick up all the libraries that
+            # are built with Nix. So this should only ever build the PostgREST itself and be reasonably
+            # quick. We accelerate that part further by caching `~/.cabal` and `dist-newstyle`.
             nix-shell --run postgrest-test-spec-all
-       - run:
+      - save_cache:
+          paths:
+            - "~/.cabal"
+            - "dist-newstyle"
+          key: v1-cabal-nix-dependencies-{{ checksum "postgrest.cabal" }}
+      - run:
           name: Build all derivations from default.nix and push results to Cachix
           command: |
             # We only push to the binary cache if the trigger for the build was not a pull request
             # or if the pull request was from an internal branch. CircleCI is configured to not make
-            # the CACHIX_SIGNING_KEY secret available to those builds, which is required for pushing 
-            # to the cache.
+            # the CACHIX_SIGNING_KEY secret, which is required for pushing to the cache, available to
+            # any other builds.
             if [ -z "${CI_PULL_REQUEST:-""}" ] || [ "${CIRCLE_PR_USERNAME:-""}" == "PostgREST" ]; then
               echo "Building and caching all derivations..."
               nix-build | cachix push postgrest
