@@ -61,6 +61,20 @@ nix-shell --run postgrest-test-spec-postgresql-9.5.21
 
 ```
 
+## Linting and styling code
+
+The nix-shell also contains scripts for linting and styling the PostgREST
+source code:
+
+```bash
+# Linting
+nix-shell --run postgrest-lint
+
+# Styling / auto-formatting code
+nix-shell --run postgrest-style
+
+```
+
 ## Tour
 
 The following is not required for working on PostgREST with Nix, but it will
