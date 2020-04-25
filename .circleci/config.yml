@@ -406,7 +406,7 @@ jobs:
             # from a fork. CircleCI will not make the CACHIX_SIGNING_KEY
             # available to those builds, which is required for pushing to the
             # cache.
-            if [ -z "${CI_PULL_REQUEST:-""}" ] || [ "${CIRCLE_PR_USERNAME:-""}" != "PostgREST" ]; then
+            if [ -z "${CI_PULL_REQUEST:-""}" ] && [ "${CIRCLE_PR_USERNAME:-""}" != "PostgREST" ]; then
               echo "Building and caching all derivations..."
               nix-build | cachix push postgrest
             else
