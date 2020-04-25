@@ -385,6 +385,41 @@ jobs:
             docker tag postgrest postgrest/postgrest:latest
             docker push postgrest/postgrest:latest
 
+  build-nix:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
+      - run:
+          name: Install and use the Cachix binary cache
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Build the dynamic Postgrest executable
+          command: |
+            # We build the dynamic postgrest executable first in order to fail fast if anything
+            # should be wrong with the source code.
+            nix-build -A postgrest
+      - run:
+          name: Build all derivations from default.nix and push results to Cachix
+          command: |
+            # We only push to the binary cache if the trigger for the build was not a pull request
+            # or if the pull request was from an internal branch. CircleCI is configured to not make
+            # the CACHIX_SIGNING_KEY secret available to those builds, which is required for pushing 
+            # to the cache.
+            if [ -z "${CI_PULL_REQUEST:-""}" ] || [ "${CIRCLE_PR_USERNAME:-""}" == "PostgREST" ]; then
+              echo "Building and caching all derivations..."
+              nix-build | cachix push postgrest
+            else
+              echo "Building all derivations (caching skipped for outside pull requests)..."
+              nix-build
+            fi
+
 workflows:
   version: 2
   build-test-release:
@@ -475,6 +510,10 @@ workflows:
             - centos7
             - ubuntu
             - ubuntui386
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+      - build-nix:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
