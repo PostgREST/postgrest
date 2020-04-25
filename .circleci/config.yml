@@ -405,7 +405,14 @@ jobs:
             # We build the dynamic postgrest executable first in order to fail fast if anything
             # should be wrong with the source code.
             nix-build -A postgrest
-      - run:
+       - run:
+          name: Run the spec tests against all supported PostgreSQL versions
+          command: |
+            # Our utility scripts use cabal to run the tests, which will pick up the libraries that
+            # were built with Nix. So this should only ever build the PostgREST itself and be reasonably
+            # quick. It could be accelerated further by caching `~/.cabal` and `dist-newstyle`.
+            nix-shell --run postgrest-test-spec-all
+       - run:
           name: Build all derivations from default.nix and push results to Cachix
           command: |
             # We only push to the binary cache if the trigger for the build was not a pull request
