@@ -702,7 +702,7 @@ Embedding on Stored Procedures
 
 If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can embed its related resources.
 
-Here's a sample function(notice the ``RETURNS SETOF films``).
+Here's a sample function (notice the ``RETURNS SETOF films``).
 
 .. code-block:: plpgsql
 
@@ -742,9 +742,12 @@ Say you want to insert a **film** and then get some of its attributes plus embed
    Prefer: return=representation
 
    {
-    "id": 100, "director_id": 40,
-    "title": "127 hours", "year": 2010,
-    "rating": 7.6, "language": "english"
+    "id": 100,
+    "director_id": 40,
+    "title": "127 hours",
+    "year": 2010,
+    "rating": 7.6,
+    "language": "english"
    }
 
 Response:
@@ -1122,13 +1125,13 @@ The client can call it by posting an object like
   3
 
 
-Procedures must be declared with named parameters. Procedures declared like:
+Procedures must be declared with named parameters. Procedures declared like
 
 .. code-block:: plpgsql
 
   CREATE FUNCTION non_named_args(integer, text, integer) ...
 
-Can not be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
+cannot be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
 
 Note that PostgreSQL converts identifier names to lowercase unless you quote them like:
 
