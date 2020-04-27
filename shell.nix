@@ -9,6 +9,8 @@ pkgs.lib.overrideDerivation env (
         pkgs.postgresql
         nixpkgsUpgrade
         tests
+        style
+        lint
       ];
 
     shellHook =
