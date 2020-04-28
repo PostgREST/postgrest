@@ -79,7 +79,7 @@ $ nix-shell --run "postgrest-foo --bar"
 A third option is to install utilities that you use very often locally:
 
 ```
-$ nix-env -f default -iA style
+$ nix-env -f default.nix -iA style
 
 # `postgrest-style` can now be run directly:
 $ postgrest-style
