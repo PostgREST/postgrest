@@ -1,6 +1,19 @@
-{ mkDerivation, array, async, base, bytestring, containers, deepseq
-, ghc-prim, hashable, mtl, mtl-compat, stdenv, stm, text
-, transformers, transformers-compat
+{ mkDerivation
+, array
+, async
+, base
+, bytestring
+, containers
+, deepseq
+, ghc-prim
+, hashable
+, mtl
+, mtl-compat
+, stdenv
+, stm
+, text
+, transformers
+, transformers-compat
 }:
 mkDerivation {
   pname = "protolude";
@@ -9,8 +22,20 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    array async base bytestring containers deepseq ghc-prim hashable
-    mtl mtl-compat stm text transformers transformers-compat
+    array
+    async
+    base
+    bytestring
+    containers
+    deepseq
+    ghc-prim
+    hashable
+    mtl
+    mtl-compat
+    stm
+    text
+    transformers
+    transformers-compat
   ];
   homepage = "https://github.com/sdiehl/protolude";
   description = "A small prelude";
