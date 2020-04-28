@@ -153,7 +153,7 @@ readOptions = do
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
-        <*> optString "server-proxy-uri"
+        <*> optString "openapi-server-proxy-uri"
         <*> (fromList . splitOnCommas <$> reqValue "db-schema")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
