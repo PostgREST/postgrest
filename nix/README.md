@@ -42,6 +42,57 @@ Within `nix-shell`, you can run Cabal commands as usual. You can also run
 stack with the `--nix` option, which causes stack to pick up the non-Haskell
 dependencies from the same pinned Nixpkgs version that the Nix builds use.
 
+## Aside: Working with `nix-shell` and the PostgREST utility scripts
+
+The PostgREST utilities available in `nix-shell` all have names that begin
+with `postgrest-`, so you can use tab completion (`postgrest-<tab>`) in 
+`nix-shell` to see all that are available:
+
+```
+# Note: The utilities listed here might not be up to date.
+[nix-shell:~/Projects/postgrest]$ postgrest-
+postgrest-lint                         postgrest-test-spec-postgresql-10.12
+postgrest-style                        postgrest-test-spec-postgresql-11.7
+postgrest-style-check                  postgrest-test-spec-postgresql-12.2
+postgrest-test-all                     postgrest-test-spec-postgresql-9.4.24
+postgrest-test-spec                    postgrest-test-spec-postgresql-9.5.21
+postgrest-test-spec-all                postgrest-test-spec-postgresql-9.6.17
+
+[nix-shell:~/Projects/postgrest]$
+
+```
+
+To run one-off commands, you can also use `nix-shell --run <command>`, which
+will lauch the Nix shell, run that one command and exit. Note that the tab
+completion will not work with `nix-shell --run`, as Nix has yet to evaluate
+our Nix expressions to see which utilities are available.
+
+```
+$ nix-shell --run postgrest-style
+
+# Note that you need to quote any arguments that you would like to pass to
+# the command to be run in nix-shell:
+$ nix-shell --run "postgrest-foo --bar"
+
+```
+
+A third option is to install utilities that you use very often locally:
+
+```
+$ nix-env -f default -iA style
+
+# `postgrest-style` can now be run directly:
+$ postgrest-style
+
+```
+
+Note that this does not yet work for all utilities (e.g. `postgrest-test-spec` currently
+needs to be run within the Nix shell environment).
+
+If you use `nix-shell` very often, you might like to use https://github.com/xzfc/cached-nix-shell,
+which skips evaluating all our Nix expressions if nothing changed, reducing startup time for the
+shell considerably.
+
 ## Testing
 
 In nix-shell, you'll find utility scripts that make it very easy to run the
@@ -50,14 +101,14 @@ temporary test databases:
 
 ```bash
 # Run the tests against the most recent version of PostgreSQL:
-nix-shell --run postgrest-test-spec
+$ nix-shell --run postgrest-test-spec
 
 # Run the tests against all supported versions of PostgreSQL:
-nix-shell --run postgrest-test-spec-all
+$ nix-shell --run postgrest-test-spec-all
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-nix-shell --run postgrest-test-spec-postgresql-9.5.21
+$ nix-shell --run postgrest-test-spec-postgresql-9.5.21
 
 ```
 
@@ -68,10 +119,10 @@ source code:
 
 ```bash
 # Linting
-nix-shell --run postgrest-lint
+$ nix-shell --run postgrest-lint
 
 # Styling / auto-formatting code
-nix-shell --run postgrest-style
+$ nix-shell --run postgrest-style
 
 ```
 
