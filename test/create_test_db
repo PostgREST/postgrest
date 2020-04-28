@@ -63,6 +63,8 @@ URI=$(echo $URI | cut -d'/' -f1-3)
 PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq <<EOF
   CREATE EXTENSION IF NOT EXISTS pgcrypto;
   ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
+
+  \i $BASEPATH/fixtures/load.sql
 EOF
 
 # Create a new connection string to use with the test runner

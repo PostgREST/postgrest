@@ -35,7 +35,6 @@ if [ "$#" -lt 1 ]; then
 fi
 
 rootdir="$(git rev-parse --show-toplevel)"
-fixturesdir="$rootdir/test/fixtures"
 
 # All data will be stored in a temporary directory.
 tmpdir="$(mktemp -d)"
@@ -97,14 +96,9 @@ psql -v ON_ERROR_STOP=1 >> "$setuplog" << EOF
   create extension pgcrypto;
   alter database $PGDATABASE set request.jwt.claim.id = '-1';
   alter role $PGUSER set default_text_search_config to english;
-
-  \i $fixturesdir/database.sql
-  \i $fixturesdir/roles.sql
-  \i $fixturesdir/schema.sql
-  \i $fixturesdir/jwt.sql
-  \i $fixturesdir/jsonschema.sql
-  \i $fixturesdir/privileges.sql
 EOF
+
+psql "$DB_URI" -f "$rootdir/test/fixtures/load.sql" >> "$setuplog"
 
 log "Done. Running command..."
 # Run the command that was given as an argument. The `exit` trap above will

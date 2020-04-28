@@ -145,16 +145,6 @@ testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["v1", "v2"] }
 
-setupDb :: Text -> IO ()
-setupDb dbConn = do
-  loadFixture dbConn "database"
-  loadFixture dbConn "roles"
-  loadFixture dbConn "schema"
-  loadFixture dbConn "jwt"
-  loadFixture dbConn "jsonschema"
-  loadFixture dbConn "privileges"
-  resetDb dbConn
-
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"
 

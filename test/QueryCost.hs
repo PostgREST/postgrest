@@ -23,7 +23,6 @@ import Test.Hspec
 main :: IO ()
 main = do
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
-  -- To speed things up, assume setupDb has ben ran in the previous spec.
   pool <- P.acquire (3, 10, toS testDbConn)
 
   hspec $ describe "QueryCost" $

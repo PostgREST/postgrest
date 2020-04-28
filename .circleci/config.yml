@@ -342,12 +342,6 @@ jobs:
           name: run memory usage tests
           command: |
             test/create_test_db "postgres://circleci@localhost" postgrest_test
-            psql "postgres:///postgrest_test" -f test/fixtures/database.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/roles.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/schema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jwt.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jsonschema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
             test/memory-tests.sh
 
   centos7:
