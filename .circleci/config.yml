@@ -423,11 +423,9 @@ jobs:
       - run:
           name: Build all derivations from default.nix and push results to Cachix
           command: |
-            # We only push to the binary cache if the trigger for the build was not a pull request
-            # or if the pull request was from an internal branch. CircleCI is configured to not make
-            # the CACHIX_SIGNING_KEY secret, which is required for pushing to the cache, available to
-            # any other builds.
-            if [ -z "${CI_PULL_REQUEST:-""}" ] || [ "${CIRCLE_PR_USERNAME:-""}" == "PostgREST" ]; then
+            # Only push to the cache when CircleCI makes the CACHIX_SIGNING_KEY available (e.g. not for
+            # pull requests).
+            if [ -n "${CACHIX_SIGNING_KEY:-""}" ]; then
               echo "Building and caching all derivations..."
               nix-build | cachix push postgrest
             else
