@@ -392,7 +392,7 @@ allTables =
           FROM pg_trigger
           WHERE
             pg_trigger.tgrelid = c.oid
-            AND (pg_trigger.tgtype::integer & 69) = 69 
+            AND (pg_trigger.tgtype::integer & 69) = 69
         )
       ) AS insertable
     FROM pg_class c
