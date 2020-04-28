@@ -228,11 +228,15 @@ accessibleTables =
       n.nspname as table_schema,
       relname as table_name,
       d.description as table_description,
-      c.relkind = 'r' or (c.relkind IN ('v', 'f')) and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
-      or (exists (
-         select 1
-         from pg_trigger
-         where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+      (
+        c.relkind = 'r'
+        or (c.relkind IN ('v', 'f'))
+        and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+        or (exists (
+          select 1
+          from pg_trigger
+          where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+        )
       ) as insertable
     from
       pg_class c
@@ -243,8 +247,8 @@ accessibleTables =
       and n.nspname = $1
       and (
         pg_has_role(c.relowner, 'USAGE'::text)
-        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text)
-        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'::text)
+        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
       )
     order by relname |]
 
@@ -436,19 +440,16 @@ allColumns tabs =
         -- limit columns to the ones in the api schema or PK/FK columns
         */
         columns AS (
-            SELECT current_database()::information_schema.sql_identifier AS table_catalog,
-                nc.nspname::information_schema.sql_identifier AS table_schema,
-                c.relname::information_schema.sql_identifier AS table_name,
-                a.attname::information_schema.sql_identifier AS column_name,
+            SELECT current_database()::name AS table_catalog,
+                nc.nspname::name AS table_schema,
+                c.relname::name AS table_name,
+                a.attname::name AS column_name,
                 d.description AS description,
                 a.attnum::information_schema.cardinal_number AS ordinal_position,
-                pg_get_expr(ad.adbin, ad.adrelid)::information_schema.character_data AS column_default,
+                pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,
+                    not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
                     CASE
-                        WHEN a.attnotnull OR t.typtype = 'd'::"char" AND t.typnotnull THEN 'NO'::text
-                        ELSE 'YES'::text
-                    END::information_schema.yes_or_no AS is_nullable,
-                    CASE
-                        WHEN t.typtype = 'd'::"char" THEN
+                        WHEN t.typtype = 'd' THEN
                         CASE
                             WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
                             WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
@@ -460,14 +461,21 @@ allColumns tabs =
                             WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
                             ELSE format_type(a.atttypid, a.atttypmod)
                         END
-                    END::information_schema.character_data AS data_type,
-                information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS character_maximum_length,
-                information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*))::information_schema.cardinal_number AS numeric_precision,
-                COALESCE(bt.typname, t.typname)::information_schema.sql_identifier AS udt_name,
-                CASE
-                    WHEN c.relkind = 'r'::"char" OR (c.relkind = ANY (ARRAY['v'::"char", 'f'::"char"])) AND pg_column_is_updatable(c.oid::regclass, a.attnum, false) THEN 'YES'::text
-                    ELSE 'NO'::text
-                END::information_schema.yes_or_no AS is_updatable
+                    END::text AS data_type,
+                information_schema._pg_char_max_length(
+                    information_schema._pg_truetypid(a.*, t.*),
+                    information_schema._pg_truetypmod(a.*, t.*)
+                )::information_schema.cardinal_number AS character_maximum_length,
+                information_schema._pg_numeric_precision(
+                    information_schema._pg_truetypid(a.*, t.*),
+                    information_schema._pg_truetypmod(a.*, t.*)
+                )::information_schema.cardinal_number AS numeric_precision,
+                COALESCE(bt.typname, t.typname)::name AS udt_name,
+                (
+                    c.relkind = 'r'
+                    OR (c.relkind = ANY (ARRAY['v', 'f']))
+                    AND pg_column_is_updatable(c.oid::regclass, a.attnum, false)
+                )::bool is_updatable
             FROM pg_attribute a
                LEFT JOIN key_columns kc ON kc.conkey = a.attnum AND kc.c_oid = a.attrelid
                LEFT JOIN pg_catalog.pg_description AS d ON d.objoid = a.attrelid and d.objsubid = a.attnum
@@ -477,16 +485,15 @@ allColumns tabs =
                JOIN (pg_type t
                JOIN pg_namespace nt ON t.typnamespace = nt.oid) ON a.atttypid = t.oid
                LEFT JOIN (pg_type bt
-               JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd'::"char" AND t.typbasetype = bt.oid
+               JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid) ON t.typtype = 'd' AND t.typbasetype = bt.oid
                LEFT JOIN (pg_collation co
                JOIN pg_namespace nco ON co.collnamespace = nco.oid) ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
             WHERE
                 NOT pg_is_other_temp_schema(nc.oid)
                 AND a.attnum > 0
                 AND NOT a.attisdropped
-                AND (c.relkind = ANY (ARRAY['r'::"char", 'v'::"char", 'f'::"char", 'm'::"char"]))
+                AND (c.relkind = ANY (ARRAY['r', 'v', 'f', 'm']))
                 AND (nc.nspname = ANY ($1) OR kc.r_oid IS NOT NULL) /*--filter only columns that are FK/PK or in the api schema */
-              /*--AND (pg_has_role(c.relowner, 'USAGE'::text) OR has_column_privilege(c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
         )
         SELECT
             table_schema,
@@ -501,7 +508,6 @@ allColumns tabs =
             numeric_precision,
             column_default,
             udt_name
-        /*-- FROM information_schema.columns*/
         FROM columns
         WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
     ) AS info
@@ -577,63 +583,44 @@ allPrimaryKeys tabs =
     -- CTE to replace information_schema.table_constraints to remove owner limit
     */
     WITH tc AS (
-        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-            nc.nspname::information_schema.sql_identifier AS constraint_schema,
-            c.conname::information_schema.sql_identifier AS constraint_name,
-            current_database()::information_schema.sql_identifier AS table_catalog,
-            nr.nspname::information_schema.sql_identifier AS table_schema,
-            r.relname::information_schema.sql_identifier AS table_name,
+        SELECT current_database()::name AS constraint_catalog,
+            nc.nspname::name AS constraint_schema,
+            c.conname::name AS constraint_name,
+            current_database()::name AS table_catalog,
+            nr.nspname::name AS table_schema,
+            r.relname::name AS table_name,
                 CASE c.contype
-                    WHEN 'c'::"char" THEN 'CHECK'::text
-                    WHEN 'f'::"char" THEN 'FOREIGN KEY'::text
-                    WHEN 'p'::"char" THEN 'PRIMARY KEY'::text
-                    WHEN 'u'::"char" THEN 'UNIQUE'::text
-                    ELSE NULL::text
-                END::information_schema.character_data AS constraint_type,
-                CASE
-                    WHEN c.condeferrable THEN 'YES'::text
-                    ELSE 'NO'::text
-                END::information_schema.yes_or_no AS is_deferrable,
-                CASE
-                    WHEN c.condeferred THEN 'YES'::text
-                    ELSE 'NO'::text
-                END::information_schema.yes_or_no AS initially_deferred
+                    WHEN 'c' THEN 'CHECK'
+                    WHEN 'f' THEN 'FOREIGN KEY'
+                    WHEN 'p' THEN 'PRIMARY KEY'
+                    WHEN 'u' THEN 'UNIQUE'
+                    ELSE NULL
+                END::text AS constraint_type
         FROM pg_namespace nc,
             pg_namespace nr,
             pg_constraint c,
             pg_class r
-        WHERE nc.oid = c.connamespace AND nr.oid = r.relnamespace AND c.conrelid = r.oid AND (c.contype <> ALL (ARRAY['t'::"char", 'x'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
-        /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
-        UNION ALL
-        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-            nr.nspname::information_schema.sql_identifier AS constraint_schema,
-            (((((nr.oid::text || '_'::text) || r.oid::text) || '_'::text) || a.attnum::text) || '_not_null'::text)::information_schema.sql_identifier AS constraint_name,
-            current_database()::information_schema.sql_identifier AS table_catalog,
-            nr.nspname::information_schema.sql_identifier AS table_schema,
-            r.relname::information_schema.sql_identifier AS table_name,
-            'CHECK'::character varying::information_schema.character_data AS constraint_type,
-            'NO'::character varying::information_schema.yes_or_no AS is_deferrable,
-            'NO'::character varying::information_schema.yes_or_no AS initially_deferred
-        FROM pg_namespace nr,
-            pg_class r,
-            pg_attribute a
-        WHERE nr.oid = r.relnamespace AND r.oid = a.attrelid AND a.attnotnull AND a.attnum > 0 AND NOT a.attisdropped AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)
-        /*--AND (pg_has_role(r.relowner, 'USAGE'::text) OR has_table_privilege(r.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'::text) OR has_any_column_privilege(r.oid, 'INSERT, UPDATE, REFERENCES'::text))*/
+        WHERE
+            nc.oid = c.connamespace
+            AND nr.oid = r.relnamespace
+            AND c.conrelid = r.oid AND (c.contype <> ALL (ARRAY['t', 'x']))
+            AND r.relkind = 'r'
+            AND NOT pg_is_other_temp_schema(nr.oid)
     ),
     /*
     -- CTE to replace information_schema.key_column_usage to remove owner limit
     */
     kc AS (
-        SELECT current_database()::information_schema.sql_identifier AS constraint_catalog,
-            ss.nc_nspname::information_schema.sql_identifier AS constraint_schema,
-            ss.conname::information_schema.sql_identifier AS constraint_name,
-            current_database()::information_schema.sql_identifier AS table_catalog,
-            ss.nr_nspname::information_schema.sql_identifier AS table_schema,
-            ss.relname::information_schema.sql_identifier AS table_name,
-            a.attname::information_schema.sql_identifier AS column_name,
+        SELECT current_database()::name AS constraint_catalog,
+            ss.nc_nspname::name AS constraint_schema,
+            ss.conname::name AS constraint_name,
+            current_database()::name AS table_catalog,
+            ss.nr_nspname::name AS table_schema,
+            ss.relname::name AS table_name,
+            a.attname::name AS column_name,
             (ss.x).n::information_schema.cardinal_number AS ordinal_position,
                 CASE
-                    WHEN ss.contype = 'f'::"char" THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
+                    WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
                     ELSE NULL::integer
                 END::information_schema.cardinal_number AS position_in_unique_constraint
         FROM pg_attribute a,
@@ -653,19 +640,19 @@ allPrimaryKeys tabs =
                 pg_class r,
                 pg_namespace nc,
                 pg_constraint c
-              WHERE nr.oid = r.relnamespace AND r.oid = c.conrelid AND nc.oid = c.connamespace AND (c.contype = ANY (ARRAY['p'::"char", 'u'::"char", 'f'::"char"])) AND r.relkind = 'r'::"char" AND NOT pg_is_other_temp_schema(nr.oid)) ss
+              WHERE
+                nr.oid = r.relnamespace
+                AND r.oid = c.conrelid
+                AND nc.oid = c.connamespace
+                AND (c.contype = ANY (ARRAY['p', 'u', 'f']))
+                AND r.relkind = 'r' AND NOT pg_is_other_temp_schema(nr.oid)) ss
         WHERE ss.roid = a.attrelid AND a.attnum = (ss.x).x AND NOT a.attisdropped
-        /*--AND (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text))*/
     )
     SELECT
         kc.table_schema,
         kc.table_name,
         kc.column_name
     FROM
-        /*
-        --information_schema.table_constraints tc,
-        --information_schema.key_column_usage kc
-        */
         tc, kc
     WHERE
         tc.constraint_type = 'PRIMARY KEY' AND
