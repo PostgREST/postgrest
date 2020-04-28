@@ -229,13 +229,20 @@ accessibleTables =
       relname as table_name,
       d.description as table_description,
       (
-        c.relkind = 'r'
-        or (c.relkind IN ('v', 'f'))
+        c.relkind IN ('r', 'v', 'f')
         and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+        -- The function `pg_relation_is_updateable` returns a bitmask where 8
+        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
+        -- it's possible to insert into the relation.
         or (exists (
           select 1
           from pg_trigger
-          where pg_trigger.tgrelid = c.oid and (pg_trigger.tgtype::integer & 69) = 69)
+          where
+            pg_trigger.tgrelid = c.oid
+            and (pg_trigger.tgtype::integer & 69) = 69)
+            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
+            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
+            -- in the PostgreSQL source code.
         )
       ) as insertable
     from
@@ -246,7 +253,7 @@ accessibleTables =
       c.relkind in ('v', 'r', 'm', 'f')
       and n.nspname = $1
       and (
-        pg_has_role(c.relowner, 'USAGE'::text)
+        pg_has_role(c.relowner, 'USAGE')
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
         or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
       )
