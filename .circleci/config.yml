@@ -101,7 +101,9 @@ jobs:
             postgrest-lint
       - run:
           name: Run style check
-          command: postgrest-style-check
+          command: |
+            echo 'Note: For checking this locally, use `make style`. Or, if using `nix`, run `nix-shell --run postgrest-style`'
+            postgrest-style
 
   build-test-9.4:
     docker:
