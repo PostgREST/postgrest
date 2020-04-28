@@ -596,14 +596,7 @@ allPrimaryKeys tabs =
         SELECT
             c.conname::name AS constraint_name,
             nr.nspname::name AS table_schema,
-            r.relname::name AS table_name,
-                CASE c.contype
-                    WHEN 'c' THEN 'CHECK'
-                    WHEN 'f' THEN 'FOREIGN KEY'
-                    WHEN 'p' THEN 'PRIMARY KEY'
-                    WHEN 'u' THEN 'UNIQUE'
-                    ELSE NULL
-                END::text AS constraint_type
+            r.relname::name AS table_name
         FROM pg_namespace nc,
             pg_namespace nr,
             pg_constraint c,
@@ -611,9 +604,10 @@ allPrimaryKeys tabs =
         WHERE
             nc.oid = c.connamespace
             AND nr.oid = r.relnamespace
-            AND c.conrelid = r.oid AND (c.contype <> ALL (ARRAY['t', 'x']))
+            AND c.conrelid = r.oid
             AND r.relkind = 'r'
             AND NOT pg_is_other_temp_schema(nr.oid)
+            AND c.contype = 'p'
     ),
     -- CTE to replace information_schema.key_column_usage to remove owner limit
     kc AS (
@@ -663,7 +657,6 @@ allPrimaryKeys tabs =
     FROM
         tc, kc
     WHERE
-        tc.constraint_type = 'PRIMARY KEY' AND
         kc.table_name = tc.table_name AND
         kc.table_schema = tc.table_schema AND
         kc.constraint_name = tc.constraint_name AND
