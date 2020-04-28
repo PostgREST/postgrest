@@ -96,7 +96,9 @@ jobs:
           command: nix-env -f default.nix -iA lint style
       - run:
           name: Run linter
-          command: postgrest-lint
+          command: |
+            echo 'Note: For checking this locally, use `make lint`. Or, if using `nix`, run `nix-shell --run postgrest-lint`'
+            postgrest-lint
       - run:
           name: Run style check
           command: postgrest-style-check
