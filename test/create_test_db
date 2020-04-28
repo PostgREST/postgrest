@@ -55,6 +55,8 @@ ALTER DATABASE $DB SET LC_MESSAGES = 'POSIX';
 ALTER DATABASE $DB SET LC_MONETARY = 'POSIX';
 ALTER DATABASE $DB SET LC_NUMERIC = 'POSIX';
 ALTER DATABASE $DB SET LC_TIME = 'POSIX';
+
+\i $BASEPATH/fixtures/load.sql
 EOF
 
 #Remove database path from the connection uri--prevents setting up the new database name with PGDATABASE
@@ -63,8 +65,6 @@ URI=$(echo $URI | cut -d'/' -f1-3)
 PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq <<EOF
   CREATE EXTENSION IF NOT EXISTS pgcrypto;
   ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
-
-  \i $BASEPATH/fixtures/load.sql
 EOF
 
 # Create a new connection string to use with the test runner
