@@ -88,39 +88,22 @@ jobs:
 
   style:
     docker:
-      - image: circleci/buildpack-deps:trusty
+      - image: nixos/nix:2.3
     steps:
       - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-style-dependencies-{{ checksum "stack.yaml" }}
       - run:
-          name: install stack
+          name: Install linting and styling scripts
+          command: nix-env -f default.nix -iA lint style
+      - run:
+          name: Run linter
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
-            stack setup
+            echo 'Note: For checking this locally, use `make lint`. Or, if using `nix`, run `nix-shell --run postgrest-lint`'
+            postgrest-lint
       - run:
-          name: install linters
+          name: Run style check
           command: |
-            # -fno-spec-constr may help with out-of-memory issues compiling
-            # haskell-src-exts. Compare stack.yaml.
-            stack install --ghc-options=-fno-spec-constr hlint stylish-haskell
-      - save_cache:
-          paths:
-            - "~/.stack"
-            - ".stack-work"
-          key: v1-stack-style-dependencies-{{ checksum "stack.yaml" }}
-      - run:
-          name: Add stack tools to $PATH
-          command: |
-            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
-      - run:
-          name: run linter
-          command: make lint
-      - run:
-          name: run styler
-          command: make style
+            echo 'Note: For checking this locally, use `make style`. Or, if using `nix`, run `nix-shell --run postgrest-style`'
+            postgrest-style-check
 
   build-test-9.4:
     docker:
