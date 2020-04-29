@@ -103,7 +103,7 @@ jobs:
           name: Run style check
           command: |
             echo 'Note: For checking this locally, use `make style`. Or, if using `nix`, run `nix-shell --run postgrest-style`'
-            postgrest-style
+            postgrest-style-check
 
   build-test-9.4:
     docker:
