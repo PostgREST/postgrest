@@ -56,7 +56,6 @@ main = do
   getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
 
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
-  setupDb testDbConn
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
