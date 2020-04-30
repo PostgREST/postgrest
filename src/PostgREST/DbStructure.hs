@@ -13,6 +13,7 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 module PostgREST.DbStructure (
   getDbStructure
@@ -40,12 +41,16 @@ import Protolude.Conv                (toS)
 import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q, qc)
 
+import qualified Data.FileEmbed as FileEmbed
+
 import PostgREST.Private.Common
 import PostgREST.Types
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schemas pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  HT.sql $(FileEmbed.embedFile "src/PostgREST/lib.sql")
+
   tabs    <- HT.statement () allTables
   cols    <- HT.statement schemas $ allColumns tabs
   srcCols <- HT.statement schemas $ allSourceColumns cols pgVer
@@ -475,10 +480,7 @@ allColumns tabs =
                     information_schema._pg_truetypid(a.*, t.*),
                     information_schema._pg_truetypmod(a.*, t.*)
                 )::integer AS character_maximum_length,
-                information_schema._pg_numeric_precision(
-                    information_schema._pg_truetypid(a.*, t.*),
-                    information_schema._pg_truetypmod(a.*, t.*)
-                )::integer AS numeric_precision,
+                pg_temp.postgrest_numeric_precision(a, t) as numeric_precision,
                 COALESCE(bt.typname, t.typname)::name AS udt_name,
                 (
                     c.relkind in ('r', 'v', 'f')
