@@ -7,6 +7,8 @@ check: lint style test
 clean: prompt-clean
 	stack clean --full
 
+# For running these you'll need to install hlint and stylish-haskell first. Run:
+# stack install hlint stylish-haskell
 lint:
 	git ls-files | grep '\.l\?hs$$' | xargs stack exec -- hlint -X QuasiQuotes -X NoPatternSynonyms "$$@"
 

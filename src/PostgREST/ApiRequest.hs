@@ -220,9 +220,9 @@ userApiRequest confSchemas rootSpec req reqBody
   profile
     | length confSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
-    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
+    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete, ActionInvoke InvPost] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
       = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
-    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead, ActionInvoke InvPost,
+    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead,
                      ActionInspect False, ActionInspect True, ActionInfo]
       = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
     | otherwise = Nothing
