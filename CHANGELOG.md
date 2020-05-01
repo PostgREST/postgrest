@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1471, Fix POST, PATCH, DELETE with ?select= and return=minimal and PATCH with empty body - @wolfgangwalther
 - #1500, Fix missing `openapi-server-proxy-uri` config option - @steve-chavez
 - #1508, Fix `Content-Profile` not working for POST RPC - @steve-chavez
+- #1452, Fix PUT restriction for all columns - @steve-chavez
 
 ## [7.0.0] - 2020-04-03
 

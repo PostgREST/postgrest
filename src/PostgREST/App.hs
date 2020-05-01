@@ -219,22 +219,14 @@ app dbStructure proc cols conf apiRequest =
                     else
                       return $ responseLBS status headers rBody
 
-        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just ProcessedJSON{pjRaw, pjType, pjKeys}) ->
+        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
-            Right (sq, mq) -> do
-              let isSingle = case pjType of
-                               PJArray len -> len == 1
-                               PJObject    -> True
-                  colNames = colName <$> tableCols dbStructure tSchema tName
+            Right (sq, mq) ->
               if topLevelRange /= allRange
                 then return . errorResponseFor $ PutRangeNotAllowedError
-              else if not isSingle
-                then return . errorResponseFor $ PutSingletonError
-              else if S.fromList colNames /= pjKeys
-                then return . errorResponseFor $ PutPayloadIncompleteError
               else do
-                row <- H.statement (toS pjRaw) $
+                row <- H.statement (toS $ pjRaw pJson) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer
                 let (_, queryTotal, _, body, gucHeaders) = row
