@@ -223,10 +223,8 @@ data SimpleError
   = GucHeadersError
   | BinaryFieldError ContentType
   | ConnectionLostError
-  | PutSingletonError
   | PutMatchingPkError
   | PutRangeNotAllowedError
-  | PutPayloadIncompleteError
   | JwtTokenMissing
   | JwtTokenInvalid Text
   | SingularityError Integer
@@ -234,17 +232,15 @@ data SimpleError
   deriving (Show, Eq)
 
 instance PgrstError SimpleError where
-  status GucHeadersError           = HT.status500
-  status (BinaryFieldError _)      = HT.status406
-  status ConnectionLostError       = HT.status503
-  status PutSingletonError         = HT.status400
-  status PutMatchingPkError        = HT.status400
-  status PutRangeNotAllowedError   = HT.status400
-  status PutPayloadIncompleteError = HT.status400
-  status JwtTokenMissing           = HT.status500
-  status (JwtTokenInvalid _)       = HT.unauthorized401
-  status (SingularityError _)      = HT.status406
-  status (ContentTypeError _)      = HT.status415
+  status GucHeadersError         = HT.status500
+  status (BinaryFieldError _)    = HT.status406
+  status ConnectionLostError     = HT.status503
+  status PutMatchingPkError      = HT.status400
+  status PutRangeNotAllowedError = HT.status400
+  status JwtTokenMissing         = HT.status500
+  status (JwtTokenInvalid _)     = HT.unauthorized401
+  status (SingularityError _)    = HT.status406
+  status (ContentTypeError _)    = HT.status415
 
   headers (SingularityError _)     = [toHeader CTSingularJSON]
   headers (JwtTokenInvalid m)      = [toHeader CTApplicationJSON, invalidTokenHeader m]
@@ -258,12 +254,8 @@ instance JSON.ToJSON SimpleError where
   toJSON ConnectionLostError       = JSON.object [
     "message" .= ("Database connection lost, retrying the connection." :: Text)]
 
-  toJSON PutSingletonError         = JSON.object [
-    "message" .= ("PUT payload must contain a single row" :: Text)]
   toJSON PutRangeNotAllowedError   = JSON.object [
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text)]
-  toJSON PutPayloadIncompleteError = JSON.object [
-    "message" .= ("You must specify all columns in the payload when using PUT" :: Text)]
   toJSON PutMatchingPkError        = JSON.object [
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text)]
 
