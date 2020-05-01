@@ -6,7 +6,7 @@ pkgs.lib.overrideDerivation env (
         pkgs.cabal-install
         pkgs.stack
         pkgs.cabal2nix
-        pkgs.postgresql
+        pkgs.postgresql_9_6
         nixpkgsUpgrade
         tests
         devtools
