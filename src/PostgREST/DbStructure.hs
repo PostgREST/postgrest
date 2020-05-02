@@ -8,6 +8,7 @@ The schema cache is necessary for resource embedding, foreign keys are used for 
 
 These queries are executed once at startup or when PostgREST is reloaded.
 -}
+
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
@@ -56,10 +57,11 @@ getDbStructure schemas pgVer = do
     cols = rawDbColumns raw
     srcCols = rawDbSourceColumns raw
     oldSrcCols = fmap (\src -> (srcSource src, srcView src)) srcCols
+    keys = rawDbPrimaryKeys raw
+    rawProcs = rawDbProcs raw
+    procs = procsMap $ fmap loadProc rawProcs
 
   m2oRels <- HT.statement () $ allM2ORels tabs cols
-  keys    <- HT.statement () $ allPrimaryKeys tabs
-  procs   <- HT.statement schemas allProcs
 
   let rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
       cols' = addForeignKeys rels cols
@@ -73,6 +75,63 @@ getDbStructure schemas pgVer = do
     , dbProcs = procs
     , pgVersion = pgVer
     }
+
+
+procsMap :: [ProcDescription] -> ProcsMap
+procsMap procs =
+    M.fromListWith (++) . map (\(x,y) -> (x, [y])) . sort $ map addKey procs
+
+loadProc :: RawProcDescription -> ProcDescription
+loadProc raw =
+  ProcDescription
+    { pdSchema = procSchema raw
+    , pdName = procName raw
+    , pdDescription = procDescription raw
+    , pdArgs = parseArgs $ procArgs raw
+    , pdReturnType =
+        parseRetType
+          (procReturnTypeSchema raw)
+          (procReturnTypeName raw)
+          (procReturnTypeIsSetof raw)
+          (procReturnType raw)
+    , pdVolatility =
+        parseVolatility (procVolatility raw)
+    }
+
+addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
+addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
+
+parseArgs :: Text -> [PgArg]
+parseArgs =
+    mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
+
+parseArg :: Text -> Maybe PgArg
+parseArg a =
+  let arg = lastDef "" $ splitOn "INOUT " a
+      (body, def) = breakOn " DEFAULT " arg
+      (name, typ) = breakOn " " body in
+  if T.null typ
+     then Nothing
+     else Just $
+       PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+
+parseRetType :: Text -> Text -> Bool -> Char -> RetType
+parseRetType schema name isSetOf typ
+  | isSetOf   = SetOf pgType
+  | otherwise = Single pgType
+  where
+    qi = QualifiedIdentifier schema name
+    pgType = case typ of
+      'c' -> Composite qi
+      'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
+               then Composite qi
+               else Scalar qi
+      _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+
+parseVolatility :: Char -> ProcVolatility
+parseVolatility v | v == 'i' = Immutable
+                  | v == 's' = Stable
+                  | otherwise = Volatile -- only 'v' can happen here
 
 decodeTables :: HD.Result [Table]
 decodeTables =
@@ -96,67 +155,22 @@ decodeRels tables cols =
     <*> column HD.text
     <*> column (HD.array (HD.dimension replicateM (element HD.text)))
 
-decodePks :: [Table] -> HD.Result [PrimaryKey]
-decodePks tables =
-  mapMaybe (pkFromRow tables) <$> HD.rowList pkRow
- where
-  pkRow = (,,) <$> column HD.text <*> column HD.text <*> column HD.text
-
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
   map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
   where
-    procRow = ProcDescription
-              <$> column HD.text
-              <*> column HD.text
-              <*> nullableColumn HD.text
-              <*> (parseArgs <$> column HD.text)
-              <*> (parseRetType
-                  <$> column HD.text
-                  <*> column HD.text
-                  <*> column HD.bool
-                  <*> column HD.char)
-              <*> (parseVolatility <$> column HD.char)
-
-    addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
-    addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
-
-    parseArgs :: Text -> [PgArg]
-    parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
-
-    parseArg :: Text -> Maybe PgArg
-    parseArg a =
-      let arg = lastDef "" $ splitOn "INOUT " a
-          (body, def) = breakOn " DEFAULT " arg
-          (name, typ) = breakOn " " body in
-      if T.null typ
-         then Nothing
-         else Just $
-           PgArg (dropAround (== '"') name) (strip typ) (T.null def)
-
-    parseRetType :: Text -> Text -> Bool -> Char -> RetType
-    parseRetType schema name isSetOf typ
-      | isSetOf   = SetOf pgType
-      | otherwise = Single pgType
-      where
-        qi = QualifiedIdentifier schema name
-        pgType = case typ of
-          'c' -> Composite qi
-          'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
-                   then Composite qi
-                   else Scalar qi
-          _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
-
-    parseVolatility :: Char -> ProcVolatility
-    parseVolatility v | v == 'i' = Immutable
-                      | v == 's' = Stable
-                      | otherwise = Volatile -- only 'v' can happen here
-
-allProcs :: H.Statement [Schema] ProcsMap
-allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs True
-  where
-    sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
+     procRow = ProcDescription
+        <$> column HD.text
+        <*> column HD.text
+        <*> nullableColumn HD.text
+        <*> (parseArgs <$> column HD.text)
+        <*> (parseRetType
+        <$> column HD.text
+        <*> column HD.text
+        <*> column HD.bool
+        <*> column HD.char)
+        <*> (parseVolatility <$> column HD.char)
 
 accessibleProcs :: H.Statement Schema ProcsMap
 accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
@@ -389,86 +403,6 @@ relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
     tableF = findTable frs frt
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
-
-allPrimaryKeys :: [Table] -> H.Statement () [PrimaryKey]
-allPrimaryKeys tabs =
-  H.Statement sql HE.noParams (decodePks tabs) True
- where
-  sql = [q|
-    -- CTE to replace information_schema.table_constraints to remove owner limit
-    WITH tc AS (
-        SELECT
-            c.conname::name AS constraint_name,
-            nr.nspname::name AS table_schema,
-            r.relname::name AS table_name
-        FROM pg_namespace nc,
-            pg_namespace nr,
-            pg_constraint c,
-            pg_class r
-        WHERE
-            nc.oid = c.connamespace
-            AND nr.oid = r.relnamespace
-            AND c.conrelid = r.oid
-            AND r.relkind = 'r'
-            AND NOT pg_is_other_temp_schema(nr.oid)
-            AND c.contype = 'p'
-    ),
-    -- CTE to replace information_schema.key_column_usage to remove owner limit
-    kc AS (
-        SELECT
-            ss.conname::name AS constraint_name,
-            ss.nr_nspname::name AS table_schema,
-            ss.relname::name AS table_name,
-            a.attname::name AS column_name,
-            (ss.x).n::integer AS ordinal_position,
-            CASE
-                WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
-                ELSE NULL::integer
-            END::integer AS position_in_unique_constraint
-        FROM pg_attribute a,
-            ( SELECT r.oid AS roid,
-                r.relname,
-                r.relowner,
-                nc.nspname AS nc_nspname,
-                nr.nspname AS nr_nspname,
-                c.oid AS coid,
-                c.conname,
-                c.contype,
-                c.conindid,
-                c.confkey,
-                information_schema._pg_expandarray(c.conkey) AS x
-               FROM pg_namespace nr,
-                pg_class r,
-                pg_namespace nc,
-                pg_constraint c
-              WHERE
-                nr.oid = r.relnamespace
-                AND r.oid = c.conrelid
-                AND nc.oid = c.connamespace
-                AND c.contype in ('p', 'u', 'f')
-                AND r.relkind = 'r'
-                AND NOT pg_is_other_temp_schema(nr.oid)
-            ) ss
-        WHERE
-          ss.roid = a.attrelid
-          AND a.attnum = (ss.x).x
-          AND NOT a.attisdropped
-    )
-    SELECT
-        kc.table_schema,
-        kc.table_name,
-        kc.column_name
-    FROM
-        tc, kc
-    WHERE
-        kc.table_name = tc.table_name AND
-        kc.table_schema = tc.table_schema AND
-        kc.constraint_name = tc.constraint_name AND
-        kc.table_schema NOT IN ('pg_catalog', 'information_schema') |]
-
-pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
-pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
-  where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 getPgVersion :: H.Session PgVersion
 getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False

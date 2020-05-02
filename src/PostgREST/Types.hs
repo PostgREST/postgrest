@@ -36,6 +36,8 @@ data RawDbStructure =
         , rawDbTables :: [Table]
         , rawDbColumns :: [Column]
         , rawDbSourceColumns :: [SourceColumn]
+        , rawDbPrimaryKeys :: [PrimaryKey]
+        , rawDbProcs :: [RawProcDescription]
         }
     deriving (Show, Eq, Generic)
 
@@ -158,6 +160,24 @@ data ProcDescription = ProcDescription {
 , pdVolatility  :: ProcVolatility
 } deriving (Show, Eq)
 
+data RawProcDescription =
+  RawProcDescription
+    { procSchema :: Schema
+    , procName :: Text
+    , procDescription :: Maybe Text
+    , procArgs :: Text
+    , procReturnTypeSchema :: Text
+    , procReturnTypeName :: Text
+    , procReturnTypeIsSetof :: Bool
+    , procReturnType :: Char
+    , procVolatility :: Char
+    , procIsAccessible :: Bool
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawProcDescription where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
   ProcDescription schema1 name1 des1 args1 rt1 vol1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2
@@ -275,7 +295,11 @@ type ViewColumn = Column
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
   , pkName  :: Text
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance FromJSON PrimaryKey where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where

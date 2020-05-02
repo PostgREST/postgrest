@@ -17,12 +17,13 @@ with
       pn.nspname as proc_schema,
       p.proname as proc_name,
       d.description as proc_description,
-      pg_get_function_arguments(p.oid) as args,
-      tn.nspname as rettype_schema,
-      coalesce(comp.relname, t.typname) as rettype_name,
-      p.proretset as rettype_is_setof,
-      t.typtype as rettype_typ,
-      p.provolatile
+      pg_get_function_arguments(p.oid) as proc_args,
+      tn.nspname as proc_return_type_schema,
+      coalesce(comp.relname, t.typname) as proc_return_type_name,
+      p.proretset as proc_return_type_is_setof,
+      t.typtype as proc_return_type,
+      p.provolatile as proc_volatility,
+      has_function_privilege(p.oid, 'execute') as proc_is_accessible
     FROM pg_proc p
       JOIN pg_namespace pn ON pn.oid = p.pronamespace
       JOIN pg_type t ON t.oid = p.prorettype
@@ -30,7 +31,7 @@ with
       LEFT JOIN pg_class comp ON comp.oid = t.typrelid
       LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
     WHERE
-      pn.nspname NOT IN ('pg_catalog', 'information_schema')
+      pn.nspname = any ($1)
   ),
 
 
@@ -348,9 +349,22 @@ with
      SELECT
          kc.table_schema,
          kc.table_name,
-         kc.column_name
+         kc.column_name as pk_name,
+         pk_table
      FROM
          tc, kc
+         , lateral (
+            select
+              -- explicit columns needed for Postgres < 10
+              table_schema::text,
+              table_name::text,
+              table_description::text,
+              table_insertable::bool
+            from tables
+            where
+              tables.table_schema::text = kc.table_schema::text
+              and tables.table_name::text = kc.table_name::text
+         ) pk_table
      WHERE
          kc.table_name = tc.table_name AND
          kc.table_schema = tc.table_schema AND
@@ -453,8 +467,8 @@ with
 
   select
     json_build_object(
-        'raw_db_procs', procs_agg.array_agg,
-        'raw_db_schema_description', schema_description_agg.array_agg,
+        'raw_db_procs', coalesce(procs_agg.array_agg, array[]::record[]),
+        'raw_db_schema_descriptions', schema_description_agg.array_agg,
         'raw_db_accessible_tables', accessible_tables_agg.array_agg,
         'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
         'raw_db_columns', columns_agg.array_agg,
