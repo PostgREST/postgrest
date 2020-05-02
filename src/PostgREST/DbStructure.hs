@@ -60,8 +60,7 @@ getDbStructure schemas pgVer = do
     keys = rawDbPrimaryKeys raw
     rawProcs = rawDbProcs raw
     procs = procsMap $ fmap loadProc rawProcs
-
-  m2oRels <- HT.statement () $ allM2ORels tabs cols
+    m2oRels = rawDbM2oRels raw
 
   let rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
       cols' = addForeignKeys rels cols
@@ -141,19 +140,6 @@ decodeTables =
                  <*> column HD.text
                  <*> nullableColumn HD.text
                  <*> column HD.bool
-
-decodeRels :: [Table] -> [Column] -> HD.Result [Relation]
-decodeRels tables cols =
-  mapMaybe (relFromRow tables cols) <$> HD.rowList relRow
- where
-  relRow = (,,,,,,)
-    <$> column HD.text
-    <*> column HD.text
-    <*> column HD.text
-    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
-    <*> column HD.text
-    <*> column HD.text
-    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
 
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
@@ -365,44 +351,6 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
   let viewPks = (\(_, viewCol) -> PrimaryKey{pkTable=colTable viewCol, pkName=colName viewCol}) <$>
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
   pk : viewPks)
-
-allM2ORels :: [Table] -> [Column] -> H.Statement () [Relation]
-allM2ORels tabs cols =
-  H.Statement sql HE.noParams (decodeRels tabs cols) True
- where
-  sql = [q|
-    SELECT ns1.nspname AS table_schema,
-           tab.relname AS table_name,
-           conname     AS constraint_name,
-           column_info.cols AS columns,
-           ns2.nspname AS foreign_table_schema,
-           other.relname AS foreign_table_name,
-           column_info.refs AS foreign_columns
-    FROM pg_constraint,
-    LATERAL (
-      SELECT array_agg(cols.attname) AS cols,
-                    array_agg(cols.attnum)  AS nums,
-                    array_agg(refs.attname) AS refs
-      FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
-      LATERAL (SELECT * FROM pg_attribute WHERE attrelid = conrelid AND attnum = col) AS cols,
-      LATERAL (SELECT * FROM pg_attribute WHERE attrelid = confrelid AND attnum = ref) AS refs) AS column_info,
-    LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = connamespace) AS ns1,
-    LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
-    LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
-    LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
-    WHERE confrelid != 0
-    ORDER BY (conrelid, column_info.nums) |]
-
-relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
-relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relation <$> table <*> cols <*> pure (Just cn) <*> tableF <*> colsF <*> pure M2O <*> pure Nothing
-  where
-    findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
-    findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
-    table  = findTable rs rt
-    tableF = findTable frs frt
-    cols  = mapM (findCol rs rt) rcs
-    colsF = mapM (findCol frs frt) frcs
 
 getPgVersion :: H.Session PgVersion
 getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False

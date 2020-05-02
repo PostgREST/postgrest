@@ -260,25 +260,53 @@ with
   -- M2O relations
 
   m2o_rels as (
-     SELECT ns1.nspname AS table_schema,
-            tab.relname AS table_name,
-            conname     AS constraint_name,
-            column_info.cols AS columns,
-            ns2.nspname AS foreign_table_schema,
-            other.relname AS foreign_table_name,
-            column_info.refs AS foreign_columns
+     SELECT
+        rel_table,
+        rel_columns.array_agg as rel_columns,
+        conname as rel_constraint,
+        rel_f_table,
+        rel_f_columns.array_agg as rel_f_columns,
+        'M2O' as rel_type,
+        null as rel_junction
      FROM pg_constraint,
      LATERAL (
        SELECT array_agg(cols.attname) AS cols,
                      array_agg(cols.attnum)  AS nums,
                      array_agg(refs.attname) AS refs
-       FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
+       FROM (
+          SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
        LATERAL (SELECT * FROM pg_attribute WHERE attrelid = conrelid AND attnum = col) AS cols,
        LATERAL (SELECT * FROM pg_attribute WHERE attrelid = confrelid AND attnum = ref) AS refs) AS column_info,
      LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = connamespace) AS ns1,
      LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
      LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
      LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
+         , lateral (
+            select * from tables
+            where
+              tables.table_schema::text = ns1.nspname::text
+              and tables.table_name::text = tab.relname::text
+         ) rel_table
+         , lateral (
+            select * from tables
+            where
+              tables.table_schema::text = ns2.nspname::text
+              and tables.table_name::text = other.relname::text
+         ) rel_f_table
+         , lateral (
+            select array_agg(columns) from columns
+            where
+              col_schema = ns1.nspname
+              and col_table_name = tab.relname
+              and col_name = any (column_info.cols)
+         ) rel_columns
+         , lateral (
+            select array_agg(columns) from columns
+            where
+              col_schema = ns2.nspname
+              and col_table_name = other.relname
+              and col_name = any (column_info.refs)
+         ) rel_f_columns
      WHERE confrelid != 0
      ORDER BY (conrelid, column_info.nums)
   ),
@@ -354,12 +382,7 @@ with
      FROM
          tc, kc
          , lateral (
-            select
-              -- explicit columns needed for Postgres < 10
-              table_schema::text,
-              table_name::text,
-              table_description::text,
-              table_insertable::bool
+            select *
             from tables
             where
               tables.table_schema::text = kc.table_schema::text
@@ -472,7 +495,7 @@ with
         'raw_db_accessible_tables', accessible_tables_agg.array_agg,
         'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
         'raw_db_columns', columns_agg.array_agg,
-        'raw_db_m2o_rels', m2o_rels_agg.array_agg,
+        'raw_db_m2o_rels', coalesce(m2o_rels_agg.array_agg, array[]::record[]),
         'raw_db_primary_keys', primary_keys_agg.array_agg,
         'raw_db_source_columns', coalesce(source_columns_agg.array_agg, array[]::record[]),
         'raw_db_pg_ver', pg_version

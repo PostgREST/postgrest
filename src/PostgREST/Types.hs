@@ -38,6 +38,7 @@ data RawDbStructure =
         , rawDbSourceColumns :: [SourceColumn]
         , rawDbPrimaryKeys :: [PrimaryKey]
         , rawDbProcs :: [RawProcDescription]
+        , rawDbM2oRels :: [Relation]
         }
     deriving (Show, Eq, Generic)
 
@@ -332,7 +333,13 @@ instance Hashable QualifiedIdentifier
 data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2O -- ^ many-to-one,  previously known as Child
                  | M2M -- ^ many-to-many, previously known as Many
-                 deriving Eq
+                 deriving (Eq, Generic)
+
+instance FromJSON Cardinality where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+
 instance Show Cardinality where
   show O2M = "o2m"
   show M2O = "m2o"
@@ -353,7 +360,11 @@ data Relation = Relation {
 , relFColumns   :: [Column]
 , relType       :: Cardinality
 , relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance FromJSON Relation where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
 
 -- | Junction table on an M2M relationship
 data Junction = Junction {
@@ -362,7 +373,11 @@ data Junction = Junction {
 , junCols1       :: [Column]
 , junConstraint2 :: Maybe ConstraintName
 , junCols2       :: [Column]
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance FromJSON Junction where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
 
 isSelfReference :: Relation -> Bool
 isSelfReference r = relTable r == relFTable r
