@@ -39,10 +39,22 @@ data RawDbStructure =
         , rawDbPrimaryKeys :: [PrimaryKey]
         , rawDbProcs :: [RawProcDescription]
         , rawDbM2oRels :: [Relation]
+        , rawDbSchemas :: [SchemaDescription]
         }
     deriving (Show, Eq, Generic)
 
 instance FromJSON RawDbStructure where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+data SchemaDescription =
+    SchemaDescription
+        { schemaName  :: Text
+        , schemaDescription :: Maybe Text
+        }
+    deriving (Show, Eq, Generic)
+
+instance FromJSON SchemaDescription where
     parseJSON =
         Aeson.genericParseJSON aesonOptions
 
@@ -129,6 +141,7 @@ data DbStructure = DbStructure {
 , dbPrimaryKeys :: [PrimaryKey]
 , dbProcs       :: ProcsMap
 , pgVersion     :: PgVersion
+, dbSchemas     :: [SchemaDescription]
 } deriving (Show, Eq)
 
 -- TODO Table could hold references to all its Columns

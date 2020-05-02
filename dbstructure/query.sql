@@ -37,12 +37,13 @@ with
 
   -- Schema description
 
-  schema_description as (
+  schemas as (
       select
-        description
+        n.nspname as schema_name,
+        description as schema_description
       from
-        pg_catalog.pg_namespace n
-        left join pg_catalog.pg_description d on d.objoid = n.oid
+        pg_namespace n
+        left join pg_description d on d.objoid = n.oid
       where
         n.nspname = any ($1)
   ),
@@ -463,7 +464,7 @@ with
   select
     json_build_object(
         'raw_db_procs', coalesce(procs_agg.array_agg, array[]::record[]),
-        'raw_db_schema_descriptions', schema_description_agg.array_agg,
+        'raw_db_schemas', schemas_agg.array_agg,
         'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
         'raw_db_columns', columns_agg.array_agg,
         'raw_db_m2o_rels', coalesce(m2o_rels_agg.array_agg, array[]::record[]),
@@ -473,7 +474,7 @@ with
     )::json as dbstructure
   from
     (select array_agg(procs) from procs) procs_agg,
-    (select array_agg(schema_description) from schema_description) schema_description_agg,
+    (select array_agg(schemas) from schemas) schemas_agg,
     (select array_agg(tables) from tables) as tables_agg,
     (select array_agg(columns) from columns) as columns_agg,
     (select array_agg(m2o_rels) from m2o_rels) as m2o_rels_agg,

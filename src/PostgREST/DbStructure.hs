@@ -20,7 +20,6 @@ module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
 , accessibleProcs
-, schemaDescription
 , getPgVersion
 ) where
 
@@ -45,7 +44,6 @@ import           PostgREST.Types
 import           Protolude                     hiding (toS)
 import           Protolude.Conv                (toS)
 import           Protolude.Unsafe              (unsafeHead)
-import           Text.InterpolatedString.Perl6 (q)
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schemas _ = do
@@ -61,10 +59,9 @@ getDbStructure schemas _ = do
     rawProcs = rawDbProcs raw
     procs = procsMap $ fmap loadProc rawProcs
     m2oRels = rawDbM2oRels raw
-
-  let rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
-      cols' = addForeignKeys rels cols
-      keys' = addViewPrimaryKeys oldSrcCols keys
+    rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
+    cols' = addForeignKeys rels cols
+    keys' = addViewPrimaryKeys oldSrcCols keys
 
   return DbStructure {
       dbTables = tabs
@@ -73,6 +70,7 @@ getDbStructure schemas _ = do
     , dbPrimaryKeys = keys'
     , dbProcs = procs
     , pgVersion = rawDbPgVer raw
+    , dbSchemas = rawDbSchemas raw
     }
 
 accessibleTables :: DbStructure -> [Table]
@@ -139,19 +137,6 @@ parseVolatility :: Char -> ProcVolatility
 parseVolatility v | v == 'i' = Immutable
                   | v == 's' = Stable
                   | otherwise = Volatile -- only 'v' can happen here
-
-schemaDescription :: H.Statement Schema (Maybe Text)
-schemaDescription =
-    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text)) True
-  where
-    sql = [q|
-      select
-        description
-      from
-        pg_catalog.pg_namespace n
-        left join pg_catalog.pg_description d on d.objoid = n.oid
-      where
-        n.nspname = $1 |]
 
 addForeignKeys :: [Relation] -> [Column] -> [Column]
 addForeignKeys rels = map addFk

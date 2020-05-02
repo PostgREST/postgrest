@@ -321,9 +321,21 @@ app dbStructure proc cols conf apiRequest =
               toTableInfo = map (\t -> let (s, tn) = (tableSchema t, tableName t) in (t, tableCols dbStructure s tn, tablePKCols dbStructure s tn))
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
           accDbStructure <- getDbStructure [tSchema] pgVer
-          body <- encodeApi (accessibleTables accDbStructure) <$>
-            H.statement tSchema schemaDescription <*>
-            pure (accessibleProcs accDbStructure)
+          let
+            schemaDesc :: Maybe Text
+            schemaDesc =
+                case head (dbSchemas accDbStructure) of
+                  Just desc ->
+                      schemaDescription desc
+
+                  Nothing ->
+                      Nothing
+
+            body =
+                encodeApi
+                  (accessibleTables accDbStructure)
+                  schemaDesc
+                  (accessibleProcs accDbStructure)
           return $ responseLBS status200 (catMaybes [Just $ toHeader CTOpenAPI, profileH]) (if headersOnly then mempty else toS body)
 
         _ -> return notFound
