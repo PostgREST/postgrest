@@ -159,6 +159,7 @@ data ProcDescription = ProcDescription {
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
+, pdIsAccessible :: Bool
 } deriving (Show, Eq)
 
 data RawProcDescription =
@@ -181,7 +182,7 @@ instance FromJSON RawProcDescription where
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription schema1 name1 des1 args1 rt1 vol1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2
+  ProcDescription schema1 name1 des1 args1 rt1 vol1 _ `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2 _
     | schema1 == schema2 && name1 == name2 && length args1 < length args2  = LT
     | schema2 == schema2 && name1 == name2 && length args1 > length args2  = GT
     | otherwise = (schema1, name1, des1, args1, rt1, vol1) `compare` (schema2, name2, des2, args2, rt2, vol2)
@@ -234,10 +235,11 @@ type Schema = Text
 type TableName = Text
 
 data Table = Table {
-  tableSchema      :: Schema
-, tableName        :: TableName
-, tableDescription :: Maybe Text
-, tableInsertable  :: Bool
+  tableSchema       :: Schema
+, tableName         :: TableName
+, tableDescription  :: Maybe Text
+, tableInsertable   :: Bool
+, tableIsAccessible :: Bool
 } deriving (Show, Ord, Generic)
 
 instance FromJSON Table where

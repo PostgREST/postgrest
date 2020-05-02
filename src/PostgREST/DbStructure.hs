@@ -48,7 +48,7 @@ import           Protolude.Unsafe              (unsafeHead)
 import           Text.InterpolatedString.Perl6 (q)
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schemas pgVer = do
+getDbStructure schemas _ = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   raw <- getRawDbStructure schemas
 
@@ -72,9 +72,16 @@ getDbStructure schemas pgVer = do
     , dbRelations = rels
     , dbPrimaryKeys = keys'
     , dbProcs = procs
-    , pgVersion = pgVer
+    , pgVersion = rawDbPgVer raw
     }
 
+accessibleTables :: DbStructure -> [Table]
+accessibleTables structure =
+    filter tableIsAccessible (dbTables structure)
+
+accessibleProcs :: DbStructure -> ProcsMap
+accessibleProcs structure =
+    fmap (filter pdIsAccessible) (dbProcs structure)
 
 procsMap :: [ProcDescription] -> ProcsMap
 procsMap procs =
@@ -95,6 +102,7 @@ loadProc raw =
           (procReturnType raw)
     , pdVolatility =
         parseVolatility (procVolatility raw)
+    , pdIsAccessible = procIsAccessible raw
     }
 
 addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
@@ -132,57 +140,6 @@ parseVolatility v | v == 'i' = Immutable
                   | v == 's' = Stable
                   | otherwise = Volatile -- only 'v' can happen here
 
-decodeTables :: HD.Result [Table]
-decodeTables =
-  HD.rowList tblRow
- where
-  tblRow = Table <$> column HD.text
-                 <*> column HD.text
-                 <*> nullableColumn HD.text
-                 <*> column HD.bool
-
-decodeProcs :: HD.Result ProcsMap
-decodeProcs =
-  -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
-  where
-     procRow = ProcDescription
-        <$> column HD.text
-        <*> column HD.text
-        <*> nullableColumn HD.text
-        <*> (parseArgs <$> column HD.text)
-        <*> (parseRetType
-        <$> column HD.text
-        <*> column HD.text
-        <*> column HD.bool
-        <*> column HD.char)
-        <*> (parseVolatility <$> column HD.char)
-
-accessibleProcs :: H.Statement Schema ProcsMap
-accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
-  where
-    sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
-
-procsSqlQuery :: SqlQuery
-procsSqlQuery = [q|
-  SELECT
-    pn.nspname as proc_schema,
-    p.proname as proc_name,
-    d.description as proc_description,
-    pg_get_function_arguments(p.oid) as args,
-    tn.nspname as rettype_schema,
-    coalesce(comp.relname, t.typname) as rettype_name,
-    p.proretset as rettype_is_setof,
-    t.typtype as rettype_typ,
-    p.provolatile
-  FROM pg_proc p
-    JOIN pg_namespace pn ON pn.oid = p.pronamespace
-    JOIN pg_type t ON t.oid = p.prorettype
-    JOIN pg_namespace tn ON tn.oid = t.typnamespace
-    LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-    LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
-|]
-
 schemaDescription :: H.Statement Schema (Maybe Text)
 schemaDescription =
     H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text)) True
@@ -195,46 +152,6 @@ schemaDescription =
         left join pg_catalog.pg_description d on d.objoid = n.oid
       where
         n.nspname = $1 |]
-
-accessibleTables :: H.Statement Schema [Table]
-accessibleTables =
-  H.Statement sql (param HE.text) decodeTables True
- where
-  sql = [q|
-    select
-      n.nspname as table_schema,
-      relname as table_name,
-      d.description as table_description,
-      (
-        c.relkind in ('r', 'v', 'f')
-        and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
-        -- The function `pg_relation_is_updateable` returns a bitmask where 8
-        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
-        -- it's possible to insert into the relation.
-        or (exists (
-          select 1
-          from pg_trigger
-          where
-            pg_trigger.tgrelid = c.oid
-            and (pg_trigger.tgtype::integer & 69) = 69)
-            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
-            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
-            -- in the PostgreSQL source code.
-        )
-      ) as insertable
-    from
-      pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-      left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
-    where
-      c.relkind in ('v', 'r', 'm', 'f')
-      and n.nspname = $1
-      and (
-        pg_has_role(c.relowner, 'USAGE')
-        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
-        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-      )
-    order by relname |]
 
 addForeignKeys :: [Relation] -> [Column] -> [Column]
 addForeignKeys rels = map addFk

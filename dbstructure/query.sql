@@ -48,12 +48,13 @@ with
   ),
 
 
-  -- Accessible tables
 
-  accessible_tables as (
-      select
+  -- Tables
+
+  tables as (
+     SELECT
        n.nspname as table_schema,
-       relname as table_name,
+       c.relname as table_name,
        d.description as table_description,
        (
          c.relkind in ('r', 'v', 'f')
@@ -61,56 +62,27 @@ with
          -- The function `pg_relation_is_updateable` returns a bitmask where 8
          -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
          -- it's possible to insert into the relation.
-         or (exists (
+         or exists (
            select 1
            from pg_trigger
            where
              pg_trigger.tgrelid = c.oid
-             and (pg_trigger.tgtype::integer & 69) = 69)
+             and (pg_trigger.tgtype::integer & 69) = 69
              -- The trigger type `tgtype` is a bitmask where 69 corresponds to
              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
              -- in the PostgreSQL source code.
          )
-       ) as insertable
-     from
-       pg_class c
-       join pg_namespace n on n.oid = c.relnamespace
-       left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
-     where
-       c.relkind in ('v', 'r', 'm', 'f')
-       and n.nspname = any ($1)
-       and (
+       ) as table_insertable,
+       (
          pg_has_role(c.relowner, 'USAGE')
          or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
          or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-       )
-     order by relname
-  ),
-
-
-  -- Tables
-
-  tables as (
-     SELECT
-       n.nspname AS table_schema,
-       c.relname AS table_name,
-       NULL AS table_description,
-       (
-         c.relkind IN ('r', 'v','f')
-         AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-         OR EXISTS (
-           SELECT 1
-           FROM pg_trigger
-           WHERE
-             pg_trigger.tgrelid = c.oid
-             AND (pg_trigger.tgtype::integer & 69) = 69
-         )
-       ) AS table_insertable
+       ) as table_is_accessible
      FROM pg_class c
      JOIN pg_namespace n ON n.oid = c.relnamespace
+     left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
      WHERE c.relkind IN ('v','r','m','f')
        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-     GROUP BY table_schema, table_name, table_insertable
      ORDER BY table_schema, table_name
   ),
 
@@ -131,8 +103,7 @@ with
          info.character_maximum_length AS col_max_len,
          info.numeric_precision AS col_precision,
          info.column_default AS col_default,
-         coalesce(enum_info.vals, array[]::text[]) AS col_enum,
-         null as col_f_k
+         coalesce(enum_info.vals, array[]::text[]) AS col_enum
      FROM (
          -- CTE based on pg_catalog to get PRIMARY/FOREIGN key and UNIQUE columns outside api schema
          WITH key_columns AS (
@@ -247,7 +218,8 @@ with
           table_schema::text,
           table_name::text,
           table_description::text,
-          table_insertable::bool
+          table_insertable::bool,
+          table_is_accessible::bool
         from tables
         where
           tables.table_schema::text = info.table_schema::text
@@ -492,7 +464,6 @@ with
     json_build_object(
         'raw_db_procs', coalesce(procs_agg.array_agg, array[]::record[]),
         'raw_db_schema_descriptions', schema_description_agg.array_agg,
-        'raw_db_accessible_tables', accessible_tables_agg.array_agg,
         'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
         'raw_db_columns', columns_agg.array_agg,
         'raw_db_m2o_rels', coalesce(m2o_rels_agg.array_agg, array[]::record[]),
@@ -503,7 +474,6 @@ with
   from
     (select array_agg(procs) from procs) procs_agg,
     (select array_agg(schema_description) from schema_description) schema_description_agg,
-    (select array_agg(accessible_tables) from accessible_tables) as accessible_tables_agg,
     (select array_agg(tables) from tables) as tables_agg,
     (select array_agg(columns) from columns) as columns_agg,
     (select array_agg(m2o_rels) from m2o_rels) as m2o_rels_agg,
