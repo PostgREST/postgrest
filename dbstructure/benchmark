@@ -9,6 +9,8 @@ echo "Analyzing query..."
 
 echo "Running query..."
 json="$(time "$dir"/show)"
+echo "JSON bytes: $(echo "$json" | wc -c)"
+
 
 echo "Parsing results..."
 time (echo "$json" | postgrest-dbstructure)

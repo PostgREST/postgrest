@@ -7,11 +7,11 @@ dir="$(dirname "$0")"
 script="
    \set ON_ERROR_STOP on
 
-   prepare dbstructure(text[]) as
+   prepare dbstructure(name[]) as
      $(cat "$dir"/query.sql)
      ;
 
-   explain analyze execute dbstructure(array['test']);
+   explain (analyze, costs, verbose, buffers, format json) execute dbstructure(array['$1']);
 "
 
-echo "$script" | psql
+echo "$script" | psql -qAt

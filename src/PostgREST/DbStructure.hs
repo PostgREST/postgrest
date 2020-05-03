@@ -16,35 +16,34 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
+
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
 , accessibleProcs
+, RawDbStructure
 , parseDbStructure
 , getPgVersion
 ) where
 
 import           Control.Exception
 import qualified Data.Aeson                    as Aeson
+import           Data.Aeson (FromJSON)
 import qualified Data.FileEmbed                as FileEmbed
 import qualified Data.HashMap.Strict           as M
 import qualified Data.List                     as L
-import           Data.Set                      as S (fromList)
 import           Data.String
-import           Data.Text                     (breakOn, dropAround,
-                                                split, splitOn, strip)
-import qualified Data.Text                     as T
-import           GHC.Exts                      (groupWith)
 import qualified Hasql.Decoders                as HD
 import qualified Hasql.Encoders                as HE
 import qualified Hasql.Session                 as H
 import qualified Hasql.Statement               as H
 import qualified Hasql.Transaction             as HT
-import           PostgREST.Private.Common
-import           PostgREST.Types
-import           Protolude                     hiding (toS)
-import           Protolude.Conv                (toS)
-import           Protolude.Unsafe              (unsafeHead)
+import qualified PostgREST.Private.Common as Common
+import           PostgREST.Types hiding (Table(..), Column(..), Relation(..), Junction(..))
+import qualified PostgREST.Types as Types
+import           Protolude
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schemas _ = do
@@ -52,45 +51,144 @@ getDbStructure schemas _ = do
   -- fully qualified name(schema.name) of every db object.
   HT.sql "set local schema ''"
   raw <- getRawDbStructure schemas
-
   return $ parseDbStructure raw
 
 parseDbStructure :: RawDbStructure -> DbStructure
 parseDbStructure raw =
   let
-    tabs = rawDbTables raw
-    cols = rawDbColumns raw
-    srcCols = rawDbSourceColumns raw
-    oldSrcCols = fmap (\src -> (srcSource src, srcView src)) srcCols
-    keys = rawDbPrimaryKeys raw
-    rawProcs = rawDbProcs raw
-    procs = procsMap $ fmap loadProc rawProcs
-    m2oRels = rawDbM2oRels raw
-    rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
+    tabs = fmap loadTable $ rawDbTables raw
+
+    tabsMap :: Tables
+    tabsMap =
+      M.fromList . map (\table -> (tableOid table, table)) $ rawDbTables raw
+
+    cols = catMaybes . fmap (loadColumn tabsMap) $ rawDbColumns raw
+
+    colsMap :: Columns
+    colsMap =
+      M.fromList . map (\col -> ((colTableOid col, colPosition col), col)) $ rawDbColumns raw
+
+    rels = catMaybes . fmap (loadRelation tabsMap colsMap) $ rawDbRels raw
+
+    procs = procsMap $ fmap loadProc $ rawDbProcs raw
+
     cols' = addForeignKeys rels cols
-    keys' = addViewPrimaryKeys oldSrcCols keys
   in
   DbStructure
     { dbTables = tabs
     , dbColumns = cols'
     , dbRelations = rels
-    , dbPrimaryKeys = keys'
     , dbProcs = procs
     , pgVersion = rawDbPgVer raw
     , dbSchemas = rawDbSchemas raw
     }
 
-accessibleTables :: DbStructure -> [Table]
+loadTable :: RawTable -> Types.Table
+loadTable raw =
+  Types.Table
+    { Types.tableSchema = tableSchema raw
+    , Types.tableName = tableName raw
+    , Types.tableDescription = tableDescription raw
+    , Types.tableInsertable = tableInsertable raw
+    , Types.tableIsAccessible = tableIsAccessible raw
+    }
+
+loadColumn :: Tables -> RawColumn -> Maybe Types.Column
+loadColumn tabsMap col =
+  loadColumn' col <$> M.lookup (colTableOid col) tabsMap
+
+loadColumn' :: RawColumn -> RawTable -> Types.Column
+loadColumn' col tab =
+  Types.Column
+    { Types.colTable = loadTable tab
+    , Types.colPosition = colPosition col
+    , Types.colName = colName col
+    , Types.colDescription = colDescription col
+    , Types.colNullable = colNullable col
+    , Types.colType = colType col
+    , Types.colUpdatable = colUpdatable col
+    , Types.colMaxLen = colMaxLen col
+    , Types.colPrecision = colPrecision col
+    , Types.colDefault = colDefault col
+    , Types.colEnum = colEnum col
+    , Types.colFK = colFK col
+    , Types.colIsPrimaryKey = colIsPrimaryKey col
+    }
+
+type Tables = M.HashMap Oid RawTable
+
+type Columns = M.HashMap (Oid, ColPosition) RawColumn
+
+loadRelation :: Tables -> Columns -> RawRelation -> Maybe Types.Relation
+loadRelation tabs cols raw =
+  let
+    junction =
+      case relJunction raw of
+        Just j ->
+          loadJunction tabs cols j
+        Nothing ->
+          Nothing
+  in
+  loadRelation' raw cols junction
+    <$> M.lookup (relTableOid raw) tabs
+    <*> M.lookup (relFTableOid raw) tabs
+
+loadRelation' :: RawRelation -> Columns -> Maybe Types.Junction -> RawTable -> RawTable -> Types.Relation
+loadRelation' raw cols junc tab fTab =
+  let
+    lookupCol :: RawTable -> ColPosition -> Maybe RawColumn
+    lookupCol t pos =
+      M.lookup (tableOid t, pos) cols
+  in
+  Types.Relation
+    { Types.relTable = loadTable tab
+    , Types.relFTable = loadTable fTab
+    , Types.relConstraint = relConstraint raw
+    , Types.relType = relType raw
+    , Types.relJunction = junc
+    , Types.relColumns =
+        fmap (\c -> loadColumn' c tab) . catMaybes .
+          fmap ((lookupCol tab) . fromCol) $ relColMap raw
+    , Types.relFColumns =
+        fmap (\c -> loadColumn' c fTab) . catMaybes .
+          fmap ((lookupCol fTab) . toCol) $ relColMap raw
+    }
+
+loadJunction :: Tables -> Columns -> RawJunction -> Maybe Types.Junction
+loadJunction tabs cols raw =
+  loadJunction' raw cols
+    <$> M.lookup (junTableOid raw) tabs
+
+loadJunction' :: RawJunction -> Columns -> RawTable -> Types.Junction
+loadJunction' raw cols tab =
+  let
+    lookupCol :: RawTable -> ColPosition -> Maybe RawColumn
+    lookupCol t pos =
+        M.lookup (tableOid t, pos) cols
+  in
+  Types.Junction
+    { Types.junTable = loadTable tab
+    , Types.junConstraint1 = junConstraint1 raw
+    , Types.junConstraint2 = junConstraint2 raw
+    , Types.junCols1 =
+        fmap (\c -> loadColumn' c tab) . catMaybes .
+          fmap ((lookupCol tab) . fromCol) $ junColMap raw
+    , Types.junCols2 =
+        fmap (\c -> loadColumn' c tab) . catMaybes .
+          fmap ((lookupCol tab) . toCol) $ junColMap raw
+    }
+
+accessibleTables :: DbStructure -> [Types.Table]
 accessibleTables structure =
-    filter tableIsAccessible (dbTables structure)
+   filter Types.tableIsAccessible (Types.dbTables structure)
 
 accessibleProcs :: DbStructure -> ProcsMap
 accessibleProcs structure =
-    fmap (filter pdIsAccessible) (dbProcs structure)
+  fmap (filter pdIsAccessible) (dbProcs structure)
 
 procsMap :: [ProcDescription] -> ProcsMap
 procsMap procs =
-    M.fromListWith (++) . map (\(x,y) -> (x, [y])) . sort $ map addKey procs
+  M.fromListWith (++) . map (\(x,y) -> (x, [y])) . sort $ map addKey procs
 
 loadProc :: RawProcDescription -> ProcDescription
 loadProc raw =
@@ -98,190 +196,64 @@ loadProc raw =
     { pdSchema = procSchema raw
     , pdName = procName raw
     , pdDescription = procDescription raw
-    , pdArgs = parseArgs $ procArgs raw
+    , pdArgs = procArgs raw
     , pdReturnType =
         parseRetType
-          (procReturnTypeSchema raw)
-          (procReturnTypeName raw)
+          (procReturnTypeQi raw)
           (procReturnTypeIsSetof raw)
-          (procReturnType raw)
-    , pdVolatility =
-        parseVolatility (procVolatility raw)
+          (procReturnTypeIsComposite raw)
+    , pdVolatility = procVolatility raw
     , pdIsAccessible = procIsAccessible raw
     }
 
 addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
 addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
-parseArgs :: Text -> [PgArg]
-parseArgs =
-    mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
-
-parseArg :: Text -> Maybe PgArg
-parseArg a =
-  let arg = lastDef "" $ splitOn "INOUT " a
-      (body, def) = breakOn " DEFAULT " arg
-      (name, typ) = breakOn " " body in
-  if T.null typ
-     then Nothing
-     else Just $
-       PgArg (dropAround (== '"') name) (strip typ) (T.null def)
-
-parseRetType :: Text -> Text -> Bool -> Char -> RetType
-parseRetType schema name isSetOf typ
-  | isSetOf   = SetOf pgType
+parseRetType :: QualifiedIdentifier -> Bool -> Bool -> RetType
+parseRetType qi isSetOf isComposite
+  | isSetOf = SetOf pgType
   | otherwise = Single pgType
   where
-    qi = QualifiedIdentifier schema name
-    pgType = case typ of
-      'c' -> Composite qi
-      'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
-               then Composite qi
-               else Scalar qi
-      _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+    pgType = if isComposite then Composite qi else Scalar qi
 
-parseVolatility :: Char -> ProcVolatility
-parseVolatility v | v == 'i' = Immutable
-                  | v == 's' = Stable
-                  | otherwise = Volatile -- only 'v' can happen here
-
-addForeignKeys :: [Relation] -> [Column] -> [Column]
+addForeignKeys :: [Types.Relation] -> [Types.Column] -> [Types.Column]
 addForeignKeys rels = map addFk
   where
-    addFk col = col { colFK = fk col }
-    fk col = find (lookupFn col) rels >>= relToFk col
-    lookupFn :: Column -> Relation -> Bool
-    lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==M2O
-    relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
-      pos <- L.elemIndex col cols
-      colF <- atMay colsF pos
-      return $ ForeignKey colF
+    addFk col =
+      col { Types.colFK = fk col }
 
-{-
-Adds Views M2O Relations based on SourceColumns found, the logic is as follows:
+    fk col =
+      find (lookupFn col) rels >>= relToFk col
 
-Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relType=M2O} represented by:
+    lookupFn :: Types.Column -> Types.Relation -> Bool
+    lookupFn c Types.Relation{Types.relColumns=cs, Types.relType=rty} =
+      c `elem` cs && rty == M2O
 
-t1.c1------t2.c2
-
-When only having a t1_view.c1 source column, we need to add a View-Table M2O Relation
-
-         t1.c1----t2.c2         t1.c1----------t2.c2
-                         ->            ________/
-                                      /
-      t1_view.c1             t1_view.c1
-
-
-When only having a t2_view.c2 source column, we need to add a Table-View M2O Relation
-
-         t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \________
-                                                    \
-                    t2_view.c2                      t2_view.c1
-
-When having t1_view.c1 and a t2_view.c2 source columns, we need to add a View-View M2O Relation in addition to the prior
-
-         t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \________/
-                                           /        \
-    t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
-
-The logic for composite pks is similar just need to make sure all the Relation columns have source columns.
--}
-addViewM2ORels :: [OldSourceColumn] -> [Relation] -> [Relation]
-addViewM2ORels allSrcCols = concatMap (\rel ->
-  rel : case rel of
-    Relation{relType=M2O, relTable, relColumns, relConstraint, relFTable, relFColumns} ->
-
-      let srcColsGroupedByView :: [Column] -> [[OldSourceColumn]]
-          srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
-                                         filter (\(c, _) -> c `elem` relCols) allSrcCols
-          relSrcCols = srcColsGroupedByView relColumns
-          relFSrcCols = srcColsGroupedByView relFColumns
-          getView :: [OldSourceColumn] -> Table
-          getView = colTable . snd . unsafeHead
-          srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
-          -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
-          -- So we need to change the order of the SourceColumns to match the relColumns
-          -- TODO: This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
-          srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
-
-          viewTableM2O =
-            [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-                       relConstraint relFTable relFColumns
-                       M2O Nothing
-            | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
-
-          tableViewM2O =
-            [ Relation relTable relColumns
-                       relConstraint
-                       (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing
-            | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
-
-          viewViewM2O =
-            [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-                       relConstraint
-                       (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing
-            | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
-            , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
-
-      in viewTableM2O ++ tableViewM2O ++ viewViewM2O
-
-    _ -> [])
-
-addO2MRels :: [Relation] -> [Relation]
-addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _) -> [rel, Relation ft fc cn t c O2M Nothing])
-
-addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
-  where
-    junctions = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==M2O). relType) rels
-    groupFn :: Relation -> Text
-    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s <> "_" <> t
-    -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
-    combinations :: Int -> [a] -> [[a]]
-    combinations 0 _  = [ [] ]
-    combinations n xs = [ y:ys | y:xs' <- tails xs
-                               , ys <- combinations (n-1) xs']
-    junction2Rel [
-      Relation{relTable=jt, relColumns=jc1, relConstraint=const1, relFTable=t,  relFColumns=c},
-      Relation{             relColumns=jc2, relConstraint=const2, relFTable=ft, relFColumns=fc}
-      ]
-      | jc1 /= jc2 && length jc1 == 1 && length jc2 == 1 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
-      | otherwise = Nothing
-    junction2Rel _ = Nothing
-    addMirrorRel = concatMap (\rel@(Relation t c _ ft fc _ (Just (Junction jt const1 jc1 const2 jc2))) ->
-      [rel, Relation ft fc Nothing t c M2M (Just (Junction jt const2 jc2 const1 jc1))])
-
-addViewPrimaryKeys :: [OldSourceColumn] -> [PrimaryKey] -> [PrimaryKey]
-addViewPrimaryKeys srcCols = concatMap (\pk ->
-  let viewPks = (\(_, viewCol) -> PrimaryKey{pkTable=colTable viewCol, pkName=colName viewCol}) <$>
-                filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
-  pk : viewPks)
+    relToFk col Types.Relation{Types.relColumns=cols, Types.relFColumns=colsF} =
+      do
+        pos <- L.elemIndex col cols
+        colF <- atMay colsF pos
+        return $ ForeignKey colF
 
 getPgVersion :: H.Session PgVersion
 getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
-    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
-
+    versionRow = HD.singleRow $ PgVersion <$> Common.column HD.int4 <*> Common.column HD.text
 
 
 -- RAW DB STRUCTURE
 
-
 getRawDbStructure :: [Schema] -> HT.Transaction RawDbStructure
 getRawDbStructure schemas =
-    do
-        value <- HT.statement schemas rawDbStructureQuery
+  do
+    value <- HT.statement schemas rawDbStructureQuery
 
-        case Aeson.fromJSON value of
-          Aeson.Success m ->
-              return m
-          Aeson.Error err ->
-              throw $ DbStructureDecodeException err
+    case Aeson.fromJSON value of
+      Aeson.Success m ->
+        return m
+      Aeson.Error err ->
+        throw $ DbStructureDecodeException err
 
 data DbStructureDecodeException =
     DbStructureDecodeException String
@@ -296,6 +268,117 @@ rawDbStructureQuery =
       $(FileEmbed.embedFile "dbstructure/query.sql")
 
     decode =
-      HD.singleRow $ column HD.json
+      HD.singleRow $ Common.column HD.json
   in
-  H.Statement sql (arrayParam HE.text) decode True
+  H.Statement sql (Common.arrayParam HE.text) decode True
+
+
+-- Types
+
+type Oid = String
+
+type ColPosition = Int32
+
+data RawDbStructure =
+  RawDbStructure
+    { rawDbPgVer  :: PgVersion
+    , rawDbTables :: [RawTable]
+    , rawDbColumns :: [RawColumn]
+    , rawDbProcs :: [RawProcDescription]
+    , rawDbRels :: [RawRelation]
+    , rawDbSchemas :: [SchemaDescription]
+    }
+    deriving (Show, Eq, Generic)
+
+instance FromJSON RawDbStructure where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+data RawProcDescription =
+  RawProcDescription
+    { procSchema :: Schema
+    , procName :: Text
+    , procDescription :: Maybe Text
+    , procReturnTypeQi :: QualifiedIdentifier
+    , procReturnTypeIsSetof :: Bool
+    , procReturnTypeIsComposite :: Bool
+    , procVolatility :: ProcVolatility
+    , procIsAccessible :: Bool
+    , procArgs :: [PgArg]
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawProcDescription where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+data RawTable =
+  RawTable
+    { tableOid :: Oid
+    , tableSchema :: Schema
+    , tableName :: TableName
+    , tableDescription :: Maybe Text
+    , tableInsertable :: Bool
+    , tableIsAccessible :: Bool
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawTable where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+data RawColumn =
+  RawColumn
+    { colTableOid :: Oid
+    , colPosition :: ColPosition
+    , colName :: FieldName
+    , colDescription :: Maybe Text
+    , colNullable :: Bool
+    , colType :: Text
+    , colUpdatable :: Bool
+    , colMaxLen :: Maybe Int32
+    , colPrecision :: Maybe Int32
+    , colDefault :: Maybe Text
+    , colEnum :: [Text]
+    , colFK :: Maybe ForeignKey
+    , colIsPrimaryKey :: Bool
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawColumn where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+data RawRelation =
+  RawRelation
+    { relTableOid :: Oid
+    , relFTableOid :: Oid
+    , relConstraint :: Maybe ConstraintName
+    , relColMap :: [ColMapping]
+    , relType :: Cardinality
+    , relJunction :: Maybe RawJunction -- ^ Junction for M2M Cardinality
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawRelation where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+data ColMapping =
+  ColMapping
+    { fromCol :: Int32
+    , toCol :: Int32
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON ColMapping where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions
+
+-- | Junction table on an M2M relationship
+data RawJunction =
+  Junction
+    { junTableOid :: Oid
+    , junConstraint1 :: Maybe ConstraintName
+    , junConstraint2 :: Maybe ConstraintName
+    , junColMap :: [ColMapping]
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON RawJunction where
+  parseJSON =
+    Aeson.genericParseJSON aesonOptions

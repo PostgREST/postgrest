@@ -30,22 +30,6 @@ import PostgREST.RangeQuery (NonnegRange)
 import Protolude            hiding (toS)
 import Protolude.Conv       (toS)
 
-data RawDbStructure =
-    RawDbStructure
-        { rawDbPgVer  :: PgVersion
-        , rawDbTables :: [Table]
-        , rawDbColumns :: [Column]
-        , rawDbSourceColumns :: [SourceColumn]
-        , rawDbPrimaryKeys :: [PrimaryKey]
-        , rawDbProcs :: [RawProcDescription]
-        , rawDbM2oRels :: [Relation]
-        , rawDbSchemas :: [SchemaDescription]
-        }
-    deriving (Show, Eq, Generic)
-
-instance FromJSON RawDbStructure where
-    parseJSON =
-        Aeson.genericParseJSON aesonOptions
 
 data SchemaDescription =
     SchemaDescription
@@ -138,7 +122,6 @@ data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]
 , dbRelations   :: [Relation]
-, dbPrimaryKeys :: [PrimaryKey]
 , dbProcs       :: ProcsMap
 , pgVersion     :: PgVersion
 , dbSchemas     :: [SchemaDescription]
@@ -148,22 +131,35 @@ data DbStructure = DbStructure {
 tableCols :: DbStructure -> Schema -> TableName -> [Column]
 tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
 
--- TODO Table could hold references to all its PrimaryKeys
 tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
-tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+tablePKCols dbs tSchema tName =
+  colName <$> filter (\col -> tSchema == (tableSchema . colTable) col && tName == (tableName . colTable) col) (dbColumns dbs)
 
 data PgArg = PgArg {
   pgaName :: Text
 , pgaType :: Text
 , pgaReq  :: Bool
-} deriving (Show, Eq, Ord)
+} deriving (Show, Eq, Ord, Generic)
+
+instance FromJSON PgArg where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
 
 data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
 
 data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord)
 
-data ProcVolatility = Volatile | Stable | Immutable
+data ProcVolatility
+  = Volatile
+  | Stable
+  | Immutable
   deriving (Eq, Show, Ord)
+
+instance FromJSON ProcVolatility where
+  parseJSON (Aeson.String "v") = pure Volatile
+  parseJSON (Aeson.String "s") = pure Stable
+  parseJSON (Aeson.String "i") = pure Immutable
+  parseJSON _ = empty
 
 data ProcDescription = ProcDescription {
   pdSchema      :: Schema
@@ -174,24 +170,6 @@ data ProcDescription = ProcDescription {
 , pdVolatility  :: ProcVolatility
 , pdIsAccessible :: Bool
 } deriving (Show, Eq)
-
-data RawProcDescription =
-  RawProcDescription
-    { procSchema :: Schema
-    , procName :: Text
-    , procDescription :: Maybe Text
-    , procArgs :: Text
-    , procReturnTypeSchema :: Text
-    , procReturnTypeName :: Text
-    , procReturnTypeIsSetof :: Bool
-    , procReturnType :: Char
-    , procVolatility :: Char
-    , procIsAccessible :: Bool
-    } deriving (Show, Eq, Generic)
-
-instance FromJSON RawProcDescription where
-    parseJSON =
-        Aeson.genericParseJSON aesonOptions
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
@@ -285,6 +263,7 @@ data Column =
     , colDefault     :: Maybe Text
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
+    , colIsPrimaryKey :: Bool
     } deriving (Show, Ord, Generic)
 
 instance FromJSON Column where
@@ -293,29 +272,6 @@ instance FromJSON Column where
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
-
--- | The source table column a view column refers to
-data SourceColumn =
-    SourceColumn
-      { srcSource :: Column
-      , srcView :: Column
-      } deriving (Show, Ord, Eq, Generic)
-
-instance FromJSON SourceColumn where
-    parseJSON =
-        Aeson.genericParseJSON aesonOptions
-
-type OldSourceColumn = (Column, ViewColumn)
-type ViewColumn = Column
-
-data PrimaryKey = PrimaryKey {
-    pkTable :: Table
-  , pkName  :: Text
-} deriving (Show, Eq, Generic)
-
-instance FromJSON PrimaryKey where
-    parseJSON =
-        Aeson.genericParseJSON aesonOptions
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
@@ -341,7 +297,12 @@ data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
 , qiName   :: TableName
 } deriving (Show, Eq, Ord, Generic)
+
 instance Hashable QualifiedIdentifier
+
+instance FromJSON QualifiedIdentifier where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
 
 -- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
 -- | TODO: missing one-to-one

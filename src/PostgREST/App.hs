@@ -319,7 +319,7 @@ app dbStructure proc cols conf apiRequest =
               uri' = uri proxy
               toTableInfo :: [Table] -> [(Table, [Column], [Text])]
               toTableInfo = map (\t -> let (s, tn) = (tableSchema t, tableName t) in (t, tableCols dbStructure s tn, tablePKCols dbStructure s tn))
-              encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
+              encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd
           accDbStructure <- getDbStructure [tSchema] pgVer
           let
             schemaDesc :: Maybe Text

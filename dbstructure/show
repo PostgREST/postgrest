@@ -4,14 +4,25 @@ set -euo pipefail
 
 dir="$(dirname "$0")"
 
+tempfile="$(mktemp)"
+
+trap 'rm $tempfile' exit
+
 script="
-   \set ON_ERROR_STOP on
+  \set ON_ERROR_STOP on
 
-   prepare dbstructure(text[]) as
-     $(cat "$dir"/query.sql)
-     ;
+  prepare dbstructure(name[]) as
+    $(cat "$dir"/query.sql)
+    ;
 
-   execute dbstructure(array['test']);
+  \timing on
+
+  \o $tempfile
+  execute dbstructure(array['$1']);
 "
 
-echo "$script" | psql | sed -n 4p | jq .
+echo "$script" | psql -q
+
+sed -n 3p < "$tempfile" | jq "$2"
+
+sed -n 3p < "$tempfile" | jq . | wc -l

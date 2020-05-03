@@ -29,7 +29,7 @@ run options =
   do
     line <- B.getContents
 
-    case Aeson.eitherDecode line :: Either String Types.RawDbStructure of
+    case Aeson.eitherDecode line :: Either String DbStructure.RawDbStructure of
       Right structure ->
         if (printResult options) then
           pPrint $ DbStructure.parseDbStructure structure
