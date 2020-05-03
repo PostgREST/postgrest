@@ -100,6 +100,7 @@ library
           -- -optP-Wno-nonportable-include-path
           --   prevents build failures on case-insensitive filesystems (macos),
           --   see https://github.com/commercialhaskell/stack/issues/3918
+  extra-source-files: dbstructure/query.sql
 
 executable postgrest
   main-is:            Main.hs
@@ -137,6 +138,20 @@ executable postgrest
   if !os(windows)
     build-depends: unix
     other-modules: UnixSocket
+
+executable postgrest-dbstructure
+  main-is:            Main.hs
+  hs-source-dirs:     dbstructure
+  build-depends:      base                 >= 4.9 && < 4.15
+                    , aeson                >= 1.4.7 && < 1.5
+                    , bytestring           >= 0.10.8 && < 0.11
+                    , postgrest
+                    , protolude            >= 0.3 && < 0.4
+                    , pretty-simple        >= 3.2.2.0 && < 3.3
+                    , optparse-applicative >= 0.15.1.0 && < 0.16
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+                      NoImplicitPrelude
 
 test-suite spec
   type:               exitcode-stdio-1.0

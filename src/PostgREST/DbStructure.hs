@@ -20,6 +20,7 @@ module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
 , accessibleProcs
+, parseDbStructure
 , getPgVersion
 ) where
 
@@ -47,9 +48,15 @@ import           Protolude.Unsafe              (unsafeHead)
 
 getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
 getDbStructure schemas _ = do
-  HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  -- This voids the search path. The following queries need this for getting the
+  -- fully qualified name(schema.name) of every db object.
+  HT.sql "set local schema ''"
   raw <- getRawDbStructure schemas
 
+  return $ parseDbStructure raw
+
+parseDbStructure :: RawDbStructure -> DbStructure
+parseDbStructure raw =
   let
     tabs = rawDbTables raw
     cols = rawDbColumns raw
@@ -62,9 +69,9 @@ getDbStructure schemas _ = do
     rels = addM2MRels . addO2MRels $ addViewM2ORels oldSrcCols m2oRels
     cols' = addForeignKeys rels cols
     keys' = addViewPrimaryKeys oldSrcCols keys
-
-  return DbStructure {
-      dbTables = tabs
+  in
+  DbStructure
+    { dbTables = tabs
     , dbColumns = cols'
     , dbRelations = rels
     , dbPrimaryKeys = keys'

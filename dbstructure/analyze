@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dir="$(dirname "$0")"
+
+script="
+   \set ON_ERROR_STOP on
+
+   prepare dbstructure(text[]) as
+     $(cat "$dir"/query.sql)
+     ;
+
+   explain analyze execute dbstructure(array['test']);
+"
+
+echo "$script" | psql

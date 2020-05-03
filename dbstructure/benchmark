@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dir="$(dirname "$0")"
+
+echo "Analyzing query..."
+"$dir"/analyze | sed -n 4p
+
+echo "Running query..."
+json="$(time "$dir"/show)"
+
+echo "Parsing results..."
+time (echo "$json" | postgrest-dbstructure)
+
+echo "Comparing output..."
+result="$(echo "$json" | postgrest-dbstructure --print-result)"
+
+diff <(echo "$result") dbstructure/expected.out
+
+echo "Done."

@@ -464,11 +464,11 @@ with
   select
     json_build_object(
         'raw_db_procs', coalesce(procs_agg.array_agg, array[]::record[]),
-        'raw_db_schemas', schemas_agg.array_agg,
+        'raw_db_schemas', coalesce(schemas_agg.array_agg, array[]::record[]),
         'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
-        'raw_db_columns', columns_agg.array_agg,
+        'raw_db_columns', coalesce(columns_agg.array_agg, array[]::record[]),
         'raw_db_m2o_rels', coalesce(m2o_rels_agg.array_agg, array[]::record[]),
-        'raw_db_primary_keys', primary_keys_agg.array_agg,
+        'raw_db_primary_keys', coalesce(primary_keys_agg.array_agg, array[]::record[]),
         'raw_db_source_columns', coalesce(source_columns_agg.array_agg, array[]::record[]),
         'raw_db_pg_ver', pg_version
     )::json as dbstructure
