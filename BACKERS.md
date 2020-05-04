@@ -44,6 +44,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Nathan Bouscal
 - Daniel Rafaj
 - David Fenko
+- Remo Rechkemmer
 
 ## Former Backers
 
