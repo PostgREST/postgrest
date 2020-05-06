@@ -229,10 +229,23 @@ When a pre-built binary does not exist for your system you can build the project
 PostgREST Test Suite
 --------------------
 
-Creating the Test Database
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+To properly run the test suite, you need a Postgres database that the tests can run against. There are several ways to set up this database. 
 
-To properly run postgrest tests one needs to create a database. To do so, use the test creation script :code:`create_test_database` in the :code:`test/` folder.
+Testing with a temporary database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have Postgres installed locally (:code:`initdb`, :code:`pg_ctl` and :code:`psql` should be on your PATH, no server needs to be running), you can run the test suite against a temporary database:
+
+.. code:: bash
+
+   test/with_tmp_db stack test
+   
+The :code:`with_tmp_db` script will set up a new Postgres cluster in a temporary directory, set the required environment variables and run the command that you passed it as an argument, :code:`stack test` in the example above. When the command is done, the temporary database is torn down and deleted again.
+
+Manually creating the Test Database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To manually create a database for testing, use the test creation script :code:`create_test_database` in the :code:`test/` folder.
 
 The script expects the following parameters:
 
@@ -254,8 +267,8 @@ The script will return the db uri to use in the tests--this uri corresponds to t
 
 Generating the user and the password allows one to create the database and run the tests against any PostgreSQL server without any modifications to the server. (Such as allowing accounts without a password or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
 
-Running the Tests
-~~~~~~~~~~~~~~~~~
+Running the Tests with the manually created database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To run the tests, one must supply the database uri in the environment variable :code:`POSTGREST_TEST_CONNECTION`.
 
