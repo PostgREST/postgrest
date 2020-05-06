@@ -1,0 +1,49 @@
+freebsd_instance:
+  image: freebsd-12-1-release-amd64
+
+build_task:
+  #only_if: $CIRRUS_BRANCH == 'master'
+  env:
+    ASSUME_ALWAYS_YES: YES
+  cabal_packages_cache:
+    folder: ~/.cabal/packages
+    reupload_on_changes: false
+    fingerprint_script: cat postgrest.cabal
+  cabal_store_cache:
+    folder: ~/.cabal/store
+    reupload_on_changes: false
+    fingerprint_script: cat postgrest.cabal
+  dist_cache:
+    folder: dist-newstyle
+    reupload_on_changes: false
+    fingerprint_script: cat postgrest.cabal
+  install_script:
+    ## TODO: Some of these workaround steps might be unneeded now
+    ## gmake required, otherwise bsd make is used and some cryptic "No operator" errors are shown
+    - pkg install -y gmake
+    ## gcc required, otherwise warning: macro expansion producing 'defined' has undefined behavior [-Wexpansion-to-defined]
+    - pkg install -y gcc
+    - pkg install -y libiconv
+    - pkg install -y gmp
+    - pkg install -y postgresql95-client
+    - pkg install -y pkgconf
+    - pkg install -y ghc
+    - pkg install -y hs-cabal-install
+  build_script:
+    - cabal v2-update
+    - cabal v2-build
+
+publish_task:
+  skip: $CIRRUS_BRANCH !=~ 'release/.*'
+  env:
+    TOKEN: ENCRYPTED[c99babbf04e8a33962ffbbc75bf20d3abe408f9bede5ed5d8956cd24da6fdb34266c920984cc43f8106ef3423fba0e98]
+    NAME: postgrest-$CIRRUS_TAG-freebsd.tar.xz
+  depends_on:
+    - build
+  script:
+    - tar cjf $NAME postgrest
+    ## The CIRRUS_RELEASE env var is not the same as the tag. It's an id for the release.
+    - curl -X POST --data-binary @$NAME \
+      -H "Authorization:token ${TOKEN}" \
+      -H "Content-Type:application/octet-stream" \
+      "https://uploads.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/${CIRRUS_RELEASE}/assets?name=${NAME}"
