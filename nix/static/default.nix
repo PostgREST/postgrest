@@ -82,7 +82,7 @@ let
   # fully static Haskell executables, including one for the our source package
   # that we added through the overlay.
   survey =
-    import "${static-haskell-nix}/survey"
+    import "${patched-static-haskell-nix}/survey"
       { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
   # Return the fully static derivation of our source package.
