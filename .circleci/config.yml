@@ -376,6 +376,7 @@ jobs:
           command: |
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use postgrest
+            cachix use static-haskell-nix
       - run:
           name: Build the dynamic PostgREST executable
           command: |
