@@ -17,7 +17,7 @@ pkgs.lib.overrideDerivation env (
       ''
         # Set our pinned version of Nixpkgs in the NIX_PATH so that
         # `stack --nix` also uses that version.
-        NIX_PATH="nixpkgs=${pinnedPkgs}"
+        NIX_PATH="nixpkgs=${nixpkgs}"
       '';
   }
 )
