@@ -81,21 +81,22 @@ db-schema
 
   This schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
 
+List of schemas
+~~~~~~~~~~~~~~~
+
   You can also specify a list of schemas that can be used for **schema-based multitenancy** and **api versioning** by :ref:`multiple-schemas`. Example:
 
   .. code:: bash
 
      db-schema = "tenant1, tenant2"
-     ##or
-     ##db-schema = "v1, v2"
+
+  If you don't :ref:`Switch Schemas <multiple-schemas>`, the first schema in the list(``tenant1`` in this case) is chosen as the default schema.
+
+  *Only the chosen schema* gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
 
   .. warning::
 
      Never expose private schemas in this way. See :ref:`schema_isolation`.
-
-  If you don't :ref:`Switch Schemas <multiple-schemas>`, the first schema in the list(``tenant1`` in this case) is chosen as the default schema.
-
-  Only the chosen schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
 
 .. _db-anon-role:
 
