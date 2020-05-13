@@ -5,7 +5,7 @@ let
       dockerTools.buildImage {
         inherit tag;
 
-        name = "postgrest";
+        name = "postgrest/postgrest";
         contents = postgrest;
 
         extraCommands =
