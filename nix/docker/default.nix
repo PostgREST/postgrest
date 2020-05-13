@@ -8,6 +8,10 @@ let
         name = "postgrest/postgrest";
         contents = postgrest;
 
+        # Set the current time as the image creation date. This makes the build
+        # non-reproducible, but that should not be an issue for us.
+        created = "now";
+
         extraCommands =
           ''
             mkdir etc
