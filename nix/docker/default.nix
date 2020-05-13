@@ -8,7 +8,7 @@ rec {
       contents = postgrest;
       extraCommands = ''
         mkdir etc
-        cp ${../docker/postgrest.conf} etc/postgrest.conf
+        cp ${./postgrest.conf} etc/postgrest.conf
       '';
       config = {
         Cmd = [ "/bin/postgrest" "/etc/postgrest.conf" ];

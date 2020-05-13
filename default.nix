@@ -83,7 +83,7 @@ rec {
 
   # Docker image and loading script.
   docker =
-    pkgs.callPackage nix/docker.nix { postgrest = postgrestStatic; };
+    pkgs.callPackage nix/docker { postgrest = postgrestStatic; };
 
   # Environment in which PostgREST can be built with cabal, useful e.g. for
   # defining a shell for nix-shell.
