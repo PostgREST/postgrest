@@ -410,6 +410,35 @@ jobs:
               nix-build
             fi
 
+  build-static-bin:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
+      - run:
+          name: Install and use the Cachix binary cache
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Build the PostgREST statically linked binary
+          command: |
+            nix-build -A postgrestStatic
+      - run:
+          name: compress binary
+          command: |
+            mkdir -p /tmp/workspace/bin
+            cd /tmp/workspace/bin
+            tar cvJf postgrest-$CIRCLE_TAG-linux-x64-static.tar.xz -C ~/project/result/bin postgrest
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - bin/*
+
 workflows:
   version: 2
   build-test-release:
@@ -495,11 +524,21 @@ workflows:
               only: /v[0-9]+(\.[0-9]+)*/
             branches:
               ignore: /.*/
+      - build-static-bin:
+          requires:
+            - build-nix
+            - build-prof-test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
       - release:
           requires:
             - centos7
             - ubuntu
             - ubuntui386
+            - build-static-bin
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
