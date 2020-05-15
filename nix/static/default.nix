@@ -66,6 +66,7 @@ let
     patches.applyPatches "patched-nixpkgs" nixpkgs
       [
         patches.nixpkgs-revert-ghc-bootstrap
+        patches.openssl-split-runtime-dependencies-of-static-builds
       ];
 
   # Apply our overlay to the given pkgs.

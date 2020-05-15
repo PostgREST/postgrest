@@ -22,4 +22,7 @@
 
   nixpkgs-revert-ghc-bootstrap =
     ./nixpkgs-revert-ghc-bootstrap.patch;
+
+  openssl-split-runtime-dependencies-of-static-builds =
+    ./openssl-split-runtime-dependencies-of-static-builds.patch;
 }
