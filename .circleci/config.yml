@@ -1,56 +1,5 @@
 version: 2
 
-build-distro-bin: &build-distro-bin
-  machine: true
-  steps:
-    - checkout
-    # cannot interpolate env var and use as a cache key so just copy the Dockerfile to another filename
-    - run: cp docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/Dockerfile
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-    - run:
-        name: load or build docker image
-        command: |
-          if [[ -e ~/image.tar ]]; then
-            docker load -i ~/image.tar
-          else
-            docker build --rm=false -t $CIRCLE_JOB -f docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/
-            docker save $CIRCLE_JOB > ~/image.tar
-          fi
-    - run:
-        name: build binary
-        command: |
-          docker run -it \
-            -v $HOME/.stack:/root/.stack \
-            -v $(pwd):/source \
-            -v $HOME/bin/:/root/.local/bin/ \
-            $CIRCLE_JOB build --allow-different-user --install-ghc --copy-bins
-          # volumes owned by root if chown is not done the save_cache step fails silently
-          sudo chown -R circleci:circleci ~/.stack .stack-work
-    - run:
-        name: compress binary
-        command: |
-          mkdir -p /tmp/workspace/bin
-          cd /tmp/workspace/bin
-          tar cvJf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
-    - persist_to_workspace:
-        root: /tmp/workspace
-        paths:
-          - bin/*
-    - save_cache:
-        paths:
-          - ~/image.tar
-        key: v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - save_cache:
-        paths:
-          - "~/.stack"
-          - ".stack-work"
-        key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-
 jobs:
   build-cache:
     docker:
@@ -327,15 +276,6 @@ jobs:
             test/create_test_db "postgres://circleci@localhost" postgrest_test
             test/memory-tests.sh
 
-  centos7:
-    <<: *build-distro-bin
-
-  ubuntu:
-    <<: *build-distro-bin
-
-  ubuntui386:
-    <<: *build-distro-bin
-
   release:
     docker:
       - image: circleci/golang:1.9
@@ -485,45 +425,6 @@ workflows:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - centos7:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntu:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntui386:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
       - build-static-bin:
           requires:
             - build-nix
@@ -535,9 +436,6 @@ workflows:
               ignore: /.*/
       - release:
           requires:
-            - centos7
-            - ubuntu
-            - ubuntui386
             - build-static-bin
           filters:
             tags:
