@@ -2,21 +2,8 @@ freebsd_instance:
   image: freebsd-12-1-release-amd64
 
 build_task:
-  #only_if: $CIRRUS_BRANCH == 'master'
   env:
     ASSUME_ALWAYS_YES: YES
-  cabal_packages_cache:
-    folder: ~/.cabal/packages
-    reupload_on_changes: false
-    fingerprint_script: cat postgrest.cabal
-  cabal_store_cache:
-    folder: ~/.cabal/store
-    reupload_on_changes: false
-    fingerprint_script: cat postgrest.cabal
-  dist_cache:
-    folder: dist-newstyle
-    reupload_on_changes: false
-    fingerprint_script: cat postgrest.cabal
   install_script:
     ## TODO: Some of these workaround steps might be unneeded now
     ## gmake required, otherwise bsd make is used and some cryptic "No operator" errors are shown
@@ -29,21 +16,40 @@ build_task:
     - pkg install -y pkgconf
     - pkg install -y ghc
     - pkg install -y hs-cabal-install
+  cabal_cache:
+    folder: ~/.cabal
+    fingerprint_script: cat postgrest.cabal
   build_script:
     - cabal v2-update
     - cabal v2-build
+  binaries_artifacts:
+    path: "dist-newstyle/build/x86_64-freebsd/ghc-8.6.5/postgrest-7.0.1/x/postgrest/build/postgrest/*"
+  #binary_script:
+    #- mkdir bin
+    ## cabal v2-install --installdir=.
+    ## the installdir option is not working on this cabal version(form hs-cabal-install), so the binary must be extrated from the path
+    ## this is too brittle so for now we don't use it
+    #- ldd /tmp/cirrus-ci-build/dist-newstyle/build/x86_64-freebsd/ghc-8.6.5/postgrest-7.0.1/x/postgrest/build/postgrest/postgrest
+    #- mv /tmp/cirrus-ci-build/dist-newstyle/build/x86_64-freebsd/ghc-8.6.5/postgrest-7.0.1/x/postgrest/build/postgrest/postgrest bin/
+  ## https://cirrus-ci.org/guide/writing-tasks/#artifacts-instruction
+  #binaries_artifacts:
+    #path: bin/
+  cleanup_script:
+    - rm -rf ~/.cabal/logs
+    - rm  ~/.cabal/config
 
-publish_task:
-  skip: $CIRRUS_BRANCH !=~ 'release/.*'
-  env:
-    TOKEN: ENCRYPTED[c99babbf04e8a33962ffbbc75bf20d3abe408f9bede5ed5d8956cd24da6fdb34266c920984cc43f8106ef3423fba0e98]
-    NAME: postgrest-$CIRRUS_TAG-freebsd.tar.xz
-  depends_on:
-    - build
-  script:
-    - tar cjf $NAME postgrest
-    ## The CIRRUS_RELEASE env var is not the same as the tag. It's an id for the release.
-    - curl -X POST --data-binary @$NAME \
-      -H "Authorization:token ${TOKEN}" \
-      -H "Content-Type:application/octet-stream" \
-      "https://uploads.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/${CIRRUS_RELEASE}/assets?name=${NAME}"
+#publish_task:
+  #skip: $CIRRUS_TAG == ""
+  #env:
+    #TOKEN: ENCRYPTED[c99babbf04e8a33962ffbbc75bf20d3abe408f9bede5ed5d8956cd24da6fdb34266c920984cc43f8106ef3423fba0e98]
+  #depends_on:
+    #- build
+  #script:
+    ## https://cirrus-ci.org/guide/writing-tasks/#artifacts-instruction
+    #- wget https://api.cirrus-ci.com/v1/artifact/github/$CIRRUS_REPO_FULL_NAME/build/binaries/bin/postgrest
+    #- tar cjf postgrest-$CIRRUS_TAG-freebsd.tar.xz postgrest
+    ### The CIRRUS_RELEASE env var is not the same as the tag. It's an id for the release.
+    #- curl -X POST --data-binary @$NAME \
+      #-H "Authorization:token ${TOKEN}" \
+      #-H "Content-Type:application/octet-stream" \
+      #"https://uploads.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/${CIRRUS_RELEASE}/assets?name=${NAME}"
