@@ -1,23 +1,18 @@
 # To build use:
 # docker build --build-arg POSTGREST_VERSION=<v5.2.0 or another version> -t postgrest ./docker/
+# docker build --build-arg POSTGREST_VERSION=v7.0.1 -t postgrest ./docker/
 
 FROM debian:buster-slim
 
 ARG POSTGREST_VERSION
-
-# Install libpq5
-RUN apt-get -qq update && \
-    apt-get -qq install -y --no-install-recommends libpq5 && \
-    apt-get -qq clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install postgrest
 RUN BUILD_DEPS="curl ca-certificates xz-utils" && \
     apt-get -qq update && \
     apt-get -qq install -y --no-install-recommends $BUILD_DEPS && \
     cd /tmp && \
-    curl -SLO https://github.com/PostgREST/postgrest/releases/download/${POSTGREST_VERSION}/postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz && \
-    tar -xJvf postgrest-${POSTGREST_VERSION}-ubuntu.tar.xz && \
+    curl -SLO https://github.com/PostgREST/postgrest/releases/download/${POSTGREST_VERSION}/postgrest-${POSTGREST_VERSION}-linux-x64-static.tar.xz && \
+    tar -xJvf postgrest-${POSTGREST_VERSION}-linux-x64-static.tar.xz && \
     mv postgrest /usr/local/bin/postgrest && \
     cd / && \
     apt-get -qq purge --auto-remove -y $BUILD_DEPS && \
@@ -25,7 +20,6 @@ RUN BUILD_DEPS="curl ca-certificates xz-utils" && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY postgrest.conf /etc/postgrest.conf
-
 
 ENV PGRST_DB_URI= \
     PGRST_DB_SCHEMA=public \
