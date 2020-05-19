@@ -19,10 +19,10 @@ source-repository head
   type:     git
   location: git://github.com/PostgREST/postgrest.git
 
-flag ci
+flag FailOnWarn
   default:     False
   manual:      True
-  description: No warnings allowed in continuous integration
+  description: No warnings allowed
 
 library
   exposed-modules:    PostgREST.ApiRequest
@@ -88,8 +88,12 @@ library
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-  ghc-options:        -O2 -Werror -Wall -fwarn-identities
-                      -fno-spec-constr -optP-Wno-nonportable-include-path
+  if flag(FailOnWarn)
+    ghc-options: -O2 -Werror -Wall -fwarn-identities
+                 -fno-spec-constr -optP-Wno-nonportable-include-path
+  else
+    ghc-options: -O2 -Wall -fwarn-identities
+                 -fno-spec-constr -optP-Wno-nonportable-include-path
           -- -fno-spec-constr may help keep compile time memory use in check,
           --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
           -- -optP-Wno-nonportable-include-path
@@ -120,8 +124,13 @@ executable postgrest
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-  ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I2"
+  if flag(FailOnWarn)
+    ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
                       -O2 -Werror -Wall -fwarn-identities
+                      -fno-spec-constr -optP-Wno-nonportable-include-path
+  else
+    ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
+                      -O2 -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if !os(windows)

@@ -1,8 +1,11 @@
 # stack is used for circleci and appveyor CI builds
 resolver: lts-15.8
+flags:
+    postgrest:
+        FailOnWarn: true
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
-  # disable pure by default so that the test enviroment can be passed 
+  # disable pure by default so that the test enviroment can be passed
   pure: false
 extra-deps:
 - configurator-pg-0.2.2@sha256:8f3f7c66dd4a53852283c70806ebc101a7219f8b01c3e80c5130e9749c998dc8,2987
