@@ -1,20 +1,20 @@
-From 93cc144b215654ca9cb0d2bcb58bb8922895ccab Mon Sep 17 00:00:00 2001
+From ba48fc5bf1db795e31778fd67a9d72f28437d6c3 Mon Sep 17 00:00:00 2001
 From: Remo <remo>
-Date: Sat, 25 Apr 2020 17:31:55 +0200
+Date: Tue, 19 May 2020 13:07:54 +0200
 Subject: [PATCH] Revert "ghc: 8.6.3-binary -> 8.6.5-binary"
 
 This reverts commit 3c7ef6bcd85e3e133ac6f2ab5e238934d56d902e.
 ---
- .../{8.6.5-binary.nix => 8.6.3-binary.nix}    | 13 ++++++------
- pkgs/top-level/haskell-packages.nix           | 20 +++++++++----------
- 2 files changed, 16 insertions(+), 17 deletions(-)
+ .../ghc/{8.6.5-binary.nix => 8.6.3-binary.nix}   | 13 ++++++-------
+ pkgs/top-level/haskell-packages.nix              | 16 ++++++++--------
+ 2 files changed, 14 insertions(+), 15 deletions(-)
  rename pkgs/development/compilers/ghc/{8.6.5-binary.nix => 8.6.3-binary.nix} (95%)
 
 diff --git a/pkgs/development/compilers/ghc/8.6.5-binary.nix b/pkgs/development/compilers/ghc/8.6.3-binary.nix
 similarity index 95%
 rename from pkgs/development/compilers/ghc/8.6.5-binary.nix
 rename to pkgs/development/compilers/ghc/8.6.3-binary.nix
-index 97793d912895..9e0fd12b96cf 100644
+index 97793d91289..9e0fd12b96c 100644
 --- a/pkgs/development/compilers/ghc/8.6.5-binary.nix
 +++ b/pkgs/development/compilers/ghc/8.6.3-binary.nix
 @@ -27,19 +27,18 @@ let
@@ -52,7 +52,7 @@ index 97793d912895..9e0fd12b96cf 100644
    }.${stdenv.hostPlatform.system}
      or (throw "cannot bootstrap GHC on this platform"));
 diff --git a/pkgs/top-level/haskell-packages.nix b/pkgs/top-level/haskell-packages.nix
-index aa7ef02a3886..712a98e147e0 100644
+index 13c5b721301..1bce80e5774 100644
 --- a/pkgs/top-level/haskell-packages.nix
 +++ b/pkgs/top-level/haskell-packages.nix
 @@ -4,7 +4,7 @@ let
@@ -73,15 +73,8 @@ index aa7ef02a3886..712a98e147e0 100644
  
      ghc844 = callPackage ../development/compilers/ghc/8.4.4.nix {
        bootPkgs = packages.ghc822Binary;
-@@ -57,31 +57,31 @@ in {
+@@ -57,19 +57,19 @@ in {
        llvmPackages = pkgs.llvmPackages_6;
-     };
-     ghc881 = callPackage ../development/compilers/ghc/8.8.1.nix {
--      bootPkgs = packages.ghc865Binary;
-+      bootPkgs = packages.ghc863Binary;
-       inherit (buildPackages.python3Packages) sphinx;
-       buildLlvmPackages = buildPackages.llvmPackages_7;
-       llvmPackages = pkgs.llvmPackages_7;
      };
      ghc882 = callPackage ../development/compilers/ghc/8.8.2.nix {
 -      bootPkgs = packages.ghc865Binary;
@@ -103,14 +96,7 @@ index aa7ef02a3886..712a98e147e0 100644
        inherit (buildPackages.python3Packages) sphinx;
        buildLlvmPackages = buildPackages.llvmPackages_9;
        llvmPackages = pkgs.llvmPackages_9;
-     };
-     ghcHEAD = callPackage ../development/compilers/ghc/head.nix {
--      bootPkgs = packages.ghc883; # no binary yet
-+      bootPkgs = packages.ghc863Binary;
-       inherit (buildPackages.python3Packages) sphinx;
-       buildLlvmPackages = buildPackages.llvmPackages_9;
-       llvmPackages = pkgs.llvmPackages_9;
-@@ -118,9 +118,9 @@ in {
+@@ -112,9 +112,9 @@ in {
        compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
        packageSetConfig = bootstrapPackageSet;
      };
@@ -123,3 +109,6 @@ index aa7ef02a3886..712a98e147e0 100644
        compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.6.x.nix { };
        packageSetConfig = bootstrapPackageSet;
      };
+-- 
+2.25.1
+

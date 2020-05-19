@@ -28,9 +28,10 @@ let
 
   overlays =
     [
+      (import nix/overlays/postgresql-default.nix)
       (import nix/overlays/postgresql-legacy.nix)
       (import nix/overlays/gitignore.nix)
-      (import nix/overlays/haskell-packages)
+      (import nix/overlays/haskell-packages { inherit compiler; })
     ];
 
   # Evaluated expression of the Nixpkgs repository.
@@ -52,11 +53,16 @@ let
 
   # Base dynamic derivation for the PostgREST package.
   drv =
-    lib.enableCabalFlag (pkgs.haskellPackages.callCabal2nix name src {}) "FailOnWarn";
+    pkgs.packages."$compiler".callCabal2nix name src {};
+
+  # Static set of Haskell Packages based on nh2/static-haskell-nix
+  staticHaskellPackages =
+    import nix/static-haskell-packages.nix
+      { inherit nixpkgs compiler patches; };
 
   # Static derivation for the PostgREST executable.
   drvStatic =
-    import nix/static { inherit nixpkgs name src compiler patches; };
+    staticHaskellPackages.callCabal2nix name src {};
 
   lib =
     pkgs.haskell.lib;
@@ -67,15 +73,15 @@ rec {
   # Derivation for the PostgREST Haskell package, including the executable,
   # libraries and documentation. We disable running the test suite on Nix
   # builds, as they require a database to be set up.
-  postgrestWithLib =
-    lib.dontCheck drv;
+  postgrestPackage =
+    lib.dontCheck (lib.enableCabalFlag drv "FailOnWarn");
 
   # Derivation for just the PostgREST binary, where we strip all dynamic
   # libraries and documentation, leaving only the executable. Note that the
   # executable is static with regards to Haskell libraries, but not system
   # libraries like glibc and libpq.
   postgrest =
-    lib.justStaticExecutables postgrestWithLib;
+    lib.justStaticExecutables postgrestPackage;
 
   # Static executable.
   postgrestStatic =
@@ -100,6 +106,7 @@ rec {
   nixpkgsUpgrade =
     pkgs.callPackage nix/nixpkgs-upgrade.nix {};
 
+  # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tests.nix
       {
@@ -107,9 +114,7 @@ rec {
         postgrestBuildEnv = env;
       };
 
-  style =
-    pkgs.callPackage nix/style.nix {};
-
-  lint =
-    pkgs.callPackage nix/lint.nix {};
+  # Development tools, including linting and styling scripts.
+  devtools =
+    pkgs.callPackage nix/devtools.nix {};
 }
