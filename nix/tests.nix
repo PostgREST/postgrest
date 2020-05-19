@@ -5,6 +5,7 @@
 , git
 , lib
 , postgrestBuildEnv
+, postgresql
 , postgresqlVersions
 , runtimeShell
 , writeShellScript
@@ -49,18 +50,14 @@ let
           EOF
         '';
 
-  # The PostgreSQL version that we run the tests against by default.
-  defaultPostgresql =
-    builtins.head postgresqlVersions;
-
   defaultTestSpec =
-    testSpec "postgrest-test-spec" defaultPostgresql;
+    testSpec "postgrest-test-spec" postgresql;
 
   # Create a `testSpec` for each PostgreSQL version that we want to test
   # against.
   testSpecVersions =
-    map
-      (postgresql: testSpec "postgrest-test-spec-${postgresql.name}" postgresql)
+    lib.mapAttrsToList
+      (name: postgresql: testSpec "postgrest-test-spec-${name}" postgresql)
       postgresqlVersions;
 
   # Helper script for running the tests against all PostgreSQL versions.

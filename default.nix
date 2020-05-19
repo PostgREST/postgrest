@@ -39,21 +39,21 @@ let
     import nixpkgs { inherit overlays; };
 
   postgresqlVersions =
-    [
-      pkgs.postgresql_12
-      pkgs.postgresql_11
-      pkgs.postgresql_10
-      pkgs.postgresql_9_6
-      pkgs.postgresql_9_5
-      pkgs.postgresql_9_4
-    ];
+    {
+      postgresql-12 = pkgs.postgresql_12;
+      postgresql-11 = pkgs.postgresql_11;
+      postgresql-10 = pkgs.postgresql_10;
+      "postgresql-9.6" = pkgs.postgresql_9_6;
+      "postgresql-9.5" = pkgs.postgresql_9_5;
+      "postgresql-9.4" = pkgs.postgresql_9_4;
+    };
 
   patches =
     pkgs.callPackage nix/patches {};
 
   # Base dynamic derivation for the PostgREST package.
   drv =
-    pkgs.packages."$compiler".callCabal2nix name src {};
+    pkgs.haskell.packages."${compiler}".callCabal2nix name src {};
 
   # Static set of Haskell Packages based on nh2/static-haskell-nix
   staticHaskellPackages =

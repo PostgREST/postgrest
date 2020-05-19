@@ -27,6 +27,21 @@ build the `postgrest` attribute from the Nix expression it finds in our
 `default.nix` (see below for details). Nix will take care of getting the right
 GHC version and all the build dependencies.
 
+We recommend that you use the PostgREST binary cache on
+[cachix](https://cachix.org/):
+
+```
+# Install cachix:
+nix-env -iA cachix -f https://cachix.org/api/v1/install
+
+# Set cachix up to use the PostgREST binary cache:
+cachix use postgrest
+
+```
+
+Without cachix, your machine will have to rebuild all the dependencies that are
+derived on top of `Musl` for the static builds, which can take a very long time.
+
 ## Developing
 
 A development environment for PostgREST is available with `nix-shell`. The
@@ -44,21 +59,21 @@ dependencies from the same pinned Nixpkgs version that the Nix builds use.
 
 ## Aside: Working with `nix-shell` and the PostgREST utility scripts
 
-The PostgREST utilities available in `nix-shell` all have names that begin
-with `postgrest-`, so you can use tab completion (`postgrest-<tab>`) in 
-`nix-shell` to see all that are available:
+The PostgREST utilities available in `nix-shell` all have names that begin with
+`postgrest-`, so you can use tab completion (typing `postgrest-` and pressing
+`<tab>`) in `nix-shell` to see all that are available:
 
 ```
 # Note: The utilities listed here might not be up to date.
-[nix-shell:~/Projects/postgrest]$ postgrest-
-postgrest-lint                         postgrest-test-spec-postgresql-10.12
-postgrest-style                        postgrest-test-spec-postgresql-11.7
-postgrest-style-check                  postgrest-test-spec-postgresql-12.2
-postgrest-test-all                     postgrest-test-spec-postgresql-9.4.24
-postgrest-test-spec                    postgrest-test-spec-postgresql-9.5.21
-postgrest-test-spec-all                postgrest-test-spec-postgresql-9.6.17
+[nix-shell]$ postgrest-<tab>
+postgrest-lint                         postgrest-test-spec-postgresql-10
+postgrest-style                        postgrest-test-spec-postgresql-11
+postgrest-style-check                  postgrest-test-spec-postgresql-12
+postgrest-test-all                     postgrest-test-spec-postgresql-9.4
+postgrest-test-spec                    postgrest-test-spec-postgresql-9.5
+postgrest-test-spec-all                postgrest-test-spec-postgresql-9.6
 
-[nix-shell:~/Projects/postgrest]$
+[nix-shell]$
 
 ```
 
