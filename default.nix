@@ -52,7 +52,7 @@ let
 
   # Base dynamic derivation for the PostgREST package.
   drv =
-    pkgs.haskellPackages.callCabal2nix name src {};
+    lib.enableCabalFlag (pkgs.haskellPackages.callCabal2nix name src {}) "FailOnWarn";
 
   # Static derivation for the PostgREST executable.
   drvStatic =

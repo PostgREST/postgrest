@@ -2,7 +2,7 @@
 resolver: lts-15.8
 flags:
     postgrest:
-        werror: true
+        FailOnWarn: true
 nix:
   packages: [pcre, pkgconfig, postgresql, zlib]
   # disable pure by default so that the test enviroment can be passed

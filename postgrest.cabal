@@ -19,7 +19,7 @@ source-repository head
   type:     git
   location: git://github.com/PostgREST/postgrest.git
 
-flag werror
+flag FailOnWarn
   default:     False
   manual:      True
   description: No warnings allowed
@@ -88,7 +88,7 @@ library
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-  if flag(werror)
+  if flag(FailOnWarn)
     ghc-options: -O2 -Werror -Wall -fwarn-identities
                  -fno-spec-constr -optP-Wno-nonportable-include-path
   else
@@ -124,7 +124,7 @@ executable postgrest
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-  if flag(werror)
+  if flag(FailOnWarn)
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
                       -O2 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
