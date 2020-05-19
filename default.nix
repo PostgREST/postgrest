@@ -81,12 +81,18 @@ rec {
   postgrestStatic =
     lib.justStaticExecutables (lib.dontCheck drvStatic);
 
-  # Docker image and loading script.
+  # Docker images and loading script.
   docker =
     pkgs.callPackage nix/docker { postgrest = postgrestStatic; };
 
+  # Script `postgrest-docker-load` that loads the images built with Nix into
+  # Docker, using `docker load -i` under the hood. Referenced here from the top
+  # level so that it gets built by default.
+  dockerLoad =
+    docker.load;
+
   # Environment in which PostgREST can be built with cabal, useful e.g. for
-  # defining a shell for nix-shell.
+  # defining a shell for `nix-shell`.
   env =
     drv.env;
 
