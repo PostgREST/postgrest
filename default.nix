@@ -49,20 +49,19 @@ let
     };
 
   patches =
-    pkgs.callPackage nix/patches {};
+    pkgs.callPackage nix/patches { };
 
   # Base dynamic derivation for the PostgREST package.
   drv =
-    pkgs.haskell.packages."${compiler}".callCabal2nix name src {};
+    pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
   # Static set of Haskell Packages based on nh2/static-haskell-nix
   staticHaskellPackages =
-    import nix/static-haskell-packages.nix
-      { inherit nixpkgs compiler patches; };
+    import nix/static-haskell-packages.nix { inherit nixpkgs compiler patches; };
 
   # Static derivation for the PostgREST executable.
   drvStatic =
-    staticHaskellPackages.callCabal2nix name src {};
+    staticHaskellPackages.callCabal2nix name src { };
 
   lib =
     pkgs.haskell.lib;
@@ -104,17 +103,16 @@ rec {
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsUpgrade =
-    pkgs.callPackage nix/nixpkgs-upgrade.nix {};
+    pkgs.callPackage nix/nixpkgs-upgrade.nix { };
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix
-      {
-        inherit postgresqlVersions;
-        postgrestBuildEnv = env;
-      };
+    pkgs.callPackage nix/tests.nix {
+      inherit postgresqlVersions;
+      postgrestBuildEnv = env;
+    };
 
   # Development tools, including linting and styling scripts.
   devtools =
-    pkgs.callPackage nix/devtools.nix {};
+    pkgs.callPackage nix/devtools.nix { };
 }

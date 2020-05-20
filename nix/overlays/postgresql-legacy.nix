@@ -16,5 +16,5 @@ self: super:
           sha256 = tarballHash;
         };
     in
-      (import pinnedPkgs {}).pkgs.postgresql_9_4;
+    (import pinnedPkgs { }).pkgs.postgresql_9_4;
 }
