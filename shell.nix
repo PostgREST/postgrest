@@ -11,6 +11,10 @@ pkgs.lib.overrideDerivation env (
         tests
         style
         lint
+        # We don't include the `postgrest-docker-load` here, as that would
+        # cause the shell to depend on building the Docker images and in turn
+        # on the static executable. Use `nix-shell default.nix -A dockerLoad`
+        # to get a shell with that script on the PATH.
       ];
 
     shellHook =
