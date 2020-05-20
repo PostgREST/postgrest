@@ -127,10 +127,9 @@ prettyVersion =
   intercalate "." (map show $ versionBranch version) <> gitRev
   where
     gitRev =
-      if $(gitHash) == "UNKNOWN" then
-        ""
-      else
-        " (" <> take 7 $(gitHash) <> ")"
+      if $(gitHash) == "UNKNOWN"
+        then mempty
+        else " (" <> take 7 $(gitHash) <> ")"
 
 -- | Version number used in docs
 docsVersion :: Text
