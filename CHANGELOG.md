@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+ - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo
+
 ## [7.0.1] - 2020-05-18
 
 ### Fixed
