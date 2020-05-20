@@ -39,7 +39,7 @@ Security definer
 ----------------
 
 A function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
-If the function accesses private database objects, your `API roles <roles>`_ won't be able to succesfully execute the function.
+If the function accesses private database objects, your :ref:`API roles <roles>` won't be able to succesfully execute the function.
 
 Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself.
 
