@@ -160,7 +160,7 @@ readOptions = do
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
-        <*> (fromMaybe False <$> optBool "secret-is-base64")
+        <*> ((Just True ==) <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
         <*> (fromMaybe 10 <$> optInt "db-pool")
         <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
