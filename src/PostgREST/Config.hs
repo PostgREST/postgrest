@@ -124,8 +124,12 @@ corsPolicy req = case lookup "origin" headers of
 -- | User friendly version number
 prettyVersion :: Text
 prettyVersion =
-  intercalate "." (map show $ versionBranch version)
-  <> " (" <> take 7 $(gitHash) <> ")"
+  intercalate "." (map show $ versionBranch version) <> gitRev
+  where
+    gitRev =
+      if $(gitHash) == "UNKNOWN"
+        then mempty
+        else " (" <> take 7 $(gitHash) <> ")"
 
 -- | Version number used in docs
 docsVersion :: Text
