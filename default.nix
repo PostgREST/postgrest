@@ -34,6 +34,7 @@ let
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
       allOverlays.gitignore
+      allOverlays.ghr
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
