@@ -1,11 +1,9 @@
-{ postgrest, dockerTools, writeShellScriptBin }:
+{ buildEnv, postgrest, dockerTools, writeShellScriptBin }:
 let
   image =
-    tag:
     dockerTools.buildImage {
-      inherit tag;
-
-      name = "postgrest/postgrest";
+      name = "postgrest";
+      tag = "latest";
       contents = postgrest;
 
       # Set the current time as the image creation date. This makes the build
@@ -44,20 +42,14 @@ let
         };
       };
     };
-in
-rec {
-  imageLatest =
-    image "latest";
-
-  imageWithVersion =
-    image "v${postgrest.version}";
 
   load =
     writeShellScriptBin "postgrest-docker-load"
       ''
-        set -euo pipefail
-
-        docker load -i ${imageLatest}
-        docker load -i ${imageWithVersion}
+        docker load -i ${image}
       '';
-}
+in
+buildEnv {
+  name = "postgrest-docker";
+  paths = [ load ];
+} // { inherit image; }
