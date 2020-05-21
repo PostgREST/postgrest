@@ -33,14 +33,14 @@ let
       ''
         set -euo pipefail
 
+        export PATH="$(cat ${postgrestBuildEnv})"/bin:"$PATH"
+
         cat << EOF
 
         Running spec against ${postgresql.name}...
 
         EOF
 
-        # TODO: Make this work outside nix-shell when installed with nix-env.
-        # Probably using postgrestBuildEnv somehow?
         ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test \
           --test-show-detail=direct
 
