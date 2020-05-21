@@ -1,5 +1,7 @@
-# Derive a fully static set of Haskell packages based on musl instead of glibc.
+# Derive a fully static Haskell package based on musl instead of glibc.
 { nixpkgs, compiler, patches }:
+
+name: src:
 let
   # The nh2/static-haskell-nix project does all the hard work for us.
   static-haskell-nix =
@@ -19,9 +21,24 @@ let
         patches.nixpkgs-openssl-split-runtime-dependencies-of-static-builds
       ];
 
+  extraOverrides =
+    final: prev:
+    rec {
+      # We need to add our package needs to the package set that we pass to
+      # static-haskell-nix. Using callCabal2nix on the haskellPackages that
+      # it returns would result in a dynamic build based on musl, and not the
+      # fully static build that we want.
+      "${name}" =
+        prev.callCabal2nix name src {};
+
+      cabal2nix =
+        prev.cabal2nix.overrideScope
+          (self: super: { Cabal = self.callPackage ./Cabal.nix { }; });
+    };
+
   overlays =
     [
-      (import overlays/haskell-packages { inherit compiler; static = true; })
+      (import ../overlays/haskell-packages { inherit compiler extraOverrides; })
     ];
 
   # Apply our overlay to the given pkgs.
@@ -37,6 +54,7 @@ let
   # The static-haskell-nix 'survey' derives a full static set of Haskell
   # packages, applying fixes where necessary.
   survey =
-    import "${static-haskell-nix}/survey" { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
+    import "${static-haskell-nix}/survey"
+    { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
-survey.haskellPackages
+survey.haskellPackages."${name}"
