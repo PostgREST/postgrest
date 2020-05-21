@@ -13,6 +13,13 @@ let
       sha256 = "155spda2lww378bhx68w6dxwqd5y6s9kin3qbgl2m23r3vmk3m3w";
     };
 
+  patched-static-haskell-nix =
+    patches.applyPatches "patched-static-haskell-nix"
+      static-haskell-nix
+      [
+        patches.static-haskell-nix-postgrest-openssl-linking-fix
+      ];
+
   patchedNixpkgs =
     patches.applyPatches "patched-nixpkgs"
       nixpkgs
@@ -32,6 +39,8 @@ let
         prev.callCabal2nix name src {};
 
       cabal2nix =
+        # cabal2nix depends on Cabal 3.0.*, while our pinned version of Nixpkgs
+        # only provides 2.4 or 3.2. So we pinned 3.0.0.0 in ./Cabal.nix
         prev.cabal2nix.overrideScope
           (self: super: { Cabal = self.callPackage ./Cabal.nix { }; });
     };
@@ -54,7 +63,7 @@ let
   # The static-haskell-nix 'survey' derives a full static set of Haskell
   # packages, applying fixes where necessary.
   survey =
-    import "${static-haskell-nix}/survey"
+    import "${patched-static-haskell-nix}/survey"
     { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
 survey.haskellPackages."${name}"
