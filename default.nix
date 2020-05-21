@@ -26,12 +26,15 @@ let
       sha256 = nixpkgsVersion.tarballHash;
     };
 
+  allOverlays =
+    import nix/overlays;
+
   overlays =
     [
-      (import nix/overlays/postgresql-default.nix)
-      (import nix/overlays/postgresql-legacy.nix)
-      (import nix/overlays/gitignore.nix)
-      (import nix/overlays/haskell-packages { inherit compiler; })
+      allOverlays.postgresql-default
+      allOverlays.postgresql-legacy
+      allOverlays.gitignore
+      (allOverlays.haskell-packages { inherit compiler; })
     ];
 
   # Evaluated expression of the Nixpkgs repository.
@@ -55,13 +58,14 @@ let
   drv =
     pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
-  # Static set of Haskell Packages based on nh2/static-haskell-nix
-  staticHaskellPackages =
-    import nix/static-haskell-packages.nix { inherit nixpkgs compiler patches; };
+  # Function that derives a fully static Haskell package based on
+  # nh2/static-haskell-nix
+  staticHaskellPackage =
+    import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
 
   # Static derivation for the PostgREST executable.
   drvStatic =
-    staticHaskellPackages.callCabal2nix name src { };
+    staticHaskellPackage name src;
 
   lib =
     pkgs.haskell.lib;
