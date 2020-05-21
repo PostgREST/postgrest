@@ -1,5 +1,5 @@
 # Derive a fully static Haskell package based on musl instead of glibc.
-{ nixpkgs, compiler, patches }:
+{ nixpkgs, compiler, patches, allOverlays }:
 
 name: src:
 let
@@ -36,18 +36,12 @@ let
       # it returns would result in a dynamic build based on musl, and not the
       # fully static build that we want.
       "${name}" =
-        prev.callCabal2nix name src {};
-
-      cabal2nix =
-        # cabal2nix depends on Cabal 3.0.*, while our pinned version of Nixpkgs
-        # only provides 2.4 or 3.2. So we pinned 3.0.0.0 in ./Cabal.nix
-        prev.cabal2nix.overrideScope
-          (self: super: { Cabal = self.callPackage ./Cabal.nix { }; });
+        prev.callCabal2nix name src { };
     };
 
   overlays =
     [
-      (import ../overlays/haskell-packages { inherit compiler extraOverrides; })
+      (allOverlays.haskell-packages { inherit compiler extraOverrides; })
     ];
 
   # Apply our overlay to the given pkgs.
@@ -63,7 +57,6 @@ let
   # The static-haskell-nix 'survey' derives a full static set of Haskell
   # packages, applying fixes where necessary.
   survey =
-    import "${patched-static-haskell-nix}/survey"
-    { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
+    import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
 survey.haskellPackages."${name}"

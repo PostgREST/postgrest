@@ -1,4 +1,4 @@
-{ compiler, extraOverrides ? (final: prev: {}) }:
+{ compiler, extraOverrides ? (final: prev: { }) }:
 
 self: super:
 let
