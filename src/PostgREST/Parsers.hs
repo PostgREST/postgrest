@@ -229,7 +229,7 @@ pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgA
       a <- string "{"
       b <- many (noneOf "{}")
       c <- string "}"
-      toS <$> pure (a ++ b ++ c)
+      pure (toS $ a ++ b ++ c)
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do

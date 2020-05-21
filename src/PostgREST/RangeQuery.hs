@@ -99,5 +99,5 @@ contentRangeH lower upper total =
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
       totalString   = maybe "*" show total
-      totalNotZero  = maybe True (0 /=) total
+      totalNotZero  = Just 0 /= total
       fromInRange   = lower <= upper

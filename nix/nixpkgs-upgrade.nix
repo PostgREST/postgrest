@@ -21,7 +21,8 @@ let
   tarballUrlBase =
     https://github.com/nixos/nixpkgs/archive/;
 in
-writeShellScriptBin name
+writeShellScriptBin
+  name
   ''
     set -euo pipefail
 

@@ -42,16 +42,18 @@ jobs:
       - checkout
       - run:
           name: Install linting and styling scripts
-          command: nix-env -f default.nix -iA lint style
+          command: nix-env -f default.nix -iA devtools
       - run:
           name: Run linter
           command: |
-            echo 'Note: For checking this locally, use `make lint`. Or, if using `nix`, run `nix-shell --run postgrest-lint`'
+            # Note: For checking this locally, use `make lint`. Or, if using
+            # `nix`, run `nix-shell --run postgrest-lint`
             postgrest-lint
       - run:
           name: Run style check
           command: |
-            echo 'Note: For checking this locally, use `make style`. Or, if using `nix`, run `nix-shell --run postgrest-style`'
+            # 'Note: For checking this locally, use `make style`. Or, if using
+            # `nix`, run `nix-shell --run postgrest-style`
             postgrest-style-check
 
   build-test-9.4:
