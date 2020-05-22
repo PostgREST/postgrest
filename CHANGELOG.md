@@ -21,6 +21,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1508, Fix `Content-Profile` not working for POST RPC - @steve-chavez
 - #1452, Fix PUT restriction for all columns - @steve-chavez
 
+### Changed
+
+- From this version onwards, the release page will only include a single Linux static executable that can be run on any Linux distribution.
+
 ## [7.0.0] - 2020-04-03
 
 ### Added
