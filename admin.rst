@@ -126,10 +126,24 @@ Server Version
 
 When debugging a problem it's important to verify the PostgREST version. At any time you can make a request to the running server and determine exactly which version is deployed. Look for the :code:`Server` HTTP response header, which contains the version number.
 
-HTTP Requests
--------------
+Logging
+-------
 
 The PostgREST server logs basic request information to stdout, including the requesting IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
+
+.. note::
+
+   When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a log file or to the syslog:
+
+   .. code-block:: bash
+
+     ssh foo@example.com \
+       'postgrest foo.conf </dev/null >/var/log/postgrest.log 2>&1 &'
+
+     # another option is to pipe the output into "logger -t postgrest"
+
+HTTP Requests
+-------------
 
 A great way to inspect incoming HTTP requests including headers and query params is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
 

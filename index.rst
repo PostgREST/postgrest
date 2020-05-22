@@ -139,10 +139,17 @@ Explanations of some key concepts in PostgREST.
 
    install.rst
 
+.. toctree::
+   :caption: Development
+   :hidden:
+
+   development.rst
+
 - :doc:`Authentication <auth>`
 - :doc:`Schema Structure <schema_structure>`
 - :doc:`Administration <admin>`
 - :doc:`Installation <install>`
+- :doc:`Development <development>`
 
 .. _how_tos:
 

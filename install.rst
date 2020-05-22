@@ -1,20 +1,65 @@
-Binary Release
-==============
 
-[ `Download from release page <https://github.com/PostgREST/postgrest/releases/latest>`_ ]
+Installation
+============
 
-The release page has pre-compiled binaries for Mac OS X, Windows, and several Linux distributions. Extract the tarball and run the binary inside with the :code:`--help` flag to see usage instructions:
+The release page has `pre-compiled binaries for Mac OS X, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_ .
+The Linux binary is a static executable that can be run on any Linux distribution.
+
+If you use **macOS Homebrew**, then you can install PostgREST from the `official repo <https://formulae.brew.sh/formula/postgrest>`_.
+
+.. code:: bash
+
+  brew install postgrest
+
+If you use **Arch Linux**, then you can install PostgREST from the `official repo <https://www.archlinux.org/packages/community/x86_64/postgrest>`_.
+
+.. code:: bash
+
+  pacman -S postgrest
+
+If you use **Nix**, then you can install PostgREST from nixpkgs.
+
+.. code:: bash
+
+  nix-env -i haskellPackages.postgrest
+
+When a pre-built binary does not exist for your system you can :ref:`build the project from source <build_source>`.
+
+Running
+~~~~~~~
+
+If you downloaded PostgREST from the release page, first extract the compressed file to obtain the executable.
 
 .. code-block:: bash
 
-  # Untar the release (available at https://github.com/PostgREST/postgrest/releases/latest)
+  # For UNIX platforms
+  tar Jxf postgrest-[version]-[platform].tar.xz
 
-  $ tar Jxf postgrest-[version]-[platform].tar.xz
+  # On Windows you should unzip the file
 
-  # Try running it
-  $ ./postgrest --help
+Now you can run postgrest with the :code:`--help` flag to see usage instructions:
+
+.. code-block:: bash
+
+  # Running postgrest binary
+  ./postgrest --help
+
+  # Running postgrest installed from a package manager
+  postgrest --help
 
   # You should see a usage help message
+
+The PostgREST server reads a configuration file as its only argument:
+
+.. code:: bash
+
+  postgrest /path/to/postgrest.conf
+
+  # You can also generate a sample config file with
+  # postgrest 2> postgrest.conf
+  # You'll need to edit this file and remove the usage parts for postgrest to read it
+
+For a complete reference of the configuration file, see :ref:`configuration`.
 
 .. note::
 
@@ -23,6 +68,8 @@ The release page has pre-compiled binaries for Mac OS X, Windows, and several Li
   .. image:: _static/win-err-dialog.png
 
   It usually lives in :code:`C:\Program Files\PostgreSQL\<version>\bin`. See this `article <https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/>`_ about how to modify the system path.
+
+  To test that the system path is set correctly, run ``pg_config`` from the command line. You should see it output a list of paths.
 
 .. _pg-dependency:
 
@@ -35,31 +82,6 @@ You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but insta
 * `Instructions for OS X <http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/>`_
 * `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
 * `Installer for Windows <http://www.enterprisedb.com/products-services-training/pgdownload#windows>`_
-
-On Windows, PostgREST will fail to run unless the PostgreSQL binaries are on the system path. To test whether this is the case, run ``pg_config`` from the command line. You should see it output a list of paths.
-
-Configuration
-=============
-
-The PostgREST server reads a configuration file as its only argument:
-
-.. code:: bash
-
-  ./postgrest /path/to/postgrest.conf
-
-For a complete reference of the configuration file, see :ref:`configuration`.
-
-Running the Server
-==================
-
-PostgREST outputs basic request logging to stdout. When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a log file or to the syslog:
-
-.. code-block:: bash
-
-  ssh foo@example.com \
-    'postgrest foo.conf </dev/null >/var/log/postgrest.log 2>&1 &'
-
-  # another option is to pipe the output into "logger -t postgrest"
 
 Docker
 ======
@@ -176,6 +198,7 @@ With this you can see the swagger-ui in your browser on port 8080.
 
 Deploying to Heroku
 ===================
+
 Assuming your making modifications locally and then pushing to GitHub, it's easy to deploy to Heroku.
 
 1. Create a new app on Heroku
@@ -186,159 +209,3 @@ Assuming your making modifications locally and then pushing to GitHub, it's easy
 6. Push your changes to GitHub
 7. Set Heroku to automatically deploy from Master and then manually deploy the branch for the first build
 
-
-.. _build_source:
-
-Build from Source
-=================
-
-.. note::
-
-  We discourage building and using PostgREST on **Alpine Linux** because of a reported GHC memory leak on that platform.
-
-When a pre-built binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. `Stack <https://github.com/commercialhaskell/stack>`_ makes it easy. It will install any necessary Haskell dependencies on your system.
-
-* `Install Stack <http://docs.haskellstack.org/en/stable/README.html#how-to-install>`_ for your platform
-* Install Library Dependencies
-
-  =====================  =======================================
-  Operating System       Dependencies
-  =====================  =======================================
-  Ubuntu/Debian          libpq-dev, libgmp-dev
-  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
-  BSD                    postgresql95-client
-  OS X                   libpq, gmp
-  =====================  =======================================
-
-* Build and install binary
-
-  .. code-block:: bash
-
-    git clone https://github.com/PostgREST/postgrest.git
-    cd postgrest
-
-    # adjust local-bin-path to taste
-    stack build --install-ghc --copy-bins --local-bin-path /usr/local/bin
-
-.. note::
-
-   If building fails and your system has less than 1GB of memory, try adding a swap file.
-
-* Check that the server is installed: :code:`postgrest --help`.
-
-PostgREST Test Suite
---------------------
-
-To properly run the test suite, you need a Postgres database that the tests can run against. There are several ways to set up this database. 
-
-Testing with a temporary database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you have Postgres installed locally (:code:`initdb`, :code:`pg_ctl` and :code:`psql` should be on your PATH, no server needs to be running), you can run the test suite against a temporary database:
-
-.. code:: bash
-
-   test/with_tmp_db stack test
-   
-The :code:`with_tmp_db` script will set up a new Postgres cluster in a temporary directory, set the required environment variables and run the command that you passed it as an argument, :code:`stack test` in the example above. When the command is done, the temporary database is torn down and deleted again.
-
-Manually creating the Test Database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To manually create a database for testing, use the test creation script :code:`create_test_database` in the :code:`test/` folder.
-
-The script expects the following parameters:
-
-.. code:: bash
-
-  test/create_test_db connection_uri database_name [test_db_user] [test_db_user_password]
-
-Use the `connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ to specify the user, password, host, and port. Do not provide the database in the connection URI. The PostgreSQL role you are using to connect must be capable of creating new databases.
-
-The :code:`database_name` is the name of the database that :code:`stack test` will connect to. If the database of the same name already exists on the server, the script will first drop it and then re-create it.
-
-Optionally, specify the database user :code:`stack test` will use. The user will be given necessary permissions to reset the database after every test run.
-
-If the user is not specified, the script will generate the role name :code:`postgrest_test_` suffixed by the chosen database name, and will generate a random password for it.
-
-Optionally, if specifying an existing user to be used for the test connection, one can specify the password the user has.
-
-The script will return the db uri to use in the tests--this uri corresponds to the :code:`db-uri` parameter in the configuration file that one would use in production.
-
-Generating the user and the password allows one to create the database and run the tests against any PostgreSQL server without any modifications to the server. (Such as allowing accounts without a password or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
-
-Running the Tests with the manually created database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To run the tests, one must supply the database uri in the environment variable :code:`POSTGREST_TEST_CONNECTION`.
-
-Typically, one would create the database and run the test in the same command line, using the `postgres` superuser:
-
-.. code:: bash
-
-  POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@database-host" test_db) stack test
-
-For repeated runs on the same database, one should export the connection variable:
-
-.. code:: bash
-
-  export POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@database-host" test_db)
-  stack test
-  stack test
-  ...
-
-If the environment variable is empty or not specified, then the test runner will default to connection uri
-
-.. code:: bash
-
-  postgres://postgrest_test@localhost/postgrest_test
-
-This connection assumes the test server on the :code:`localhost:code:` with the user `postgrest_test` without the password and the database of the same name.
-
-Destroying the Database
-~~~~~~~~~~~~~~~~~~~~~~~
-
-The test database will remain after the test, together with four new roles created on the PostgreSQL server. To permanently erase the created database and the roles, run the script :code:`test/delete_test_database`, using the same superuser role used for creating the database:
-
-.. code:: bash
-
-  test/destroy_test_db connection_uri database_name
-
-Testing with Docker
-~~~~~~~~~~~~~~~~~~~
-
-The ability to connect to non-local PostgreSQL simplifies the test setup. One elegant way of testing is to use a disposable PostgreSQL in docker.
-
-For example, if local development is on a mac with Docker for Mac installed:
-
-.. code:: bash
-
-  $ docker run --name db-scripting-test -e POSTGRES_PASSWORD=pwd -p 5434:5432 -d postgres
-  $ POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@localhost:5434" test_db) stack test
-
-Additionally, if one creates a docker container to run stack test (this is necessary on Mac OS Sierra with GHC below 8.0.1, where :code:`stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed PostgreSQL app.
-
-Build the test container with :code:`test/Dockerfile.test`:
-
-.. code:: bash
-
-  $ docker build -t pgst-test - < test/Dockerfile.test
-  $ mkdir .stack-work-docker ~/.stack-linux
-
-The first run of the test container will take a long time while the dependencies get cached. Creating the :code:`~/.stack-linux` folder and mapping it as a volume into the container ensures that we can run the container in disposable mode and not worry about subsequent runs being slow. :code:`.stack-work-docker` is also mapped into the container and must be specified when using stack from Linux, not to interfere with the :code:`.stack-work` for local development. (On Sierra, :code:`stack build` works, while :code:`stack test` fails with GHC 8.0.1).
-
-Linked containers:
-
-.. code:: bash
-
-  $ docker run --name pg -e POSTGRES_PASSWORD=pwd  -d postgres
-  $ docker run --rm -it -v `pwd`:`pwd` -v ~/.stack-linux:/root/.stack --link pg:pg -w="`pwd`" -v `pwd`/.stack-work-docker:`pwd`/.stack-work pgst-test bash -c "POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@pg" test_db) stack test"
-
-Stack test in Docker for Mac, PostgreSQL app on mac:
-
-.. code:: bash
-
-  $ host_ip=$(ifconfig en0 | grep 'inet ' | cut -f 2 -d' ')
-  $ export POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres@$HOST" test_db)
-  $ docker run --rm -it -v `pwd`:`pwd` -v ~/.stack-linux:/root/.stack -v `pwd`/.stack-work-docker:`pwd`/.stack-work -e "HOST=$host_ip" -e "POSTGREST_TEST_CONNECTION=$POSTGREST_TEST_CONNECTION" -w="`pwd`" pgst-test bash -c "stack test"
-  $ test/destroy_test_db "postgres://postgres@localhost" test_db
