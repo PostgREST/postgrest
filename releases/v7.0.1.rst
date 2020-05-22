@@ -25,6 +25,14 @@ Fixed
 * Fix PUT restriction for including all columns in payload
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Documentation improvements
+
+  + Added package managers to :ref:`install`.
+
+Changed
+-------
+
+* From this version onwards, the release page will only include a single Linux static executable that can be run on any Linux distribution.
 
 Thanks
 ------

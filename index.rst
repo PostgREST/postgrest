@@ -139,17 +139,10 @@ Explanations of some key concepts in PostgREST.
 
    install.rst
 
-.. toctree::
-   :caption: Development
-   :hidden:
-
-   development.rst
-
 - :doc:`Authentication <auth>`
 - :doc:`Schema Structure <schema_structure>`
 - :doc:`Administration <admin>`
 - :doc:`Installation <install>`
-- :doc:`Development <development>`
 
 .. _how_tos:
 
@@ -184,7 +177,16 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 * :ref:`eco_external_notification`
 * :ref:`eco_extensions`
 * :ref:`clientside_libraries`
-* :ref:`eco_commercial`
+
+For helping with development, see the following page.
+
+* :doc:`Development <development>`
+
+.. toctree::
+   :caption: Development
+   :hidden:
+
+   development.rst
 
 Release Notes
 -------------
