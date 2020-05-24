@@ -27,6 +27,7 @@ let
           "PGRST_DB_SCHEMA=public"
           "PGRST_DB_ANON_ROLE="
           "PGRST_DB_POOL=100"
+          "PGRST_DB_POOL_TIMEOUT=10"
           "PGRST_DB_EXTRA_SEARCH_PATH=public"
           "PGRST_SERVER_HOST=*4"
           "PGRST_SERVER_PORT=3000"
