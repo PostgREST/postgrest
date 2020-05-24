@@ -32,7 +32,7 @@ Fixed
 Changed
 -------
 
-* From this version onwards, the release page will only include a single Linux static executable that can be run on any Linux distribution.
+* From this version onwards, the release page will include a single Linux static executable that can be run on any Linux distribution.
 
 Thanks
 ------
