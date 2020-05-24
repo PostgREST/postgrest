@@ -138,13 +138,17 @@ jobs:
       - run:
           name: Publish GitHub release
           command: |
-            GITHUB_USERNAME="$CIRCLE_PROJECT_USERNAME" \
-              GITHUB_REPONAME="$CIRCLE_PROJECT_REPONAME" \
-              postgrest-release-github
+            export GITHUB_USERNAME="$CIRCLE_PROJECT_USERNAME"
+            export GITHUB_REPONAME="$CIRCLE_PROJECT_REPONAME"
+            postgrest-release-github
       - setup_remote_docker
       - run:
           name: Publish Docker images
-          command: DOCKER_REPO=postgrest postgrest-release-docker
+          command: |
+            export DOCKER_REPO=postgrest
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            postgrest-release-dockerhub
+            postgrest-release-dockerhubdescription
 
   # Build everything in default.nix and push to the Cachix binary cache.
   nix-build:

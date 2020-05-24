@@ -115,10 +115,10 @@ rec {
   devtools =
     pkgs.callPackage nix/devtools.nix { };
 
-  # Scripts for creating new releases.
+  # Scripts for publishing new releases.
   release =
-    pkgs.callPackage nix/release.nix {
+    pkgs.callPackage nix/release {
+      inherit docker;
       postgrest = postgrestStatic;
-      postgrestDocker = docker;
     };
 }
