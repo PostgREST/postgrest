@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
- - #1535, Docker images are now built from scratch based on a static build of the PostgREST executable - @monacoremo
+ - #1522, #1528, #1535, Docker images are now built from scratch based on a the static PostgREST executable (#1494) and with Nix instead of a `Dockerfile`. This reduces the compressed image size from over 30mb to about 4mb - @monacoremo
 
 ## [7.0.1] - 2020-05-18
 
