@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
- - Docker images are now built from scratch based on a static build of the PostgREST executable.
+ - #1535, Docker images are now built from scratch based on a static build of the PostgREST executable - @monacoremo
 
 ## [7.0.1] - 2020-05-18
 
