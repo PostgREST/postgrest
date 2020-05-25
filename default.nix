@@ -34,6 +34,7 @@ let
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
       allOverlays.gitignore
+      allOverlays.ghr
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -94,12 +95,6 @@ rec {
   docker =
     pkgs.callPackage nix/docker { postgrest = postgrestStatic; };
 
-  # Script `postgrest-docker-load` that loads the images built with Nix into
-  # Docker, using `docker load -i` under the hood. Referenced here from the top
-  # level so that it gets built by default.
-  dockerLoad =
-    docker.load;
-
   # Environment in which PostgREST can be built with cabal, useful e.g. for
   # defining a shell for `nix-shell`.
   env =
@@ -119,4 +114,11 @@ rec {
   # Development tools, including linting and styling scripts.
   devtools =
     pkgs.callPackage nix/devtools.nix { };
+
+  # Scripts for publishing new releases.
+  release =
+    pkgs.callPackage nix/release {
+      inherit docker;
+      postgrest = postgrestStatic;
+    };
 }

@@ -1,11 +1,12 @@
-{ postgrest, dockerTools, writeShellScriptBin }:
+{ buildEnv, postgrest, dockerTools, writeShellScriptBin }:
 let
-  image =
-    tag:
-    dockerTools.buildImage {
-      inherit tag;
+  config =
+    ./postgrest.conf;
 
-      name = "postgrest/postgrest";
+  image =
+    dockerTools.buildImage {
+      name = "postgrest";
+      tag = "latest";
       contents = postgrest;
 
       # Set the current time as the image creation date. This makes the build
@@ -15,7 +16,8 @@ let
       extraCommands =
         ''
           mkdir etc
-          cp ${./postgrest.conf} etc/postgrest.conf
+          cp ${config} etc/postgrest.conf
+          rmdir share
         '';
 
       config = {
@@ -25,6 +27,7 @@ let
           "PGRST_DB_SCHEMA=public"
           "PGRST_DB_ANON_ROLE="
           "PGRST_DB_POOL=100"
+          "PGRST_DB_POOL_TIMEOUT=10"
           "PGRST_DB_EXTRA_SEARCH_PATH=public"
           "PGRST_SERVER_HOST=*4"
           "PGRST_SERVER_PORT=3000"
@@ -44,20 +47,15 @@ let
         };
       };
     };
-in
-rec {
-  imageLatest =
-    image "latest";
 
-  imageWithVersion =
-    image "v${postgrest.version}";
-
+  # Helper script for loading the image.
   load =
     writeShellScriptBin "postgrest-docker-load"
       ''
-        set -euo pipefail
-
-        docker load -i ${imageLatest}
-        docker load -i ${imageWithVersion}
+        docker load -i ${image}
       '';
-}
+in
+buildEnv {
+  name = "postgrest-docker";
+  paths = [ load ];
+} // { inherit image config; }
