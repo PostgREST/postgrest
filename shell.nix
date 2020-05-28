@@ -1,26 +1,39 @@
-with (import ./default.nix);
-pkgs.lib.overrideDerivation env (
+# The additional modules below have large dependencies and are therefore
+# disabled by default. You can activate them by passing arguments to nix-shell,
+# e.g.:
+#
+#    nix-shell --arg release true
+#
+# This will provide you with a shell where the `postgrest-release-*` scripts
+# are available.
+#
+# We highly recommend that use the PostgREST binary cache by installing cachix
+# (https://app.cachix.org/) and running `cachix use postgrest`.
+{ ioTests ? false, memoryTests ? false, docker ? false, release ? false }:
+let
+  postgrest =
+    import ./default.nix;
+
+  pkgs =
+    postgrest.pkgs;
+
+  lib =
+    pkgs.lib;
+in
+lib.overrideDerivation postgrest.env (
   base: {
     buildInputs =
       base.buildInputs ++ [
         pkgs.cabal-install
-        pkgs.stack
         pkgs.cabal2nix
         pkgs.postgresql
-        nixpkgsUpgrade
-        tests
-        devtools
-        # We don't include the `postgrest-docker-load` here, as that would
-        # cause the shell to depend on building the Docker images and in turn
-        # on the static executable. Use `nix-shell default.nix -A dockerLoad`
-        # to get a shell with that script on the PATH.
-      ];
-
-    shellHook =
-      ''
-        # Set our pinned version of Nixpkgs in the NIX_PATH so that
-        # `stack --nix` also uses that version.
-        NIX_PATH="nixpkgs=${nixpkgs}"
-      '';
+        postgrest.nixpkgsUpgrade
+        postgrest.devtools
+        postgrest.tests
+      ]
+      ++ lib.optional ioTests postgrest.tests.ioTests
+      ++ lib.optional memoryTests postgrest.tests.memoryTests
+      ++ lib.optional docker postgrest.docker
+      ++ lib.optional release postgrest.release;
   }
 )

@@ -55,8 +55,8 @@ let
   patches =
     pkgs.callPackage nix/patches { };
 
-  # Base dynamic derivation for the PostgREST package.
-  drv =
+  # Dynamic derivation for PostgREST
+  postgrest =
     pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
   # Function that derives a fully static Haskell package based on
@@ -64,9 +64,14 @@ let
   staticHaskellPackage =
     import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
 
-  # Static derivation for the PostgREST executable.
-  drvStatic =
-    staticHaskellPackage name src;
+  profiledHaskellPackages =
+    pkgs.haskell.packages."${compiler}".extend (self: super:
+      {
+        mkDerivation =
+          args:
+          super.mkDerivation (args // { enableLibraryProfiling = true; });
+      }
+    );
 
   lib =
     pkgs.haskell.lib;
@@ -78,27 +83,26 @@ rec {
   # libraries and documentation. We disable running the test suite on Nix
   # builds, as they require a database to be set up.
   postgrestPackage =
-    lib.dontCheck (lib.enableCabalFlag drv "FailOnWarn");
-
-  # Derivation for just the PostgREST binary, where we strip all dynamic
-  # libraries and documentation, leaving only the executable. Note that the
-  # executable is static with regards to Haskell libraries, but not system
-  # libraries like glibc and libpq.
-  postgrest =
-    lib.justStaticExecutables postgrestPackage;
+    lib.dontCheck (lib.enableCabalFlag postgrest "FailOnWarn");
 
   # Static executable.
   postgrestStatic =
-    lib.justStaticExecutables (lib.dontCheck drvStatic);
+    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
+
+  # Profiled dynamic executable.
+  postgrestProfiled =
+    lib.enableExecutableProfiling (
+      lib.dontHaddock (
+        lib.dontCheck (profiledHaskellPackages.callCabal2nix name src { })
+      )
+    );
 
   # Docker images and loading script.
   docker =
     pkgs.callPackage nix/docker { postgrest = postgrestStatic; };
 
-  # Environment in which PostgREST can be built with cabal, useful e.g. for
-  # defining a shell for `nix-shell`.
   env =
-    drv.env;
+    postgrest.env;
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsUpgrade =
@@ -106,10 +110,7 @@ rec {
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix {
-      inherit postgresqlVersions;
-      postgrestBuildEnv = env;
-    };
+    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions; };
 
   # Development tools, including linting and styling scripts.
   devtools =

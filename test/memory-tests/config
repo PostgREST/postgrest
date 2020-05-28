@@ -1,4 +1,4 @@
-db-uri = "postgres:///postgrest_test"
+db-uri = "$(POSTGREST_TEST_CONNECTION)"
 db-schema = "test"
 db-anon-role = "postgrest_test_anonymous"
 db-pool = 1
