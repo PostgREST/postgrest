@@ -193,8 +193,8 @@ jobs:
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use postgrest
       - run:
-          name: Install testing scripts for all supported PostgreSQL versions
-          command: nix-env -f default.nix -iA tests
+          name: Install testing scripts
+          command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
       # Our utility scripts use cabal to run the tests, which will pick up all
       # the libraries that are built with Nix. So this should only ever build
       # the PostgREST itself and be reasonably quick. We accelerate that part
