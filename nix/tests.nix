@@ -116,7 +116,16 @@ buildEnv {
     [
       (testSpec "postgrest-test-spec" postgresql)
       testSpecAllVersions
-      (testIO "postgrest-test-io" postgresql)
-      (testMemory "postgrest-test-memory" postgresql)
     ] ++ testSpecVersions;
+}
+  # The IO an memory tests have large dependencies (a static and a profiled
+  # build of PostgREST respectively) and are run less often than the spec
+  # tests, so we don't include them in the default test environment. We make
+  # them available through separate attributes:
+  // {
+  ioTests =
+    (testIO "postgrest-test-io" postgresql);
+
+  memoryTests =
+    (testMemory "postgrest-test-memory" postgresql);
 }

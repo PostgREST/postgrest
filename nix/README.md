@@ -68,30 +68,36 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-lint         postgrest-style        postgrest-style-check
+postgrest-lint                      postgrest-test-spec-postgresql-11
+postgrest-style                     postgrest-test-spec-postgresql-12
+postgrest-style-check               postgrest-test-spec-postgresql-9.4
+postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
+postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
+postgrest-test-spec-postgresql-10
 
 [nix-shell]$
 
 ```
 
-Some additional modules like `tests`, `docker` and `release` have large
-dependencies that would need to be built before the shell becomes available,
-which could take an especially long time if the cachix binary cache is not used.
-You can activate those by passing a flag to `nix-shell`, which will make the respective
-utilites available:
+Some additional modules like `ioTests`, `memoryTests`, `docker` and `release`
+have large dependencies that would need to be built before the shell becomes
+available, which could take an especially long time if the cachix binary cache
+is not used. You can activate those by passing a flag to `nix-shell`, which
+will make the respective utilites available:
 
 ```
-$ nix-shell --arg tests true
+$ nix-shell --arg ioTests true
 [nix-shell]$ postgrest-<tab>
 postgrest-lint                      postgrest-test-spec-postgresql-10
 postgrest-style                     postgrest-test-spec-postgresql-11
 postgrest-style-check               postgrest-test-spec-postgresql-12
 postgrest-test-io                   postgrest-test-spec-postgresql-9.4
-postgrest-test-memory               postgrest-test-spec-postgresql-9.5
-postgrest-test-spec                 postgrest-test-spec-postgresql-9.6
-postgrest-test-spec-all
+postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
+postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 
 ```
+
+Note that `postgrest-tests-io` is now also available.
 
 To run one-off commands, you can also use `nix-shell --run <command>`, which
 will lauch the Nix shell, run that one command and exit. Note that the tab

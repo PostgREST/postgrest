@@ -9,7 +9,7 @@
 #
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
-{ tests ? false, docker ? false, release ? false }:
+{ ioTests ? false, memoryTests ? false, docker ? false, release ? false }:
 let
   postgrest =
     import ./default.nix;
@@ -29,8 +29,10 @@ lib.overrideDerivation postgrest.env (
         pkgs.postgresql
         postgrest.nixpkgsUpgrade
         postgrest.devtools
+        postgrest.tests
       ]
-      ++ lib.optional tests postgrest.tests
+      ++ lib.optional ioTests postgrest.tests.ioTests
+      ++ lib.optional memoryTests postgrest.tests.memoryTests
       ++ lib.optional docker postgrest.docker
       ++ lib.optional release postgrest.release;
   }
