@@ -46,7 +46,7 @@ let
 
         EOF
 
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test \
+        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test -f FailOnWarn \
           --test-show-detail=direct
 
         cat << EOF

@@ -221,6 +221,7 @@ checkIsFatal _ = Nothing
 
 data SimpleError
   = GucHeadersError
+  | GucStatusError
   | BinaryFieldError ContentType
   | ConnectionLostError
   | PutMatchingPkError
@@ -233,6 +234,7 @@ data SimpleError
 
 instance PgrstError SimpleError where
   status GucHeadersError         = HT.status500
+  status GucStatusError          = HT.status500
   status (BinaryFieldError _)    = HT.status406
   status ConnectionLostError     = HT.status503
   status PutMatchingPkError      = HT.status400
@@ -249,6 +251,8 @@ instance PgrstError SimpleError where
 instance JSON.ToJSON SimpleError where
   toJSON GucHeadersError           = JSON.object [
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text)]
+  toJSON GucStatusError           = JSON.object [
+    "message" .= ("response.status guc must be a valid status code" :: Text)]
   toJSON (BinaryFieldError ct)          = JSON.object [
     "message" .= ((toS (toMime ct) <> " requested but more than one column was selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [

@@ -22,9 +22,12 @@ import           Data.Aeson                      as JSON
 import qualified Data.Aeson.Lens                 as L
 import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
+import           Data.Text.Read                  (decimal)
 import qualified Hasql.Decoders                  as HD
 import qualified Hasql.Encoders                  as HE
 import qualified Hasql.Statement                 as H
+import           Network.HTTP.Types.Status
+import           PostgREST.Error
 import           PostgREST.Private.Common
 import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
@@ -37,7 +40,7 @@ import           Text.InterpolatedString.Perl6   (qc)
     is represented as a list of strings containing variable bindings like
     @"k1=eq.42"@, or the empty list if there is no location header.
 -}
-type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Text [GucHeader])
+type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
 createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion ->
@@ -53,7 +56,8 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
         pg_catalog.count(_postgrest_t) AS page_total,
         {locF} AS header,
         {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers
+        {responseHeadersF pgVer} AS response_headers,
+        {responseStatusF pgVer} AS response_status
       FROM ({selectF}) _postgrest_t |]
 
   locF =
@@ -78,7 +82,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
-   fromMaybe (Nothing, 0, [], mempty, Right []) <$> HD.rowMaybe standardRow
+   fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                        H.Statement () ResultsWithCount
@@ -94,7 +98,8 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
         pg_catalog.count(_postgrest_t) AS page_total,
         {noLocationF} AS header,
         {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers
+        {responseHeadersF pgVer} AS response_headers,
+        {responseStatusF pgVer} AS response_status
       FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
 
   (countCTEF, countResultF) = countF countQuery countTotal
@@ -114,12 +119,14 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
     for that common type of query.
 -}
 standardRow :: HD.Row ResultsWithCount
-standardRow = (,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                    <*> column header <*> column HD.bytea <*> column decodeGucHeaders
+standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                      <*> column header <*> column HD.bytea
+                      <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
+                      <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
   where
     header = HD.array $ HD.dimension replicateM $ element HD.bytea
 
-type ProcResults = (Maybe Int64, Int64, ByteString, Either Text [GucHeader])
+type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
 callProcStatement :: Bool -> SqlQuery -> SqlQuery -> SqlQuery -> Bool ->
                      Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
@@ -134,7 +141,8 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
         {countResultF} AS total_result_set,
         pg_catalog.count(_postgrest_t) AS page_total,
         {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers
+        {responseHeadersF pgVer} AS response_headers,
+        {responseStatusF pgVer} AS response_status
       FROM ({selectQuery}) _postgrest_t;|]
 
     (countCTEF, countResultF) = countF countQuery countTotal
@@ -153,10 +161,14 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
 
     decodeProc :: HD.Result ProcResults
     decodeProc =
-      fromMaybe (Just 0, 0, mempty, Right []) <$> HD.rowMaybe procRow
+      fromMaybe (Just 0, 0, mempty, defGucHeaders, defGucStatus) <$> HD.rowMaybe procRow
       where
-        procRow = (,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                        <*> column HD.bytea <*> column decodeGucHeaders
+        defGucHeaders = Right []
+        defGucStatus  = Right Nothing
+        procRow = (,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                         <*> column HD.bytea
+                         <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
+                         <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
 
 createExplainStatement :: SqlQuery -> H.Statement () (Maybe Int64)
 createExplainStatement countQuery =
@@ -179,5 +191,8 @@ createExplainStatement countQuery =
 unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
 unicodeStatement = H.Statement . encodeUtf8
 
-decodeGucHeaders :: HD.Value (Either Text [GucHeader])
-decodeGucHeaders = first toS . JSON.eitherDecode . toS <$> HD.bytea
+decodeGucHeaders :: HD.Value (Either SimpleError [GucHeader])
+decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> HD.bytea
+
+decodeGucStatus :: HD.Value (Either SimpleError (Maybe Status))
+decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text

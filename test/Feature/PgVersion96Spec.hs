@@ -161,6 +161,27 @@ spec =
           let respHeaders = simpleHeaders r
           respHeaders `shouldSatisfy` noBlankHeader
 
+    context "GUC status override" $ do
+      it "can override the status on RPC" $
+        get "/rpc/send_body_status_403"
+          `shouldRespondWith`
+          [json|{"message" : "invalid user or password"}|]
+          { matchStatus  = 403
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
+      it "can override the status through trigger" $
+        request methodPatch "/stuff?id=eq.1" [] [json|[{"name": "updated stuff 1"}]|]
+          `shouldRespondWith` 205
+
+      it "fails when setting invalid status guc" $
+        get "/rpc/send_bad_status"
+          `shouldRespondWith`
+          [json|{"message":"response.status guc must be a valid status code"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
     context "Use of the phraseto_tsquery function" $ do
       it "finds matches" $
         get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`

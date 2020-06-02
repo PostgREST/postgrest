@@ -136,17 +136,19 @@ app dbStructure proc cols conf apiRequest =
                         (contentType == CTTextCSV) bField pgVer
                   explStm = createExplainStatement cq
               row <- H.statement () stm
-              let (tableTotal, queryTotal, _ , body, gucHeaders) = row
-              case gucHeaders of
-                Left _ -> return . errorResponseFor $ GucHeadersError
-                Right ghdrs -> do
+              let (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) = row
+                  gucs =  (,) <$> gucHeaders <*> gucStatus
+              case gucs of
+                Left err -> return $ errorResponseFor err
+                Right (ghdrs, gstatus) -> do
                   total <- if | plannedCount   -> H.statement () explStm
                               | estimatedCount -> if tableTotal > (fromIntegral <$> maxRows)
                                                     then do estTotal <- H.statement () explStm
                                                             pure $ if estTotal > tableTotal then estTotal else tableTotal
                                                     else pure tableTotal
                               | otherwise      -> pure tableTotal
-                  let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal total
+                  let (rangeStatus, contentRange) = rangeStatusHeader topLevelRange queryTotal total
+                      status = fromMaybe rangeStatus gstatus
                       headers = addHeadersIfNotIncluded (catMaybes [
                                   Just $ toHeader contentType, Just contentRange,
                                   Just $ contentLocationH tName (iCanonicalQS apiRequest), profileH])
@@ -166,14 +168,16 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTSingularJSON) True
                     (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols pgVer
               row <- H.statement (toS $ pjRaw pJson) stm
-              let (_, queryTotal, fields, body, gucHeaders) = row
-              case gucHeaders of
-                Left _ -> return . errorResponseFor $ GucHeadersError
-                Right ghdrs -> do
+              let (_, queryTotal, fields, body, gucHeaders, gucStatus) = row
+                  gucs =  (,) <$> gucHeaders <*> gucStatus
+              case gucs of
+                Left err -> return $ errorResponseFor err
+                Right (ghdrs, gstatus) -> do
                   let
                     (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
                                           then ([Just $ toHeader contentType, profileH], toS body)
                                           else ([], mempty)
+                    status = fromMaybe status201 gstatus
                     headers = addHeadersIfNotIncluded (catMaybes ([
                           if null fields
                             then Nothing
@@ -188,7 +192,7 @@ app dbStructure proc cols conf apiRequest =
                       HT.condemn
                       return . errorResponseFor . singularityError $ queryTotal
                     else
-                      return $ responseLBS status201 headers rBody
+                      return $ responseLBS status headers rBody
 
         (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
           case mutateSqlParts tSchema tName of
@@ -198,15 +202,17 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTSingularJSON) False (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) [] pgVer
               row <- H.statement (toS $ pjRaw pJson) stm
-              let (_, queryTotal, _, body, gucHeaders) = row
-              case gucHeaders of
-                Left _ -> return . errorResponseFor $ GucHeadersError
-                Right ghdrs -> do
+              let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
+                  gucs =  (,) <$> gucHeaders <*> gucStatus
+              case gucs of
+                Left err -> return $ errorResponseFor err
+                Right (ghdrs, gstatus) -> do
                   let
                     updateIsNoOp = S.null cols
-                    status | queryTotal == 0 && not updateIsNoOp      = status404
-                           | iPreferRepresentation apiRequest == Full = status200
-                           | otherwise                                = status204
+                    defStatus | queryTotal == 0 && not updateIsNoOp      = status404
+                              | iPreferRepresentation apiRequest == Full = status200
+                              | otherwise                                = status204
+                    status = fromMaybe defStatus gstatus
                     contentRangeHeader = contentRangeH 0 (queryTotal - 1) $ if shouldCount then Just queryTotal else Nothing
                     (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
                                           then ([Just $ toHeader contentType, profileH], toS body)
@@ -229,12 +235,14 @@ app dbStructure proc cols conf apiRequest =
                 row <- H.statement (toS $ pjRaw pJson) $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer
-                let (_, queryTotal, _, body, gucHeaders) = row
-                case gucHeaders of
-                  Left _ -> return . errorResponseFor $ GucHeadersError
-                  Right ghdrs -> do
+                let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
+                    gucs =  (,) <$> gucHeaders <*> gucStatus
+                case gucs of
+                  Left err -> return $ errorResponseFor err
+                  Right (ghdrs, gstatus) -> do
                     let headers = addHeadersIfNotIncluded (catMaybes [Just $ toHeader contentType, profileH]) (unwrapGucHeader <$> ghdrs)
-                        (status, rBody) = if iPreferRepresentation apiRequest == Full then (status200, toS body) else (status204, mempty)
+                        (defStatus, rBody) = if iPreferRepresentation apiRequest == Full then (status200, toS body) else (status204, mempty)
+                        status = fromMaybe defStatus gstatus
                     -- Makes sure the querystring pk matches the payload pk
                     -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted, PUT /items?id=eq.14 { "id" : 2, .. } is rejected
                     -- If this condition is not satisfied then nothing is inserted, check the WHERE for INSERT in QueryBuilder.hs to see how it's done
@@ -254,12 +262,14 @@ app dbStructure proc cols conf apiRequest =
                     (contentType == CTTextCSV)
                     (iPreferRepresentation apiRequest) [] pgVer
               row <- H.statement mempty stm
-              let (_, queryTotal, _, body, gucHeaders) = row
-              case gucHeaders of
-                Left _ -> return . errorResponseFor $ GucHeadersError
-                Right ghdrs -> do
+              let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
+                  gucs =  (,) <$> gucHeaders <*> gucStatus
+              case gucs of
+                Left err -> return $ errorResponseFor err
+                Right (ghdrs, gstatus) -> do
                   let
-                    status = if iPreferRepresentation apiRequest == Full then status200 else status204
+                    defStatus = if iPreferRepresentation apiRequest == Full then status200 else status204
+                    status = fromMaybe defStatus gstatus
                     contentRangeHeader = contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                     (ctHeaders, rBody) = if iPreferRepresentation apiRequest == Full
                                           then ([Just $ toHeader contentType, profileH], toS body)
@@ -294,11 +304,13 @@ app dbStructure proc cols conf apiRequest =
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
               row <- H.statement (toS $ pjRaw pJson) stm
-              let (tableTotal, queryTotal, body, gucHeaders) = row
-              case gucHeaders of
-                Left _ -> return . errorResponseFor $ GucHeadersError
-                Right ghdrs -> do
-                  let (status, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
+              let (tableTotal, queryTotal, body, gucHeaders, gucStatus) = row
+                  gucs =  (,) <$> gucHeaders <*> gucStatus
+              case gucs of
+                Left err -> return $ errorResponseFor err
+                Right (ghdrs, gstatus) -> do
+                  let (rangeStatus, contentRange) = rangeStatusHeader topLevelRange queryTotal tableTotal
+                      status = fromMaybe rangeStatus gstatus
                       headers = addHeadersIfNotIncluded
                         (catMaybes [Just $ toHeader contentType, Just contentRange, profileH])
                         (unwrapGucHeader <$> ghdrs)
