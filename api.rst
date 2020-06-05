@@ -1496,7 +1496,7 @@ Notice that the variable should be set to an *array* of single-key objects rathe
 .. _pre_req_headers:
 
 Setting headers via pre-request
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By using a :ref:`pre-request` function, you can add headers to GET/POST/PATCH/PUT/DELETE responses.
 As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
@@ -1529,9 +1529,40 @@ Now when you make a GET request to a table or view, you'll get the cache headers
 
   ...
 
+.. _guc_resp_status:
 
-Errors and HTTP Status Codes
+Setting Response Status Code
 ----------------------------
+
+You can set the ``response.status`` GUC to override the default status code PostgREST provides. For instance, the following function would replace the default ``200`` status code.
+
+.. code-block:: postgres
+
+   create or replace function teapot() returns json as $$
+   begin
+     perform set_config('response.status', '418', true);
+     return json_build_object('message', 'The requested entity body is short and stout.',
+                              'hint', 'Tip it over and pour it out.');
+   end;
+   $$ language plpgsql;
+
+.. code-block:: http
+
+  GET /rpc/teapot HTTP/1.1
+
+.. code-block:: http
+
+  HTTP/1.1 418 I'm a teapot
+
+  {"message" : "The requested entity body is short and stout.",
+   "hint" : "Tip it over and pour it out."}
+
+If the status code is standard, PostgREST will complete the status message(**I'm a teapot** in this example).
+
+.. _raise_error:
+
+Raise errors with HTTP Status Codes
+-----------------------------------
 
 Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
 
@@ -1557,6 +1588,10 @@ Calling the function returns HTTP 400 with the body
     "hint":"There is nothing you can do.",
     "code":"P0001"
   }
+
+.. note::
+
+   Keep in mind that ``RAISE EXCEPTION`` will abort the transaction and rollback all changes. If you don't want this, you can instead use the :ref:`response.status GUC <guc_resp_status>`.
 
 One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
 
