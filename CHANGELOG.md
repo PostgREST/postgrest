@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+ - #1525, Allow http status override through response.status guc - @steve-chavez
+
 ### Fixed
 
  - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo

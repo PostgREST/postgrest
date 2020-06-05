@@ -202,5 +202,16 @@ returningF qi returnings =
 responseHeadersF :: PgVersion -> SqlFragment
 responseHeadersF pgVer =
   if pgVer >= pgVersion96
-    then "coalesce(nullif(current_setting('response.headers', true), ''), '[]')" :: Text -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
-    else "'[]'" :: Text
+    then currentSettingF "response.headers"
+    else "null" :: Text
+
+responseStatusF :: PgVersion -> SqlFragment
+responseStatusF pgVer =
+  if pgVer >= pgVersion96
+    then currentSettingF "response.status"
+    else "null" :: Text
+
+currentSettingF :: SqlFragment -> SqlFragment
+currentSettingF setting =
+  -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
+  "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
