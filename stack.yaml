@@ -12,3 +12,4 @@ extra-deps:
 - hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
 - interpolatedstring-perl6-1.0.2@sha256:7ce49c8a69a2a1b89c001ed79db2aab656ffd0faf2a7a701a553b6deb5c8ba7f,1073
 - protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
+- hasql-notifications-0.1.0.0@sha256:9ab112d2bb5da0d55abd65f0d27a7bb1dc4aeb792518d9a2ea8a16e243e19985,2156

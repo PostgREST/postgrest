@@ -4,6 +4,8 @@ module Main where
 
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base64     as B64
+import qualified Hasql.Connection           as C
+import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
@@ -137,8 +139,27 @@ connectionStatus pool =
 
 
 {-|
-  This is where everything starts.
+  Starts a dedicated pg connection to LISTEN for notifications.
+  When a NOTIFY channel(with an empty payload) is done, it starts the connectionWorker.
 -}
+listener :: ByteString -> Text -> IO () -> IO ()
+listener dbUri dbChannel worker =
+  void $ forkIO start
+  where
+    start = do
+      dbOrError <- C.acquire dbUri
+      case dbOrError of
+        Right db -> do
+          putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
+          let channelToListen = N.toPgIdentifier dbChannel
+          N.listen db channelToListen
+          N.waitForNotifications (\_ msg ->
+            if BS.null msg
+              then worker      -- start worker
+              else pure ()) db -- Do nothing if anything else than an empty message is sent
+        _ -> die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
+
+-- | This is where everything starts.
 main :: IO ()
 main = do
   --
@@ -159,14 +180,14 @@ main = do
       proxy = configOpenAPIProxyUri conf
       maybeSocketAddr = configSocket conf
       socketFileMode = configSocketMode conf
-      pgSettings = toS (configDatabase conf) -- is the db-uri
+      dbUri = toS (configDbUri conf)
+      dbChannel = toS (configDbChannel conf)
       roleClaimKey = configRoleClaimKey conf
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
         . setPort port
         . setServerName (toS $ "postgrest/" <> prettyVersion) $
         defaultSettings
-
 
   whenLeft socketFileMode panic
 
@@ -181,32 +202,29 @@ main = do
 
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
-  pool <- P.acquire (configPool conf, configPoolTimeout' conf, pgSettings)
-  --
+  pool <- P.acquire (configPool conf, configPoolTimeout' conf, dbUri)
+
   -- To be filled in by connectionWorker
   refDbStructure <- newIORef Nothing
-  --
+
   -- Helper ref to make sure just one connectionWorker can run at a time
   refIsWorkerOn <- newIORef False
-  --
+
   -- This is passed to the connectionWorker method so it can kill the main
   -- thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
-  --
-  -- Sets the refDbStructure
-  connectionWorker
-    mainTid
-    pool
-    schemas
-    refDbStructure
-    refIsWorkerOn
-  --
+
+  let worker = connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn
+
+  -- Sets the initial refDbStructure
+  worker
+
   -- Only for systems with signals:
   --
   -- releases the connection pool whenever the program is terminated,
-  -- see issue #268
+  -- see https://github.com/PostgREST/postgrest/issues/268
   --
-  -- Plus the SIGHUP signal updates the internal 'DbStructure' by running
+  -- Plus the SIGUSR1 signal updates the internal 'DbStructure' by running
   -- 'connectionWorker' exactly as before.
 #ifndef mingw32_HOST_OS
   forM_ [sigINT, sigTERM] $ \sig ->
@@ -216,15 +234,12 @@ main = do
       ) Nothing
 
   void $ installHandler sigUSR1 (
-    Catch $ connectionWorker
-              mainTid
-              pool
-              schemas
-              refDbStructure
-              refIsWorkerOn
+    Catch worker
     ) Nothing
 #endif
 
+  -- run connectionWorker on NOTIFY, in addition to SIGUSR1
+  listener dbUri dbChannel worker
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -235,12 +250,7 @@ main = do
           refDbStructure
           pool
           getTime
-          (connectionWorker
-             mainTid
-             pool
-             schemas
-             refDbStructure
-             refIsWorkerOn)
+          worker
 
   -- run the postgrest application with user defined socket. Only for UNIX systems.
 #ifndef mingw32_HOST_OS
@@ -311,14 +321,14 @@ loadSecretFile conf = extractAndTransform mSecret
 loadDbUriFile :: AppConfig -> IO AppConfig
 loadDbUriFile conf = extractDbUri mDbUri
   where
-    mDbUri = configDatabase conf
+    mDbUri = configDbUri conf
     extractDbUri :: Text -> IO AppConfig
     extractDbUri dbUri =
       fmap setDbUri $
       case stripPrefix "@" dbUri of
         Nothing       -> return dbUri
         Just filename -> strip <$> readFile (toS filename)
-    setDbUri dbUri = conf {configDatabase = dbUri}
+    setDbUri dbUri = conf {configDbUri = dbUri}
 
 -- Utilitarian functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
