@@ -71,6 +71,7 @@ Extensions
 Client-Side Libraries
 ---------------------
 
+* `supabase/postgrest-rs <https://github.com/supabase/postgrest-rs>`_ - Rust
 * `technowledgy/vue-postgrest <https://github.com/technowledgy/vue-postgrest>`_ - Vue.js
 * `supabase/postgrest-js <https://github.com/supabase/postgrest-js>`_ - Isomorphic JS client
 * `SocialGouv/postgrester <https://github.com/SocialGouv/postgrester>`_ - JS + Typescript
