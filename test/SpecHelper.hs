@@ -71,6 +71,8 @@ _baseCfg =  -- Connection Settings
             (Right 432)
             -- db-channel
             "pgrst"
+            -- db-channel-enabled
+            False
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
