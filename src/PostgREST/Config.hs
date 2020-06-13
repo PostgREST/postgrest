@@ -76,6 +76,7 @@ data AppConfig = AppConfig {
   , configSocket            :: Maybe FilePath
   , configSocketMode        :: Either Text FileMode
   , configDbChannel         :: Text
+  , configDbChannelEnabled  :: Bool
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -165,6 +166,7 @@ readOptions = do
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fromMaybe "pgrst" <$> optString "db-channel")
+        <*> ((Just False /=) <$> optBool "db-channel-enabled")
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> ((Just True ==) <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
@@ -280,6 +282,8 @@ readOptions = do
           |
           |## Notification channel for reloading the schema cache
           |# db-channel = "pgrst"
+          |## Enable or disable the notification channel
+          |# db-channel-enabled = true
           |
           |## base url for swagger output
           |# openapi-server-proxy-uri = ""

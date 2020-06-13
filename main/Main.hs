@@ -181,7 +181,7 @@ main = do
       maybeSocketAddr = configSocket conf
       socketFileMode = configSocketMode conf
       dbUri = toS (configDbUri conf)
-      dbChannel = toS (configDbChannel conf)
+      (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
       roleClaimKey = configRoleClaimKey conf
       appSettings =
         setHost ((fromString . toS) host) -- Warp settings
@@ -239,7 +239,8 @@ main = do
 #endif
 
   -- run connectionWorker on NOTIFY, in addition to SIGUSR1
-  listener dbUri dbChannel worker
+  when dbChannelEnabled $
+    listener dbUri dbChannel worker
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
