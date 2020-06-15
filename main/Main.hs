@@ -31,7 +31,7 @@ import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              prettyVersion, readOptions)
+                              prettyVersion, readAppConfig, readPath)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
@@ -200,10 +200,13 @@ main = do
   hSetBuffering stdout LineBuffering
   hSetBuffering stdin LineBuffering
   hSetBuffering stderr NoBuffering
-  --
+
+  path <- readPath
+
   -- readOptions builds the 'AppConfig' from the config file specified on the
   -- command line
-  conf <- loadDbUriFile =<< loadSecretFile =<< readOptions
+  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
+
   let schemas = toList $ configSchemas conf
       host = configHost conf
       port = configPort conf

@@ -90,6 +90,8 @@ _baseCfg =  -- Connection Settings
             Nothing
             -- Raw output media types
             []
+            -- Config path
+            Nothing
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
