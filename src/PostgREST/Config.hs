@@ -19,7 +19,8 @@ Other hardcoded options such as the minimum version number also belong here.
 
 module PostgREST.Config ( prettyVersion
                         , docsVersion
-                        , readOptions
+                        , readPath
+                        , readAppConfig
                         , corsPolicy
                         , AppConfig (..)
                         , configPoolTimeout'
@@ -93,6 +94,8 @@ data AppConfig = AppConfig {
 
   , configRootSpec          :: Maybe Text
   , configRawMediaTypes     :: [B.ByteString]
+
+  , configPath              :: Maybe FilePath
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -137,25 +140,100 @@ prettyVersion =
 docsVersion :: Text
 docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 
--- | Function to read and parse options from the command line
-readOptions :: IO AppConfig
-readOptions = do
-  -- First read the config file path from command line
-  cfgPath <- customExecParser parserPrefs opts
+-- | Read config the file path from the command line. Also print helpful messages.
+readPath :: IO FilePath
+readPath = customExecParser parserPrefs opts
+  where
+    parserPrefs = prefs showHelpOnError
+
+    opts = info (helper <*> pathParser) $
+             fullDesc
+             <> progDesc (
+                 "PostgREST "
+                 <> toS prettyVersion
+                 <> " / create a REST API to an existing Postgres database"
+               )
+             <> footerDoc (Just $
+                 text "Example Config File:"
+                 L.<> nest 2 (hardline L.<> exampleCfg)
+               )
+
+    pathParser :: Parser FilePath
+    pathParser =
+      strArgument $
+        metavar "FILENAME" <>
+        help "Path to configuration file"
+
+    exampleCfg :: Doc
+    exampleCfg = vsep . map (text . toS) . lines $
+      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
+          |db-schema = "public" # this schema gets added to the search_path of every request
+          |db-anon-role = "postgres"
+          |db-pool = 10
+          |db-pool-timeout = 10
+          |
+          |server-host = "!4"
+          |server-port = 3000
+          |
+          |## unix socket location
+          |## if specified it takes precedence over server-port
+          |# server-unix-socket = "/tmp/pgrst.sock"
+          |## unix socket file mode
+          |## when none is provided, 660 is applied by default
+          |# server-unix-socket-mode = "660"
+          |
+          |## Notification channel for reloading the schema cache
+          |# db-channel = "pgrst"
+          |## Enable or disable the notification channel
+          |# db-channel-enabled = false
+          |
+          |## base url for swagger output
+          |# openapi-server-proxy-uri = ""
+          |
+          |## choose a secret, JSON Web Key (or set) to enable JWT auth
+          |## (use "@filename" to load from separate file)
+          |# jwt-secret = "secret_with_at_least_32_characters"
+          |# secret-is-base64 = false
+          |# jwt-aud = "your_audience_claim"
+          |
+          |## limit rows in response
+          |# max-rows = 1000
+          |
+          |## stored proc to exec immediately after auth
+          |# pre-request = "stored_proc_name"
+          |
+          |## jspath to the role claim key
+          |# role-claim-key = ".role"
+          |
+          |## extra schemas to add to the search_path of every request
+          |# db-extra-search-path = "extensions, util"
+          |
+          |## stored proc that overrides the root "/" spec
+          |## it must be inside the db-schema
+          |# root-spec = "stored_proc_name"
+          |
+          |## content types to produce raw output
+          |# raw-media-types="image/png, image/jpg"
+          |]
+
+
+-- | Parse the config file
+readAppConfig :: FilePath -> IO AppConfig
+readAppConfig cfgPath = do
   -- Now read the actual config file
   conf <- catches (C.load cfgPath)
     [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
     , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
     ]
 
-  case C.runParser parseConfig conf of
+  case C.runParser (parseConfig cfgPath) conf of
     Left err ->
       exitErr $ "Error parsing config file:\n\t" <> err
     Right appConf ->
       return appConf
 
   where
-    parseConfig =
+    parseConfig path =
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
@@ -180,6 +258,7 @@ readOptions = do
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
         <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
+        <*> pure (Just path)
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
@@ -243,79 +322,7 @@ readOptions = do
     splitOnCommas (C.String s) = strip <$> splitOn "," s
     splitOnCommas _            = []
 
-    opts = info (helper <*> pathParser) $
-             fullDesc
-             <> progDesc (
-                 "PostgREST "
-                 <> toS prettyVersion
-                 <> " / create a REST API to an existing Postgres database"
-               )
-             <> footerDoc (Just $
-                 text "Example Config File:"
-                 L.<> nest 2 (hardline L.<> exampleCfg)
-               )
-
-    parserPrefs = prefs showHelpOnError
-
     exitErr :: Text -> IO a
     exitErr err = do
       hPutStrLn stderr err
       exitFailure
-
-    exampleCfg :: Doc
-    exampleCfg = vsep . map (text . toS) . lines $
-      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-          |db-schema = "public" # this schema gets added to the search_path of every request
-          |db-anon-role = "postgres"
-          |db-pool = 10
-          |db-pool-timeout = 10
-          |
-          |server-host = "!4"
-          |server-port = 3000
-          |
-          |## unix socket location
-          |## if specified it takes precedence over server-port
-          |# server-unix-socket = "/tmp/pgrst.sock"
-          |## unix socket file mode
-          |## when none is provided, 660 is applied by default
-          |# server-unix-socket-mode = "660"
-          |
-          |## Notification channel for reloading the schema cache
-          |# db-channel = "pgrst"
-          |## Enable or disable the notification channel
-          |# db-channel-enabled = false
-          |
-          |## base url for swagger output
-          |# openapi-server-proxy-uri = ""
-          |
-          |## choose a secret, JSON Web Key (or set) to enable JWT auth
-          |## (use "@filename" to load from separate file)
-          |# jwt-secret = "secret_with_at_least_32_characters"
-          |# secret-is-base64 = false
-          |# jwt-aud = "your_audience_claim"
-          |
-          |## limit rows in response
-          |# max-rows = 1000
-          |
-          |## stored proc to exec immediately after auth
-          |# pre-request = "stored_proc_name"
-          |
-          |## jspath to the role claim key
-          |# role-claim-key = ".role"
-          |
-          |## extra schemas to add to the search_path of every request
-          |# db-extra-search-path = "extensions, util"
-          |
-          |## stored proc that overrides the root "/" spec
-          |## it must be inside the db-schema
-          |# root-spec = "stored_proc_name"
-          |
-          |## content types to produce raw output
-          |# raw-media-types="image/png, image/jpg"
-          |]
-
-pathParser :: Parser FilePath
-pathParser =
-  strArgument $
-    metavar "FILENAME" <>
-    help "Path to configuration file"
