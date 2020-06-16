@@ -8,10 +8,11 @@ Community Tutorials
 
 * `PostgREST + Auth0: Create REST API in mintutes and add social login using Auth0 <https://samkhawase.com/blog/postgrest_introduction/>`_ - A step-by-step tutorial to show how to Dockerize and integrate Auth0 to PostgREST service.
 
-* `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-in-5-minutes>`_ -
+* `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-geospatial-api-in-5-minutes/>`_ -
   In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`s_procs` interface.
 
-* `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>` 
+* `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>`_ -
+  A step-by-step tutorial for using PostgREST with KeyCloak(hosted on a managed service).
 
 .. _eco_example_apps:
 
