@@ -166,7 +166,7 @@ readOptions = do
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fromMaybe "pgrst" <$> optString "db-channel")
-        <*> ((Just False /=) <$> optBool "db-channel-enabled")
+        <*> ((Just True ==) <$> optBool "db-channel-enabled")
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> ((Just True ==) <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
