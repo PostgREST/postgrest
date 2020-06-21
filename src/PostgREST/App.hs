@@ -41,7 +41,9 @@ import Network.Wai
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    InvokeMethod (..), Target (..),
-                                   mutuallyAgreeable, userApiRequest)
+                                   mutuallyAgreeable,
+                                   targetIdentifierText,
+                                   userApiRequest)
 import PostgREST.Auth             (containsRole, jwtClaims,
                                    parseSecret)
 import PostgREST.Config           (AppConfig (..))
@@ -117,9 +119,22 @@ transactionMode proc action =
          else HT.Write
     _ -> HT.Write
 
+getRawMediaTypesForApiRequest :: AppConfig -> ApiRequest -> [ContentType]
+getRawMediaTypesForApiRequest conf request
+  | configRawMediaEndpoints conf == M.empty
+    = decodeContentType <$> configRawMediaTypes conf
+  | otherwise
+    = let targetText :: Text
+          targetText =  targetIdentifierText $ iTarget request
+          requestContentTypes = decodeContentType
+            <$> fromMaybe [] (M.lookup targetText $ configRawMediaEndpoints conf)
+          defaultContentTypes = (decodeContentType
+            <$> fromMaybe [] (M.lookup "any" $ configRawMediaEndpoints conf))
+       in requestContentTypes <> defaultContentTypes
+
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure proc cols conf apiRequest =
-  let rawContentTypes = (decodeContentType <$> configRawMediaTypes conf) `L.union` [ CTOctetStream, CTTextPlain ] in
+  let rawContentTypes = getRawMediaTypesForApiRequest conf apiRequest `L.union` [ CTOctetStream, CTTextPlain ] in
   case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->

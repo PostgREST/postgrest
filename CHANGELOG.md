@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+ - #1462, Add `raw-media-endpoint` config option - @Dansvidania
  - #1525, Allow http status override through response.status guc - @steve-chavez
 
 ### Fixed

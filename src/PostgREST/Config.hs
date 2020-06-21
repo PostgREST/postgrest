@@ -30,6 +30,7 @@ import qualified Data.ByteString              as B
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
+import qualified Data.HashMap.Strict          as M
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
 import Control.Lens                (preview)
@@ -40,7 +41,7 @@ import Data.List.NonEmpty          (fromList)
 import Data.Scientific             (floatingOrInteger)
 import Data.Text                   (dropEnd, dropWhileEnd,
                                     intercalate, splitOn, strip, take,
-                                    unpack)
+                                    takeWhileEnd, unpack)
 import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
 import Development.GitRev          (gitHash)
@@ -91,6 +92,7 @@ data AppConfig = AppConfig {
 
   , configRootSpec          :: Maybe Text
   , configRawMediaTypes     :: [B.ByteString]
+  , configRawMediaEndpoints :: M.HashMap Text [B.ByteString]
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -175,7 +177,19 @@ readOptions = do
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
         <*> optString "root-spec"
-        <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
+        <*> parseRawMediaTypes
+        <*> parseRawMediaEndpoints
+
+    parseRawMediaTypes :: C.Parser C.Config [B.ByteString]
+    parseRawMediaTypes = maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types"
+
+    parseRawMediaEndpoints :: C.Parser C.Config (M.HashMap Text [B.ByteString])
+    parseRawMediaEndpoints = M.fromList . stripKeysRoot <$> C.subassocs "raw-media-endpoints" (fmap encodeUtf8 . splitOnCommas <$> C.value)
+      where stripKeyRoot :: Text -> Text
+            stripKeyRoot = takeWhileEnd (/= '.')
+            stripKeysRoot :: [(Text, [B.ByteString])] -> [(Text, [B.ByteString])]
+            stripKeysRoot [] = []
+            stripKeysRoot ((key, val):kvs) = (stripKeyRoot key, val):stripKeysRoot kvs
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =

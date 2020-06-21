@@ -3,6 +3,7 @@ module SpecHelper where
 import qualified Data.ByteString.Base64 as B64 (decodeLenient, encode)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
+import qualified Data.HashMap.Strict    as HM
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
 import qualified System.IO.Error        as E
@@ -15,7 +16,6 @@ import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus)
 import System.Environment   (getEnv)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
-
 
 import Network.HTTP.Types
 import Test.Hspec
@@ -86,6 +86,7 @@ _baseCfg =  -- Connection Settings
             Nothing
             -- Raw output media types
             []
+            HM.empty
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDatabase = testDbConn }

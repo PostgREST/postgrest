@@ -13,6 +13,7 @@ module PostgREST.ApiRequest (
 , Target(..)
 , mutuallyAgreeable
 , userApiRequest
+, targetIdentifierText
 ) where
 
 import qualified Data.Aeson           as JSON
@@ -67,6 +68,14 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown [Text]
             deriving Eq
+
+targetIdentifierText :: Target -> Text
+targetIdentifierText target
+  = case target of
+    TargetIdent qualifiedIdentifier -> qiName qualifiedIdentifier
+    TargetProc targetProcQfdId _    -> qiName targetProcQfdId
+    TargetDefaultSpec _             -> "/"
+    TargetUnknown t                 -> foldr (<>) "" t
 
 {-|
   Describes what the user wants to do. This data type is a
