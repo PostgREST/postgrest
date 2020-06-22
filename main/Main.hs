@@ -60,17 +60,16 @@ import UnixSocket
   2. Checks if the pg version is supported and if it's not it kills the main
      program.
   3. Obtains the dbStructure.
-  4. If 2 or 3 fail to give their result it means the connection is down so it
-     goes back to 1, otherwise it finishes his work successfully.
 -}
 connectionWorker
-  :: ThreadId -- ^ This thread is killed if pg version is unsupported
+  :: ThreadId -- ^ Main thread id. Killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
   -> [Schema] -- ^ Schemas PostgREST is serving up
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
+  -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
-connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn = do
+connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do
     atomicWriteIORef refIsWorkerOn True
@@ -80,23 +79,22 @@ connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn = do
       atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
+      when dbChannelEnabled $ -- If this is not done, the putMVar will lock the thread since the MVar will never be consumed with a takeMVar
+        putMVar mvarConnectionStatus connected
       case connected of
-        FatalConnectionError reason -> hPutStrLn stderr reason
-                                      >> killThread mainTid    -- Fatal error when connecting
-        NotConnected                -> return ()               -- Unreachable
-        Connected actualPgVersion   -> do                      -- Procede with initialization
-          result <- P.use pool $ do
-            dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
-            liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
-          case result of
-            Left e -> do
-              putStrLn ("Failed to query the database. Retrying." :: Text)
-              hPutStrLn stderr . toS . errorPayload $ PgError False e
-              work
+        FatalConnectionError reason -> hPutStrLn stderr reason >> killThread mainTid -- Fatal error when connecting
+        NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
+        Connected actualPgVersion   -> do                                            -- Procede with initialization
+          putStrLn ("Connection successful" :: Text)
+          fillSchemaCache pool actualPgVersion schemas refDbStructure
+          liftIO $ atomicWriteIORef refIsWorkerOn False
 
-            Right _ -> do
-              atomicWriteIORef refIsWorkerOn False
-              putStrLn ("Connection successful" :: Text)
+fillSchemaCache :: P.Pool -> PgVersion -> [Schema] -> IORef (Maybe DbStructure) -> IO ()
+fillSchemaCache pool actualPgVersion schemas refDbStructure = do
+  void $ P.use pool $ do -- here we assume P.use pool won't fail after connectionStatus succeeded.
+    dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
+    liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
+  putStrLn ("Schema cache loaded" :: Text)
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
@@ -109,10 +107,12 @@ connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn = do
 -}
 connectionStatus :: P.Pool -> IO ConnectionStatus
 connectionStatus pool =
-  retrying (capDelay 32000000 $ exponentialBackoff 1000000)
+  retrying (capDelay _32s $ exponentialBackoff _1s)
            shouldRetry
            (const $ P.release pool >> getConnectionStatus)
   where
+    _32s = 32000000 -- 32 seconds
+    _1s  = 1000000  -- 1 second
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
       pgVersion <- P.use pool getPgVersion
@@ -131,33 +131,43 @@ connectionStatus pool =
 
     shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
     shouldRetry rs isConnSucc = do
-      let delay    = fromMaybe 0 (rsPreviousDelay rs) `div` 1000000
+      let delay    = fromMaybe 0 (rsPreviousDelay rs) `div` _1s
           itShould = NotConnected == isConnSucc
       when itShould $
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
 
-
 {-|
   Starts a dedicated pg connection to LISTEN for notifications.
-  When a NOTIFY channel(with an empty payload) is done, it starts the connectionWorker.
+  When a NOTIFY channel(with an empty payload) is done, it refills the schema cache.
+  It uses the connectionWorker in case the LISTEN connection dies.
 -}
-listener :: ByteString -> Text -> IO () -> IO ()
-listener dbUri dbChannel worker =
-  void $ forkIO start
+listener :: ByteString -> Text -> P.Pool -> [Schema] -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
+listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWorker = start
   where
     start = do
-      dbOrError <- C.acquire dbUri
-      case dbOrError of
-        Right db -> do
-          putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
-          let channelToListen = N.toPgIdentifier dbChannel
-          N.listen db channelToListen
-          N.waitForNotifications (\_ msg ->
-            if BS.null msg
-              then worker      -- start worker
-              else pure ()) db -- Do nothing if anything else than an empty message is sent
-        _ -> die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
+      connStatus <- takeMVar mvarConnectionStatus -- takeMVar makes the thread wait if the MVar is empty(until there's a connection).
+      case connStatus of
+        Connected actualPgVersion -> void $ forkFinally (do -- forkFinally allows to detect if the thread dies
+          dbOrError <- C.acquire dbUri
+          case dbOrError of
+            Right db -> do
+              putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
+              let channelToListen = N.toPgIdentifier dbChannel
+              N.listen db channelToListen
+              N.waitForNotifications (\_ msg ->
+                if BS.null msg
+                  then fillSchemaCache pool actualPgVersion schemas refDbStructure -- reload the schema cache
+                  else pure ()) db -- Do nothing if anything else than an empty message is sent
+            _ -> die errorMessage)
+          (\_ -> do -- if the thread dies, we try to recover
+            putStrLn retryMessage
+            connWorker -- assume the pool connection was also lost, call the connection worker
+            start)     -- retry the listener
+        _ ->
+          putStrLn errorMessage -- Should be unreachable. connectionStatus will retry until there's a connection.
+    errorMessage = "Could not listen for notifications on the " <> dbChannel <> " channel" :: Text
+    retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
 -- | This is where everything starts.
 main :: IO ()
@@ -204,6 +214,9 @@ main = do
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (configPool conf, configPoolTimeout' conf, dbUri)
 
+  -- No connection to the db at first. This is only used if the dbChannelEnabled is true(LISTENer enabled).
+  mvarConnectionStatus <- newEmptyMVar
+
   -- To be filled in by connectionWorker
   refDbStructure <- newIORef Nothing
 
@@ -214,10 +227,10 @@ main = do
   -- thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
 
-  let worker = connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn
+  let connWorker = connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
 
   -- Sets the initial refDbStructure
-  worker
+  connWorker
 
   -- Only for systems with signals:
   --
@@ -234,13 +247,13 @@ main = do
       ) Nothing
 
   void $ installHandler sigUSR1 (
-    Catch worker
+    Catch connWorker
     ) Nothing
 #endif
 
   -- run connectionWorker on NOTIFY, in addition to SIGUSR1
   when dbChannelEnabled $
-    listener dbUri dbChannel worker
+    listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWorker
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -251,7 +264,7 @@ main = do
           refDbStructure
           pool
           getTime
-          worker
+          connWorker
 
   -- run the postgrest application with user defined socket. Only for UNIX systems.
 #ifndef mingw32_HOST_OS
