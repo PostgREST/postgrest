@@ -11,6 +11,10 @@ import qualified Hasql.Transaction.Sessions as HT
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
                                  updateAction)
+import Control.Debounce         (debounceAction, debounceEdge,
+                                 debounceFreq,
+                                 defaultDebounceSettings, mkDebounce,
+                                 trailingEdge)
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
@@ -44,6 +48,12 @@ import System.Posix.Signals
 import UnixSocket
 #endif
 
+-- Time constants
+_32s :: Int
+_32s = 32000000 :: Int -- 32 seconds
+
+_1s :: Int
+_1s  = 1000000  :: Int -- 1 second
 
 {-|
   The purpose of this worker is to fill the refDbStructure created in 'main'
@@ -71,7 +81,7 @@ connectionWorker
   -> IO ()
 connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
   isWorkerOn <- readIORef refIsWorkerOn
-  unless isWorkerOn $ do
+  unless isWorkerOn $ do -- Prevents multiple workers to be running at the same time. Could happen on too many SIGUSR1s.
     atomicWriteIORef refIsWorkerOn True
     void $ forkIO work
   where
@@ -111,8 +121,6 @@ connectionStatus pool =
            shouldRetry
            (const $ P.release pool >> getConnectionStatus)
   where
-    _32s = 32000000 -- 32 seconds
-    _1s  = 1000000  -- 1 second
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
       pgVersion <- P.use pool getPgVersion
@@ -150,6 +158,11 @@ listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWo
       case connStatus of
         Connected actualPgVersion -> void $ forkFinally (do -- forkFinally allows to detect if the thread dies
           dbOrError <- C.acquire dbUri
+          -- Debounce in case too many NOTIFYs arrive. Could happen on a migration(assuming a pg EVENT TRIGGER is set up).
+          scFiller <- mkDebounce (defaultDebounceSettings {
+                        debounceAction = fillSchemaCache pool actualPgVersion schemas refDbStructure,
+                        debounceEdge = trailingEdge, -- wait until the function hasn’t been called in _1s
+                        debounceFreq = _1s })
           case dbOrError of
             Right db -> do
               putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
@@ -157,7 +170,7 @@ listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWo
               N.listen db channelToListen
               N.waitForNotifications (\_ msg ->
                 if BS.null msg
-                  then fillSchemaCache pool actualPgVersion schemas refDbStructure -- reload the schema cache
+                  then scFiller    -- reload the schema cache
                   else pure ()) db -- Do nothing if anything else than an empty message is sent
             _ -> die errorMessage)
           (\_ -> do -- if the thread dies, we try to recover
