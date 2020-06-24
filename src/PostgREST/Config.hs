@@ -184,12 +184,13 @@ readOptions = do
     parseRawMediaTypes = maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types"
 
     parseRawMediaEndpoints :: C.Parser C.Config (M.HashMap Text [B.ByteString])
-    parseRawMediaEndpoints = M.fromList . stripKeysRoot <$> C.subassocs "raw-media-endpoints" (fmap encodeUtf8 . splitOnCommas <$> C.value)
-      where stripKeyRoot :: Text -> Text
-            stripKeyRoot = takeWhileEnd (/= '.')
-            stripKeysRoot :: [(Text, [B.ByteString])] -> [(Text, [B.ByteString])]
-            stripKeysRoot [] = []
-            stripKeysRoot ((key, val):kvs) = (stripKeyRoot key, val):stripKeysRoot kvs
+    parseRawMediaEndpoints = M.fromList . stripKeysRoot <$>
+        C.subassocs "raw-media-endpoints" (fmap encodeUtf8 . splitOnCommas <$> C.value)
+          where stripKeyRoot :: Text -> Text
+                stripKeyRoot = takeWhileEnd (/= '.')
+                stripKeysRoot :: [(Text, [B.ByteString])] -> [(Text, [B.ByteString])]
+                stripKeysRoot [] = []
+                stripKeysRoot ((key, val):kvs) = (stripKeyRoot key, val):stripKeysRoot kvs
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =

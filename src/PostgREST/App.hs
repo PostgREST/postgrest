@@ -20,7 +20,7 @@ module PostgREST.App (
 
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.HashMap.Strict        as M
-import qualified Data.List                  as L (union)
+import qualified Data.List                  as L (lookup, union)
 import qualified Data.Set                   as S
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction          as H
@@ -134,8 +134,11 @@ getRawMediaTypesForApiRequest conf request
 
 app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
 app dbStructure proc cols conf apiRequest =
-  let rawContentTypes = getRawMediaTypesForApiRequest conf apiRequest `L.union` [ CTOctetStream, CTTextPlain ] in
-  case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
+  let customContentTypeHeader = map (decodeContentType . encodeUtf8) . maybeToList . L.lookup "Content-Type" $ iHeaders apiRequest
+      rawContentTypes = getRawMediaTypesForApiRequest conf apiRequest `L.union` [ CTOctetStream, CTTextPlain]
+      customContentTypes = rawContentTypes `L.union` customContentTypeHeader
+   in
+  case responseContentTypeOrError (iAccepts apiRequest) customContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
       case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
@@ -316,7 +319,7 @@ app dbStructure proc cols conf apiRequest =
                 preferParams = iPreferParameters apiRequest
                 pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams returning
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
-                        (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
+                        (contentType == CTTextCSV) (contentType `elem` customContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
               row <- H.statement (toS $ pjRaw pJson) stm
               let (tableTotal, queryTotal, body, gucHeaders, gucStatus) = row
@@ -390,16 +393,16 @@ app dbStructure proc cols conf apiRequest =
           (mutateRequestToQuery <$> mutReq)
 
 responseContentTypeOrError :: [ContentType] -> [ContentType] -> Action -> Target -> Either Response ContentType
-responseContentTypeOrError accepts rawContentTypes action target = serves contentTypesForRequest accepts
+responseContentTypeOrError accepts customContentTypes action target = serves contentTypesForRequest accepts
   where
     contentTypesForRequest = case action of
       ActionRead _       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-                             ++ rawContentTypes
+                             ++ customContentTypes
       ActionCreate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionUpdate       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionDelete       ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
       ActionInvoke _     ->  [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-                             ++ rawContentTypes
+                             ++ customContentTypes
                              ++ [CTOpenAPI | tpIsRootSpec target]
       ActionInspect _    ->  [CTOpenAPI, CTApplicationJSON]
       ActionInfo         ->  [CTTextCSV]
