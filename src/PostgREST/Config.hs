@@ -283,7 +283,7 @@ readOptions = do
           |## Notification channel for reloading the schema cache
           |# db-channel = "pgrst"
           |## Enable or disable the notification channel
-          |# db-channel-enabled = true
+          |# db-channel-enabled = false
           |
           |## base url for swagger output
           |# openapi-server-proxy-uri = ""

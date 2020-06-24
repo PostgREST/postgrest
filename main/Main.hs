@@ -234,7 +234,7 @@ main = do
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (configPool conf, configPoolTimeout' conf, dbUri)
 
-  -- No connection to the db at first. This is only used if the dbChannelEnabled is true(listener enabled).
+  -- Used to sync the listener with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
   mvarConnectionStatus <- newEmptyMVar
 
   -- To be filled in by connectionWorker
@@ -271,7 +271,7 @@ main = do
     ) Nothing
 #endif
 
-  -- run connectionWorker on NOTIFY, in addition to SIGUSR1
+  -- reload schema cache on NOTIFY
   when dbChannelEnabled $
     listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWorker
 
