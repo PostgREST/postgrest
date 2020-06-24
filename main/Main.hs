@@ -101,10 +101,17 @@ connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEna
 
 fillSchemaCache :: P.Pool -> PgVersion -> [Schema] -> IORef (Maybe DbStructure) -> IO ()
 fillSchemaCache pool actualPgVersion schemas refDbStructure = do
-  void $ P.use pool $ do -- here we assume P.use pool won't fail after connectionStatus succeeded.
-    dbStructure <- HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
-    liftIO $ atomicWriteIORef refDbStructure $ Just dbStructure
-  putStrLn ("Schema cache loaded" :: Text)
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
+  case result of
+    Left e -> do
+      -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
+      -- It's not a problem though, because App.postgrest would retry the connectionWorker or the user can do a SIGSUR1 again.
+      hPutStrLn stderr . toS . errorPayload $ PgError False e
+      putStrLn ("Failed to load the schema cache" :: Text)
+
+    Right dbStructure -> do
+      atomicWriteIORef refDbStructure $ Just dbStructure
+      putStrLn ("Schema cache loaded" :: Text)
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
