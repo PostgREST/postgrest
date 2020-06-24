@@ -89,8 +89,8 @@ connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEna
       atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
-      when dbChannelEnabled $ -- If this is not done, the putMVar will lock the thread since the MVar will never be consumed with a takeMVar
-        putMVar mvarConnectionStatus connected
+      when dbChannelEnabled $
+        void $ tryPutMVar mvarConnectionStatus connected -- tryPutMVar doesn't lock the thread. It should always succeed since the worker is the only producer.
       case connected of
         FatalConnectionError reason -> hPutStrLn stderr reason >> killThread mainTid -- Fatal error when connecting
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
@@ -227,7 +227,7 @@ main = do
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (configPool conf, configPoolTimeout' conf, dbUri)
 
-  -- No connection to the db at first. This is only used if the dbChannelEnabled is true(LISTENer enabled).
+  -- No connection to the db at first. This is only used if the dbChannelEnabled is true(listener enabled).
   mvarConnectionStatus <- newEmptyMVar
 
   -- To be filled in by connectionWorker
