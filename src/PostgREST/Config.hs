@@ -67,7 +67,7 @@ import Protolude.Conv    (toS)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDatabase          :: Text
+    configDbUri             :: Text
   , configAnonRole          :: Text
   , configOpenAPIProxyUri   :: Maybe Text
   , configSchemas           :: NonEmpty Text
@@ -75,6 +75,8 @@ data AppConfig = AppConfig {
   , configPort              :: Int
   , configSocket            :: Maybe FilePath
   , configSocketMode        :: Either Text FileMode
+  , configDbChannel         :: Text
+  , configDbChannelEnabled  :: Bool
 
   , configJwtSecret         :: Maybe B.ByteString
   , configJwtSecretIsBase64 :: Bool
@@ -163,6 +165,8 @@ readOptions = do
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
+        <*> (fromMaybe "pgrst" <$> optString "db-channel")
+        <*> ((Just True ==) <$> optBool "db-channel-enabled")
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> ((Just True ==) <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
@@ -275,6 +279,11 @@ readOptions = do
           |## unix socket file mode
           |## when none is provided, 660 is applied by default
           |# server-unix-socket-mode = "660"
+          |
+          |## Notification channel for reloading the schema cache
+          |# db-channel = "pgrst"
+          |## Enable or disable the notification channel
+          |# db-channel-enabled = false
           |
           |## base url for swagger output
           |# openapi-server-proxy-uri = ""

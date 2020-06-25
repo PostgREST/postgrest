@@ -29,6 +29,8 @@ let
           "PGRST_DB_POOL=100"
           "PGRST_DB_POOL_TIMEOUT=10"
           "PGRST_DB_EXTRA_SEARCH_PATH=public"
+          "PGRST_DB_CHANNEL=pgrst"
+          "PGRST_DB_CHANNEL_ENABLED=false"
           "PGRST_SERVER_HOST=*4"
           "PGRST_SERVER_PORT=3000"
           "PGRST_OPENAPI_SERVER_PROXY_URI="

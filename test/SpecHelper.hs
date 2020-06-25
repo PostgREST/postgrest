@@ -69,6 +69,10 @@ _baseCfg =  -- Connection Settings
             Nothing
             -- No user configured Unix Socket file mode (defaults to 660)
             (Right 432)
+            -- db-channel
+            "pgrst"
+            -- db-channel-enabled
+            False
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
@@ -88,7 +92,7 @@ _baseCfg =  -- Connection Settings
             []
 
 testCfg :: Text -> AppConfig
-testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
+testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
 
 testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
  - #1525, Allow http status override through response.status guc - @steve-chavez
+ - #1512, Allow schema cache reloading with NOTIFY - @steve-chavez
 
 ### Fixed
 

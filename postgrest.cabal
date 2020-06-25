@@ -112,6 +112,7 @@ executable postgrest
                     , hasql             >= 1.4 && < 1.5
                     , hasql-pool        >= 0.5 && < 0.6
                     , hasql-transaction >= 0.7.2 && < 1.1
+                    , hasql-notifications == 0.1.0.0
                     , network           < 3.2
                     , postgrest
                     , protolude         >= 0.3 && < 0.4
