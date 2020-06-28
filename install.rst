@@ -12,6 +12,12 @@ If you use **macOS Homebrew**, then you can install PostgREST from the `official
 
   brew install postgrest
 
+If you use **FreeBSD**, then you can install PostgREST from the `official ports <https://www.freshports.org/www/hs-postgrest>`_.
+
+.. code:: bash
+
+  pkg install hs-postgrest
+
 If you use **Arch Linux**, then you can install PostgREST from the `official repo <https://www.archlinux.org/packages/community/x86_64/postgrest>`_.
 
 .. code:: bash
