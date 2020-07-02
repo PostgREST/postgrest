@@ -190,7 +190,7 @@ spec actualPgVersion = do
             simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk_but_unique\\?unique_column=eq.baz"
             simpleStatus p `shouldBe` created201
 
-        it "returns location header if unique column is null" $ do
+        it "does not return location header if unique column is null" $ do
           p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
