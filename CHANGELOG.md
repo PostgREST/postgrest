@@ -7,9 +7,30 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+ - #1525, Allow http status override through response.status guc - @steve-chavez
+ - #1512, Allow schema cache reloading with NOTIFY - @steve-chavez
+
+### Fixed
+
+ - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo
+
+### Changed
+
+ - #1522, #1528, #1535, Docker images are now built from scratch based on a the static PostgREST executable (#1494) and with Nix instead of a `Dockerfile`. This reduces the compressed image size from over 30mb to about 4mb - @monacoremo
+
+## [7.0.1] - 2020-05-18
+
 ### Fixed
 
 - #1473, Fix overloaded computed columns on RPC - @wolfgangwalther
+- #1471, Fix POST, PATCH, DELETE with ?select= and return=minimal and PATCH with empty body - @wolfgangwalther
+- #1500, Fix missing `openapi-server-proxy-uri` config option - @steve-chavez
+- #1508, Fix `Content-Profile` not working for POST RPC - @steve-chavez
+- #1452, Fix PUT restriction for all columns - @steve-chavez
+
+### Changed
+
+- From this version onwards, the release page will only include a single Linux static executable that can be run on any Linux distribution.
 
 ## [7.0.0] - 2020-04-03
 

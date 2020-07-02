@@ -32,7 +32,7 @@ your contributions.
   then [find your logs](http://blog.endpoint.com/2014/11/dear-postgresql-where-are-my-logs.html).
 
 * If your database schema has changed while the PostgREST server is running,
-  [send the server a `SIGUSR1` signal](http://postgrest.org/en/v5.2/admin.html#schema-reloading) or restart it to ensure the schema cache
+  [send the server a `SIGUSR1` signal](http://postgrest.org/en/stable/admin.html#schema-reloading) or restart it to ensure the schema cache
   is not stale. This sometimes fixes apparent bugs.
 
 ## Code
@@ -48,10 +48,10 @@ your contributions.
   we recommend adding it to `.git/hooks/pre-commit` to automatically check this before doing a commit.
 
 * For help building the Haskell code on your computer check out the [building from
-  source](https://postgrest.com/en/stable/install.html#build-from-source) docs section.
+  source](https://postgrest.org/en/stable/development.html#build-from-source) docs section.
 
 ### Running Tests
 
 For instructions on running tests, see the official docs hosted here:
 
-https://postgrest.com/en/stable/install.html#postgrest-test-suite
+https://postgrest.org/en/stable/development.html#running-the-test-suite

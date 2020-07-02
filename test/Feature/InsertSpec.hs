@@ -2,7 +2,6 @@ module Feature.InsertSpec where
 
 import qualified Data.Aeson as JSON
 
-import Control.Monad          (replicateM_, void)
 import Data.List              (lookup)
 import Data.Maybe             (fromJust)
 import Network.Wai            (Application)
@@ -47,6 +46,22 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [matchContentTypeJson]
           }
+
+      it "ignores &select when return not set or using return=minimal" $ do
+        request methodPost "/menagerie?select=integer,varchar" []
+          [json| [{
+            "integer": 15, "double": 3.14159, "varchar": "testing!"
+          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
+          , "enum": "foo"
+          }] |] `shouldRespondWith` ""
+          { matchStatus  = 201 }
+        request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=minimal")]
+          [json| [{
+            "integer": 16, "double": 3.14159, "varchar": "testing!"
+          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
+          , "enum": "foo"
+          }] |] `shouldRespondWith` ""
+          { matchStatus  = 201 }
 
     context "non uniform json array" $ do
       it "rejects json array that isn't exclusivily composed of objects" $
@@ -214,7 +229,16 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
         `shouldRespondWith`
-        [json|{"message":"Error in $: Failed reading: not a valid json value"}|]
+        [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    context "with no payload" $
+      it "fails with 400 and error" $
+        post "/simple_pk" ""
+        `shouldRespondWith`
+        [json|{"message":"Error in $: not enough input"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -274,6 +298,20 @@ spec actualPgVersion = do
         post "/items" "[{}, {}]" `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = []
+          }
+
+      it "successfully inserts a row with all-default columns with prefer=rep" $
+        request methodPost "/items" [("Prefer", "return=representation")] "{}"
+          `shouldRespondWith` [json|[{ id: 20 }]|]
+          { matchStatus  = 201,
+            matchHeaders = []
+          }
+
+      it "successfully inserts a row with all-default columns with prefer=rep and &select=" $
+        request methodPost "/items?select=id" [("Prefer", "return=representation")] "{}"
+          `shouldRespondWith` [json|[{ id: 21 }]|]
+          { matchStatus  = 201,
+            matchHeaders = []
           }
 
     context "POST with ?columns parameter" $ do
@@ -408,6 +446,24 @@ spec actualPgVersion = do
             matchHeaders = []
           }
 
+    context "with invalid json payload" $
+      it "fails with 400 and error" $
+        request methodPatch "/simple_pk" [] "}{ x = 2"
+          `shouldRespondWith`
+          [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'"}|]
+          { matchStatus  = 400,
+            matchHeaders = [matchContentTypeJson]
+          }
+
+    context "with no payload" $
+      it "fails with 400 and error" $
+        request methodPatch "/items" [] ""
+          `shouldRespondWith`
+          [json|{"message":"Error in $: not enough input"}|]
+          { matchStatus  = 400,
+            matchHeaders = [matchContentTypeJson]
+          }
+
     context "in a nonempty table" $ do
       it "can update a single item" $ do
         g <- get "/items?id=eq.42"
@@ -524,35 +580,88 @@ spec actualPgVersion = do
             `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
             { matchHeaders = [matchContentTypeJson] }
 
-      it "makes no updates and returns 204, when patching with an empty json object/array" $ do
-        request methodPatch "/items" [] [json| {} |]
+      it "ignores ?select= when return not set or return=minimal" $ do
+        request methodPatch "/items?id=eq.1&select=id" [] [json| { id:1 } |]
           `shouldRespondWith` ""
           {
             matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "*/*"]
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
-
-        request methodPatch "/items" [] [json| [] |]
+        request methodPatch "/items?id=eq.1&select=id" [("Prefer", "return=minimal")] [json| { id:1 } |]
           `shouldRespondWith` ""
           {
             matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "*/*"]
+            matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
-        request methodPatch "/items" [] [json| [{}] |]
-          `shouldRespondWith` ""
-          {
-            matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+      context "when patching with an empty body" $ do
+        it "makes no updates and returns 204 without return= and without ?select=" $ do
+          request methodPatch "/items" [] [json| {} |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-      it "makes no updates and returns 200, when patching with an empty json object and return=rep" $
-        request methodPatch "/items" [("Prefer", "return=representation")] [json| {} |]
-          `shouldRespondWith` "[]"
-          {
-            matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          request methodPatch "/items" [] [json| [] |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+          request methodPatch "/items" [] [json| [{}] |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "makes no updates and returns 204 without return= and with ?select=" $ do
+          request methodPatch "/items?select=id" [] [json| {} |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+          request methodPatch "/items?select=id" [] [json| [] |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+          request methodPatch "/items?select=id" [] [json| [{}] |]
+            `shouldRespondWith` ""
+            {
+              matchStatus  = 204,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "makes no updates and returns 200 with return=rep and without ?select=" $
+          request methodPatch "/items" [("Prefer", "return=representation")] [json| {} |]
+            `shouldRespondWith` "[]"
+            {
+              matchStatus  = 200,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "makes no updates and returns 200 with return=rep and with ?select=" $
+          request methodPatch "/items?select=id" [("Prefer", "return=representation")] [json| {} |]
+            `shouldRespondWith` "[]"
+            {
+              matchStatus  = 200,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+        it "makes no updates and returns 200 with return=rep and with ?select= for overloaded computed columns" $
+          request methodPatch "/items?select=id,computed_overload" [("Prefer", "return=representation")] [json| {} |]
+            `shouldRespondWith` "[]"
+            {
+              matchStatus  = 200,
+              matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do

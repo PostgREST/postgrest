@@ -24,7 +24,8 @@ import Network.HTTP.Types.Header (Header, hContentType)
 import Data.Tree
 
 import PostgREST.RangeQuery (NonnegRange)
-import Protolude
+import Protolude            hiding (toS)
+import Protolude.Conv       (toS)
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTSingularJSON
@@ -308,9 +309,8 @@ data PayloadJSON =
   ProcessedJSON {
     -- | This is the raw ByteString that comes from the request body.
     -- We cache this instead of an Aeson Value because it was detected that for large payloads the encoding
-    -- had high memory usage, see #1005 for more details
+    -- had high memory usage, see https://github.com/PostgREST/postgrest/pull/1005 for more details
     pjRaw  :: BL.ByteString
-  , pjType :: PJType
     -- | Keys of the object or if it's an array these keys are guaranteed to be the same across all its objects
   , pjKeys :: S.Set Text
   }|

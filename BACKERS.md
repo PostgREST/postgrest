@@ -30,6 +30,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 - [Daniel Babiak](https://github.com/d-babiak)
 - Evans Fernandes
+- [Jan Sommer](https://github.com/nerfpops)
 
 ## Backers
 
@@ -43,6 +44,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Nathan Bouscal
 - Daniel Rafaj
 - David Fenko
+- Remo Rechkemmer
 
 ## Former Backers
 

@@ -20,7 +20,7 @@ HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
 MODIFICATIONS.
 */
 
-CREATE OR REPLACE FUNCTION _validate_json_schema_type(type text, data jsonb) RETURNS boolean AS $f$
+CREATE OR REPLACE FUNCTION public._validate_json_schema_type(type text, data jsonb) RETURNS boolean AS $f$
 BEGIN
   IF type = 'integer' THEN
     IF jsonb_typeof(data) != 'number' THEN

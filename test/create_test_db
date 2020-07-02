@@ -55,6 +55,8 @@ ALTER DATABASE $DB SET LC_MESSAGES = 'POSIX';
 ALTER DATABASE $DB SET LC_MONETARY = 'POSIX';
 ALTER DATABASE $DB SET LC_NUMERIC = 'POSIX';
 ALTER DATABASE $DB SET LC_TIME = 'POSIX';
+
+\i $BASEPATH/fixtures/load.sql
 EOF
 
 #Remove database path from the connection uri--prevents setting up the new database name with PGDATABASE

@@ -1,0 +1,114 @@
+From ba48fc5bf1db795e31778fd67a9d72f28437d6c3 Mon Sep 17 00:00:00 2001
+From: Remo <remo>
+Date: Tue, 19 May 2020 13:07:54 +0200
+Subject: [PATCH] Revert "ghc: 8.6.3-binary -> 8.6.5-binary"
+
+This reverts commit 3c7ef6bcd85e3e133ac6f2ab5e238934d56d902e.
+---
+ .../ghc/{8.6.5-binary.nix => 8.6.3-binary.nix}   | 13 ++++++-------
+ pkgs/top-level/haskell-packages.nix              | 16 ++++++++--------
+ 2 files changed, 14 insertions(+), 15 deletions(-)
+ rename pkgs/development/compilers/ghc/{8.6.5-binary.nix => 8.6.3-binary.nix} (95%)
+
+diff --git a/pkgs/development/compilers/ghc/8.6.5-binary.nix b/pkgs/development/compilers/ghc/8.6.3-binary.nix
+similarity index 95%
+rename from pkgs/development/compilers/ghc/8.6.5-binary.nix
+rename to pkgs/development/compilers/ghc/8.6.3-binary.nix
+index 97793d91289..9e0fd12b96c 100644
+--- a/pkgs/development/compilers/ghc/8.6.5-binary.nix
++++ b/pkgs/development/compilers/ghc/8.6.3-binary.nix
+@@ -27,19 +27,18 @@ let
+ in
+ 
+ stdenv.mkDerivation rec {
+-  version = "8.6.5";
++  version = "8.6.3";
+ 
+   name = "ghc-${version}-binary";
+ 
+-  # https://downloads.haskell.org/~ghc/8.6.5/
+   src = fetchurl ({
+     i686-linux = {
+-      url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-i386-deb9-linux.tar.xz";
+-      sha256 = "1p2h29qghql19ajk755xa0yxkn85slbds8m9n5196ris743vkp8w";
++      url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-i386-deb8-linux.tar.xz";
++      sha256 = "0bw8a7fxcbskf93rb4m542ff66vrmx5i5kj77qx37cbhijx70w5m";
+     };
+     x86_64-linux = {
+-      url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-x86_64-deb9-linux.tar.xz";
+-      sha256 = "1pqlx6rdjs2110g0y1i9f8x18lmdizibjqd15f5xahcz39hgaxdw";
++      url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-x86_64-deb8-linux.tar.xz";
++      sha256 = "1m9gaga2pzi2cx5gvasg0rx1dlvr68gmi20l67652kag6xjsa719";
+     };
+     aarch64-linux = {
+       url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-aarch64-ubuntu18.04-linux.tar.xz";
+@@ -47,7 +46,7 @@ stdenv.mkDerivation rec {
+     };
+     x86_64-darwin = {
+       url = "http://haskell.org/ghc/dist/${version}/ghc-${version}-x86_64-apple-darwin.tar.xz";
+-      sha256 = "0s9188vhhgf23q3rjarwhbr524z6h2qga5xaaa2pma03sfqvvhfz";
++      sha256 = "1hbzk57v45176kxcx848p5jn5p1xbp2129ramkbzsk6plyhnkl3r";
+     };
+   }.${stdenv.hostPlatform.system}
+     or (throw "cannot bootstrap GHC on this platform"));
+diff --git a/pkgs/top-level/haskell-packages.nix b/pkgs/top-level/haskell-packages.nix
+index 13c5b721301..1bce80e5774 100644
+--- a/pkgs/top-level/haskell-packages.nix
++++ b/pkgs/top-level/haskell-packages.nix
+@@ -4,7 +4,7 @@ let
+   # These are attributes in compiler and packages that don't support integer-simple.
+   integerSimpleExcludes = [
+     "ghc822Binary"
+-    "ghc865Binary"
++    "ghc863Binary"
+     "ghc844"
+     "ghcjs"
+     "ghcjs86"
+@@ -42,7 +42,7 @@ in {
+ 
+     ghc822Binary = callPackage ../development/compilers/ghc/8.2.2-binary.nix { };
+ 
+-    ghc865Binary = callPackage ../development/compilers/ghc/8.6.5-binary.nix { };
++    ghc863Binary = callPackage ../development/compilers/ghc/8.6.3-binary.nix { };
+ 
+     ghc844 = callPackage ../development/compilers/ghc/8.4.4.nix {
+       bootPkgs = packages.ghc822Binary;
+@@ -57,19 +57,19 @@ in {
+       llvmPackages = pkgs.llvmPackages_6;
+     };
+     ghc882 = callPackage ../development/compilers/ghc/8.8.2.nix {
+-      bootPkgs = packages.ghc865Binary;
++      bootPkgs = packages.ghc863Binary;
+       inherit (buildPackages.python3Packages) sphinx;
+       buildLlvmPackages = buildPackages.llvmPackages_7;
+       llvmPackages = pkgs.llvmPackages_7;
+     };
+     ghc883 = callPackage ../development/compilers/ghc/8.8.3.nix {
+-      bootPkgs = packages.ghc865Binary;
++      bootPkgs = packages.ghc863Binary;
+       inherit (buildPackages.python3Packages) sphinx;
+       buildLlvmPackages = buildPackages.llvmPackages_7;
+       llvmPackages = pkgs.llvmPackages_7;
+     };
+     ghc8101 = callPackage ../development/compilers/ghc/8.10.1.nix {
+-      bootPkgs = packages.ghc865Binary;
++      bootPkgs = packages.ghc863Binary;
+       inherit (buildPackages.python3Packages) sphinx;
+       buildLlvmPackages = buildPackages.llvmPackages_9;
+       llvmPackages = pkgs.llvmPackages_9;
+@@ -112,9 +112,9 @@ in {
+       compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
+       packageSetConfig = bootstrapPackageSet;
+     };
+-    ghc865Binary = callPackage ../development/haskell-modules {
+-      buildHaskellPackages = bh.packages.ghc865Binary;
+-      ghc = bh.compiler.ghc865Binary;
++    ghc863Binary = callPackage ../development/haskell-modules {
++      buildHaskellPackages = bh.packages.ghc863Binary;
++      ghc = bh.compiler.ghc863Binary;
+       compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.6.x.nix { };
+       packageSetConfig = bootstrapPackageSet;
+     };
+-- 
+2.25.1
+

@@ -5,33 +5,12 @@
 
 packages:
 - completed:
-    hackage: HsYAML-0.2.1.0@sha256:e4677daeba57f7a1e9a709a1f3022fe937336c91513e893166bd1f023f530d68,5311
+    hackage: configurator-pg-0.2.2@sha256:8f3f7c66dd4a53852283c70806ebc101a7219f8b01c3e80c5130e9749c998dc8,2987
     pantry-tree:
-      size: 1340
-      sha256: 21f61bf9cad31674126b106071dd9b852e408796aeffc90eec1792f784107eff
+      size: 2462
+      sha256: a669366632e19f396dfe52599d54414b9c92d5664ea4391c2c797be271f9aa0e
   original:
-    hackage: HsYAML-0.2.1.0@sha256:e4677daeba57f7a1e9a709a1f3022fe937336c91513e893166bd1f023f530d68,5311
-- completed:
-    hackage: HsYAML-aeson-0.2.0.0@sha256:04796abfc01cffded83f37a10e6edba4f0c0a15d45bef44fc5bb4313d9c87757,1791
-    pantry-tree:
-      size: 234
-      sha256: 67cc9ba17c79e71d3abdb465a3ee2825477856fff3b8b7d543cbbbefdae9a9d9
-  original:
-    hackage: HsYAML-aeson-0.2.0.0@sha256:04796abfc01cffded83f37a10e6edba4f0c0a15d45bef44fc5bb4313d9c87757,1791
-- completed:
-    hackage: configurator-pg-0.2.0@sha256:08dcfadbe31e9e505d0bed1ab034105e1735141499734ad52d1c5ac980cde4a6,2939
-    pantry-tree:
-      size: 1748
-      sha256: 760eb12ee3d81b95b68ee10d5d85171b117826f44242b2749d48791efad6c891
-  original:
-    hackage: configurator-pg-0.2.0@sha256:08dcfadbe31e9e505d0bed1ab034105e1735141499734ad52d1c5ac980cde4a6,2939
-- completed:
-    hackage: hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
-    pantry-tree:
-      size: 809
-      sha256: 17af1c2e709cd84bfda066b9ebb04cdde7f92660c51a1f7401a1e9f766524e93
-  original:
-    hackage: hspec-wai-0.10.1@sha256:56dd9ec1d56f47ef1946f71f7cbf070e4c285f718cac1b158400ae5e7172ef47,2290
+    hackage: configurator-pg-0.2.2@sha256:8f3f7c66dd4a53852283c70806ebc101a7219f8b01c3e80c5130e9749c998dc8,2987
 - completed:
     hackage: hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
     pantry-tree:
@@ -39,9 +18,23 @@ packages:
       sha256: fb9e89b79cde3276baa484c860c6b9eeebdbc1a5c43301293351a25bc4c08e87
   original:
     hackage: hspec-wai-json-0.10.1@sha256:67b405c38f0a9e2771480c8d3ecd8aeb8d8776a35d3b2906cb1b76c9538617e4,1629
+- completed:
+    hackage: interpolatedstring-perl6-1.0.2@sha256:7ce49c8a69a2a1b89c001ed79db2aab656ffd0faf2a7a701a553b6deb5c8ba7f,1073
+    pantry-tree:
+      size: 300
+      sha256: f7f0b06c58db814d1f12ed6f4f4cb67ff8c72e51da61c04db12c2aedb896542e
+  original:
+    hackage: interpolatedstring-perl6-1.0.2@sha256:7ce49c8a69a2a1b89c001ed79db2aab656ffd0faf2a7a701a553b6deb5c8ba7f,1073
+- completed:
+    hackage: protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
+    pantry-tree:
+      size: 1644
+      sha256: babf32b414f25f790b7a4ce6bae5c960bc51a11a289e7c47335b222e6762560c
+  original:
+    hackage: protolude-0.3.0
 snapshots:
 - completed:
-    size: 523878
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/3.yaml
-    sha256: 470c46c27746a48c7c50f829efc0cf00112787a7804ee4ac7a27754658f6d92c
-  original: lts-14.3
+    size: 492015
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/15/8.yaml
+    sha256: 926bc3d70249dd0ba05277ff00943c0addb35b627cb641752669e7cf771310d0
+  original: lts-15.8

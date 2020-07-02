@@ -1,63 +1,37 @@
 version: 2
 
-build-distro-bin: &build-distro-bin
-  machine: true
-  steps:
-    - checkout
-    # cannot interpolate env var and use as a cache key so just copy the Dockerfile to another filename
-    - run: cp docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/Dockerfile
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - restore_cache:
-        keys:
-        - v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-    - run:
-        name: load or build docker image
-        command: |
-          if [[ -e ~/image.tar ]]; then
-            docker load -i ~/image.tar
-          else
-            docker build --rm=false -t $CIRCLE_JOB -f docker/distro_release/Dockerfile.$CIRCLE_JOB docker/distro_release/
-            docker save $CIRCLE_JOB > ~/image.tar
-          fi
-    - run:
-        name: build binary
-        command: |
-          docker run -it \
-            -v $HOME/.stack:/root/.stack \
-            -v $(pwd):/source \
-            -v $HOME/bin/:/root/.local/bin/ \
-            $CIRCLE_JOB build --allow-different-user --install-ghc --copy-bins
-          # volumes owned by root if chown is not done the save_cache step fails silently
-          sudo chown -R circleci:circleci ~/.stack .stack-work
-    - run:
-        name: compress binary
-        command: |
-          mkdir -p /tmp/workspace/bin
-          cd /tmp/workspace/bin
-          tar cvJf postgrest-$CIRCLE_TAG-$CIRCLE_JOB.tar.xz -C ~/bin postgrest
-    - persist_to_workspace:
-        root: /tmp/workspace
-        paths:
-          - bin/*
-    - save_cache:
-        paths:
-          - ~/image.tar
-        key: v1-{{ .Environment.CIRCLE_JOB }}-image-{{ checksum "docker/distro_release/Dockerfile" }}
-    - save_cache:
-        paths:
-          - "~/.stack"
-          - ".stack-work"
-        key: v1-{{ .Environment.CIRCLE_JOB }}-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-
 jobs:
-  build-test-9.4:
+  # Make sure that there are no outstanding linting hints and that
+  # auto-formatting does not result in any changes.
+  style-check:
+    docker:
+      - image: nixos/nix:2.3
+    steps:
+      - checkout
+      - run:
+          name: Install linting and styling scripts
+          command: nix-env -f default.nix -iA devtools
+      - run:
+          name: Run linter
+          command: |
+            # Note: For checking this locally, use `make lint`. Or, if using
+            # `nix`, run `nix-shell --run postgrest-lint`
+            postgrest-lint
+      - run:
+          name: Run style check
+          command: |
+            # 'Note: For checking this locally, use `make style`. Or, if using
+            # `nix`, run `nix-shell --run postgrest-style`
+            postgrest-style-check
+
+  # Run tests based on stack and docker against the oldest PostgreSQL version
+  # that we support.
+  stack-test:
     docker:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:9.4.26
+      - image: circleci/postgres:9.4
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -68,26 +42,15 @@ jobs:
           keys:
           - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
-          name: install ncat
-          command: |
-            # utility needed to test socket connection with curl <  7.40
-            sudo apt-get install nmap
-      - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.3.1/stack-2.3.1-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.3.1-linux-x86_64/stack /usr/bin
             sudo apt-get update
-            sudo apt-get install -y libgmp-dev
+            # ncat utility from nmap needed to test socket connection with curl <  7.40
+            sudo apt-get install -y libgmp-dev postgresql-client nmap
             sudo apt-get install -y --only-upgrade binutils
-            sudo apt-get install -y postgresql-client
             stack setup
-            rm -rf $(stack path --dist-dir) $(stack path --local-install-root)
-            stack install hlint stylish-haskell
-      - run:
-          name: Add stack tools to $PATH
-          command: |
-            echo "export PATH=/home/circleci/.local/bin:$PATH" >> $BASH_ENV
       - run:
           name: build src and tests dependencies
           command: |
@@ -104,156 +67,25 @@ jobs:
             stack build --fast -j1
             stack build --fast --test --no-run-tests
       - run:
-          name: run tests
+          name: run spec tests
           command: |
-            POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test
+            POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) \
+              stack test
+      - run:
+          name: run io tests
+          command: |
+            export PATH="~/.local/bin:$PATH"
+            stack install --fast -j1
             test/io-tests.sh
-      - run:
-          name: run linter
-          command: make lint
-      - run:
-          name: run styler
-          command: make style
 
-  build-test-9.6:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-      - image: circleci/postgres:9.6.17
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-          - POSTGRES_HOST_AUTH_METHOD=trust
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build src and tests
-          command: |
-            stack build --fast -j1
-            stack build --fast --test --no-run-tests
-      - run:
-          name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
-
-  build-test-10:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-      - image: circleci/postgres:10.12
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-          - POSTGRES_HOST_AUTH_METHOD=trust
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build src and tests
-          command: |
-            stack build --fast -j1
-            stack build --fast --test --no-run-tests
-      - run:
-          name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
-
-  build-test-11:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-      - image: circleci/postgres:11.7
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-          - POSTGRES_HOST_AUTH_METHOD=trust
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build src and tests
-          command: |
-            stack build --fast -j1
-            stack build --fast --test --no-run-tests
-      - run:
-          name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
-
-  build-test-12:
-    docker:
-      - image: circleci/buildpack-deps:trusty
-        environment:
-          - PGHOST=localhost
-      - image: circleci/postgres:12.2
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-          - POSTGRES_HOST_AUTH_METHOD=trust
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
-            stack setup
-      - run:
-          name: build src and tests
-          command: |
-            stack build --fast -j1
-            stack build --fast --test --no-run-tests
-      - run:
-          name: run tests
-          command: POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) stack test postgrest:spec
-
-  build-prof-test:
+  # Run memory usage tests based on stack and docker.
+  stack-test-memory:
     docker:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
           - TERM=xterm
-      - image: circleci/postgres:9.6.17
+      - image: circleci/postgres:12
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -266,11 +98,10 @@ jobs:
       - run:
           name: install stack & dependencies
           command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.1.3-linux-x86_64/stack /usr/bin
+            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.3.1/stack-2.3.1-linux-x86_64.tar.gz | tar zx -C /tmp
+            sudo mv /tmp/stack-2.3.1-linux-x86_64/stack /usr/bin
             sudo apt-get update
-            sudo apt-get install -y libgmp-dev
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y libgmp-dev postgresql-client
             stack setup
       - run:
           name: build dependencies with profiling enabled
@@ -282,128 +113,171 @@ jobs:
             - ".stack-work"
           key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
-          name: build with profiling enabled
+          name: install with profiling enabled
           command: |
-            stack build --profile -j1
+            stack install --profile -j1
       - run:
           name: run memory usage tests
           command: |
+            export PATH="~/.local/bin:$PATH"
             test/create_test_db "postgres://circleci@localhost" postgrest_test
-            psql "postgres:///postgrest_test" -f test/fixtures/database.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/roles.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/schema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jwt.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/jsonschema.sql
-            psql "postgres:///postgrest_test" -f test/fixtures/privileges.sql
             test/memory-tests.sh
 
-  centos7:
-    <<: *build-distro-bin
-
-  ubuntu:
-    <<: *build-distro-bin
-
-  ubuntui386:
-    <<: *build-distro-bin
-
+  # Publish a new release. This only runs when a release is tagged (see
+  # workflow below).
   release:
     docker:
-      - image: circleci/golang:1.9
+      - image: nixos/nix:2.3
     steps:
-      - attach_workspace:
-          at: /tmp/workspace
       - checkout
       - run:
-          name: add body and tars to github release
+          name: Install and use the Cachix binary cache
           command: |
-            go get -u github.com/tcnksm/ghr
-            START=$(echo $CIRCLE_TAG | cut -c2-)
-            END='## \['
-            BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
-            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME -b "$BODY" --replace $CIRCLE_TAG /tmp/workspace/bin
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Install release scripts
+          command: nix-env -f default.nix -iA release
+      - run:
+          name: Publish GitHub release
+          command: |
+            export GITHUB_USERNAME="$CIRCLE_PROJECT_USERNAME"
+            export GITHUB_REPONAME="$CIRCLE_PROJECT_REPONAME"
+            postgrest-release-github
       - setup_remote_docker
       - run:
-          name: publish docker image
+          name: Publish Docker images
           command: |
-            docker build --build-arg POSTGREST_VERSION=$CIRCLE_TAG -t postgrest ./docker/
+            export DOCKER_REPO=postgrest
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker tag postgrest postgrest/postgrest:$CIRCLE_TAG
-            docker push postgrest/postgrest:$CIRCLE_TAG
-            docker tag postgrest postgrest/postgrest:latest
-            docker push postgrest/postgrest:latest
+            postgrest-release-dockerhub
+            postgrest-release-dockerhubdescription
+
+  # Build everything in default.nix and push to the Cachix binary cache.
+  nix-build:
+    docker:
+      - image: nixos/nix:2.3
+    steps:
+      - checkout
+      - run:
+          name: Install and use the Cachix binary cache
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Build all derivations from default.nix and push results to Cachix
+          command: |
+            # Only push to the cache when CircleCI makes the CACHIX_SIGNING_KEY
+            # available (e.g. not for pull requests).
+            if [ -n "${CACHIX_SIGNING_KEY:-""}" ]; then
+              echo "Building and caching all derivations..."
+              nix-build | cachix push postgrest
+            else
+              echo "Building all derivations (caching skipped for outside pull requests)..."
+              nix-build
+            fi
+
+  # Run tests against all supported PostgreSQL versions.
+  nix-test:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
+      - run:
+          name: Install and use the Cachix binary cache
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
+      - run:
+          name: Install testing scripts
+          command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
+      # Our utility scripts use cabal to run the tests, which will pick up all
+      # the libraries that are built with Nix. So this should only ever build
+      # the PostgREST itself and be reasonably quick. We accelerate that part
+      # further by caching `~/.cabal` and `dist-newstyle`.
+      #
+      # CircleCI looks for caches by prefix. When saving to the the cache
+      # below, we append the current time to the key ('-{{ epoch }}'), so a new
+      # cache will always be uploaded. If the `postgrest.cabal` and
+      # `nix/nixpkgs-version.nix` files are unchanged, the latest matching
+      # cache will be used. If there is no cache for those files, CircleCI will
+      # try the next, more general key and use the latest cache that matches
+      # it.
+      - restore_cache:
+          keys:
+            - nix-test-{{ checksum "postgrest.cabal" }}-{{ checksum "nix/nixpkgs-version.nix" }}
+            - nix-test-{{ checksum "postgrest.cabal" }}
+            - nix-test
+      - run:
+          name: Run the spec tests against PostgreSQL 9.4
+          command: postgrest-test-spec-postgresql-9.4
+      - run:
+          name: Run the spec tests against PostgreSQL 9.5
+          command: postgrest-test-spec-postgresql-9.5
+      - run:
+          name: Run the spec tests against PostgreSQL 9.6
+          command: postgrest-test-spec-postgresql-9.6
+      - run:
+          name: Run the spec tests against PostgreSQL 10
+          command: postgrest-test-spec-postgresql-10
+      - run:
+          name: Run the spec tests against PostgreSQL 11
+          command: postgrest-test-spec-postgresql-11
+      - run:
+          name: Run the spec tests against PostgreSQL 12
+          command: postgrest-test-spec-postgresql-12
+      - run:
+          name: Run io tests
+          command: postgrest-test-io
+      - run:
+          name: Run memory tests
+          command: postgrest-test-memory
+      - save_cache:
+          paths:
+            - "~/.cabal"
+            - "dist-newstyle"
+          key: nix-test-{{ checksum "postgrest.cabal" }}-{{ checksum "nix/nixpkgs-version.nix" }}-{{ epoch }}
 
 workflows:
   version: 2
   build-test-release:
     jobs:
-      - build-test-9.4:
+      - style-check:
+          # Make sure that this job also runs when releases are tagged.
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-test-9.6:
+      - stack-test:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-test-10:
+      - stack-test-memory:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-test-11:
+      - nix-build:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-test-12:
+      - nix-test:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - build-prof-test:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-      - centos7:
           requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntu:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - ubuntui386:
-          requires:
-            - build-test-9.4
-            - build-test-9.6
-            - build-test-10
-            - build-test-11
-            - build-test-12
-            - build-prof-test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+            - nix-build
       - release:
           requires:
-            - centos7
-            - ubuntu
-            - ubuntui386
+            - style-check
+            - stack-test
+            - stack-test-memory
+            - nix-build
+            - nix-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/

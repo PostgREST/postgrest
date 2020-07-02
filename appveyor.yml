@@ -1,5 +1,6 @@
 ## AppVeyor is only used for building a Windows binary, no tests are run here.
 platform: x64
+image: Visual Studio 2015
 
 cache:
 - "c:\\sr"

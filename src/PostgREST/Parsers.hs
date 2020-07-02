@@ -9,10 +9,8 @@ module PostgREST.Parsers where
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Control.Monad           ((>>))
 import Data.Either.Combinators (mapLeft)
 import Data.Foldable           (foldl1)
-import Data.Functor            (($>))
 import Data.List               (init, last)
 import Data.Text               (intercalate, replace, strip)
 import Text.Read               (read)
@@ -24,7 +22,9 @@ import Text.ParserCombinators.Parsec hiding (many, (<|>))
 import PostgREST.Error      (ApiRequestError (ParseRequestError))
 import PostgREST.RangeQuery (NonnegRange)
 import PostgREST.Types
-import Protolude            hiding (intercalate, option, replace, try)
+import Protolude            hiding (intercalate, option, replace, toS,
+                             try)
+import Protolude.Conv       (toS)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -229,7 +229,7 @@ pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgA
       a <- string "{"
       b <- many (noneOf "{}")
       c <- string "}"
-      toS <$> pure (a ++ b ++ c)
+      pure (toS $ a ++ b ++ c)
 
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do

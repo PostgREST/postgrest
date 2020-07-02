@@ -146,6 +146,18 @@ spec actualPgVersion =
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
           }
 
+      it "succeeds in calling the v2 schema proc with POST by using Content-Profile" $
+        request methodPost "/rpc/get_parents_below?select=id,name" [("Content-Profile", "v2")]
+          [json|{"id": "6"}|]
+          `shouldRespondWith`
+          [json| [
+            {"id":3,"name":"parent v2-3"},
+            {"id":4,"name":"parent v2-4"}]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
     context "Modifying tables on different schemas" $ do
       it "succeeds in patching on the v1 schema and returning its parent" $
         request methodPatch "/children?select=name,parent(name)&id=eq.1" [("Content-Profile", "v1"), ("Prefer", "return=representation")]

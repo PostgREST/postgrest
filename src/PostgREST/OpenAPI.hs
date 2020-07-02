@@ -32,7 +32,8 @@ import PostgREST.Types      (Column (..), ForeignKey (..), PgArg (..),
                              PrimaryKey (..), ProcDescription (..),
                              Proxy (..), Table (..), toMime)
 import Protolude            hiding (Proxy, dropWhile, get,
-                             intercalate, (&))
+                             intercalate, toLower, toS, (&))
+import Protolude.Conv       (toS)
 
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
@@ -117,7 +118,7 @@ makeProcParam pd =
   [ Inline $ (mempty :: Param)
     & name     .~ "args"
     & required ?~ True
-    & schema   .~ (ParamBody $ Inline $ makeProcSchema pd)
+    & schema   .~ ParamBody (Inline $ makeProcSchema pd)
   , Ref $ Reference "preferParams"
   ]
 
@@ -221,7 +222,7 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
         & description .~ "OK"
         & schema ?~ Inline (mempty
           & type_ ?~ SwaggerArray
-          & items ?~ (SwaggerItemsObject $ Ref $ Reference $ tableName t)
+          & items ?~ SwaggerItemsObject (Ref $ Reference $ tableName t)
         )
       )
     postOp = tOp

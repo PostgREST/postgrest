@@ -180,26 +180,6 @@ spec =
             [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
-        it "fails if the payload has more than one row" $
-          put "/tiobe_pls?name=eq.Go"
-            [str| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ]|]
-            `shouldRespondWith`
-            [json|{"message":"PUT payload must contain a single row"}|]
-            { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
-
-        it "fails if not all columns are specified" $ do
-          put "/tiobe_pls?name=eq.Go"
-            [str| [ { "name": "Go" } ]|]
-            `shouldRespondWith`
-            [json|{"message":"You must specify all columns in the payload when using PUT"}|]
-            { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
-
-          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000" } ]|]
-            `shouldRespondWith`
-            [json|{"message":"You must specify all columns in the payload when using PUT"}|]
-            { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
-
         it "rejects every other filter than pk cols eq's" $ do
           put "/tiobe_pls?rank=eq.19"
             [str| [ { "name": "Go", "rank": 19 } ]|]
@@ -279,6 +259,14 @@ spec =
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json|[ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
           put "/tiobe_pls?name=eq.Go" [str| [ { "name": "Go", "rank": 13 } ]|] `shouldRespondWith` 204
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 13 } ]|] { matchHeaders = [matchContentTypeJson] }
+
+        it "succeeds if the payload has more than one row, but it only puts the first element" $
+          request methodPut "/tiobe_pls?name=eq.Go"
+            [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
+            [str| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ] |]
+            `shouldRespondWith`
+            [json|{ "name": "Go", "rank": 19 }|]
+            { matchStatus = 200 , matchHeaders = [matchContentTypeSingular] }
 
         it "succeeds on table with composite pk" $ do
           get "/employees?first_name=eq.Susan&last_name=eq.Heidt"

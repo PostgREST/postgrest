@@ -12,3 +12,8 @@ site
 *~
 *#*
 .#*
+*.swp
+result*
+dist-newstyle
+postgrest.hp
+postgrest.prof

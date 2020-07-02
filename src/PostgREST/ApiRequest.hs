@@ -28,8 +28,8 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (elem, last, lookup, partition)
-import Data.List.NonEmpty        (NonEmpty, head)
+import Data.List                 (last, lookup, partition)
+import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
@@ -49,7 +49,8 @@ import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
 import PostgREST.Types
-import Protolude            hiding (head)
+import Protolude            hiding (head, toS)
+import Protolude.Conv       (toS)
 
 type RequestBody = BL.ByteString
 
@@ -190,11 +191,10 @@ userApiRequest confSchemas rootSpec req reqBody
       (CTOther "application/x-www-form-urlencoded", _) ->
         let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
-        Right $ ProcessedJSON (JSON.encode json) PJObject keys
+        Right $ ProcessedJSON (JSON.encode json) keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
-  rpcPrmsToJson = ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams)
-                  PJObject (S.fromList $ fst <$> rpcQParams)
+  rpcPrmsToJson = ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) (S.fromList $ fst <$> rpcQParams)
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -219,9 +219,9 @@ userApiRequest confSchemas rootSpec req reqBody
   profile
     | length confSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
-    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
+    | action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionDelete, ActionInvoke InvPost] -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
       = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
-    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead, ActionInvoke InvPost,
+    | action `elem` [ActionRead True, ActionRead False, ActionInvoke InvGet, ActionInvoke InvHead,
                      ActionInspect False, ActionInspect True, ActionInfo]
       = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
     | otherwise = Nothing
@@ -333,14 +333,14 @@ payloadAttributes raw json =
                 JSON.Object x -> S.fromList (M.keys x) == canonicalKeys
                 _ -> False) arr in
           if areKeysUniform
-            then Just $ ProcessedJSON raw (PJArray $ V.length arr) canonicalKeys
+            then Just $ ProcessedJSON raw canonicalKeys
             else Nothing
         Just _ -> Nothing
         Nothing -> Just emptyPJArray
 
-    JSON.Object o -> Just $ ProcessedJSON raw PJObject (S.fromList $ M.keys o)
+    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ M.keys o)
 
     -- truncate everything else to an empty array.
     _ -> Just emptyPJArray
   where
-    emptyPJArray = ProcessedJSON (JSON.encode emptyArray) (PJArray 0) S.empty
+    emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty

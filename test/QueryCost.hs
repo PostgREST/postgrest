@@ -10,7 +10,8 @@ import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 import           Text.Heredoc
 
-import Protolude hiding (get)
+import Protolude      hiding (get, toS)
+import Protolude.Conv (toS)
 
 import PostgREST.QueryBuilder (requestToCallProcQuery)
 import PostgREST.Types
@@ -22,7 +23,6 @@ import Test.Hspec
 main :: IO ()
 main = do
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
-  -- To speed things up, assume setupDb has ben ran in the previous spec.
   pool <- P.acquire (3, 10, toS testDbConn)
 
   hspec $ describe "QueryCost" $
@@ -50,6 +50,7 @@ main = do
           cost <- exec pool [str| [{"id": 1}, {"id": 4}] |] $
             requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [PgArg "id" "int" True] False (Just MultipleObjects) []
           liftIO $ do
+            -- lower bound needed for now to make sure that cost is not Nothing
             cost `shouldSatisfy` (> Just 2000)
             cost `shouldSatisfy` (< Just 2100)
 

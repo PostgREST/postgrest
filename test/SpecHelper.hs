@@ -7,7 +7,6 @@ import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
 import qualified System.IO.Error        as E
 
-import Control.Monad        (void)
 import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..))
 import Data.List            (lookup)
@@ -25,7 +24,8 @@ import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Types  (JSPathExp (..))
-import Protolude
+import Protolude        hiding (toS)
+import Protolude.Conv   (toS)
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
@@ -69,6 +69,10 @@ _baseCfg =  -- Connection Settings
             Nothing
             -- No user configured Unix Socket file mode (defaults to 660)
             (Right 432)
+            -- db-channel
+            "pgrst"
+            -- db-channel-enabled
+            False
             -- Jwt settings
             (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
             -- Connection Modifiers
@@ -88,7 +92,7 @@ _baseCfg =  -- Connection Settings
             []
 
 testCfg :: Text -> AppConfig
-testCfg testDbConn = _baseCfg { configDatabase = testDbConn }
+testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
 
 testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
@@ -144,16 +148,6 @@ testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just
 
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["v1", "v2"] }
-
-setupDb :: Text -> IO ()
-setupDb dbConn = do
-  loadFixture dbConn "database"
-  loadFixture dbConn "roles"
-  loadFixture dbConn "schema"
-  loadFixture dbConn "jwt"
-  loadFixture dbConn "jsonschema"
-  loadFixture dbConn "privileges"
-  resetDb dbConn
 
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"

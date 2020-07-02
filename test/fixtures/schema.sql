@@ -1092,6 +1092,20 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function test.send_body_status_403() returns pg_catalog.json as $$
+begin
+  perform set_config('response.status', '403', true);
+  return json_build_object('message', 'invalid user or password');
+end;
+$$ language plpgsql;
+
+create or replace function test.send_bad_status() returns pg_catalog.json as $$
+begin
+  perform set_config('response.status', 'bad', true);
+  return null;
+end;
+$$ language plpgsql;
+
 create or replace function test.get_projects_and_guc_headers() returns setof test.projects as $$
   set local "response.headers" = '[{"X-Test": "key1=val1; someValue; key2=val2"}, {"X-Test-2": "key1=val1"}]';
   select * from test.projects;
@@ -1698,8 +1712,7 @@ create table private.stuff(
 
 create view test.stuff as select * from private.stuff;
 
-create or replace function location_for_stuff() returns trigger
-    as $$
+create or replace function location_for_stuff() returns trigger as $$
 begin
     insert into private.stuff values (new.id, new.name);
     if new.id is not null
@@ -1714,6 +1727,15 @@ begin
 end
 $$ language plpgsql security definer;
 create trigger location_for_stuff instead of insert on test.stuff for each row execute procedure test.location_for_stuff();
+
+create or replace function status_205_for_updated_stuff() returns trigger as $$
+begin
+    update private.stuff set id = new.id, name = new.name;
+    perform set_config('response.status' , '205' , true);
+    return new;
+end
+$$ language plpgsql security definer;
+create trigger status_205_for_updated_stuff instead of update on test.stuff for each row execute procedure test.status_205_for_updated_stuff();
 
 create table loc_test (
   id int primary key
