@@ -43,7 +43,7 @@ spec =
             { matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"] }
 
     context "when updating rows" $ do
-      it "works for one row" $ do
+      it "works for one row with return=rep" $ do
         _ <- post "/addresses" [json| { id: 97, address: "A Street" } |]
         request methodPatch
           "/addresses?id=eq.97"
@@ -51,6 +51,15 @@ spec =
           [json| { address: "B Street" } |]
           `shouldRespondWith`
             [str|{"id":97,"address":"B Street"}|]
+
+      it "works for one row with return=minimal" $
+        request methodPatch
+          "/addresses?id=eq.97"
+          [("Prefer", "return=minimal"), singular]
+          [json| { address: "C Street" } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204 }
 
       it "raises an error for multiple rows" $ do
         _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
@@ -97,14 +106,14 @@ spec =
                   }
 
     context "when creating rows" $ do
-      it "works for one row" $ do
+      it "works for one row with return=rep" $ do
         p <- request methodPost
           "/addresses"
           [("Prefer", "return=representation"), singular]
           [json| [ { id: 102, address: "xxx" } ] |]
         liftIO $ simpleBody p `shouldBe` [str|{"id":102,"address":"xxx"}|]
 
-      it "works for one row even with return=minimal" $ do
+      it "works for one row with return=minimal" $ do
         request methodPost "/addresses"
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 103, address: "xxx" } ] |]
@@ -173,11 +182,17 @@ spec =
                   }
 
     context "when deleting rows" $ do
-      it "works for one row" $ do
+      it "works for one row with return=rep" $ do
         p <- request methodDelete
           "/items?id=eq.11"
           [("Prefer", "return=representation"), singular] ""
         liftIO $ simpleBody p `shouldBe` [str|{"id":11}|]
+
+      it "works for one row with return=minimal" $ do
+        p <- request methodDelete
+          "/items?id=eq.12"
+          [("Prefer", "return=minimal"), singular] ""
+        liftIO $ simpleBody p `shouldBe` ""
 
       it "raises an error when attempting to delete multiple entities" $ do
         let firstItems = "/items?id=gt.0&id=lt.6"
