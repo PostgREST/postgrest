@@ -194,8 +194,8 @@ spec actualPgVersion = do
           p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
-            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
 
     context "with compound pk supplied" $
       it "builds response location header appropriately" $ do
