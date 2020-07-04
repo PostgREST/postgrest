@@ -89,8 +89,10 @@ locationF pKeys = [qc|(
   WITH data AS (SELECT row_to_json(_) AS row FROM {sourceCTEName} AS _ LIMIT 1)
   SELECT array_agg(json_data.key || '=eq.' || json_data.value)
   FROM data CROSS JOIN json_each_text(data.row) AS json_data
-  WHERE json_data.key IN ('{intercalate "','" pKeys}')
+  WHERE json_data.key IN ('{fmtPKeys}')
 )|]
+  where
+    fmtPKeys = intercalate "','" pKeys
 
 fromQi :: QualifiedIdentifier -> SqlFragment
 fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n

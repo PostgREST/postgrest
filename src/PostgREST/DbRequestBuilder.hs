@@ -326,8 +326,9 @@ mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorRespons
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols
-  | fldNames == ["*"] = fldNames
-  | otherwise         = returnings
+  -- if * is part of the select, we must not add pk or fk columns manually - otherwise those would be selected and output twice
+  | "*" `elem` fldNames = ["*"]
+  | otherwise           = returnings
   where
     fldNames = fstFieldNames rr
     -- Without fkCols, when a mutateRequest to /projects?select=name,clients(name) occurs, the RETURNING SQL part would be
@@ -345,6 +346,7 @@ returningCols rr@(Node _ forest) pkCols
     -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)
     -- we would get `RETURNING client_id, name, client_id` and then we would produce the "column reference \"client_id\" is ambiguous"
     -- error from PostgreSQL. So we deduplicate with Set:
+    -- We are adding the primary key columns as well to make sure, that a proper location header can always be built for INSERT/POST
     returnings = S.toList . S.fromList $ fldNames ++ (colName <$> fkCols) ++ pkCols
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree

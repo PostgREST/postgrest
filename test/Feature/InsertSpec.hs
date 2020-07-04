@@ -191,21 +191,6 @@ spec actualPgVersion = do
             lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
-      context "into a table with no pk, but unique column" $ do
-        it "returns location header if unique column not null available" $ do
-          p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar", "unique_column": "baz" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` ""
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk_but_unique\\?unique_column=eq.baz"
-            simpleStatus p `shouldBe` created201
-
-        it "does not return location header if unique column is null" $ do
-          p <- post "/no_pk_but_unique" [json| { "a":"foo", "b":"bar" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` ""
-            simpleStatus p `shouldBe` created201
-            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
-
     context "with compound pk supplied" $
       it "builds response location header appropriately" $ do
         let inserted    = [json| { "k1":12, "k2":"Rock & R+ll" } |]
@@ -422,7 +407,7 @@ spec actualPgVersion = do
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
         let payload = [json| { "k":"圍棋", "extra":"￥" } |]
-        p <- request methodPost "/simple_pk"
+        p <- request methodPost "/simple_pk?select=extra,k"
                      [("Prefer", "return=representation")]
                      payload
         liftIO $ do
@@ -430,7 +415,7 @@ spec actualPgVersion = do
           simpleStatus p `shouldBe` created201
 
         let Just location = lookup hLocation $ simpleHeaders p
-        r <- get location
+        r <- get (location <> "&select=extra,k")
         liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
 
   describe "Patching record" $ do
