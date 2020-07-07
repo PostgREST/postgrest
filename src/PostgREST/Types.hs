@@ -123,6 +123,7 @@ data PgArg = PgArg {
   pgaName :: Text
 , pgaType :: Text
 , pgaReq  :: Bool
+, pgaVar  :: Bool
 } deriving (Show, Eq, Ord)
 
 data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
@@ -179,7 +180,7 @@ specifiedProcArgs keys proc =
   let
     args = maybe [] pdArgs proc
   in
-  (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) args)) <$> S.toList keys
+  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) args)) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of

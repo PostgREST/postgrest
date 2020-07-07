@@ -236,6 +236,18 @@ $_$An RPC function
 Just a test for RPC function arguments$_$;
 
 
+CREATE FUNCTION inout_argument(INOUT arg BOOLEAN)
+LANGUAGE SQL AS $_$
+  SELECT arg
+$_$;
+
+
+CREATE FUNCTION variadic_argument(VARIADIC v TEXT[]) RETURNS text
+LANGUAGE SQL AS $_$
+  SELECT 'Hi'::text
+$_$;
+
+
 CREATE FUNCTION json_argument(arg json) RETURNS text
 
 LANGUAGE sql

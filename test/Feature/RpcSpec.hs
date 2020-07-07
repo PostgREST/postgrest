@@ -291,6 +291,20 @@ spec actualPgVersion =
             [json|"Hi"|]
             { matchHeaders = [matchContentTypeJson] }
 
+      it "works with inout argument" $
+        post "/rpc/inout_argument"
+            [json| { "arg": true } |]
+          `shouldRespondWith`
+            [json| true |]
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "works with variadic arguments" $
+        post "/rpc/variadic_argument"
+            [json| { "v": ["hello"] } |]
+          `shouldRespondWith`
+            [json|"Hi"|]
+            { matchHeaders = [matchContentTypeJson] }
+
       it "parses embedded JSON arguments as JSON" $
         post "/rpc/json_argument"
             [json| { "arg": { "key": 3 } } |]

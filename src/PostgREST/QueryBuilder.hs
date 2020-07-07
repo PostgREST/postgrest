@@ -137,15 +137,20 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
           unwords [
             normalizedBody <> ",",
             "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (\a -> " " <> pgaType a) <> ")",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (const "") (\a -> " " <> pgaType a) <> ")",
             ")"]
          , if paramsAsMultipleObjects
-             then fmtArgs (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
-             else fmtArgs (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
+             then fmtArgs varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
+             else fmtArgs varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
         )
 
-    fmtArgs :: (PgArg -> SqlFragment) -> SqlFragment
-    fmtArgs argFrag = intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> argFrag a) <$> pgArgs)
+    fmtArgs :: (PgArg -> SqlFragment) -> (PgArg -> SqlFragment) -> SqlFragment
+    fmtArgs argFragPre argFragSuf = intercalate ", " ((\a -> argFragPre a <> pgFmtIdent (pgaName a) <> argFragSuf a) <$> pgArgs)
+
+    varadicPrefix :: PgArg -> SqlFragment
+    varadicPrefix a
+      | pgaVar a  = "VARIADIC "
+      | otherwise = ""
 
     sourceBody :: SqlFragment
     sourceBody

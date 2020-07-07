@@ -149,14 +149,16 @@ decodeProcs =
     parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
 
     parseArg :: Text -> Maybe PgArg
-    parseArg a =
-      let arg = lastDef "" $ splitOn "INOUT " a
-          (body, def) = breakOn " DEFAULT " arg
+    parseArg arg =
+      let isVariadic = isPrefixOf "VARIADIC " $ toS arg
+          argNoInout = lastDef "" $ splitOn "INOUT " arg
+          argNoVariadic = lastDef "" $ splitOn "VARIADIC " argNoInout
+          (body, def) = breakOn " DEFAULT " argNoVariadic
           (name, typ) = breakOn " " body in
       if T.null typ
          then Nothing
          else Just $
-           PgArg (dropAround (== '"') name) (strip typ) (T.null def)
+           PgArg (dropAround (== '"') name) (strip typ) (T.null def) isVariadic
 
     parseRetType :: Text -> Text -> Bool -> Char -> RetType
     parseRetType schema name isSetOf typ
