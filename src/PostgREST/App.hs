@@ -42,8 +42,8 @@ import Network.Wai
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    InvokeMethod (..), Target (..),
                                    mutuallyAgreeable, userApiRequest)
-import PostgREST.Auth             (containsRole, jwtClaims,
-                                   parseSecret)
+import PostgREST.Auth             (attemptJwtClaims, containsRole,
+                                   jwtClaims, parseSecret)
 import PostgREST.Config           (AppConfig (..))
 import PostgREST.DbRequestBuilder (mutateRequest, readRequest,
                                    returningCols)
@@ -79,26 +79,30 @@ postgrest conf refDbStructure pool getTime worker =
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
-          -- Need to parse ?columns early because findProc needs it to solve overloaded functions.
-          -- TODO: move this logic to the app function
           let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) req body
+              -- Need to parse ?columns early because findProc needs it to solve overloaded functions.
               apiReqCols = (,) <$> apiReq <*> (pRequestColumns . iColumns =<< apiReq)
           case apiReqCols of
             Left err -> return . errorResponseFor $ err
             Right (apiRequest, maybeCols) -> do
-              eClaims <- jwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
-              let authed = containsRole eClaims
-                  cols = case (iPayload apiRequest, maybeCols) of
-                    (Just ProcessedJSON{pjKeys}, _) -> pjKeys
-                    (Just RawJSON{}, Just cls)      -> cls
-                    _                               -> S.empty
-                  proc = case iTarget apiRequest of
-                    TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
-                    _ -> Nothing
-                  handleReq = runWithClaims conf eClaims (app dbStructure proc cols conf) apiRequest
-                  txMode = transactionMode proc (iAction apiRequest)
-              response <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
-              return $ either (errorResponseFor . PgError authed) identity response
+              -- The jwt must be checked before touching the db.
+              attempt <- attemptJwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
+              case jwtClaims attempt of
+                Left errJwt -> return . errorResponseFor $ errJwt
+                Right claims -> do
+                  let
+                    authed = containsRole claims
+                    cols = case (iPayload apiRequest, maybeCols) of
+                      (Just ProcessedJSON{pjKeys}, _) -> pjKeys
+                      (Just RawJSON{}, Just cls)      -> cls
+                      _                               -> S.empty
+                    proc = case iTarget apiRequest of
+                      TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
+                      _ -> Nothing
+                    handleReq = runPgLocals conf claims (app dbStructure proc cols conf) apiRequest
+                    txMode = transactionMode proc (iAction apiRequest)
+                  dbResp <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
+                  return $ either (errorResponseFor . PgError authed) identity dbResp
         when (responseStatus response == status503) worker
         respond response
 

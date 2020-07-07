@@ -15,7 +15,7 @@ very simple authentication system inside the PostgreSQL database.
 module PostgREST.Auth (
     containsRole
   , jwtClaims
-  , JWTAttempt(..)
+  , attemptJwtClaims
   , parseSecret
   ) where
 
@@ -30,6 +30,7 @@ import Data.Time.Clock (UTCTime)
 import Control.Lens.Operators
 import Crypto.JWT
 
+import PostgREST.Error (SimpleError (..))
 import PostgREST.Types
 import Protolude       hiding (toS)
 import Protolude.Conv  (toS)
@@ -42,13 +43,22 @@ data JWTAttempt = JWTInvalid JWTError
                 | JWTClaims (M.HashMap Text JSON.Value)
                 deriving (Eq, Show)
 
+
+jwtClaims :: JWTAttempt -> Either SimpleError (M.HashMap Text JSON.Value)
+jwtClaims attempt =
+  case attempt of
+    JWTMissingSecret      -> Left JwtTokenMissing
+    JWTInvalid JWTExpired -> Left $ JwtTokenInvalid "JWT expired"
+    JWTInvalid e          -> Left $ JwtTokenInvalid $ show e
+    JWTClaims claims      -> Right claims
+
 {-|
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-jwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
-jwtClaims _ _ "" _ _ = return $ JWTClaims M.empty
-jwtClaims secret audience payload time jspath =
+attemptJwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
+attemptJwtClaims _ _ "" _ _ = return $ JWTClaims M.empty
+attemptJwtClaims secret audience payload time jspath =
   case secret of
     Nothing -> return JWTMissingSecret
     Just s -> do
@@ -82,9 +92,8 @@ walkJSPath _                      _                 = Nothing
 {-|
   Whether a response from jwtClaims contains a role claim
 -}
-containsRole :: JWTAttempt -> Bool
-containsRole (JWTClaims claims) = M.member "role" claims
-containsRole _                  = False
+containsRole :: M.HashMap Text JSON.Value -> Bool
+containsRole = M.member "role"
 
 {-|
   Parse `jwt-secret` configuration option and turn into a JWKSet.

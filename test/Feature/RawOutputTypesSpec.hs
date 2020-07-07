@@ -24,7 +24,7 @@ spec = describe "When raw-media-types config variable is missing or left empty" 
         { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
 
   it "responds json to a GET request to RPC with Firefox Accept headers" $
-    request methodGet "/rpc/get_projects_below?id=3" chromeAcceptHdrs ""
+    request methodGet "/rpc/get_projects_below?id=3" firefoxAcceptHdrs ""
       `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
         { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
   it "responds json to a GET request to RPC with Chrome Accept headers" $
