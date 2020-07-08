@@ -361,7 +361,7 @@ app dbStructure proc cols conf apiRequest =
           let
             readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
             returnings :: ReadRequest -> Either Response [FieldName]
-            returnings rr = Right (returningCols rr)
+            returnings rr = Right (returningCols rr [])
           in
           (,,,) <$>
           (readRequestToQuery <$> readReq) <*>

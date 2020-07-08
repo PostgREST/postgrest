@@ -104,6 +104,25 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
+      it "should not throw and return location header when selecting without PK" $
+        request methodPost "/projects?select=name,client_id" [("Prefer", "return=representation")]
+          [str|{"id":10,"name":"New Project","client_id":2}|] `shouldRespondWith`
+          [str|[{"name":"New Project","client_id":2}]|]
+          { matchStatus  = 201
+          , matchHeaders = [ matchContentTypeJson
+                           , "Location" <:> "/projects?id=eq.10"
+                           , "Content-Range" <:> "*/*" ]
+          }
+
+    context "requesting no representation" $
+      it "should not throw and return location header when selecting without PK" $
+        request methodPost "/projects?select=name,client_id" []
+          [str|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
+          { matchStatus  = 201
+          , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
+                           , "Content-Range" <:> "*/*" ]
+          }
+
     context "from an html form" $
       it "accepts disparate json types" $ do
         p <- request methodPost "/menagerie"
@@ -139,11 +158,11 @@ spec actualPgVersion = do
           }
 
       context "into a table with no pk" $ do
-        it "succeeds with 201 and a link including all fields" $ do
+        it "succeeds with 201 but no location header" $ do
           p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
           liftIO $ do
             simpleBody p `shouldBe` ""
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.foo&b=eq.bar"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
         it "returns full details of inserted record if asked" $ do
@@ -152,7 +171,7 @@ spec actualPgVersion = do
                        [json| { "a":"bar", "b":"baz" } |]
           liftIO $ do
             simpleBody p `shouldBe` [json| [{ "a":"bar", "b":"baz" }] |]
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=eq.bar&b=eq.baz"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
         it "returns empty array when no items inserted, and return=rep" $ do
@@ -169,7 +188,7 @@ spec actualPgVersion = do
                        [json| { "a":null, "b":"foo" } |]
           liftIO $ do
             simpleBody p `shouldBe` [json| [{ "a":null, "b":"foo" }] |]
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/no_pk\\?a=is.null&b=eq.foo"
+            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
             simpleStatus p `shouldBe` created201
 
     context "with compound pk supplied" $
@@ -238,24 +257,20 @@ spec actualPgVersion = do
     context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
-            location = "/json?data=eq.%7B%22foo%22%3A%22bar%22%7D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` [str|[{"data":{"foo":"bar"}}]|]
           { matchStatus  = 201
-          , matchHeaders = ["Location" <:> location]
           }
 
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
-            location = "/json?data=eq.%5B1%2C2%2C3%5D"
         request methodPost "/json"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` [str|[{"data":[1,2,3]}]|]
           { matchStatus  = 201
-          , matchHeaders = ["Location" <:> location]
           }
 
     context "empty objects" $ do
@@ -358,8 +373,7 @@ spec actualPgVersion = do
                      "a,b\nbar,baz"
           `shouldRespondWith` "a,b\nbar,baz"
           { matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
-                            "Location" <:> "/no_pk?a=eq.bar&b=eq.baz"]
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
           }
 
       it "can post nulls" $
@@ -368,8 +382,7 @@ spec actualPgVersion = do
                      "a,b\nNULL,foo"
           `shouldRespondWith` "a,b\n,foo"
           { matchStatus  = 201
-          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
-                            "Location" <:> "/no_pk?a=is.null&b=eq.foo"]
+          , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
           }
 
       it "only returns the requested column header with its associated data" $
@@ -393,8 +406,8 @@ spec actualPgVersion = do
 
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
-        let payload = [json| { "a":"圍棋", "b":"￥" } |]
-        p <- request methodPost "/no_pk"
+        let payload = [json| { "k":"圍棋", "extra":"￥" } |]
+        p <- request methodPost "/simple_pk?select=extra,k"
                      [("Prefer", "return=representation")]
                      payload
         liftIO $ do
@@ -402,7 +415,7 @@ spec actualPgVersion = do
           simpleStatus p `shouldBe` created201
 
         let Just location = lookup hLocation $ simpleHeaders p
-        r <- get location
+        r <- get (location <> "&select=extra,k")
         liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
 
   describe "Patching record" $ do
