@@ -3,7 +3,6 @@
 module Main where
 
 import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Base64     as B64
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
@@ -22,7 +21,6 @@ import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
-import Data.Text                (pack, replace, strip, stripPrefix)
 import Data.Text.IO             (hPutStrLn)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
@@ -31,15 +29,14 @@ import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              prettyVersion, readAppConfig, readPath)
+                              prettyVersion, readAppConfig, readPathShowHelp, loadDbUriFile, loadSecretFile)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.OpenAPI     (isMalformedProxyUri)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), Schema,
-                              minimumPgVersion)
-import Protolude             hiding (hPutStrLn, head, replace, toS)
+                              PgVersion (..), minimumPgVersion)
+import Protolude             hiding (hPutStrLn, head, toS)
 import Protolude.Conv        (toS)
 
 
@@ -74,12 +71,12 @@ _1s  = 1000000  :: Int -- 1 second
 connectionWorker
   :: ThreadId -- ^ Main thread id. Killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
-  -> [Schema] -- ^ Schemas PostgREST is serving up
+  -> AppConfig
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
-connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
+connectionWorker mainTid pool conf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do -- Prevents multiple workers to be running at the same time. Could happen on too many SIGUSR1s.
     atomicWriteIORef refIsWorkerOn True
@@ -90,17 +87,17 @@ connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEna
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
       when dbChannelEnabled $
-        void $ tryPutMVar mvarConnectionStatus connected -- tryPutMVar doesn't lock the thread. It should always succeed since the worker is the only producer.
+        void $ tryPutMVar mvarConnectionStatus connected -- tryPutMVar doesn't lock the thread. It should always succeed since the worker is the only mvar producer.
       case connected of
         FatalConnectionError reason -> hPutStrLn stderr reason >> killThread mainTid -- Fatal error when connecting
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
         Connected actualPgVersion   -> do                                            -- Procede with initialization
           putStrLn ("Connection successful" :: Text)
-          fillSchemaCache pool actualPgVersion schemas refDbStructure
+          fillSchemaCache pool actualPgVersion conf refDbStructure
           liftIO $ atomicWriteIORef refIsWorkerOn False
 
-fillSchemaCache :: P.Pool -> PgVersion -> [Schema] -> IORef (Maybe DbStructure) -> IO ()
-fillSchemaCache pool actualPgVersion schemas refDbStructure = do
+fillSchemaCache :: P.Pool -> PgVersion -> AppConfig -> IORef (Maybe DbStructure) -> IO ()
+fillSchemaCache pool actualPgVersion conf refDbStructure = do
   result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
   case result of
     Left e -> do
@@ -112,6 +109,7 @@ fillSchemaCache pool actualPgVersion schemas refDbStructure = do
     Right dbStructure -> do
       atomicWriteIORef refDbStructure $ Just dbStructure
       putStrLn ("Schema cache loaded" :: Text)
+  where schemas = toList $ configSchemas conf
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
@@ -157,8 +155,8 @@ connectionStatus pool =
   When a NOTIFY channel(with an empty payload) is done, it refills the schema cache.
   It uses the connectionWorker in case the LISTEN connection dies.
 -}
-listener :: ByteString -> Text -> P.Pool -> [Schema] -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
-listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWorker = start
+listener :: ByteString -> Text -> P.Pool -> AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
+listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorker = start
   where
     start = do
       connStatus <- takeMVar mvarConnectionStatus -- takeMVar makes the thread wait if the MVar is empty(until there's a connection).
@@ -167,7 +165,7 @@ listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWo
           dbOrError <- C.acquire dbUri
           -- Debounce in case too many NOTIFYs arrive. Could happen on a migration(assuming a pg EVENT TRIGGER is set up).
           scFiller <- mkDebounce (defaultDebounceSettings {
-                        debounceAction = fillSchemaCache pool actualPgVersion schemas refDbStructure,
+                        debounceAction = fillSchemaCache pool actualPgVersion conf refDbStructure,
                         debounceEdge = trailingEdge, -- wait until the function hasn’t been called in _1s
                         debounceFreq = _1s })
           case dbOrError of
@@ -201,41 +199,42 @@ main = do
   hSetBuffering stdin LineBuffering
   hSetBuffering stderr NoBuffering
 
-  path <- readPath
+  -- read path from commad line
+  path <- readPathShowHelp
 
-  -- readOptions builds the 'AppConfig' from the config file specified on the
-  -- command line
+  -- build the 'AppConfig' from the config file path
   conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
 
-  let schemas = toList $ configSchemas conf
-      host = configHost conf
-      port = configPort conf
-      proxy = configOpenAPIProxyUri conf
-      maybeSocketAddr = configSocket conf
-      socketFileMode = configSocketMode conf
-      dbUri = toS (configDbUri conf)
-      (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
-      roleClaimKey = configRoleClaimKey conf
-      appSettings =
-        setHost ((fromString . toS) host) -- Warp settings
-        . setPort port
-        . setServerName (toS $ "postgrest/" <> prettyVersion) $
-        defaultSettings
-
-  whenLeft socketFileMode panic
-
   -- Checks that the provided proxy uri is formated correctly
-  when (isMalformedProxyUri $ toS <$> proxy) $
+  when (isMalformedProxyUri $ toS <$> configOpenAPIProxyUri conf) $
     panic
       "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
 
   -- Checks that the provided jspath is valid
-  whenLeft roleClaimKey $
-    panic $ show roleClaimKey
+  whenLeft (configRoleClaimKey conf) panic
+
+  -- These are config values that can't be reloaded with SIGUSR2
+  let
+    host = configHost conf
+    port = configPort conf
+    maybeSocketAddr = configSocket conf
+    socketFileMode = configSocketMode conf
+    dbUri = toS (configDbUri conf)
+    (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
+    appSettings =
+        setHost ((fromString . toS) host) -- Warp settings
+      . setPort port
+      . setServerName (toS $ "postgrest/" <> prettyVersion) $
+      defaultSettings
+    poolSize = configPoolSize conf
+    poolTimeout = configPoolTimeout' conf
+
+  -- Check the file mode is valid
+  whenLeft socketFileMode panic
 
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
-  pool <- P.acquire (configPool conf, configPoolTimeout' conf, dbUri)
+  pool <- P.acquire (poolSize, poolTimeout, dbUri)
 
   -- Used to sync the listener with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
   mvarConnectionStatus <- newEmptyMVar
@@ -250,25 +249,24 @@ main = do
   -- thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
 
-  let connWorker = connectionWorker mainTid pool schemas refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
+  let connWorker = connectionWorker mainTid pool conf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
 
   -- Sets the initial refDbStructure
   connWorker
 
+#ifndef mingw32_HOST_OS
   -- Only for systems with signals:
   --
   -- releases the connection pool whenever the program is terminated,
   -- see https://github.com/PostgREST/postgrest/issues/268
-  --
-  -- Plus the SIGUSR1 signal updates the internal 'DbStructure' by running
-  -- 'connectionWorker' exactly as before.
-#ifndef mingw32_HOST_OS
   forM_ [sigINT, sigTERM] $ \sig ->
     void $ installHandler sig (Catch $ do
         P.release pool
         throwTo mainTid UserInterrupt
       ) Nothing
 
+  -- Plus the SIGUSR1 signal updates the internal 'DbStructure' by running
+  -- 'connectionWorker' exactly as before.
   void $ installHandler sigUSR1 (
     Catch connWorker
     ) Nothing
@@ -276,7 +274,7 @@ main = do
 
   -- reload schema cache on NOTIFY
   when dbChannelEnabled $
-    listener dbUri dbChannel pool schemas refDbStructure mvarConnectionStatus connWorker
+    listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorker
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -297,75 +295,8 @@ main = do
 
   -- run the postgrest application
   whenNothing maybeSocketAddr $ do
-    putStrLn $ ("Listening on port " :: Text) <> show (configPort conf)
+    putStrLn $ ("Listening on port " :: Text) <> show port
     runSettings appSettings postgrestApplication
-
-{-|
-  The purpose of this function is to load the JWT secret from a file if
-  configJwtSecret is actually a filepath and replaces some characters if the JWT
-  is base64 encoded.
-
-  The reason some characters need to be replaced is because JWT is actually
-  base64url encoded which must be turned into just base64 before decoding.
-
-  To check if the JWT secret is provided is in fact a file path, it must be
-  decoded as 'Text' to be processed.
-
-  decodeUtf8: Decode a ByteString containing UTF-8 encoded text that is known to
-  be valid.
--}
-loadSecretFile :: AppConfig -> IO AppConfig
-loadSecretFile conf = extractAndTransform mSecret
-  where
-    mSecret = decodeUtf8 <$> configJwtSecret conf
-    isB64 = configJwtSecretIsBase64 conf
-    --
-    -- The Text (variable name secret) here is mSecret from above which is the JWT
-    -- decoded as Utf8
-    --
-    -- stripPrefix: Return the suffix of the second string if its prefix matches
-    -- the entire first string.
-    --
-    -- The configJwtSecret is a filepath instead of the JWT secret itself if the
-    -- secret has @ as its prefix.
-    extractAndTransform :: Maybe Text -> IO AppConfig
-    extractAndTransform Nothing = return conf
-    extractAndTransform (Just secret) =
-      fmap setSecret $
-      transformString isB64 =<<
-      case stripPrefix "@" secret of
-        Nothing       -> return . encodeUtf8 $ secret
-        Just filename -> chomp <$> BS.readFile (toS filename)
-      where
-        chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
-    --
-    -- Turns the Base64url encoded JWT into Base64
-    transformString :: Bool -> ByteString -> IO ByteString
-    transformString False t = return t
-    transformString True t =
-      case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 t of
-        Left errMsg -> panic $ pack errMsg
-        Right bs    -> return bs
-    setSecret bs = conf {configJwtSecret = Just bs}
-    --
-    -- replace: Replace every occurrence of one substring with another
-    replaceUrlChars =
-      replace "_" "/" . replace "-" "+" . replace "." "="
-
-{-
-  Load database uri from a separate file if `db-uri` is a filepath.
--}
-loadDbUriFile :: AppConfig -> IO AppConfig
-loadDbUriFile conf = extractDbUri mDbUri
-  where
-    mDbUri = configDbUri conf
-    extractDbUri :: Text -> IO AppConfig
-    extractDbUri dbUri =
-      fmap setDbUri $
-      case stripPrefix "@" dbUri of
-        Nothing       -> return dbUri
-        Just filename -> strip <$> readFile (toS filename)
-    setDbUri dbUri = conf {configDbUri = dbUri}
 
 -- Utilitarian functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()

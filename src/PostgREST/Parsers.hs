@@ -252,9 +252,9 @@ mapError = mapLeft translateError
            $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
 
 -- Used for the config value "role-claim-key"
-pRoleClaimKey :: Text -> Either ApiRequestError JSPath
+pRoleClaimKey :: Text -> Either Text JSPath
 pRoleClaimKey selStr =
-  mapError $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
+  mapLeft show $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
 
 pJSPath :: Parser JSPath
 pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
