@@ -19,15 +19,18 @@ Other hardcoded options such as the minimum version number also belong here.
 
 module PostgREST.Config ( prettyVersion
                         , docsVersion
-                        , readPath
+                        , readPathShowHelp
                         , readAppConfig
                         , corsPolicy
                         , AppConfig (..)
                         , configPoolTimeout'
+                        , loadSecretFile
+                        , loadDbUriFile
                         )
        where
 
 import qualified Data.ByteString              as B
+import qualified Data.ByteString.Base64     as B64
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
@@ -39,8 +42,8 @@ import Crypto.JWT                  (StringOrURI, stringOrUri)
 import Data.List                   (lookup)
 import Data.List.NonEmpty          (fromList)
 import Data.Scientific             (floatingOrInteger)
-import Data.Text                   (dropEnd, dropWhileEnd,
-                                    intercalate, splitOn, strip, take,
+import Data.Text                   (pack, replace, dropEnd, dropWhileEnd,
+                                    intercalate, splitOn, strip, stripPrefix, take,
                                     unpack)
 import Data.Text.IO                (hPutStrLn)
 import Data.Version                (versionBranch)
@@ -58,11 +61,10 @@ import Options.Applicative          hiding (str)
 import Text.Heredoc
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
-import PostgREST.Error   (ApiRequestError (..))
 import PostgREST.Parsers (pRoleClaimKey)
 import PostgREST.Types   (JSPath, JSPathExp (..))
 import Protolude         hiding (concat, hPutStrLn, intercalate, null,
-                          take, toS, (<>))
+                          take, toS, (<>), replace)
 import Protolude.Conv    (toS)
 
 
@@ -83,13 +85,13 @@ data AppConfig = AppConfig {
   , configJwtSecretIsBase64 :: Bool
   , configJwtAudience       :: Maybe StringOrURI
 
-  , configPool              :: Int
+  , configPoolSize          :: Int
   , configPoolTimeout       :: Int
   , configMaxRows           :: Maybe Integer
   , configReqCheck          :: Maybe Text
   , configQuiet             :: Bool
   , configSettings          :: [(Text, Text)]
-  , configRoleClaimKey      :: Either ApiRequestError JSPath
+  , configRoleClaimKey      :: Either Text JSPath
   , configExtraSearchPath   :: [Text]
 
   , configRootSpec          :: Maybe Text
@@ -140,9 +142,9 @@ prettyVersion =
 docsVersion :: Text
 docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 
--- | Read config the file path from the command line. Also print helpful messages.
-readPath :: IO FilePath
-readPath = customExecParser parserPrefs opts
+-- | Read config the file path from the command line. Also prints help.
+readPathShowHelp :: IO FilePath
+readPathShowHelp = customExecParser parserPrefs opts
   where
     parserPrefs = prefs showHelpOnError
 
@@ -169,7 +171,9 @@ readPath = customExecParser parserPrefs opts
       [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
           |db-schema = "public" # this schema gets added to the search_path of every request
           |db-anon-role = "postgres"
+          |# number of open connections in the pool
           |db-pool = 10
+          |# Time to live, in seconds, for an idle database pool connection.
           |db-pool-timeout = 10
           |
           |server-host = "!4"
@@ -314,7 +318,7 @@ readAppConfig cfgPath = do
     coerceBool (C.String b) = readMaybe $ toS b
     coerceBool _            = Nothing
 
-    parseRoleClaimKey :: C.Value -> Either ApiRequestError JSPath
+    parseRoleClaimKey :: C.Value -> Either Text JSPath
     parseRoleClaimKey (C.String s) = pRoleClaimKey s
     parseRoleClaimKey v            = pRoleClaimKey $ show v
 
@@ -326,3 +330,70 @@ readAppConfig cfgPath = do
     exitErr err = do
       hPutStrLn stderr err
       exitFailure
+
+{-|
+  The purpose of this function is to load the JWT secret from a file if
+  configJwtSecret is actually a filepath and replaces some characters if the JWT
+  is base64 encoded.
+
+  The reason some characters need to be replaced is because JWT is actually
+  base64url encoded which must be turned into just base64 before decoding.
+
+  To check if the JWT secret is provided is in fact a file path, it must be
+  decoded as 'Text' to be processed.
+
+  decodeUtf8: Decode a ByteString containing UTF-8 encoded text that is known to
+  be valid.
+-}
+loadSecretFile :: AppConfig -> IO AppConfig
+loadSecretFile conf = extractAndTransform mSecret
+  where
+    mSecret = decodeUtf8 <$> configJwtSecret conf
+    isB64 = configJwtSecretIsBase64 conf
+    --
+    -- The Text (variable name secret) here is mSecret from above which is the JWT
+    -- decoded as Utf8
+    --
+    -- stripPrefix: Return the suffix of the second string if its prefix matches
+    -- the entire first string.
+    --
+    -- The configJwtSecret is a filepath instead of the JWT secret itself if the
+    -- secret has @ as its prefix.
+    extractAndTransform :: Maybe Text -> IO AppConfig
+    extractAndTransform Nothing = return conf
+    extractAndTransform (Just secret) =
+      fmap setSecret $
+      transformString isB64 =<<
+      case stripPrefix "@" secret of
+        Nothing       -> return . encodeUtf8 $ secret
+        Just filename -> chomp <$> BS.readFile (toS filename)
+      where
+        chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
+    --
+    -- Turns the Base64url encoded JWT into Base64
+    transformString :: Bool -> ByteString -> IO ByteString
+    transformString False t = return t
+    transformString True t =
+      case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 t of
+        Left errMsg -> panic $ pack errMsg
+        Right bs    -> return bs
+    setSecret bs = conf {configJwtSecret = Just bs}
+    --
+    -- replace: Replace every occurrence of one substring with another
+    replaceUrlChars =
+      replace "_" "/" . replace "-" "+" . replace "." "="
+
+{-
+  Load database uri from a separate file if `db-uri` is a filepath.
+-}
+loadDbUriFile :: AppConfig -> IO AppConfig
+loadDbUriFile conf = extractDbUri mDbUri
+  where
+    mDbUri = configDbUri conf
+    extractDbUri :: Text -> IO AppConfig
+    extractDbUri dbUri =
+      fmap setDbUri $
+      case stripPrefix "@" dbUri of
+        Nothing       -> return dbUri
+        Just filename -> strip <$> readFile (toS filename)
+    setDbUri dbUri = conf {configDbUri = dbUri}
