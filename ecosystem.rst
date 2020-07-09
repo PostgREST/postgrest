@@ -61,7 +61,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 Extensions
 ----------
 
-* `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ - Prevent full-table updates or deletes
+* `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ - Prevent full-table updates or deletes
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `wildsurfer/postgrest-oauth-server <https://github.com/wildsurfer/postgrest-oauth-server>`_ - OAuth2 server

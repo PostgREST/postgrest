@@ -51,7 +51,7 @@ However it's very easy to delete the **entire table** by omitting the query para
 
   DELETE /logs HTTP/1.1
 
-This can happen accidentally such as by switching a request from a GET to a DELETE. To protect against accidental operations use the `pg-safeupdate <https://bitbucket.org/eradman/pg-safeupdate/>`_ PostgreSQL extension. It raises an error if UPDATE or DELETE are executed without specifying conditions. To install it you can use the `PGXN <http://pgxn.org/>`_ network:
+This can happen accidentally such as by switching a request from a GET to a DELETE. To protect against accidental operations use the `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ PostgreSQL extension. It raises an error if UPDATE or DELETE are executed without specifying conditions. To install it you can use the `PGXN <http://pgxn.org/>`_ network:
 
 .. code-block:: bash
 
