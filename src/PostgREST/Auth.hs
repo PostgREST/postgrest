@@ -58,14 +58,14 @@ jwtClaims attempt =
 -}
 attemptJwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
 attemptJwtClaims _ _ "" _ _ = return $ JWTClaims M.empty
-attemptJwtClaims secret audience payload time jspath =
-  case secret of
+attemptJwtClaims maybeSecret audience payload time jspath =
+  case maybeSecret of
     Nothing -> return JWTMissingSecret
-    Just s -> do
+    Just secret -> do
       let validation = set allowedSkew 1 $ defaultJWTValidationSettings (maybe (const True) (==) audience)
       eJwt <- runExceptT $ do
         jwt <- decodeCompact payload
-        verifyClaimsAt validation s time jwt
+        verifyClaimsAt validation secret time jwt
       return $ case eJwt of
         Left e    -> JWTInvalid e
         Right jwt -> JWTClaims $ claims2map jwt jspath

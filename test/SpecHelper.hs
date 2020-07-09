@@ -22,6 +22,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
+import PostgREST.Auth   (parseSecret)
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Types  (JSPathExp (..))
 import Protolude        hiding (toS)
@@ -64,6 +65,7 @@ getEnvVarWithDefault var def = toS <$>
 
 _baseCfg :: AppConfig
 _baseCfg =  -- Connection Settings
+  let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig mempty "postgrest_test_anonymous" Nothing (fromList ["test"]) "localhost" 3000
             -- No user configured Unix Socket
             Nothing
@@ -74,7 +76,7 @@ _baseCfg =  -- Connection Settings
             -- db-channel-enabled
             False
             -- Jwt settings
-            (Just $ encodeUtf8 "reallyreallyreallyreallyverysafe") False Nothing
+            secret False Nothing
             -- Connection Modifiers
             10 10 Nothing (Just "test.switch_role")
             -- Debug Settings
@@ -90,14 +92,14 @@ _baseCfg =  -- Connection Settings
             Nothing
             -- Raw output media types
             []
-            -- Config path
-            Nothing
+            -- Config JWK
+            (parseSecret <$> secret)
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
 
 testCfgNoJWT :: Text -> AppConfig
-testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing }
+testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing, configJWKS = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
 testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["تست"] }
@@ -109,28 +111,36 @@ testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configOpenAPIProxyUri = Just "https://postgrest.com/openapi.json" }
 
 testCfgBinaryJWT :: Text -> AppConfig
-testCfgBinaryJWT testDbConn = (testCfg testDbConn) {
-    configJwtSecret = Just . B64.decodeLenient $
-      "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU="
+testCfgBinaryJWT testDbConn =
+  let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
+  (testCfg testDbConn) {
+    configJwtSecret = secret
+  , configJWKS = parseSecret <$> secret
   }
 
 testCfgAudienceJWT :: Text -> AppConfig
-testCfgAudienceJWT testDbConn = (testCfg testDbConn) {
-    configJwtSecret = Just . B64.decodeLenient $
-      "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=",
-    configJwtAudience = Just "youraudience"
+testCfgAudienceJWT testDbConn =
+  let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
+  (testCfg testDbConn) {
+    configJwtSecret = secret
+  , configJwtAudience = Just "youraudience"
+  , configJWKS = parseSecret <$> secret
   }
 
 testCfgAsymJWK :: Text -> AppConfig
-testCfgAsymJWK testDbConn = (testCfg testDbConn) {
-    configJwtSecret = Just $ encodeUtf8
-      [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
+testCfgAsymJWK testDbConn =
+  let secret = Just $ encodeUtf8 [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
+  in (testCfg testDbConn) {
+    configJwtSecret = secret
+  , configJWKS = parseSecret <$> secret
   }
 
 testCfgAsymJWKSet :: Text -> AppConfig
-testCfgAsymJWKSet testDbConn = (testCfg testDbConn) {
-    configJwtSecret = Just $ encodeUtf8
-      [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
+testCfgAsymJWKSet testDbConn =
+  let secret = Just $ encodeUtf8 [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
+  in (testCfg testDbConn) {
+    configJwtSecret = secret
+  , configJWKS = parseSecret <$> secret
   }
 
 testNonexistentSchemaCfg :: Text -> AppConfig
