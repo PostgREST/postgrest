@@ -28,6 +28,7 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
 import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
+import PostgREST.Auth        (parseSecret)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
                               prettyVersion, readAppConfig, readPathShowHelp, loadDbUriFile, loadSecretFile)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
@@ -203,7 +204,9 @@ main = do
   path <- readPathShowHelp
 
   -- build the 'AppConfig' from the config file path
-  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
+  conf <- do
+    cnf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
+    pure cnf { configJWKS = parseSecret <$> configJwtSecret cnf}
 
   -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> configOpenAPIProxyUri conf) $

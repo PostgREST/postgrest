@@ -29,6 +29,7 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
+import Crypto.JWT (JWKSet)
 import qualified Data.ByteString              as B
 import qualified Data.ByteString.Base64     as B64
 import qualified Data.ByteString.Char8        as BS
@@ -97,7 +98,7 @@ data AppConfig = AppConfig {
   , configRootSpec          :: Maybe Text
   , configRawMediaTypes     :: [B.ByteString]
 
-  , configPath              :: Maybe FilePath
+  , configJWKS              :: Maybe JWKSet
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -230,14 +231,14 @@ readAppConfig cfgPath = do
     , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
     ]
 
-  case C.runParser (parseConfig cfgPath) conf of
+  case C.runParser parseConfig conf of
     Left err ->
       exitErr $ "Error parsing config file:\n\t" <> err
     Right appConf ->
       return appConf
 
   where
-    parseConfig path =
+    parseConfig =
       AppConfig
         <$> reqString "db-uri"
         <*> reqString "db-anon-role"
@@ -262,7 +263,7 @@ readAppConfig cfgPath = do
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
         <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
-        <*> pure (Just path)
+        <*> pure Nothing
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =

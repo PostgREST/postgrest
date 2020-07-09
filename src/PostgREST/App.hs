@@ -43,7 +43,7 @@ import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    InvokeMethod (..), Target (..),
                                    mutuallyAgreeable, userApiRequest)
 import PostgREST.Auth             (attemptJwtClaims, containsRole,
-                                   jwtClaims, parseSecret)
+                                   jwtClaims)
 import PostgREST.Config           (AppConfig (..))
 import PostgREST.DbRequestBuilder (mutateRequest, readRequest,
                                    returningCols)
@@ -69,8 +69,7 @@ import Protolude.Conv             (toS)
 
 postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
 postgrest conf refDbStructure pool getTime worker =
-  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle
-      jwtSecret = parseSecret <$> configJwtSecret conf in
+  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
   middle $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
@@ -86,7 +85,7 @@ postgrest conf refDbStructure pool getTime worker =
             Left err -> return . errorResponseFor $ err
             Right (apiRequest, maybeCols) -> do
               -- The jwt must be checked before touching the db.
-              attempt <- attemptJwtClaims jwtSecret (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
+              attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
               case jwtClaims attempt of
                 Left errJwt -> return . errorResponseFor $ errJwt
                 Right claims -> do
