@@ -7,7 +7,6 @@ Description : Generates the OpenAPI output
 module PostgREST.OpenAPI (
   encodeOpenAPI
 , pickProxy
-, isMalformedProxyUri
 ) where
 
 import qualified Data.HashSet.InsOrd as Set

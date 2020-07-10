@@ -65,12 +65,15 @@ main = do
 
   let
     -- For tests that run with the same refDbStructure
-    app cfg = return ((), postgrest LogQuiet (cfg testDbConn) refDbStructure pool getTime $ pure ())
+    app cfg = do
+      refConf <- newIORef $ cfg testDbConn
+      return ((), postgrest LogQuiet refConf refDbStructure pool getTime $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
       dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
-      return ((), postgrest LogQuiet (cfg testDbConn) dbs pool getTime $ pure ())
+      refConf <- newIORef $ cfg testDbConn
+      return ((), postgrest LogQuiet refConf dbs pool getTime $ pure ())
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg

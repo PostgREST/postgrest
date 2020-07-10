@@ -65,12 +65,13 @@ import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate, toS)
 import Protolude.Conv             (toS)
 
-postgrest :: LogSetup -> AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
-postgrest logs conf refDbStructure pool getTime worker =
-  pgrstMiddleware logs $ \ req respond -> do
+postgrest :: LogSetup -> IORef AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
+postgrest logS refConf refDbStructure pool getTime worker =
+  pgrstMiddleware logS $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure
+    conf <- readIORef refConf
     case maybeDbStructure of
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do

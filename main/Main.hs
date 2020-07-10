@@ -17,7 +17,6 @@ import Control.Debounce         (debounceAction, debounceEdge,
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
-import Data.Either.Combinators  (whenLeft)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
@@ -28,15 +27,12 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
 import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
-import PostgREST.Auth        (parseSecret)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              loadDbUriFile, loadSecretFile,
-                              prettyVersion, readAppConfig,
-                              readPathShowHelp)
+                              prettyVersion, readPathShowHelp,
+                              readValidateConfig)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
-import PostgREST.OpenAPI     (isMalformedProxyUri)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
                               LogSetup (..), PgVersion (..),
                               minimumPgVersion)
@@ -75,12 +71,12 @@ _1s  = 1000000  :: Int -- 1 second
 connectionWorker
   :: ThreadId -- ^ Main thread id. Killed if pg version is unsupported
   -> P.Pool   -- ^ The PostgreSQL connection pool
-  -> AppConfig
+  -> IORef AppConfig
   -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
   -> IORef Bool                -- ^ Used as a binary Semaphore
   -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
-connectionWorker mainTid pool conf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
+connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do -- Prevents multiple workers to be running at the same time. Could happen on too many SIGUSR1s.
     atomicWriteIORef refIsWorkerOn True
@@ -97,12 +93,13 @@ connectionWorker mainTid pool conf refDbStructure refIsWorkerOn (dbChannelEnable
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
         Connected actualPgVersion   -> do                                            -- Procede with initialization
           putStrLn ("Connection successful" :: Text)
-          fillSchemaCache pool actualPgVersion conf refDbStructure
+          fillSchemaCache pool actualPgVersion refConf refDbStructure
           liftIO $ atomicWriteIORef refIsWorkerOn False
 
-fillSchemaCache :: P.Pool -> PgVersion -> AppConfig -> IORef (Maybe DbStructure) -> IO ()
-fillSchemaCache pool actualPgVersion conf refDbStructure = do
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure schemas actualPgVersion
+fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
+fillSchemaCache pool actualPgVersion refConf refDbStructure = do
+  conf <- readIORef refConf
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) actualPgVersion
   case result of
     Left e -> do
       -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
@@ -113,7 +110,6 @@ fillSchemaCache pool actualPgVersion conf refDbStructure = do
     Right dbStructure -> do
       atomicWriteIORef refDbStructure $ Just dbStructure
       putStrLn ("Schema cache loaded" :: Text)
-  where schemas = toList $ configSchemas conf
 
 {-|
   Used by 'connectionWorker' to check if the provided db-uri lets
@@ -159,8 +155,8 @@ connectionStatus pool =
   When a NOTIFY channel(with an empty payload) is done, it refills the schema cache.
   It uses the connectionWorker in case the LISTEN connection dies.
 -}
-listener :: ByteString -> Text -> P.Pool -> AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
-listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorker = start
+listener :: ByteString -> Text -> P.Pool -> IORef AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
+listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker = start
   where
     start = do
       connStatus <- takeMVar mvarConnectionStatus -- takeMVar makes the thread wait if the MVar is empty(until there's a connection).
@@ -169,7 +165,7 @@ listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorke
           dbOrError <- C.acquire dbUri
           -- Debounce in case too many NOTIFYs arrive. Could happen on a migration(assuming a pg EVENT TRIGGER is set up).
           scFiller <- mkDebounce (defaultDebounceSettings {
-                        debounceAction = fillSchemaCache pool actualPgVersion conf refDbStructure,
+                        debounceAction = fillSchemaCache pool actualPgVersion refConf refDbStructure,
                         debounceEdge = trailingEdge, -- wait until the function hasn’t been called in _1s
                         debounceFreq = _1s })
           case dbOrError of
@@ -191,6 +187,14 @@ listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorke
     errorMessage = "Could not listen for notifications on the " <> dbChannel <> " channel" :: Text
     retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
+-- | Re-reads the config at runtime. Invoked on SIGUSR2.
+-- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
+reReadConfig :: FilePath -> IORef AppConfig -> IO ()
+reReadConfig path refConf = do
+  conf <- readValidateConfig path
+  atomicWriteIORef refConf conf
+  putStrLn ("Config file reloaded" :: Text)
+
 -- | This is where everything starts.
 main :: IO ()
 main = do
@@ -207,19 +211,9 @@ main = do
   path <- readPathShowHelp
 
   -- build the 'AppConfig' from the config file path
-  conf <- do
-    cnf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
-    pure cnf { configJWKS = parseSecret <$> configJwtSecret cnf}
+  conf <- readValidateConfig path
 
-  -- Checks that the provided proxy uri is formated correctly
-  when (isMalformedProxyUri $ toS <$> configOpenAPIProxyUri conf) $
-    panic
-      "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
-
-  -- Checks that the provided jspath is valid
-  whenLeft (configRoleClaimKey conf) panic
-
-  -- These are config values that can't be reloaded with SIGUSR2
+  -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
     host = configHost conf
     port = configPort conf
@@ -227,16 +221,13 @@ main = do
     socketFileMode = configSocketMode conf
     dbUri = toS (configDbUri conf)
     (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
-    appSettings =
+    serverSettings =
         setHost ((fromString . toS) host) -- Warp settings
       . setPort port
       . setServerName (toS $ "postgrest/" <> prettyVersion) $
       defaultSettings
     poolSize = configPoolSize conf
     poolTimeout = configPoolTimeout' conf
-
-  -- Check the file mode is valid
-  whenLeft socketFileMode panic
 
   -- create connection pool with the provided settings, returns either
   -- a 'Connection' or a 'ConnectionError'. Does not throw.
@@ -251,11 +242,14 @@ main = do
   -- Helper ref to make sure just one connectionWorker can run at a time
   refIsWorkerOn <- newIORef False
 
+  -- Config that can change at runtime
+  refConf <- newIORef conf
+
   -- This is passed to the connectionWorker method so it can kill the main
   -- thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
 
-  let connWorker = connectionWorker mainTid pool conf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
+  let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
 
   -- Sets the initial refDbStructure
   connWorker
@@ -276,11 +270,16 @@ main = do
   void $ installHandler sigUSR1 (
     Catch connWorker
     ) Nothing
+
+  -- Re-read the config on SIGUSR2
+  void $ installHandler sigUSR2 (
+    Catch $ reReadConfig path refConf
+    ) Nothing
 #endif
 
   -- reload schema cache on NOTIFY
   when dbChannelEnabled $
-    listener dbUri dbChannel pool conf refDbStructure mvarConnectionStatus connWorker
+    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -288,22 +287,22 @@ main = do
   let postgrestApplication =
         postgrest
           LogStdout
-          conf
+          refConf
           refDbStructure
           pool
           getTime
           connWorker
 
-  -- run the postgrest application with user defined socket. Only for UNIX systems.
 #ifndef mingw32_HOST_OS
+  -- run the postgrest application with user defined socket. Only for UNIX systems.
   whenJust maybeSocketAddr $
-    runAppInSocket appSettings postgrestApplication socketFileMode
+    runAppInSocket serverSettings postgrestApplication socketFileMode
 #endif
 
   -- run the postgrest application
   whenNothing maybeSocketAddr $ do
     putStrLn $ ("Listening on port " :: Text) <> show port
-    runSettings appSettings postgrestApplication
+    runSettings serverSettings postgrestApplication
 
 -- Utilitarian functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
