@@ -19,12 +19,10 @@ Other hardcoded options such as the minimum version number also belong here.
 
 module PostgREST.Config ( prettyVersion
                         , docsVersion
-                        , readPathShowHelp
-                        , readAppConfig
                         , AppConfig (..)
                         , configPoolTimeout'
-                        , loadSecretFile
-                        , loadDbUriFile
+                        , readPathShowHelp
+                        , readValidateConfig
                         )
        where
 
@@ -32,6 +30,7 @@ import qualified Data.ByteString              as B
 import qualified Data.ByteString.Base64       as B64
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.Configurator            as C
+import           Data.Either.Combinators      (whenLeft)
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
 import Control.Lens       (preview)
@@ -56,11 +55,14 @@ import Options.Applicative          hiding (str)
 import Text.Heredoc
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
-import PostgREST.Parsers (pRoleClaimKey)
-import PostgREST.Types   (JSPath, JSPathExp (..))
-import Protolude         hiding (concat, hPutStrLn, intercalate, null,
-                          replace, take, toS, (<>))
-import Protolude.Conv    (toS)
+import PostgREST.Auth             (parseSecret)
+import PostgREST.Parsers          (pRoleClaimKey)
+import PostgREST.Private.ProxyUri (isMalformedProxyUri)
+import PostgREST.Types            (JSPath, JSPathExp (..))
+import Protolude                  hiding (concat, hPutStrLn,
+                                   intercalate, null, replace, take,
+                                   toS, (<>))
+import Protolude.Conv             (toS)
 
 
 -- | Config file settings for the server
@@ -299,6 +301,20 @@ readAppConfig cfgPath = do
     exitErr err = do
       hPutStrLn stderr err
       exitFailure
+
+-- | Parse the AppConfig and validate it. Panic on invalid config options.
+readValidateConfig :: FilePath -> IO AppConfig
+readValidateConfig path = do
+  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
+  -- Checks that the provided proxy uri is formated correctly
+  when (isMalformedProxyUri $ toS <$> configOpenAPIProxyUri conf) $
+    panic
+      "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
+  -- Checks that the provided jspath is valid
+  whenLeft (configRoleClaimKey conf) panic
+  -- Check the file mode is valid
+  whenLeft (configSocketMode conf) panic
+  return $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
 
 {-|
   The purpose of this function is to load the JWT secret from a file if

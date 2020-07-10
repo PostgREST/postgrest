@@ -56,6 +56,12 @@ authorsStatus(){
     "http://localhost:$pgrPort/authors_only"
 }
 
+v1SchemaParentsStatus(){
+  curl -s -o /dev/null -w '%{http_code}' \
+    -H "Accept-Profile: v1" \
+    "http://localhost:$pgrPort/parents"
+}
+
 # Unit Test Templates
 readSecretFromFile(){
   case "$1" in
@@ -186,6 +192,86 @@ ensureAppSettings(){
   pgrStop
 }
 
+checkAppSettingsReload(){
+  pgrStart "./configs/sigusr2-settings.config"
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  # change setting
+  replaceConfigValue "app.settings.name_var" "Jane" ./configs/sigusr2-settings.config
+  # reload
+  kill -s SIGUSR2 $pgrPID
+  response=$(curl -s "http://localhost:$pgrPort/rpc/get_guc_value?name=app.settings.name_var")
+  if test "$response" = "\"Jane\""
+  then
+    ok "app.settings.name_var config reloaded with SIGUSR2"
+  else
+    ko "app.settings.name_var config not reloaded with SIGUSR2. Got: $response"
+  fi
+  pgrStop
+  # go back to original setting
+  replaceConfigValue "app.settings.name_var" "John" ./configs/sigusr2-settings.config
+}
+
+checkJwtSecretReload(){
+  pgrStart "./configs/sigusr2-settings.config"
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  secret="reallyreallyreallyreallyverysafe"
+  # change setting
+  replaceConfigValue "jwt-secret" "$secret" ./configs/sigusr2-settings.config
+  # reload
+  kill -s SIGUSR2 $pgrPID
+  payload='{"role":"postgrest_test_author"}'
+  authorsJwt=$(psql -qtAX "$POSTGREST_TEST_CONNECTION" -c "select jwt.sign('$payload', '$secret');")
+  httpStatus="$( authorsStatus "$authorsJwt" )"
+  if test "$httpStatus" -eq 200
+  then
+    ok "jwt-secret config reloaded with SIGUSR2"
+  else
+    ko "jwt-secret config not reloaded with SIGUSR2. Got: $httpStatus"
+  fi
+  pgrStop
+  # go back to original setting
+  replaceConfigValue "jwt-secret" "invalidinvalidinvalidinvalidinvalid" ./configs/sigusr2-settings.config
+}
+
+checkDbSchemaReload(){
+  pgrStart "./configs/sigusr2-settings.config"
+  while pgrStarted && test "$( rootStatus )" -ne 200
+  do
+    # wait for the server to start
+    sleep 0.1 \
+    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+  done
+  secret="reallyreallyreallyreallyverysafe"
+  # add v1 schema to db-schema
+  replaceConfigValue "db-schema" "test, v1" ./configs/sigusr2-settings.config
+  # reload
+  kill -s SIGUSR2 $pgrPID
+  httpStatus="$(v1SchemaParentsStatus)"
+  if test "$httpStatus" -eq 200
+  then
+    ok "db-schema config reloaded with SIGUSR2"
+  else
+    ko "db-schema config not reloaded with SIGUSR2. Got: $httpStatus"
+  fi
+  pgrStop
+  # go back to original setting
+  replaceConfigValue "db-schema" "test" ./configs/sigusr2-settings.config
+}
+
+replaceConfigValue(){
+  sed -i "s/.*$1.*/$1 = \"$2\"/g" $3
+}
+
 getSocketStatus() {
   curl -sL -w "%{http_code}\\n" -o /dev/null localhost:54321
 }
@@ -254,6 +340,11 @@ invalidRoleClaimKey 1234
 
 ensureIatClaimWorks
 ensureAppSettings
+
+checkAppSettingsReload
+checkJwtSecretReload
+checkDbSchemaReload
+# TODO: SIGUSR2 tests for other config options
 
 trap - int term exit
 
