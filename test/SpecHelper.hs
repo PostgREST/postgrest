@@ -64,36 +64,32 @@ getEnvVarWithDefault var def = toS <$>
   getEnv (toS var) `E.catchIOError` const (return $ toS def)
 
 _baseCfg :: AppConfig
-_baseCfg =  -- Connection Settings
-  let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
-  AppConfig mempty "postgrest_test_anonymous" Nothing (fromList ["test"]) "localhost" 3000
-            -- No user configured Unix Socket
-            Nothing
-            -- No user configured Unix Socket file mode (defaults to 660)
-            (Right 432)
-            -- db-channel
-            "pgrst"
-            -- db-channel-enabled
-            False
-            -- Jwt settings
-            secret False Nothing
-            -- Connection Modifiers
-            10 10 Nothing (Just "test.switch_role")
-            -- Debug Settings
-            True
-            [ ("app.settings.app_host", "localhost")
-            , ("app.settings.external_api_secret", "0123456789abcdef")
-            ]
-            -- Default role claim key
-            (Right [JSPKey "role"])
-            -- Empty db-extra-search-path
-            []
-            -- No root spec override
-            Nothing
-            -- Raw output media types
-            []
-            -- Config JWK
-            (parseSecret <$> secret)
+_baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
+  AppConfig {
+    configDbUri             = mempty
+  , configAnonRole          = "postgrest_test_anonymous"
+  , configOpenAPIProxyUri   = Nothing
+  , configSchemas           = fromList ["test"]
+  , configHost              = "localhost"
+  , configPort              = 3000
+  , configSocket            = Nothing
+  , configSocketMode        = Right 432
+  , configDbChannel         = mempty
+  , configDbChannelEnabled  = False
+  , configJwtSecret         = secret
+  , configJwtSecretIsBase64 = False
+  , configJwtAudience       = Nothing
+  , configPoolSize          = 10
+  , configPoolTimeout       = 10
+  , configMaxRows           = Nothing
+  , configPreReq            = Just "test.switch_role"
+  , configSettings          = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
+  , configRoleClaimKey      = Right [JSPKey "role"]
+  , configExtraSearchPath   = []
+  , configRootSpec          = Nothing
+  , configRawMediaTypes     = []
+  , configJWKS              = parseSecret <$> secret
+  }
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
@@ -156,7 +152,7 @@ testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
 testCfgResponseHeaders :: Text -> AppConfig
-testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configReqCheck = Just "custom_headers" }
+testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configPreReq = Just "custom_headers" }
 
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["v1", "v2"] }

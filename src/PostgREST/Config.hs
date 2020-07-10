@@ -21,7 +21,6 @@ module PostgREST.Config ( prettyVersion
                         , docsVersion
                         , readPathShowHelp
                         , readAppConfig
-                        , corsPolicy
                         , AppConfig (..)
                         , configPoolTimeout'
                         , loadSecretFile
@@ -29,35 +28,30 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import Crypto.JWT (JWKSet)
 import qualified Data.ByteString              as B
-import qualified Data.ByteString.Base64     as B64
+import qualified Data.ByteString.Base64       as B64
 import qualified Data.ByteString.Char8        as BS
-import qualified Data.CaseInsensitive         as CI
 import qualified Data.Configurator            as C
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
-import Control.Lens                (preview)
-import Control.Monad               (fail)
-import Crypto.JWT                  (StringOrURI, stringOrUri)
-import Data.List                   (lookup)
-import Data.List.NonEmpty          (fromList)
-import Data.Scientific             (floatingOrInteger)
-import Data.Text                   (pack, replace, dropEnd, dropWhileEnd,
-                                    intercalate, splitOn, strip, stripPrefix, take,
-                                    unpack)
-import Data.Text.IO                (hPutStrLn)
-import Data.Version                (versionBranch)
-import Development.GitRev          (gitHash)
-import Network.Wai.Middleware.Cors (CorsResourcePolicy (..))
-import Numeric                     (readOct)
-import Paths_postgrest             (version)
-import System.IO.Error             (IOError)
-import System.Posix.Types          (FileMode)
+import Control.Lens       (preview)
+import Control.Monad      (fail)
+import Crypto.JWT         (JWKSet, StringOrURI, stringOrUri)
+import Data.List.NonEmpty (fromList)
+import Data.Scientific    (floatingOrInteger)
+import Data.Text          (dropEnd, dropWhileEnd, intercalate, pack,
+                           replace, splitOn, strip, stripPrefix, take,
+                           unpack)
+import Data.Text.IO       (hPutStrLn)
+import Data.Version       (versionBranch)
+import Development.GitRev (gitHash)
+import Numeric            (readOct)
+import Paths_postgrest    (version)
+import System.IO.Error    (IOError)
+import System.Posix.Types (FileMode)
 
 import Control.Applicative
 import Data.Monoid
-import Network.Wai
 import Options.Applicative          hiding (str)
 import Text.Heredoc
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
@@ -65,7 +59,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import PostgREST.Parsers (pRoleClaimKey)
 import PostgREST.Types   (JSPath, JSPathExp (..))
 import Protolude         hiding (concat, hPutStrLn, intercalate, null,
-                          take, toS, (<>), replace)
+                          replace, take, toS, (<>))
 import Protolude.Conv    (toS)
 
 
@@ -89,8 +83,7 @@ data AppConfig = AppConfig {
   , configPoolSize          :: Int
   , configPoolTimeout       :: Int
   , configMaxRows           :: Maybe Integer
-  , configReqCheck          :: Maybe Text
-  , configQuiet             :: Bool
+  , configPreReq            :: Maybe Text
   , configSettings          :: [(Text, Text)]
   , configRoleClaimKey      :: Either Text JSPath
   , configExtraSearchPath   :: [Text]
@@ -104,30 +97,6 @@ data AppConfig = AppConfig {
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
 configPoolTimeout' =
   fromRational . toRational . configPoolTimeout
-
-
-defaultCorsPolicy :: CorsResourcePolicy
-defaultCorsPolicy =  CorsResourcePolicy Nothing
-  ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] ["Authorization"] Nothing
-  (Just $ 60*60*24) False False True
-
--- | CORS policy to be used in by Wai Cors middleware
-corsPolicy :: Request -> Maybe CorsResourcePolicy
-corsPolicy req = case lookup "origin" headers of
-  Just origin -> Just defaultCorsPolicy {
-      corsOrigins = Just ([origin], True)
-    , corsRequestHeaders = "Authentication":accHeaders
-    , corsExposedHeaders = Just [
-        "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
-      , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
-      ]
-    }
-  Nothing -> Nothing
-  where
-    headers = requestHeaders req
-    accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . toS . strip . toS) $ BS.split ',' hdrs
-      Nothing -> []
 
 -- | User friendly version number
 prettyVersion :: Text
@@ -257,7 +226,6 @@ readAppConfig cfgPath = do
         <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
         <*> optInt "max-rows"
         <*> optString "pre-request"
-        <*> pure False
         <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
         <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
