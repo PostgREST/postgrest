@@ -535,3 +535,6 @@ data ConnectionStatus
   | Connected PgVersion
   | FatalConnectionError Text
   deriving (Eq, Show)
+
+-- | Logging setup
+data LogSetup = LogQuiet | LogStdout deriving (Eq, Show)

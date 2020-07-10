@@ -27,11 +27,9 @@ import qualified Hasql.Transaction          as H
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
-import Data.Function                        (id)
-import Data.IORef                           (IORef, readIORef)
-import Data.Time.Clock                      (UTCTime)
-import Network.HTTP.Types.URI               (renderSimpleQuery)
-import Network.Wai.Middleware.RequestLogger (logStdout)
+import Data.IORef             (IORef, readIORef)
+import Data.Time.Clock        (UTCTime)
+import Network.HTTP.Types.URI (renderSimpleQuery)
 
 import Control.Applicative
 import Data.Maybe
@@ -67,10 +65,9 @@ import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate, toS)
 import Protolude.Conv             (toS)
 
-postgrest :: AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
-postgrest conf refDbStructure pool getTime worker =
-  let middle = (if configQuiet conf then id else logStdout) . defaultMiddle in
-  middle $ \ req respond -> do
+postgrest :: LogSetup -> AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
+postgrest logs conf refDbStructure pool getTime worker =
+  pgrstMiddleware logs $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure

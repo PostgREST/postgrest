@@ -30,13 +30,16 @@ import System.IO                (BufferMode (..), hSetBuffering)
 import PostgREST.App         (postgrest)
 import PostgREST.Auth        (parseSecret)
 import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              prettyVersion, readAppConfig, readPathShowHelp, loadDbUriFile, loadSecretFile)
+                              loadDbUriFile, loadSecretFile,
+                              prettyVersion, readAppConfig,
+                              readPathShowHelp)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.OpenAPI     (isMalformedProxyUri)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), minimumPgVersion)
+                              LogSetup (..), PgVersion (..),
+                              minimumPgVersion)
 import Protolude             hiding (hPutStrLn, head, toS)
 import Protolude.Conv        (toS)
 
@@ -284,6 +287,7 @@ main = do
 
   let postgrestApplication =
         postgrest
+          LogStdout
           conf
           refDbStructure
           pool
