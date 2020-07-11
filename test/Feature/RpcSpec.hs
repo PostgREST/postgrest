@@ -291,20 +291,6 @@ spec actualPgVersion =
             [json|"Hi"|]
             { matchHeaders = [matchContentTypeJson] }
 
-      it "works with inout argument" $
-        post "/rpc/inout_argument"
-            [json| { "arg": true } |]
-          `shouldRespondWith`
-            [json| true |]
-            { matchHeaders = [matchContentTypeJson] }
-
-      it "works with variadic arguments" $
-        post "/rpc/variadic_argument"
-            [json| { "v": ["hello"] } |]
-          `shouldRespondWith`
-            [json|"Hi"|]
-            { matchHeaders = [matchContentTypeJson] }
-
       it "parses embedded JSON arguments as JSON" $
         post "/rpc/json_argument"
             [json| { "arg": { "key": 3 } } |]
@@ -407,6 +393,13 @@ spec actualPgVersion =
       it "returns a row result when there are many INOUT params" $
         get "/rpc/many_inout_params?num=1&str=two&b=false" `shouldRespondWith`
           [json| [{"num":1,"str":"two","b":false}]|] { matchHeaders = [matchContentTypeJson] }
+
+    it "works with variadic parameter" $
+      post "/rpc/variadic_param"
+          [json| { "v": ["hello"] } |]
+        `shouldRespondWith`
+          [json|"Hi"|]
+          { matchHeaders = [matchContentTypeJson] }
 
     it "can handle procs with args that have a DEFAULT value" $ do
       get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`

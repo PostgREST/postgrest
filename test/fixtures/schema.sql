@@ -236,18 +236,6 @@ $_$An RPC function
 Just a test for RPC function arguments$_$;
 
 
-CREATE FUNCTION inout_argument(INOUT arg BOOLEAN)
-LANGUAGE SQL AS $_$
-  SELECT arg
-$_$;
-
-
-CREATE FUNCTION variadic_argument(VARIADIC v TEXT[]) RETURNS text
-LANGUAGE SQL AS $_$
-  SELECT 'Hi'::text
-$_$;
-
-
 CREATE FUNCTION json_argument(arg json) RETURNS text
 
 LANGUAGE sql
@@ -1083,6 +1071,11 @@ $$ language sql;
 create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bool DEFAULT true) AS $$
   select num, str, b;
 $$ language sql;
+
+CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[]) RETURNS text
+LANGUAGE SQL AS $_$
+  SELECT 'Hi'::text
+$_$;
 
 create or replace function test.raise_pt402() returns void as $$
 begin
