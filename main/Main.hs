@@ -83,7 +83,6 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
     void $ forkIO work
   where
     work = do
-      atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
       when dbChannelEnabled $
@@ -236,7 +235,7 @@ main = do
   -- Used to sync the listener with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
   mvarConnectionStatus <- newEmptyMVar
 
-  -- To be filled in by connectionWorker
+  -- No schema cache at the start. Will be filled in by the connectionWorker
   refDbStructure <- newIORef Nothing
 
   -- Helper ref to make sure just one connectionWorker can run at a time
