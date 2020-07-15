@@ -132,7 +132,7 @@ instance JSON.ToJSON PgError where
 instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
     "code"    .= ("" :: Text),
-    "message" .= ("Database connection error" :: Text),
+    "message" .= ("Database connection error. Retrying the connection." :: Text),
     "details" .= (toS $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
@@ -169,7 +169,7 @@ instance JSON.ToJSON H.CommandError where
     "message" .= ("Unexpected amount of rows" :: Text),
     "details" .= i]
   toJSON (H.ClientError d) = JSON.object [
-    "message" .= ("Database client error" :: Text),
+    "message" .= ("Database client error. Retrying the connection." :: Text),
     "details" .= (fmap toS d :: Maybe Text)]
 
 pgErrorStatus :: Bool -> P.UsageError -> HT.Status
@@ -256,7 +256,7 @@ instance JSON.ToJSON SimpleError where
   toJSON (BinaryFieldError ct)          = JSON.object [
     "message" .= ((toS (toMime ct) <> " requested but more than one column was selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [
-    "message" .= ("Database connection lost, retrying the connection." :: Text)]
+    "message" .= ("Database connection lost. Retrying the connection." :: Text)]
 
   toJSON PutRangeNotAllowedError   = JSON.object [
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text)]

@@ -53,9 +53,8 @@ _1s :: Int
 _1s  = 1000000  :: Int -- 1 second
 
 {-|
-  The purpose of this worker is to fill the refDbStructure created in 'main'
-  with the 'DbStructure' returned from calling 'getDbStructure'. This method
-  is meant to be called by multiple times by the same thread, but does nothing if
+  The purpose of this worker is to obtain a healthy connection to pg and an up-to-date schema cache(DbStructure).
+  This method is meant to be called by multiple times by the same thread, but does nothing if
   the previous invocation has not terminated. In all cases this method does not
   halt the calling thread, the work is preformed in a separate thread.
 
@@ -69,11 +68,11 @@ _1s  = 1000000  :: Int -- 1 second
   3. Obtains the dbStructure.
 -}
 connectionWorker
-  :: ThreadId -- ^ Main thread id. Killed if pg version is unsupported
-  -> P.Pool   -- ^ The PostgreSQL connection pool
-  -> IORef AppConfig
-  -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
-  -> IORef Bool                -- ^ Used as a binary Semaphore
+  :: ThreadId                      -- ^ Main thread id. Killed if pg version is unsupported
+  -> P.Pool                        -- ^ The pg connection pool
+  -> IORef AppConfig               -- ^ mutable reference to AppConfig
+  -> IORef (Maybe DbStructure)     -- ^ mutable reference to 'DbStructure'
+  -> IORef Bool                    -- ^ Used as a binary Semaphore
   -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
 connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
@@ -111,13 +110,12 @@ fillSchemaCache pool actualPgVersion refConf refDbStructure = do
       putStrLn ("Schema cache loaded" :: Text)
 
 {-|
-  Used by 'connectionWorker' to check if the provided db-uri lets
-  the application access the PostgreSQL database. This method is used
-  the first time the connection is tested, but only to test before
-  calling 'getDbStructure' inside the 'connectionWorker' method.
+  Check if a connection from the pool allows access to the PostgreSQL database.
+  If not, the pool connections are released and a new connection is tried.
+  Releasing the pool is key for rapid recovery. Otherwise, the pool timeout would have to be reached for new healthy connections to be acquired.
+  Which might not happen if the server is busy with requests. No idle connection, no pool timeout.
 
-  The connection tries are capped, but if the connection times out no error is
-  thrown, just 'False' is returned.
+  The connection tries are capped, but if the connection times out no error is thrown, just 'False' is returned.
 -}
 connectionStatus :: P.Pool -> IO ConnectionStatus
 connectionStatus pool =
@@ -228,8 +226,7 @@ main = do
     poolSize = configPoolSize conf
     poolTimeout = configPoolTimeout' conf
 
-  -- create connection pool with the provided settings, returns either
-  -- a 'Connection' or a 'ConnectionError'. Does not throw.
+  -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
 
   -- Used to sync the listener with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
@@ -244,8 +241,7 @@ main = do
   -- Config that can change at runtime
   refConf <- newIORef conf
 
-  -- This is passed to the connectionWorker method so it can kill the main
-  -- thread if the PostgreSQL's version is not supported.
+  -- This is passed to the connectionWorker method so it can kill the main thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
 
   let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
@@ -264,8 +260,7 @@ main = do
         throwTo mainTid UserInterrupt
       ) Nothing
 
-  -- Plus the SIGUSR1 signal updates the internal 'DbStructure' by running
-  -- 'connectionWorker' exactly as before.
+  -- The SIGUSR1 signal updates the internal 'DbStructure' by running 'connectionWorker' exactly as before.
   void $ installHandler sigUSR1 (
     Catch connWorker
     ) Nothing
