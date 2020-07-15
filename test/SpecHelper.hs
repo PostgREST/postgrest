@@ -190,13 +190,17 @@ noBlankHeader = notElem mempty
 noProfileHeader :: [Header] -> Bool
 noProfileHeader headers = isNothing $ find ((== "Content-Profile") . fst) headers
 
+authHeader :: BS.ByteString -> BS.ByteString -> Header
+authHeader typ creds =
+  (hAuthorization, typ <> " " <> creds)
+
 authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
 authHeaderBasic u p =
-  (hAuthorization, "Basic " <> (toS . B64.encode . toS $ u <> ":" <> p))
+  authHeader "Basic" $ toS . B64.encode . toS $ u <> ":" <> p
 
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT token =
-  (hAuthorization, "Bearer " <> token)
+  authHeader "Bearer" token
 
 -- | Tests whether the text can be parsed as a json object comtaining
 -- the key "message", and optional keys "details", "hint", "code",
