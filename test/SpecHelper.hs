@@ -201,7 +201,7 @@ authHeaderBasic u p =
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT = authHeader "Bearer"
 
--- | Tests whether the text can be parsed as a json object comtaining
+-- | Tests whether the text can be parsed as a json object containing
 -- the key "message", and optional keys "details", "hint", "code",
 -- and no extraneous keys
 isErrorFormat :: BL.ByteString -> Bool
