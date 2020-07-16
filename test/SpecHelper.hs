@@ -199,8 +199,7 @@ authHeaderBasic u p =
   authHeader "Basic" $ toS . B64.encode . toS $ u <> ":" <> p
 
 authHeaderJWT :: BS.ByteString -> Header
-authHeaderJWT token =
-  authHeader "Bearer" token
+authHeaderJWT = authHeader "Bearer"
 
 -- | Tests whether the text can be parsed as a json object comtaining
 -- the key "message", and optional keys "details", "hint", "code",
