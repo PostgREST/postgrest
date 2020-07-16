@@ -394,11 +394,15 @@ spec actualPgVersion =
         get "/rpc/many_inout_params?num=1&str=two&b=false" `shouldRespondWith`
           [json| [{"num":1,"str":"two","b":false}]|] { matchHeaders = [matchContentTypeJson] }
 
-    it "works with variadic parameter" $
+    it "works with variadic parameter" $ do
       post "/rpc/variadic_param"
-          [json| { "v": ["hello"] } |]
+          [json| { "v": ["hi", "hello", "there"] } |]
         `shouldRespondWith`
-          [json|"Hi"|]
+          [json|["hi", "hello", "there"]|]
+          { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/variadic_param?v=%7Bhi,hello,there%7D"
+        `shouldRespondWith`
+          [json|["hi", "hello", "there"]|]
           { matchHeaders = [matchContentTypeJson] }
 
     it "can handle procs with args that have a DEFAULT value" $ do

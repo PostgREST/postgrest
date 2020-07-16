@@ -137,7 +137,7 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
           unwords [
             normalizedBody <> ",",
             "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (const "") (\a -> " " <> pgaType a) <> ")",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (const mempty) (\a -> " " <> pgaType a) <> ")",
             ")"]
          , if paramsAsMultipleObjects
              then fmtArgs varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
@@ -148,9 +148,7 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
     fmtArgs argFragPre argFragSuf = intercalate ", " ((\a -> argFragPre a <> pgFmtIdent (pgaName a) <> argFragSuf a) <$> pgArgs)
 
     varadicPrefix :: PgArg -> SqlFragment
-    varadicPrefix a
-      | pgaVar a  = "VARIADIC "
-      | otherwise = ""
+    varadicPrefix a = if pgaVar a then "VARIADIC " else mempty
 
     sourceBody :: SqlFragment
     sourceBody

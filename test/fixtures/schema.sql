@@ -1072,9 +1072,9 @@ create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bo
   select num, str, b;
 $$ language sql;
 
-CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[]) RETURNS text
+CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[]) RETURNS text[]
 LANGUAGE SQL AS $_$
-  SELECT 'Hi'::text
+  SELECT $1
 $_$;
 
 create or replace function test.raise_pt402() returns void as $$

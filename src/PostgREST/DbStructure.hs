@@ -151,9 +151,9 @@ decodeProcs =
     parseArg :: Text -> Maybe PgArg
     parseArg arg =
       let isVariadic = isPrefixOf "VARIADIC " $ toS arg
-          argNoInout = lastDef "" $ splitOn "INOUT " arg
-          argNoVariadic = lastDef "" $ splitOn "VARIADIC " argNoInout
-          (body, def) = breakOn " DEFAULT " argNoVariadic
+          -- argmode can be IN, OUT, INOUT, or VARIADIC
+          argNoMode = lastDef "" $ splitOn (if isVariadic then "VARIADIC " else "INOUT ") arg
+          (body, def) = breakOn " DEFAULT " argNoMode
           (name, typ) = breakOn " " body in
       if T.null typ
          then Nothing
