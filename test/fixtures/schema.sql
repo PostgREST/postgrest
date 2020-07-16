@@ -254,6 +254,23 @@ AS $_$
   SELECT json_typeof(arg);
 $_$;
 
+
+CREATE FUNCTION array_argument(arg TEXT[]) RETURNS text[]
+LANGUAGE SQL AS $_$
+  SELECT arg
+$_$;
+
+
+CREATE FUNCTION generic_argument(arg INT[]) RETURNS INT[]
+LANGUAGE SQL AS $_$
+  SELECT arg
+$_$;
+
+CREATE FUNCTION generic_argument(arg INT) RETURNS INT[]
+LANGUAGE SQL AS $_$
+  SELECT generic_argument(ARRAY[arg])
+$_$;
+
 --
 -- Name: jwt_test(); Type: FUNCTION; Schema: test; Owner: -
 --
@@ -1085,7 +1102,7 @@ $$ language sql;
 
 CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[]) RETURNS text[]
 LANGUAGE SQL AS $_$
-  SELECT $1
+  SELECT v
 $_$;
 
 create or replace function test.raise_pt402() returns void as $$

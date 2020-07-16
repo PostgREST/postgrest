@@ -189,12 +189,19 @@ userApiRequest confSchemas rootSpec req reqBody
         json <- csvToJson <$> CSV.decodeByName reqBody
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
       (CTOther "application/x-www-form-urlencoded", _) ->
-        let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
+        let json = mapFromListWithMultiple . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
         Right $ ProcessedJSON (JSON.encode json) keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
-  rpcPrmsToJson = ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) (S.fromList $ fst <$> rpcQParams)
+  rpcPrmsToJson = ProcessedJSON (JSON.encode $ mapFromListWithMultiple $ second JSON.toJSON <$> rpcQParams) (S.fromList $ fst <$> rpcQParams)
+  mapFromListWithMultiple ls = map listToValue $ M.fromListWith reverseConcat . map valueToList $ ls
+    where
+        reverseConcat a b = b ++ a
+        valueToList (k,v) = (k,[v])
+        listToValue xs = case xs of
+          [v] -> v
+          _   -> JSON.toJSON xs
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of

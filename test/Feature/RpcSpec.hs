@@ -396,6 +396,47 @@ spec actualPgVersion =
               [json|"string"|]
               { matchHeaders = [matchContentTypeJson] }
 
+    context "repeated params as array" $ do
+      context "in query string for GET" $ do
+        it "without single item overload" $ do
+          get "/rpc/array_argument?arg=a&arg=b&arg=c"
+            `shouldRespondWith`
+              [json|["a", "b", "c"]|]
+          get "/rpc/array_argument?arg=a"
+            `shouldRespondWith` 400
+
+        it "with single item overload" $ do
+          get "/rpc/generic_argument?arg=1&arg=2&arg=3"
+            `shouldRespondWith`
+              [json|[1, 2, 3]|]
+          get "/rpc/generic_argument?arg=1"
+            `shouldRespondWith`
+              [json|[1]|]
+
+      context "in x-www-form-urlencoded body for POST" $ do
+        it "without single item overload" $ do
+          request methodPost "/rpc/array_argument"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "arg=a&arg=b&arg=c"
+            `shouldRespondWith`
+              [json|["a", "b", "c"]|]
+          request methodPost "/rpc/array_argument"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "arg=a"
+            `shouldRespondWith` 400
+
+        it "with single item overload" $ do
+          request methodPost "/rpc/generic_argument"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "arg=1&arg=2&arg=3"
+            `shouldRespondWith`
+              [json|[1, 2, 3]|]
+          request methodPost "/rpc/generic_argument"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "arg=1"
+            `shouldRespondWith`
+              [json|[1]|]
+
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $ do
         request methodPost "/rpc/sayhello"
@@ -496,6 +537,18 @@ spec actualPgVersion =
         get "/rpc/variadic_param?v=%7Bhi,hello,there%7D"
           `shouldRespondWith`
             [json|["hi", "hello", "there"]|]
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "works with repeated params" $
+        get "/rpc/variadic_param?v=hi&v=hello&v=there"
+          `shouldRespondWith`
+            [json|["hi", "hello", "there"]|]
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "works with single param" $
+        get "/rpc/variadic_param?v=hi"
+          `shouldRespondWith`
+            [json|["hi"]|]
             { matchHeaders = [matchContentTypeJson] }
 
     it "can handle procs with args that have a DEFAULT value" $ do
