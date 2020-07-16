@@ -425,7 +425,8 @@ spec = do
                   "boolean",
                   "date",
                   "money",
-                  "enum"
+                  "enum",
+                  "arr"
                 ],
                 "properties": {
                   "double": {
@@ -450,6 +451,10 @@ spec = do
                   },
                   "enum": {
                     "format": "enum_menagerie_type",
+                    "type": "string"
+                  },
+                  "arr": {
+                    "format": "text[]",
                     "type": "string"
                   },
                   "integer": {

@@ -221,23 +221,34 @@ CREATE FUNCTION varied_arguments(
   date date,
   money money,
   enum enum_menagerie_type,
+  arr text[],
   "integer" integer default 42,
   json json default '{}',
   jsonb jsonb default '{}'
-) RETURNS text
-    LANGUAGE sql
+) RETURNS json
+LANGUAGE sql
 AS $_$
-  SELECT 'Hi'::text;
+  SELECT json_build_object(
+    'double', double,
+    'varchar', "varchar",
+    'boolean', "boolean",
+    'date', date,
+    'money', money,
+    'enum', enum,
+    'arr', arr,
+    'integer', "integer",
+    'json', json,
+    'jsonb', jsonb
+  );
 $_$;
 
-COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, integer, json, jsonb) IS
+COMMENT ON FUNCTION varied_arguments(double precision, character varying, boolean, date, money, enum_menagerie_type, text[], integer, json, jsonb) IS
 $_$An RPC function
 
 Just a test for RPC function arguments$_$;
 
 
 CREATE FUNCTION json_argument(arg json) RETURNS text
-
 LANGUAGE sql
 AS $_$
   SELECT json_typeof(arg);
