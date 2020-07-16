@@ -170,3 +170,10 @@ spec actualPgVersion = describe "authorization" $ do
           { matchStatus = 400
           , matchHeaders = []
           }
+
+  it "allows 'Bearer' and 'bearer' as authentication schemes" $ do
+    let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0"
+    request methodGet "/authors_only" [authHeader "Bearer" token] ""
+      `shouldRespondWith` 200
+    request methodGet "/authors_only" [authHeader "bearer" token] ""
+      `shouldRespondWith` 200

@@ -263,6 +263,7 @@ userApiRequest confSchemas rootSpec req reqBody
   auth = fromMaybe "" $ lookupHeader hAuthorization
   tokenStr = case T.split (== ' ') (toS auth) of
     ("Bearer" : t : _) -> t
+    ("bearer" : t : _) -> t
     _                  -> ""
   endingIn:: [Text] -> Text -> Bool
   endingIn xx key = lastWord `elem` xx
