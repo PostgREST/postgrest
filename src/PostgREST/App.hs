@@ -66,7 +66,7 @@ import Protolude                  hiding (Proxy, intercalate, toS)
 import Protolude.Conv             (toS)
 
 postgrest :: LogSetup -> IORef AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
-postgrest logS refConf refDbStructure pool getTime worker =
+postgrest logS refConf refDbStructure pool getTime connWorker =
   pgrstMiddleware logS $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
@@ -100,7 +100,8 @@ postgrest logS refConf refDbStructure pool getTime worker =
                     txMode = transactionMode proc (iAction apiRequest)
                   dbResp <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
                   return $ either (errorResponseFor . PgError authed) identity dbResp
-        when (responseStatus response == status503) worker
+        -- Launch the connWorker when the connection is down. The postgrest function can respond successfully(with a stale schema cache) before the connWorker is done.
+        when (responseStatus response == status503) connWorker
         respond response
 
 transactionMode :: Maybe ProcDescription -> Action -> HT.Mode

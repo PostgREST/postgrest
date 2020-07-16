@@ -45,6 +45,112 @@ import System.Posix.Signals
 import UnixSocket
 #endif
 
+-- | This is where everything starts.
+main :: IO ()
+main = do
+  --
+  -- LineBuffering: the entire output buffer is flushed whenever a newline is
+  -- output, the buffer overflows, a hFlush is issued or the handle is closed
+  --
+  -- NoBuffering: output is written immediately and never stored in the buffer
+  hSetBuffering stdout LineBuffering
+  hSetBuffering stdin LineBuffering
+  hSetBuffering stderr NoBuffering
+
+  -- read path from commad line
+  path <- readPathShowHelp
+
+  -- build the 'AppConfig' from the config file path
+  conf <- readValidateConfig path
+
+  -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
+  let
+    host = configHost conf
+    port = configPort conf
+    maybeSocketAddr = configSocket conf
+    socketFileMode = configSocketMode conf
+    dbUri = toS (configDbUri conf)
+    (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
+    serverSettings =
+        setHost ((fromString . toS) host) -- Warp settings
+      . setPort port
+      . setServerName (toS $ "postgrest/" <> prettyVersion) $
+      defaultSettings
+    poolSize = configPoolSize conf
+    poolTimeout = configPoolTimeout' conf
+
+  -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
+  pool <- P.acquire (poolSize, poolTimeout, dbUri)
+
+  -- Used to sync the listener(NOTIFY reload) with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
+  mvarConnectionStatus <- newEmptyMVar
+
+  -- No schema cache at the start. Will be filled in by the connectionWorker
+  refDbStructure <- newIORef Nothing
+
+  -- Helper ref to make sure just one connectionWorker can run at a time
+  refIsWorkerOn <- newIORef False
+
+  -- Config that can change at runtime
+  refConf <- newIORef conf
+
+  -- This is passed to the connectionWorker method so it can kill the main thread if the PostgreSQL's version is not supported.
+  mainTid <- myThreadId
+
+  let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
+
+  -- Sets the initial refDbStructure
+  connWorker
+
+#ifndef mingw32_HOST_OS
+  -- Only for systems with signals:
+  --
+  -- releases the connection pool whenever the program is terminated,
+  -- see https://github.com/PostgREST/postgrest/issues/268
+  forM_ [sigINT, sigTERM] $ \sig ->
+    void $ installHandler sig (Catch $ do
+        P.release pool
+        throwTo mainTid UserInterrupt
+      ) Nothing
+
+  -- The SIGUSR1 signal updates the internal 'DbStructure' by running 'connectionWorker' exactly as before.
+  void $ installHandler sigUSR1 (
+    Catch connWorker
+    ) Nothing
+
+  -- Re-read the config on SIGUSR2
+  void $ installHandler sigUSR2 (
+    Catch $ reReadConfig path refConf
+    ) Nothing
+#endif
+
+  -- reload schema cache on NOTIFY
+  when dbChannelEnabled $
+    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker
+
+  -- ask for the OS time at most once per second
+  getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
+
+  let postgrestApplication =
+        postgrest
+          LogStdout
+          refConf
+          refDbStructure
+          pool
+          getTime
+          connWorker
+
+#ifndef mingw32_HOST_OS
+  -- run the postgrest application with user defined socket. Only for UNIX systems.
+  whenJust maybeSocketAddr $
+    runAppInSocket serverSettings postgrestApplication socketFileMode
+#endif
+
+  -- run the postgrest application
+  whenNothing maybeSocketAddr $ do
+    putStrLn $ ("Listening on port " :: Text) <> show port
+    runSettings serverSettings postgrestApplication
+
 -- Time constants
 _32s :: Int
 _32s = 32000000 :: Int -- 32 seconds
@@ -53,9 +159,8 @@ _1s :: Int
 _1s  = 1000000  :: Int -- 1 second
 
 {-|
-  The purpose of this worker is to fill the refDbStructure created in 'main'
-  with the 'DbStructure' returned from calling 'getDbStructure'. This method
-  is meant to be called by multiple times by the same thread, but does nothing if
+  The purpose of this worker is to obtain a healthy connection to pg and an up-to-date schema cache(DbStructure).
+  This method is meant to be called by multiple times by the same thread, but does nothing if
   the previous invocation has not terminated. In all cases this method does not
   halt the calling thread, the work is preformed in a separate thread.
 
@@ -69,11 +174,11 @@ _1s  = 1000000  :: Int -- 1 second
   3. Obtains the dbStructure.
 -}
 connectionWorker
-  :: ThreadId -- ^ Main thread id. Killed if pg version is unsupported
-  -> P.Pool   -- ^ The PostgreSQL connection pool
-  -> IORef AppConfig
-  -> IORef (Maybe DbStructure) -- ^ mutable reference to 'DbStructure'
-  -> IORef Bool                -- ^ Used as a binary Semaphore
+  :: ThreadId                      -- ^ Main thread id. Killed if pg version is unsupported
+  -> P.Pool                        -- ^ The pg connection pool
+  -> IORef AppConfig               -- ^ mutable reference to AppConfig
+  -> IORef (Maybe DbStructure)     -- ^ mutable reference to 'DbStructure'
+  -> IORef Bool                    -- ^ Used as a binary Semaphore
   -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
 connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
@@ -83,7 +188,6 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
     void $ forkIO work
   where
     work = do
-      atomicWriteIORef refDbStructure Nothing
       putStrLn ("Attempting to connect to the database..." :: Text)
       connected <- connectionStatus pool
       when dbChannelEnabled $
@@ -96,29 +200,13 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
           fillSchemaCache pool actualPgVersion refConf refDbStructure
           liftIO $ atomicWriteIORef refIsWorkerOn False
 
-fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
-fillSchemaCache pool actualPgVersion refConf refDbStructure = do
-  conf <- readIORef refConf
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) actualPgVersion
-  case result of
-    Left e -> do
-      -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
-      -- It's not a problem though, because App.postgrest would retry the connectionWorker or the user can do a SIGSUR1 again.
-      hPutStrLn stderr . toS . errorPayload $ PgError False e
-      putStrLn ("Failed to load the schema cache" :: Text)
-
-    Right dbStructure -> do
-      atomicWriteIORef refDbStructure $ Just dbStructure
-      putStrLn ("Schema cache loaded" :: Text)
-
 {-|
-  Used by 'connectionWorker' to check if the provided db-uri lets
-  the application access the PostgreSQL database. This method is used
-  the first time the connection is tested, but only to test before
-  calling 'getDbStructure' inside the 'connectionWorker' method.
+  Check if a connection from the pool allows access to the PostgreSQL database.
+  If not, the pool connections are released and a new connection is tried.
+  Releasing the pool is key for rapid recovery. Otherwise, the pool timeout would have to be reached for new healthy connections to be acquired.
+  Which might not happen if the server is busy with requests. No idle connection, no pool timeout.
 
-  The connection tries are capped, but if the connection times out no error is
-  thrown, just 'False' is returned.
+  The connection tries are capped, but if the connection times out no error is thrown, just 'False' is returned.
 -}
 connectionStatus :: P.Pool -> IO ConnectionStatus
 connectionStatus pool =
@@ -150,9 +238,25 @@ connectionStatus pool =
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
 
+-- | Fill the DbStructure by using a connection from the pool
+fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
+fillSchemaCache pool actualPgVersion refConf refDbStructure = do
+  conf <- readIORef refConf
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) actualPgVersion
+  case result of
+    Left e -> do
+      -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
+      -- It's not a problem though, because App.postgrest would retry the connectionWorker or the user can do a SIGSUR1 again.
+      hPutStrLn stderr . toS . errorPayload $ PgError False e
+      putStrLn ("Failed to load the schema cache" :: Text)
+
+    Right dbStructure -> do
+      atomicWriteIORef refDbStructure $ Just dbStructure
+      putStrLn ("Schema cache loaded" :: Text)
+
 {-|
   Starts a dedicated pg connection to LISTEN for notifications.
-  When a NOTIFY channel(with an empty payload) is done, it refills the schema cache.
+  When a NOTIFY <db-channel> - with an empty payload - is done, it refills the schema cache.
   It uses the connectionWorker in case the LISTEN connection dies.
 -}
 listener :: ByteString -> Text -> P.Pool -> IORef AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
@@ -194,115 +298,6 @@ reReadConfig path refConf = do
   conf <- readValidateConfig path
   atomicWriteIORef refConf conf
   putStrLn ("Config file reloaded" :: Text)
-
--- | This is where everything starts.
-main :: IO ()
-main = do
-  --
-  -- LineBuffering: the entire output buffer is flushed whenever a newline is
-  -- output, the buffer overflows, a hFlush is issued or the handle is closed
-  --
-  -- NoBuffering: output is written immediately and never stored in the buffer
-  hSetBuffering stdout LineBuffering
-  hSetBuffering stdin LineBuffering
-  hSetBuffering stderr NoBuffering
-
-  -- read path from commad line
-  path <- readPathShowHelp
-
-  -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig path
-
-  -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
-  let
-    host = configHost conf
-    port = configPort conf
-    maybeSocketAddr = configSocket conf
-    socketFileMode = configSocketMode conf
-    dbUri = toS (configDbUri conf)
-    (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
-    serverSettings =
-        setHost ((fromString . toS) host) -- Warp settings
-      . setPort port
-      . setServerName (toS $ "postgrest/" <> prettyVersion) $
-      defaultSettings
-    poolSize = configPoolSize conf
-    poolTimeout = configPoolTimeout' conf
-
-  -- create connection pool with the provided settings, returns either
-  -- a 'Connection' or a 'ConnectionError'. Does not throw.
-  pool <- P.acquire (poolSize, poolTimeout, dbUri)
-
-  -- Used to sync the listener with the connectionWorker. No connection for the listener at first. Only used if dbChannelEnabled=true.
-  mvarConnectionStatus <- newEmptyMVar
-
-  -- To be filled in by connectionWorker
-  refDbStructure <- newIORef Nothing
-
-  -- Helper ref to make sure just one connectionWorker can run at a time
-  refIsWorkerOn <- newIORef False
-
-  -- Config that can change at runtime
-  refConf <- newIORef conf
-
-  -- This is passed to the connectionWorker method so it can kill the main
-  -- thread if the PostgreSQL's version is not supported.
-  mainTid <- myThreadId
-
-  let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
-
-  -- Sets the initial refDbStructure
-  connWorker
-
-#ifndef mingw32_HOST_OS
-  -- Only for systems with signals:
-  --
-  -- releases the connection pool whenever the program is terminated,
-  -- see https://github.com/PostgREST/postgrest/issues/268
-  forM_ [sigINT, sigTERM] $ \sig ->
-    void $ installHandler sig (Catch $ do
-        P.release pool
-        throwTo mainTid UserInterrupt
-      ) Nothing
-
-  -- Plus the SIGUSR1 signal updates the internal 'DbStructure' by running
-  -- 'connectionWorker' exactly as before.
-  void $ installHandler sigUSR1 (
-    Catch connWorker
-    ) Nothing
-
-  -- Re-read the config on SIGUSR2
-  void $ installHandler sigUSR2 (
-    Catch $ reReadConfig path refConf
-    ) Nothing
-#endif
-
-  -- reload schema cache on NOTIFY
-  when dbChannelEnabled $
-    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker
-
-  -- ask for the OS time at most once per second
-  getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
-
-  let postgrestApplication =
-        postgrest
-          LogStdout
-          refConf
-          refDbStructure
-          pool
-          getTime
-          connWorker
-
-#ifndef mingw32_HOST_OS
-  -- run the postgrest application with user defined socket. Only for UNIX systems.
-  whenJust maybeSocketAddr $
-    runAppInSocket serverSettings postgrestApplication socketFileMode
-#endif
-
-  -- run the postgrest application
-  whenNothing maybeSocketAddr $ do
-    putStrLn $ ("Listening on port " :: Text) <> show port
-    runSettings serverSettings postgrestApplication
 
 -- Utilitarian functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
