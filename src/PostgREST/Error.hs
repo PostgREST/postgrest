@@ -185,6 +185,7 @@ pgErrorStatus authed (P.SessionError (H.QueryError _ _ (H.ResultError rError))) 
         '0':'P':_ -> HT.status403 -- invalid role specification
         "23503"   -> HT.status409 -- foreign_key_violation
         "23505"   -> HT.status409 -- unique_violation
+        "25006"   -> HT.status405 -- read_only_sql_transaction
         '2':'5':_ -> HT.status500 -- invalid tx state
         '2':'8':_ -> HT.status403 -- invalid auth specification
         '2':'D':_ -> HT.status500 -- invalid tx termination

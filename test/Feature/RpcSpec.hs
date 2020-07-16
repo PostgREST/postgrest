@@ -616,8 +616,8 @@ spec actualPgVersion =
 
     context "only for GET rpc" $ do
       it "should fail on mutating procs" $ do
-        get "/rpc/callcounter" `shouldRespondWith` 500
-        get "/rpc/setprojects?id_l=1&id_h=5&name=FreeBSD" `shouldRespondWith` 500
+        get "/rpc/callcounter" `shouldRespondWith` 405
+        get "/rpc/setprojects?id_l=1&id_h=5&name=FreeBSD" `shouldRespondWith` 405
 
       it "should filter a proc that has arg name = filter name" $
         get "/rpc/get_projects_below?id=5&id=gt.2&select=id" `shouldRespondWith`
