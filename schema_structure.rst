@@ -20,20 +20,36 @@ This allows you to change the internals of your schema and maintain backwards co
 Functions
 =========
 
-By default, when a function is created, the privilege to execute it is not restricted by role. The function access is PUBLIC—executable by all roles(more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
+By default, when a function is created, the privilege to execute it is not restricted by role. The function access is PUBLIC—executable by all roles (more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
 
 .. code-block:: postgres
 
-  ALTER DEFAULT PRIVILEGES IN SCHEMA api REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+  ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
-See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/static/sql-alterdefaultprivileges.html>`_ for more details.
+This will change the privileges for all functions created in the future in all schemas. Currently there is no way to limit it to a single schema. In our opinion it's a good practice anyway.
+
+.. note::
+
+    It is however possible to limit the effect of this clause only to functions you define. You can put the above statement at the beginning of the API schema definition, and then at the end reverse it with:
+
+    .. code-block:: postgres
+
+        ALTER DEFAULT PRIVILEGES GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
+    This will work because the :code:`alter default privileges` statement has effect on function created *after* it is executed. See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/static/sql-alterdefaultprivileges.html>`_ for more details.
 
 After that, you'll need to grant EXECUTE privileges on functions explicitly:
 
 .. code-block:: postgres
 
    GRANT EXECUTE ON FUNCTION login TO anonymous;
-   GRANT EXECUTE ON FUNCTION reset_password TO web_user;
+   GRANT EXECUTE ON FUNCTION signup TO anonymous;
+
+You can also grant execute on all functions in a schema to a higher privileged role:
+
+.. code-block:: postgres
+
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA api TO web_user;
 
 Security definer
 ----------------
