@@ -271,6 +271,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         (shouldCount iPreferCount)
         (iAcceptContentType == CTTextCSV)
         (iAcceptContentType == CTTextXML)
+        (iAcceptContentType == CTGeoJSON)
         bField
         configDbPreparedStatements
 
@@ -464,6 +465,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (iAcceptContentType == CTSingularJSON)
         (iAcceptContentType == CTTextCSV)
         (iAcceptContentType == CTTextXML)
+        (iAcceptContentType == CTGeoJSON)
         (iPreferParameters == Just MultipleObjects)
         bField
         (configDbPreparedStatements ctxConfig)
@@ -551,6 +553,7 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
         (iAcceptContentType ctxApiRequest == CTSingularJSON)
         isInsert
         (iAcceptContentType ctxApiRequest == CTTextCSV)
+        (iAcceptContentType ctxApiRequest == CTGeoJSON)
         (iPreferRepresentation ctxApiRequest)
         pkCols
         (configDbPreparedStatements ctxConfig)
