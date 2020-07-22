@@ -11,6 +11,7 @@ module PostgREST.Query.SqlFragment
   , SqlFragment
   , asBinaryF
   , asCsvF
+  , asGeoJsonF
   , asJsonF
   , asJsonSingleF
   , asXmlF
@@ -181,6 +182,9 @@ asJsonSingleF returnsScalar
 
 asXmlF :: FieldName -> SqlFragment
 asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
+
+asGeoJsonF ::  SqlFragment
+asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"

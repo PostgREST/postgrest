@@ -18,6 +18,7 @@ import Protolude
 data ContentType
   = CTApplicationJSON
   | CTSingularJSON
+  | CTGeoJSON
   | CTTextCSV
   | CTTextPlain
   | CTTextXML
@@ -40,6 +41,7 @@ toHeader ct = (hContentType, toMime ct <> charset)
 -- | Convert from ContentType to a ByteString representing the mime type
 toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
+toMime CTGeoJSON         = "application/geo+json"
 toMime CTTextCSV         = "text/csv"
 toMime CTTextPlain       = "text/plain"
 toMime CTTextXML         = "text/xml"
@@ -55,6 +57,7 @@ decodeContentType :: BS.ByteString -> ContentType
 decodeContentType ct =
   case BS.takeWhile (/= BS.c2w ';') ct of
     "application/json"                  -> CTApplicationJSON
+    "application/geo+json"              -> CTGeoJSON
     "text/csv"                          -> CTTextCSV
     "text/plain"                        -> CTTextPlain
     "text/xml"                          -> CTTextXML

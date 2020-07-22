@@ -43,10 +43,10 @@ import Protolude
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
-createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->
+createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> Bool ->
                         SQL.Statement () ResultsWithCount
-createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
+createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv asGeoJson rep pKeys =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -74,6 +74,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   bodyF
     | rep /= Full = "''"
     | asCsv = asCsvF
+    | asGeoJson = asGeoJsonF
     | wantSingle = asJsonSingleF False
     | otherwise = asJsonF False
 
@@ -86,9 +87,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->  Bool -> Maybe FieldName -> Bool ->
+createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->  Bool -> Bool -> Maybe FieldName -> Bool ->
                        SQL.Statement () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml binaryField =
+createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml asGeoJson binaryField =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -109,6 +110,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml binar
   bodyF
     | asCsv = asCsvF
     | isSingle = asJsonSingleF False
+    | asGeoJson = asGeoJsonF
     | isJust binaryField && asXml = asXmlF $ fromJust binaryField
     | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF False
@@ -130,9 +132,9 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
+                     Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
                      SQL.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv asXml multObjects binaryField =
+callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv asXml asGeoJson multObjects binaryField =
   SQL.dynamicallyParameterized snippet decodeProc
   where
     snippet =
@@ -152,6 +154,7 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
     bodyF
      | asSingle           = asJsonSingleF returnsScalar
      | asCsv              = asCsvF
+     | asGeoJson = asGeoJsonF
      | isJust binaryField && asXml = asXmlF $ fromJust binaryField
      | isJust binaryField = asBinaryF $ fromJust binaryField
      | returnsSingle

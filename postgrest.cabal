@@ -199,6 +199,7 @@ test-suite spec
                       Feature.Query.JsonOperatorSpec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.ErrorSpec
+                      Feature.Query.PostGISSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec
                       Feature.Query.RangeSpec

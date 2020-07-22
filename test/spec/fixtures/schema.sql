@@ -2649,3 +2649,23 @@ CREATE TABLE test.bulk_update_items_cpk (
   observation TEXT,
   PRIMARY KEY (id, name)
 );
+
+create extension if not exists postgis with schema extensions;
+
+create table shops (
+  id        int primary key
+, address   text
+, shop_geom extensions.geometry(POINT, 4326)
+);
+
+create table shop_bles (
+  id         int primary key
+, name       text
+, coords     extensions.geometry(POINT, 4326)
+, range_area extensions.geometry(POLYGON, 4326)
+, shop_id    int references shops(id)
+);
+
+create function get_shop(id int) returns shops as $$
+  select * from shops where id = $1;
+$$ language sql;

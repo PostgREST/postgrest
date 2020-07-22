@@ -431,7 +431,7 @@ requestContentTypes conf action path =
         ++ rawContentTypes conf
         ++ [CTOpenAPI | pIsRootSpec path]
     defaultContentTypes =
-      [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+      [CTApplicationJSON, CTSingularJSON, CTGeoJSON, CTTextCSV]
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =

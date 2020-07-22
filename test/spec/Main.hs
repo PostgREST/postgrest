@@ -44,6 +44,7 @@ import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
+import qualified Feature.Query.PostGISSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
@@ -199,8 +200,9 @@ main = do
       describe "Feature.Query.ErrorSpec" Feature.Query.ErrorSpec.spec
 
     -- this test runs with an extra search path
-    parallel $ before extraSearchPathApp $
+    parallel $ before extraSearchPathApp $ do
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
+      describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec actualPgVersion
 
     -- this test runs with a root spec function override
     parallel $ before rootSpecApp $

@@ -29,6 +29,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2268, Allow returning XML from single-column queries - @fjf2002
  - #2300, RPC POST for function w/single unnamed XML param #2300 - @fjf2002
  - #1959, Bulk update with PATCH - @steve-chavez
+ - #1564, Allow geojson output by specifying the `Accept: application/geo+json` media type - @steve-chavez
+   + Requires postgis >= 3.0
+   + Works for GET, RPC, POST/PATCH/DELETE with `Prefer: return=representation`.
+   + Resource embedding works and the embedded rows will go into the `properties` key
+   + In case of multiple geometries in the same table, you can choose which one will go into the `geometry` key with the usual `?select` query parameter.
 
 ### Fixed
 
