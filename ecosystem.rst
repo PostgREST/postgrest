@@ -47,6 +47,7 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
 
+* `vbalasu/pg-notify-webhook <https://pypi.org/project/pg-notify-webhook/>`_ - Trigger webhooks from postgres LISTEN/NOTIFY
 * `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
 * `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
