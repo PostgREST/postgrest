@@ -98,10 +98,10 @@ decodeRels tables cols =
     <$> column HD.text
     <*> column HD.text
     <*> column HD.text
-    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
+    <*> arrayColumn HD.text
     <*> column HD.text
     <*> column HD.text
-    <*> column (HD.array (HD.dimension replicateM (element HD.text)))
+    <*> arrayColumn HD.text
 
 decodePks :: [Table] -> HD.Result [PrimaryKey]
 decodePks tables =
