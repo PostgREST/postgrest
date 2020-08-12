@@ -729,7 +729,7 @@ spec actualPgVersion =
           request methodPost "/rpc/ret_base64_bin" (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
             { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
         it "can get raw output with Accept: text/plain" $
@@ -744,7 +744,7 @@ spec actualPgVersion =
           request methodPost "/rpc/ret_rows_with_base64_bin?select=img" (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
             { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
         it "fails if a single column is not selected" $
