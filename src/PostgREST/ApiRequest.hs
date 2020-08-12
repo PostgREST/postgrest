@@ -188,7 +188,7 @@ userApiRequest confSchemas rootSpec req reqBody
       (CTTextCSV, _) -> do
         json <- csvToJson <$> CSV.decodeByName reqBody
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-      (CTOther "application/x-www-form-urlencoded", _) ->
+      (CTUrlEncoded, _) ->
         let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
         Right $ ProcessedJSON (JSON.encode json) keys
