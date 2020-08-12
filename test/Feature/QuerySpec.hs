@@ -791,7 +791,7 @@ spec actualPgVersion = do
       request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
         }
 
     it "can get raw output with Accept: text/plain" $
@@ -817,7 +817,7 @@ spec actualPgVersion = do
       request methodGet "/images_base64?select=img&name=in.(A.png,B.png)" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream; charset=utf-8"]
+        , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
         }
 
   describe "values with quotes in IN and NOT IN" $ do
