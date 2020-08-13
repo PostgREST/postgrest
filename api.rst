@@ -882,7 +882,7 @@ To create a row in a database table post a JSON object whose keys are the names 
 
   { "col1": "value1", "col2": "value2" }
 
-The response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
+If the table has a primary key, the response will include a :code:`Location` header describing where to find the new object. If the table is write-only then constructing the Location header will cause a permissions error. To successfully insert an item to a write-only table you will need to suppress the Location response header by including the request header :code:`Prefer: return=minimal`.
 
 On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
 
@@ -1148,13 +1148,15 @@ PostgreSQL has four procedural languages that are part of the core distribution:
 Immutable and stable functions
 ------------------------------
 
-Procedures in PostgreSQL marked with :code:`stable` or :code:`immutable` `volatility <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ can only read, not modify, the database and PostgREST executes them in a read-only transaction compatible for read-replicas. Stable and immutable functions can be called with the HTTP GET verb if desired.
+PostgREST executes POST requests in a read/write transaction except for functions marked as ``IMMUTABLE`` or ``STABLE``. Those must not modify the database and are executed in a read-only transaction compatible for read-replicas.
+
+Procedures that do not modify the database can be called with the HTTP GET verb as well, if desired. PostgREST executes all GET requests in a read-only transaction. Modifying the database inside read-only transactions is not possible and calling volatile functions with GET will fail.
 
 .. note::
 
-  The volatility marker is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``immutable/stable`` without failure.  However the function will fail when called through PostgREST since it executes it in a read-only transaction.
+  The `volatility marker <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  However, because of the read-only transaction this would still fail with PostgREST.
 
-Because ``add_them`` was declared IMMUTABLE, we can alternately call the function with a GET request:
+Because ``add_them`` is ``IMMUTABLE``, we can alternately call the function with a GET request:
 
 .. code-block:: http
 
@@ -1226,6 +1228,8 @@ as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is
     { "arr": "{1,2,3,4}" }
 
    In these versions we recommend using function parameters of type json to accept arrays from the client.
+
+.. _s_procs_variadic:
 
 Scalar functions
 ----------------
@@ -1635,6 +1639,8 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | 23505                    | 409                     | uniqueness violation            |
 +--------------------------+-------------------------+---------------------------------+
+| 25006                    | 405                     | read only sql transaction       |
++--------------------------+-------------------------+---------------------------------+
 | 25*                      | 500                     | invalid transaction state       |
 +--------------------------+-------------------------+---------------------------------+
 | 28*                      | 403                     | invalid auth specification      |
@@ -1678,4 +1684,3 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
-
