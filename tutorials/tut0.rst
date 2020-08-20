@@ -46,7 +46,7 @@ The pre-built binaries for download are :code:`.tar.xz` compressed files (except
 
   # download from https://github.com/PostgREST/postgrest/releases/latest
 
-  tar xfJ postgrest-<version>-<platform>.tar.xz
+  tar xJf postgrest-<version>-<platform>.tar.xz
 
 The result will be a file named simply :code:`postgrest` (or :code:`postgrest.exe` on Windows). At this point try running it with
 
