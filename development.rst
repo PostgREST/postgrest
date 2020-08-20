@@ -33,7 +33,8 @@ To help with development, you'll need to build from source. `Stack <https://gith
 
 .. note::
 
-   If building fails and your system has less than 1GB of memory, try adding a swap file.
+   - If building fails and your system has less than 1GB of memory, try adding a swap file.
+   - `--install-ghc` flag is only needed for the first build and can be omitted in the subsequent builds.
 
 * Check that the server is installed: :code:`postgrest --help`.
 
