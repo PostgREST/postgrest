@@ -196,3 +196,8 @@ attribute with useful utilities that will be put on the PATH in `nix-shell`.
 
 Our overlays to the Nix package set are defined here. They allow us to tweak our
 `pkgs` in `default.nix` by adding new packages or overriding existing ones.
+
+## Upgrading dependencies
+
+See the [upgrading checklist](UPGRADE.md) for how to upgrade the PostgREST
+dependencies.
