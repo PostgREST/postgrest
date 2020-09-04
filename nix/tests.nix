@@ -108,16 +108,17 @@ let
 in
 # Create an environment that contains all the utility scripts for running tests
   # that we defined above.
-buildEnv {
-  name =
-    "postgrest-tests";
+buildEnv
+  {
+    name =
+      "postgrest-tests";
 
-  paths =
-    [
-      (testSpec "postgrest-test-spec" postgresql)
-      testSpecAllVersions
-    ] ++ testSpecVersions;
-}
+    paths =
+      [
+        (testSpec "postgrest-test-spec" postgresql)
+        testSpecAllVersions
+      ] ++ testSpecVersions;
+  }
   # The IO an memory tests have large dependencies (a static and a profiled
   # build of PostgREST respectively) and are run less often than the spec
   # tests, so we don't include them in the default test environment. We make
