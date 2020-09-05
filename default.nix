@@ -35,6 +35,7 @@ let
       allOverlays.gitignore
       allOverlays.ghr
       (allOverlays.haskell-packages { inherit compiler; })
+      allOverlays.locust
     ];
 
   # Evaluated expression of the Nixpkgs repository.

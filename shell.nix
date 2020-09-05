@@ -27,6 +27,7 @@ lib.overrideDerivation postgrest.env (
         pkgs.cabal-install
         pkgs.cabal2nix
         pkgs.postgresql
+        pkgs.locust
         postgrest.nixpkgsUpgrade
         postgrest.devtools
         postgrest.tests
