@@ -61,6 +61,7 @@ library
                     , cookie                    >= 0.4.2 && < 0.5
                     , either                    >= 4.4.1 && < 5.1
                     , fast-logger               >= 2.4.5
+                    , file-embed                >= 0.0.11.0 && < 0.0.12
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-pool                >= 0.5 && < 0.6
@@ -137,6 +138,7 @@ executable postgrest
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
                       -O2 -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
+  extra-source-files: src/PostgREST/dbstructure.sql
 
   if !os(windows)
     build-depends: unix

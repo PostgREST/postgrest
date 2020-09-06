@@ -11,6 +11,8 @@ import Control.Lens.Getter (view)
 import Control.Lens.Tuple  (_1)
 
 import qualified Data.Aeson               as JSON
+import qualified Data.Aeson               as Aeson
+import Data.Aeson (FromJSON)
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
 import qualified Data.ByteString.Lazy     as BL
@@ -26,6 +28,13 @@ import Data.Tree
 import PostgREST.RangeQuery (NonnegRange)
 import Protolude            hiding (toS)
 import Protolude.Conv       (toS)
+
+aesonOptions :: Aeson.Options
+aesonOptions =
+    Aeson.defaultOptions
+        { Aeson.fieldLabelModifier = Aeson.camelTo2 '_'
+        }
+
 
 -- | Enumeration of currently supported response content types
 data ContentType = CTApplicationJSON | CTSingularJSON
@@ -123,14 +132,14 @@ data PgArg = PgArg {
   pgaName :: Text
 , pgaType :: Text
 , pgaReq  :: Bool
-} deriving (Show, Eq, Ord)
+} deriving (Show, Eq, Ord, Generic)
 
 data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
 
 data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord)
 
 data ProcVolatility = Volatile | Stable | Immutable
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Generic)
 
 data ProcDescription = ProcDescription {
   pdSchema      :: Schema
@@ -200,7 +209,7 @@ data Table = Table {
 , tableName        :: TableName
 , tableDescription :: Maybe Text
 , tableInsertable  :: Bool
-} deriving (Show, Ord)
+} deriving (Show, Ord, Generic)
 
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
@@ -208,7 +217,7 @@ instance Eq Table where
 tableQi :: Table -> QualifiedIdentifier
 tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
 
-newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
+newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord, Generic)
 
 data Column =
     Column {
@@ -224,7 +233,7 @@ data Column =
     , colDefault     :: Maybe Text
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
-    } deriving (Show, Ord)
+    } deriving (Show, Ord, Generic)
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
@@ -269,7 +278,7 @@ instance Hashable QualifiedIdentifier
 data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2O -- ^ many-to-one,  previously known as Child
                  | M2M -- ^ many-to-many, previously known as Many
-                 deriving Eq
+                 deriving (Eq, Generic)
 instance Show Cardinality where
   show O2M = "o2m"
   show M2O = "m2o"
@@ -485,7 +494,7 @@ fstFieldNames (Node (sel, _) _) =
 data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 instance Ord PgVersion where
   (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
@@ -540,3 +549,38 @@ data ConnectionStatus
   deriving (Eq, Show)
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq, Show)
+
+
+instance FromJSON PgArg where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON Column where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON PgVersion where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON ForeignKey where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON Cardinality where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON Table where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON QualifiedIdentifier where
+    parseJSON =
+        Aeson.genericParseJSON aesonOptions
+
+instance FromJSON ProcVolatility where
+  parseJSON (Aeson.String "v") = pure Volatile
+  parseJSON (Aeson.String "s") = pure Stable
+  parseJSON (Aeson.String "i") = pure Immutable
+  parseJSON _ = empty
