@@ -17,3 +17,4 @@ result*
 dist-newstyle
 postgrest.hp
 postgrest.prof
+__pycache__

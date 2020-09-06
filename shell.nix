@@ -31,6 +31,7 @@ lib.overrideDerivation postgrest.env (
         postgrest.nixpkgsUpgrade
         postgrest.devtools
         postgrest.tests
+        postgrest.loadtest
       ]
       ++ lib.optional ioTests postgrest.tests.ioTests
       ++ lib.optional memoryTests postgrest.tests.memoryTests

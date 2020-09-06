@@ -108,9 +108,12 @@ rec {
   nixpkgsUpgrade =
     pkgs.callPackage nix/nixpkgs-upgrade.nix { };
 
+  withTmpDb =
+    pkgs.callPackage nix/withtmpdb.nix { };
+
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions; };
+    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions withTmpDb; };
 
   # Development tools, including linting and styling scripts.
   devtools =
@@ -122,4 +125,7 @@ rec {
       inherit docker;
       postgrest = postgrestStatic;
     };
+
+  loadtest =
+    pkgs.callPackage nix/loadtest.nix { inherit withTmpDb; postgrest = postgrestStatic; };
 }

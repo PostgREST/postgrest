@@ -11,6 +11,7 @@
 , pyquery
 , pyzmq
 , requests
+, requests-unixsocket
 , unittest2
 }:
 
@@ -37,6 +38,7 @@ buildPythonPackage rec {
       pyquery
       pyzmq
       requests
+      requests-unixsocket
     ];
   checkInputs = [ mock unittest2 ];
   # remove file which attempts to do GET request
