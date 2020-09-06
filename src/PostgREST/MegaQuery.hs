@@ -38,12 +38,12 @@ getDbStructure schemas baseDbStructure =
       newDbStructure = parseDbStructure raw
 
     return Types.DbStructure
-      { Types.dbTables = Types.dbTables newDbStructure
+      { Types.pgVersion = Types.pgVersion newDbStructure
+      , Types.dbTables = Types.dbTables newDbStructure
+      , Types.dbProcs = Types.dbProcs newDbStructure
       , Types.dbColumns = Types.dbColumns baseDbStructure
       , Types.dbRelations = Types.dbRelations baseDbStructure
       , Types.dbPrimaryKeys = Types.dbPrimaryKeys baseDbStructure
-      , Types.dbProcs = Types.dbProcs newDbStructure
-      , Types.pgVersion = Types.pgVersion baseDbStructure
       }
 
 
