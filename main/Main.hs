@@ -31,6 +31,7 @@ import PostgREST.Config      (AppConfig (..), configPoolTimeout',
                               prettyVersion, readPathShowHelp,
                               readValidateConfig)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import qualified PostgREST.DbStructure as DbStructure
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
@@ -242,7 +243,8 @@ connectionStatus pool =
 fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
 fillSchemaCache pool actualPgVersion refConf refDbStructure = do
   conf <- readIORef refConf
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) actualPgVersion
+  mode <- DbStructure.getMode
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure mode (toList $ configSchemas conf) actualPgVersion
   case result of
     Left e -> do
       -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.

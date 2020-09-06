@@ -16,6 +16,7 @@ import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Types       (LogLevel (..), pgVersion95, pgVersion96)
+import qualified PostgREST.DbStructure as DbStructure
 import Protolude             hiding (toList, toS)
 import Protolude.Conv        (toS)
 import SpecHelper
@@ -57,11 +58,13 @@ main = do
 
   testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
 
+  mode <- DbStructure.getMode
+
   pool <- P.acquire (3, 10, toS testDbConn)
 
   actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
 
-  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ testCfg testDbConn) actualPgVersion
+  refDbStructure <- (newIORef . Just) =<< setupDbStructure mode pool (configSchemas $ testCfg testDbConn) actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
@@ -71,7 +74,7 @@ main = do
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
-      dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
+      dbs <- (newIORef . Just) =<< setupDbStructure mode pool (configSchemas $ cfg testDbConn) actualPgVersion
       refConf <- newIORef $ cfg testDbConn
       return ((), postgrest LogCrit refConf dbs pool getTime $ pure ())
 
@@ -187,5 +190,5 @@ main = do
       describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
 
   where
-    setupDbStructure pool schemas ver =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) ver)
+    setupDbStructure mode pool schemas ver =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure mode (toList schemas) ver)

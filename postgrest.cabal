@@ -36,6 +36,7 @@ library
                       PostgREST.OpenAPI
                       PostgREST.Parsers
                       PostgREST.QueryBuilder
+                      PostgREST.MegaQuery
                       PostgREST.Statements
                       PostgREST.RangeQuery
                       PostgREST.Types

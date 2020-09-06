@@ -20,6 +20,8 @@ module PostgREST.DbStructure (
 , accessibleProcs
 , schemaDescription
 , getPgVersion
+, getMode
+, DbStructureMode
 ) where
 
 import qualified Data.HashMap.Strict as M
@@ -30,7 +32,9 @@ import qualified Hasql.Encoders      as HE
 import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
+import qualified System.IO.Error as E
 
+import System.Environment            (getEnv)
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
@@ -42,9 +46,34 @@ import Text.InterpolatedString.Perl6 (q, qc)
 
 import PostgREST.Private.Common
 import PostgREST.Types
+import qualified PostgREST.MegaQuery as MegaQuery
 
-getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schemas pgVer = do
+
+data DbStructureMode = ClassicMode | MegaMode deriving (Eq, Show)
+
+
+getDbStructure :: DbStructureMode -> [Schema] -> PgVersion -> HT.Transaction DbStructure
+getDbStructure mode schemas pgVer =
+  do
+    dbStructure <- getDbStructureClassic schemas pgVer
+    case mode of
+      ClassicMode -> pure dbStructure
+      MegaMode -> MegaQuery.getDbStructure schemas dbStructure
+
+getMode :: IO DbStructureMode
+getMode =
+  modeFromString <$> getEnvVarWithDefault "POSTGREST_MEGAQUERY" ""
+
+getEnvVarWithDefault :: Text -> Text -> IO Text
+getEnvVarWithDefault var def = do
+  toS <$> getEnv (toS var) `E.catchIOError` const (return $ toS def)
+
+modeFromString :: Text -> DbStructureMode
+modeFromString str =
+  if str == "" then ClassicMode else MegaMode
+
+getDbStructureClassic :: [Schema] -> PgVersion -> HT.Transaction DbStructure
+getDbStructureClassic schemas pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () allTables
   cols    <- HT.statement schemas $ allColumns tabs
