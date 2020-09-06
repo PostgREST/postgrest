@@ -35,10 +35,10 @@ getDbStructure schemas baseDbStructure =
     HT.sql "set local schema ''"
     raw <- getRawDbStructure schemas
     let
-      _ = parseDbStructure raw
+      newDbStructure = parseDbStructure raw
 
     return Types.DbStructure
-      { Types.dbTables = Types.dbTables baseDbStructure
+      { Types.dbTables = Types.dbTables newDbStructure
       , Types.dbColumns = Types.dbColumns baseDbStructure
       , Types.dbRelations = Types.dbRelations baseDbStructure
       , Types.dbPrimaryKeys = Types.dbPrimaryKeys baseDbStructure

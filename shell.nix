@@ -26,7 +26,7 @@ lib.overrideDerivation postgrest.env (
       base.buildInputs ++ [
         pkgs.cabal-install
         pkgs.cabal2nix
-        pkgs.postgresql
+        pkgs.postgresql_9_4
         postgrest.nixpkgsUpgrade
         postgrest.devtools
         postgrest.tests

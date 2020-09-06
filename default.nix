@@ -111,7 +111,9 @@ rec {
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions; };
+    pkgs.callPackage nix/tests.nix {
+      inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions;
+    };
 
   # Development tools, including linting and styling scripts.
   devtools =

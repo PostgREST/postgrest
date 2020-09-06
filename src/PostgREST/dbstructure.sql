@@ -187,7 +187,7 @@ with
       c.relkind in ('v', 'm')
       and n.nspname = any ($1::name[])
 */
-),
+  ),
 
 
   -- Primary keys
@@ -376,7 +376,7 @@ with
     select * from table_view_m2o_rel_cols
     union all
     select * from view_view_m2o_rel_cols
-  ),
+/*  ),
 
   m2o_rels as (
     select
@@ -404,7 +404,7 @@ with
       m2o_rel_cols
     group by rel_constraint, rel_table_oid, rel_f_table_oid
     order by rel_table_oid, rel_col_map
-/*  ),
+*//*  ),
 
   m2m_rels as (
     select
@@ -451,7 +451,7 @@ with
       and left_cols <> right_cols
       and array_length(junction_col_maps.junction_col_map, 1) = 1
 
-*/  ),
+*/ /* ),
 
   rels as (
     select
@@ -471,7 +471,7 @@ with
       rel_col_map,
       null::json as rel_junction
     from o2m_rels
-/*
+*//*
     union all
     select
       'M2M' as rel_type,
@@ -491,9 +491,9 @@ select
     'raw_db_schemas', coalesce(schemas_agg.array_agg, array[]::record[]),
     'raw_db_tables', coalesce(tables_agg.array_agg, array[]::record[]),
     'raw_db_columns', coalesce(columns_agg.array_agg, array[]::record[]),
-    --'raw_db_m2o_rels', coalesce(m2o_rels_agg.array_agg, array[]::record[]),
+    'raw_db_m2o_rels', coalesce(null, array[]::record[]),
     --'raw_db_view_col_rels', coalesce(view_col_rels_agg.array_agg, array[]::record[]),
-    'raw_db_rels', coalesce(rels_agg.array_agg, array[]::record[]),
+    'raw_db_rels', coalesce(null, array[]::record[]),
     'raw_db_pg_ver', pg_version
   ) as dbstructure
 from
@@ -503,5 +503,5 @@ from
   (select array_agg(columns order by col_table_oid, col_position) from columns) as columns_agg,
   --(select array_agg(m2o_rels) from m2o_rels) as m2o_rels_agg,
   --(select array_agg(view_col_rels) from view_col_rels) as view_col_rels_agg,
-  (select array_agg(rels) from rels) as rels_agg,
+  --(select array_agg(rels) from rels) as rels_agg,
   pg_version
