@@ -12,7 +12,7 @@ let
   src =
     pkgs.lib.sourceFilesBySuffices
       (pkgs.gitignoreSource ./.)
-      [ ".cabal" ".hs" ".lhs" "LICENSE" ];
+      [ ".cabal" ".hs" ".lhs" ".sql" "LICENSE" ];
 
   # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion =

@@ -42,7 +42,7 @@ getDbStructure schemas baseDbStructure =
       , Types.dbColumns = Types.dbColumns baseDbStructure
       , Types.dbRelations = Types.dbRelations baseDbStructure
       , Types.dbPrimaryKeys = Types.dbPrimaryKeys baseDbStructure
-      , Types.dbProcs = Types.dbProcs baseDbStructure
+      , Types.dbProcs = Types.dbProcs newDbStructure
       , Types.pgVersion = Types.pgVersion baseDbStructure
       }
 
@@ -128,12 +128,12 @@ loadRelation tabs cols raw =
     <*> M.lookup (relFTableOid raw) tabs
 
 loadRelation' :: RawRelation -> Columns -> Maybe Types.Junction -> RawTable -> RawTable -> Types.Relation
-loadRelation' raw cols junc tab fTab =
-  let
-    lookupCol :: RawTable -> ColPosition -> Maybe RawColumn
-    lookupCol t pos =
-      M.lookup (tableOid t, pos) cols
-  in
+loadRelation' raw _ junc tab fTab =
+  --let
+  --  lookupCol :: RawTable -> ColPosition -> Maybe RawColumn
+  --  lookupCol t pos =
+  --    M.lookup (tableOid t, pos) cols
+  --in
   Types.Relation
     { Types.relTable = loadTable tab
     , Types.relFTable = loadTable fTab
@@ -174,7 +174,7 @@ loadJunction' raw cols tab =
 
 procsMap :: [ProcDescription] -> ProcsMap
 procsMap procs =
-  M.fromListWith (++) . map (\(x,y) -> (x, [y])) . sort $ map addKey procs
+  M.fromListWith (++) . reverse . map (\(x,y) -> (x, [y])) . sort $ map addKey procs
 
 loadProc :: RawProcDescription -> ProcDescription
 loadProc raw =
