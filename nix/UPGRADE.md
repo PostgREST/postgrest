@@ -31,9 +31,6 @@ nixpkgs-upgrade > nix/nixpkgs-version.nix
 
 # Exit the nix-shell with Ctrl-d
 
-# Alternatively, in one step
-nix-shell --run nixpkgs-upgrade > nix/nixpkgs-version.nix
-
 ```
 
 ## Update pinned version of `static-haskell-nix`
