@@ -12,8 +12,8 @@ self: super:
       gitignoreSrc = super.fetchFromGitHub {
         owner = "hercules-ci";
         repo = "gitignore";
-        rev = "2ced4519f865341adcb143c5d668f955a2cb997f";
-        sha256 = "sha256:0fc5bgv9syfcblp23y05kkfnpgh3gssz6vn24frs8dzw39algk2z";
+        rev = "c4662e662462e7bf3c2a968483478a665d00e717";
+        sha256 = "1npnx0h6bd0d7ql93ka7azhj40zgjp815fw2r6smg8ch9p7mzdlx";
       };
     in
     (super.callPackage gitignoreSrc { }).gitignoreSource;

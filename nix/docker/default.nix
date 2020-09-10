@@ -57,7 +57,8 @@ let
         docker load -i ${image}
       '';
 in
-buildEnv {
-  name = "postgrest-docker";
-  paths = [ load ];
-} // { inherit image config; }
+buildEnv
+  {
+    name = "postgrest-docker";
+    paths = [ load ];
+  } // { inherit image config; }

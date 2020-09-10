@@ -12,4 +12,7 @@ buildGoModule rec {
   };
 
   vendorSha256 = "14avsngzhl1b8a05i43ph6sxh9vj0jls0acxr9j7r0h3f0vpamcj";
+
+  # Disabling tests, as they require a GitHub API token
+  doCheck = false;
 }
