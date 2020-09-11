@@ -167,14 +167,18 @@ jobs:
       - run:
           name: Build all derivations from default.nix and push results to Cachix
           command: |
+            # nix-build-uncached wraps nix-build and avoids downloading derivations that
+            # already have been cached.
+            nix-env -iA pkgs.nix-build-uncached -f default.nix
+            
             # Only push to the cache when CircleCI makes the CACHIX_SIGNING_KEY
             # available (e.g. not for pull requests).
             if [ -n "${CACHIX_SIGNING_KEY:-""}" ]; then
               echo "Building and caching all derivations..."
-              nix-build | cachix push postgrest
+              nix-build-uncached | cachix push postgrest
             else
               echo "Building all derivations (caching skipped for outside pull requests)..."
-              nix-build
+              nix-build-uncached
             fi
 
   # Run tests against all supported PostgreSQL versions.
