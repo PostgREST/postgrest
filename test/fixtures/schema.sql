@@ -1683,19 +1683,21 @@ declare
   user_agent text := current_setting('request.header.user-agent', true);
   req_path   text := current_setting('request.path', true);
   req_accept text := current_setting('request.header.accept', true);
+  req_method text := current_setting('request.method', true);
 begin
   if user_agent similar to 'MSIE (6.0|7.0)' then
     perform set_config('response.headers',
-      '[{"Cache-Control": "no-cache, no-store, must-revalidate"}]', false);
+      '[{"Cache-Control": "no-cache, no-store, must-revalidate"}]', true);
   elsif req_path similar to '/(items|projects)' and req_accept = 'text/csv' then
     perform set_config('response.headers',
-      format('[{"Content-Disposition": "attachment; filename=%s.csv"}]', trim('/' from req_path)), false);
+      format('[{"Content-Disposition": "attachment; filename=%s.csv"}]', trim('/' from req_path)), true);
   elsif req_path similar to '/(clients|rpc/getallprojects)' then
     perform set_config('response.headers',
-      '[{"Content-Type": "application/geo+json"}]', false);
-  else
+      '[{"Content-Type": "application/custom+json"}]', true);
+  elsif req_path = '/items' and
+        req_method similar to 'POST|PATCH|PUT|DELETE' then
     perform set_config('response.headers',
-      '[{"X-Custom-Header": "mykey=myval"}]', false);
+      '[{"X-Custom-Header": "mykey=myval"}]', true);
   end if;
 end; $$ language plpgsql;
 
