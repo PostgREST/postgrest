@@ -3,7 +3,7 @@ module Feature.RpcSpec where
 import qualified Data.ByteString.Lazy as BL (empty)
 
 import Network.Wai      (Application)
-import Network.Wai.Test (SResponse (simpleBody, simpleStatus, simpleHeaders))
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
 import Test.Hspec          hiding (pendingWith)
@@ -772,28 +772,32 @@ spec actualPgVersion =
 
     context "pgrst.accept" $ do
       it "can get raw output with Accept: */* and Accept: text/html" $ do
-        request methodGet "/rpc/hello.html" [] ""
+        request methodGet "/rpc/images.html" [] ""
           `shouldRespondWith`
           [str|
               |<html>
               |  <head>
-              |    <title>Hello from PostgREST</title>
+              |    <title>Images from PostgREST</title>
               |  </head>
               |  <body>
+              |    <img src="./ret_image?name=A.png" alt="A"/>
+              |    <img src="./ret_image?name=B.png" alt="B"/>
               |  </body>
               |</html>
               |]
           { matchStatus = 200
           , matchHeaders = ["Content-Type" <:> "text/html"]
           }
-        request methodGet "/rpc/hello.html" (acceptHdrs "text/html") ""
+        request methodGet "/rpc/images.html" (acceptHdrs "text/html") ""
           `shouldRespondWith`
           [str|
               |<html>
               |  <head>
-              |    <title>Hello from PostgREST</title>
+              |    <title>Images from PostgREST</title>
               |  </head>
               |  <body>
+              |    <img src="./ret_image?name=A.png" alt="A"/>
+              |    <img src="./ret_image?name=B.png" alt="B"/>
               |  </body>
               |</html>
               |]
@@ -803,17 +807,37 @@ spec actualPgVersion =
 
       when (actualPgVersion >= pgVersion96) $ do
         it "can be overriden by setting response.headers" $
-          request methodGet "/rpc/hello.html?add_charset=true" [] ""
-            `shouldRespondWith`
-            [str|
-                |<html>
-                |  <head>
-                |    <title>Hello from PostgREST</title>
-                |  </head>
-                |  <body>
-                |  </body>
-                |</html>
-                |]
+          request methodHead "/rpc/images.html?add_charset=true" [] ""
+            `shouldRespondWith` ""
             { matchStatus = 200
             , matchHeaders = ["Content-Type" <:> "text/html; charset=utf-8"]
+            }
+
+      context "Firefox/Chrome images requests" $ do
+        it "should work on <img> requests" $ do
+          let chromeAcceptHdrs = acceptHdrs "image/webp,image/apng,image/*,*/*;q=0.8"
+              firefoxAcceptHdrs = acceptHdrs "image/webp,*/*"
+          request methodHead "/rpc/ret_image?name=A.png" chromeAcceptHdrs ""
+            `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "image/png"]
+            }
+          request methodHead "/rpc/ret_image?name=A.png" firefoxAcceptHdrs ""
+            `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "image/png"]
+            }
+
+        it "should work on navigation requests(right click -> view image)" $ do
+          let chromeAcceptHdrs = acceptHdrs "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3"
+              firefoxAcceptHdrs = acceptHdrs "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          request methodHead "/rpc/ret_image?name=A.png" chromeAcceptHdrs ""
+            `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "image/png"]
+            }
+          request methodHead "/rpc/ret_image?name=A.png" firefoxAcceptHdrs ""
+            `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Type" <:> "image/png"]
             }

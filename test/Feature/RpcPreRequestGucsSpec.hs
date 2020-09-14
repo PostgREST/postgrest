@@ -11,7 +11,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import Protolude       hiding (get)
+import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWith ((), Application)

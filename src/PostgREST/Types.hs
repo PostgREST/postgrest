@@ -54,7 +54,8 @@ toMime CTOctetStream     = "application/octet-stream"
 toMime CTAny             = "*/*"
 toMime (CTOther ct)      = ct
 
--- | Convert from ByteString to ContentType. Warning: discards MIME parameters
+-- | Convert from ByteString to ContentType.
+-- | Warning: discards MIME parameters. e.g. On `text/csv;version=1`, the `version=1` part is removed.
 decodeContentType :: BS.ByteString -> ContentType
 decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
   "application/json"                  -> CTApplicationJSON
@@ -146,14 +147,15 @@ data ProcDescription = ProcDescription {
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
+, pdAccept      :: Maybe Text
 } deriving (Show, Eq)
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription schema1 name1 des1 args1 rt1 vol1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2
+  ProcDescription schema1 name1 des1 args1 rt1 vol1 accept1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2 accept2
     | schema1 == schema2 && name1 == name2 && length args1 < length args2  = LT
     | schema2 == schema2 && name1 == name2 && length args1 > length args2  = GT
-    | otherwise = (schema1, name1, des1, args1, rt1, vol1) `compare` (schema2, name2, des2, args2, rt2, vol2)
+    | otherwise = (schema1, name1, des1, args1, rt1, vol1, accept1) `compare` (schema2, name2, des2, args2, rt2, vol2, accept2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.

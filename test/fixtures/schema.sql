@@ -1779,3 +1779,34 @@ create function v2.get_parents_below(id int)
 returns setof v2.parents as $$
   select * from v2.parents where id < $1;
 $$ language sql;
+
+-- For manual testing, on a browser try:
+-- http://localhost:3000/rpc/ret_image?name=A.png
+-- http://localhost:3000/rpc/ret_image?name=B.png
+-- Both urls should show an image
+create or replace function ret_image(name text) returns bytea as $$
+  select img from images where name = $1;
+$$ language sql set pgrst.accept = 'image/png';
+
+-- For manual testing, on a browser try: http://localhost:3000/rpc/images.html
+-- It should show images of letters "A" and "B"
+create or replace function "images.html"(add_charset bool default false) returns text as $_$ begin
+if add_charset then
+  perform set_config('response.headers',
+    '[{"Content-Type": "text/html; charset=utf-8"}]', true);
+end if;
+return $$
+<html>
+  <head>
+    <title>Images from PostgREST</title>
+  </head>
+  <body>
+    <img src="./ret_image?name=A.png" alt="A"/>
+    <img src="./ret_image?name=B.png" alt="B"/>
+  </body>
+</html>
+$$::text;
+end $_$ language plpgsql
+set pgrst.accept = 'text/html'
+set other.config = 'other'
+set another.config = 'another';

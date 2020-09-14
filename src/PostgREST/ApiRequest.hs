@@ -114,6 +114,7 @@ userApiRequest confSchemas rootSpec req reqBody
       , iTarget = target
       , iRange = ranges
       , iTopLevelRange = topLevelRange
+      -- parseHttpAccept already sorts the media types based on "q" parameters. e.g. "*/*;q=0.1,text/html;q=0.3" becomes ["text/html", "*/*"]
       , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
