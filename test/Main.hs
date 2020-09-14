@@ -36,14 +36,13 @@ import qualified Feature.JsonOperatorSpec
 import qualified Feature.MultipleSchemaSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
-import qualified Feature.PgVersion95Spec
-import qualified Feature.PgVersion96Spec
 import qualified Feature.ProxySpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
 import qualified Feature.RawOutputTypesSpec
 import qualified Feature.RootSpec
+import qualified Feature.RpcPreRequestGucsSpec
 import qualified Feature.RpcSpec
 import qualified Feature.SingularSpec
 import qualified Feature.StructureSpec
@@ -110,7 +109,6 @@ main = do
         , ("Feature.StructureSpec"           , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
         , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
-        , ("Feature.PgVersion95Spec"         , Feature.PgVersion95Spec.spec)
         ]
 
       mutSpecs = uncurry describe <$> [
@@ -173,12 +171,13 @@ main = do
     before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
-    -- this test runs with a root spec function override
+
     when (actualPgVersion >= pgVersion96) $ do
+      -- this test runs with a root spec function override
       before rootSpecApp $
         describe "Feature.RootSpec" Feature.RootSpec.spec
       before responseHeadersApp $
-        describe "Feature.PgVersion96Spec" Feature.PgVersion96Spec.spec
+        describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
 
     -- this test runs with multiple schemas
     before multipleSchemaApp $
