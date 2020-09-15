@@ -771,8 +771,24 @@ spec actualPgVersion =
             }
 
     context "pgrst.accept" $ do
-      it "can get raw output with Accept: */* and Accept: text/html" $ do
+      it "can get raw output with no Accept header, Accept: */* and Accept: text/html" $ do
         request methodGet "/rpc/images.html" [] ""
+          `shouldRespondWith`
+          [str|
+              |<html>
+              |  <head>
+              |    <title>Images from PostgREST</title>
+              |  </head>
+              |  <body>
+              |    <img src="./ret_image?name=A.png" alt="A"/>
+              |    <img src="./ret_image?name=B.png" alt="B"/>
+              |  </body>
+              |</html>
+              |]
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "text/html"]
+          }
+        request methodGet "/rpc/images.html" (acceptHdrs "*/*") ""
           `shouldRespondWith`
           [str|
               |<html>
@@ -812,6 +828,14 @@ spec actualPgVersion =
             { matchStatus = 200
             , matchHeaders = ["Content-Type" <:> "text/html; charset=utf-8"]
             }
+
+      it "should fail for default types or unknown types" $ do
+        request methodGet "/rpc/images.html" (acceptHdrs "application/json") ""
+          `shouldRespondWith` 415
+        request methodGet "/rpc/images.html" (acceptHdrs "text/csv") ""
+          `shouldRespondWith` 415
+        request methodGet "/rpc/images.html" (acceptHdrs "application/unknown") ""
+          `shouldRespondWith` 415
 
       context "Firefox/Chrome images requests" $ do
         it "should work on <img> requests" $ do
