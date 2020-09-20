@@ -39,6 +39,7 @@ Example Apps
 * `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
 * `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth back-end
 * `marmelab/ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
+* `seveibar/postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - Run postgrest on Vercel (Serverless/AWS Lambda)
 
 .. _eco_external_notification:
 
@@ -69,6 +70,7 @@ Extensions
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
 * `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
 * `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
+* `seveibar/postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a postgrest server in NodeJS via an npm module
 
 .. _clientside_libraries:
 
