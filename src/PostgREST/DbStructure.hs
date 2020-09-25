@@ -351,7 +351,7 @@ addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _) -> [rel, Relation ft fc
 addM2MRels :: [Relation] -> [Relation]
 addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
   where
-    junctions = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==M2O). relType) rels
+    junctions = join $ map (combinations 2) $ groupWith groupFn $ filter ( (==M2O). relType) rels
     groupFn :: Relation -> Text
     groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s <> "_" <> t
     -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
