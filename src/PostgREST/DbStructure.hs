@@ -363,7 +363,7 @@ addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
       Relation{relTable=jt, relColumns=jc1, relConstraint=const1, relFTable=t,  relFColumns=c},
       Relation{             relColumns=jc2, relConstraint=const2, relFTable=ft, relFColumns=fc}
       ]
-      | jc1 /= jc2 && length jc1 == 1 && length jc2 == 1 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
+      | jc1 /= jc2 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
       | otherwise = Nothing
     junction2Rel _ = Nothing
     addMirrorRel = concatMap (\rel@(Relation t c _ ft fc _ (Just (Junction jt const1 jc1 const2 jc2))) ->
