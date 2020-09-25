@@ -15,7 +15,7 @@ To help with development, you'll need to build from source. `Stack <https://gith
   =====================  =======================================
   Operating System       Dependencies
   =====================  =======================================
-  Ubuntu/Debian          libpq-dev, libgmp-dev
+  Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev
   CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
   BSD                    postgresql95-client
   OS X                   libpq, gmp
