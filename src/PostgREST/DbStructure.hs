@@ -352,7 +352,7 @@ addM2MRels :: [Relation] -> [Relation]
 addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
   where
     junctions = join $ map (combinations 2) $ groupWith groupFn $ filter ( (==M2O). relType) rels
-    groupFn :: Relation -> (Text,Text) 
+    groupFn :: Relation -> (Text,Text)
     groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = (s,t)
     -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
     combinations :: Int -> [a] -> [[a]]
