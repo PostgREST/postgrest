@@ -686,7 +686,7 @@ CREATE TABLE touched_files (
 	FOREIGN KEY (user_id, task_id)
 	REFERENCES users_tasks (user_id, task_id)
 	ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_upload 
+    CONSTRAINT fk_upload
 	FOREIGN KEY (project_id, filename)
 	REFERENCES files (project_id,filename)
 	ON DELETE CASCADE ON UPDATE CASCADE
