@@ -8,17 +8,16 @@ Description : Sets CORS policy. Also the PostgreSQL GUCs, role, search_path and 
 
 module PostgREST.Middleware where
 
-import qualified Data.Aeson                as JSON
-import qualified Data.ByteString.Char8     as BS
-import qualified Data.CaseInsensitive      as CI
-import           Data.Function             (id)
-import qualified Data.HashMap.Strict       as M
-import           Data.List                 (lookup)
-import           Data.Scientific           (FPFormat (..),
-                                            formatScientific,
-                                            isInteger)
-import qualified Data.Text                 as T
-import qualified Hasql.Transaction         as H
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.CaseInsensitive  as CI
+import           Data.Function         (id)
+import qualified Data.HashMap.Strict   as M
+import           Data.List             (lookup)
+import           Data.Scientific       (FPFormat (..),
+                                        formatScientific, isInteger)
+import qualified Data.Text             as T
+import qualified Hasql.Transaction     as H
 import           Network.HTTP.Types.Status (Status, status400,
                                             status500, statusCode)
 import           Network.Wai.Logger        (showSockAddr)
@@ -33,7 +32,7 @@ import Network.Wai.Middleware.Static        (only, staticPolicy)
 
 import PostgREST.ApiRequest   (ApiRequest (..))
 import PostgREST.Config       (AppConfig (..))
-import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
+import PostgREST.QueryBuilder (setConfigLocal)
 import PostgREST.Types        (LogLevel (..))
 import Protolude              hiding (head, toS)
 import Protolude.Conv         (toS)
@@ -44,23 +43,24 @@ runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
                (ApiRequest -> H.Transaction Response) ->
                ApiRequest  -> H.Transaction Response
 runPgLocals conf claims app req = do
-  H.sql $ toS . mconcat $ setSearchPathSql : setRoleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql
-  traverse_ H.sql preReq
+  H.sql . toS $ "select " <> T.intercalate ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql)
+  traverse_ H.sql preReqSql
   app req
   where
-    methodSql = setLocalQuery mempty ("request.method", toS $ iMethod req)
-    pathSql = setLocalQuery mempty ("request.path", toS $ iPath req)
-    headersSql = setLocalQuery "request.header." <$> iHeaders req
-    cookiesSql = setLocalQuery "request.cookie." <$> iCookies req
-    claimsSql = setLocalQuery "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
-    appSettingsSql = setLocalQuery mempty <$> configAppSettings conf
-    setRoleSql = maybeToList $ (\x ->
-      setLocalQuery mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
-    setSearchPathSql = setLocalSearchPathQuery (iSchema req : configDbExtraSearchPath conf)
-    -- role claim defaults to anon if not specified in jwt
-    claimsWithRole = M.union claims (M.singleton "role" anon)
-    anon = JSON.String . toS $ configDbAnonRole conf
-    preReq = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
+    methodSql = setConfigLocal mempty ("request.method", toS $ iMethod req)
+    pathSql = setConfigLocal mempty ("request.path", toS $ iPath req)
+    headersSql = setConfigLocal "request.header." <$> iHeaders req
+    cookiesSql = setConfigLocal "request.cookie." <$> iCookies req
+    claimsWithRole =
+      let anon = JSON.String . toS $ configDbAnonRole conf in -- role claim defaults to anon if not specified in jwt
+      M.union claims (M.singleton "role" anon)
+    claimsSql = setConfigLocal "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
+    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
+    appSettingsSql = setConfigLocal mempty <$> configAppSettings conf
+    searchPathSql =
+      let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
+      setConfigLocal mempty ("search_path", schemas)
+    preReqSql = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
 
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
