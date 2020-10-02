@@ -28,7 +28,7 @@ import Network.HTTP.Types.Header
 
 import PostgREST.Types
 import Protolude       hiding (toS)
-import Protolude.Conv  (toS)
+import Protolude.Conv  (toS, toSL)
 
 
 class (JSON.ToJSON a) => PgrstError a where
@@ -133,7 +133,7 @@ instance JSON.ToJSON P.UsageError where
   toJSON (P.ConnectionError e) = JSON.object [
     "code"    .= ("" :: Text),
     "message" .= ("Database connection error. Retrying the connection." :: Text),
-    "details" .= (toS $ fromMaybe "" e :: Text)]
+    "details" .= (toSL $ fromMaybe "" e :: Text)]
   toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
 
 instance JSON.ToJSON H.QueryError where
