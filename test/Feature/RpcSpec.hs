@@ -511,19 +511,26 @@ spec actualPgVersion =
           `shouldRespondWith` [json|{ "p1": "1", "p2": "text"}|]
           { matchHeaders = [matchContentTypeJson] }
 
-    it "should work with an overloaded function" $ do
-      get "/rpc/overloaded" `shouldRespondWith`
-        [json|[{ "overloaded": 1 },
-               { "overloaded": 2 },
-               { "overloaded": 3 }]|]
-        { matchHeaders = [matchContentTypeJson] }
-      request methodPost "/rpc/overloaded" [("Prefer","params=single-object")]
-        [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
-       `shouldRespondWith`
-        [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
-        { matchHeaders = [matchContentTypeJson] }
-      get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
-      get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [str|"123"|]
+    context "should work with an overloaded function" $ do
+      it "overloaded()" $
+        get "/rpc/overloaded" `shouldRespondWith`
+          [json|[{ "overloaded": 1 },
+                 { "overloaded": 2 },
+                 { "overloaded": 3 }]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "overloaded(json) single-object" $
+        request methodPost "/rpc/overloaded" [("Prefer","params=single-object")]
+          [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
+         `shouldRespondWith`
+          [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "overloaded(int, int)" $
+        get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
+
+      it "overloaded(text, text, text)" $
+        get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [str|"123"|]
 
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
