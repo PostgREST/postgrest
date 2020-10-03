@@ -157,13 +157,17 @@ type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
   An overloaded function can have a different volatility or even a different return type.
   Ideally, handling overloaded functions should be left to pg itself. But we need to know certain proc attributes in advance.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Maybe ProcDescription
-findProc qi payloadKeys paramsAsSingleObject allProcs =
-  case M.lookup qi allProcs of
-    Nothing     -> Nothing
-    Just [proc] -> Just proc           -- if it's not an overloaded function then immediately get the ProcDescription
-    Just procs  -> find matches procs  -- Handle overloaded functions case
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs = fromMaybe fallback bestMatch
   where
+    -- instead of passing Maybe ProcDescription around, we create a fallback description here when we can't find a matching function
+    -- args is empty, but because "specifiedProcArgs" will fill the missing arguments with default type text, this is not a problem
+    fallback = ProcDescription (qiSchema qi) (qiName qi) Nothing mempty (SetOf $ Composite $ QualifiedIdentifier "" "record") Volatile
+    bestMatch =
+      case M.lookup qi allProcs of
+        Nothing     -> Nothing
+        Just [proc] -> Just proc           -- if it's not an overloaded function then immediately get the ProcDescription
+        Just procs  -> find matches procs  -- Handle overloaded functions case
     matches proc =
       if paramsAsSingleObject
         -- if the arg is not of json type let the db give the err
@@ -174,12 +178,9 @@ findProc qi payloadKeys paramsAsSingleObject allProcs =
   Search the procedure parameters by matching them with the specified keys.
   If the key doesn't match a parameter, a parameter with a default type "text" is assumed.
 -}
-specifiedProcArgs :: S.Set FieldName -> Maybe ProcDescription -> [PgArg]
+specifiedProcArgs :: S.Set FieldName -> ProcDescription -> [PgArg]
 specifiedProcArgs keys proc =
-  let
-    args = maybe [] pdArgs proc
-  in
-  (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) args)) <$> S.toList keys
+  (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of

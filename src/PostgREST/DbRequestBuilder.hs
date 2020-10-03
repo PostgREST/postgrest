@@ -287,15 +287,15 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
   where
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
-mutateRequest :: Schema -> TableName -> ApiRequest -> S.Set FieldName -> [FieldName] -> ReadRequest -> Either Response MutateRequest
-mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorResponseFor $
+mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Response MutateRequest
+mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor $
   case action of
     ActionCreate -> do
         confCols <- case iOnConflict apiRequest of
             Nothing    -> pure pkCols
             Just param -> pRequestOnConflict param
-        pure $ Insert qi cols ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
-    ActionUpdate -> Update qi cols <$> combinedLogic <*> pure returnings
+        pure $ Insert qi (iColumns apiRequest) ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
+    ActionUpdate -> Update qi (iColumns apiRequest) <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
         if null (iLogic apiRequest) &&
@@ -304,7 +304,7 @@ mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorRespons
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
               _ -> False) flts
-          then Insert qi cols (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+          then Insert qi (iColumns apiRequest) (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
     ActionDelete -> Delete qi <$> combinedLogic <*> pure returnings

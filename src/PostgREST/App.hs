@@ -50,7 +50,6 @@ import PostgREST.Error            (PgError (..), SimpleError (..),
                                    errorResponseFor, singularityError)
 import PostgREST.Middleware
 import PostgREST.OpenAPI
-import PostgREST.Parsers          (pRequestColumns)
 import PostgREST.QueryBuilder     (limitedQuery, mutateRequestToQuery,
                                    readRequestToCountQuery,
                                    readRequestToQuery,
@@ -76,12 +75,10 @@ postgrest logLev refConf refDbStructure pool getTime connWorker =
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
-          let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) req body
-              -- Need to parse ?columns early because findProc needs it to solve overloaded functions.
-              apiReqCols = (,) <$> apiReq <*> (pRequestColumns . iColumns =<< apiReq)
-          case apiReqCols of
+          let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) dbStructure req body
+          case apiReq of
             Left err -> return . errorResponseFor $ err
-            Right (apiRequest, maybeCols) -> do
+            Right apiRequest -> do
               -- The jwt must be checked before touching the db.
               attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
               case jwtClaims attempt of
@@ -89,38 +86,27 @@ postgrest logLev refConf refDbStructure pool getTime connWorker =
                 Right claims -> do
                   let
                     authed = containsRole claims
-                    cols = case (iPayload apiRequest, maybeCols) of
-                      (Just ProcessedJSON{pjKeys}, _) -> pjKeys
-                      (Just RawJSON{}, Just cls)      -> cls
-                      _                               -> S.empty
-                    proc = case iTarget apiRequest of
-                      TargetProc qi _ -> findProc qi cols (iPreferParameters apiRequest == Just SingleObject) $ dbProcs dbStructure
-                      _ -> Nothing
-                    handleReq = runPgLocals conf claims (app dbStructure proc cols conf) apiRequest
-                    txMode = transactionMode proc (iAction apiRequest)
-                  dbResp <- P.use pool $ HT.transaction HT.ReadCommitted txMode handleReq
+                    handleReq = runPgLocals conf claims (app dbStructure conf) apiRequest
+                  dbResp <- P.use pool $ HT.transaction HT.ReadCommitted (txMode apiRequest) handleReq
                   return $ either (errorResponseFor . PgError authed) identity dbResp
         -- Launch the connWorker when the connection is down. The postgrest function can respond successfully(with a stale schema cache) before the connWorker is done.
         when (responseStatus response == status503) connWorker
         respond response
 
-transactionMode :: Maybe ProcDescription -> Action -> HT.Mode
-transactionMode proc action =
-  case action of
-    ActionRead _         -> HT.Read
-    ActionInfo           -> HT.Read
-    ActionInspect _      -> HT.Read
-    ActionInvoke InvGet  -> HT.Read
-    ActionInvoke InvHead -> HT.Read
-    ActionInvoke InvPost ->
-      let v = maybe Volatile pdVolatility proc in
-      if v == Stable || v == Immutable
-         then HT.Read
-         else HT.Write
+txMode :: ApiRequest -> HT.Mode
+txMode apiRequest =
+  case (iAction apiRequest, iTarget apiRequest) of
+    (ActionRead _        , _) -> HT.Read
+    (ActionInfo          , _) -> HT.Read
+    (ActionInspect _     , _) -> HT.Read
+    (ActionInvoke InvGet , _) -> HT.Read
+    (ActionInvoke InvHead, _) -> HT.Read
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _)    -> HT.Read
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) -> HT.Read
     _ -> HT.Write
 
-app :: DbStructure -> Maybe ProcDescription -> S.Set FieldName -> AppConfig -> ApiRequest -> H.Transaction Response
-app dbStructure proc cols conf apiRequest =
+app :: DbStructure -> AppConfig -> ApiRequest -> H.Transaction Response
+app dbStructure conf apiRequest =
   let rawContentTypes = (decodeContentType <$> configRawMediaTypes conf) `L.union` [ CTOctetStream, CTTextPlain ] in
   case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
@@ -210,7 +196,7 @@ app dbStructure proc cols conf apiRequest =
                 Left err -> return $ errorResponseFor err
                 Right (ghdrs, gstatus) -> do
                   let
-                    updateIsNoOp = S.null cols
+                    updateIsNoOp = S.null (iColumns apiRequest)
                     defStatus | queryTotal == 0 && not updateIsNoOp      = status404
                               | iPreferRepresentation apiRequest == Full = status200
                               | otherwise                                = status204
@@ -294,14 +280,14 @@ app dbStructure proc cols conf apiRequest =
                   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
-        (ActionInvoke invMethod, TargetProc qi@(QualifiedIdentifier tSchema pName) _, Just pJson) ->
-          let tName = fromMaybe pName $ procTableName =<< proc in
-          case readSqlParts tSchema tName of
+        (ActionInvoke invMethod, TargetProc proc@ProcDescription{pdSchema, pdName} _, Just pJson) ->
+          let tName = fromMaybe pdName $ procTableName proc in
+          case readSqlParts pdSchema tName of
             Left errorResponse -> return errorResponse
             Right (q, cq, bField, returning) -> do
               let
                 preferParams = iPreferParameters apiRequest
-                pq = requestToCallProcQuery qi (specifiedProcArgs cols proc) returnsScalar preferParams returning
+                pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc) returnsScalar preferParams returning
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
@@ -351,7 +337,10 @@ app dbStructure proc cols conf apiRequest =
         plannedCount = iPreferCount apiRequest == Just PlannedCount
         shouldCount = exactCount || estimatedCount
         topLevelRange = iTopLevelRange apiRequest
-        returnsScalar = maybe False procReturnsScalar proc
+        returnsScalar =
+          case iTarget apiRequest of
+            TargetProc proc _ -> procReturnsScalar proc
+            _                 -> False
         pgVer = pgVersion dbStructure
         profileH = contentProfileH <$> iProfile apiRequest
 
@@ -370,7 +359,7 @@ app dbStructure proc cols conf apiRequest =
         mutateSqlParts s t =
           let
             readReq = readRequest s t maxRows (dbRelations dbStructure) apiRequest
-            mutReq = mutateRequest s t apiRequest cols (tablePKCols dbStructure s t) =<< readReq
+            mutReq = mutateRequest s t apiRequest (tablePKCols dbStructure s t) =<< readReq
           in
           (,) <$>
           (readRequestToQuery <$> readReq) <*>

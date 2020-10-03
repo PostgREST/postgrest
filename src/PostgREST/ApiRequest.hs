@@ -2,8 +2,9 @@
 Module      : PostgREST.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE MultiWayIf     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module PostgREST.ApiRequest (
   ApiRequest(..)
@@ -45,6 +46,7 @@ import Web.Cookie                (parseCookiesText)
 import Data.Ranged.Boundaries
 
 import PostgREST.Error      (ApiRequestError (..))
+import PostgREST.Parsers    (pRequestColumns)
 import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
@@ -63,7 +65,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tpQi :: QualifiedIdentifier, tpIsRootSpec :: Bool}
+            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown [Text]
             deriving Eq
@@ -90,7 +92,7 @@ data ApiRequest = ApiRequest {
   , iLogic                :: [(Text, Text)]                   -- ^ &and and &or parameters used for complex boolean logic
   , iSelect               :: Maybe Text                       -- ^ &select parameter used to shape the response
   , iOnConflict           :: Maybe Text                       -- ^ &on_conflict parameter used to upsert on specific unique keys
-  , iColumns              :: Maybe Text                       -- ^ &columns parameter used to shape the payload
+  , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
   , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
   , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
   , iJWT                  :: Text                             -- ^ JSON Web Token
@@ -103,12 +105,13 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: NonEmpty Schema -> Maybe Text -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest confSchemas rootSpec req reqBody
+userApiRequest :: NonEmpty Schema -> Maybe Text -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest confSchemas rootSpec dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
+  | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = Right ApiRequest {
       iAction = action
       , iTarget = target
@@ -131,7 +134,7 @@ userApiRequest confSchemas rootSpec req reqBody
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS <$> join (lookup "select" qParams)
       , iOnConflict = toS <$> join (lookup "on_conflict" qParams)
-      , iColumns = columns
+      , iColumns = payloadColumns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
       , iCanonicalQS = toS $ urlEncodeVars
         . L.sortOn fst
@@ -174,6 +177,12 @@ userApiRequest confSchemas rootSpec req reqBody
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
     | otherwise = Nothing
+  parsedColumns = pRequestColumns columns
+  payloadColumns =
+    case (relevantPayload, fromRight Nothing parsedColumns) of
+      (Just ProcessedJSON{pjKeys}, _) -> pjKeys
+      (Just RawJSON{}, Just cls)      -> cls
+      _                               -> S.empty
   payload =
     case (contentType, action) of
       (_, ActionInvoke InvGet)  -> Right rpcPrmsToJson
@@ -226,13 +235,17 @@ userApiRequest confSchemas rootSpec req reqBody
       = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
     | otherwise = Nothing
   schema = fromMaybe defaultSchema profile
-  target = case path of
-    []            -> case rootSpec of
-                       Just pName -> TargetProc (QualifiedIdentifier schema pName) True
-                       Nothing    -> TargetDefaultSpec schema
-    [table]       -> TargetIdent $ QualifiedIdentifier schema table
-    ["rpc", proc] -> TargetProc (QualifiedIdentifier schema proc) False
-    other         -> TargetUnknown other
+  target =
+    let
+      callFindProc proc = findProc (QualifiedIdentifier schema proc) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+    in
+    case path of
+      []             -> case rootSpec of
+                        Just pName -> TargetProc (callFindProc pName) True
+                        Nothing    -> TargetDefaultSpec schema
+      [table]        -> TargetIdent $ QualifiedIdentifier schema table
+      ["rpc", pName] -> TargetProc (callFindProc pName) False
+      other          -> TargetUnknown other
 
   shouldParsePayload =
     action `elem`
