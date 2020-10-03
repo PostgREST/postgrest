@@ -268,21 +268,102 @@ spec actualPgVersion =
           { matchHeaders = [matchContentTypeJson] }
 
     context "proc argument types" $ do
-      it "accepts a variety of arguments" $
-        post "/rpc/varied_arguments"
-            [json| {
-              "double": 3.1,
-              "varchar": "hello",
-              "boolean": true,
-              "date": "20190101",
-              "money": 0,
-              "enum": "foo",
-              "integer": 43,
-              "json": {"some key": "some value"},
-              "jsonb": {"another key": [1, 2, "3"]}
-            } |]
+      -- different syntax for array needed for pg<10
+      when (actualPgVersion < pgVersion100) $
+        it "accepts a variety of arguments (Postgres < 10)" $
+          post "/rpc/varied_arguments"
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "20190101",
+                "money": 0,
+                "enum": "foo",
+                "arr": "{a,b,c}",
+                "integer": 43,
+                "json": {"some key": "some value"},
+                "jsonb": {"another key": [1, 2, "3"]}
+              } |]
+            `shouldRespondWith`
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "2019-01-01",
+                "money": "$0.00",
+                "enum": "foo",
+                "arr": ["a", "b", "c"],
+                "integer": 43,
+                "json": {"some key": "some value"},
+                "jsonb": {"another key": [1, 2, "3"]}
+              } |]
+              { matchHeaders = [matchContentTypeJson] }
+
+      when (actualPgVersion >= pgVersion100) $
+        it "accepts a variety of arguments (Postgres >= 10)" $
+          post "/rpc/varied_arguments"
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "20190101",
+                "money": 0,
+                "enum": "foo",
+                "arr": ["a", "b", "c"],
+                "integer": 43,
+                "json": {"some key": "some value"},
+                "jsonb": {"another key": [1, 2, "3"]}
+              } |]
+            `shouldRespondWith`
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "2019-01-01",
+                "money": "$0.00",
+                "enum": "foo",
+                "arr": ["a", "b", "c"],
+                "integer": 43,
+                "json": {"some key": "some value"},
+                "jsonb": {"another key": [1, 2, "3"]}
+              } |]
+              { matchHeaders = [matchContentTypeJson] }
+
+      it "accepts a variety of arguments with GET" $
+        -- without JSON / JSONB here, because passing those via query string is useless - they just become a "json string" all the time
+        get "/rpc/varied_arguments?double=3.1&varchar=hello&boolean=true&date=20190101&money=0&enum=foo&arr=%7Ba,b,c%7D&integer=43"
           `shouldRespondWith`
-            [json|"Hi"|]
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "2019-01-01",
+                "money": "$0.00",
+                "enum": "foo",
+                "arr": ["a", "b", "c"],
+                "integer": 43,
+                "json": {},
+                "jsonb": {}
+              } |]
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "accepts a variety of arguments from an html form" $
+        request methodPost "/rpc/varied_arguments"
+            [("Content-Type", "application/x-www-form-urlencoded")]
+            "double=3.1&varchar=hello&boolean=true&date=20190101&money=0&enum=foo&arr=%7Ba,b,c%7D&integer=43"
+          `shouldRespondWith`
+              [json| {
+                "double": 3.1,
+                "varchar": "hello",
+                "boolean": true,
+                "date": "2019-01-01",
+                "money": "$0.00",
+                "enum": "foo",
+                "arr": ["a", "b", "c"],
+                "integer": 43,
+                "json": {},
+                "jsonb": {}
+              } |]
             { matchHeaders = [matchContentTypeJson] }
 
       it "parses embedded JSON arguments as JSON" $
