@@ -44,6 +44,7 @@ let
 
   postgresqlVersions =
     {
+      postgresql-13 = pkgs.postgresql_13;
       postgresql-12 = pkgs.postgresql_12;
       postgresql-11 = pkgs.postgresql_11;
       postgresql-10 = pkgs.postgresql_10;
