@@ -179,10 +179,14 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
     | otherwise = Nothing
   parsedColumns = pRequestColumns columns
   payloadColumns =
-    case (relevantPayload, fromRight Nothing parsedColumns) of
-      (Just ProcessedJSON{pjKeys}, _) -> pjKeys
-      (Just RawJSON{}, Just cls)      -> cls
-      _                               -> S.empty
+    case (contentType, action) of
+      (_, ActionInvoke InvGet)                         -> S.fromList $ fst <$> rpcQParams
+      (_, ActionInvoke InvHead)                        -> S.fromList $ fst <$> rpcQParams
+      (CTOther "application/x-www-form-urlencoded", _) -> S.fromList $ map (toS . fst) $ parseSimpleQuery $ toS reqBody
+      _ -> case (relevantPayload, fromRight Nothing parsedColumns) of
+        (Just ProcessedJSON{pjKeys}, _) -> pjKeys
+        (Just RawJSON{}, Just cls)      -> cls
+        _                               -> S.empty
   payload =
     case (contentType, action) of
       (_, ActionInvoke InvGet)  -> Right rpcPrmsToJson
@@ -198,12 +202,18 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
         json <- csvToJson <$> CSV.decodeByName reqBody
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
       (CTOther "application/x-www-form-urlencoded", _) ->
-        let json = M.fromList . map (toS *** JSON.String . toS) . parseSimpleQuery $ toS reqBody
+        let json = paramsFromList . map (toS *** toS) . parseSimpleQuery $ toS reqBody
             keys = S.fromList $ M.keys json in
         Right $ ProcessedJSON (JSON.encode json) keys
       (ct, _) ->
         Left $ toS $ "Content-Type not acceptable: " <> toMime ct
-  rpcPrmsToJson = ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> rpcQParams) (S.fromList $ fst <$> rpcQParams)
+  rpcPrmsToJson = ProcessedJSON (JSON.encode $ paramsFromList rpcQParams) (S.fromList $ fst <$> rpcQParams)
+  paramsFromList ls = M.fromListWith mergeParams $ toRpcParamsWith isVariadic ls
+    where
+      isVariadic k =
+        case target of
+          TargetProc{tProc} -> argIsVariadic tProc k
+          _                 -> False
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
