@@ -469,6 +469,64 @@ spec actualPgVersion =
         get "/rpc/many_inout_params?num=1&str=two&b=false" `shouldRespondWith`
           [json| [{"num":1,"str":"two","b":false}]|] { matchHeaders = [matchContentTypeJson] }
 
+    context "procs with VARIADIC params" $ do
+      when (actualPgVersion < pgVersion100) $
+        it "works with POST (Postgres < 10)" $
+          post "/rpc/variadic_param"
+              [json| { "v": "{hi,hello,there}" } |]
+            `shouldRespondWith`
+              [json|["hi", "hello", "there"]|]
+
+      when (actualPgVersion >= pgVersion100) $ do
+        it "works with POST (Postgres >= 10)" $
+          post "/rpc/variadic_param"
+              [json| { "v": ["hi", "hello", "there"] } |]
+            `shouldRespondWith`
+              [json|["hi", "hello", "there"]|]
+
+        context "works with GET and repeated params" $ do
+          it "n=0 (through DEFAULT)" $
+            get "/rpc/variadic_param"
+              `shouldRespondWith`
+                [json|[]|]
+
+          it "n=1" $
+            get "/rpc/variadic_param?v=hi"
+              `shouldRespondWith`
+                [json|["hi"]|]
+
+          it "n>1" $
+            get "/rpc/variadic_param?v=hi&v=there"
+              `shouldRespondWith`
+                [json|["hi", "there"]|]
+
+        context "works with POST and repeated params from html form" $ do
+          it "n=0 (through DEFAULT)" $
+            request methodPost "/rpc/variadic_param"
+                [("Content-Type", "application/x-www-form-urlencoded")]
+                ""
+              `shouldRespondWith`
+                [json|[]|]
+
+          it "n=1" $
+            request methodPost "/rpc/variadic_param"
+                [("Content-Type", "application/x-www-form-urlencoded")]
+                "v=hi"
+              `shouldRespondWith`
+                [json|["hi"]|]
+
+          it "n>1" $
+            request methodPost "/rpc/variadic_param"
+                [("Content-Type", "application/x-www-form-urlencoded")]
+                "v=hi&v=there"
+              `shouldRespondWith`
+                [json|["hi", "there"]|]
+
+    it "returns first value for repeated params without VARIADIC" $
+      get "/rpc/sayhello?name=world&name=ignored"
+        `shouldRespondWith`
+          [json|"Hello, world"|]
+
     it "can handle procs with args that have a DEFAULT value" $ do
       get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
         [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }

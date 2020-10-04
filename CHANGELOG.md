@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1512, Allow schema cache reloading with NOTIFY - @steve-chavez
  - #1119, Allow config file reloading with SIGUSR2 - @steve-chavez
  - #1558, Allow 'Bearer' with and without capitalization as authentication schema - @wolfgangwalther
+ - #1470, Allow calling RPC with variadic argument by passing repeated params - @wolfgangwalther
  - #1559, No downtime when reloading the schema cache with SIGUSR1 - @steve-chavez
  - #504, Add `log-level` config option. The admitted levels are: crit, error, warn and info - @steve-chavez
 

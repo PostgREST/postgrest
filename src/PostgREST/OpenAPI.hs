@@ -96,7 +96,7 @@ makeProcSchema pd =
   & required .~ map pgaName (filter pgaReq (pdArgs pd))
 
 makeProcProperty :: PgArg -> (Text, Referenced Schema)
-makeProcProperty (PgArg n t _) = (n, Inline s)
+makeProcProperty (PgArg n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ ?~ toSwaggerType t

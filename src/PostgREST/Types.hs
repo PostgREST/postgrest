@@ -4,6 +4,7 @@ Description : PostgREST common types and functions used by the rest of the modul
 -}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 
 module PostgREST.Types where
 
@@ -123,6 +124,7 @@ data PgArg = PgArg {
   pgaName :: Text
 , pgaType :: Text
 , pgaReq  :: Bool
+, pgaVar  :: Bool
 } deriving (Show, Eq, Ord)
 
 data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
@@ -180,7 +182,7 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = fromMaybe fallback bestM
 -}
 specifiedProcArgs :: S.Set FieldName -> ProcDescription -> [PgArg]
 specifiedProcArgs keys proc =
-  (\k -> fromMaybe (PgArg k "text" True) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
+  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
@@ -192,6 +194,12 @@ procTableName proc = case pdReturnType proc of
   SetOf  (Composite qi) -> Just $ qiName qi
   Single (Composite qi) -> Just $ qiName qi
   _                     -> Nothing
+
+argIsVariadic :: ProcDescription -> Text -> Bool
+argIsVariadic proc arg =
+  case find (\PgArg{pgaName} -> pgaName == arg) $ pdArgs proc of
+    Just PgArg{pgaVar} -> pgaVar
+    _                  -> False
 
 type Schema = Text
 type TableName = Text
@@ -399,8 +407,26 @@ type Alias = Text
 type Cast = Text
 type NodeName = Text
 
--- Rpc query param, only used for GET rpcs
-type RpcQParam = (Text, Text)
+-- RPC query param, used for POST of form-data and GET requests
+data RpcParamValue = Fixed Text | Variadic [Text]
+
+mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
+mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
+-- repeated params for non-variadic arguments are not merged
+mergeParams _ v                       = v
+
+instance JSON.ToJSON RpcParamValue where
+  toJSON (Fixed    v) = JSON.toJSON v
+  toJSON (Variadic v) = JSON.toJSON v
+
+type RpcParams = [(Text, RpcParamValue)]
+
+toRpcParamsWith :: (Text -> Bool) -> [(Text, Text)] -> RpcParams
+toRpcParamsWith isVariadic ls = toRpcParamValue <$> ls
+  where
+    toRpcParamValue (k, v)
+      | isVariadic k = (k, Variadic [v])
+      | otherwise    = (k, Fixed v)
 
 {-|
   Custom guc header, it's obtained by parsing the json in a:
