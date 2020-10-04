@@ -1,13 +1,14 @@
-From f9e4b7fd7a93ab643db0b1c84003987400bbe120 Mon Sep 17 00:00:00 2001
-From: Remo <remo>
-Date: Sun, 23 Aug 2020 12:01:48 +0200
+From 9ec726b1d1a231dcff5ada065a858e9faaa7463f Mon Sep 17 00:00:00 2001
+From: monacoremo <monacoremo>
+Date: Sun, 4 Oct 2020 16:16:04 +0200
 Subject: [PATCH] Revert "ghc: 8.6.3-binary -> 8.6.5-binary"
 
 This reverts commit 3c7ef6bcd85e3e133ac6f2ab5e238934d56d902e.
+
 ---
- .../{8.6.5-binary.nix => 8.6.3-binary.nix}    | 13 +++++-----
- pkgs/top-level/haskell-packages.nix           | 25 ++++++++-----------
- 2 files changed, 16 insertions(+), 22 deletions(-)
+ .../{8.6.5-binary.nix => 8.6.3-binary.nix}    | 13 ++++++------
+ pkgs/top-level/haskell-packages.nix           | 20 +++++++++----------
+ 2 files changed, 16 insertions(+), 17 deletions(-)
  rename pkgs/development/compilers/ghc/{8.6.5-binary.nix => 8.6.3-binary.nix} (94%)
 
 diff --git a/pkgs/development/compilers/ghc/8.6.5-binary.nix b/pkgs/development/compilers/ghc/8.6.3-binary.nix
@@ -19,13 +20,13 @@ index 41af279e83f..5853a470efc 100644
 +++ b/pkgs/development/compilers/ghc/8.6.3-binary.nix
 @@ -27,19 +27,18 @@ let
  in
-
+ 
  stdenv.mkDerivation rec {
 -  version = "8.6.5";
 +  version = "8.6.3";
-
+ 
    name = "ghc-${version}-binary";
-
+ 
 -  # https://downloads.haskell.org/~ghc/8.6.5/
    src = fetchurl ({
      i686-linux = {
@@ -52,29 +53,29 @@ index 41af279e83f..5853a470efc 100644
    }.${stdenv.hostPlatform.system}
      or (throw "cannot bootstrap GHC on this platform"));
 diff --git a/pkgs/top-level/haskell-packages.nix b/pkgs/top-level/haskell-packages.nix
-index 3e85109527e..388210b83fb 100644
+index 693f8fe8276..034294b7264 100644
 --- a/pkgs/top-level/haskell-packages.nix
 +++ b/pkgs/top-level/haskell-packages.nix
-@@ -4,7 +4,8 @@ let
+@@ -4,8 +4,8 @@ let
    # These are attributes in compiler and packages that don't support integer-simple.
    integerSimpleExcludes = [
      "ghc822Binary"
 -    "ghc865Binary"
+     "ghc8102Binary"
 +    "ghc863Binary"
-+    "ghc844"
      "ghcjs"
      "ghcjs86"
      "integer-simple"
-@@ -47,7 +48,7 @@ in {
-
+@@ -48,7 +48,7 @@ in {
+ 
      ghc822Binary = callPackage ../development/compilers/ghc/8.2.2-binary.nix { };
-
+ 
 -    ghc865Binary = callPackage ../development/compilers/ghc/8.6.5-binary.nix { };
 +    ghc863Binary = callPackage ../development/compilers/ghc/8.6.3-binary.nix { };
-
-     ghc865 = callPackage ../development/compilers/ghc/8.6.5.nix {
-       bootPkgs = packages.ghc822Binary;
-@@ -56,31 +57,25 @@ in {
+ 
+     ghc8102Binary = callPackage ../development/compilers/ghc/8.10.2-binary.nix {
+       llvmPackages = pkgs.llvmPackages_9;
+@@ -61,31 +61,31 @@ in {
        llvmPackages = pkgs.llvmPackages_6;
      };
      ghc882 = callPackage ../development/compilers/ghc/8.8.2.nix {
@@ -100,17 +101,18 @@ index 3e85109527e..388210b83fb 100644
      };
      ghc8101 = callPackage ../development/compilers/ghc/8.10.1.nix {
 -      bootPkgs = packages.ghc865Binary;
--      inherit (buildPackages.python3Packages) sphinx;
--      buildLlvmPackages = buildPackages.llvmPackages_9;
--      llvmPackages = pkgs.llvmPackages_9;
--    };
--    ghc8102 = callPackage ../development/compilers/ghc/8.10.2.nix {
++      bootPkgs = packages.ghc863Binary;
+       inherit (buildPackages.python3Packages) sphinx;
+       buildLlvmPackages = buildPackages.llvmPackages_9;
+       llvmPackages = pkgs.llvmPackages_9;
+     };
+     ghc8102 = callPackage ../development/compilers/ghc/8.10.2.nix {
 -      bootPkgs = packages.ghc865Binary;
 +      bootPkgs = packages.ghc863Binary;
        inherit (buildPackages.python3Packages) sphinx;
        buildLlvmPackages = buildPackages.llvmPackages_9;
        llvmPackages = pkgs.llvmPackages_9;
-@@ -133,9 +128,9 @@ in {
+@@ -144,9 +144,9 @@ in {
        compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
        packageSetConfig = bootstrapPackageSet;
      };
@@ -123,6 +125,6 @@ index 3e85109527e..388210b83fb 100644
        compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.6.x.nix { };
        packageSetConfig = bootstrapPackageSet;
      };
---
+-- 
 2.28.0
 
