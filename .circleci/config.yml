@@ -231,6 +231,9 @@ jobs:
           name: Run the spec tests against PostgreSQL 12
           command: postgrest-test-spec-postgresql-12
       - run:
+          name: Run the spec tests against PostgreSQL 13
+          command: postgrest-test-spec-postgresql-13
+      - run:
           name: Run io tests
           command: postgrest-test-io
       - run:
