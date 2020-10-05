@@ -65,9 +65,9 @@ import PostgREST.Types
 import Protolude                  hiding (Proxy, intercalate, toS)
 import Protolude.Conv             (toS)
 
-postgrest :: LogSetup -> IORef AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
-postgrest logS refConf refDbStructure pool getTime connWorker =
-  pgrstMiddleware logS $ \ req respond -> do
+postgrest :: LogLevel -> IORef AppConfig -> IORef (Maybe DbStructure) -> P.Pool -> IO UTCTime -> IO () -> Application
+postgrest logLev refConf refDbStructure pool getTime connWorker =
+  pgrstMiddleware logLev $ \ req respond -> do
     time <- getTime
     body <- strictRequestBody req
     maybeDbStructure <- readIORef refDbStructure

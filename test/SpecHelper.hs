@@ -24,7 +24,7 @@ import Text.Heredoc
 
 import PostgREST.Auth   (parseSecret)
 import PostgREST.Config (AppConfig (..))
-import PostgREST.Types  (JSPathExp (..))
+import PostgREST.Types  (JSPathExp (..), LogLevel (..))
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)
 
@@ -89,6 +89,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configRootSpec          = Nothing
   , configRawMediaTypes     = []
   , configJWKS              = parseSecret <$> secret
+  , configLogLevel          = LogCrit
   }
 
 testCfg :: Text -> AppConfig

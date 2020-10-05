@@ -34,8 +34,7 @@ import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              LogSetup (..), PgVersion (..),
-                              minimumPgVersion)
+                              PgVersion (..), minimumPgVersion)
 import Protolude             hiding (hPutStrLn, head, toS)
 import Protolude.Conv        (toS)
 
@@ -78,6 +77,7 @@ main = do
       defaultSettings
     poolSize = configPoolSize conf
     poolTimeout = configPoolTimeout' conf
+    logLevel = configLogLevel conf
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
@@ -133,7 +133,7 @@ main = do
 
   let postgrestApplication =
         postgrest
-          LogStdout
+          logLevel
           refConf
           refDbStructure
           pool

@@ -15,7 +15,7 @@ import Test.Hspec
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types       (LogSetup (..), pgVersion95, pgVersion96)
+import PostgREST.Types       (LogLevel (..), pgVersion95, pgVersion96)
 import Protolude             hiding (toList, toS)
 import Protolude.Conv        (toS)
 import SpecHelper
@@ -67,13 +67,13 @@ main = do
     -- For tests that run with the same refDbStructure
     app cfg = do
       refConf <- newIORef $ cfg testDbConn
-      return ((), postgrest LogQuiet refConf refDbStructure pool getTime $ pure ())
+      return ((), postgrest LogCrit refConf refDbStructure pool getTime $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
       dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
       refConf <- newIORef $ cfg testDbConn
-      return ((), postgrest LogQuiet refConf dbs pool getTime $ pure ())
+      return ((), postgrest LogCrit refConf dbs pool getTime $ pure ())
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
