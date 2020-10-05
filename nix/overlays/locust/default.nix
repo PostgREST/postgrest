@@ -1,5 +1,4 @@
 self: super:
-
 let
   flask-basicauth = super.python38Packages.callPackage ./flask-basicauth.nix { };
 in

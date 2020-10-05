@@ -8,7 +8,6 @@
 , writeShellScriptBin
 , writeText
 }:
-
 let
   runner =
     writeShellScript "postgrest-loadtest-runner"
@@ -41,8 +40,8 @@ let
         trap cleanup exit
 
         ${locust}/bin/locust -f ${../test/loadtest/locustfile.py} \
-            -H http://localhost:3080 --users 100 --spawn-rate 20
-            # --headless -t 60s
+            -H http://localhost:3080 --users 100 --spawn-rate 20 \
+            --headless -t 60s
       '';
 
   postgrestConf =
