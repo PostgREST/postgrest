@@ -59,6 +59,7 @@ library
                     , contravariant-extras      >= 0.3.3 && < 0.4
                     , cookie                    >= 0.4.2 && < 0.5
                     , either                    >= 4.4.1 && < 5.1
+                    , fast-logger               >= 2.4.5
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-pool                >= 0.5 && < 0.6
@@ -84,6 +85,7 @@ library
                     , wai                       >= 3.2.1 && < 3.3
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.0.19 && < 3.2
+                    , wai-logger                >= 2.3.2
                     , wai-middleware-static     >= 0.8.1 && < 0.10
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
