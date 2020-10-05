@@ -58,7 +58,8 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 import PostgREST.Auth             (parseSecret)
 import PostgREST.Parsers          (pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
-import PostgREST.Types            (JSPath, JSPathExp (..))
+import PostgREST.Types            (JSPath, JSPathExp (..),
+                                   LogLevel (..))
 import Protolude                  hiding (concat, hPutStrLn,
                                    intercalate, null, replace, take,
                                    toS, (<>))
@@ -94,6 +95,8 @@ data AppConfig = AppConfig {
   , configRawMediaTypes     :: [B.ByteString]
 
   , configJWKS              :: Maybe JWKSet
+
+  , configLogLevel          :: LogLevel
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -190,8 +193,10 @@ readPathShowHelp = customExecParser parserPrefs opts
           |
           |## content types to produce raw output
           |# raw-media-types="image/png, image/jpg"
+          |
+          |## logging level. The admitted values are: info and crit
+          |# log-level = "info"
           |]
-
 
 -- | Parse the config file
 readAppConfig :: FilePath -> IO AppConfig
@@ -234,6 +239,7 @@ readAppConfig cfgPath = do
         <*> optString "root-spec"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> pure Nothing
+        <*> parseLogLevel "log-level"
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
@@ -256,6 +262,15 @@ readAppConfig cfgPath = do
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           (Just "") -> pure Nothing
           aud' -> pure aud'
+
+    parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
+    parseLogLevel k =
+      C.optional k C.string >>= \case
+        Nothing -> pure LogInfo
+        Just "" -> pure LogInfo
+        Just "crit" -> pure LogCrit
+        Just "info" -> pure LogInfo
+        Just _ -> fail "Invalid logging level. Check your configuration."
 
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string

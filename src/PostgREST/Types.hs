@@ -539,5 +539,4 @@ data ConnectionStatus
   | FatalConnectionError Text
   deriving (Eq, Show)
 
--- | Logging setup
-data LogSetup = LogQuiet | LogStdout deriving (Eq, Show)
+data LogLevel = LogCrit | LogInfo deriving (Eq, Show)

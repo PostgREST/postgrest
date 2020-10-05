@@ -30,7 +30,7 @@ import Network.Wai.Middleware.Static        (only, staticPolicy)
 import PostgREST.ApiRequest   (ApiRequest (..))
 import PostgREST.Config       (AppConfig (..))
 import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
-import PostgREST.Types        (LogSetup (..))
+import PostgREST.Types        (LogLevel (..))
 import Protolude              hiding (head, toS)
 import Protolude.Conv         (toS)
 
@@ -57,9 +57,9 @@ runPgLocals conf claims app req = do
     anon = JSON.String . toS $ configAnonRole conf
     preReq = (\f -> "select " <> toS f <> "();") <$> configPreReq conf
 
-pgrstMiddleware :: LogSetup -> Application -> Application
-pgrstMiddleware logs =
-    (if logs == LogQuiet then id else logStdout)
+pgrstMiddleware :: LogLevel -> Application -> Application
+pgrstMiddleware logLev =
+    (if logLev == LogCrit then id else logStdout)
   . gzip def
   . cors corsPolicy
   . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
