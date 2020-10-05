@@ -8,23 +8,26 @@ Description : Sets CORS policy. Also the PostgreSQL GUCs, role, search_path and 
 
 module PostgREST.Middleware where
 
-import qualified Data.Aeson            as JSON
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.CaseInsensitive  as CI
-import           Data.Function         (id)
-import qualified Data.HashMap.Strict   as M
-import           Data.List             (lookup)
-import           Data.Scientific       (FPFormat (..),
-                                        formatScientific, isInteger)
-import           Data.Text             (strip)
-import qualified Hasql.Transaction     as H
+import qualified Data.Aeson                as JSON
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.CaseInsensitive      as CI
+import           Data.Function             (id)
+import qualified Data.HashMap.Strict       as M
+import           Data.List                 (lookup)
+import           Data.Scientific           (FPFormat (..),
+                                            formatScientific,
+                                            isInteger)
+import qualified Data.Text                 as T
+import qualified Hasql.Transaction         as H
+import           Network.HTTP.Types.Status (statusCode)
+import           Network.Wai.Logger        (showSockAddr)
+import           System.Log.FastLogger     (toLogStr)
 
-import Network.Wai                          (Application, Request,
-                                             Response, requestHeaders)
+import Network.Wai
 import Network.Wai.Middleware.Cors          (CorsResourcePolicy (..),
                                              cors)
 import Network.Wai.Middleware.Gzip          (def, gzip)
-import Network.Wai.Middleware.RequestLogger (logStdout)
+import Network.Wai.Middleware.RequestLogger
 import Network.Wai.Middleware.Static        (only, staticPolicy)
 
 import PostgREST.ApiRequest   (ApiRequest (..))
@@ -33,6 +36,7 @@ import PostgREST.QueryBuilder (setLocalQuery, setLocalSearchPathQuery)
 import PostgREST.Types        (LogLevel (..))
 import Protolude              hiding (head, toS)
 import Protolude.Conv         (toS)
+import System.IO.Unsafe       (unsafePerformIO)
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
@@ -57,12 +61,46 @@ runPgLocals conf claims app req = do
     anon = JSON.String . toS $ configAnonRole conf
     preReq = (\f -> "select " <> toS f <> "();") <$> configPreReq conf
 
+-- | Log in apache format. Only requests with a failure status.
+-- | There's no easy way to filter logs in the apache format on https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
+-- | So here we copy https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
+-- | TODO: Add the ability to filter apache logs on wai-extra and remove this function.
+pgrstFormat :: OutputFormatter
+pgrstFormat date req status responseSize =
+  if statusCode status < 400
+    then toLogStr BS.empty
+  else toLogStr (getSourceFromSocket req)
+    <> " - - ["
+    <> toLogStr date
+    <> "] \""
+    <> toLogStr (requestMethod req)
+    <> " "
+    <> toLogStr (rawPathInfo req <> rawQueryString req)
+    <> " "
+    <> toLogStr (show (httpVersion req)::Text)
+    <> "\" "
+    <> toLogStr (show (statusCode status)::Text)
+    <> " "
+    <> toLogStr (maybe "-" show responseSize::Text)
+    <> " \""
+    <> toLogStr (fromMaybe mempty $ requestHeaderReferer req)
+    <> "\" \""
+    <> toLogStr (fromMaybe mempty $ requestHeaderUserAgent req)
+    <> "\"\n"
+  where
+    getSourceFromSocket = BS.pack . showSockAddr . remoteHost
+
 pgrstMiddleware :: LogLevel -> Application -> Application
-pgrstMiddleware logLev =
-    (if logLev == LogCrit then id else logStdout)
+pgrstMiddleware logLevel =
+    logger
   . gzip def
   . cors corsPolicy
   . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+  where
+    logger = case logLevel of
+      LogCrit  -> id
+      LogError -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat pgrstFormat }
+      LogInfo  -> logStdout
 
 defaultCorsPolicy :: CorsResourcePolicy
 defaultCorsPolicy =  CorsResourcePolicy Nothing
@@ -84,7 +122,7 @@ corsPolicy req = case lookup "origin" headers of
   where
     headers = requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . toS . strip . toS) $ BS.split ',' hdrs
+      Just hdrs -> map (CI.mk . toS . T.strip . toS) $ BS.split ',' hdrs
       Nothing -> []
 
 unquoted :: JSON.Value -> Text
