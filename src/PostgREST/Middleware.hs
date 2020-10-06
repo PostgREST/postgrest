@@ -19,7 +19,8 @@ import           Data.Scientific           (FPFormat (..),
                                             isInteger)
 import qualified Data.Text                 as T
 import qualified Hasql.Transaction         as H
-import           Network.HTTP.Types.Status (statusCode)
+import           Network.HTTP.Types.Status (Status, status400,
+                                            status500, statusCode)
 import           Network.Wai.Logger        (showSockAddr)
 import           System.Log.FastLogger     (toLogStr)
 
@@ -61,14 +62,14 @@ runPgLocals conf claims app req = do
     anon = JSON.String . toS $ configAnonRole conf
     preReq = (\f -> "select " <> toS f <> "();") <$> configPreReq conf
 
--- | Log in apache format. Only requests with a failure status.
--- | There's no easy way to filter logs in the apache format on https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
--- | So here we copy https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
+-- | Log in apache format. Only requests that have a status greater than minStatus are logged.
+-- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
+-- | So here we copy wai-logger apacheLogStr function: https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
 -- | TODO: Add the ability to filter apache logs on wai-extra and remove this function.
-pgrstFormat :: OutputFormatter
-pgrstFormat date req status responseSize =
-  if statusCode status < 400
-    then toLogStr BS.empty
+pgrstFormat :: Status -> OutputFormatter
+pgrstFormat minStatus date req status responseSize =
+  if status < minStatus
+    then mempty
   else toLogStr (getSourceFromSocket req)
     <> " - - ["
     <> toLogStr date
@@ -99,7 +100,8 @@ pgrstMiddleware logLevel =
   where
     logger = case logLevel of
       LogCrit  -> id
-      LogError -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat pgrstFormat }
+      LogError -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat $ pgrstFormat status500}
+      LogWarn  -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat $ pgrstFormat status400}
       LogInfo  -> logStdout
 
 defaultCorsPolicy :: CorsResourcePolicy
