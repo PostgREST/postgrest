@@ -195,7 +195,7 @@ readPathShowHelp = customExecParser parserPrefs opts
           |# raw-media-types="image/png, image/jpg"
           |
           |## logging level, the admitted values are: crit, error, warn and info.
-          |# log-level = "info"
+          |# log-level = "error"
           |]
 
 -- | Parse the config file
@@ -266,8 +266,8 @@ readAppConfig cfgPath = do
     parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
     parseLogLevel k =
       C.optional k C.string >>= \case
-        Nothing      -> pure LogInfo
-        Just ""      -> pure LogInfo
+        Nothing      -> pure LogError
+        Just ""      -> pure LogError
         Just "crit"  -> pure LogCrit
         Just "error" -> pure LogError
         Just "warn"  -> pure LogWarn
