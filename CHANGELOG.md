@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1522, #1528, #1535, Docker images are now built from scratch based on a the static PostgREST executable (#1494) and with Nix instead of a `Dockerfile`. This reduces the compressed image size from over 30mb to about 4mb - @monacoremo
  - #1475, Location header for POST request is only included when PK is available on the table (#1461) - @wolfgangwalther
  - #1560, Volatile RPC called with GET now returns 405 Method not Allowed instead of 500 - @wolfgangwalther
+ - #1604, Change the default logging level to `log-level=error`. Only requests with a status greater or equal than 500 will be logged. If you wish to go back to the previous behaviour and log all the requests, use `log-level=info` - @steve-chavez
 
 ## [7.0.1] - 2020-05-18
 
