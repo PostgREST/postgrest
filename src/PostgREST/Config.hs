@@ -194,7 +194,7 @@ readPathShowHelp = customExecParser parserPrefs opts
           |## content types to produce raw output
           |# raw-media-types="image/png, image/jpg"
           |
-          |## logging level. The admitted values are: info and crit
+          |## logging level, the admitted values are: crit, error, warn and info.
           |# log-level = "info"
           |]
 
@@ -270,6 +270,7 @@ readAppConfig cfgPath = do
         Just ""      -> pure LogInfo
         Just "crit"  -> pure LogCrit
         Just "error" -> pure LogError
+        Just "warn"  -> pure LogWarn
         Just "info"  -> pure LogInfo
         Just _       -> fail "Invalid logging level. Check your configuration."
 

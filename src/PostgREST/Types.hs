@@ -539,4 +539,4 @@ data ConnectionStatus
   | FatalConnectionError Text
   deriving (Eq, Show)
 
-data LogLevel = LogCrit | LogError | LogInfo deriving (Eq, Show)
+data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq, Show)
