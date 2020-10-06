@@ -41,7 +41,7 @@ let
 
         ${locust}/bin/locust -f ${../test/loadtest/locustfile.py} \
             -H http://localhost:3080 --users 100 --spawn-rate 20 \
-            --headless -t 60s
+            --headless -t 2m
       '';
 
   postgrestConf =
@@ -65,7 +65,7 @@ let
         events {}
 
         http {
-            access_log access.log;
+            access_log access.log combined buffer=32k flush=5m;
             client_body_temp_path . 1 2;
             proxy_temp_path proxy_temp;
             fastcgi_temp_path fastcgi_temp;
