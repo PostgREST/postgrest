@@ -10,9 +10,9 @@ module PostgREST.Types where
 import Control.Lens.Getter (view)
 import Control.Lens.Tuple  (_1)
 
+import           Data.Aeson               (FromJSON)
 import qualified Data.Aeson               as JSON
 import qualified Data.Aeson               as Aeson
-import Data.Aeson (FromJSON)
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
 import qualified Data.ByteString.Lazy     as BL
@@ -583,4 +583,4 @@ instance FromJSON ProcVolatility where
   parseJSON (Aeson.String "v") = pure Volatile
   parseJSON (Aeson.String "s") = pure Stable
   parseJSON (Aeson.String "i") = pure Immutable
-  parseJSON _ = empty
+  parseJSON _                  = empty

@@ -32,9 +32,8 @@ import qualified Hasql.Encoders      as HE
 import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
-import qualified System.IO.Error as E
+import qualified System.IO.Error     as E
 
-import System.Environment            (getEnv)
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
@@ -42,11 +41,12 @@ import GHC.Exts                      (groupWith)
 import Protolude                     hiding (toS)
 import Protolude.Conv                (toS)
 import Protolude.Unsafe              (unsafeHead)
+import System.Environment            (getEnv)
 import Text.InterpolatedString.Perl6 (q, qc)
 
-import PostgREST.Private.Common
-import PostgREST.Types
-import qualified PostgREST.MegaQuery as MegaQuery
+import qualified PostgREST.MegaQuery      as MegaQuery
+import           PostgREST.Private.Common
+import           PostgREST.Types
 
 
 data DbStructureMode = ClassicMode | MegaMode deriving (Eq, Show)
@@ -58,7 +58,7 @@ getDbStructure mode schemas pgVer =
     dbStructure <- getDbStructureClassic schemas pgVer
     case mode of
       ClassicMode -> pure dbStructure
-      MegaMode -> MegaQuery.getDbStructure schemas dbStructure
+      MegaMode    -> MegaQuery.getDbStructure schemas dbStructure
 
 getMode :: IO DbStructureMode
 getMode =

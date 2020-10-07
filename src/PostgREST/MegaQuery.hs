@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
@@ -5,26 +7,26 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE DeriveAnyClass        #-}
-{-# LANGUAGE DeriveGeneric         #-}
 module PostgREST.MegaQuery (getDbStructure) where
 
 import           Control.Exception
-import qualified Data.Aeson                    as Aeson
-import           Data.Aeson (FromJSON)
-import qualified Data.FileEmbed                as FileEmbed
-import qualified Data.HashMap.Strict           as M
-import qualified Data.List                     as L
+import           Data.Aeson               (FromJSON)
+import qualified Data.Aeson               as Aeson
+import qualified Data.FileEmbed           as FileEmbed
+import qualified Data.HashMap.Strict      as M
+import qualified Data.List                as L
 import           Data.String
-import qualified Hasql.Decoders                as HD
-import qualified Hasql.Encoders                as HE
-import qualified Hasql.Statement               as H
-import qualified Hasql.Transaction             as HT
+import qualified Hasql.Decoders           as HD
+import qualified Hasql.Encoders           as HE
+import qualified Hasql.Statement          as H
+import qualified Hasql.Transaction        as HT
 import qualified PostgREST.Private.Common as Common
-import           PostgREST.Types hiding (Table(..), Column(..), Relation(..), Junction(..))
+import           PostgREST.Types          hiding (Column (..),
+                                           Junction (..),
+                                           Relation (..), Table (..))
 
 import qualified PostgREST.Types as Types
-import Protolude
+import           Protolude
 
 
 getDbStructure :: [Types.Schema] -> Types.DbStructure -> HT.Transaction Types.DbStructure
@@ -50,21 +52,21 @@ getDbStructure schemas baseDbStructure =
 parseDbStructure :: RawDbStructure -> DbStructure
 parseDbStructure raw =
   let
-    tabs = fmap loadTable $ rawDbTables raw
+    tabs = loadTable <$> rawDbTables raw
 
     tabsMap :: Tables
     tabsMap =
       M.fromList . map (\table -> (tableOid table, table)) $ rawDbTables raw
 
-    cols = catMaybes . fmap (loadColumn tabsMap) $ rawDbColumns raw
+    cols = mapMaybe (loadColumn tabsMap) $ rawDbColumns raw
 
     colsMap :: Columns
     colsMap =
       M.fromList . map (\col -> ((colTableOid col, colPosition col), col)) $ rawDbColumns raw
 
-    rels = catMaybes . fmap (loadRelation tabsMap colsMap) $ rawDbRels raw
+    rels = mapMaybe (loadRelation tabsMap colsMap) $ rawDbRels raw
 
-    procs = procsMap $ fmap loadProc $ rawDbProcs raw
+    procs = procsMap $ loadProc <$> rawDbProcs raw
 
     cols' = addForeignKeys rels cols
   in
@@ -165,11 +167,11 @@ loadJunction' raw cols tab =
     , Types.junConstraint1 = junConstraint1 raw
     , Types.junConstraint2 = junConstraint2 raw
     , Types.junCols1 =
-        fmap (\c -> loadColumn' c tab) . catMaybes .
-          fmap ((lookupCol tab) . fromCol) $ junColMap raw
+        fmap (`loadColumn'` tab) . mapMaybe .
+          (lookupCol tab . fromCol) $ junColMap raw
     , Types.junCols2 =
-        fmap (\c -> loadColumn' c tab) . catMaybes .
-          fmap ((lookupCol tab) . toCol) $ junColMap raw
+        fmap (`loadColumn'` tab) . mapMaybe .
+          (lookupCol tab . toCol) $ junColMap raw
     }
 
 procsMap :: [ProcDescription] -> ProcsMap
@@ -235,7 +237,7 @@ getRawDbStructure schemas =
       Aeson.Error err ->
         throw $ DbStructureDecodeException err
 
-data DbStructureDecodeException =
+newtype DbStructureDecodeException =
     DbStructureDecodeException String
     deriving Show
 
@@ -261,11 +263,11 @@ type ColPosition = Int32
 
 data RawDbStructure =
   RawDbStructure
-    { rawDbPgVer  :: PgVersion
-    , rawDbTables :: [RawTable]
+    { rawDbPgVer   :: PgVersion
+    , rawDbTables  :: [RawTable]
     , rawDbColumns :: [RawColumn]
-    , rawDbProcs :: [RawProcDescription]
-    , rawDbRels :: [RawRelation]
+    , rawDbProcs   :: [RawProcDescription]
+    , rawDbRels    :: [RawRelation]
     --, rawDbSchemas :: [SchemaDescription]
     }
     deriving (Show, Eq, Generic)
@@ -276,15 +278,15 @@ instance FromJSON RawDbStructure where
 
 data RawProcDescription =
   RawProcDescription
-    { procSchema :: Schema
-    , procName :: Text
-    , procDescription :: Maybe Text
-    , procReturnTypeQi :: QualifiedIdentifier
-    , procReturnTypeIsSetof :: Bool
+    { procSchema                :: Schema
+    , procName                  :: Text
+    , procDescription           :: Maybe Text
+    , procReturnTypeQi          :: QualifiedIdentifier
+    , procReturnTypeIsSetof     :: Bool
     , procReturnTypeIsComposite :: Bool
-    , procVolatility :: ProcVolatility
-    , procIsAccessible :: Bool
-    , procArgs :: [PgArg]
+    , procVolatility            :: ProcVolatility
+    , procIsAccessible          :: Bool
+    , procArgs                  :: [PgArg]
     } deriving (Show, Eq, Generic)
 
 instance FromJSON RawProcDescription where
@@ -293,11 +295,11 @@ instance FromJSON RawProcDescription where
 
 data RawTable =
   RawTable
-    { tableOid :: Oid
-    , tableSchema :: Schema
-    , tableName :: TableName
-    , tableDescription :: Maybe Text
-    , tableInsertable :: Bool
+    { tableOid          :: Oid
+    , tableSchema       :: Schema
+    , tableName         :: TableName
+    , tableDescription  :: Maybe Text
+    , tableInsertable   :: Bool
     , tableIsAccessible :: Bool
     } deriving (Show, Eq, Generic)
 
@@ -307,18 +309,18 @@ instance FromJSON RawTable where
 
 data RawColumn =
   RawColumn
-    { colTableOid :: Oid
-    , colPosition :: ColPosition
-    , colName :: FieldName
-    , colDescription :: Maybe Text
-    , colNullable :: Bool
-    , colType :: Text
-    , colUpdatable :: Bool
-    , colMaxLen :: Maybe Int32
-    , colPrecision :: Maybe Int32
-    , colDefault :: Maybe Text
-    , colEnum :: [Text]
-    , colFK :: Maybe ForeignKey
+    { colTableOid     :: Oid
+    , colPosition     :: ColPosition
+    , colName         :: FieldName
+    , colDescription  :: Maybe Text
+    , colNullable     :: Bool
+    , colType         :: Text
+    , colUpdatable    :: Bool
+    , colMaxLen       :: Maybe Int32
+    , colPrecision    :: Maybe Int32
+    , colDefault      :: Maybe Text
+    , colEnum         :: [Text]
+    , colFK           :: Maybe ForeignKey
     , colIsPrimaryKey :: Bool
     } deriving (Show, Eq, Generic)
 
@@ -328,12 +330,12 @@ instance FromJSON RawColumn where
 
 data RawRelation =
   RawRelation
-    { relTableOid :: Oid
-    , relFTableOid :: Oid
+    { relTableOid   :: Oid
+    , relFTableOid  :: Oid
     , relConstraint :: Maybe ConstraintName
     --, relColMap :: [ColMapping]
-    , relType :: Cardinality
-    , relJunction :: Maybe RawJunction -- ^ Junction for M2M Cardinality
+    , relType       :: Cardinality
+    , relJunction   :: Maybe RawJunction -- ^ Junction for M2M Cardinality
     } deriving (Show, Eq, Generic)
 
 instance FromJSON RawRelation where
@@ -343,7 +345,7 @@ instance FromJSON RawRelation where
 data ColMapping =
   ColMapping
     { fromCol :: Int32
-    , toCol :: Int32
+    , toCol   :: Int32
     } deriving (Show, Eq, Generic)
 
 instance FromJSON ColMapping where
@@ -353,10 +355,10 @@ instance FromJSON ColMapping where
 -- | Junction table on an M2M relationship
 data RawJunction =
   Junction
-    { junTableOid :: Oid
+    { junTableOid    :: Oid
     , junConstraint1 :: Maybe ConstraintName
     , junConstraint2 :: Maybe ConstraintName
-    , junColMap :: [ColMapping]
+    , junColMap      :: [ColMapping]
     } deriving (Show, Eq, Generic)
 
 instance FromJSON RawJunction where

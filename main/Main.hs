@@ -26,18 +26,21 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
 import System.IO                (BufferMode (..), hSetBuffering)
 
-import PostgREST.App         (postgrest)
-import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              prettyVersion, readPathShowHelp,
-                              readValidateConfig)
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import           PostgREST.App         (postgrest)
+import           PostgREST.Config      (AppConfig (..),
+                                        configPoolTimeout',
+                                        prettyVersion,
+                                        readPathShowHelp,
+                                        readValidateConfig)
+import           PostgREST.DbStructure (getDbStructure, getPgVersion)
 import qualified PostgREST.DbStructure as DbStructure
-import PostgREST.Error       (PgError (PgError), checkIsFatal,
-                              errorPayload)
-import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), minimumPgVersion)
-import Protolude             hiding (hPutStrLn, head, toS)
-import Protolude.Conv        (toS)
+import           PostgREST.Error       (PgError (PgError),
+                                        checkIsFatal, errorPayload)
+import           PostgREST.Types       (ConnectionStatus (..),
+                                        DbStructure, PgVersion (..),
+                                        minimumPgVersion)
+import           Protolude             hiding (hPutStrLn, head, toS)
+import           Protolude.Conv        (toS)
 
 
 #ifndef mingw32_HOST_OS
