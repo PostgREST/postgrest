@@ -260,7 +260,7 @@ spec actualPgVersion = do
     context "jsonb" $ do
       it "serializes nested object" $ do
         let inserted = [json| { "data": { "foo":"bar" } } |]
-        request methodPost "/json"
+        request methodPost "/json_table"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` [str|[{"data":{"foo":"bar"}}]|]
@@ -269,7 +269,7 @@ spec actualPgVersion = do
 
       it "serializes nested array" $ do
         let inserted = [json| { "data": [1,2,3] } |]
-        request methodPost "/json"
+        request methodPost "/json_table"
                      [("Prefer", "return=representation")]
                      inserted
           `shouldRespondWith` [str|[{"data":[1,2,3]}]|]

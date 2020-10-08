@@ -257,13 +257,13 @@ SELECT pg_catalog.setval('items2_id_seq', 15, true);
 
 
 --
--- Data for Name: json; Type: TABLE DATA; Schema: test; Owner: -
+-- Data for Name: json_table; Type: TABLE DATA; Schema: test; Owner: -
 --
 
-TRUNCATE TABLE json CASCADE;
-INSERT INTO json VALUES ('{"foo":{"bar":"baz"},"id":1}');
-INSERT INTO json VALUES ('{"id":3}');
-INSERT INTO json VALUES ('{"id":0}');
+TRUNCATE TABLE json_table CASCADE;
+INSERT INTO json_table VALUES ('{"foo":{"bar":"baz"},"id":1}');
+INSERT INTO json_table VALUES ('{"id":3}');
+INSERT INTO json_table VALUES ('{"id":0}');
 
 
 --

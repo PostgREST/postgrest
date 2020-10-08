@@ -28,7 +28,7 @@ GRANT ALL ON TABLE
     , has_count_column
     , has_fk
     , insertable_view_with_join
-    , json
+    , json_table
     , materialized_view
     , menagerie
     , no_pk
