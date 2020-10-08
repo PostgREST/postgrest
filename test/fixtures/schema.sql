@@ -457,7 +457,7 @@ CREATE TABLE clients (
 CREATE TABLE complex_items (
     id bigint NOT NULL,
     name text,
-    settings pg_catalog.json,
+    settings json,
     arr_data integer[],
 		"field-with_sep" integer default 1 not null
 );
@@ -551,11 +551,11 @@ CREATE VIEW insertable_view_with_join AS
      JOIN auto_incrementing_pk USING (id));
 
 --
--- Name: json; Type: TABLE; Schema: test; Owner: -
+-- Name: json_table; Type: TABLE; Schema: test; Owner: -
 --
 
-CREATE TABLE json (
-    data pg_catalog.json
+CREATE TABLE json_table (
+    data json
 );
 
 
@@ -1112,11 +1112,11 @@ create function test.single_out_param(num int, OUT num_plus_one int) AS $$
   select num + 1;
 $$ language sql;
 
-create function test.single_json_out_param(a int, b text, OUT my_json pg_catalog.json) AS $$
+create function test.single_json_out_param(a int, b text, OUT my_json json) AS $$
   select json_build_object('a', a, 'b', b);
 $$ language sql;
 
-create function test.many_out_params(OUT my_json pg_catalog.json, OUT num int, OUT str text) AS $$
+create function test.many_out_params(OUT my_json json, OUT num int, OUT str text) AS $$
   select '{"a": 1, "b": "two"}'::json, 3, 'four'::text;
 $$ language sql;
 
@@ -1152,14 +1152,14 @@ begin
 end;
 $$ language plpgsql;
 
-create or replace function test.send_body_status_403() returns pg_catalog.json as $$
+create or replace function test.send_body_status_403() returns json as $$
 begin
   perform set_config('response.status', '403', true);
   return json_build_object('message', 'invalid user or password');
 end;
 $$ language plpgsql;
 
-create or replace function test.send_bad_status() returns pg_catalog.json as $$
+create or replace function test.send_bad_status() returns json as $$
 begin
   perform set_config('response.status', 'bad', true);
   return null;
@@ -1200,7 +1200,7 @@ create or replace function test.overloaded() returns setof int as $$
   values (1), (2), (3);
 $$ language sql;
 
-create or replace function test.overloaded(pg_catalog.json) returns table(x int, y text) as $$
+create or replace function test.overloaded(json) returns table(x int, y text) as $$
   select * from json_to_recordset($1) as r(x int, y text);
 $$ language sql;
 
@@ -1345,7 +1345,7 @@ create table "UnitTest"(
 
 create table json_arr(
   id integer primary key,
-  data pg_catalog.json
+  data json
 );
 
 create table jsonb_test(

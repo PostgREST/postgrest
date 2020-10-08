@@ -140,20 +140,20 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
   context "filtering response" $ do
     it "can filter by properties inside json column" $ do
-      get "/json?data->foo->>bar=eq.baz" `shouldRespondWith`
+      get "/json_table?data->foo->>bar=eq.baz" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
-      get "/json?data->foo->>bar=eq.fake" `shouldRespondWith`
+      get "/json_table?data->foo->>bar=eq.fake" `shouldRespondWith`
         [json| [] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "can filter by properties inside json column using not" $
-      get "/json?data->foo->>bar=not.eq.baz" `shouldRespondWith`
+      get "/json_table?data->foo->>bar=not.eq.baz" `shouldRespondWith`
         [json| [] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "can filter by properties inside json column using ->>" $
-      get "/json?data->>id=eq.1" `shouldRespondWith`
+      get "/json_table?data->>id=eq.1" `shouldRespondWith`
         [json| [{"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
@@ -191,19 +191,19 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
   context "ordering response" $ do
     it "orders by a json column property asc" $
-      get "/json?order=data->>id.asc" `shouldRespondWith`
+      get "/json_table?order=data->>id.asc" `shouldRespondWith`
         [json| [{"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}, {"data": {"id": 3}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "orders by a json column with two level property nulls first" $
-      get "/json?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
+      get "/json_table?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
         [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
   context "Patching record, in a nonempty table" $
     it "can set a json column to escaped value" $ do
-      _ <- post "/json" [json| { data: {"escaped":"bar"} } |]
-      request methodPatch "/json?data->>escaped=eq.bar"
+      _ <- post "/json_table" [json| { data: {"escaped":"bar"} } |]
+      request methodPatch "/json_table?data->>escaped=eq.bar"
                    [("Prefer", "return=representation")]
                    [json| { "data": { "escaped":" \"bar" } } |]
         `shouldRespondWith` [json| [{ "data": { "escaped":" \"bar" } }] |]
