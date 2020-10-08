@@ -24,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1162, Fix location header for POST request with select= without PK - @wolfgangwalther
  - #1585, Fix error messages on connection failure for localized postgres on Windows - @wolfgangwalther
  - #1636, Fix `application/octet-stream` appending `charset=utf-8` - @steve-chavez
+ - #1615, Fix RPC return type handling and embedding for domains with composite base type - @wolfgangwalther
 
 ### Changed
 
