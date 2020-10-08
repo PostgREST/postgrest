@@ -153,6 +153,7 @@ decodeProcs =
     parseArgs :: Text -> [PgArg]
     parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
 
+    -- TODO: does parseArg properly handle unnamed "character varying" arguments or arguments with spaces in their names?
     parseArg :: Text -> Maybe PgArg
     parseArg arg =
       let isVariadic = isPrefixOf "VARIADIC " $ toS arg
@@ -161,7 +162,9 @@ decodeProcs =
           (body, def) = breakOn " DEFAULT " argNoMode
           (name, typ) = breakOn " " body in
       if T.null typ
-         then Nothing
+         -- Handle unnamed args. TODO: refactor to types
+         then Just $
+           PgArg mempty (strip name) (T.null def) isVariadic
          else Just $
            PgArg (dropAround (== '"') name) (strip typ) (T.null def) isVariadic
 

@@ -284,6 +284,19 @@ spec actualPgVersion =
           [json|null|]
           { matchHeaders = [matchContentTypeJson] }
 
+      context "different types when overloaded" $ do
+        it "returns composite type" $
+          post "/rpc/ret_point_overloaded" [json|{"x": 1, "y": 2}|] `shouldRespondWith`
+            [json|[{"x": 1, "y": 2}]|]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "returns json scalar with prefer single object" $
+          request methodPost "/rpc/ret_point_overloaded" [("Prefer","params=single-object")]
+            [json|{"x": 1, "y": 2}|]
+            `shouldRespondWith`
+            [json|{"x": 1, "y": 2}|]
+            { matchHeaders = [matchContentTypeJson] }
+
     context "proc argument types" $ do
       -- different syntax for array needed for pg<10
       when (actualPgVersion < pgVersion100) $
