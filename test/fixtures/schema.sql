@@ -925,6 +925,19 @@ CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF project
     update test.projects set name = $3 WHERE id >= $1 AND id <= $2 returning *;
 $_$;
 
+-- domains on tables are only supported from pg 11 on
+DO $do$BEGIN
+  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
+      CREATE DOMAIN projects_domain AS projects;
+
+      CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
+          LANGUAGE sql
+          AS $_$
+          SELECT projects::projects_domain FROM test.projects WHERE id = $1;
+    $_$;
+  END IF;
+END$do$;
+
 create table images (
 	name text  not null,
 	img  bytea not null
@@ -969,6 +982,17 @@ create type test.point_2d as (x integer, y integer);
 create function test.ret_point_2d() returns test.point_2d as $$
   select row(10, 5)::test.point_2d;
 $$ language sql;
+
+-- domains on composite types are only supported from pg 11 on
+do $do$begin
+  if (SELECT current_setting('server_version_num')::int >= 110000) then
+    create domain test.composite_domain as test.point_2d;
+
+    create function test.ret_composite_domain() returns test.composite_domain as $$
+      select row(10, 5)::test.composite_domain;
+    $$ language sql;
+  end if;
+end$do$;
 
 create type private.point_3d as (x integer, y integer, z integer);
 

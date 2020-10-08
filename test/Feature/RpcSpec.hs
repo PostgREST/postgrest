@@ -197,6 +197,16 @@ spec actualPgVersion =
           ]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      when (actualPgVersion >= pgVersion110) $
+        it "can embed if rpc returns domain of table type" $ do
+          post "/rpc/getproject_domain?select=id,name,client:clients(id),tasks(id)"
+              [json| { "id": 1} |]
+            `shouldRespondWith`
+              [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+          get "/rpc/getproject_domain?id=1&select=id,name,client:clients(id),tasks(id)"
+            `shouldRespondWith`
+              [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $ do
         post "/rpc/test_empty_rowset" [json| {} |] `shouldRespondWith`
@@ -257,6 +267,12 @@ spec actualPgVersion =
 
       it "cannot return composite type in hidden schema" $
         post "/rpc/ret_point_3d" [json|{}|] `shouldRespondWith` 401
+
+      when (actualPgVersion >= pgVersion110) $
+        it "returns domain of composite type" $
+          post "/rpc/ret_composite_domain" [json|{}|] `shouldRespondWith`
+            [json|[{"x": 10, "y": 5}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "returns single row from table" $
         post "/rpc/single_article?select=id" [json|{"id": 2}|] `shouldRespondWith`

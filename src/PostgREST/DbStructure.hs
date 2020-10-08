@@ -140,7 +140,7 @@ decodeProcs =
                   <$> column HD.text
                   <*> column HD.text
                   <*> column HD.bool
-                  <*> column HD.char)
+                  <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> pure False
 
@@ -165,18 +165,15 @@ decodeProcs =
          else Just $
            PgArg (dropAround (== '"') name) (strip typ) (T.null def) isVariadic
 
-    parseRetType :: Text -> Text -> Bool -> Char -> RetType
-    parseRetType schema name isSetOf typ
+    parseRetType :: Text -> Text -> Bool -> Bool -> RetType
+    parseRetType schema name isSetOf isComposite
       | isSetOf   = SetOf pgType
       | otherwise = Single pgType
       where
         qi = QualifiedIdentifier schema name
-        pgType = case typ of
-          'c' -> Composite qi
-          'p' -> if name == "record" -- Only pg pseudo type that is a row type is 'record'
-                   then Composite qi
-                   else Scalar qi
-          _   -> Scalar qi -- 'b'ase, 'd'omain, 'e'num, 'r'ange
+        pgType
+          | isComposite = Composite qi
+          | otherwise   = Scalar qi
 
     parseVolatility :: Char -> ProcVolatility
     parseVolatility v | v == 'i' = Immutable
@@ -195,22 +192,47 @@ accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
 
 procsSqlQuery :: SqlQuery
 procsSqlQuery = [q|
+ -- Recursively get the base types of domains
+  WITH RECURSIVE
+  rec_types AS (
+    SELECT
+      oid,
+      typbasetype,
+      COALESCE(NULLIF(typbasetype, 0), oid) AS base
+    FROM pg_type
+    UNION
+    SELECT
+      t.oid,
+      b.typbasetype,
+      COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base
+    FROM rec_types t
+    JOIN pg_type b ON t.typbasetype = b.oid
+  ),
+  base_types AS (
+    SELECT
+      oid,
+      base
+    FROM rec_types
+    WHERE typbasetype = 0
+  )
   SELECT
-    pn.nspname as proc_schema,
-    p.proname as proc_name,
-    d.description as proc_description,
-    pg_get_function_arguments(p.oid) as args,
-    tn.nspname as rettype_schema,
-    coalesce(comp.relname, t.typname) as rettype_name,
-    p.proretset as rettype_is_setof,
-    t.typtype as rettype_typ,
+    pn.nspname AS proc_schema,
+    p.proname AS proc_name,
+    d.description AS proc_description,
+    pg_get_function_arguments(p.oid) AS args,
+    tn.nspname AS schema,
+    COALESCE(comp.relname, t.typname) AS name,
+    p.proretset AS rettype_is_setof,
+    -- Only pg pseudo type that is a row type is 'record'
+    (t.typtype = 'c' or t.typtype = 'p' and t.typname = 'record') AS rettype_is_composite,
     p.provolatile
   FROM pg_proc p
-    JOIN pg_namespace pn ON pn.oid = p.pronamespace
-    JOIN pg_type t ON t.oid = p.prorettype
-    JOIN pg_namespace tn ON tn.oid = t.typnamespace
-    LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-    LEFT JOIN pg_catalog.pg_description as d on d.objoid = p.oid
+  JOIN pg_namespace pn ON pn.oid = p.pronamespace
+  JOIN base_types bt ON bt.oid = p.prorettype
+  JOIN pg_type t ON t.oid = bt.base
+  JOIN pg_namespace tn ON tn.oid = t.typnamespace
+  LEFT JOIN pg_class comp ON comp.oid = t.typrelid
+  LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
 |]
 
 schemaDescription :: H.Statement Schema (Maybe Text)
