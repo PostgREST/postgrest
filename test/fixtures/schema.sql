@@ -983,6 +983,14 @@ create function test.ret_point_2d() returns test.point_2d as $$
   select row(10, 5)::test.point_2d;
 $$ language sql;
 
+create function test.ret_point_overloaded(x int, y int) returns test.point_2d as $$
+  select row(x, y)::test.point_2d;
+$$ language sql;
+
+create function test.ret_point_overloaded(json) returns json as $$
+  select $1;
+$$ language sql;
+
 -- domains on composite types are only supported from pg 11 on
 do $do$begin
   if (SELECT current_setting('server_version_num')::int >= 110000) then
