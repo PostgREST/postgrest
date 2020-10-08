@@ -22,7 +22,6 @@ import qualified Data.Set            as S
 
 import Control.Arrow           ((***))
 import Data.Either.Combinators (mapLeft)
-import Data.Foldable           (foldr1)
 import Data.List               (delete)
 import Data.Text               (isInfixOf)
 
@@ -37,12 +36,15 @@ import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
 import PostgREST.Types
 import Protolude            hiding (from)
 
+-- | Builds the ReadRequest tree on a number of stages.
+-- | Adds filters, order, limits on its respective nodes.
+-- | Adds joins conditions obtained from resource embedding.
 readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Response ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft errorResponseFor $
   treeRestrictRange maxRows =<<
   augmentRequestWithJoin schema rootRels =<<
-  addFiltersOrdersRanges apiRequest <*>
+  addFiltersOrdersRanges apiRequest =<<
   (initReadRequest rootName <$> pRequestSelect sel)
   where
     sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
@@ -84,6 +86,7 @@ initReadRequest rootQi =
                 (fn, Nothing, alias, embedHint, nxtDepth)) [])
               fldForest:rForest
 
+-- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> ReadRequest -> Either ApiRequestError ReadRequest
 treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
   where
@@ -109,7 +112,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
       Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
-    updateForest rq = mapM (addRels schema allRels rq) forest
+    updateForest rq = addRels schema allRels rq `traverse` forest
 
 -- Finds a relationship between an origin and a target in the request: /origin?select=target(*)
 -- If more than one relationship is found then the request is ambiguous and we return an error.
@@ -198,7 +201,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
         (\jc rq@Select{joinConditions=jcs} -> rq{joinConditions=jc:jcs})
         query{fromAlias=newAlias}
         (getJoinConditions previousAlias newAlias r)
-    updatedForest = mapM (addJoinConditions newAlias) forest
+    updatedForest = addJoinConditions newAlias `traverse` forest
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
@@ -227,22 +230,21 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
     removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
     removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then mempty else schema) tbl
 
-addFiltersOrdersRanges :: ApiRequest -> Either ApiRequestError (ReadRequest -> ReadRequest)
-addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
-    flip (foldr addFilter) <$> filters,
-    flip (foldr addOrder) <$> orders,
-    flip (foldr addRange) <$> ranges,
-    flip (foldr addLogicTree) <$> logicForest
-  ]
-  {-
-  The esence of what is going on above is that we are composing tree functions
-  of type (ReadRequest->ReadRequest) that are in (Either ApiRequestError a) context
-  -}
+addFiltersOrdersRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addFiltersOrdersRanges apiRequest rReq = do
+  rFlts <- foldr addFilter rReq <$> filters
+  rOrds <- foldr addOrder rFlts <$> orders
+  rRngs <- foldr addRange rOrds <$> ranges
+  foldr addLogicTree rRngs      <$> logicForest
   where
     filters :: Either ApiRequestError [(EmbedPath, Filter)]
-    filters = mapM pRequestFilter flts
+    filters = pRequestFilter `traverse` flts
+    orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
+    orders = pRequestOrder `traverse` iOrder apiRequest
+    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
+    ranges = pRequestRange `traverse` M.toList (iRange apiRequest)
     logicForest :: Either ApiRequestError [(EmbedPath, LogicTree)]
-    logicForest = mapM pRequestLogicTree logFrst
+    logicForest = pRequestLogicTree `traverse` logFrst
     action = iAction apiRequest
     -- there can be no filters on the root table when we are doing insert/update/delete
     (flts, logFrst) =
@@ -250,10 +252,6 @@ addFiltersOrdersRanges apiRequest = foldr1 (liftA2 (.)) [
         ActionInvoke _ -> (iFilters apiRequest, iLogic apiRequest)
         ActionRead _   -> (iFilters apiRequest, iLogic apiRequest)
         _              -> join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
-    orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
-    orders = mapM pRequestOrder $ iOrder apiRequest
-    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = mapM pRequestRange $ M.toList $ iRange apiRequest
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
 addFilterToNode flt (Node (q@Select {where_=lf}, i) f) = Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f
@@ -317,8 +315,8 @@ mutateRequest schema tName apiRequest cols pkCols readReq = mapLeft errorRespons
       if iPreferRepresentation apiRequest == None
         then []
         else returningCols readReq pkCols
-    filters = map snd <$> mapM pRequestFilter mutateFilters
-    logic = map snd <$> mapM pRequestLogicTree logicFilters
+    filters = map snd <$> pRequestFilter `traverse` mutateFilters
+    logic = map snd <$> pRequestLogicTree `traverse` logicFilters
     combinedLogic = foldr addFilterToLogicForest <$> logic <*> filters
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
