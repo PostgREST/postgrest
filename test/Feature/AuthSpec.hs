@@ -6,7 +6,6 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Text.Heredoc
 
 import PostgREST.Types (PgVersion, pgVersion112)
 import Protolude       hiding (get)
@@ -85,7 +84,7 @@ spec actualPgVersion = describe "authorization" $ do
   it "sql functions can read custom and standard claims variables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmdW4iLCJqdGkiOiJmb28iLCJuYmYiOjEzMDA4MTkzODAsImV4cCI6OTk5OTk5OTk5OSwiaHR0cDovL3Bvc3RncmVzdC5jb20vZm9vIjp0cnVlLCJpc3MiOiJqb2UiLCJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWF0IjoxMzAwODE5MzgwfQ.V5fEpXfpb7feqwVqlcDleFdKu86bdwU2cBRT4fcMhXg"
     request methodPost "/rpc/reveal_big_jwt" [auth] "{}"
-      `shouldRespondWith` [str|[{"iss":"joe","sub":"fun","exp":9999999999,"nbf":1300819380,"iat":1300819380,"jti":"foo","http://postgrest.com/foo":true}]|]
+      `shouldRespondWith` [json|[{"iss":"joe","sub":"fun","exp":9999999999,"nbf":1300819380,"iat":1300819380,"jti":"foo","http://postgrest.com/foo":true}]|]
 
   it "allows users with permissions to see their tables" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0"
@@ -148,7 +147,7 @@ spec actualPgVersion = describe "authorization" $ do
       let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MX0.gKw7qI50i9hMrSJW8BlTpdMEVmMXJYxlAqueGqpa_mE" in
       request methodPost "/rpc/get_current_user" [auth]
         [json| {} |]
-         `shouldRespondWith` [str|"postgrest_test_author"|]
+         `shouldRespondWith` [json|"postgrest_test_author"|]
           { matchStatus = 200
           , matchHeaders = []
           }
@@ -157,7 +156,7 @@ spec actualPgVersion = describe "authorization" $ do
       let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mn0.nwzjMI0YLvVGJQTeoCPEBsK983b__gxdpLXisBNaO2A" in
       request methodPost "/rpc/get_current_user" [auth]
         [json| {} |]
-         `shouldRespondWith` [str|"postgrest_test_default_role"|]
+         `shouldRespondWith` [json|"postgrest_test_default_role"|]
           { matchStatus = 200
           , matchHeaders = []
           }
@@ -166,7 +165,7 @@ spec actualPgVersion = describe "authorization" $ do
       let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6M30.OGxEJAf60NKZiTn-tIb2jy4rqKs_ZruLGWZ40TjrJsM" in
       request methodPost "/rpc/get_current_user" [auth]
         [json| {} |]
-         `shouldRespondWith` [str|{"hint":"Please contact administrator","details":null,"code":"P0001","message":"Disabled ID --> 3"}|]
+         `shouldRespondWith` [json|{"hint":"Please contact administrator","details":null,"code":"P0001","message":"Disabled ID --> 3"}|]
           { matchStatus = 400
           , matchHeaders = []
           }
