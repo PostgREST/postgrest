@@ -8,8 +8,6 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Text.Heredoc
-
 import PostgREST.Types (PgVersion, pgVersion112, pgVersion121,
                         pgVersion96)
 import Protolude       hiding (get)
@@ -72,19 +70,19 @@ spec actualPgVersion = do
         [json| [{"a": null, "b": null}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-      get "/nullable_integer?a=is.null" `shouldRespondWith` [str|[{"a":null}]|]
+      get "/nullable_integer?a=is.null" `shouldRespondWith` [json|[{"a":null}]|]
 
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`
-        [str|[{"k":"xyyx","extra":"u"}]|]
+        [json|[{"k":"xyyx","extra":"u"}]|]
       get "/simple_pk?k=like.xy*" `shouldRespondWith`
-        [str|[{"k":"xyyx","extra":"u"}]|]
+        [json|[{"k":"xyyx","extra":"u"}]|]
       get "/simple_pk?k=like.*YY*" `shouldRespondWith`
-        [str|[{"k":"xYYx","extra":"v"}]|]
+        [json|[{"k":"xYYx","extra":"v"}]|]
 
     it "matches with like using not operator" $
       get "/simple_pk?k=not.like.*yx" `shouldRespondWith`
-        [str|[{"k":"xYYx","extra":"v"}]|]
+        [json|[{"k":"xYYx","extra":"v"}]|]
 
     it "matches with ilike" $ do
       get "/simple_pk?k=ilike.xy*&order=extra.asc" `shouldRespondWith`
@@ -251,11 +249,11 @@ spec actualPgVersion = do
   describe "Shaping response with select parameter" $ do
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
-        [str|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}]|]
+        [json|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}]|]
 
     it "dash `-` in column names is accepted" $
       get "/complex_items?id=eq.3&select=id,field-with_sep" `shouldRespondWith`
-        [str|[{"id":3,"field-with_sep":1}]|]
+        [json|[{"id":3,"field-with_sep":1}]|]
 
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`
@@ -320,7 +318,7 @@ spec actualPgVersion = do
 
     it "requesting parents and filtering parent columns" $
       get "/projects?id=eq.1&select=id, name, clients(id)" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","clients":{"id":1}}]|]
+        [json|[{"id":1,"name":"Windows 7","clients":{"id":1}}]|]
 
     it "rows with missing parents are included" $
       get "/projects?id=in.(1,5)&select=id,clients(id)" `shouldRespondWith`
@@ -329,7 +327,7 @@ spec actualPgVersion = do
 
     it "rows with no children return [] instead of null" $
       get "/projects?id=in.(5)&select=id,tasks(id)" `shouldRespondWith`
-        [str|[{"id":5,"tasks":[]}]|]
+        [json|[{"id":5,"tasks":[]}]|]
 
     it "requesting children 2 levels" $
       get "/clients?id=eq.1&select=id,projects(id,tasks(id))" `shouldRespondWith`
@@ -660,7 +658,7 @@ spec actualPgVersion = do
 
     it "ordering embeded parents does not break things" $
       get "/projects?id=eq.1&select=id, name, clients(id, name)&clients.order=name.asc" `shouldRespondWith`
-        [str|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"}}]|]
+        [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"}}]|]
 
     context "order syntax errors" $ do
       it "gives meaningful error messages when asc/desc/nulls{first,last} are misspelled" $ do

@@ -6,7 +6,6 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Text.Heredoc
 
 import Protolude hiding (get)
 
@@ -23,7 +22,7 @@ spec =
 
       it "returns the deleted item and count if requested" $
         request methodDelete "/items?id=eq.2" [("Prefer", "return=representation"), ("Prefer", "count=exact")] ""
-          `shouldRespondWith` [str|[{"id":2}]|]
+          `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/1"]
           }
@@ -42,18 +41,18 @@ spec =
 
       it "returns the deleted item and shapes the response" $
         request methodDelete "/complex_items?id=eq.2&select=id,name" [("Prefer", "return=representation")] ""
-          `shouldRespondWith` [str|[{"id":2,"name":"Two"}]|]
+          `shouldRespondWith` [json|[{"id":2,"name":"Two"}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
       it "can rename and cast the selected columns" $
         request methodDelete "/complex_items?id=eq.3&select=ciId:id::text,ciName:name" [("Prefer", "return=representation")] ""
-          `shouldRespondWith` [str|[{"ciId":"3","ciName":"Three"}]|]
+          `shouldRespondWith` [json|[{"ciId":"3","ciName":"Three"}]|]
 
       it "can embed (parent) entities" $
         request methodDelete "/tasks?id=eq.8&select=id,name,project:projects(id)" [("Prefer", "return=representation")] ""
-          `shouldRespondWith` [str|[{"id":8,"name":"Code OSX","project":{"id":4}}]|]
+          `shouldRespondWith` [json|[{"id":8,"name":"Code OSX","project":{"id":4}}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
@@ -61,7 +60,7 @@ spec =
       it "actually clears items ouf the db" $ do
         _ <- request methodDelete "/items?id=lt.15" [] ""
         get "/items"
-          `shouldRespondWith` [str|[{"id":15}]|]
+          `shouldRespondWith` [json|[{"id":15}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }

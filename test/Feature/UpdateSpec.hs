@@ -85,7 +85,7 @@ spec = do
       it "returns updated object as array when return=rep" $
         request methodPatch "/items?id=eq.2"
           [("Prefer", "return=representation")] [json| { "id":2 } |]
-          `shouldRespondWith` [str|[{"id":2}]|]
+          `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200,
             matchHeaders = ["Content-Range" <:> "0-0/*"]
           }

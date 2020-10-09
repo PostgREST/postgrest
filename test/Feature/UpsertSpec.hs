@@ -6,7 +6,6 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Text.Heredoc
 
 import Protolude  hiding (get, put)
 import SpecHelper
@@ -161,73 +160,73 @@ spec =
       context "Restrictions" $ do
         it "fails if Range is specified" $
           request methodPut "/tiobe_pls?name=eq.Javascript" [("Range", "0-5")]
-            [str| [ { "name": "Javascript", "rank": 1 } ]|]
+            [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
             [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if limit is specified" $
           put "/tiobe_pls?name=eq.Javascript&limit=1"
-            [str| [ { "name": "Javascript", "rank": 1 } ]|]
+            [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
             [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if offset is specified" $
           put "/tiobe_pls?name=eq.Javascript&offset=1"
-            [str| [ { "name": "Javascript", "rank": 1 } ]|]
+            [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
             [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "rejects every other filter than pk cols eq's" $ do
           put "/tiobe_pls?rank=eq.19"
-            [str| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
           put "/tiobe_pls?id=not.eq.Java"
-            [str| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/tiobe_pls?id=in.(Go)"
-            [str| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/tiobe_pls?and=(id.eq.Go)"
-            [str| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if not all composite key cols are specified as eq filters" $ do
           put "/employees?first_name=eq.Susan"
-            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/employees?last_name=eq.Heidt"
-            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
             [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
       it "fails if the uri primary key doesn't match the payload primary key" $ do
-        put "/tiobe_pls?name=eq.MATLAB" [str| [ { "name": "Perl", "rank": 17 } ]|]
+        put "/tiobe_pls?name=eq.MATLAB" [json| [ { "name": "Perl", "rank": 17 } ]|]
           `shouldRespondWith`
           [json|{"message":"Payload values do not match URL in primary key column(s)"}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
         put "/employees?first_name=eq.Wendy&last_name=eq.Anderson"
-          [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+          [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
           `shouldRespondWith`
           [json|{"message":"Payload values do not match URL in primary key column(s)"}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
       it "fails if the table has no PK" $
-        put "/no_pk?a=eq.one&b=eq.two" [str| [ { "a": "one", "b": "two" } ]|]
+        put "/no_pk?a=eq.one&b=eq.two" [json| [ { "a": "one", "b": "two" } ]|]
           `shouldRespondWith`
           [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
           { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
@@ -235,14 +234,14 @@ spec =
       context "Inserting row" $ do
         it "succeeds on table with single pk col" $ do
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` "[]"
-          put "/tiobe_pls?name=eq.Go" [str| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 204
+          put "/tiobe_pls?name=eq.Go" [json| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 204
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
 
         it "succeeds on table with composite pk" $ do
           get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
             `shouldRespondWith` "[]"
           put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith` 204
           get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
             `shouldRespondWith`
@@ -251,19 +250,19 @@ spec =
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           get "/only_pk?id=eq.10" `shouldRespondWith` "[]"
-          put "/only_pk?id=eq.10" [str|[ { "id": 10 } ]|] `shouldRespondWith` 204
+          put "/only_pk?id=eq.10" [json|[ { "id": 10 } ]|] `shouldRespondWith` 204
           get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
 
       context "Updating row" $ do
         it "succeeds on table with single pk col" $ do
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json|[ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
-          put "/tiobe_pls?name=eq.Go" [str| [ { "name": "Go", "rank": 13 } ]|] `shouldRespondWith` 204
+          put "/tiobe_pls?name=eq.Go" [json| [ { "name": "Go", "rank": 13 } ]|] `shouldRespondWith` 204
           get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 13 } ]|] { matchHeaders = [matchContentTypeJson] }
 
         it "succeeds if the payload has more than one row, but it only puts the first element" $
           request methodPut "/tiobe_pls?name=eq.Go"
             [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
-            [str| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ] |]
+            [json| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ] |]
             `shouldRespondWith`
             [json|{ "name": "Go", "rank": 19 }|]
             { matchStatus = 200 , matchHeaders = [matchContentTypeSingular] }
@@ -274,7 +273,7 @@ spec =
             [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             { matchHeaders = [matchContentTypeJson] }
           put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            [str| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
+            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith` 204
           get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
             `shouldRespondWith`
@@ -283,13 +282,13 @@ spec =
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
-          put "/only_pk?id=eq.10" [str|[ { "id": 10 } ]|] `shouldRespondWith` 204
+          put "/only_pk?id=eq.10" [json|[ { "id": 10 } ]|] `shouldRespondWith` 204
           get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
 
       it "works with return=representation and vnd.pgrst.object+json" $
         request methodPut "/tiobe_pls?name=eq.Ruby"
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
-          [str| [ { "name": "Ruby", "rank": 11 } ]|]
+          [json| [ { "name": "Ruby", "rank": 11 } ]|]
           `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|] { matchHeaders = [matchContentTypeSingular] }
 
     context "with a camel case pk column" $ do
@@ -315,6 +314,6 @@ spec =
           }
 
       it "works with PUT" $ do
-        put "/UnitTest?idUnitTest=eq.1" [str| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] `shouldRespondWith` 204
+        put "/UnitTest?idUnitTest=eq.1" [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] `shouldRespondWith` 204
         get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] { matchHeaders = [matchContentTypeJson] }

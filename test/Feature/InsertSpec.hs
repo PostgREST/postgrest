@@ -42,7 +42,7 @@ spec actualPgVersion = do
             "integer": 14, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
-          }] |] `shouldRespondWith` [str|[{"integer":14,"varchar":"testing!"}]|]
+          }] |] `shouldRespondWith` [json|[{"integer":14,"varchar":"testing!"}]|]
           { matchStatus  = 201
           , matchHeaders = [matchContentTypeJson]
           }
@@ -86,7 +86,7 @@ spec actualPgVersion = do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients(id,name)"
                 [("Prefer", "return=representation"), ("Prefer", "count=exact")]
-          [str|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [str|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
+          [json|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [json|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.6"
@@ -96,8 +96,8 @@ spec actualPgVersion = do
       it "can rename and cast the selected columns" $
         request methodPost "/projects?select=pId:id::text,pName:name,cId:client_id::text"
                 [("Prefer", "return=representation")]
-          [str|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith`
-          [str|[{"pId":"7","pName":"New Project","cId":"2"}]|]
+          [json|{"id":7,"name":"New Project","client_id":2}|] `shouldRespondWith`
+          [json|[{"pId":"7","pName":"New Project","cId":"2"}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.7"
@@ -106,8 +106,8 @@ spec actualPgVersion = do
 
       it "should not throw and return location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" [("Prefer", "return=representation")]
-          [str|{"id":10,"name":"New Project","client_id":2}|] `shouldRespondWith`
-          [str|[{"name":"New Project","client_id":2}]|]
+          [json|{"id":10,"name":"New Project","client_id":2}|] `shouldRespondWith`
+          [json|[{"name":"New Project","client_id":2}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , "Location" <:> "/projects?id=eq.10"
@@ -117,7 +117,7 @@ spec actualPgVersion = do
     context "requesting no representation" $
       it "should not throw and return location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" []
-          [str|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
+          [json|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
                            , "Content-Range" <:> "*/*" ]
@@ -263,7 +263,7 @@ spec actualPgVersion = do
         request methodPost "/json_table"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` [str|[{"data":{"foo":"bar"}}]|]
+          `shouldRespondWith` [json|[{"data":{"foo":"bar"}}]|]
           { matchStatus  = 201
           }
 
@@ -272,7 +272,7 @@ spec actualPgVersion = do
         request methodPost "/json_table"
                      [("Prefer", "return=representation")]
                      inserted
-          `shouldRespondWith` [str|[{"data":[1,2,3]}]|]
+          `shouldRespondWith` [json|[{"data":[1,2,3]}]|]
           { matchStatus  = 201
           }
 
@@ -423,24 +423,23 @@ spec actualPgVersion = do
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
-      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0"
-      _ <- post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      _ <- post "/postgrest/users" [json| { "id":"jroe", "pass": "1234", "role": "postgrest_test_author" } |]
+      post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
+      post "/postgrest/users" [json| { "id":"jroe", "pass": "1234", "role": "postgrest_test_author" } |]
 
-      p1 <- request methodPost "/authors_only"
-        [ auth, ("Prefer", "return=representation") ]
-        [json| { "secret": "nyancat" } |]
-      liftIO $ do
-        simpleBody p1 `shouldBe` [str|[{"owner":"jdoe","secret":"nyancat"}]|]
-        simpleStatus p1 `shouldBe` created201
+      request methodPost "/authors_only"
+          [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0", ("Prefer", "return=representation") ]
+          [json| { "secret": "nyancat" } |]
+        `shouldRespondWith`
+          [json|[{"owner":"jdoe","secret":"nyancat"}]|]
+          { matchStatus  = 201 }
 
-      p2 <- request methodPost "/authors_only"
-        -- jwt token for jroe
-        [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.2e7mx0U4uDcInlbJVOBGlrRufwqWLINDIEDC1vS0nw8", ("Prefer", "return=representation") ]
-        [json| { "secret": "lolcat", "owner": "hacker" } |]
-      liftIO $ do
-        simpleBody p2 `shouldBe` [str|[{"owner":"jroe","secret":"lolcat"}]|]
-        simpleStatus p2 `shouldBe` created201
+      request methodPost "/authors_only"
+          -- jwt token for jroe
+          [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqcm9lIn0.2e7mx0U4uDcInlbJVOBGlrRufwqWLINDIEDC1vS0nw8", ("Prefer", "return=representation") ]
+          [json| { "secret": "lolcat", "owner": "hacker" } |]
+        `shouldRespondWith`
+          [json|[{"owner":"jroe","secret":"lolcat"}]|]
+          { matchStatus  = 201 }
 
   context "tables with self reference foreign keys" $ do
     it "embeds parent after insert" $
@@ -456,7 +455,7 @@ spec actualPgVersion = do
   context "table with limited privileges" $ do
     it "succeeds inserting if correct select is applied" $
       request methodPost "/limited_article_stars?select=article_id,user_id" [("Prefer", "return=representation")]
-        [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` [str|[{"article_id":2,"user_id":1}]|]
+        [json| {"article_id": 2, "user_id": 1} |] `shouldRespondWith` [json|[{"article_id":2,"user_id":1}]|]
         { matchStatus  = 201
         , matchHeaders = []
         }
@@ -465,9 +464,9 @@ spec actualPgVersion = do
       request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
         [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
       if actualPgVersion >= pgVersion112 then
-      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
          else
-      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
                                                                       )
         { matchStatus  = 401
         , matchHeaders = []
@@ -477,9 +476,9 @@ spec actualPgVersion = do
       request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
         [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
       if actualPgVersion >= pgVersion112 then
-      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
+      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
          else
-      [str|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
+      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
                                                                       )
         { matchStatus  = 401
         , matchHeaders = []

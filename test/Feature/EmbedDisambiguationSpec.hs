@@ -5,7 +5,6 @@ import Network.Wai (Application)
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Text.Heredoc
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -154,7 +153,7 @@ spec =
 
         it "can embed parent with view!fk and grandparent by using fk" $
           get "/tasks?id=eq.1&select=id,name,projects_view!project(id,name,client(id,name))" `shouldRespondWith`
-            [str|[{"id":1,"name":"Design w7","projects_view":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+            [json|[{"id":1,"name":"Design w7","projects_view":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
 
         it "can embed by using a composite FK name" $
           get "/unit_workdays?select=unit_id,day,fst_shift(car_id,schedule(name)),snd_shift(camera_id,schedule(name))" `shouldRespondWith`
@@ -230,7 +229,7 @@ spec =
 
         it "can embed parent by using view!column and grandparent by using the column" $
           get "/tasks?id=eq.1&select=id,name,project:projects_view!project_id(id,name,client:client_id(id,name))" `shouldRespondWith`
-            [str|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
+            [json|[{"id":1,"name":"Design w7","project":{"id":1,"name":"Windows 7","client":{"id":1,"name":"Microsoft"}}}]|]
 
         it "can specify table!column" $
           get "/message?select=id,body,sender:person!sender(name),recipient:person!recipient(name)&id=lt.4" `shouldRespondWith`

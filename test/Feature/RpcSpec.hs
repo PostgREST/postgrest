@@ -123,9 +123,9 @@ spec actualPgVersion =
     context "shaping the response returned by a proc" $ do
       it "returns a project" $ do
         post "/rpc/getproject" [json| { "id": 1} |] `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7","client_id":1}]|]
+          [json|[{"id":1,"name":"Windows 7","client_id":1}]|]
         get "/rpc/getproject?id=1" `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7","client_id":1}]|]
+          [json|[{"id":1,"name":"Windows 7","client_id":1}]|]
 
       it "can filter proc results" $ do
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id" [json| {} |] `shouldRespondWith`
@@ -147,9 +147,9 @@ spec actualPgVersion =
 
       it "select works on the first level" $ do
         post "/rpc/getproject?select=id,name" [json| { "id": 1} |] `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7"}]|]
+          [json|[{"id":1,"name":"Windows 7"}]|]
         get "/rpc/getproject?id=1&select=id,name" `shouldRespondWith`
-          [str|[{"id":1,"name":"Windows 7"}]|]
+          [json|[{"id":1,"name":"Windows 7"}]|]
 
     context "foreign entities embedding" $ do
       it "can embed if related tables are in the exposed schema" $ do
@@ -624,7 +624,7 @@ spec actualPgVersion =
         get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
 
       it "overloaded(text, text, text)" $
-        get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [str|"123"|]
+        get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [json|"123"|]
 
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
@@ -688,7 +688,7 @@ spec actualPgVersion =
                   [("Custom-Header", "test")]
             [json| { "name": "request.header.custom-header" } |]
             `shouldRespondWith`
-            [str|"test"|]
+            [json|"test"|]
             { matchStatus  = 200
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -697,7 +697,7 @@ spec actualPgVersion =
                   [("Origin", "http://example.com")]
             [json| { "name": "request.header.origin" } |]
             `shouldRespondWith`
-            [str|"http://example.com"|]
+            [json|"http://example.com"|]
             { matchStatus  = 200
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -705,7 +705,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" []
             [json| { "name": "request.jwt.claim.role" } |]
             `shouldRespondWith`
-            [str|"postgrest_test_anonymous"|]
+            [json|"postgrest_test_anonymous"|]
             { matchStatus  = 200
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -713,7 +713,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
           [json| {"name":"request.cookie.acookie"} |]
             `shouldRespondWith`
-            [str|"cookievalue"|]
+            [json|"cookievalue"|]
             { matchStatus = 200
             , matchHeaders = []
             }
@@ -721,7 +721,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
           [json| {"name":"request.cookie.secondcookie"} |]
             `shouldRespondWith`
-            [str|"anothervalue"|]
+            [json|"anothervalue"|]
             { matchStatus = 200
             , matchHeaders = []
             }
@@ -729,7 +729,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" []
           [json| { "name": "app.settings.app_host" } |]
             `shouldRespondWith`
-            [str|"localhost"|]
+            [json|"localhost"|]
             { matchStatus  = 200
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -737,7 +737,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
           [json| {"name":"request.header.authorization"} |]
             `shouldRespondWith`
-            [str|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
+            [json|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
             { matchStatus = 200
             , matchHeaders = []
             }
@@ -745,7 +745,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" []
           [json| {"name":"request.method"} |]
             `shouldRespondWith`
-            [str|"POST"|]
+            [json|"POST"|]
             { matchStatus = 200
             , matchHeaders = []
             }
@@ -753,7 +753,7 @@ spec actualPgVersion =
         request methodPost "/rpc/get_guc_value" []
           [json| {"name":"request.path"} |]
             `shouldRespondWith`
-            [str|"/rpc/get_guc_value"|]
+            [json|"/rpc/get_guc_value"|]
             { matchStatus = 200
             , matchHeaders = []
             }
