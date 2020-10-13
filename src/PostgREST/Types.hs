@@ -385,7 +385,7 @@ data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Sh
 
 type FieldName = Text
 {-|
-  Json path operations as specified in https://www.postgresql.org/docs/9.4/static/functions-json.html
+  Json path operations as specified in https://www.postgresql.org/docs/current/static/functions-json.html
 -}
 type JsonPath = [JsonOperation]
 -- | Represents the single arrow `->` or double arrow `->>` operators
@@ -492,10 +492,7 @@ instance Ord PgVersion where
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = pgVersion94
-
-pgVersion94 :: PgVersion
-pgVersion94 = PgVersion 90400 "9.4"
+minimumPgVersion = pgVersion95
 
 pgVersion95 :: PgVersion
 pgVersion95 = PgVersion 90500 "9.5"

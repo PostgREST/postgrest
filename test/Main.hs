@@ -15,7 +15,7 @@ import Test.Hspec
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types       (LogLevel (..), pgVersion95, pgVersion96)
+import PostgREST.Types       (LogLevel (..), pgVersion96)
 import Protolude             hiding (toList, toS)
 import Protolude.Conv        (toS)
 import SpecHelper
@@ -98,10 +98,6 @@ main = do
         analyzeTable testDbConn "items"
         analyzeTable testDbConn "child_entities"
 
-      extraSpecs =
-        [("Feature.UpsertSpec", Feature.UpsertSpec.spec) | actualPgVersion >= pgVersion95] ++
-        [("Feature.PgVersion95Spec", Feature.PgVersion95Spec.spec) | actualPgVersion >= pgVersion95]
-
       specs = uncurry describe <$> [
           ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
         , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
@@ -113,7 +109,9 @@ main = do
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.StructureSpec"           , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
-        ] ++ extraSpecs
+        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
+        , ("Feature.PgVersion95Spec"         , Feature.PgVersion95Spec.spec)
+        ]
 
       mutSpecs = uncurry describe <$> [
           ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
