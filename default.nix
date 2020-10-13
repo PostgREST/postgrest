@@ -32,7 +32,6 @@ let
   overlays =
     [
       allOverlays.postgresql-default
-      allOverlays.postgresql-legacy
       allOverlays.gitignore
       allOverlays.ghr
       (allOverlays.haskell-packages { inherit compiler; })
@@ -50,7 +49,6 @@ let
       postgresql-10 = pkgs.postgresql_10;
       "postgresql-9.6" = pkgs.postgresql_9_6;
       "postgresql-9.5" = pkgs.postgresql_9_5;
-      "postgresql-9.4" = pkgs.postgresql_9_4;
     };
 
   patches =

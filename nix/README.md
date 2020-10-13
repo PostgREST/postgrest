@@ -70,7 +70,7 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 [nix-shell]$ postgrest-<tab>
 postgrest-lint                      postgrest-test-spec-postgresql-11
 postgrest-style                     postgrest-test-spec-postgresql-12
-postgrest-style-check               postgrest-test-spec-postgresql-9.4
+postgrest-style-check               postgrest-test-spec-postgresql-13
 postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
 postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 postgrest-test-spec-postgresql-10
@@ -91,7 +91,7 @@ $ nix-shell --arg ioTests true
 postgrest-lint                      postgrest-test-spec-postgresql-10
 postgrest-style                     postgrest-test-spec-postgresql-11
 postgrest-style-check               postgrest-test-spec-postgresql-12
-postgrest-test-io                   postgrest-test-spec-postgresql-9.4
+postgrest-test-io                   postgrest-test-spec-postgresql-13
 postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
 postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 

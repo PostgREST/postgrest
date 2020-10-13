@@ -31,7 +31,7 @@ jobs:
       - image: circleci/buildpack-deps:trusty
         environment:
           - PGHOST=localhost
-      - image: circleci/postgres:9.4
+      - image: circleci/postgres:9.5
         environment:
           - POSTGRES_USER=circleci
           - POSTGRES_DB=circleci
@@ -183,9 +183,6 @@ jobs:
       - run:
           name: Install testing scripts
           command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
-      - run:
-          name: Run the spec tests against PostgreSQL 9.4
-          command: postgrest-test-spec-postgresql-9.4
       - run:
           name: Run the spec tests against PostgreSQL 9.5
           command: postgrest-test-spec-postgresql-9.5

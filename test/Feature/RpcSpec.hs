@@ -12,8 +12,7 @@ import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
 import PostgREST.Types (PgVersion, pgVersion100, pgVersion109,
-                        pgVersion110, pgVersion112, pgVersion114,
-                        pgVersion95)
+                        pgVersion110, pgVersion112, pgVersion114)
 import Protolude       hiding (get)
 import SpecHelper
 
@@ -101,16 +100,11 @@ spec actualPgVersion =
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
-        let
-          message :: Text
-          message
-            | actualPgVersion < pgVersion95 = "function test.add_them(a := integer, b := integer, smthelse := text) does not exist"
-            | otherwise = "function test.add_them(a => integer, b => integer, smthelse => text) does not exist"
-        in [json| {
+        [json| {
           "code": "42883",
           "details": null,
           "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
-          "message": #{message} } |]
+          "message": "function test.add_them(a => integer, b => integer, smthelse => text) does not exist" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
