@@ -31,7 +31,14 @@ packages:
       size: 1644
       sha256: babf32b414f25f790b7a4ce6bae5c960bc51a11a289e7c47335b222e6762560c
   original:
-    hackage: protolude-0.3.0
+    hackage: protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
+- completed:
+    hackage: hasql-notifications-0.1.0.0@sha256:9ab112d2bb5da0d55abd65f0d27a7bb1dc4aeb792518d9a2ea8a16e243e19985,2156
+    pantry-tree:
+      size: 452
+      sha256: 3f5c51ec2bc7b58b5b6e8c871c8ed903a8dd1fbbb37cce9607407933d678e205
+  original:
+    hackage: hasql-notifications-0.1.0.0@sha256:9ab112d2bb5da0d55abd65f0d27a7bb1dc4aeb792518d9a2ea8a16e243e19985,2156
 snapshots:
 - completed:
     size: 492015
