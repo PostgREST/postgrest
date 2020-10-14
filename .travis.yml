@@ -46,7 +46,7 @@ script:
 ## we compile for 30 minutes tops(`gtimeout 1800`) and quit compiling with no error.
 ## Since we CACHE the compile results we can continue compiling from where we left off
 ## on the next commit.
-- gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || true
+- gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || (($?==124))
 - |
   if test ! "$TRAVIS_TAG"
   then
