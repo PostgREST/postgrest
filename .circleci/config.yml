@@ -153,12 +153,16 @@ jobs:
             postgrest-release-dockerhub
             postgrest-release-dockerhubdescription
 
-  # Build everything in default.nix and push to the Cachix binary cache.
-  nix-build:
-    docker:
-      - image: nixos/nix:2.3
+  # Build everything in default.nix, push to the Cachix binary cache and run tests
+  nix-build-test:
+    machine: true
     steps:
       - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
       - run:
           name: Install and use the Cachix binary cache
           command: |
@@ -176,42 +180,9 @@ jobs:
               echo "Building all derivations (caching skipped for outside pull requests)..."
               nix-build
             fi
-
-  # Run tests against all supported PostgreSQL versions.
-  nix-test:
-    machine: true
-    steps:
-      - checkout
-      - run:
-          name: Install Nix
-          command: |
-            curl -L https://nixos.org/nix/install | sh
-            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
-      - run:
-          name: Install and use the Cachix binary cache
-          command: |
-            nix-env -iA cachix -f https://cachix.org/api/v1/install
-            cachix use postgrest
       - run:
           name: Install testing scripts
           command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
-      # Our utility scripts use cabal to run the tests, which will pick up all
-      # the libraries that are built with Nix. So this should only ever build
-      # the PostgREST itself and be reasonably quick. We accelerate that part
-      # further by caching `~/.cabal` and `dist-newstyle`.
-      #
-      # CircleCI looks for caches by prefix. When saving to the the cache
-      # below, we append the current time to the key ('-{{ epoch }}'), so a new
-      # cache will always be uploaded. If the `postgrest.cabal` and
-      # `nix/nixpkgs-version.nix` files are unchanged, the latest matching
-      # cache will be used. If there is no cache for those files, CircleCI will
-      # try the next, more general key and use the latest cache that matches
-      # it.
-      - restore_cache:
-          keys:
-            - nix-test-{{ checksum "postgrest.cabal" }}-{{ checksum "nix/nixpkgs-version.nix" }}
-            - nix-test-{{ checksum "postgrest.cabal" }}
-            - nix-test
       - run:
           name: Run the spec tests against PostgreSQL 9.4
           command: postgrest-test-spec-postgresql-9.4
@@ -239,11 +210,6 @@ jobs:
       - run:
           name: Run memory tests
           command: postgrest-test-memory
-      - save_cache:
-          paths:
-            - "~/.cabal"
-            - "dist-newstyle"
-          key: nix-test-{{ checksum "postgrest.cabal" }}-{{ checksum "nix/nixpkgs-version.nix" }}-{{ epoch }}
 
 workflows:
   version: 2
@@ -262,23 +228,16 @@ workflows:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - nix-build:
+      - nix-build-test:
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
-      - nix-test:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-          requires:
-            - nix-build
       - release:
           requires:
             - style-check
             - stack-test
             - stack-test-memory
-            - nix-build
-            - nix-test
+            - nix-build-test
           filters:
             tags:
               only: /v[0-9]+(\.[0-9]+)*/
