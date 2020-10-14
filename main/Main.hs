@@ -67,7 +67,9 @@ main = do
     host = configHost conf
     port = configPort conf
     maybeSocketAddr = configSocket conf
+#ifndef mingw32_HOST_OS
     socketFileMode = configSocketMode conf
+#endif
     dbUri = toS (configDbUri conf)
     (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
     serverSettings =
