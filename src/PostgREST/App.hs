@@ -187,7 +187,7 @@ app dbStructure proc cols conf apiRequest =
                         , Just $ contentRangeH 1 0 $ if shouldCount then Just queryTotal else Nothing
                         , if null pkCols && isNothing (iOnConflict apiRequest)
                             then Nothing
-                            else (\x -> ("Preference-Applied", encodeUtf8 (show x))) <$> iPreferResolution apiRequest
+                            else (\x -> ("Preference-Applied", BS.pack (show x))) <$> iPreferResolution apiRequest
                         ] ++ ctHeaders)) (unwrapGucHeader <$> ghdrs)
                   if contentType == CTSingularJSON && queryTotal /= 1
                     then do

@@ -20,9 +20,9 @@ module PostgREST.QueryBuilder (
   , setLocalSearchPathQuery
   ) where
 
-import qualified Data.Set as S
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.Set              as S
 
-import Data.Text (intercalate)
 import Data.Tree (Tree (..))
 
 import Data.Maybe
@@ -36,14 +36,14 @@ import Protolude                       hiding (cast, intercalate,
 
 readRequestToQuery :: ReadRequest -> SqlQuery
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
-  unwords [
-    "SELECT " <> intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
-    "FROM " <> intercalate ", " (tabl : implJs),
-    unwords joins,
-    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
+  BS.unwords [
+    "SELECT " <> BS.intercalate ", " (map (pgFmtSelectItem qi) colSelects ++ selects),
+    "FROM " <> BS.intercalate ", " (tabl : implJs),
+    BS.unwords joins,
+    ("WHERE " <> BS.intercalate " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
       `emptyOnFalse` (null logicForest && null joinConditions_),
-    ("ORDER BY " <> intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
-    ("LIMIT " <> maybe "ALL" show (rangeLimit range) <> " OFFSET " <> show (rangeOffset range)) `emptyOnFalse` (range == allRange)
+    ("ORDER BY " <> BS.intercalate ", " (map (pgFmtOrderTerm qi) ordts)) `emptyOnFalse` null ordts,
+    ("LIMIT " <> maybe "ALL" (BS.pack . show) (rangeLimit range) <> " OFFSET " <> (BS.pack . show) (rangeOffset range)) `emptyOnFalse` (range == allRange)
     ]
   where
     implJs = fromQi <$> implJoins
@@ -71,27 +71,27 @@ getJoinsSelects (Node (_, (_, Nothing, _, _, _)) _) _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> SqlQuery
 mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
-  unwords [
+  BS.unwords [
     "WITH " <> normalizedBody,
     "INSERT INTO ", fromQi mainQi, if S.null iCols then " " else "(" <> cols <> ")",
-    unwords [
+    BS.unwords [
       "SELECT " <> cols <> " FROM",
       "json_populate_recordset", "(null::", fromQi mainQi, ", " <> selectBody <> ") _",
       -- Only used for PUT
-      ("WHERE " <> intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) `emptyOnFalse` null putConditions],
+      ("WHERE " <> BS.intercalate " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) `emptyOnFalse` null putConditions],
     maybe "" (\(oncDo, oncCols) -> (
-      "ON CONFLICT(" <> intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
+      "ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
         if S.null iCols
            then "DO NOTHING"
-           else "DO UPDATE SET " <> intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
+           else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
                                    ) `emptyOnFalse` null oncCols) onConflct,
     returningF mainQi returnings
     ]
   where
-    cols = intercalate ", " $ pgFmtIdent <$> S.toList iCols
+    cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
 mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
   if S.null uCols
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
@@ -99,30 +99,30 @@ mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
     then "WITH " <> ignoredBody <> "SELECT " <> empty_body_returned_columns <> " FROM " <> fromQi mainQi <> " WHERE false"
     else
-      unwords [
+      BS.unwords [
         "WITH " <> normalizedBody,
         "UPDATE " <> fromQi mainQi <> " SET " <> cols,
         "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi mainQi, ", " <> selectBody <> ")) _ ",
-        ("WHERE " <> intercalate " AND " (pgFmtLogicTree mainQi <$> logicForest)) `emptyOnFalse` null logicForest,
+        ("WHERE " <> BS.intercalate " AND " (pgFmtLogicTree mainQi <$> logicForest)) `emptyOnFalse` null logicForest,
         returningF mainQi returnings
         ]
   where
-    cols = intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
+    cols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
     empty_body_returned_columns :: SqlFragment
     empty_body_returned_columns
       | null returnings = "NULL"
-      | otherwise       = intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
+      | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
 mutateRequestToQuery (Delete mainQi logicForest returnings) =
-  unwords [
+  BS.unwords [
     "WITH " <> ignoredBody,
     "DELETE FROM ", fromQi mainQi,
-    ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree mainQi) logicForest)) `emptyOnFalse` null logicForest,
+    ("WHERE " <> BS.intercalate " AND " (map (pgFmtLogicTree mainQi) logicForest)) `emptyOnFalse` null logicForest,
     returningF mainQi returnings
     ]
 
 requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> [FieldName] -> SqlQuery
 requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
-  unwords [
+  BS.unwords [
     "WITH",
     argsCTE,
     sourceBody ]
@@ -134,10 +134,10 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
       | null pgArgs = (ignoredBody, "")
       | paramsAsSingleObject = ("pgrst_args AS (SELECT NULL)", "$1::json")
       | otherwise = (
-          unwords [
+          BS.unwords [
             normalizedBody <> ",",
             "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (\a -> " " <> pgaType a) <> ")",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (\a -> " " <> encodeUtf8 (pgaType a)) <> ")",
             ")"]
          , if paramsAsMultipleObjects
              then fmtArgs (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
@@ -145,14 +145,14 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
         )
 
     fmtArgs :: (PgArg -> SqlFragment) -> SqlFragment
-    fmtArgs argFrag = intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> argFrag a) <$> pgArgs)
+    fmtArgs argFrag = BS.intercalate ", " ((\a -> pgFmtIdent (pgaName a) <> argFrag a) <$> pgArgs)
 
     sourceBody :: SqlFragment
     sourceBody
       | paramsAsMultipleObjects =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
-            else unwords [ "SELECT pgrst_lat_args.*"
+            else BS.unwords [ "SELECT pgrst_lat_args.*"
                          , "FROM pgrst_args,"
                          , "LATERAL ( SELECT " <> returned_columns <> " FROM " <> callIt <> " ) pgrst_lat_args" ]
       | otherwise =
@@ -166,7 +166,7 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
     returned_columns :: SqlFragment
     returned_columns
       | null returnings = "*"
-      | otherwise       = intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
+      | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.
@@ -175,14 +175,14 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
 -- inside the FROM target.
 readRequestToCountQuery :: ReadRequest -> SqlQuery
 readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
- unwords [
+ BS.unwords [
    "SELECT 1",
    "FROM " <> fromQi qi,
-   ("WHERE " <> intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
+   ("WHERE " <> BS.intercalate " AND " (map (pgFmtLogicTree qi) logicForest)) `emptyOnFalse` null logicForest
    ]
 
 limitedQuery :: SqlQuery -> Maybe Integer -> SqlQuery
-limitedQuery query maxRows = query <> maybe mempty (\x -> " LIMIT " <> show x) maxRows
+limitedQuery query maxRows = query <> maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows
 
 setLocalQuery :: Text -> (Text, Text) -> SqlQuery
 setLocalQuery prefix (k, v) =
@@ -190,4 +190,4 @@ setLocalQuery prefix (k, v) =
 
 setLocalSearchPathQuery :: [Text] -> SqlQuery
 setLocalSearchPathQuery vals =
-  "SET LOCAL search_path = " <> intercalate ", " (pgFmtLit <$> vals) <> ";"
+  "SET LOCAL search_path = " <> BS.intercalate ", " (pgFmtLit <$> vals) <> ";"

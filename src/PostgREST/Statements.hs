@@ -46,7 +46,7 @@ createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion ->
                         H.Statement ByteString ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
-  unicodeStatement sql (param HE.unknown) decodeStandard True
+  H.Statement sql (param HE.unknown) decodeStandard True
  where
   sql = [qc|
       WITH
@@ -62,7 +62,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
   locF =
     if isInsert && rep `elem` [Full, HeadersOnly]
-      then unwords [
+      then BS.unwords [
         "CASE WHEN pg_catalog.count(_postgrest_t) = 1",
           "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
           "ELSE " <> noLocationF,
@@ -87,7 +87,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                        H.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField pgVer =
-  unicodeStatement sql HE.noParams decodeStandard False
+  H.Statement sql HE.noParams decodeStandard False
  where
   sql = [qc|
       WITH
@@ -132,7 +132,7 @@ callProcStatement :: Bool -> SqlQuery -> SqlQuery -> SqlQuery -> Bool ->
                      Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                      H.Statement ByteString ProcResults
 callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
-  unicodeStatement sql (param HE.unknown) decodeProc True
+  H.Statement sql (param HE.unknown) decodeProc True
   where
     sql = [qc|
       WITH {sourceCTEName} AS ({callProcQuery})
@@ -172,7 +172,7 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
 
 createExplainStatement :: SqlQuery -> H.Statement () (Maybe Int64)
 createExplainStatement countQuery =
-  unicodeStatement sql HE.noParams decodeExplain False
+  H.Statement sql HE.noParams decodeExplain False
   where
     sql = [qc| EXPLAIN (FORMAT JSON) {countQuery} |]
     -- |
@@ -187,9 +187,6 @@ createExplainStatement countQuery =
     decodeExplain =
       let row = HD.singleRow $ column HD.bytea in
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
-
-unicodeStatement :: Text -> HE.Params a -> HD.Result b -> Bool -> H.Statement a b
-unicodeStatement = H.Statement . encodeUtf8
 
 decodeGucHeaders :: HD.Value (Either SimpleError [GucHeader])
 decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> HD.bytea

@@ -56,13 +56,14 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
 rootWithRels :: Schema -> TableName -> [Relation] -> Action -> (QualifiedIdentifier, [Relation])
 rootWithRels schema rootTableName allRels action = case action of
   ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
-  _            -> (QualifiedIdentifier mempty sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
+  _            -> (QualifiedIdentifier mempty _sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
   where
+    _sourceCTEName = decodeUtf8 sourceCTEName
     -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
     -- with {sourceCTEName}. This way findRel can find relationships with sourceCTEName.
     toSourceRel :: Relation -> Maybe Relation
     toSourceRel r@Relation{relTable=t}
-      | rootTableName == tableName t = Just $ r {relTable=t {tableName=sourceCTEName}}
+      | rootTableName == tableName t = Just $ r {relTable=t {tableName=_sourceCTEName}}
       | otherwise                    = Nothing
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
@@ -228,7 +229,7 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
     -- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
     -- `FROM "{sourceCTEName}"`. If the schema remains the FROM would be invalid.
     removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
-    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == sourceCTEName then mempty else schema) tbl
+    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == decodeUtf8 sourceCTEName then mempty else schema) tbl
 
 addFiltersOrdersRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addFiltersOrdersRanges apiRequest rReq = do

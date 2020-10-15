@@ -68,7 +68,7 @@ exec pool input query =
 
 explainCost :: SqlQuery -> H.Statement ByteString (Maybe Int64)
 explainCost query =
-  H.Statement (encodeUtf8 sql) (HE.param $ HE.nonNullable HE.unknown) decodeExplain False
+  H.Statement sql (HE.param $ HE.nonNullable HE.unknown) decodeExplain False
  where
    sql = "EXPLAIN (FORMAT JSON) " <> query
    decodeExplain :: HD.Result (Maybe Int64)

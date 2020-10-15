@@ -7,13 +7,15 @@ Any function that outputs a SqlFragment should be in this module.
 -}
 module PostgREST.Private.QueryFragment where
 
+import qualified Data.ByteString.Char8         as BS (intercalate,
+                                                      pack, unwords)
 import qualified Data.HashMap.Strict           as HM
 import           Data.Maybe
-import           Data.Text                     (intercalate,
-                                                isInfixOf, replace,
-                                                toLower)
-import qualified Data.Text                     as T (map, null,
-                                                     takeWhile)
+import qualified Data.Text                     as T (intercalate,
+                                                     isInfixOf, map,
+                                                     null, replace,
+                                                     takeWhile,
+                                                     toLower)
 import           PostgREST.Types
 import           Protolude                     hiding (cast,
                                                 intercalate, replace,
@@ -36,7 +38,7 @@ ignoredBody = "pgrst_ignored_body AS (SELECT $1::text) "
 -- We do this in SQL to avoid processing the JSON in application code
 normalizedBody :: SqlFragment
 normalizedBody =
-  unwords [
+  BS.unwords [
     "pgrst_payload AS (SELECT $1::json AS json_data),",
     "pgrst_body AS (",
       "SELECT",
@@ -49,17 +51,20 @@ normalizedBody =
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"
 
-pgFmtLit :: SqlFragment -> SqlFragment
+pgFmtLit :: Text -> SqlFragment
 pgFmtLit x =
  let trimmed = trimNullChars x
-     escaped = "'" <> replace "'" "''" trimmed <> "'"
-     slashed = replace "\\" "\\\\" escaped in
- if "\\" `isInfixOf` escaped
+     escaped = "'" <> T.replace "'" "''" trimmed <> "'"
+     slashed = T.replace "\\" "\\\\" escaped in
+ encodeUtf8 $ if "\\" `T.isInfixOf` escaped
    then "E" <> slashed
    else slashed
 
-pgFmtIdent :: SqlFragment -> SqlFragment
-pgFmtIdent x = "\"" <> replace "\"" "\"\"" (trimNullChars $ toS x) <> "\""
+pgFmtIdent :: Text -> SqlFragment
+pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
+
+trimNullChars :: Text -> Text
+trimNullChars = T.takeWhile (/= '\x0')
 
 asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
@@ -92,16 +97,16 @@ locationF pKeys = [qc|(
   WHERE json_data.key IN ('{fmtPKeys}')
 )|]
   where
-    fmtPKeys = intercalate "','" pKeys
+    fmtPKeys = T.intercalate "','" pKeys
 
 fromQi :: QualifiedIdentifier -> SqlFragment
-fromQi t = (if s == "" then "" else pgFmtIdent s <> ".") <> pgFmtIdent n
+fromQi t = (if T.null s then mempty else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
     s = qiSchema t
 
-emptyOnFalse :: Text -> Bool -> Text
-emptyOnFalse val cond = if cond then "" else val
+emptyOnFalse :: SqlFragment -> Bool -> SqlFragment
+emptyOnFalse val cond = if cond then mempty else val
 
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
@@ -112,13 +117,13 @@ pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
 pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> pgFmtAs fName jp alias
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> cast <> " )" <> pgFmtAs fName jp alias
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> encodeUtf8 cast <> " )" <> pgFmtAs fName jp alias
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SqlFragment
-pgFmtOrderTerm qi ot = unwords [
-  toS . pgFmtField qi $ otTerm ot,
-  maybe "" show $ otDirection ot,
-  maybe "" show $ otNullOrder ot]
+pgFmtOrderTerm qi ot = BS.unwords [
+  pgFmtField qi $ otTerm ot,
+  BS.pack $ maybe mempty show $ otDirection ot,
+  BS.pack $ maybe mempty show $ otNullOrder ot]
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
@@ -131,39 +136,39 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    In vals -> pgFmtField table fld <> " " <>
     let emptyValForIn = "= any('{}') " in -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"
     case (&&) (length vals == 1) . T.null <$> headMay vals of
-      Just False -> sqlOperator "in" <> "(" <> intercalate ", " (map unknownLiteral vals) <> ") "
+      Just False -> sqlOperator "in" <> "(" <> BS.intercalate ", " (unknownLiteral <$> vals) <> ") "
       Just True  -> emptyValForIn
       Nothing    -> emptyValForIn
 
    Fts op lang val ->
      pgFmtFieldOp op
        <> "("
-       <> maybe "" ((<> ", ") . pgFmtLit) lang
+       <> maybe mempty ((<> ", ") . pgFmtLit) lang
        <> unknownLiteral val
        <> ") "
  where
    pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
    sqlOperator o = HM.lookupDefault "=" o operators
-   notOp = if hasNot then "NOT" else ""
+   notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
    unknownLiteral = (<> "::unknown ") . pgFmtLit
    whiteList :: Text -> SqlFragment
-   whiteList v = fromMaybe
-     (toS (pgFmtLit v) <> "::unknown ")
-     (find ((==) . toLower $ v) ["null","true","false"])
+   whiteList v = maybe
+     (pgFmtLit v <> "::unknown") encodeUtf8
+     (find ((==) . T.toLower $ v) ["null","true","false"])
 
 pgFmtJoinCondition :: JoinCondition -> SqlFragment
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
   pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
-pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> intercalate (" " <> show op <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
-  where notOp =  if hasNot then "NOT" else ""
+pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> BS.intercalate (" " <> BS.pack (show op) <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
+  where notOp =  if hasNot then "NOT" else mempty
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SqlFragment
 pgFmtJsonPath = \case
-  []             -> ""
+  []             -> mempty
   (JArrow x:xs)  -> "->" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
   (J2Arrow x:xs) -> "->>" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
   where
@@ -171,7 +176,7 @@ pgFmtJsonPath = \case
     pgFmtJsonOperand (JIdx i) = pgFmtLit i <> "::int"
 
 pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SqlFragment
-pgFmtAs _ [] Nothing = ""
+pgFmtAs _ [] Nothing = mempty
 pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Just (JKey key) -> " AS " <> pgFmtIdent key
   Just (JIdx _)   -> " AS " <> pgFmtIdent (fromMaybe fName lastKey)
@@ -179,11 +184,8 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
     -- `select=data->1->mycol->>2`, we need to show the result as [ {"mycol": ..}, {"mycol": ..} ]
     -- `select=data->3`, we need to show the result as [ {"data": ..}, {"data": ..} ]
     where lastKey = jVal <$> find (\case JKey{} -> True; _ -> False) (jOp <$> reverse jp)
-  Nothing -> ""
+  Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
-
-trimNullChars :: Text -> Text
-trimNullChars = T.takeWhile (/= '\x0')
 
 countF :: SqlQuery -> Bool -> (SqlFragment, SqlFragment)
 countF countQuery shouldCount =
@@ -199,21 +201,21 @@ returningF :: QualifiedIdentifier -> [FieldName] -> SqlFragment
 returningF qi returnings =
   if null returnings
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
-    else "RETURNING " <> intercalate ", " (pgFmtColumn qi <$> returnings)
+    else "RETURNING " <> BS.intercalate ", " (pgFmtColumn qi <$> returnings)
 
 responseHeadersF :: PgVersion -> SqlFragment
 responseHeadersF pgVer =
   if pgVer >= pgVersion96
     then currentSettingF "response.headers"
-    else "null" :: Text
+    else "null"
 
 responseStatusF :: PgVersion -> SqlFragment
 responseStatusF pgVer =
   if pgVer >= pgVersion96
     then currentSettingF "response.status"
-    else "null" :: Text
+    else "null"
 
-currentSettingF :: SqlFragment -> SqlFragment
+currentSettingF :: Text -> SqlFragment
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
