@@ -175,6 +175,14 @@ create view orders_view as
 create view consumers_view as
   select * from public.public_consumers;
 
+create view consumers_view_view as
+  select * from consumers_view;
+
+create view private.consumers_private as
+  select * from consumers_view;
+
+create view consumers_private_view as
+  select * from private.consumers_private;
 
 --
 -- Name: getitemrange(bigint, bigint); Type: FUNCTION; Schema: test; Owner: -
