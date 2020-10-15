@@ -62,10 +62,10 @@ decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
   ct'                                 -> CTOther ct'
 
 -- | A SQL query that can be executed independently
-type SqlQuery = Text
+type SqlQuery = ByteString
 
 -- | A part of a SQL query that cannot be executed independently
-type SqlFragment = Text
+type SqlFragment = ByteString
 
 data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
 instance Show PreferResolution where
