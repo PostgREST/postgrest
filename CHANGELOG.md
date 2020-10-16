@@ -18,13 +18,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo
  - #1094, Fix expired JWTs starting an empty transaction on the db - @steve-chavez
- - #1475, Fix location header for POST request with select= without PK (#1162) - @wolfgangwalther
- - #1599, Fix error messages on connection failure for localized postgres on Windows (#1585) - @wolfgangwalther
+ - #1162, Fix location header for POST request with select= without PK - @wolfgangwalther
+ - #1585, Fix error messages on connection failure for localized postgres on Windows - @wolfgangwalther
 
 ### Changed
 
  - #1522, #1528, #1535, Docker images are now built from scratch based on a the static PostgREST executable (#1494) and with Nix instead of a `Dockerfile`. This reduces the compressed image size from over 30mb to about 4mb - @monacoremo
- - #1475, Location header for POST request is only included when PK is available on the table (#1461) - @wolfgangwalther
+ - #1461, Location header for POST request is only included when PK is available on the table - @wolfgangwalther
  - #1560, Volatile RPC called with GET now returns 405 Method not Allowed instead of 500 - @wolfgangwalther
  - #1604, Change the default logging level to `log-level=error`. Only requests with a status greater or equal than 500 will be logged. If you wish to go back to the previous behaviour and log all the requests, use `log-level=info` - @steve-chavez
  - #1617, Dropped support for PostgreSQL 9.4 - @wolfgangwalther
