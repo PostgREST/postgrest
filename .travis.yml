@@ -1,70 +1,113 @@
-## Travis is only used for building an OSX binary ,
-## no tests are run here.
 language: generic
 
 sudo: false
 
-os:
-- osx
+jobs:
+  include:
+    - name: Build OSX Binary
+      os: osx
+      cache:
+        timeout: 1000
+        directories:
+          - $HOME/.stack
+          - $HOME/.local/bin
+      before_install:
+        - mkdir -p "$HOME/.local/bin"
+        - export PATH="$PATH:$HOME/.local/bin"
+      install:
+        - |
+          if test -f "$HOME/.local/bin/stack"
+            then
+              echo 'Stack is already installed.'
+            else
+              echo "Installing Stack..."
+              travis_retry curl -L https://www.stackage.org/stack/osx-x86_64 > stack.tar.gz
+              gunzip stack.tar.gz
+              tar -x -f stack.tar --strip-components 1
+              mv stack "$HOME/.local/bin/"
+              rm stack.tar
+          fi
+        - |
+          if test -f "$HOME/.local/bin/ghr"
+          then
+            echo 'ghr is already installed.'
+          else
+            echo "Installing ghr..."
+            travis_retry curl -L https://github.com/tcnksm/ghr/releases/download/v0.5.4/ghr_v0.5.4_darwin_386.zip > ghr.zip
+            unzip ghr.zip -d "$HOME/.local/bin"
+            rm ghr.zip
+          fi
+      script:
+        ## Building the whole project can take longer than 50 minutes. Since Travis has a global timeout of 50 minutes
+        ## we compile for 30 minutes tops(`gtimeout 1800`) and quit compiling with no error.
+        ## Since we CACHE the compile results we can continue compiling from where we left off
+        ## on the next commit.
+        - gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || (($?==124))
+        - |
+          if test ! "$TRAVIS_TAG"
+          then
+            echo 'No tag pushed. Skip building binary.'
+          else
+            stack build --no-terminal --copy-bins --local-bin-path .
+          fi
+        - |
+          if test ! "$TRAVIS_TAG"
+          then
+            echo 'No tag pushed. Skipping release.'
+          else
+            OWNER="$(echo "$TRAVIS_REPO_SLUG" | cut -f1 -d/)"
+            REPO="$(echo "$TRAVIS_REPO_SLUG" | cut -f2 -d/)"
+            START=$(echo $TRAVIS_TAG | cut -c2-)
+            END='## \['
+            BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
+            strip postgrest
+            tar cJf postgrest-$TRAVIS_TAG-osx.tar.xz postgrest
+            ghr -t $GITHUB_TOKEN -u $OWNER -r $REPO -b "$BODY"--replace $TRAVIS_TAG postgrest-$TRAVIS_TAG-osx.tar.xz
+          fi
 
-cache:
-  timeout: 1000
-  directories:
-    - $HOME/.stack
-    - $HOME/.local/bin
-
-before_install:
-- mkdir -p "$HOME/.local/bin"
-- export PATH="$PATH:$HOME/.local/bin"
-
-install:
-- |
-  if test -f "$HOME/.local/bin/stack"
-    then
-      echo 'Stack is already installed.'
-    else
-      echo "Installing Stack..."
-      travis_retry curl -L https://www.stackage.org/stack/osx-x86_64 > stack.tar.gz
-      gunzip stack.tar.gz
-      tar -x -f stack.tar --strip-components 1
-      mv stack "$HOME/.local/bin/"
-      rm stack.tar
-  fi
-- |
-  if test -f "$HOME/.local/bin/ghr"
-  then
-    echo 'ghr is already installed.'
-  else
-    echo "Installing ghr..."
-    travis_retry curl -L https://github.com/tcnksm/ghr/releases/download/v0.5.4/ghr_v0.5.4_darwin_386.zip > ghr.zip
-    unzip ghr.zip -d "$HOME/.local/bin"
-    rm ghr.zip
-  fi
-
-script:
-## Building the whole project can take longer than 50 minutes. Since Travis has a global timeout of 50 minutes
-## we compile for 30 minutes tops(`gtimeout 1800`) and quit compiling with no error.
-## Since we CACHE the compile results we can continue compiling from where we left off
-## on the next commit.
-- gtimeout 1800 stack build --no-terminal --only-snapshot --install-ghc || (($?==124))
-- |
-  if test ! "$TRAVIS_TAG"
-  then
-    echo 'No tag pushed. Skip building binary.'
-  else
-    stack build --no-terminal --copy-bins --local-bin-path .
-  fi
-- |
-  if test ! "$TRAVIS_TAG"
-  then
-    echo 'No tag pushed. Skipping release.'
-  else
-    OWNER="$(echo "$TRAVIS_REPO_SLUG" | cut -f1 -d/)"
-    REPO="$(echo "$TRAVIS_REPO_SLUG" | cut -f2 -d/)"
-    START=$(echo $TRAVIS_TAG | cut -c2-)
-    END='## \['
-    BODY=$(sed -n "1,/$START/d;/$END/q;p" CHANGELOG.md)
-    strip postgrest
-    tar cJf postgrest-$TRAVIS_TAG-osx.tar.xz postgrest
-    ghr -t $GITHUB_TOKEN -u $OWNER -r $REPO -b "$BODY"--replace $TRAVIS_TAG postgrest-$TRAVIS_TAG-osx.tar.xz
-  fi
+    - name: Code Coverage
+      os: linux
+      dist: focal
+      addons:
+        apt:
+          update: true
+          packages:
+            - postgresql-12
+      cache:
+        yarn: true
+        timeout: 1000
+        directories:
+          - $HOME/.local/bin
+          - $HOME/.stack
+          - .stack-work
+      before_install: |
+        export PATH="$PATH:$HOME/.local/bin:/usr/lib/postgresql/12/bin"
+      install: |
+        if [[ ! -f "$HOME/.local/bin/stack" ]]
+        then
+          travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        fi
+        if [[ ! -f "$HOME/.local/bin/shc" ]]
+        then
+          travis_retry curl -L https://github.com/rubik/stack-hpc-coveralls/releases/download/v0.0.4.0/shc-linux-x64-8.0.1.tar.bz2 | tar -xj -C ~/.local/bin
+        fi
+        travis_wait stack --no-terminal setup
+        travis_wait stack --no-terminal install hpc
+      script: |
+        travis_wait 50 stack --no-terminal build --fast -j1 --coverage
+        travis_wait 50 stack --no-terminal build --fast -j1 --coverage --test --no-run-tests
+        test/with_tmp_db stack --no-terminal test --coverage
+        test/with_tmp_db stack --no-terminal exec test/io-tests.sh
+      after_script: |
+        export _HPC_DIR=$(stack path --local-hpc-root)
+        export _MIX_DIR=$(stack path --dist-dir)
+        export _PKG_NAME=$(stack exec -- ghc-pkg field postgrest key --simple-output)
+        # merge the results from `stack test` and the io tests and exclude Paths_postgrest
+        stack --no-terminal exec hpc -- sum --union --exclude=Paths_postgrest --output=/tmp/all.tix $_HPC_DIR/combined/all/all.tix test/io-tests/postgrest.tix
+        # fix a bug in stack-hpc-coveralls
+        mv $_MIX_DIR/hpc/Main.mix $_MIX_DIR/hpc/$_PKG_NAME/Main.mix
+        mv $_MIX_DIR/hpc/UnixSocket.mix $_MIX_DIR/hpc/$_PKG_NAME/UnixSocket.mix
+        sed -i -r "s/(Main|UnixSocket)/$_PKG_NAME\/\1/g" /tmp/all.tix
+        # upload to coveralls
+        mv /tmp/all.tix $_HPC_DIR/combined/all/all.tix
+        shc combined all

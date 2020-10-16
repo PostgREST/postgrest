@@ -97,7 +97,7 @@ postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 
 ```
 
-Note that `postgrest-tests-io` is now also available.
+Note that `postgrest-test-io` is now also available.
 
 To run one-off commands, you can also use `nix-shell --run <command>`, which
 will lauch the Nix shell, run that one command and exit. Note that the tab
@@ -168,7 +168,7 @@ give you some more background and details on how it works.
 
 ### `default.nix`
 
-[`default.nix`](../default.nix) is our 'respository expression' that pulls all
+[`default.nix`](../default.nix) is our 'repository expression' that pulls all
 the pieces that we define with Nix together. It returns a set (like a dict in
 other programming languages), where each attribute is a derivation that Nix
 knows how to build, like the `postgrest` attribute from earlier.
