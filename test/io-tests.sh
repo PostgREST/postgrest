@@ -43,7 +43,7 @@ pgrStart(){ postgrest $1 >/dev/null 2>/dev/null & pgrPID="$!"; }
 pgrStartRead(){ postgrest $1 <$2 >/dev/null & pgrPID="$!"; }
 pgrStartStdin(){ postgrest $1 >/dev/null <<< "$2" & pgrPID="$!"; }
 pgrStarted(){ kill -0 "$pgrPID" 2>/dev/null; }
-pgrStop(){ kill "$pgrPID" 2>/dev/null; pgrPID=""; }
+pgrStop(){ kill "$pgrPID" 2>/dev/null; pgrPID=""; sleep 0.1; }
 
 # Utilities to send HTTP requests to the PostgREST server
 rootStatus(){
@@ -273,13 +273,10 @@ replaceConfigValue(){
 }
 
 getSocketStatus() {
-  curl -sL -w "%{http_code}\\n" -o /dev/null localhost:54321
+  curl -sL -w "%{http_code}\\n" -o /dev/null --unix-socket /tmp/postgrest.sock http://localhost/
 }
 
 socketConnection(){
-  # map port 54321 traffic to unix socket as workaround for curl below 7.40
-  # not supporting --unix-socket flag
-  ncat -vlk 54321 -c 'ncat -U /tmp/postgrest.sock' &
   pgrStart "./configs/unix-socket.config"
   while pgrStarted && test "$( getSocketStatus )" -ne 200
   do

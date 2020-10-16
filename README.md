@@ -9,6 +9,7 @@
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
 [![Docker Stars](https://img.shields.io/docker/pulls/postgrest/postgrest.svg)](https://hub.docker.com/r/postgrest/postgrest/)
 [![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/master.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/master)
+[![Coverage Status](https://img.shields.io/coveralls/github/PostgREST/postgrest)](https://coveralls.io/github/PostgREST/postgrest)
 [![Hackage docs](https://img.shields.io/hackage/v/postgrest.svg?label=hackage)](http://hackage.haskell.org/package/postgrest)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
