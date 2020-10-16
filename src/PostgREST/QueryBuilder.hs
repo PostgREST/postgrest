@@ -30,7 +30,7 @@ import Data.Maybe
 import PostgREST.Private.QueryFragment
 import PostgREST.RangeQuery            (allRange, rangeLimit,
                                         rangeOffset)
-import PostgREST.Types
+mport PostgREST.Types
 import Protolude                       hiding (cast, intercalate,
                                         replace)
 
