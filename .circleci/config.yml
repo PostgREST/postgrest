@@ -71,12 +71,6 @@ jobs:
           command: |
             POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) \
               stack test
-      - run:
-          name: run io tests
-          command: |
-            export PATH="~/.local/bin:$PATH"
-            stack install --fast -j1
-            test/io-tests.sh
 
   # Run memory usage tests based on stack and docker.
   stack-test-memory:
