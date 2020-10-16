@@ -184,29 +184,41 @@ jobs:
           name: Install testing scripts
           command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
       - run:
+          name: Skip tests on build failure
+          command: circleci-agent step halt
+          when: on_fail
+      - run:
           name: Run the spec tests against PostgreSQL 9.5
           command: postgrest-test-spec-postgresql-9.5
+          when: always
       - run:
           name: Run the spec tests against PostgreSQL 9.6
           command: postgrest-test-spec-postgresql-9.6
+          when: always
       - run:
           name: Run the spec tests against PostgreSQL 10
           command: postgrest-test-spec-postgresql-10
+          when: always
       - run:
           name: Run the spec tests against PostgreSQL 11
           command: postgrest-test-spec-postgresql-11
+          when: always
       - run:
           name: Run the spec tests against PostgreSQL 12
           command: postgrest-test-spec-postgresql-12
+          when: always
       - run:
           name: Run the spec tests against PostgreSQL 13
           command: postgrest-test-spec-postgresql-13
+          when: always
       - run:
           name: Run io tests
           command: postgrest-test-io
+          when: always
       - run:
           name: Run memory tests
           command: postgrest-test-memory
+          when: always
 
 workflows:
   version: 2
