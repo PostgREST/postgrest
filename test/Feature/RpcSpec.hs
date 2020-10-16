@@ -297,7 +297,7 @@ spec actualPgVersion =
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]
             `shouldRespondWith`
-              [json|"array"|]
+              [json|"object"|]
               { matchHeaders = [matchContentTypeJson] }
 
       when ((actualPgVersion >= pgVersion109 && actualPgVersion < pgVersion110)
