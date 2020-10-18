@@ -41,7 +41,7 @@ let
 
         ${locust}/bin/locust -f ${../test/loadtest/locustfile.py} \
             -H http://localhost:3080 --users 100 --spawn-rate 20 \
-            --headless -t 2m
+            --reset-stats --only-summary --headless -t 1m
       '';
 
   postgrestConf =
