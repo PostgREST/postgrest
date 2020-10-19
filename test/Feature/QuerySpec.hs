@@ -454,6 +454,12 @@ spec actualPgVersion = do
           [json|[{"title":"1984","first_publisher":"Secker & Warburg","author":{"name":"George Orwell"}}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "works with views that have subselects in a function call" $
+        get "/authors_have_book_in_decade2?select=*,books(title)&id=eq.3"
+          `shouldRespondWith`
+            [json|[ {"id":3,"name":"Antoine de Saint-Exupéry","has_book_in_forties":true,"has_book_in_fifties":false,
+                     "has_book_in_sixties":false,"books":[{"title":"The Little Prince"}]} ]|]
+
       it "works with views that have CTE" $
         get "/odd_years_publications?select=title,publication_year,first_publisher,author:authors(name)&id=in.(1,2,3)" `shouldRespondWith`
           [json|[
