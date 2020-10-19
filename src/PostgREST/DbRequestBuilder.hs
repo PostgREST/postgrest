@@ -294,8 +294,8 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor 
         confCols <- case iOnConflict apiRequest of
             Nothing    -> pure pkCols
             Just param -> pRequestOnConflict param
-        pure $ Insert qi (iColumns apiRequest) ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
-    ActionUpdate -> Update qi (iColumns apiRequest) <$> combinedLogic <*> pure returnings
+        pure $ Insert qi (iColumns apiRequest) body ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
+    ActionUpdate -> Update qi (iColumns apiRequest) body  <$> combinedLogic <*> pure returnings
     ActionSingleUpsert ->
       (\flts ->
         if null (iLogic apiRequest) &&
@@ -304,7 +304,7 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor 
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
               _                                   -> False) flts
-          then Insert qi (iColumns apiRequest) (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+          then Insert qi (iColumns apiRequest) body (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
     ActionDelete -> Delete qi <$> combinedLogic <*> pure returnings
@@ -322,6 +322,7 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor 
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
+    body = pjRaw <$> iPayload apiRequest
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols

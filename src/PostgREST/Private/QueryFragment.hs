@@ -7,46 +7,51 @@ Any function that outputs a SqlFragment should be in this module.
 -}
 module PostgREST.Private.QueryFragment where
 
-import qualified Data.ByteString.Char8         as BS (intercalate,
-                                                      pack, unwords)
-import qualified Data.HashMap.Strict           as HM
+import qualified Data.ByteString.Char8           as BS (intercalate,
+                                                        pack, unwords)
+import qualified Data.ByteString.Lazy            as BL
+import qualified Data.HashMap.Strict             as HM
 import           Data.Maybe
-import qualified Data.Text                     as T (intercalate,
-                                                     isInfixOf, map,
-                                                     null, replace,
-                                                     takeWhile,
-                                                     toLower)
+import qualified Data.Text                       as T (intercalate,
+                                                       isInfixOf, map,
+                                                       null, replace,
+                                                       takeWhile,
+                                                       toLower)
+import qualified Hasql.DynamicStatements.Snippet as H
 import           PostgREST.Types
-import           Protolude                     hiding (cast,
-                                                intercalate, replace,
-                                                toLower)
-import           Text.InterpolatedString.Perl6 (qc)
+import           Protolude                       hiding (cast,
+                                                  intercalate,
+                                                  replace, toLower,
+                                                  toS)
+import           Protolude.Conv                  (toS)
+import           Text.InterpolatedString.Perl6   (qc)
+
+import qualified Hasql.Encoders as HE
 
 noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
-
--- Due to the use of the `unknown` encoder we need to cast '$1' when the value is not used in the main query
--- otherwise the query will err with a `could not determine data type of parameter $1`.
--- This happens because `unknown` relies on the context to determine the value type.
--- The error also happens on raw libpq used with C.
-ignoredBody :: SqlFragment
-ignoredBody = "pgrst_ignored_body AS (SELECT $1::text) "
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
 -- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
 -- We do this in SQL to avoid processing the JSON in application code
-normalizedBody :: SqlFragment
-normalizedBody =
-  BS.unwords [
-    "pgrst_payload AS (SELECT $1::json AS json_data),",
+normalizedBody :: Maybe BL.ByteString -> H.Snippet
+normalizedBody body =
+  "pgrst_payload AS (SELECT " <> jsonPlaceHolder body <> " AS json_data), " <>
+  H.sql (BS.unwords [
     "pgrst_body AS (",
       "SELECT",
         "CASE WHEN json_typeof(json_data) = 'array'",
           "THEN json_data",
           "ELSE json_build_array(json_data)",
         "END AS val",
-      "FROM pgrst_payload)"]
+      "FROM pgrst_payload)"])
+
+-- | Equivalent to "$1::json"
+-- | TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
+jsonPlaceHolder :: Maybe BL.ByteString -> H.Snippet
+jsonPlaceHolder body =
+  H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::json"
 
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"
@@ -72,7 +77,7 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
     asCsvHeaderF =
       "(SELECT coalesce(string_agg(a.k, ','), '')" <>
       "  FROM (" <>
-      "    SELECT json_object_keys(r)::TEXT as k" <>
+      "    SELECT json_object_keys(r)::text as k" <>
       "    FROM ( " <>
       "      SELECT row_to_json(hh) as r from " <> sourceCTEName <> " as hh limit 1" <>
       "    ) s" <>

@@ -119,9 +119,9 @@ app dbStructure conf apiRequest =
   case responseContentTypeOrError (iAccepts apiRequest) rawContentTypes (iAction apiRequest) (iTarget apiRequest) of
     Left errorResponse -> return errorResponse
     Right contentType ->
-      case (iAction apiRequest, iTarget apiRequest, iPayload apiRequest) of
+      case (iAction apiRequest, iTarget apiRequest) of
 
-        (ActionRead headersOnly, TargetIdent (QualifiedIdentifier tSchema tName), Nothing) ->
+        (ActionRead headersOnly, TargetIdent (QualifiedIdentifier tSchema tName)) ->
           case readSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (q, cq, bField, _) -> do
@@ -131,7 +131,7 @@ app dbStructure conf apiRequest =
                   stm = createReadStatement q cQuery (contentType == CTSingularJSON) shouldCount
                         (contentType == CTTextCSV) bField pgVer
                   explStm = createExplainStatement cq
-              row <- H.statement () stm
+              row <- H.statement mempty stm
               let (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -155,7 +155,7 @@ app dbStructure conf apiRequest =
                       then errorResponseFor . singularityError $ queryTotal
                       else responseLBS status headers rBody
 
-        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
+        (ActionCreate, TargetIdent (QualifiedIdentifier tSchema tName)) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -163,7 +163,7 @@ app dbStructure conf apiRequest =
                   stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) True
                     (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols pgVer
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- H.statement mempty stm
               let (_, queryTotal, fields, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -190,14 +190,14 @@ app dbStructure conf apiRequest =
                     else
                       return $ responseLBS status headers rBody
 
-        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
+        (ActionUpdate, TargetIdent (QualifiedIdentifier tSchema tName)) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
-              let stm = createWriteStatement sq mq
-                    (contentType == CTSingularJSON) False (contentType == CTTextCSV)
-                    (iPreferRepresentation apiRequest) [] pgVer
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- H.statement mempty $
+                     createWriteStatement sq mq
+                       (contentType == CTSingularJSON) False (contentType == CTTextCSV)
+                       (iPreferRepresentation apiRequest) [] pgVer
               let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -221,14 +221,14 @@ app dbStructure conf apiRequest =
                     else
                       return $ responseLBS status headers rBody
 
-        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName), Just pJson) ->
+        (ActionSingleUpsert, TargetIdent (QualifiedIdentifier tSchema tName)) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) ->
               if topLevelRange /= allRange
                 then return . errorResponseFor $ PutRangeNotAllowedError
               else do
-                row <- H.statement (toS $ pjRaw pJson) $
+                row <- H.statement mempty $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
                                             (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer
                 let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
@@ -249,7 +249,7 @@ app dbStructure conf apiRequest =
                       else
                         return $ responseLBS status headers rBody
 
-        (ActionDelete, TargetIdent (QualifiedIdentifier tSchema tName), Nothing) ->
+        (ActionDelete, TargetIdent (QualifiedIdentifier tSchema tName)) ->
           case mutateSqlParts tSchema tName of
             Left errorResponse -> return errorResponse
             Right (sq, mq) -> do
@@ -279,7 +279,7 @@ app dbStructure conf apiRequest =
                     else
                       return $ responseLBS status headers rBody
 
-        (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable), Nothing) ->
+        (ActionInfo, TargetIdent (QualifiedIdentifier tSchema tTable)) ->
           let mTable = find (\t -> tableName t == tTable && tableSchema t == tSchema) (dbTables dbStructure) in
           case mTable of
             Nothing -> return notFound
@@ -288,18 +288,18 @@ app dbStructure conf apiRequest =
                   allOrigins = ("Access-Control-Allow-Origin", "*") :: Header in
               return $ responseLBS status200 [allOrigins, allowH] mempty
 
-        (ActionInvoke invMethod, TargetProc proc@ProcDescription{pdSchema, pdName} _, Just pJson) ->
+        (ActionInvoke invMethod, TargetProc proc@ProcDescription{pdSchema, pdName} _) ->
           let tName = fromMaybe pdName $ procTableName proc in
           case readSqlParts pdSchema tName of
             Left errorResponse -> return errorResponse
             Right (q, cq, bField, returning) -> do
               let
                 preferParams = iPreferParameters apiRequest
-                pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc) returnsScalar preferParams returning
+                pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc) (iPayload apiRequest) returnsScalar preferParams returning
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
                         bField pgVer
-              row <- H.statement (toS $ pjRaw pJson) stm
+              row <- H.statement mempty stm
               let (tableTotal, queryTotal, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -318,7 +318,7 @@ app dbStructure conf apiRequest =
                     else
                       return $ responseLBS status headers rBody
 
-        (ActionInspect headersOnly, TargetDefaultSpec tSchema, Nothing) -> do
+        (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
           let host = configHost conf
               port = toInteger $ configPort conf
               proxy = pickProxy $ toS <$> configOpenAPIProxyUri conf

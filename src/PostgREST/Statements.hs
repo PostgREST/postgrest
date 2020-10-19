@@ -36,29 +36,33 @@ import           Protolude                       hiding (cast,
 import           Protolude.Conv                  (toS)
 import           Text.InterpolatedString.Perl6   (qc)
 
+import qualified Hasql.DynamicStatements.Snippet   as H
+import qualified Hasql.DynamicStatements.Statement as H
+
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
     @"k1=eq.42"@, or the empty list if there is no location header.
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
-createWriteStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool ->
+createWriteStatement :: SqlQuery -> H.Snippet -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion ->
-                        H.Statement ByteString ResultsWithCount
+                        H.Statement () ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
-  H.Statement sql (param HE.unknown) decodeStandard True
+  H.dynamicallyParameterized snippet decodeStandard True
  where
-  sql = [qc|
-      WITH
-      {sourceCTEName} AS ({mutateQuery})
-      SELECT
-        '' AS total_result_set,
-        pg_catalog.count(_postgrest_t) AS page_total,
-        {locF} AS header,
-        {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers,
-        {responseStatusF pgVer} AS response_status
-      FROM ({selectF}) _postgrest_t |]
+  snippet =
+    "WITH " <> H.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
+    H.sql (
+    "SELECT " <>
+      "'' AS total_result_set, " <>
+      "pg_catalog.count(_postgrest_t) AS page_total, " <>
+      locF <> " AS header, " <>
+      bodyF <> " AS body, " <>
+      responseHeadersF pgVer <> " AS response_headers, " <>
+      responseStatusF pgVer  <> " AS response_status " <>
+    "FROM (" <> selectF <> ") _postgrest_t"
+    )
 
   locF =
     if isInsert && rep `elem` [Full, HeadersOnly]
@@ -126,22 +130,23 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
-callProcStatement :: Bool -> SqlQuery -> SqlQuery -> SqlQuery -> Bool ->
+callProcStatement :: Bool -> H.Snippet -> SqlQuery -> SqlQuery -> Bool ->
                      Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
-                     H.Statement ByteString ProcResults
+                     H.Statement () ProcResults
 callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
-  H.Statement sql (param HE.unknown) decodeProc True
+  H.dynamicallyParameterized snippet decodeProc True
   where
-    sql = [qc|
-      WITH {sourceCTEName} AS ({callProcQuery})
-      {countCTEF}
-      SELECT
-        {countResultF} AS total_result_set,
-        pg_catalog.count(_postgrest_t) AS page_total,
-        {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers,
-        {responseStatusF pgVer} AS response_status
-      FROM ({selectQuery}) _postgrest_t;|]
+    snippet =
+      "WITH " <> H.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
+      H.sql (
+      countCTEF <>
+      "SELECT " <>
+        countResultF <> " AS total_result_set, " <>
+        "pg_catalog.count(_postgrest_t) AS page_total, " <>
+        bodyF <> " AS body, " <>
+        responseHeadersF pgVer <> " AS response_headers, " <>
+        responseStatusF pgVer <> " AS response_status " <>
+      "FROM (" <> selectQuery <> ") _postgrest_t")
 
     (countCTEF, countResultF) = countF countQuery countTotal
 
