@@ -18,6 +18,10 @@ import qualified Data.Text                       as T (intercalate,
                                                        takeWhile,
                                                        toLower)
 import qualified Hasql.DynamicStatements.Snippet as H
+import           PostgREST.RangeQuery            (NonnegRange,
+                                                  allRange,
+                                                  rangeLimit,
+                                                  rangeOffset)
 import           PostgREST.Types
 import           Protolude                       hiding (cast,
                                                   intercalate,
@@ -27,6 +31,8 @@ import           Protolude.Conv                  (toS)
 import           Text.InterpolatedString.Perl6   (qc)
 
 import qualified Hasql.Encoders as HE
+
+import Data.Foldable (foldr1)
 
 noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
@@ -117,20 +123,24 @@ pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
-pgFmtField :: QualifiedIdentifier -> Field -> SqlFragment
-pgFmtField table (c, jp) = pgFmtColumn table c <> pgFmtJsonPath jp
+pgFmtField :: QualifiedIdentifier -> Field -> H.Snippet
+pgFmtField table (c, jp) = H.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SqlFragment
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> pgFmtAs fName jp alias
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> encodeUtf8 cast <> " )" <> pgFmtAs fName jp alias
+pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> H.Snippet
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> H.sql (pgFmtAs fName jp alias)
+-- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
+-- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
+-- Not quoting should be fine, we validate the input on Parsers.
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> H.sql (encodeUtf8 cast) <> " )" <> H.sql (pgFmtAs fName jp alias)
 
-pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SqlFragment
-pgFmtOrderTerm qi ot = BS.unwords [
-  pgFmtField qi $ otTerm ot,
-  BS.pack $ maybe mempty show $ otDirection ot,
-  BS.pack $ maybe mempty show $ otNullOrder ot]
+pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> H.Snippet
+pgFmtOrderTerm qi ot =
+  pgFmtField qi (otTerm ot) <> " " <>
+  H.sql (BS.unwords [
+    BS.pack $ maybe mempty show $ otDirection ot,
+    BS.pack $ maybe mempty show $ otNullOrder ot])
 
-pgFmtFilter :: QualifiedIdentifier -> Filter -> SqlFragment
+pgFmtFilter :: QualifiedIdentifier -> Filter -> H.Snippet
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      "like"  -> unknownLiteral (T.map star val)
@@ -138,47 +148,49 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      "is"    -> whiteList val
      _       -> unknownLiteral val
 
+   -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
+   -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
+   -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
    In vals -> pgFmtField table fld <> " " <>
-    let emptyValForIn = "= any('{}') " in -- Workaround because for postgresql "col IN ()" is invalid syntax, we instead do "col = any('{}')"
-    case (&&) (length vals == 1) . T.null <$> headMay vals of
-      Just False -> sqlOperator "in" <> "(" <> BS.intercalate ", " (unknownLiteral <$> vals) <> ") "
-      Just True  -> emptyValForIn
-      Nothing    -> emptyValForIn
+    case vals of
+      [""] -> "= ANY('{}') "
+      -- Here we build the pg array, e.g '{"Hebdon, John","Other","Another"}', manually. We quote the values to prevent the "," being treated as an element separator.
+      -- TODO: Ideally this would be done on Hasql with an encoder, but the "array unknown" is not working(Hasql doesn't pass any value).
+      _    -> "= ANY (" <> unknownLiteral ("{" <> T.intercalate "," ((\x -> "\"" <> x <> "\"") <$> vals) <> "}") <> ")"
 
    Fts op lang val ->
-     pgFmtFieldOp op
-       <> "("
-       <> maybe mempty ((<> ", ") . pgFmtLit) lang
-       <> unknownLiteral val
-       <> ") "
+     pgFmtFieldOp op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
+   ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
-   sqlOperator o = HM.lookupDefault "=" o operators
+   sqlOperator o = H.sql $ HM.lookupDefault "=" o operators
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
-   unknownLiteral = (<> "::unknown ") . pgFmtLit
-   whiteList :: Text -> SqlFragment
-   whiteList v = maybe
+   -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
+   -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
+   -- However that would not accept the TRUE/FALSE/NULL keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
+   whiteList :: Text -> H.Snippet
+   whiteList v = H.sql $ maybe
      (pgFmtLit v <> "::unknown") encodeUtf8
      (find ((==) . T.toLower $ v) ["null","true","false"])
 
-pgFmtJoinCondition :: JoinCondition -> SqlFragment
+pgFmtJoinCondition :: JoinCondition -> H.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
-  pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
+  H.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
-pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SqlFragment
-pgFmtLogicTree qi (Expr hasNot op forest) = notOp <> " (" <> BS.intercalate (" " <> BS.pack (show op) <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
+pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> H.Snippet
+pgFmtLogicTree qi (Expr hasNot op forest) = H.sql notOp <> " (" <> intercalateSnippet (" " <> BS.pack (show op) <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
   where notOp =  if hasNot then "NOT" else mempty
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
-pgFmtJsonPath :: JsonPath -> SqlFragment
+pgFmtJsonPath :: JsonPath -> H.Snippet
 pgFmtJsonPath = \case
   []             -> mempty
   (JArrow x:xs)  -> "->" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
   (J2Arrow x:xs) -> "->>" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
   where
-    pgFmtJsonOperand (JKey k) = pgFmtLit k
-    pgFmtJsonOperand (JIdx i) = pgFmtLit i <> "::int"
+    pgFmtJsonOperand (JKey k) = unknownLiteral k
+    pgFmtJsonOperand (JIdx i) = unknownLiteral i <> "::int"
 
 pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SqlFragment
 pgFmtAs _ [] Nothing = mempty
@@ -192,7 +204,7 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-countF :: SqlQuery -> Bool -> (SqlFragment, SqlFragment)
+countF :: H.Snippet -> Bool -> (H.Snippet, SqlFragment)
 countF countQuery shouldCount =
   if shouldCount
     then (
@@ -207,6 +219,13 @@ returningF qi returnings =
   if null returnings
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
     else "RETURNING " <> BS.intercalate ", " (pgFmtColumn qi <$> returnings)
+
+limitOffsetF :: NonnegRange -> H.Snippet
+limitOffsetF range =
+  ("LIMIT " <> limit <> " OFFSET " <> offset) `emptySnippetOnFalse` (range == allRange)
+  where
+    limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
+    offset = unknownEncoder (BS.pack . show $ rangeOffset range)
 
 responseHeadersF :: PgVersion -> SqlFragment
 responseHeadersF pgVer =
@@ -224,3 +243,17 @@ currentSettingF :: Text -> SqlFragment
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
+
+-- Hasql Snippet utilitarians
+unknownEncoder :: ByteString -> H.Snippet
+unknownEncoder = H.encoderAndParam (HE.nonNullable HE.unknown)
+
+unknownLiteral :: Text -> H.Snippet
+unknownLiteral = unknownEncoder . encodeUtf8
+
+emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
+emptySnippetOnFalse val cond = if cond then mempty else val
+
+intercalateSnippet :: SqlFragment -> [H.Snippet] -> H.Snippet
+intercalateSnippet _ [] = mempty
+intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets

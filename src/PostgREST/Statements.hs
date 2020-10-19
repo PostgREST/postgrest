@@ -24,7 +24,6 @@ import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
 import           Data.Text.Read                  (decimal)
 import qualified Hasql.Decoders                  as HD
-import qualified Hasql.Encoders                  as HE
 import qualified Hasql.Statement                 as H
 import           Network.HTTP.Types.Status
 import           PostgREST.Error
@@ -34,7 +33,6 @@ import           PostgREST.Types
 import           Protolude                       hiding (cast,
                                                   replace, toS)
 import           Protolude.Conv                  (toS)
-import           Text.InterpolatedString.Perl6   (qc)
 
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
@@ -45,7 +43,7 @@ import qualified Hasql.DynamicStatements.Statement as H
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
-createWriteStatement :: SqlQuery -> H.Snippet -> Bool -> Bool -> Bool ->
+createWriteStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion ->
                         H.Statement () ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
@@ -60,9 +58,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
       locF <> " AS header, " <>
       bodyF <> " AS body, " <>
       responseHeadersF pgVer <> " AS response_headers, " <>
-      responseStatusF pgVer  <> " AS response_status " <>
+      responseStatusF pgVer  <> " AS response_status "
+    ) <>
     "FROM (" <> selectF <> ") _postgrest_t"
-    )
 
   locF =
     if isInsert && rep `elem` [Full, HeadersOnly]
@@ -81,30 +79,30 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
-    | rep `elem` [None, HeadersOnly] = "SELECT * FROM " <> sourceCTEName
+    | rep `elem` [None, HeadersOnly] = H.sql ("SELECT * FROM " <> sourceCTEName)
     | otherwise                      = selectQuery
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: SqlQuery -> SqlQuery -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+createReadStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                        H.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField pgVer =
-  H.Statement sql HE.noParams decodeStandard False
+  H.dynamicallyParameterized snippet decodeStandard True
  where
-  sql = [qc|
-      WITH
-      {sourceCTEName} AS ({selectQuery})
-      {countCTEF}
-      SELECT
-        {countResultF} AS total_result_set,
-        pg_catalog.count(_postgrest_t) AS page_total,
-        {noLocationF} AS header,
-        {bodyF} AS body,
-        {responseHeadersF pgVer} AS response_headers,
-        {responseStatusF pgVer} AS response_status
-      FROM ( SELECT * FROM {sourceCTEName}) _postgrest_t |]
+  snippet =
+    "WITH " <>
+    H.sql sourceCTEName <> " AS ( " <> selectQuery <> " ) " <>
+    countCTEF <> " " <>
+    H.sql ("SELECT " <>
+      countResultF <> " AS total_result_set, " <>
+      "pg_catalog.count(_postgrest_t) AS page_total, " <>
+      noLocationF <> " AS header, " <>
+      bodyF <> " AS body, " <>
+      responseHeadersF pgVer <> " AS response_headers, " <>
+      responseStatusF pgVer <> " AS response_status " <>
+    "FROM ( SELECT * FROM " <> sourceCTEName <> " ) _postgrest_t")
 
   (countCTEF, countResultF) = countF countQuery countTotal
 
@@ -130,7 +128,7 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
-callProcStatement :: Bool -> H.Snippet -> SqlQuery -> SqlQuery -> Bool ->
+callProcStatement :: Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
                      Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
                      H.Statement () ProcResults
 callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
@@ -138,15 +136,15 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
   where
     snippet =
       "WITH " <> H.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
-      H.sql (
       countCTEF <>
+      H.sql (
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
         "pg_catalog.count(_postgrest_t) AS page_total, " <>
         bodyF <> " AS body, " <>
         responseHeadersF pgVer <> " AS response_headers, " <>
-        responseStatusF pgVer <> " AS response_status " <>
-      "FROM (" <> selectQuery <> ") _postgrest_t")
+        responseStatusF pgVer <> " AS response_status ") <>
+      "FROM (" <> selectQuery <> ") _postgrest_t"
 
     (countCTEF, countResultF) = countF countQuery countTotal
 
@@ -173,11 +171,11 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
                          <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
                          <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
 
-createExplainStatement :: SqlQuery -> H.Statement () (Maybe Int64)
+createExplainStatement :: H.Snippet -> H.Statement () (Maybe Int64)
 createExplainStatement countQuery =
-  H.Statement sql HE.noParams decodeExplain False
+  H.dynamicallyParameterized snippet decodeExplain True
   where
-    sql = [qc| EXPLAIN (FORMAT JSON) {countQuery} |]
+    snippet = "EXPLAIN (FORMAT JSON) " <> countQuery
     -- |
     -- An `EXPLAIN (FORMAT JSON) select * from items;` output looks like this:
     -- [{
