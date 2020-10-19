@@ -846,7 +846,7 @@ spec actualPgVersion = do
         [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"David White"},{"name":"Larry Thompson"}] |]
+        [json| [{"name":"David White"},{"name":"Larry Thompson"},{"name":"Double O Seven(007)"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "succeeds w/ and w/o quoted values" $ do
@@ -854,16 +854,16 @@ spec actualPgVersion = do
         [json| [{"name":"Hebdon, John"},{"name":"David White"}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"Williams, Mary"},{"name":"David White"}] |]
+        [json| [{"name":"Williams, Mary"},{"name":"David White"},{"name":"Double O Seven(007)"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.(\"Double O Seven(007)\")" `shouldRespondWith`
+        [json| [{"name":"Double O Seven(007)"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "checks well formed quoted values" $ do
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\")" `shouldRespondWith`
-        [json| [] |] { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\"\"Mary)" `shouldRespondWith`
-        [json| [] |] { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=in.(Williams\"Hebdon, John\")" `shouldRespondWith`
-        [json| [] |] { matchHeaders = [matchContentTypeJson] }
+    it "fails on malformed quoted values" $ do
+      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\")" `shouldRespondWith` 400
+      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\"\"Mary)" `shouldRespondWith` 400
+      get "/w_or_wo_comma_names?name=in.(Williams\"Hebdon, John\")" `shouldRespondWith` 400
 
   describe "IN and NOT IN empty set" $ do
     context "returns an empty result for IN when no value is present" $ do
