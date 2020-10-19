@@ -1433,6 +1433,24 @@ select
   end as has_book_in_sixties
 from private.authors x;
 
+create view test.authors_have_book_in_decade2 as
+select
+  id,
+  name,
+  coalesce(
+    (select true from test.forties_books where author_id=x.id limit 1),
+    false
+  ) as has_book_in_forties,
+  coalesce(
+    (select true from test.fifties_books where author_id=x.id limit 1),
+    false
+  ) as has_book_in_fifties,
+  coalesce(
+    (select true from test.sixties_books where author_id=x.id limit 1),
+    false
+  ) as has_book_in_sixties
+from private.authors x;
+
 create view test.forties_and_fifties_books as
 select x.id, x.title, x.publication_year, y.name as first_publisher, x.author_id
 from (

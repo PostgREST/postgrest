@@ -96,6 +96,7 @@ GRANT ALL ON TABLE
     , jsonb_test
     , authors_books_number
     , authors_have_book_in_decade
+    , authors_have_book_in_decade2
     , forties_and_fifties_books
     , odd_years_publications
     , foos

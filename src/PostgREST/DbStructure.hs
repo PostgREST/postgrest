@@ -39,7 +39,7 @@ import GHC.Exts                      (groupWith)
 import Protolude                     hiding (toS)
 import Protolude.Conv                (toS)
 import Protolude.Unsafe              (unsafeHead)
-import Text.InterpolatedString.Perl6 (q, qc)
+import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Private.Common
 import PostgREST.Types
@@ -49,7 +49,7 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () $ allTables prepared
   cols    <- HT.statement schemas $ allColumns tabs prepared
-  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols pgVer prepared
+  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
   m2oRels <- HT.statement () $ allM2ORels tabs cols prepared
   keys    <- HT.statement () $ allPrimaryKeys tabs prepared
   procs   <- HT.statement schemas $ allProcs prepared
@@ -699,18 +699,14 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 -- returns all the primary and foreign key columns which are referenced in views
-pfkSourceColumns :: [Column] -> PgVersion -> Bool -> H.Statement ([Schema], [Schema]) [SourceColumn]
-pfkSourceColumns cols pgVer =
+pfkSourceColumns :: [Column] -> Bool -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns cols =
   H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
-  -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
+  -- query explanation at:
+  --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
+  --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
   where
-    subselectRegex :: Text
-    -- "result" appears when the subselect is used inside "case when", see `authors_have_book_in_decade` fixture
-    -- "resno"  appears in every other case
-    -- when copying the query into pg make sure you omit one backslash from \\d+, it should be like `\d+` for the regex
-    subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location \\d+} :res(no|ult)"
-                   | otherwise = ":subselect {.*?:stmt_len 0} :location \\d+} :res(no|ult)"
-    sql = [qc|
+    sql = [q|
       with recursive
       pks_fks as (
         -- pk + fk referencing col
@@ -738,36 +734,96 @@ pfkSourceColumns cols pgVer =
         join pg_rewrite r on r.ev_class = c.oid
         where c.relkind in ('v', 'm') and n.nspname = ANY($1 || $2)
       ),
-      removed_subselects as(
+      transform_json as (
         select
           view_id, view_schema, view_name,
-          regexp_replace(view_definition, '{subselectRegex}', '', 'g') as x
+          -- the following formatting is without indentation on purpose
+          -- to allow simple diffs, with less whitespace noise
+          replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            regexp_replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+            replace(
+              view_definition::text,
+            -- This conversion to json is heavily optimized for performance.
+            -- The general idea is to use as few regexp_replace() calls as possible.
+            -- Simple replace() is a lot faster, so we jump through some hoops
+            -- to be able to use regexp_replace() only once.
+            -- This has been tested against a huge schema with 250+ different views.
+            -- The unit tests do NOT reflect all possible inputs. Be careful when changing this!
+            -- -----------------------------------------------
+            -- pattern           | replacement         | flags
+            -- -----------------------------------------------
+            -- `,` is not part of the pg_node_tree format, but used in the regex.
+            -- This removes all `,` that might be part of column names.
+               ','               , ''
+            -- The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
+            -- We remove the escaped ones, which might be part of column names again.
+            ), '\{'              , ''
+            ), '\}'              , ''
+            -- The fields we need are formatted as json manually to protect them from the regex.
+            ), ' :targetList '   , ',"targetList":'
+            ), ' :resno '        , ',"resno":'
+            ), ' :resorigtbl '   , ',"resorigtbl":'
+            ), ' :resorigcol '   , ',"resorigcol":'
+            -- Make the regex also match the node type, e.g. `{QUERY ...`, to remove it in one pass.
+            ), '{'               , '{ :'
+            -- Protect node lists, which start with `({` or `((` from the greedy regex.
+            -- The extra `{` is removed again later.
+            ), '(('              , '{(('
+            ), '({'              , '{({'
+            -- This regex removes all unused fields to avoid the need to format all of them correctly.
+            -- This leads to a smaller json result as well.
+            -- Removal stops at `,` for used fields (see above) and `}` for the end of the current node.
+            -- Nesting can't be parsed correctly with a regex, so we stop at `{` as well and
+            -- add an empty key for the followig node.
+            ), ' :[^}{,]+'       , ',"":'              , 'g'
+            -- For performance, the regex also added those empty keys when hitting a `,` or `}`.
+            -- Those are removed next.
+            ), ',"":}'           , '}'
+            ), ',"":,'           , ','
+            -- This reverses the "node list protection" from above.
+            ), '{('              , '('
+            -- Every key above has been added with a `,` so far. The first key in an object doesn't need it.
+            ), '{,'              , '{'
+            -- pg_node_tree has `()` around lists, but JSON uses `[]`
+            ), '('               , '['
+            ), ')'               , ']'
+            -- pg_node_tree has ` ` between list items, but JSON uses `,`
+            ), ' '             , ','
+            -- `<>` in pg_node_tree is the same as `null` in JSON, but due to very poor performance of json_typeof
+            -- we need to make this an empty array here to prevent json_array_elements from throwing an error
+            -- when the targetList is null.
+            ), '<>'              , '[]'
+          )::json as view_definition
         from views
-      ),
-      target_lists as(
-        select
-          view_id, view_schema, view_name,
-          string_to_array(x, 'targetList') as x
-        from removed_subselects
-      ),
-      last_target_list_wo_tail as(
-        select
-          view_id, view_schema, view_name,
-          (string_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
-        from target_lists
       ),
       target_entries as(
         select
           view_id, view_schema, view_name,
-          unnest(string_to_array(x, 'TARGETENTRY')) as entry
-        from last_target_list_wo_tail
+          json_array_elements(view_definition->0->'targetList') as entry
+        from transform_json
       ),
       results as(
         select
           view_id, view_schema, view_name,
-          substring(entry from ':resno (\d+)')::int as view_column,
-          substring(entry from ':resorigtbl (\d+)')::oid as resorigtbl,
-          substring(entry from ':resorigcol (\d+)')::int as resorigcol
+          (entry->>'resno')::int as view_column,
+          (entry->>'resorigtbl')::oid as resorigtbl,
+          (entry->>'resorigcol')::int as resorigcol
         from target_entries
       ),
       recursion as(
