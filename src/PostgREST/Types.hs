@@ -472,6 +472,7 @@ data MutateQuery =
   Insert {
     in_        :: QualifiedIdentifier
   , insCols    :: S.Set FieldName
+  , insBody    :: Maybe BL.ByteString
   , onConflict :: Maybe (PreferResolution, [FieldName])
   , where_     :: [LogicTree]
   , returning  :: [FieldName]
@@ -479,6 +480,7 @@ data MutateQuery =
   Update {
     in_       :: QualifiedIdentifier
   , updCols   :: S.Set FieldName
+  , updBody   :: Maybe BL.ByteString
   , where_    :: [LogicTree]
   , returning :: [FieldName]
   }|

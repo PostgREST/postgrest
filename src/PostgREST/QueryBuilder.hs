@@ -20,8 +20,9 @@ module PostgREST.QueryBuilder (
   , setLocalSearchPathQuery
   ) where
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.Set              as S
+import qualified Data.ByteString.Char8           as BS
+import qualified Data.Set                        as S
+import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
@@ -69,10 +70,10 @@ getJoinsSelects rr@(Node (_, (name, Just Relation{relType=relTyp,relTable=Table{
       (j,sel:s)
 getJoinsSelects (Node (_, (_, Nothing, _, _, _)) _) _ = ([], [])
 
-mutateRequestToQuery :: MutateRequest -> SqlQuery
-mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
-  BS.unwords [
-    "WITH " <> normalizedBody,
+mutateRequestToQuery :: MutateRequest -> H.Snippet
+mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
+  "WITH " <> normalizedBody body <>
+  H.sql (BS.unwords [
     "INSERT INTO ", fromQi mainQi, if S.null iCols then " " else "(" <> cols <> ")",
     BS.unwords [
       "SELECT " <> cols <> " FROM",
@@ -89,57 +90,55 @@ mutateRequestToQuery (Insert mainQi iCols onConflct putConditions returnings) =
            else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
                                    ) `emptyOnFalse` null oncCols) onConflct,
     returningF mainQi returnings
-    ]
+    ])
   where
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
-mutateRequestToQuery (Update mainQi uCols logicForest returnings) =
+mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
   if S.null uCols
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
-    then "WITH " <> ignoredBody <> "SELECT " <> empty_body_returned_columns <> " FROM " <> fromQi mainQi <> " WHERE false"
+    then H.sql ("SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false")
     else
-      BS.unwords [
-        "WITH " <> normalizedBody,
+      "WITH " <> normalizedBody body <>
+      H.sql (BS.unwords [
         "UPDATE " <> fromQi mainQi <> " SET " <> cols,
         "FROM (SELECT * FROM json_populate_recordset", "(null::", fromQi mainQi, ", " <> selectBody <> ")) _ ",
         ("WHERE " <> BS.intercalate " AND " (pgFmtLogicTree mainQi <$> logicForest)) `emptyOnFalse` null logicForest,
         returningF mainQi returnings
-        ]
+        ])
   where
     cols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
-    empty_body_returned_columns :: SqlFragment
-    empty_body_returned_columns
+    emptyBodyReturnedColumns :: SqlFragment
+    emptyBodyReturnedColumns
       | null returnings = "NULL"
       | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
 mutateRequestToQuery (Delete mainQi logicForest returnings) =
-  BS.unwords [
-    "WITH " <> ignoredBody,
+  H.sql $ BS.unwords [
     "DELETE FROM ", fromQi mainQi,
     ("WHERE " <> BS.intercalate " AND " (map (pgFmtLogicTree mainQi) logicForest)) `emptyOnFalse` null logicForest,
     returningF mainQi returnings
     ]
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Bool -> Maybe PreferParameters -> [FieldName] -> SqlQuery
-requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
-  BS.unwords [
-    "WITH",
-    argsCTE,
-    sourceBody ]
+requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Maybe PayloadJSON -> Bool -> Maybe PreferParameters -> [FieldName] -> H.Snippet
+requestToCallProcQuery qi pgArgs pj returnsScalar preferParams returnings =
+  argsCTE <> sourceBody
   where
+    body = pjRaw <$> pj
     paramsAsSingleObject    = preferParams == Just SingleObject
     paramsAsMultipleObjects = preferParams == Just MultipleObjects
 
     (argsCTE, args)
-      | null pgArgs = (ignoredBody, "")
-      | paramsAsSingleObject = ("pgrst_args AS (SELECT NULL)", "$1::json")
+      | null pgArgs = (mempty, mempty)
+      | paramsAsSingleObject = ("WITH pgrst_args AS (SELECT NULL)", jsonPlaceHolder body)
       | otherwise = (
-          BS.unwords [
-            normalizedBody <> ",",
+          "WITH " <> normalizedBody body <> ", " <>
+          H.sql (
+            BS.unwords [
             "pgrst_args AS (",
               "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (const mempty) (\a -> " " <> encodeUtf8 (pgaType a)) <> ")",
-            ")"]
-         , if paramsAsMultipleObjects
+            ")"])
+         , H.sql $ if paramsAsMultipleObjects
              then fmtArgs varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
              else fmtArgs varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
         )
@@ -150,26 +149,25 @@ requestToCallProcQuery qi pgArgs returnsScalar preferParams returnings =
     varadicPrefix :: PgArg -> SqlFragment
     varadicPrefix a = if pgaVar a then "VARIADIC " else mempty
 
-    sourceBody :: SqlFragment
+    sourceBody :: H.Snippet
     sourceBody
       | paramsAsMultipleObjects =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
-            else BS.unwords [ "SELECT pgrst_lat_args.*"
-                         , "FROM pgrst_args,"
-                         , "LATERAL ( SELECT " <> returned_columns <> " FROM " <> callIt <> " ) pgrst_lat_args" ]
+            else "SELECT pgrst_lat_args.* FROM pgrst_args, " <>
+                 "LATERAL ( SELECT " <> returnedColumns <> " FROM " <> callIt <> " ) pgrst_lat_args"
       | otherwise =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar"
-            else "SELECT " <> returned_columns <> " FROM " <> callIt
+            else "SELECT " <> returnedColumns <> " FROM " <> callIt
 
-    callIt :: SqlFragment
-    callIt = fromQi qi <> "(" <> args <> ")"
+    callIt :: H.Snippet
+    callIt = H.sql (fromQi qi) <> "(" <> args <> ")"
 
-    returned_columns :: SqlFragment
-    returned_columns
+    returnedColumns :: H.Snippet
+    returnedColumns
       | null returnings = "*"
-      | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
+      | otherwise       = H.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.
