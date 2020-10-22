@@ -96,6 +96,7 @@ Client-Side Libraries
 * `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
 * `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over Postgrest.
 * `andytango/redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
+* `Exahilosys/aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
 
 
 .. _eco_commercial:
