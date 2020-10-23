@@ -12,6 +12,8 @@ Added
 
 * Allow http status override through the :ref:`response.status <guc_resp_status>` GUC.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+* Allow :ref:`s_procs_variadic`.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
 Fixed
 -----

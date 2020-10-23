@@ -1215,8 +1215,6 @@ as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is
 
  GET /rpc/plus_one?arr=%7B1,2,3,4%7D' HTTP/1.1
 
- [2,3,4,5]
-
 .. note::
 
    For versions prior to PostgreSQL 10, to pass a PostgreSQL native array on a POST payload, you need to quote it and use an array literal:
@@ -1230,6 +1228,43 @@ as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is
    In these versions we recommend using function parameters of type json to accept arrays from the client.
 
 .. _s_procs_variadic:
+
+Calling variadic functions
+--------------------------
+
+You can call a variadic function by passing a json array in a POST request:
+
+.. code-block:: postgres
+
+   create function plus_one(variadic v int[]) returns int[] as $$
+      SELECT array_agg(n + 1) FROM unnest($1) AS n;
+   $$ language sql;
+
+.. code-block:: http
+
+   POST /rpc/plus_one HTTP/1.1
+   Content-Type: application/json
+
+   {"v": [1,2,3,4]}
+
+.. code-block:: json
+
+   [2,3,4,5]
+
+In a GET request, you can repeat the same parameter name:
+
+.. code-block:: http
+
+   GET /rpc/plus_one?v=1&v=2&v=3&v=4 HTTP/1.1
+
+Repeating also works in POST requests with ``Content-Type: application/x-www-form-urlencoded``:
+
+.. code-block:: http
+
+  POST /rpc/plus_one HTTP/1.1
+  Content-Type: application/x-www-form-urlencoded
+
+  v=1&v=2&v=3&v=4
 
 Scalar functions
 ----------------
