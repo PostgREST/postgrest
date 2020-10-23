@@ -71,6 +71,7 @@ Extensions
 * `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
 * `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
 * `seveibar/postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a postgrest server in NodeJS via an npm module
+* `Exahilosys/aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
 
 .. _clientside_libraries:
 
@@ -96,8 +97,6 @@ Client-Side Libraries
 * `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
 * `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over Postgrest.
 * `andytango/redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
-* `Exahilosys/aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
-
 
 .. _eco_commercial:
 
