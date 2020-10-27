@@ -3,7 +3,7 @@ module Feature.RpcSpec where
 import qualified Data.ByteString.Lazy as BL (empty)
 
 import Network.Wai      (Application)
-import Network.Wai.Test (SResponse (simpleBody, simpleStatus, simpleHeaders))
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
 import Test.Hspec          hiding (pendingWith)
@@ -523,8 +523,8 @@ spec actualPgVersion =
               `shouldRespondWith`
                 [json|["hi", "there"]|]
 
-    it "returns first value for repeated params without VARIADIC" $
-      get "/rpc/sayhello?name=world&name=ignored"
+    it "returns last value for repeated params without VARIADIC" $
+      get "/rpc/sayhello?name=ignored&name=world"
         `shouldRespondWith`
           [json|"Hello, world"|]
 

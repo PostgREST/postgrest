@@ -128,7 +128,7 @@ sourceColumnFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
+  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey . addHasVariadic) <$> HD.rowList procRow
   where
     procRow = ProcDescription
               <$> column HD.text
@@ -141,6 +141,10 @@ decodeProcs =
                   <*> column HD.bool
                   <*> column HD.char)
               <*> (parseVolatility <$> column HD.char)
+              <*> pure False
+
+    addHasVariadic :: ProcDescription -> ProcDescription
+    addHasVariadic pd@ProcDescription{pdArgs} = pd{pdHasVariadic=isJust $ find pgaVar pdArgs}
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
