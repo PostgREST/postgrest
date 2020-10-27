@@ -70,6 +70,32 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetUnknown [Text]
             deriving Eq
 
+-- | RPC query param value `/rpc/func?v=<value>`, used for VARIADIC functions on form-urlencoded POST and GETs
+-- | It can be fixed `?v=1` or repeated `?v=1&v=2&v=3.
+data RpcParamValue = Fixed Text | Variadic [Text]
+instance JSON.ToJSON RpcParamValue where
+  toJSON (Fixed    v) = JSON.toJSON v
+  toJSON (Variadic v) = JSON.toJSON v
+
+toRpcParamValue :: ProcDescription -> (Text, Text) -> (Text, RpcParamValue)
+toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
+                            | otherwise       = (k, Fixed v)
+  where
+    argIsVariadic arg = isJust $ find (\PgArg{pgaName, pgaVar} -> pgaName == arg && pgaVar) $ pdArgs proc
+
+-- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
+jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
+jsonRpcParams proc prms =
+  if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
+    ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
+  else
+    let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
+    ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
+  where
+    mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
+    mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
+    mergeParams _ v                       = v -- repeated params for non-variadic arguments are not merged
+
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
@@ -187,33 +213,27 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
         (Just ProcessedJSON{pjKeys}, _) -> pjKeys
         (Just RawJSON{}, Just cls)      -> cls
         _                               -> S.empty
-  payload =
-    case (contentType, action) of
-      (_, ActionInvoke InvGet)  -> Right rpcPrmsToJson
-      (_, ActionInvoke InvHead) -> Right rpcPrmsToJson
-      (CTApplicationJSON, _) ->
-        if isJust columns
-          then Right $ RawJSON reqBody
-          else note "All object keys must match" . payloadAttributes reqBody
-                 =<< if BL.null reqBody && isTargetingProc
-                       then Right emptyObject
-                       else JSON.eitherDecode reqBody
-      (CTTextCSV, _) -> do
-        json <- csvToJson <$> CSV.decodeByName reqBody
-        note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-      (CTUrlEncoded, _) ->
-        let json = paramsFromList . map (toS *** toS) . parseSimpleQuery $ toS reqBody
-            keys = S.fromList $ M.keys json in
-        Right $ ProcessedJSON (JSON.encode json) keys
-      (ct, _) ->
-        Left $ toS $ "Content-Type not acceptable: " <> toMime ct
-  rpcPrmsToJson = ProcessedJSON (JSON.encode $ paramsFromList rpcQParams) (S.fromList $ fst <$> rpcQParams)
-  paramsFromList ls = M.fromListWith mergeParams $ toRpcParamsWith isVariadic ls
-    where
-      isVariadic k =
-        case target of
-          TargetProc{tProc} -> argIsVariadic tProc k
-          _                 -> False
+  payload = case contentType of
+    CTApplicationJSON ->
+      if isJust columns
+        then Right $ RawJSON reqBody
+        else note "All object keys must match" . payloadAttributes reqBody
+               =<< if BL.null reqBody && isTargetingProc
+                     then Right emptyObject
+                     else JSON.eitherDecode reqBody
+    CTTextCSV -> do
+      json <- csvToJson <$> CSV.decodeByName reqBody
+      note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
+    CTUrlEncoded ->
+      let urlEncodedBody = parseSimpleQuery $ toS reqBody in
+      case target of
+        TargetProc{tProc} ->
+          Right $ jsonRpcParams tProc $ (toS *** toS) <$> urlEncodedBody
+        _ ->
+          let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> urlEncodedBody in
+          Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
+    ct ->
+      Left $ toS $ "Content-Type not acceptable: " <> toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -257,16 +277,14 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       ["rpc", pName] -> TargetProc (callFindProc pName) False
       other          -> TargetUnknown other
 
-  shouldParsePayload =
-    action `elem`
-    [ActionCreate, ActionUpdate, ActionSingleUpsert,
-    ActionInvoke InvPost,
-    -- Though ActionInvoke{isGet=True}(a GET /rpc/..) doesn't really have a payload, we use the payload variable as a way
+  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
+  relevantPayload = case (target, action) of
+    -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
-    ActionInvoke InvGet,
-    ActionInvoke InvHead]
-  relevantPayload | shouldParsePayload = rightToMaybe payload
-                  | otherwise = Nothing
+    (TargetProc{tProc}, ActionInvoke InvGet)  -> Just $ jsonRpcParams tProc rpcQParams
+    (TargetProc{tProc}, ActionInvoke InvHead) -> Just $ jsonRpcParams tProc rpcQParams
+    _ | shouldParsePayload                    -> rightToMaybe payload
+      | otherwise                             -> Nothing
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req

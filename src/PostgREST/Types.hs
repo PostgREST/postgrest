@@ -4,7 +4,6 @@ Description : PostgREST common types and functions used by the rest of the modul
 -}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns        #-}
 
 module PostgREST.Types where
 
@@ -148,14 +147,15 @@ data ProcDescription = ProcDescription {
 , pdArgs        :: [PgArg]
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
+, pdHasVariadic :: Bool
 } deriving (Show, Eq)
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription schema1 name1 des1 args1 rt1 vol1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2
+  ProcDescription schema1 name1 des1 args1 rt1 vol1 hasVar1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2 hasVar2
     | schema1 == schema2 && name1 == name2 && length args1 < length args2  = LT
     | schema2 == schema2 && name1 == name2 && length args1 > length args2  = GT
-    | otherwise = (schema1, name1, des1, args1, rt1, vol1) `compare` (schema2, name2, des2, args2, rt2, vol2)
+    | otherwise = (schema1, name1, des1, args1, rt1, vol1, hasVar1) `compare` (schema2, name2, des2, args2, rt2, vol2, hasVar2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.
@@ -171,7 +171,7 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = fromMaybe fallback bestM
   where
     -- instead of passing Maybe ProcDescription around, we create a fallback description here when we can't find a matching function
     -- args is empty, but because "specifiedProcArgs" will fill the missing arguments with default type text, this is not a problem
-    fallback = ProcDescription (qiSchema qi) (qiName qi) Nothing mempty (SetOf $ Composite $ QualifiedIdentifier "" "record") Volatile
+    fallback = ProcDescription (qiSchema qi) (qiName qi) Nothing mempty (SetOf $ Composite $ QualifiedIdentifier mempty "record") Volatile False
     bestMatch =
       case M.lookup qi allProcs of
         Nothing     -> Nothing
@@ -201,12 +201,6 @@ procTableName proc = case pdReturnType proc of
   SetOf  (Composite qi) -> Just $ qiName qi
   Single (Composite qi) -> Just $ qiName qi
   _                     -> Nothing
-
-argIsVariadic :: ProcDescription -> Text -> Bool
-argIsVariadic proc arg =
-  case find (\PgArg{pgaName} -> pgaName == arg) $ pdArgs proc of
-    Just PgArg{pgaVar} -> pgaVar
-    _                  -> False
 
 type Schema = Text
 type TableName = Text
@@ -414,26 +408,6 @@ type Alias = Text
 type Cast = Text
 type NodeName = Text
 
--- RPC query param, used for POST of form-data and GET requests
-data RpcParamValue = Fixed Text | Variadic [Text]
-
-mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
-mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
--- repeated params for non-variadic arguments are not merged
-mergeParams _ v                       = v
-
-instance JSON.ToJSON RpcParamValue where
-  toJSON (Fixed    v) = JSON.toJSON v
-  toJSON (Variadic v) = JSON.toJSON v
-
-type RpcParams = [(Text, RpcParamValue)]
-
-toRpcParamsWith :: (Text -> Bool) -> [(Text, Text)] -> RpcParams
-toRpcParamsWith isVariadic ls = toRpcParamValue <$> ls
-  where
-    toRpcParamValue (k, v)
-      | isVariadic k = (k, Variadic [v])
-      | otherwise    = (k, Fixed v)
 
 {-|
   Custom guc header, it's obtained by parsing the json in a:

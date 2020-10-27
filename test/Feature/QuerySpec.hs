@@ -10,7 +10,8 @@ import Test.Hspec.Wai.JSON
 
 import Text.Heredoc
 
-import PostgREST.Types (PgVersion, pgVersion96, pgVersion112, pgVersion121)
+import PostgREST.Types (PgVersion, pgVersion112, pgVersion121,
+                        pgVersion96)
 import Protolude       hiding (get)
 import SpecHelper
 
