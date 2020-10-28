@@ -94,7 +94,7 @@ jsonRpcParams proc prms =
   where
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
-    mergeParams _ v                       = v -- repeated params for non-variadic arguments are not merged
+    mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
 
 {-|
   Describes what the user wants to do. This data type is a

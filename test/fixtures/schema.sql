@@ -1084,9 +1084,14 @@ create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bo
 $$ language sql;
 
 CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[] DEFAULT '{}') RETURNS text[]
-LANGUAGE SQL AS $_$
+LANGUAGE SQL AS $$
   SELECT v
-$_$;
+$$;
+
+CREATE FUNCTION test.sayhello_variadic(name TEXT, VARIADIC v TEXT[]) RETURNS text
+LANGUAGE SQL AS $$
+  SELECT 'Hello, ' || name 
+$$;
 
 create or replace function test.raise_pt402() returns void as $$
 begin

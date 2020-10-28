@@ -528,6 +528,12 @@ spec actualPgVersion =
         `shouldRespondWith`
           [json|"Hello, world"|]
 
+    when (actualPgVersion >= pgVersion100) $
+      it "returns last value for repeated non-variadic params in function with other VARIADIC arguments" $
+        get "/rpc/sayhello_variadic?name=ignored&name=world&v=unused"
+          `shouldRespondWith`
+            [json|"Hello, world"|]
+
     it "can handle procs with args that have a DEFAULT value" $ do
       get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
         [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
