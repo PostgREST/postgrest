@@ -161,6 +161,7 @@ These are recipes that'll help you address specific use-cases.
 - :doc:`how-tos/casting-type-to-custom-json`
 - :doc:`how-tos/embedding-table-from-another-schema`
 - :doc:`how-tos/providing-images-for-img`
+- `How PostgreSQL triggers work when called with a PostgREST PATCH HTTP request <https://blog.fgribreau.com/2020/11/how-postgresql-triggers-works-when.html>`_
 
 Ecosystem
 ---------
@@ -209,6 +210,7 @@ Here are some companies that use PostgREST in production.
   - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
 * `Catarse <https://www.catarse.me/>`_
 * `Moat <https://moat.com/>`_
+* `Netwo <https://www.netwo.io/>`_
 * `Redsmin <https://www.redsmin.com/>`_
 * `Image-charts <https://image-charts.com/>`_
 * `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
@@ -226,7 +228,7 @@ Testimonials
 
   "It's so fast to develop, it feels like cheating!"
 
-  -- François-G. Ribreau
+  -- François-Guillaume Ribreau
 
   "I just have to say that, the CPU/Memory usage compared to our
   Node.js/Waterline ORM based API is ridiculous.  It's hard to even push
