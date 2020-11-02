@@ -303,7 +303,7 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor 
            not (null (S.fromList pkCols)) &&
            all (\case
               Filter _ (OpExpr False (Op "eq" _)) -> True
-              _ -> False) flts
+              _                                   -> False) flts
           then Insert qi (iColumns apiRequest) (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
         else
           Left InvalidFilters) =<< filters
