@@ -168,6 +168,7 @@ test-suite spec
                       Feature.SingularSpec
                       Feature.StructureSpec
                       Feature.UnicodeSpec
+                      Feature.UpdateSpec
                       Feature.UpsertSpec
                       Feature.RawOutputTypesSpec
                       Feature.HtmlRawOutputSpec

@@ -47,6 +47,7 @@ import qualified Feature.RpcSpec
 import qualified Feature.SingularSpec
 import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
+import qualified Feature.UpdateSpec
 import qualified Feature.UpsertSpec
 
 
@@ -115,6 +116,7 @@ main = do
           ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
         , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
+        , ("Feature.UpdateSpec"             , Feature.UpdateSpec.spec)
         ]
 
   hspec $ do
