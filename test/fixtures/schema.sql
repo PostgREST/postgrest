@@ -460,11 +460,18 @@ CREATE TABLE complex_items (
 --
 
 CREATE TABLE compound_pk (
+    -- those columns should not be referenced to in a foreign key anywhere
+    -- to allow the InsertSpec.Inserting into VIEWs.returns a location header
+    -- to test properly
+    PRIMARY KEY (k1, k2),
     k1 integer NOT NULL,
     k2 text NOT NULL,
     extra integer
 );
 
+
+CREATE VIEW compound_pk_view AS
+SELECT * FROM compound_pk;
 
 --
 -- Name: empty_table; Type: TABLE; Schema: test; Owner: -
@@ -632,6 +639,7 @@ CREATE VIEW projects_view_alt AS
 --
 
 CREATE TABLE simple_pk (
+    PRIMARY KEY (k),
     k character varying NOT NULL,
     extra character varying NOT NULL
 );
@@ -784,23 +792,6 @@ ALTER TABLE ONLY auto_incrementing_pk
 
 ALTER TABLE ONLY complex_items
     ADD CONSTRAINT complex_items_pkey PRIMARY KEY (id);
-
-
---
--- Name: compound_pk_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY compound_pk
-    ADD CONSTRAINT compound_pk_pkey PRIMARY KEY (k1, k2);
-
-
---
--- Name: contacts_pkey; Type: CONSTRAINT; Schema: test; Owner: -
---
-
-ALTER TABLE ONLY simple_pk
-    ADD CONSTRAINT contacts_pkey PRIMARY KEY (k);
-
 
 --
 -- Name: has_fk_pkey; Type: CONSTRAINT; Schema: test; Owner: -
