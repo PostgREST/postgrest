@@ -247,12 +247,11 @@ spec actualPgVersion = do
 
     context "attempting to insert a row with the same primary key" $
       it "fails returning a 409 Conflict" $
-        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |]
+        post "/simple_pk"
+            [json| { "k":"k1", "extra":"e1" } |]
           `shouldRespondWith`
-          [json|{"hint":null,"details":"Key (k)=(k1) already exists.","code":"23505","message":"duplicate key value violates unique constraint \"contacts_pkey\""}|]
-          { matchStatus  = 409
-          , matchHeaders = [matchContentTypeJson]
-          }
+            [json|{"hint":null,"details":"Key (k)=(k1) already exists.","code":"23505","message":"duplicate key value violates unique constraint \"simple_pk_pkey\""}|]
+            { matchStatus  = 409 }
 
     context "attempting to insert a row with conflicting unique constraint" $
       it "fails returning a 409 Conflict" $
@@ -494,3 +493,13 @@ spec actualPgVersion = do
         simpleBody p `shouldBe` ""
         simpleStatus p `shouldBe` created201
 
+  describe "Inserting into VIEWs" $
+    it "returns a location header" $
+      post "/compound_pk_view"
+          [json|{"k1":1,"k2":"test","extra":2}|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 201
+          , matchHeaders = [ "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
+                           , "Content-Range" <:> "*/*" ]
+          }

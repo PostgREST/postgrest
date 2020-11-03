@@ -23,6 +23,7 @@ GRANT ALL ON TABLE
     , comments
     , complex_items
     , compound_pk
+    , compound_pk_view
     , empty_table
     , has_count_column
     , has_fk
