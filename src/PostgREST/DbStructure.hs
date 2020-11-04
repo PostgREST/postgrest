@@ -31,6 +31,7 @@ import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
 
+import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
@@ -43,12 +44,12 @@ import Text.InterpolatedString.Perl6 (q, qc)
 import PostgREST.Private.Common
 import PostgREST.Types
 
-getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schemas pgVer = do
+getDbStructure :: [Schema] -> [Schema] -> PgVersion -> HT.Transaction DbStructure
+getDbStructure schemas extraSearchPath pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () allTables
   cols    <- HT.statement schemas $ allColumns tabs
-  srcCols <- HT.statement schemas $ allSourceColumns cols pgVer
+  srcCols <- HT.statement (schemas, extraSearchPath) $ allSourceColumns cols pgVer
   m2oRels <- HT.statement () $ allM2ORels tabs cols
   keys    <- HT.statement () $ allPrimaryKeys tabs
   procs   <- HT.statement schemas allProcs
@@ -672,9 +673,9 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSourceColumns :: [Column] -> PgVersion -> H.Statement [Schema] [SourceColumn]
+allSourceColumns :: [Column] -> PgVersion -> H.Statement ([Schema], [Schema]) [SourceColumn]
 allSourceColumns cols pgVer =
-  H.Statement sql (arrayParam HE.text) (decodeSourceColumns cols) True
+  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
@@ -707,7 +708,7 @@ allSourceColumns cols pgVer =
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where c.relkind in ('v', 'm') and n.nspname not in ('pg_catalog', 'information_schema')
+        where c.relkind in ('v', 'm') and n.nspname = ANY($1 || $2)
       ),
       removed_subselects as(
         select

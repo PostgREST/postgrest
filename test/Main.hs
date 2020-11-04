@@ -61,7 +61,7 @@ main = do
 
   actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
 
-  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ testCfg testDbConn) actualPgVersion
+  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ testCfg testDbConn) (configExtraSearchPath $ testCfg testDbConn) actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
@@ -71,7 +71,7 @@ main = do
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
-      dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) actualPgVersion
+      dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) (configExtraSearchPath $ cfg testDbConn) actualPgVersion
       refConf <- newIORef $ cfg testDbConn
       return ((), postgrest LogCrit refConf dbs pool getTime $ pure ())
 
@@ -83,11 +83,11 @@ main = do
       audJwtApp            = app testCfgAudienceJWT
       asymJwkApp           = app testCfgAsymJWK
       asymJwkSetApp        = app testCfgAsymJWKSet
-      extraSearchPathApp   = app testCfgExtraSearchPath
       rootSpecApp          = app testCfgRootSpec
       htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
 
+      extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
       nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
@@ -186,5 +186,5 @@ main = do
       describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
 
   where
-    setupDbStructure pool schemas ver =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) ver)
+    setupDbStructure pool schemas extraSearchPath ver =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath ver)

@@ -54,7 +54,7 @@ GRANT ALL ON TABLE
     , public.public_orders
     , consumers_view
     , consumers_view_view
-    , consumers_private_view
+    , consumers_extra_view
     , orders_view
     , images
     , images_base64
