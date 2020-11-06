@@ -41,6 +41,15 @@ let
           --replace v${version} \
           ${releaseFiles}
       '';
+  # Wrapper for login with docker. $DOCKER_USER/$DOCKER_PASS vars come from CircleCI.
+  # The DOCKER_USER is not the same as DOCKER_REPO because we use the https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
+  dockerLogin =
+    writeShellScriptBin "postgrest-docker-login"
+      ''
+        set -euo pipefail
+
+        docker login -u $DOCKER_USER -p $DOCKER_PASS
+      '';
 
   # Script for publishing a new release on Docker Hub.
   dockerHub =
@@ -97,5 +106,5 @@ let
 in
 buildEnv {
   name = "postgrest-release";
-  paths = [ github dockerHub dockerHubDescription ];
+  paths = [ github dockerLogin dockerHub dockerHubDescription ];
 }
