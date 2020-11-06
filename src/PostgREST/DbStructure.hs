@@ -49,7 +49,7 @@ getDbStructure schemas extraSearchPath pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () allTables
   cols    <- HT.statement schemas $ allColumns tabs
-  srcCols <- HT.statement (schemas, extraSearchPath) $ allSourceColumns cols pgVer
+  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols pgVer
   m2oRels <- HT.statement () $ allM2ORels tabs cols
   keys    <- HT.statement () $ allPrimaryKeys tabs
   procs   <- HT.statement schemas allProcs
@@ -673,8 +673,9 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSourceColumns :: [Column] -> PgVersion -> H.Statement ([Schema], [Schema]) [SourceColumn]
-allSourceColumns cols pgVer =
+-- returns all the primary and foreign key columns which are referenced in views
+pfkSourceColumns :: [Column] -> PgVersion -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns cols pgVer =
   H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
