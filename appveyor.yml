@@ -32,5 +32,16 @@ artifacts:
 - path: postgrest.exe
 
 deploy_script:
-- IF DEFINED APPVEYOR_REPO_TAG_NAME 7z a -tzip postgrest-%APPVEYOR_REPO_TAG_NAME%-windows-x64.zip postgrest.exe
-- IF DEFINED APPVEYOR_REPO_TAG_NAME bash -lc " exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"$(sed -n \"1,/$(echo $APPVEYOR_REPO_TAG_NAME | cut -c2-)/d;/## \[/q;p\" CHANGELOG.md)\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"
+## set the env vars outside of the IF because that doesn't work: https://stackoverflow.com/questions/9102422/windows-batch-set-inside-if-not-working
+- set DATE=%APPVEYOR_REPO_COMMIT_TIMESTAMP:~0,10%
+- set SHA=%APPVEYOR_REPO_COMMIT:~0,7%
+- set SUFFIX=%DATE%-%SHA%
+- IF DEFINED APPVEYOR_REPO_TAG_NAME (
+    IF "%APPVEYOR_REPO_TAG_NAME%"=="nightly" (
+      7z a -tzip postgrest-nightly-%SUFFIX%-windows-x64.zip postgrest.exe &&
+      bash -lc "exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME --replace nightly postgrest-nightly-$SUFFIX-windows-x64.zip"
+    ) ELSE (
+      7z a -tzip postgrest-%APPVEYOR_REPO_TAG_NAME%-windows-x64.zip postgrest.exe &&
+      bash -lc "exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER && ghr -t $GITHUB_TOKEN -u $APPVEYOR_ACCOUNT_NAME -r $APPVEYOR_PROJECT_NAME -b \"`sed -n \"1,/$APPVEYOR_REPO_TAG_NAME/d;/## \[/q;p\" CHANGELOG.md`\" --replace $APPVEYOR_REPO_TAG_NAME postgrest-$APPVEYOR_REPO_TAG_NAME-windows-x64.zip"
+    )
+  )
