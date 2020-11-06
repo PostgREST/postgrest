@@ -81,9 +81,9 @@ let
 
         # Login to Docker Hub and get a token.
         token="$(
-          ${curl}/bin/curl -sH "Content-Type: application/json" \
-            --data-urlencode "username=$DOCKER_USERNAME" \
-            --data-urlencode "password=$DOCKER_PASSWORD" \
+          ${curl}/bin/curl -s \
+            --data-urlencode "username=$DOCKER_USER" \
+            --data-urlencode "password=$DOCKER_PASS" \
             "https://hub.docker.com/v2/users/login/" \
             | ${jq}/bin/jq -r .token
         )"
