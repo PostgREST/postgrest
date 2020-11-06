@@ -142,7 +142,7 @@ jobs:
           name: Publish Docker images
           command: |
             export DOCKER_REPO=postgrest
-            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            postgrest-docker-login
             postgrest-release-dockerhub
             postgrest-release-dockerhubdescription
 
