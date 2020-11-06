@@ -119,10 +119,14 @@ jobs:
   # Publish a new release. This only runs when a release is tagged (see
   # workflow below).
   release:
-    docker:
-      - image: nixos/nix:2.3
+    machine: true
     steps:
       - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
       - run:
           name: Install and use the Cachix binary cache
           command: |
@@ -137,7 +141,6 @@ jobs:
             export GITHUB_USERNAME="$CIRCLE_PROJECT_USERNAME"
             export GITHUB_REPONAME="$CIRCLE_PROJECT_REPONAME"
             postgrest-release-github
-      - setup_remote_docker
       - run:
           name: Publish Docker images
           command: |
