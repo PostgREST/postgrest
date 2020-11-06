@@ -686,13 +686,15 @@ allSourceColumns cols pgVer =
                    | otherwise = ":subselect {.*?:stmt_len 0} :location \\d+} :res(no|ult)"
     sql = [qc|
       with recursive
-      any_part_of_fk as (
+      pks_fks as (
+        -- pk + fk referencing col
         select
           conrelid as resorigtbl,
           unnest(conkey) as resorigcol
         from pg_constraint
-        where contype='f'
+        where contype IN ('p', 'f')
         union
+        -- fk referenced col
         select
           confrelid,
           unnest(confkey)
@@ -769,7 +771,7 @@ allSourceColumns cols pgVer =
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rec.resorigcol
       join pg_attribute vcol on vcol.attrelid = rec.view_id and vcol.attnum = rec.view_column
       join pg_namespace sch on sch.oid = tbl.relnamespace
-      join any_part_of_fk using (resorigtbl, resorigcol)
+      join pks_fks using (resorigtbl, resorigcol)
       order by view_schema, view_name, view_column_name; |]
 
 getPgVersion :: H.Session PgVersion
