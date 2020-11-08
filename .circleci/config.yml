@@ -140,13 +140,13 @@ jobs:
           command: |
             export GITHUB_USERNAME="$CIRCLE_PROJECT_USERNAME"
             export GITHUB_REPONAME="$CIRCLE_PROJECT_REPONAME"
-            postgrest-release-github
+            postgrest-release-github $CIRCLE_TAG
       - run:
           name: Publish Docker images
           command: |
             export DOCKER_REPO=postgrest
             postgrest-docker-login
-            postgrest-release-dockerhub
+            postgrest-release-dockerhub $CIRCLE_TAG
             postgrest-release-dockerhubdescription
 
   # Build everything in default.nix, push to the Cachix binary cache and run tests

@@ -12,35 +12,28 @@ let
   # Version from the postgrest.cabal file (gotten with callCabal2nix).
   version = postgrest.version;
 
-  # Set of files that will be published in the GitHub release.
-  releaseFiles =
-    runCommand "postgrest-release-files"
-      { inherit postgrest version; }
-      ''
-        set -euo pipefail
-
-        mkdir -p $out
-
-        tar cvJf "$out"/postgrest-v"$version"-linux-x64-static.tar.xz \
-          -C "$postgrest"/bin postgrest
-      '';
-
   # Script for publishing a new release on GitHub.
   github =
     writeShellScriptBin "postgrest-release-github"
       ''
         set -euo pipefail
 
-        changes="$(sed -n "1,/${version}/d;/## \[/q;p" ${../../CHANGELOG.md})"
+        version=$1
+
+        changes="$(sed -n "1,/$version/d;/## \[/q;p" ${../../CHANGELOG.md})"
+
+        tar cvJf postgrest-$version-linux-x64-static.tar.xz \
+          -C ${postgrest}/bin postgrest
 
         ${ghr}/bin/ghr \
           -t "$GITHUB_TOKEN" \
           -u "$GITHUB_USERNAME" \
           -r "$GITHUB_REPONAME" \
           -b "$changes" \
-          --replace v${version} \
-          ${releaseFiles}
+          --replace $version \
+          postgrest-$version-linux-x64-static.tar.xz
       '';
+
   # Wrapper for login with docker. $DOCKER_USER/$DOCKER_PASS vars come from CircleCI.
   # The DOCKER_USER is not the same as DOCKER_REPO because we use the https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
   dockerLogin =
@@ -57,13 +50,15 @@ let
       ''
         set -euo pipefail
 
+        version=$1
+
         docker load -i ${docker.image}
 
         docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-        docker tag postgrest:latest "$DOCKER_REPO"/postgrest:v${version}
+        docker tag postgrest:latest "$DOCKER_REPO"/postgrest:$version
 
         docker push "$DOCKER_REPO"/postgrest:latest
-        docker push "$DOCKER_REPO"/postgrest:v${version}
+        docker push "$DOCKER_REPO"/postgrest:$version
       '';
 
   # Script for updating the repository description on Docker Hub.
