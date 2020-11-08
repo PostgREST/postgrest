@@ -2,14 +2,16 @@ freebsd_instance:
   image: freebsd-12-1-release-amd64
 
 build_task:
+  env:
+    TOKEN: ENCRYPTED[c99babbf04e8a33962ffbbc75bf20d3abe408f9bede5ed5d8956cd24da6fdb34266c920984cc43f8106ef3423fba0e98]
   # caches the freebsd package downloads
   # saves probably just a couple of seconds, but hey...
   pkg_cache:
     folder: /var/cache/pkg
 
   install_script:
-    - pkg install -y postgresql95-client ghc hs-cabal-install
-  
+    - pkg install -y postgresql95-client ghc hs-cabal-install jq
+
   # cache the hackage index file and downloads which are
   # cabal v2-update downloads an incremental update, so we don't need to keep this up2date
   packages_cache:
@@ -29,5 +31,35 @@ build_task:
     - cabal v2-update
     - cabal v2-build
 
-  binaries_artifacts:
-    path: "dist-newstyle/build/x86_64-freebsd/ghc-8.6.5/postgrest-7.0.1/x/postgrest/build/postgrest/*"
+  publish_script:
+    - |
+      if test ! "$CIRRUS_TAG"
+      then
+        echo 'No tag pushed. Skip release.'
+      else
+        cabal v2-install
+
+        bin_name=""
+
+        if test $CIRRUS_TAG = "nightly"
+        then
+          date=$(date +'%F')
+          sha=$(echo $CIRRUS_CHANGE_IN_REPO | head -c7)
+          suffix=$date-$sha
+          bin_name=postgrest-nightly-$suffix-freebsd.tar.xz
+        else
+          bin_name=postgrest-$CIRRUS_TAG-freebsd.tar.xz
+        fi
+
+        release_id=$(curl -s https://api.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/tags/$CIRRUS_TAG | jq .id)
+
+        echo "Uploading $bin_name to gh release: $release_id"
+
+        tar cvJf $bin_name --dereference -C /.cabal/bin postgrest
+
+        ## We don't use ghr here because it doesn't provide freebsd binaries: https://github.com/tcnksm/ghr/issues/127
+        curl -X POST --data-binary @$bin_name \
+          -H "Authorization:token $TOKEN" \
+          -H "Content-Type:application/octet-stream" \
+          "https://uploads.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/$release_id/assets?name=$bin_name"
+      fi
