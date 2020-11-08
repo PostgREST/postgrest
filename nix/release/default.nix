@@ -20,18 +20,34 @@ let
 
         version=$1
 
-        changes="$(sed -n "1,/$version/d;/## \[/q;p" ${../../CHANGELOG.md})"
+        if test $version = "nightly"
+        then
+          date=$(date +'%F')
+          sha=$(echo $CIRCLE_SHA1 | head -c7)
+          suffix=$date-$sha
+          tar cvJf postgrest-nightly-$suffix-linux-x64-static.tar.xz \
+            -C ${postgrest}/bin postgrest
 
-        tar cvJf postgrest-$version-linux-x64-static.tar.xz \
-          -C ${postgrest}/bin postgrest
+          ${ghr}/bin/ghr \
+            -t "$GITHUB_TOKEN" \
+            -u "$GITHUB_USERNAME" \
+            -r "$GITHUB_REPONAME" \
+            --replace nightly \
+            postgrest-nightly-$suffix-linux-x64-static.tar.xz
+        else
+          changes="$(sed -n "1,/$version/d;/## \[/q;p" ${../../CHANGELOG.md})"
 
-        ${ghr}/bin/ghr \
-          -t "$GITHUB_TOKEN" \
-          -u "$GITHUB_USERNAME" \
-          -r "$GITHUB_REPONAME" \
-          -b "$changes" \
-          --replace $version \
-          postgrest-$version-linux-x64-static.tar.xz
+          tar cvJf postgrest-$version-linux-x64-static.tar.xz \
+            -C ${postgrest}/bin postgrest
+
+          ${ghr}/bin/ghr \
+            -t "$GITHUB_TOKEN" \
+            -u "$GITHUB_USERNAME" \
+            -r "$GITHUB_REPONAME" \
+            -b "$changes" \
+            --replace $version \
+            postgrest-$version-linux-x64-static.tar.xz
+        fi
       '';
 
   # Wrapper for login with docker. $DOCKER_USER/$DOCKER_PASS vars come from CircleCI.
@@ -54,11 +70,21 @@ let
 
         docker load -i ${docker.image}
 
-        docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-        docker tag postgrest:latest "$DOCKER_REPO"/postgrest:$version
+        if test $version = "nightly"
+        then
+          date=$(date +'%F')
+          sha=$(echo $CIRCLE_SHA1 | head -c7)
+          suffix=$date-$sha
 
-        docker push "$DOCKER_REPO"/postgrest:latest
-        docker push "$DOCKER_REPO"/postgrest:$version
+          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:nightly-$suffix
+          docker push "$DOCKER_REPO"/postgrest:nightly-$suffix
+        else
+          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
+          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:$version
+
+          docker push "$DOCKER_REPO"/postgrest:latest
+          docker push "$DOCKER_REPO"/postgrest:$version
+        fi
       '';
 
   # Script for updating the repository description on Docker Hub.
