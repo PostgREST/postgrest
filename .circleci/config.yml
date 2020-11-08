@@ -224,19 +224,27 @@ workflows:
           # Make sure that this job also runs when releases are tagged.
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
       - stack-test:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
       - stack-test-memory:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
       - nix-build-test:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
       - release:
           requires:
             - style-check
@@ -245,6 +253,8 @@ workflows:
             - nix-build-test
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
             branches:
               ignore: /.*/
