@@ -59,9 +59,7 @@ jobs:
             repo="$(echo "$TRAVIS_REPO_SLUG" | cut -f2 -d/)"
             if test $TRAVIS_TAG = "nightly"
             then
-              date=$(date +'%F')
-              sha=$(echo $TRAVIS_COMMIT | head -c7)
-              suffix=$date-$sha
+              suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
               strip postgrest
               tar cJf postgrest-nightly-$suffix-osx.tar.xz postgrest
               ghr -t $GITHUB_TOKEN -u $owner -r $repo --replace nightly postgrest-nightly-$suffix-osx.tar.xz

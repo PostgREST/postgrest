@@ -10,7 +10,7 @@ build_task:
     folder: /var/cache/pkg
 
   install_script:
-    - pkg install -y postgresql95-client ghc hs-cabal-install jq
+    - pkg install -y postgresql95-client ghc hs-cabal-install jq git
 
   # cache the hackage index file and downloads which are
   # cabal v2-update downloads an incremental update, so we don't need to keep this up2date
@@ -43,9 +43,7 @@ build_task:
 
         if test $CIRRUS_TAG = "nightly"
         then
-          date=$(date +'%F')
-          sha=$(echo $CIRRUS_CHANGE_IN_REPO | head -c7)
-          suffix=$date-$sha
+          suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
           bin_name=postgrest-nightly-$suffix-freebsd.tar.xz
         else
           bin_name=postgrest-$CIRRUS_TAG-freebsd.tar.xz

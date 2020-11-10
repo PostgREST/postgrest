@@ -22,9 +22,7 @@ let
 
         if test $version = "nightly"
         then
-          date=$(date +'%F')
-          sha=$(echo $CIRCLE_SHA1 | head -c7)
-          suffix=$date-$sha
+          suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
           tar cvJf postgrest-nightly-$suffix-linux-x64-static.tar.xz \
             -C ${postgrest}/bin postgrest
 
@@ -72,9 +70,7 @@ let
 
         if test $version = "nightly"
         then
-          date=$(date +'%F')
-          sha=$(echo $CIRCLE_SHA1 | head -c7)
-          suffix=$date-$sha
+          suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
 
           docker tag postgrest:latest "$DOCKER_REPO"/postgrest:nightly-$suffix
           docker push "$DOCKER_REPO"/postgrest:nightly-$suffix
