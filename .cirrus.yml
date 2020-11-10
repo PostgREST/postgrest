@@ -29,6 +29,12 @@ build_task:
 
   build_script:
     - cabal v2-update
+    - |
+      if test "$CIRRUS_TAG" = "nightly"
+      then
+        cabal_nightly_version=$(git show -s --format='%cd' --date='format:%Y%m%d')
+        sed -i '' "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
+      fi
     - cabal v2-build
 
   publish_script:
