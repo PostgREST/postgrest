@@ -23,6 +23,8 @@ install:
 - go get -u github.com/tcnksm/ghr
 
 build_script:
+- ps: $env:cabal_nightly_version=(git show -s --format='%cd' --date='format:%Y%m%d')
+- IF "%APPVEYOR_REPO_TAG_NAME%"=="nightly" bash -lc "sed -i -r \"s/^(version:\s+)\S+$/\1$cabal_nightly_version/\" postgrest.cabal"
 - stack setup --no-terminal > nul
 # Appveyor has a timeout of 60 mins, building can take longer, limit the time and make sure this succeeds,
 # previous work will get cached and finish on next commit

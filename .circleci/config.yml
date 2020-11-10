@@ -165,6 +165,14 @@ jobs:
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use postgrest
       - run:
+          name: Change postgrest.cabal if nightly
+          command: |
+            if test "$CIRCLE_TAG" = "nightly"
+            then
+              cabal_nightly_version=$(git show -s --format='%cd' --date='format:%Y%m%d')
+              sed -i "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
+            fi
+      - run:
           name: Build all derivations from default.nix and push results to Cachix
           command: |
             # Only push to the cache when CircleCI makes the CACHIX_SIGNING_KEY

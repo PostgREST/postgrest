@@ -38,6 +38,12 @@ jobs:
             rm ghr.zip
           fi
       script:
+        - |
+          if test "$TRAVIS_TAG" = "nightly"
+          then
+            cabal_nightly_version=$(git show -s --format='%cd' --date='format:%Y%m%d')
+            sed -i '' "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
+          fi
         ## Building the whole project can take longer than 50 minutes. Since Travis has a global timeout of 50 minutes
         ## we compile for 30 minutes tops(`gtimeout 1800`) and quit compiling with no error.
         ## Since we CACHE the compile results we can continue compiling from where we left off
