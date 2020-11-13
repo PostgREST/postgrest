@@ -28,7 +28,6 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 ## Lead Backers
 
-- [Daniel Babiak](https://github.com/d-babiak)
 - Evans Fernandes
 - [Jan Sommer](https://github.com/nerfpops)
 
@@ -38,13 +37,15 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Michel Pelletier
 - Jay Hannah
 - Robert Stolarz
-- Kofi Gumbs
 - Nicholas DiBiase
 - Christopher Reid
 - Nathan Bouscal
 - Daniel Rafaj
 - David Fenko
 - Remo Rechkemmer
+- Severin Ibarluzea
+- Tom Saleeba
+- Pawel Tyll
 
 ## Former Backers
 
@@ -61,3 +62,5 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 </table>
 
 - [Christiaan Westerbeek](https://devotis.nl)
+- [Daniel Babiak](https://github.com/dbabiak)
+- Kofi Gumbs
