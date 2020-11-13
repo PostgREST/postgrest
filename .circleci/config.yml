@@ -128,6 +128,14 @@ jobs:
             curl -L https://nixos.org/nix/install | sh
             echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
       - run:
+          name: Change postgrest.cabal if nightly
+          command: |
+            if test "$CIRCLE_TAG" = "nightly"
+            then
+              cabal_nightly_version=$(git show -s --format='%cd' --date='format:%Y%m%d')
+              sed -i "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
+            fi
+      - run:
           name: Install and use the Cachix binary cache
           command: |
             nix-env -iA cachix -f https://cachix.org/api/v1/install

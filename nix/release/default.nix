@@ -9,9 +9,6 @@
 , writeShellScriptBin
 }:
 let
-  # Version from the postgrest.cabal file (gotten with callCabal2nix).
-  version = postgrest.version;
-
   # Script for publishing a new release on GitHub.
   github =
     writeShellScriptBin "postgrest-release-github"
