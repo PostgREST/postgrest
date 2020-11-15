@@ -31,6 +31,7 @@ import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
 
+import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (breakOn, dropAround, split,
                                       splitOn, strip)
@@ -43,12 +44,12 @@ import Text.InterpolatedString.Perl6 (q, qc)
 import PostgREST.Private.Common
 import PostgREST.Types
 
-getDbStructure :: [Schema] -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schemas pgVer = do
+getDbStructure :: [Schema] -> [Schema] -> PgVersion -> HT.Transaction DbStructure
+getDbStructure schemas extraSearchPath pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement () allTables
   cols    <- HT.statement schemas $ allColumns tabs
-  srcCols <- HT.statement schemas $ allSourceColumns cols pgVer
+  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols pgVer
   m2oRels <- HT.statement () $ allM2ORels tabs cols
   keys    <- HT.statement () $ allPrimaryKeys tabs
   procs   <- HT.statement schemas allProcs
@@ -672,9 +673,10 @@ pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
-allSourceColumns :: [Column] -> PgVersion -> H.Statement [Schema] [SourceColumn]
-allSourceColumns cols pgVer =
-  H.Statement sql (arrayParam HE.text) (decodeSourceColumns cols) True
+-- returns all the primary and foreign key columns which are referenced in views
+pfkSourceColumns :: [Column] -> PgVersion -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns cols pgVer =
+  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols) True
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
@@ -684,62 +686,94 @@ allSourceColumns cols pgVer =
     subselectRegex | pgVer < pgVersion100 = ":subselect {.*?:constraintDeps <>} :location \\d+} :res(no|ult)"
                    | otherwise = ":subselect {.*?:stmt_len 0} :location \\d+} :res(no|ult)"
     sql = [qc|
-      with
+      with recursive
+      pks_fks as (
+        -- pk + fk referencing col
+        select
+          conrelid as resorigtbl,
+          unnest(conkey) as resorigcol
+        from pg_constraint
+        where contype IN ('p', 'f')
+        union
+        -- fk referenced col
+        select
+          confrelid,
+          unnest(confkey)
+        from pg_constraint
+        where contype='f'
+      ),
       views as (
         select
+          c.oid       as view_id,
           n.nspname   as view_schema,
           c.relname   as view_name,
           r.ev_action as view_definition
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where c.relkind in ('v', 'm') and n.nspname = ANY ($1)
+        where c.relkind in ('v', 'm') and n.nspname = ANY($1 || $2)
       ),
       removed_subselects as(
         select
-          view_schema, view_name,
+          view_id, view_schema, view_name,
           regexp_replace(view_definition, '{subselectRegex}', '', 'g') as x
         from views
       ),
       target_lists as(
         select
-          view_schema, view_name,
-          regexp_split_to_array(x, 'targetList') as x
+          view_id, view_schema, view_name,
+          string_to_array(x, 'targetList') as x
         from removed_subselects
       ),
       last_target_list_wo_tail as(
         select
-          view_schema, view_name,
-          (regexp_split_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
+          view_id, view_schema, view_name,
+          (string_to_array(x[array_upper(x, 1)], ':onConflict'))[1] as x
         from target_lists
       ),
       target_entries as(
         select
-          view_schema, view_name,
-          unnest(regexp_split_to_array(x, 'TARGETENTRY')) as entry
+          view_id, view_schema, view_name,
+          unnest(string_to_array(x, 'TARGETENTRY')) as entry
         from last_target_list_wo_tail
       ),
       results as(
         select
-          view_schema, view_name,
-          substring(entry from ':resname (.*?) :') as view_colum_name,
-          substring(entry from ':resorigtbl (.*?) :') as resorigtbl,
-          substring(entry from ':resorigcol (.*?) :') as resorigcol
+          view_id, view_schema, view_name,
+          substring(entry from ':resno (\d+)')::int as view_column,
+          substring(entry from ':resorigtbl (\d+)')::oid as resorigtbl,
+          substring(entry from ':resorigcol (\d+)')::int as resorigcol
         from target_entries
+      ),
+      recursion as(
+        select r.*
+        from results r
+        where view_schema = ANY ($1)
+        union all
+        select
+          view.view_id,
+          view.view_schema,
+          view.view_name,
+          view.view_column,
+          tab.resorigtbl,
+          tab.resorigcol
+        from recursion view
+        join results tab on view.resorigtbl=tab.view_id and view.resorigcol=tab.view_column
       )
       select
         sch.nspname as table_schema,
         tbl.relname as table_name,
         col.attname as table_column_name,
-        res.view_schema,
-        res.view_name,
-        res.view_colum_name
-      from results res
-      join pg_class tbl on tbl.oid::text = res.resorigtbl
-      join pg_attribute col on col.attrelid = tbl.oid and col.attnum::text = res.resorigcol
+        rec.view_schema,
+        rec.view_name,
+        vcol.attname as view_column_name
+      from recursion rec
+      join pg_class tbl on tbl.oid = rec.resorigtbl
+      join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rec.resorigcol
+      join pg_attribute vcol on vcol.attrelid = rec.view_id and vcol.attnum = rec.view_column
       join pg_namespace sch on sch.oid = tbl.relnamespace
-      where resorigtbl <> '0'
-      order by view_schema, view_name, view_colum_name; |]
+      join pks_fks using (resorigtbl, resorigcol)
+      order by view_schema, view_name, view_column_name; |]
 
 getPgVersion :: H.Session PgVersion
 getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False

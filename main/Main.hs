@@ -244,7 +244,7 @@ connectionStatus pool =
 fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
 fillSchemaCache pool actualPgVersion refConf refDbStructure = do
   conf <- readIORef refConf
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) actualPgVersion
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) (configExtraSearchPath conf) actualPgVersion
   case result of
     Left e -> do
       -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.

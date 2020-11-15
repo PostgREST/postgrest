@@ -6,7 +6,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude
+import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWith ((), Application)
@@ -34,3 +34,6 @@ spec = describe "extra search path" $ do
     request methodGet "/rpc/is_valid_isbn?input=978-0-393-04002-9" [] ""
       `shouldRespondWith` [json|true|]
       { matchHeaders = [matchContentTypeJson] }
+
+  it "can detect fk relations through multiple views recursively when middle views are in extra search path" $
+    get "/consumers_extra_view?select=*,orders_view(*)" `shouldRespondWith` 200

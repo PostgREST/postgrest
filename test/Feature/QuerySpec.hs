@@ -421,6 +421,9 @@ spec actualPgVersion = do
           [json|[ { "title": "To Kill a Mockingbird", "author": { "name": "Harper Lee" } } ]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "can detect fk relations through multiple views recursively when all views are in api schema" $ do
+        get "/consumers_view_view?select=*,orders_view(*)" `shouldRespondWith` 200
+
       it "works with views that have subselects" $
         get "/authors_books_number?select=*,books(title)&id=eq.1" `shouldRespondWith`
           [json|[ {"id":1, "name":"George Orwell","num_in_forties":1,"num_in_fifties":0,"num_in_sixties":0,"num_in_all_decades":1,
