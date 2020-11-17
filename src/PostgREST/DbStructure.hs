@@ -358,9 +358,9 @@ addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _) -> [rel, Relation ft fc
 addM2MRels :: [Relation] -> [Relation]
 addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
   where
-    junctions = join $ map (combinations 2) $ filter (not . null) $ groupWith groupFn $ filter ( (==M2O). relType) rels
-    groupFn :: Relation -> Text
-    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = s <> "_" <> t
+    junctions = join $ map (combinations 2) $ groupWith groupFn $ filter ( (==M2O). relType) rels
+    groupFn :: Relation -> (Text,Text)
+    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = (s,t)
     -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
     combinations :: Int -> [a] -> [[a]]
     combinations 0 _  = [ [] ]
@@ -370,7 +370,7 @@ addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
       Relation{relTable=jt, relColumns=jc1, relConstraint=const1, relFTable=t,  relFColumns=c},
       Relation{             relColumns=jc2, relConstraint=const2, relFTable=ft, relFColumns=fc}
       ]
-      | jc1 /= jc2 && length jc1 == 1 && length jc2 == 1 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
+      | jc1 /= jc2 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
       | otherwise = Nothing
     junction2Rel _ = Nothing
     addMirrorRel = concatMap (\rel@(Relation t c _ ft fc _ (Just (Junction jt const1 jc1 const2 jc2))) ->

@@ -697,6 +697,28 @@ alter table only comments
     add constraint "user" foreign key (commenter_id) references users(id),
     add constraint comments_task_id_fkey foreign key (task_id, user_id) references users_tasks(task_id, user_id);
 
+CREATE TABLE files (
+    project_id integer NOT NULL,
+    filename text NOT NULL,
+    content text NOT NULL,
+    PRIMARY KEY (project_id, filename)
+);
+
+CREATE TABLE touched_files (
+    user_id integer NOT NULL,
+    task_id integer NOT NULL,
+    project_id integer NOT NULL,
+    filename text NOT NULL,
+    CONSTRAINT fk_users_tasks
+	FOREIGN KEY (user_id, task_id)
+	REFERENCES users_tasks (user_id, task_id)
+	ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_upload
+	FOREIGN KEY (project_id, filename)
+	REFERENCES files (project_id,filename)
+	ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 create table private.articles (
     id integer primary key,
     body text,

@@ -140,6 +140,26 @@ INSERT INTO users_tasks VALUES (3, 5);
 TRUNCATE TABLE comments CASCADE;
 INSERT INTO comments VALUES (1, 1, 2, 6, 'Needs to be delivered ASAP');
 
+--
+-- Data for Name: files; Type: TABLE DATA; Schema: test; Owner: -
+--
+
+TRUNCATE TABLE files CASCADE;
+INSERT INTO files VALUES
+	 (1, 'command.com', '#include <unix.h>')
+	,(1, 'autoexec.bat', '@ECHO OFF')
+	,(1, 'io.sys', 'TODO')
+	,(2, 'README.md', '# make $$$!')
+	,(2, 'marketing.key', '$-$')
+	;
+
+TRUNCATE TABLE touched_files CASCADE;
+INSERT INTO touched_files VALUES
+	 (1, 1, 1, 'command.com')
+	,(1, 1, 1, 'autoexec.bat')
+	,(1, 1, 2, 'README.md')
+	,(3, 1, 1, 'autoexec.bat')
+	;
 
 --
 -- Data for Name: complex_items; Type: TABLE DATA; Schema: test; Owner: -

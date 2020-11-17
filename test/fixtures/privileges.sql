@@ -43,6 +43,8 @@ GRANT ALL ON TABLE
     , users
     , users_projects
     , users_tasks
+    , files
+    , touched_files
     , "Escap3e;"
     , "ghostBusters"
     , "withUnique"

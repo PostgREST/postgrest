@@ -17,7 +17,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1607, Enable embedding through multiple views recursively - @wolfgangwalther
 
 ### Fixed
-
+ 
+ - #1592, Removed single column restriction to allow composite foreign keys in join tables - @goteguru
  - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo
  - #1094, Fix expired JWTs starting an empty transaction on the db - @steve-chavez
  - #1162, Fix location header for POST request with select= without PK - @wolfgangwalther
