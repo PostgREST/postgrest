@@ -90,10 +90,18 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configRawMediaTypes     = []
   , configJWKS              = parseSecret <$> secret
   , configLogLevel          = LogCrit
+  , configTxRollbackAll     = False
+  , configTxAllowOverride   = True
   }
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
+
+testCfgDisallowRollback :: Text -> AppConfig
+testCfgDisallowRollback testDbConn = (testCfg testDbConn) { configTxRollbackAll = False, configTxAllowOverride = False }
+
+testCfgForceRollback :: Text -> AppConfig
+testCfgForceRollback testDbConn = (testCfg testDbConn) { configTxRollbackAll = True, configTxAllowOverride = False }
 
 testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing, configJWKS = Nothing }

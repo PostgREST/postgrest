@@ -154,8 +154,10 @@ test-suite spec
                       Feature.DeleteSpec
                       Feature.EmbedDisambiguationSpec
                       Feature.ExtraSearchPathSpec
+                      Feature.HtmlRawOutputSpec
                       Feature.InsertSpec
                       Feature.JsonOperatorSpec
+                      Feature.MultipleSchemaSpec
                       Feature.NoJwtSpec
                       Feature.NonexistentSchemaSpec
                       Feature.OpenApiSpec
@@ -164,6 +166,8 @@ test-suite spec
                       Feature.QueryLimitedSpec
                       Feature.QuerySpec
                       Feature.RangeSpec
+                      Feature.RawOutputTypesSpec
+                      Feature.RollbackSpec
                       Feature.RootSpec
                       Feature.RpcPreRequestGucsSpec
                       Feature.RpcSpec
@@ -171,9 +175,6 @@ test-suite spec
                       Feature.UnicodeSpec
                       Feature.UpdateSpec
                       Feature.UpsertSpec
-                      Feature.RawOutputTypesSpec
-                      Feature.HtmlRawOutputSpec
-                      Feature.MultipleSchemaSpec
                       SpecHelper
                       TestTypes
   hs-source-dirs:     test

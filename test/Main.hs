@@ -43,6 +43,7 @@ import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
 import qualified Feature.RangeSpec
 import qualified Feature.RawOutputTypesSpec
+import qualified Feature.RollbackSpec
 import qualified Feature.RootSpec
 import qualified Feature.RpcPreRequestGucsSpec
 import qualified Feature.RpcSpec
@@ -87,6 +88,8 @@ main = do
       rootSpecApp          = app testCfgRootSpec
       htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
+      disallowRollbackApp  = app testCfgDisallowRollback
+      forceRollbackApp     = app testCfgForceRollback
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -109,6 +112,7 @@ main = do
         , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.RollbackAllowedSpec"     , Feature.RollbackSpec.allowed)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
         , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
@@ -175,6 +179,13 @@ main = do
     before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
+    -- this test runs with tx-rollback-all = false and tx-allow-override = false
+    before disallowRollbackApp $
+      describe "Feature.RollbackDisallowedSpec" Feature.RollbackSpec.disallowed
+
+    -- this test runs with tx-rollback-all = true and tx-allow-override = false
+    before forceRollbackApp $
+      describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
     when (actualPgVersion >= pgVersion96) $ do
       -- this test runs with a root spec function override
