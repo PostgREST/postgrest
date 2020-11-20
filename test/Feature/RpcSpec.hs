@@ -167,12 +167,13 @@ spec actualPgVersion =
           `shouldRespondWith` 400
 
       it "can embed if the related tables are in a hidden schema but exposed as views" $ do
-        post "/rpc/single_article?select=id,articleStars(userId)" [json|{ "id": 2}|]
-          `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        post "/rpc/single_article?select=id,articleStars(userId)"
+            [json|{ "id": 2}|]
+          `shouldRespondWith`
+            [json|{"id": 2, "articleStars": [{"userId": 3}]}|]
         get "/rpc/single_article?id=2&select=id,articleStars(userId)"
-          `shouldRespondWith` [json|[{"id": 2, "articleStars": [{"userId": 3}]}]|]
-          { matchHeaders = [matchContentTypeJson] }
+          `shouldRespondWith`
+            [json|{"id": 2, "articleStars": [{"userId": 3}]}|]
 
       it "can embed an M2M relationship table" $
         get "/rpc/getallusers?select=name,tasks(name)&id=gt.1"
@@ -234,11 +235,10 @@ spec actualPgVersion =
           { matchHeaders = [matchContentTypeJson] }
 
       it "returns setof integers" $
-        post "/rpc/ret_setof_integers" [json|{}|] `shouldRespondWith`
-          [json|[{ "ret_setof_integers": 1 },
-                 { "ret_setof_integers": 2 },
-                 { "ret_setof_integers": 3 }]|]
-          { matchHeaders = [matchContentTypeJson] }
+        post "/rpc/ret_setof_integers"
+            [json|{}|]
+          `shouldRespondWith`
+            [json|[1,2,3]|]
 
       it "returns enum value" $
         post "/rpc/ret_enum" [json|{ "val": "foo" }|] `shouldRespondWith`
@@ -261,34 +261,40 @@ spec actualPgVersion =
           { matchHeaders = [matchContentTypeJson] }
 
       it "returns composite type in exposed schema" $
-        post "/rpc/ret_point_2d" [json|{}|] `shouldRespondWith`
-          [json|[{"x": 10, "y": 5}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        post "/rpc/ret_point_2d"
+            [json|{}|]
+          `shouldRespondWith`
+            [json|{"x": 10, "y": 5}|]
 
       it "cannot return composite type in hidden schema" $
         post "/rpc/ret_point_3d" [json|{}|] `shouldRespondWith` 401
 
       when (actualPgVersion >= pgVersion110) $
         it "returns domain of composite type" $
-          post "/rpc/ret_composite_domain" [json|{}|] `shouldRespondWith`
-            [json|[{"x": 10, "y": 5}]|]
-            { matchHeaders = [matchContentTypeJson] }
+          post "/rpc/ret_composite_domain"
+              [json|{}|]
+            `shouldRespondWith`
+              [json|{"x": 10, "y": 5}|]
 
       it "returns single row from table" $
-        post "/rpc/single_article?select=id" [json|{"id": 2}|] `shouldRespondWith`
-          [json|[{"id": 2}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        post "/rpc/single_article?select=id"
+            [json|{"id": 2}|]
+          `shouldRespondWith`
+            [json|{"id": 2}|]
 
-      it "returns null for void" $
-        post "/rpc/ret_void" [json|{}|] `shouldRespondWith`
-          [json|null|]
-          { matchHeaders = [matchContentTypeJson] }
+      it "returns nothing for void" $
+        post "/rpc/ret_void"
+            [json|{}|]
+          `shouldRespondWith`
+            ""
+            { matchHeaders = [matchContentTypeJson] }
 
       context "different types when overloaded" $ do
         it "returns composite type" $
-          post "/rpc/ret_point_overloaded" [json|{"x": 1, "y": 2}|] `shouldRespondWith`
-            [json|[{"x": 1, "y": 2}]|]
-            { matchHeaders = [matchContentTypeJson] }
+          post "/rpc/ret_point_overloaded"
+              [json|{"x": 1, "y": 2}|]
+            `shouldRespondWith`
+              [json|{"x": 1, "y": 2}|]
 
         it "returns json scalar with prefer single object" $
           request methodPost "/rpc/ret_point_overloaded" [("Prefer","params=single-object")]
@@ -493,23 +499,29 @@ spec actualPgVersion =
         [json|[{"test":"hello","value":1}]|] { matchHeaders = [matchContentTypeJson] }
 
     context "procs with OUT/INOUT params" $ do
-      it "returns a scalar result when there is a single OUT param" $ do
-        get "/rpc/single_out_param?num=5" `shouldRespondWith`
-          [json|6|] { matchHeaders = [matchContentTypeJson] }
-        get "/rpc/single_json_out_param?a=1&b=two" `shouldRespondWith`
-          [json|{"a": 1, "b": "two"}|] { matchHeaders = [matchContentTypeJson] }
+      it "returns an object result when there is a single OUT param" $ do
+        get "/rpc/single_out_param?num=5"
+          `shouldRespondWith`
+            [json|{"num_plus_one":6}|]
 
-      it "returns a scalar result when there is a single INOUT param" $
-        get "/rpc/single_inout_param?num=2" `shouldRespondWith`
-          [json|3|] { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/single_json_out_param?a=1&b=two"
+          `shouldRespondWith`
+            [json|{"my_json": {"a": 1, "b": "two"}}|]
 
-      it "returns a row result when there are many OUT params" $
-        get "/rpc/many_out_params" `shouldRespondWith`
-          [json|[{"my_json":{"a": 1, "b": "two"},"num":3,"str":"four"}]|] { matchHeaders = [matchContentTypeJson] }
+      it "returns an object result when there is a single INOUT param" $
+        get "/rpc/single_inout_param?num=2"
+          `shouldRespondWith`
+            [json|{"num":3}|]
 
-      it "returns a row result when there are many INOUT params" $
-        get "/rpc/many_inout_params?num=1&str=two&b=false" `shouldRespondWith`
-          [json| [{"num":1,"str":"two","b":false}]|] { matchHeaders = [matchContentTypeJson] }
+      it "returns an object result when there are many OUT params" $
+        get "/rpc/many_out_params"
+          `shouldRespondWith`
+            [json|{"my_json":{"a": 1, "b": "two"},"num":3,"str":"four"}|]
+
+      it "returns an object result when there are many INOUT params" $
+        get "/rpc/many_inout_params?num=1&str=two&b=false"
+          `shouldRespondWith`
+            [json|{"num":1,"str":"two","b":false}|]
 
     context "procs with VARIADIC params" $ do
       when (actualPgVersion < pgVersion100) $
@@ -576,10 +588,12 @@ spec actualPgVersion =
             [json|"Hello, world"|]
 
     it "can handle procs with args that have a DEFAULT value" $ do
-      get "/rpc/many_inout_params?num=1&str=two" `shouldRespondWith`
-        [json| [{"num":1,"str":"two","b":true}]|] { matchHeaders = [matchContentTypeJson] }
-      get "/rpc/three_defaults?b=4" `shouldRespondWith`
-        [json|8|] { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/many_inout_params?num=1&str=two"
+        `shouldRespondWith`
+          [json| {"num":1,"str":"two","b":true}|]
+      get "/rpc/three_defaults?b=4"
+        `shouldRespondWith`
+          [json|8|]
 
     it "can map a RAISE error code and message to a http status" $
       get "/rpc/raise_pt402"
@@ -619,18 +633,16 @@ spec actualPgVersion =
 
     context "should work with an overloaded function" $ do
       it "overloaded()" $
-        get "/rpc/overloaded" `shouldRespondWith`
-          [json|[{ "overloaded": 1 },
-                 { "overloaded": 2 },
-                 { "overloaded": 3 }]|]
-          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/overloaded"
+          `shouldRespondWith`
+            [json|[1,2,3]|]
 
       it "overloaded(json) single-object" $
-        request methodPost "/rpc/overloaded" [("Prefer","params=single-object")]
-          [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
-         `shouldRespondWith`
-          [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        request methodPost "/rpc/overloaded"
+            [("Prefer","params=single-object")]
+            [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
+          `shouldRespondWith`
+            [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
 
       it "overloaded(int, int)" $
         get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
@@ -786,6 +798,17 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
             }
 
+      context "Proc that returns set of scalars" $
+        it "can query without selecting column" $
+          request methodGet "/rpc/welcome_twice"
+              (acceptHdrs "text/plain")
+              ""
+            `shouldRespondWith`
+              "Welcome to PostgRESTWelcome to PostgREST"
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
+              }
+
       context "Proc that returns rows" $ do
         it "can query if a single column is selected" $
           request methodPost "/rpc/ret_rows_with_base64_bin?select=img" (acceptHdrs "application/octet-stream") ""
@@ -795,12 +818,11 @@ spec actualPgVersion =
             }
 
         it "fails if a single column is not selected" $
-          request methodPost "/rpc/ret_rows_with_base64_bin" (acceptHdrs "application/octet-stream") ""
+          request methodPost "/rpc/ret_rows_with_base64_bin"
+              (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith`
-            [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
-            }
+              [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+              { matchStatus = 406 }
 
     context "only for GET rpc" $ do
       it "should fail on mutating procs" $ do
@@ -896,11 +918,11 @@ spec actualPgVersion =
 
         it "can set the same http header twice" $
           get "/rpc/set_cookie_twice"
-            `shouldRespondWith` "null"
-            {matchHeaders = [
-                matchContentTypeJson,
-                "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/",
-                "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"]}
+            `shouldRespondWith`
+              ""
+              { matchHeaders = [ matchContentTypeJson
+                               , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
+                               , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
 
       it "can override the Location header on a trigger" $
         post "/stuff"

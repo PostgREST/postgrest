@@ -821,14 +821,22 @@ spec actualPgVersion = do
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
-        [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
-        { matchStatus = 406
-        , matchHeaders = [matchContentTypeJson]
-        }
-      request methodGet "/images?select=*&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` 406
-      request methodGet "/images?name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` 406
+          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          { matchStatus = 406 }
+
+      request methodGet "/images?select=*&name=eq.A.png"
+          (acceptHdrs "application/octet-stream")
+          ""
+        `shouldRespondWith`
+          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          { matchStatus = 406 }
+
+      request methodGet "/images?name=eq.A.png"
+          (acceptHdrs "application/octet-stream")
+          ""
+        `shouldRespondWith`
+          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          { matchStatus = 406 }
 
     it "concatenates results if more than one row is returned" $
       request methodGet "/images_base64?select=img&name=in.(A.png,B.png)" (acceptHdrs "application/octet-stream") ""
