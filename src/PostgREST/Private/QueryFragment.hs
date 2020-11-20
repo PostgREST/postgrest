@@ -90,11 +90,15 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       ")"
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
-asJsonF :: SqlFragment
-asJsonF = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
+asJsonF :: Bool -> SqlFragment
+asJsonF returnsScalar
+  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')::character varying"
+  | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
 
-asJsonSingleF :: SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
-asJsonSingleF = "coalesce(string_agg(row_to_json(_postgrest_t)::text, ','), '')::character varying "
+asJsonSingleF :: Bool -> SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF returnsScalar
+  | returnsScalar = "coalesce(string_agg(to_json(_postgrest_t.pgrst_scalar)::text, ','), '')::character varying"
+  | otherwise     = "coalesce(string_agg(to_json(_postgrest_t)::text, ','), '')::character varying"
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"

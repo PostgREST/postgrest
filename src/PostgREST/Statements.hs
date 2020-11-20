@@ -74,8 +74,8 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   bodyF
     | rep `elem` [None, HeadersOnly] = "''"
     | asCsv = asCsvF
-    | wantSingle = asJsonSingleF
-    | otherwise = asJsonF
+    | wantSingle = asJsonSingleF False
+    | otherwise = asJsonF False
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
@@ -108,9 +108,9 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
 
   bodyF
     | asCsv = asCsvF
-    | isSingle = asJsonSingleF
+    | isSingle = asJsonSingleF False
     | isJust binaryField = asBinaryF $ fromJust binaryField
-    | otherwise = asJsonF
+    | otherwise = asJsonF False
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
@@ -128,10 +128,10 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
-callProcStatement :: Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
+callProcStatement :: Bool -> Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
+                     Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
                      H.Statement () ProcResults
-callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
+callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField pgVer =
   H.dynamicallyParameterized snippet decodeProc
   where
     snippet =
@@ -149,16 +149,12 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
     (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
-     | returnsScalar = scalarBodyF
-     | isSingle     = asJsonSingleF
-     | asCsv = asCsvF
+     | asSingle           = asJsonSingleF returnsScalar
+     | asCsv              = asCsvF
      | isJust binaryField = asBinaryF $ fromJust binaryField
-     | otherwise = asJsonF
-
-    scalarBodyF
-     | asBinary    = asBinaryF "pgrst_scalar"
-     | multObjects = "json_agg(_postgrest_t.pgrst_scalar)::character varying"
-     | otherwise   = "(json_agg(_postgrest_t.pgrst_scalar)->0)::character varying"
+     | returnsSingle
+       && not multObjects = asJsonSingleF returnsScalar
+     | otherwise          = asJsonF returnsScalar
 
     decodeProc :: HD.Result ProcResults
     decodeProc =

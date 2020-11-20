@@ -297,9 +297,8 @@ app dbStructure conf apiRequest =
                 preferParams = iPreferParameters apiRequest
                 pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc)
                        (iPayload apiRequest) returnsScalar preferParams returning
-                stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
-                        (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
-                        bField pgVer prepared
+                stm = callProcStatement returnsScalar returnsSingle pq q cq shouldCount (contentType == CTSingularJSON)
+                        (contentType == CTTextCSV) (preferParams == Just MultipleObjects) bField pgVer prepared
               row <- H.statement mempty stm
               let (tableTotal, queryTotal, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -351,6 +350,10 @@ app dbStructure conf apiRequest =
           case iTarget apiRequest of
             TargetProc proc _ -> procReturnsScalar proc
             _                 -> False
+        returnsSingle =
+          case iTarget apiRequest of
+            TargetProc proc _ -> procReturnsSingle proc
+            _                 -> False
         pgVer = pgVersion dbStructure
         profileH = contentProfileH <$> iProfile apiRequest
 
@@ -401,7 +404,10 @@ responseContentTypeOrError accepts rawContentTypes action target = serves conten
 -}
 binaryField :: ContentType -> [ContentType] -> Bool -> ReadRequest -> Either Response (Maybe FieldName)
 binaryField ct rawContentTypes isScalarProc readReq
-  | isScalarProc = Right Nothing
+  | isScalarProc =
+      if ct `elem` rawContentTypes
+        then Right $ Just "pgrst_scalar"
+        else Right Nothing
   | ct `elem` rawContentTypes =
       let fieldName = headMay fldNames in
       if length fldNames == 1 && fieldName /= Just "*"

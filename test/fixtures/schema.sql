@@ -1636,6 +1636,12 @@ create or replace function welcome() returns text as $$
 select 'Welcome to PostgREST'::text;
 $$ language sql;
 
+create or replace function welcome_twice() returns setof text as $$
+select 'Welcome to PostgREST'
+union all
+select 'Welcome to PostgREST';
+$$ language sql;
+
 create or replace function "welcome.html"() returns text as $_$
 select $$
 <html>

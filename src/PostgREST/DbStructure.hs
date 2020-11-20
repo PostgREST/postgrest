@@ -226,8 +226,12 @@ procsSqlQuery = [q|
     tn.nspname AS schema,
     COALESCE(comp.relname, t.typname) AS name,
     p.proretset AS rettype_is_setof,
-    -- Only pg pseudo type that is a row type is 'record'
-    (t.typtype = 'c' or t.typtype = 'p' and t.typname = 'record') AS rettype_is_composite,
+    (t.typtype = 'c'
+     -- Only pg pseudo type that is a row type is 'record'
+     or t.typtype = 'p' and t.typname = 'record'
+     -- if any INOUT or OUT arguments present, treat as composite
+     or COALESCE(proargmodes::text[] && '{b,o}', false)
+    ) AS rettype_is_composite,
     p.provolatile
   FROM pg_proc p
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
