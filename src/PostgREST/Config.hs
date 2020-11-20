@@ -97,6 +97,9 @@ data AppConfig = AppConfig {
   , configJWKS              :: Maybe JWKSet
 
   , configLogLevel          :: LogLevel
+
+  , configTxRollbackAll     :: Bool
+  , configTxAllowOverride   :: Bool
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -196,6 +199,15 @@ readPathShowHelp = customExecParser parserPrefs opts
           |
           |## logging level, the admitted values are: crit, error, warn and info.
           |# log-level = "error"
+          |
+          |## rollback all transactions by default, use for test environments
+          |## disabled by default
+          |# tx-rollback-all = false
+          |
+          |## allow overriding the tx-rollback-all setting for a request by
+          |## setting the Prefer: tx=[commit|rollback] header
+          |## disabled by default
+          |# tx-allow-override = false
           |]
 
 -- | Parse the config file
@@ -225,9 +237,9 @@ readAppConfig cfgPath = do
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
         <*> (fromMaybe "pgrst" <$> optString "db-channel")
-        <*> ((Just True ==) <$> optBool "db-channel-enabled")
+        <*> (fromMaybe False <$> optBool "db-channel-enabled")
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
-        <*> ((Just True ==) <$> optBool "secret-is-base64")
+        <*> (fromMaybe False <$> optBool "secret-is-base64")
         <*> parseJwtAudience "jwt-aud"
         <*> (fromMaybe 10 <$> optInt "db-pool")
         <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
@@ -240,6 +252,8 @@ readAppConfig cfgPath = do
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> pure Nothing
         <*> parseLogLevel "log-level"
+        <*> (fromMaybe False <$> optBool "tx-rollback-all")
+        <*> (fromMaybe False <$> optBool "tx-allow-override")
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =

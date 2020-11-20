@@ -109,6 +109,15 @@ instance Show PreferCount where
   show PlannedCount   = "count=planned"
   show EstimatedCount = "count=estimated"
 
+data PreferTransaction
+  = Commit   -- Commit transaction - the default.
+  | Rollback -- Rollback transaction after sending the response - does not persist changes, e.g. for running tests.
+  deriving Eq
+
+instance Show PreferTransaction where
+  show Commit   = "tx=commit"
+  show Rollback = "tx=rollback"
+
 data DbStructure = DbStructure {
   dbTables      :: [Table]
 , dbColumns     :: [Column]

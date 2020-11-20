@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1559, No downtime when reloading the schema cache with SIGUSR1 - @steve-chavez
  - #504, Add `log-level` config option. The admitted levels are: crit, error, warn and info - @steve-chavez
  - #1607, Enable embedding through multiple views recursively - @wolfgangwalther
+ - #1598, Allow rollback of the transaction with Prefer tx=rollback - @wolfgangwalther
 
 ### Fixed
  

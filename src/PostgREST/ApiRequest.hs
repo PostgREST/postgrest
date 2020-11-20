@@ -114,6 +114,7 @@ data ApiRequest = ApiRequest {
   , iPreferParameters     :: Maybe PreferParameters           -- ^ How to pass parameters to a stored procedure
   , iPreferCount          :: Maybe PreferCount                -- ^ Whether the client wants a result count
   , iPreferResolution     :: Maybe PreferResolution           -- ^ Whether the client wants to UPSERT or ignore records on PK conflict
+  , iPreferTransaction    :: Maybe PreferTransaction          -- ^ Whether the clients wants to commit or rollback the transaction
   , iFilters              :: [(Text, Text)]                   -- ^ Filters on the result ("id", "eq.10")
   , iLogic                :: [(Text, Text)]                   -- ^ &and and &or parameters used for complex boolean logic
   , iSelect               :: Maybe Text                       -- ^ &select parameter used to shape the response
@@ -146,16 +147,19 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
-      , iPreferParameters = if | hasPrefer (show SingleObject)     -> Just SingleObject
-                               | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
-                               | otherwise                         -> Nothing
-      , iPreferCount      = if | hasPrefer (show ExactCount)     -> Just ExactCount
-                               | hasPrefer (show PlannedCount)   -> Just PlannedCount
-                               | hasPrefer (show EstimatedCount) -> Just EstimatedCount
-                               | otherwise                         -> Nothing
-      , iPreferResolution = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
-                               | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
-                               | otherwise                         -> Nothing
+      , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
+                                | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
+                                | otherwise                         -> Nothing
+      , iPreferCount       = if | hasPrefer (show ExactCount)       -> Just ExactCount
+                                | hasPrefer (show PlannedCount)     -> Just PlannedCount
+                                | hasPrefer (show EstimatedCount)   -> Just EstimatedCount
+                                | otherwise                         -> Nothing
+      , iPreferResolution  = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
+                                | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
+                                | otherwise                         -> Nothing
+      , iPreferTransaction = if | hasPrefer (show Commit)           -> Just Commit
+                                | hasPrefer (show Rollback)         -> Just Rollback
+                                | otherwise                         -> Nothing
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS <$> join (lookup "select" qParams)

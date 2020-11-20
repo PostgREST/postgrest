@@ -86,7 +86,15 @@ postgrest logLev refConf refDbStructure pool getTime connWorker =
                 Right claims -> do
                   let
                     authed = containsRole claims
-                    handleReq = runPgLocals conf claims (app dbStructure conf) apiRequest
+                    shouldCommit   = configTxAllowOverride conf && iPreferTransaction apiRequest == Just Commit
+                    shouldRollback = configTxAllowOverride conf && iPreferTransaction apiRequest == Just Rollback
+                    preferenceApplied
+                      | shouldCommit    = addHeadersIfNotIncluded [(hPreferenceApplied, BS.pack (show Commit))]
+                      | shouldRollback  = addHeadersIfNotIncluded [(hPreferenceApplied, BS.pack (show Rollback))]
+                      | otherwise       = identity
+                    handleReq = do
+                      when (shouldRollback || (configTxRollbackAll conf && not shouldCommit)) HT.condemn
+                      mapResponseHeaders preferenceApplied <$> runPgLocals conf claims (app dbStructure conf) apiRequest
                   dbResp <- P.use pool $ HT.transaction HT.ReadCommitted (txMode apiRequest) handleReq
                   return $ either (errorResponseFor . PgError authed) identity dbResp
         -- Launch the connWorker when the connection is down. The postgrest function can respond successfully(with a stale schema cache) before the connWorker is done.
