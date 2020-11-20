@@ -36,6 +36,8 @@ import qualified Feature.JsonOperatorSpec
 import qualified Feature.MultipleSchemaSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
+import qualified Feature.OpenApiSpec
+import qualified Feature.OptionsSpec
 import qualified Feature.ProxySpec
 import qualified Feature.QueryLimitedSpec
 import qualified Feature.QuerySpec
@@ -45,7 +47,6 @@ import qualified Feature.RootSpec
 import qualified Feature.RpcPreRequestGucsSpec
 import qualified Feature.RpcSpec
 import qualified Feature.SingularSpec
-import qualified Feature.StructureSpec
 import qualified Feature.UnicodeSpec
 import qualified Feature.UpdateSpec
 import qualified Feature.UpsertSpec
@@ -104,10 +105,11 @@ main = do
         , ("Feature.ConcurrentSpec"          , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
+        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec)
+        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
-        , ("Feature.StructureSpec"           , Feature.StructureSpec.spec)
         , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
         , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
         ]
