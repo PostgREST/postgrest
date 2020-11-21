@@ -94,7 +94,7 @@ the connection cannot do anything the user themselves couldn't. Other
 forms of authentication can be built on top of the JWT primitive. See
 the docs for more information.
 
-PostgreSQL 9.5 supports true [row-level
+Since PostgreSQL 9.5 supports true [row-level
 security](http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html).
 In previous versions it can be simulated with triggers and
 security-barrier views. Because the possible queries to the database
