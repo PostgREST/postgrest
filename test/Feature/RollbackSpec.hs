@@ -15,7 +15,7 @@ import SpecHelper
 -- creates Item to work with for PATCH and DELETE
 postItem =
   request methodPost "/items"
-      [("Prefer", "resolution=ignore-duplicates")]
+      [("Prefer", "tx=commit"), ("Prefer", "resolution=ignore-duplicates")]
       [json|{"id":0}|]
     `shouldRespondWith`
       ""
@@ -23,7 +23,9 @@ postItem =
 
 -- removes Items left over from POST, PUT, and PATCH
 deleteItems =
-  delete "/items?id=lte.0"
+  request methodDelete "/items?id=lte.0"
+      [("Prefer", "tx=commit")]
+      ""
     `shouldRespondWith`
       ""
       { matchStatus  = 204 }
@@ -175,9 +177,8 @@ shouldNotPersistMutations reqHeaders respHeaders = do
 allowed :: SpecWith ((), Application)
 allowed = describe "tx-allow-override = true" $ do
   describe "without Prefer tx" $ do
-    -- TODO: Change this to default to rollback for whole test-suite
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
-    preferDefault `shouldPersistMutations` withoutPreferenceApplied
+    preferDefault `shouldNotPersistMutations` withoutPreferenceApplied
 
   describe "Prefer tx=commit" $ do
     preferCommit `shouldRespondToReads` withPreferenceCommitApplied

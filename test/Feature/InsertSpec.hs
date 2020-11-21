@@ -135,18 +135,14 @@ spec actualPgVersion = do
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
-        it "succeeds with 201 and link" $ do
-          p <- post "/auto_incrementing_pk" [json| { "non_nullable_string":"not null"} |]
-          liftIO $ do
-            simpleBody p `shouldBe` ""
-            simpleHeaders p `shouldSatisfy` matchHeader hLocation "/auto_incrementing_pk\\?id=eq\\.[0-9]+"
-            simpleStatus p `shouldBe` created201
-          let Just location = lookup hLocation $ simpleHeaders p
-          r <- get location
-          let [record] = fromJust (JSON.decode $ simpleBody r :: Maybe [IncPK])
-          liftIO $ do
-            incStr record `shouldBe` "not null"
-            incNullableStr record `shouldBe` Nothing
+        it "succeeds with 201 and location header" $ do
+          post "/auto_incrementing_pk"
+              [json| { "non_nullable_string":"not null"} |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 201
+              , matchHeaders = [ "Location" <:> "/auto_incrementing_pk?id=eq.2" ]
+              }
 
       context "into a table with simple pk" $
         it "fails with 400 and error" $
@@ -197,21 +193,14 @@ spec actualPgVersion = do
 
     context "with compound pk supplied" $
       it "builds response location header appropriately" $ do
-        let inserted    = [json| { "k1":12, "k2":"Rock & R+ll" } |]
-            expectedObj = CompoundPK 12 "Rock & R+ll" Nothing
-            expectedLoc = "/compound_pk?k1=eq.12&k2=eq.Rock%20%26%20R%2Bll"
-        p <- request methodPost "/compound_pk"
-                     [("Prefer", "return=representation")]
-                     inserted
-        liftIO $ do
-          JSON.decode (simpleBody p) `shouldBe` Just [expectedObj]
-          simpleStatus p `shouldBe` created201
-          lookup hLocation (simpleHeaders p) `shouldBe` Just expectedLoc
-
-        r <- get expectedLoc
-        liftIO $ do
-          JSON.decode (simpleBody r) `shouldBe` Just [expectedObj]
-          simpleStatus r `shouldBe` ok200
+        request methodPost "/compound_pk"
+            [("Prefer", "return=representation")]
+            [json| { "k1":12, "k2":"Rock & R+ll" } |]
+          `shouldRespondWith`
+            [json|[ { "k1":12, "k2":"Rock & R+ll", "extra": null } ]|]
+            { matchStatus  = 201
+            , matchHeaders = [ "Location" <:> "/compound_pk?k1=eq.12&k2=eq.Rock%20%26%20R%2Bll" ]
+            }
 
     context "with bulk insert" $
       it "returns 201 but no location header" $ do
@@ -248,9 +237,9 @@ spec actualPgVersion = do
     context "attempting to insert a row with the same primary key" $
       it "fails returning a 409 Conflict" $
         post "/simple_pk"
-            [json| { "k":"k1", "extra":"e1" } |]
+            [json| { "k":"xyyx", "extra":"e1" } |]
           `shouldRespondWith`
-            [json|{"hint":null,"details":"Key (k)=(k1) already exists.","code":"23505","message":"duplicate key value violates unique constraint \"simple_pk_pkey\""}|]
+            [json|{"hint":null,"details":"Key (k)=(xyyx) already exists.","code":"23505","message":"duplicate key value violates unique constraint \"simple_pk_pkey\""}|]
             { matchStatus  = 409 }
 
     context "attempting to insert a row with conflicting unique constraint" $
@@ -411,15 +400,22 @@ spec actualPgVersion = do
       it "succeeds and returns usable location header" $ do
         let payload = [json| { "k":"圍棋", "extra":"￥" } |]
         p <- request methodPost "/simple_pk?select=extra,k"
-                     [("Prefer", "return=representation")]
-                     payload
+            [("Prefer", "tx=commit"), ("Prefer", "return=representation")]
+            payload
         liftIO $ do
           simpleBody p `shouldBe` "["<>payload<>"]"
           simpleStatus p `shouldBe` created201
 
         let Just location = lookup hLocation $ simpleHeaders p
-        r <- get (location <> "&select=extra,k")
-        liftIO $ simpleBody r `shouldBe` "["<>payload<>"]"
+        get location
+          `shouldRespondWith`
+            [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+
+        request methodDelete location
+            [("Prefer", "tx=commit")]
+            ""
+          `shouldRespondWith`
+            204
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do

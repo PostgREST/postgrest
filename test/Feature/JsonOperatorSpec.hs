@@ -202,12 +202,11 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
   context "Patching record, in a nonempty table" $
     it "can set a json column to escaped value" $ do
-      _ <- post "/json_table" [json| { data: {"escaped":"bar"} } |]
-      request methodPatch "/json_table?data->>escaped=eq.bar"
-                   [("Prefer", "return=representation")]
-                   [json| { "data": { "escaped":" \"bar" } } |]
-        `shouldRespondWith` [json| [{ "data": { "escaped":" \"bar" } }] |]
-        { matchStatus  = 200 , matchHeaders = [] }
+      request methodPatch "/json_table?data->>id=eq.3"
+          [("Prefer", "return=representation")]
+          [json| { "data": { "id":" \"escaped" } } |]
+        `shouldRespondWith`
+          [json| [{ "data": { "id":" \"escaped" } }] |]
 
   when (actualPgVersion >= pgVersion95) $
     context "json array negative index" $ do

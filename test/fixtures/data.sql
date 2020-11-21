@@ -359,6 +359,9 @@ TRUNCATE TABLE child_entities CASCADE;
 INSERT INTO child_entities VALUES (1, 'child entity 1', 1);
 INSERT INTO child_entities VALUES (2, 'child entity 2', 1);
 INSERT INTO child_entities VALUES (3, 'child entity 3', 2);
+INSERT INTO child_entities VALUES (4, 'child entity 4', 1);
+INSERT INTO child_entities VALUES (5, 'child entity 5', 1);
+INSERT INTO child_entities VALUES (6, 'child entity 6', 2);
 
 TRUNCATE TABLE grandchild_entities CASCADE;
 INSERT INTO grandchild_entities VALUES (1, 'grandchild entity 1', 1, null, null, null);
@@ -626,8 +629,17 @@ INSERT INTO unit_workdays VALUES(1, '2019-12-02', 1, 1, 2, 3);
 TRUNCATE TABLE v1.parents CASCADE;
 INSERT INTO v1.parents VALUES(1, 'parent v1-1'), (2, 'parent v1-2');
 
+TRUNCATE TABLE v1.children CASCADE;
+INSERT INTO v1.children VALUES(1, 'child v1-1', 1), (2, 'child v1-2', 2);
+
 TRUNCATE TABLE v2.parents CASCADE;
 INSERT INTO v2.parents VALUES(3, 'parent v2-3'), (4, 'parent v2-4');
 
+TRUNCATE TABLE v2.children CASCADE;
+INSERT INTO v2.children VALUES(1, 'child v2-3', 3);
+
 TRUNCATE TABLE v2.another_table CASCADE;
 INSERT INTO v2.another_table VALUES(5, 'value 5'), (6, 'value 6');
+
+TRUNCATE TABLE private.stuff CASCADE;
+INSERT INTO private.stuff (id, name) VALUES (1, 'stuff 1');

@@ -51,22 +51,31 @@ spec = do
 
     context "in a nonempty table" $ do
       it "can update a single item" $ do
-        g <- get "/items?id=eq.42"
-        liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "\\*/\\*"
-        p <- request methodPatch "/items?id=eq.2" [] [json| { "id":42 } |]
-        pure p `shouldRespondWith` ""
-          { matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "0-0/*"]
-          }
-        liftIO $ lookup hContentType (simpleHeaders p) `shouldBe` Nothing
+        get "/items?id=eq.42"
+          `shouldRespondWith`
+            [json|[]|]
+
+        request methodPatch "/items?id=eq.2"
+            [("Prefer", "tx=commit")]
+            [json| { "id":42 } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = ["Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- check it really got updated
-        g' <- get "/items?id=eq.42"
-        liftIO $ simpleHeaders g'
-          `shouldSatisfy` matchHeader "Content-Range" "0-0/\\*"
+        get "/items?id=eq.42"
+          `shouldRespondWith`
+            [json|[ { "id": 42 } ]|]
+
         -- put value back for other tests
-        void $ request methodPatch "/items?id=eq.42" [] [json| { "id":2 } |]
+        request methodPatch "/items?id=eq.42"
+            [("Prefer", "tx=commit")]
+            [json| { "id":2 } |]
+          `shouldRespondWith`
+            204
 
       it "returns empty array when no rows updated and return=rep" $
         request methodPatch "/items?id=eq.999999"
@@ -91,23 +100,38 @@ spec = do
           }
 
       it "can update multiple items" $ do
-        replicateM_ 10 $ post "/auto_incrementing_pk"
-          [json| { non_nullable_string: "a" } |]
-        replicateM_ 10 $ post "/auto_incrementing_pk"
-          [json| { non_nullable_string: "b" } |]
-        _ <- request methodPatch
-          "/auto_incrementing_pk?non_nullable_string=eq.a" []
-          [json| { non_nullable_string: "c" } |]
-        g <- get "/auto_incrementing_pk?non_nullable_string=eq.c"
-        liftIO $ simpleHeaders g
-          `shouldSatisfy` matchHeader "Content-Range" "0-9/\\*"
+        get "/no_pk?select=a&b=eq.1"
+          `shouldRespondWith`
+            [json|[]|]
+
+        request methodPatch "/no_pk?b=eq.0"
+            [("Prefer", "tx=commit")]
+            [json| { b: "1" } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = ["Content-Range" <:> "0-1/*"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        -- check it really got updated
+        get "/no_pk?select=a&b=eq.1"
+          `shouldRespondWith`
+            [json|[ { a: "1" }, { a: "2" } ]|]
+
+        -- put value back for other tests
+        request methodPatch "/no_pk?b=eq.1"
+            [("Prefer", "tx=commit")]
+            [json| { b: "0" } |]
+          `shouldRespondWith`
+            204
 
       it "can set a column to NULL" $ do
-        _ <- post "/no_pk" [json| { a: "keepme", b: "nullme" } |]
-        _ <- request methodPatch "/no_pk?b=eq.nullme" [] [json| { b: null } |]
-        get "/no_pk?a=eq.keepme" `shouldRespondWith`
-          [json| [{ a: "keepme", b: null }] |]
-          { matchHeaders = [matchContentTypeJson] }
+        request methodPatch "/no_pk?a=eq.1"
+            [("Prefer", "return=representation")]
+            [json| { b: null } |]
+          `shouldRespondWith`
+            [json| [{ a: "1", b: null }] |]
 
       context "filtering by a computed column" $ do
         it "is successful" $
@@ -250,23 +274,19 @@ spec = do
 
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
-        void $ request methodPost "/no_pk" []
-          [json| { "a":"patchme", "b":"patchme" } |]
-        let payload = [json| { "a":"圍棋", "b":"￥" } |]
-        p <- request methodPatch "/no_pk?a=eq.patchme&b=eq.patchme"
-          [("Prefer", "return=representation")] payload
-        liftIO $ do
-          simpleBody p `shouldBe` "["<>payload<>"]"
-          simpleStatus p `shouldBe` ok200
+        request methodPatch "/no_pk?a=eq.1"
+            [("Prefer", "return=representation")]
+            [json| { "a":"圍棋", "b":"￥" } |]
+          `shouldRespondWith`
+            [json|[ { "a":"圍棋", "b":"￥" } ]|]
 
     context "PATCH with ?columns parameter" $ do
       it "ignores json keys not included in ?columns" $ do
-        post "/articles?columns=id,body" [json| {"id": 200} |]
-        request methodPatch "/articles?id=eq.200&columns=body" [("Prefer", "return=representation")]
-          [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith`
-          [json|[{"id": 200, "body": "Some real content", "owner": "postgrest_test_anonymous"}]|]
-          { matchStatus  = 200
-          , matchHeaders = [] }
+        request methodPatch "/articles?id=eq.1&columns=body"
+            [("Prefer", "return=representation")]
+            [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |]
+          `shouldRespondWith`
+            [json|[{"id": 1, "body": "Some real content", "owner": "postgrest_test_anonymous"}]|]
 
       it "ignores json keys and gives 404 if no record updated" $
         request methodPatch "/articles?id=eq.2001&columns=body" [("Prefer", "return=representation")]

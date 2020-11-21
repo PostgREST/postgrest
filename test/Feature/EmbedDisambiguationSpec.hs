@@ -194,9 +194,9 @@ spec =
             { matchHeaders = [matchContentTypeJson] }
 
         it "can request two parents with fks" $
-          get "/articleStars?select=createdAt,article(owner),user(name)&limit=1" `shouldRespondWith`
-            [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
-            { matchHeaders = [matchContentTypeJson] }
+          get "/articleStars?select=createdAt,article(id),user(name)&limit=1"
+            `shouldRespondWith`
+              [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"id": 1},"user":{"name": "Angela Martin"}}]|]
 
         it "can specify a view!fk" $
           get "/message?select=id,body,sender:person_detail!message_sender_fkey(name,sent),recipient:person_detail!message_recipient_fkey(name,received)&id=lt.4" `shouldRespondWith`

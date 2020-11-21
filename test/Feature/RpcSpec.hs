@@ -891,11 +891,13 @@ spec actualPgVersion =
                 "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"]}
 
       it "can override the Location header on a trigger" $
-        request methodPost "/stuff" [] [json|[{"id": 1, "name": "stuff 1"}]|]
-          `shouldRespondWith` ""
-          { matchStatus = 201
-          , matchHeaders = ["Location" <:> "/stuff?id=eq.1&overriden=true"]
-          }
+        post "/stuff"
+            [json|[{"id": 2, "name": "stuff 2"}]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus = 201
+            , matchHeaders = ["Location" <:> "/stuff?id=eq.2&overriden=true"]
+            }
 
       -- On https://github.com/PostgREST/postgrest/issues/1427#issuecomment-595907535
       -- it was reported that blank headers ` : ` where added and that cause proxies to fail the requests.
@@ -935,8 +937,10 @@ spec actualPgVersion =
             }
 
         it "can override the status through trigger" $
-          request methodPatch "/stuff?id=eq.1" [] [json|[{"name": "updated stuff 1"}]|]
-            `shouldRespondWith` 205
+          patch "/stuff?id=eq.1"
+              [json|[{"name": "updated stuff 1"}]|]
+            `shouldRespondWith`
+              205
 
         it "fails when setting invalid status guc" $
           get "/rpc/send_bad_status"

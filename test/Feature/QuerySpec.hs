@@ -401,9 +401,9 @@ spec actualPgVersion = do
         get "/materialized_projects?select=*,users(*)" `shouldRespondWith` 200
 
       it "can request two parents" $
-        get "/articleStars?select=createdAt,article:articles(owner),user:users(name)&limit=1" `shouldRespondWith`
-          [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        get "/articleStars?select=createdAt,article:articles(id),user:users(name)&limit=1"
+          `shouldRespondWith`
+            [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"id": 1},"user":{"name": "Angela Martin"}}]|]
 
       it "can detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
         get "/articles?id=eq.1&select=id,articleStars(users(*))" `shouldRespondWith`

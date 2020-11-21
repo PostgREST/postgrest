@@ -77,33 +77,37 @@ spec actualPgVersion =
 
     context "Inserting tables on different schemas" $ do
       it "succeeds inserting on default schema and returning it" $
-        request methodPost "/children" [("Prefer", "return=representation")] [json|{"name": "child v1-1", "parent_id": 1}|]
-         `shouldRespondWith`
-         [json|[{"id":1, "name": "child v1-1", "parent_id": 1}]|]
-         {
-           matchStatus = 201
-         , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
-         }
+        request methodPost "/children"
+            [("Prefer", "return=representation")]
+            [json|{"id": 0, "name": "child v1-1", "parent_id": 1}|]
+          `shouldRespondWith`
+            [json|[{"id": 0, "name": "child v1-1", "parent_id": 1}]|]
+            {
+              matchStatus = 201
+            , matchHeaders = ["Content-Profile" <:> "v1"]
+            }
 
       it "succeeds inserting on the v1 schema and returning its parent" $
-        request methodPost "/children?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v1")]
-          [json|{"name": "child v1-2", "parent_id": 2}|]
+        request methodPost "/children?select=id,parent(*)"
+            [("Prefer", "return=representation"), ("Content-Profile", "v1")]
+            [json|{"id": 0, "name": "child v1-2", "parent_id": 2}|]
           `shouldRespondWith`
-          [json|[{"id":2, "parent": {"id": 2, "name": "parent v1-2"}}]|]
-          {
-            matchStatus = 201
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
-          }
+            [json|[{"id": 0, "parent": {"id": 2, "name": "parent v1-2"}}]|]
+            {
+              matchStatus = 201
+            , matchHeaders = ["Content-Profile" <:> "v1"]
+            }
 
       it "succeeds inserting on the v2 schema and returning its parent" $
-        request methodPost "/children?select=id,parent(*)" [("Prefer", "return=representation"), ("Content-Profile", "v2")]
-          [json|{"name": "child v2-3", "parent_id": 3}|]
+        request methodPost "/children?select=id,parent(*)"
+            [("Prefer", "return=representation"), ("Content-Profile", "v2")]
+            [json|{"id": 0, "name": "child v2-3", "parent_id": 3}|]
           `shouldRespondWith`
-          [json|[{"id":1, "parent": {"id": 3, "name": "parent v2-3"}}]|]
-          {
-            matchStatus = 201
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-          }
+            [json|[{"id": 0, "parent": {"id": 3, "name": "parent v2-3"}}]|]
+            {
+              matchStatus = 201
+            , matchHeaders = ["Content-Profile" <:> "v2"]
+            }
 
       it "fails when inserting on an unknown schema" $
         request methodPost "/children" [("Content-Profile", "unknown")]
@@ -180,18 +184,12 @@ spec actualPgVersion =
           }
 
       it "succeeds on deleting on the v2 schema" $ do
-        request methodDelete "/children?id=eq.1" [("Content-Profile", "v2"), ("Prefer", "return=representation")] ""
-          `shouldRespondWith` [json|[{"id": 1, "name": "child v2-1 updated", "parent_id": 3}]|]
-          {
-            matchStatus = 200
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-          }
-        request methodGet "/children?id=eq.1" [("Accept-Profile", "v2")] ""
-          `shouldRespondWith` "[]"
-          {
-            matchStatus = 200
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-          }
+        request methodDelete "/children?id=eq.1"
+            [("Content-Profile", "v2"), ("Prefer", "return=representation")]
+            ""
+          `shouldRespondWith`
+            [json|[{"id": 1, "name": "child v2-3", "parent_id": 3}]|]
+            { matchHeaders = ["Content-Profile" <:> "v2"] }
 
       when (actualPgVersion >= pgVersion96) $
         it "succeeds on PUT on the v2 schema" $
