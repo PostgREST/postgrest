@@ -146,13 +146,26 @@ readPathShowHelp = customExecParser parserPrefs opts
 
     exampleCfg :: Doc
     exampleCfg = vsep . map (text . toS) . lines $
-      [str|db-uri = "postgres://user:pass@localhost:5432/dbname"
-          |db-schema = "public" # this schema gets added to the search_path of every request
+      [str|### REQUIRED:
+          |db-uri = "postgres://user:pass@localhost:5432/dbname"
+          |db-schema = "public"
           |db-anon-role = "postgres"
-          |# number of open connections in the pool
+          |
+          |### OPTIONAL:
+          |## number of open connections in the pool
           |db-pool = 10
-          |# Time to live, in seconds, for an idle database pool connection.
+          |
+          |## Time to live, in seconds, for an idle database pool connection.
           |db-pool-timeout = 10
+          |
+          |## extra schemas to add to the search_path of every request
+          |db-extra-search-path = "public"
+          |
+          |## Notification channel for reloading the schema cache
+          |db-channel = "pgrst"
+          |
+          |## Enable or disable the notification channel
+          |db-channel-enabled = false
           |
           |server-host = "!4"
           |server-port = 3000
@@ -160,35 +173,28 @@ readPathShowHelp = customExecParser parserPrefs opts
           |## unix socket location
           |## if specified it takes precedence over server-port
           |# server-unix-socket = "/tmp/pgrst.sock"
+          |
           |## unix socket file mode
           |## when none is provided, 660 is applied by default
           |# server-unix-socket-mode = "660"
           |
-          |## Notification channel for reloading the schema cache
-          |# db-channel = "pgrst"
-          |## Enable or disable the notification channel
-          |# db-channel-enabled = false
-          |
           |## base url for swagger output
-          |# openapi-server-proxy-uri = ""
+          |openapi-server-proxy-uri = ""
           |
           |## choose a secret, JSON Web Key (or set) to enable JWT auth
           |## (use "@filename" to load from separate file)
           |# jwt-secret = "secret_with_at_least_32_characters"
-          |# secret-is-base64 = false
           |# jwt-aud = "your_audience_claim"
+          |secret-is-base64 = false
+          |
+          |## jspath to the role claim key
+          |role-claim-key = ".role"
           |
           |## limit rows in response
           |# max-rows = 1000
           |
           |## stored proc to exec immediately after auth
           |# pre-request = "stored_proc_name"
-          |
-          |## jspath to the role claim key
-          |# role-claim-key = ".role"
-          |
-          |## extra schemas to add to the search_path of every request
-          |# db-extra-search-path = "extensions, util"
           |
           |## stored proc that overrides the root "/" spec
           |## it must be inside the db-schema
@@ -198,16 +204,16 @@ readPathShowHelp = customExecParser parserPrefs opts
           |# raw-media-types="image/png, image/jpg"
           |
           |## logging level, the admitted values are: crit, error, warn and info.
-          |# log-level = "error"
+          |log-level = "error"
           |
           |## rollback all transactions by default, use for test environments
           |## disabled by default
-          |# tx-rollback-all = false
+          |tx-rollback-all = false
           |
           |## allow overriding the tx-rollback-all setting for a request by
           |## setting the Prefer: tx=[commit|rollback] header
           |## disabled by default
-          |# tx-allow-override = false
+          |tx-allow-override = false
           |]
 
 -- | Parse the config file
