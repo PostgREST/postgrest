@@ -14,14 +14,12 @@ jobs:
       - run:
           name: Run linter
           command: |
-            # Note: For checking this locally, use `make lint`. Or, if using
-            # `nix`, run `nix-shell --run postgrest-lint`
+            # Note: For checking this locally, use `nix-shell --run postgrest-lint`
             postgrest-lint
       - run:
           name: Run style check
           command: |
-            # 'Note: For checking this locally, use `make style`. Or, if using
-            # `nix`, run `nix-shell --run postgrest-style`
+            # 'Note: For checking this locally, use `nix-shell --run postgrest-style`
             postgrest-style-check
 
   # Run tests based on stack and docker against the oldest PostgreSQL version

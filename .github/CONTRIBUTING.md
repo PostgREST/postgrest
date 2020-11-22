@@ -44,8 +44,8 @@ your contributions.
 
 * All code must also pass [hlint](http://community.haskell.org/~ndm/hlint/) and [stylish-haskell](https://github.com/jaspervdj/stylish-haskell)
   with no warnings. This helps enforce a uniform style for all committers. Continuous integration will check this as well on every
-  pull request. There's a useful Makefile that helps with checking this locally. You can run `make commit-check` to do this manually but
-  we recommend adding it to `.git/hooks/pre-commit` to automatically check this before doing a commit.
+  pull request. There are useful tools in the nix-shell that help with checking this locally. You can run `postgrest-check` to do this manually but
+  we recommend adding it to `.git/hooks/pre-commit` as `nix-shell --run postgrest-check` to automatically check this before doing a commit.
 
 * For help building the Haskell code on your computer check out the [building from
   source](https://postgrest.org/en/stable/development.html#build-from-source) docs section.
