@@ -1,4 +1,8 @@
-{ buildEnv, postgrest, dockerTools, writeShellScriptBin }:
+{ buildEnv
+, postgrest
+, dockerTools
+, checkedShellScript
+}:
 let
   config =
     ./postgrest.conf;
@@ -52,7 +56,7 @@ let
 
   # Helper script for loading the image.
   load =
-    writeShellScriptBin "postgrest-docker-load"
+    checkedShellScript "postgrest-docker-load"
       ''
         docker load -i ${image}
       '';
@@ -60,5 +64,5 @@ in
 buildEnv
   {
     name = "postgrest-docker";
-    paths = [ load ];
+    paths = [ load.bin ];
   } // { inherit image config; }

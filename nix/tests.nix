@@ -2,6 +2,7 @@
 
 { buildEnv
 , cabal-install
+, checkedShellScript
 , curl
 , git
 , haskell
@@ -13,17 +14,13 @@
 , postgrestStatic
 , postgrestProfiled
 , runtimeShell
-, writeShellScript
-, writeShellScriptBin
 }:
 let
   # Wrap the `test/with_tmp_db` script with the required dependencies from Nix.
   withTmpDb =
     postgresql:
-    writeShellScript "postgrest-test-${postgresql.name}"
+    checkedShellScript "postgrest-test-${postgresql.name}"
       ''
-        set -euo pipefail
-
         export PATH=${postgresql}/bin:${git}/bin:${runtimeShell}/bin:"$PATH"
 
         exec ${../test/with_tmp_db} "$@"
@@ -33,12 +30,11 @@ let
   # PostgreSQL.
   testSpec =
     name: postgresql:
-    writeShellScriptBin
+    checkedShellScript
       name
       ''
-        set -euo pipefail
-
-        export PATH="$(cat ${postgrest.env})"/bin:"$PATH"
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:$PATH"
 
         cat << EOF
 
@@ -46,8 +42,12 @@ let
 
         EOF
 
+        trap 'echo "Failed on ${postgresql.name}"' exit
+
         ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test -f FailOnWarn \
           --test-show-detail=direct
+
+        trap "" exit
 
         cat << EOF
 
@@ -59,8 +59,9 @@ let
   # Create a `testSpec` for each PostgreSQL version that we want to test
   # against.
   testSpecVersions =
-    lib.mapAttrsToList
-      (name: postgresql: testSpec "postgrest-test-spec-${name}" postgresql)
+    builtins.map
+      ({ name, postgresql }:
+        (testSpec "postgrest-test-spec-${name}" postgresql).bin)
       postgresqlVersions;
 
   # Helper script for running the tests against all PostgreSQL versions.
@@ -69,20 +70,14 @@ let
       testRunners =
         map (test: "${test}/bin/${test.name}") testSpecVersions;
     in
-    writeShellScriptBin "postgrest-test-spec-all"
-      ''
-        set -euo pipefail
-
-        ${lib.concatStringsSep "\n" testRunners}
-      '';
+    checkedShellScript "postgrest-test-spec-all"
+      (lib.concatStringsSep "\n" testRunners);
 
   testIO =
     name: postgresql:
-    writeShellScriptBin
+    checkedShellScript
       name
       ''
-        set -euo pipefail
-
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
@@ -93,11 +88,9 @@ let
 
   testMemory =
     name: postgresql:
-    writeShellScriptBin
+    checkedShellScript
       name
       ''
-        set -euo pipefail
-
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
@@ -115,8 +108,8 @@ buildEnv
 
     paths =
       [
-        (testSpec "postgrest-test-spec" postgresql)
-        testSpecAllVersions
+        (testSpec "postgrest-test-spec" postgresql).bin
+        testSpecAllVersions.bin
       ] ++ testSpecVersions;
   }
   # The IO an memory tests have large dependencies (a static and a profiled
@@ -125,8 +118,8 @@ buildEnv
   # them available through separate attributes:
   // {
   ioTests =
-    (testIO "postgrest-test-io" postgresql);
+    (testIO "postgrest-test-io" postgresql).bin;
 
   memoryTests =
-    (testMemory "postgrest-test-memory" postgresql);
+    (testMemory "postgrest-test-memory" postgresql).bin;
 }

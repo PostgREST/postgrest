@@ -6,21 +6,19 @@
 , postgrest
 , docker
 , runCommand
-, writeShellScriptBin
+, checkedShellScript
 }:
 let
   # Script for publishing a new release on GitHub.
   github =
-    writeShellScriptBin "postgrest-release-github"
+    checkedShellScript "postgrest-release-github"
       ''
-        set -euo pipefail
-
         version=$1
 
-        if test $version = "nightly"
+        if test "$version" = "nightly"
         then
           suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
-          tar cvJf postgrest-nightly-$suffix-linux-x64-static.tar.xz \
+          tar cvJf "postgrest-nightly-$suffix-linux-x64-static.tar.xz" \
             -C ${postgrest}/bin postgrest
 
           ${ghr}/bin/ghr \
@@ -28,11 +26,11 @@ let
             -u "$GITHUB_USERNAME" \
             -r "$GITHUB_REPONAME" \
             --replace nightly \
-            postgrest-nightly-$suffix-linux-x64-static.tar.xz
+            "postgrest-nightly-$suffix-linux-x64-static.tar.xz"
         else
           changes="$(sed -n "1,/$version/d;/## \[/q;p" ${../../CHANGELOG.md})"
 
-          tar cvJf postgrest-$version-linux-x64-static.tar.xz \
+          tar cvJf "postgrest-$version-linux-x64-static.tar.xz" \
             -C ${postgrest}/bin postgrest
 
           ${ghr}/bin/ghr \
@@ -40,43 +38,39 @@ let
             -u "$GITHUB_USERNAME" \
             -r "$GITHUB_REPONAME" \
             -b "$changes" \
-            --replace $version \
-            postgrest-$version-linux-x64-static.tar.xz
+            --replace "$version" \
+            "postgrest-$version-linux-x64-static.tar.xz"
         fi
       '';
 
   # Wrapper for login with docker. $DOCKER_USER/$DOCKER_PASS vars come from CircleCI.
   # The DOCKER_USER is not the same as DOCKER_REPO because we use the https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
   dockerLogin =
-    writeShellScriptBin "postgrest-docker-login"
+    checkedShellScript "postgrest-docker-login"
       ''
-        set -euo pipefail
-
-        docker login -u $DOCKER_USER -p $DOCKER_PASS
+        docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
       '';
 
   # Script for publishing a new release on Docker Hub.
   dockerHub =
-    writeShellScriptBin "postgrest-release-dockerhub"
+    checkedShellScript "postgrest-release-dockerhub"
       ''
-        set -euo pipefail
-
         version=$1
 
         docker load -i ${docker.image}
 
-        if test $version = "nightly"
+        if test "$version" = "nightly"
         then
           suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
 
-          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:nightly-$suffix
-          docker push "$DOCKER_REPO"/postgrest:nightly-$suffix
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:nightly-$suffix"
+          docker push "$DOCKER_REPO/postgrest:nightly-$suffix"
         else
           docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:$version
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:$version"
 
           docker push "$DOCKER_REPO"/postgrest:latest
-          docker push "$DOCKER_REPO"/postgrest:$version
+          docker push "$DOCKER_REPO/postgrest:$version"
         fi
       '';
 
@@ -89,10 +83,8 @@ let
       fullDescription =
         ./docker-hub-full-description.md;
     in
-    writeShellScriptBin "postgrest-release-dockerhubdescription"
+    checkedShellScript "postgrest-release-dockerhubdescription"
       ''
-        set -euo pipefail
-
         # Login to Docker Hub and get a token.
         token="$(
           ${curl}/bin/curl -s \
@@ -103,13 +95,14 @@ let
         )"
 
         # Plug the default config file into the full description.
-        export DEFAULT_CONFIG="$(cat ${docker.config})"
+        defaultConfig="$(cat ${docker.config})"
+        export DEFAULT_CONFIG="$defaultConfig"
         fullDescription="$(${envsubst}/bin/envsubst < ${fullDescription})"
 
         # Patch the full description.
         responseCode="$(
-          ${curl}/bin/curl -s --write-out %{response_code} --output /dev/null \
-            -H "Authorization: JWT $token" -X PATCH \
+          ${curl}/bin/curl -s --write-out "%{response_code}" \
+            --output /dev/null -H "Authorization: JWT $token" -X PATCH \
             --data-urlencode description@${description} \
             --data-urlencode "full_description=$fullDescription" \
             "https://hub.docker.com/v2/repositories/$DOCKER_REPO/postgrest/"
@@ -120,5 +113,5 @@ let
 in
 buildEnv {
   name = "postgrest-release";
-  paths = [ github dockerLogin dockerHub dockerHubDescription ];
+  paths = [ github.bin dockerLogin.bin dockerHub.bin dockerHubDescription.bin ];
 }

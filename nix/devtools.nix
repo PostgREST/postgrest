@@ -1,49 +1,58 @@
-{ writeShellScriptBin
-, buildEnv
+{ buildEnv
+, cabal-install
+, checkedShellScript
+, entr
 , git
-, hlint
-, nixpkgs-fmt
 , silver-searcher
-, stylish-haskell
+, style
+, tests
 }:
 let
-  style =
-    writeShellScriptBin "postgrest-style"
+  watch =
+    checkedShellScript "postgrest-watch"
       ''
-        set -euo pipefail
-
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
 
-        # Format Nix files
-        ${nixpkgs-fmt}/bin/nixpkgs-fmt "$rootdir" > /dev/null 2> /dev/null
+        ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr "$@"
+      '';
 
-        # Format Haskell files
-        ${silver-searcher}/bin/ag -l -g '\.l?hs$' "$rootdir" \
-          | xargs ${stylish-haskell}/bin/stylish-haskell -i
+  pushCachix =
+    checkedShellScript "postgrest-push-cachix"
+      ''
+        nix-store -qR --include-outputs "$(nix-instantiate)" \
+          | cachix push postgrest
+      '';
+
+  build =
+    checkedShellScript "postgrest-build"
+      ''exec ${cabal-install}/bin/cabal v2-build -f FailOnWarn "$@"'';
+
+  run =
+    checkedShellScript "postgrest-run"
+      ''exec ${cabal-install}/bin/cabal v2-run postgrest -f FailOnWarn -- "$@"'';
+
+  clean =
+    checkedShellScript "postgrest-clean"
+      ''
+        ${cabal-install}/bin/cabal v2-clean
       '';
 
   check =
-    writeShellScriptBin "postgrest-style-check"
+    checkedShellScript "postgrest-check"
       ''
-        set -euo pipefail
-
-        ${style}/bin/${style.name}
-
-        ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix'
-      '';
-  lint =
-    writeShellScriptBin "postgrest-lint"
-      ''
-        set -euo pipefail
-
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-
-        # Lint Haskell files
-        ${silver-searcher}/bin/ag -l -g '\.l?hs$' "$rootdir" \
-          | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
+        ${tests}/bin/postgrest-test-spec-all
+        ${style}/bin/postgrest-lint
+        ${style}/bin/postgrest-style-check
       '';
 in
 buildEnv {
   name = "postgrest-devtools";
-  paths = [ style check lint ];
+  paths = [
+    watch.bin
+    pushCachix.bin
+    build.bin
+    run.bin
+    clean.bin
+    check.bin
+  ];
 }
