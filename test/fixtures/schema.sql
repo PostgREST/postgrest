@@ -970,6 +970,12 @@ create function test.ret_setof_integers() returns setof integer as $$
   values (1), (2), (3);
 $$ language sql;
 
+-- this function does not have named arguments and should be ignored
+-- if it's not ignored, it will break the test for the function before
+create function test.ret_setof_integers(int, int) returns integer AS $$
+  values (1);
+$$ language sql;
+
 create function test.ret_scalars() returns table(
   a text, b test.enum_menagerie_type, c test.one_nine, d int4range
 ) as $$

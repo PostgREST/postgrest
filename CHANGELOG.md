@@ -25,7 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1585, Fix error messages on connection failure for localized postgres on Windows - @wolfgangwalther
  - #1636, Fix `application/octet-stream` appending `charset=utf-8` - @steve-chavez
  - #1615, Fix RPC return type handling and embedding for domains with composite base type - @wolfgangwalther
- - #1469, Fix overloading of functions with unnamed arguments - @wolfgangwalther
+ - #1469, #1638 Fix overloading of functions with unnamed arguments - @wolfgangwalther
 
 ### Changed
 
