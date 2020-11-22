@@ -670,7 +670,7 @@ As an example, let's create a view called ``nominations_view`` based on the *nom
   FROM
     nominations;
 
-Since it contains ``competition_id`` and ``film_id``—and each one has a **foreign key** defined in its source table—we can embed *competitions* and *films*:
+Since it contains ``competition_id`` and ``film_id`` — and each one has a **foreign key** defined in its source table — we can embed *competitions* and *films*:
 
 .. code-block:: http
 
@@ -696,6 +696,13 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
   If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
 
 .. _s_proc_embed:
+
+.. _embedding_view_chains:
+
+Embedding Chains of Views
+-------------------------
+
+Views can also depend on other views, which in turn depend on the actual source table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schema`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the source table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
 
 Embedding on Stored Procedures
 ------------------------------
