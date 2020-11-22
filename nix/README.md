@@ -12,6 +12,11 @@ their dependencies will be stored. It will also link the Nix executables like
 other PostgREST dependencies from here on out. To clean up older build
 artifacts from the `/nix/store`, you can run `nix-collect-garbage`.
 
+If you are on a system that does not support nix, for example Windows, you can
+run the nix development environment in a docker container. Inside the `nix/`
+directory run `docker-compose run --rm nix` to start the docker container. This
+will set up the binary cache and launch `nix-shell` automatically.
+
 ## Building PostgREST
 
 To build PostgREST from your local checkout of the repository, run:
