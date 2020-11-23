@@ -35,7 +35,8 @@ build_task:
         cabal_nightly_version=$(git show -s --format='%cd' --date='format:%Y%m%d')
         sed -i '' "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
       fi
-    - cabal v2-build
+      ## compile for 30 minutes tops
+    - timeout 1800 cabal v2-build || (($?==124))
 
   publish_script:
     - |
