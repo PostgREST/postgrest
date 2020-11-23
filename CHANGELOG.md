@@ -16,9 +16,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #504, Add `log-level` config option. The admitted levels are: crit, error, warn and info - @steve-chavez
  - #1607, Enable embedding through multiple views recursively - @wolfgangwalther
  - #1598, Allow rollback of the transaction with Prefer tx=rollback - @wolfgangwalther
+ - #1633, Enable prepared statements for filters. When behind a connection pooler, you can disable preparing with `db-prepared-statements=false` - @steve-chavez
 
 ### Fixed
- 
+
  - #1592, Removed single column restriction to allow composite foreign keys in join tables - @goteguru
  - #1530, Fix how the PostgREST version is shown in the help text when the `.git` directory is not available - @monacoremo
  - #1094, Fix expired JWTs starting an empty transaction on the db - @steve-chavez

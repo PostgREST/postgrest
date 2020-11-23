@@ -129,8 +129,8 @@ app dbStructure conf apiRequest =
                              then limitedQuery cq ((+ 1) <$> maxRows) -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
                              else cq
                   stm = createReadStatement q cQuery (contentType == CTSingularJSON) shouldCount
-                        (contentType == CTTextCSV) bField pgVer
-                  explStm = createExplainStatement cq
+                        (contentType == CTTextCSV) bField pgVer prepared
+                  explStm = createExplainStatement cq prepared
               row <- H.statement mempty stm
               let (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -162,7 +162,7 @@ app dbStructure conf apiRequest =
               let pkCols = tablePKCols dbStructure tSchema tName
                   stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) True
-                    (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols pgVer
+                    (contentType == CTTextCSV) (iPreferRepresentation apiRequest) pkCols pgVer prepared
               row <- H.statement mempty stm
               let (_, queryTotal, fields, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -197,7 +197,7 @@ app dbStructure conf apiRequest =
               row <- H.statement mempty $
                      createWriteStatement sq mq
                        (contentType == CTSingularJSON) False (contentType == CTTextCSV)
-                       (iPreferRepresentation apiRequest) [] pgVer
+                       (iPreferRepresentation apiRequest) [] pgVer prepared
               let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -230,7 +230,7 @@ app dbStructure conf apiRequest =
               else do
                 row <- H.statement mempty $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
-                                            (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer
+                                            (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer prepared
                 let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                     gucs =  (,) <$> gucHeaders <*> gucStatus
                 case gucs of
@@ -256,7 +256,7 @@ app dbStructure conf apiRequest =
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False
                     (contentType == CTTextCSV)
-                    (iPreferRepresentation apiRequest) [] pgVer
+                    (iPreferRepresentation apiRequest) [] pgVer prepared
               row <- H.statement mempty stm
               let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -295,10 +295,11 @@ app dbStructure conf apiRequest =
             Right (q, cq, bField, returning) -> do
               let
                 preferParams = iPreferParameters apiRequest
-                pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc) (iPayload apiRequest) returnsScalar preferParams returning
+                pq = requestToCallProcQuery (QualifiedIdentifier pdSchema pdName) (specifiedProcArgs (iColumns apiRequest) proc)
+                       (iPayload apiRequest) returnsScalar preferParams returning
                 stm = callProcStatement returnsScalar pq q cq shouldCount (contentType == CTSingularJSON)
                         (contentType == CTTextCSV) (contentType `elem` rawContentTypes) (preferParams == Just MultipleObjects)
-                        bField pgVer
+                        bField pgVer prepared
               row <- H.statement mempty stm
               let (tableTotal, queryTotal, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -340,6 +341,7 @@ app dbStructure conf apiRequest =
       where
         notFound = responseLBS status404 [] ""
         maxRows = configMaxRows conf
+        prepared = configDbPrepared conf
         exactCount = iPreferCount apiRequest == Just ExactCount
         estimatedCount = iPreferCount apiRequest == Just EstimatedCount
         plannedCount = iPreferCount apiRequest == Just PlannedCount

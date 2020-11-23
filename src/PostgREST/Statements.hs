@@ -44,10 +44,10 @@ import qualified Hasql.DynamicStatements.Statement as H
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
 createWriteStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool ->
-                        PreferRepresentation -> [Text] -> PgVersion ->
+                        PreferRepresentation -> [Text] -> PgVersion -> Bool ->
                         H.Statement () ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
-  H.dynamicallyParameterized snippet decodeStandard True
+  H.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
     "WITH " <> H.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
@@ -86,10 +86,10 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+createReadStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
                        H.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField pgVer =
-  H.dynamicallyParameterized snippet decodeStandard True
+  H.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
     "WITH " <>
@@ -129,10 +129,10 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
 
 callProcStatement :: Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion ->
+                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
                      H.Statement () ProcResults
 callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal isSingle asCsv asBinary multObjects binaryField pgVer =
-  H.dynamicallyParameterized snippet decodeProc True
+  H.dynamicallyParameterized snippet decodeProc
   where
     snippet =
       "WITH " <> H.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
@@ -171,9 +171,9 @@ callProcStatement returnsScalar callProcQuery selectQuery countQuery countTotal 
                          <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
                          <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
 
-createExplainStatement :: H.Snippet -> H.Statement () (Maybe Int64)
+createExplainStatement :: H.Snippet -> Bool -> H.Statement () (Maybe Int64)
 createExplainStatement countQuery =
-  H.dynamicallyParameterized snippet decodeExplain True
+  H.dynamicallyParameterized snippet decodeExplain
   where
     snippet = "EXPLAIN (FORMAT JSON) " <> countQuery
     -- |

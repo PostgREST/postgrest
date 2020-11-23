@@ -100,6 +100,8 @@ data AppConfig = AppConfig {
 
   , configTxRollbackAll     :: Bool
   , configTxAllowOverride   :: Bool
+
+  , configDbPrepared        :: Bool
   }
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -178,6 +180,10 @@ readPathShowHelp = customExecParser parserPrefs opts
           |## rollback-allow-override
           |##   transaction is rolled back, but can be overriden with Prefer tx=commit header
           |db-tx-end = "commit"
+          |
+          |## enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
+          |## when disabled, statements will be parametrized but won't be prepared.
+          |db-prepared-statements = true
           |
           |server-host = "!4"
           |server-port = 3000
@@ -263,6 +269,7 @@ readAppConfig cfgPath = do
         <*> parseLogLevel "log-level"
         <*> parseTxEnd "db-tx-end" fst
         <*> parseTxEnd "db-tx-end" snd
+        <*> (fromMaybe True <$>  optBool "db-prepared-statements")
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =

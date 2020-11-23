@@ -44,15 +44,15 @@ import Text.InterpolatedString.Perl6 (q, qc)
 import PostgREST.Private.Common
 import PostgREST.Types
 
-getDbStructure :: [Schema] -> [Schema] -> PgVersion -> HT.Transaction DbStructure
-getDbStructure schemas extraSearchPath pgVer = do
+getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure
+getDbStructure schemas extraSearchPath pgVer prepared = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- HT.statement () allTables
-  cols    <- HT.statement schemas $ allColumns tabs
-  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols pgVer
-  m2oRels <- HT.statement () $ allM2ORels tabs cols
-  keys    <- HT.statement () $ allPrimaryKeys tabs
-  procs   <- HT.statement schemas allProcs
+  tabs    <- HT.statement () $ allTables prepared
+  cols    <- HT.statement schemas $ allColumns tabs prepared
+  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols pgVer prepared
+  m2oRels <- HT.statement () $ allM2ORels tabs cols prepared
+  keys    <- HT.statement () $ allPrimaryKeys tabs prepared
+  procs   <- HT.statement schemas $ allProcs prepared
 
   let rels = addM2MRels . addO2MRels $ addViewM2ORels srcCols m2oRels
       cols' = addForeignKeys rels cols
@@ -183,8 +183,8 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: H.Statement [Schema] ProcsMap
-allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs True
+allProcs :: Bool -> H.Statement [Schema] ProcsMap
+allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
@@ -407,9 +407,9 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
   pk : viewPks)
 
-allTables :: H.Statement () [Table]
+allTables :: Bool -> H.Statement () [Table]
 allTables =
-  H.Statement sql HE.noParams decodeTables True
+  H.Statement sql HE.noParams decodeTables
  where
   sql = [q|
     SELECT
@@ -434,9 +434,9 @@ allTables =
     GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> H.Statement [Schema] [Column]
+allColumns :: [Table] -> Bool -> H.Statement [Schema] [Column]
 allColumns tabs =
- H.Statement sql (arrayParam HE.text) (decodeColumns tabs) True
+ H.Statement sql (arrayParam HE.text) (decodeColumns tabs)
  where
   sql = [q|
     SELECT DISTINCT
@@ -580,9 +580,9 @@ columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: [Table] -> [Column] -> H.Statement () [Relation]
+allM2ORels :: [Table] -> [Column] -> Bool -> H.Statement () [Relation]
 allM2ORels tabs cols =
-  H.Statement sql HE.noParams (decodeRels tabs cols) True
+  H.Statement sql HE.noParams (decodeRels tabs cols)
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -618,9 +618,9 @@ relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> H.Statement () [PrimaryKey]
+allPrimaryKeys :: [Table] -> Bool -> H.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
-  H.Statement sql HE.noParams (decodePks tabs) True
+  H.Statement sql HE.noParams (decodePks tabs)
  where
   sql = [q|
     -- CTE to replace information_schema.table_constraints to remove owner limit
@@ -699,9 +699,9 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 -- returns all the primary and foreign key columns which are referenced in views
-pfkSourceColumns :: [Column] -> PgVersion -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns :: [Column] -> PgVersion -> Bool -> H.Statement ([Schema], [Schema]) [SourceColumn]
 pfkSourceColumns cols pgVer =
-  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols) True
+  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
   -- query explanation at https://gist.github.com/steve-chavez/7ee0e6590cddafb532e5f00c46275569
   where
     subselectRegex :: Text
