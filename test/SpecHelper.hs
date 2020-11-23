@@ -92,6 +92,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configLogLevel          = LogCrit
   , configTxRollbackAll     = False
   , configTxAllowOverride   = True
+  , configDbPrepared        = True
   }
 
 testCfg :: Text -> AppConfig

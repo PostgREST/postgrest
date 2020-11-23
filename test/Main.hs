@@ -200,4 +200,4 @@ main = do
 
   where
     setupDbStructure pool schemas extraSearchPath ver =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath ver)
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath ver True)

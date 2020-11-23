@@ -1149,7 +1149,7 @@ $$;
 
 CREATE FUNCTION test.sayhello_variadic(name TEXT, VARIADIC v TEXT[]) RETURNS text
 LANGUAGE SQL AS $$
-  SELECT 'Hello, ' || name 
+  SELECT 'Hello, ' || name
 $$;
 
 create or replace function test.raise_pt402() returns void as $$
@@ -1859,3 +1859,7 @@ create function v2.get_parents_below(id int)
 returns setof v2.parents as $$
   select * from v2.parents where id < $1;
 $$ language sql;
+
+-- Only used for manually testing creating prepared statements
+create view prepared_statements as
+select * from pg_catalog.pg_prepared_statements;
