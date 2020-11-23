@@ -167,6 +167,18 @@ readPathShowHelp = customExecParser parserPrefs opts
           |## Enable or disable the notification channel
           |db-channel-enabled = false
           |
+          |## how to terminate database transactions
+          |## possible values are:
+          |## commit (default)
+          |##   transaction is always committed, this can not be overriden
+          |## commit-allow-override
+          |##   transaction is committed, but can be overriden with Prefer tx=rollback header
+          |## rollback
+          |##   transaction is always rolled back, this can not be overriden
+          |## rollback-allow-override
+          |##   transaction is rolled back, but can be overriden with Prefer tx=commit header
+          |db-tx-end = "commit"
+          |
           |server-host = "!4"
           |server-port = 3000
           |
@@ -205,15 +217,6 @@ readPathShowHelp = customExecParser parserPrefs opts
           |
           |## logging level, the admitted values are: crit, error, warn and info.
           |log-level = "error"
-          |
-          |## rollback all transactions by default, use for test environments
-          |## disabled by default
-          |tx-rollback-all = false
-          |
-          |## allow overriding the tx-rollback-all setting for a request by
-          |## setting the Prefer: tx=[commit|rollback] header
-          |## disabled by default
-          |tx-allow-override = false
           |]
 
 -- | Parse the config file
@@ -258,8 +261,8 @@ readAppConfig cfgPath = do
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> pure Nothing
         <*> parseLogLevel "log-level"
-        <*> (fromMaybe False <$> optBool "tx-rollback-all")
-        <*> (fromMaybe False <$> optBool "tx-allow-override")
+        <*> parseTxEnd "db-tx-end" fst
+        <*> parseTxEnd "db-tx-end" snd
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
@@ -293,6 +296,18 @@ readAppConfig cfgPath = do
         Just "warn"  -> pure LogWarn
         Just "info"  -> pure LogInfo
         Just _       -> fail "Invalid logging level. Check your configuration."
+
+    parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
+    parseTxEnd k f =
+      C.optional k C.string >>= \case
+        --                                          RollbackAll AllowOverride
+        Nothing                        -> pure $ f (False,      False)
+        Just ""                        -> pure $ f (False,      False)
+        Just "commit"                  -> pure $ f (False,      False)
+        Just "commit-allow-override"   -> pure $ f (False,      True)
+        Just "rollback"                -> pure $ f (True,       False)
+        Just "rollback-allow-override" -> pure $ f (True,       True)
+        Just _                         -> fail "Invalid transaction termination. Check your configuration."
 
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string
