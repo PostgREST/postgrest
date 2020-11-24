@@ -47,6 +47,54 @@ ok(){ result 'ok' "- $1"; }
 ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 comment(){ echo "# $1"; }
 
+########################
+# SYNCHRONOUS IO TESTS #
+########################
+
+dumpedConfigMatchesExpectation(){
+  # This test compares the dumped config vs. the corresponding file in ./configs/expected.
+  # To be used to test default values, config aliases and environment variables.
+  dump="$(mktemp)"
+  tap(){
+    if test $1 -eq 0; then
+      ok "dump of config file $2 does match expectation"
+    else
+      ko "dump of config file $2 does not match expectation"
+    fi
+    rm -f "$dump"
+  }
+  trap 'tap $? $1; trap - RETURN; return 0' ERR RETURN
+  postgrest --dump-config "$1" > "$dump"
+  diff "$dump" "$2"
+}
+
+dumpedConfigIsValid(){
+  # This test compares the dumped config vs. the dumped-reread-redumped config.
+  # Re-reading the dumped config tests the validity of the config format.
+  # Re-dumping this config should yield no difference to the first dump, showing
+  # that the semantics have not changed by dumping.
+  # Note: only dump vs redump must be equal, the original config file can be different,
+  # because of default values, whitespace, and quoting
+  dump="$(mktemp)"
+  redump="$(mktemp)"
+  tap(){
+    if test $1 -eq 0; then
+      ok "dump of config file $2 is valid"
+    else
+      ko "dump of config file $2 is invalid"
+    fi
+    rm -f "$dump" "$redump"
+  }
+  trap 'tap $? $1; trap - RETURN; return 0' ERR RETURN
+  postgrest --dump-config "$1" > "$dump"
+  postgrest --dump-config "$dump" > "$redump"
+  diff "$dump" "$redump"
+}
+
+####################
+# BACKGROUND TESTS #
+####################
+
 # Utilities to start/stop test PostgREST server running in the background
 pgrStart(){
   # stderr is not piped to /dev/null to catch errors on startup.
@@ -308,6 +356,23 @@ test -n "$(command -v curl)" || bailOut 'curl is not available'
 psql -l "$POSTGREST_TEST_CONNECTION" 1>/dev/null 2>/dev/null || bailOut 'postgres is not running'
 
 echo "Running IO tests.."
+
+# run dumpConfigIsValid with as many inputs as possible
+for cfg in configs/*.config
+do
+  # ROLE_CLAIM_KEY is only used in one of the config files
+  # using a complex example here, to make sure the quoting works
+  ROLE_CLAIM_KEY='."https://www.example.com/roles"[0].value' \
+  dumpedConfigIsValid "$cfg" \
+  <<< "Y29ubmVjdGlvbl9zdHJpbmc=" # /dev/stdin is read by some config files, one of them expects Base64
+done
+
+# run dumpConfigMatchesExpectation with all expectations
+for exp in configs/expected/*.config
+do
+  cfg="$(sed -e 's|expected/||' <(echo $exp))"
+  dumpedConfigMatchesExpectation "$cfg" "$exp"
+done
 
 socketConnection
 

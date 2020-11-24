@@ -546,7 +546,12 @@ sourceCTEName = "pgrst_source"
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"
-data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq, Show)
+data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq)
+
+instance Show JSPathExp where
+  -- TODO: this needs to be quoted properly for special chars
+  show (JSPKey k) = "." <> show k
+  show (JSPIdx i) = "[" <> show i <> "]"
 
 -- | Current database connection status data ConnectionStatus
 data ConnectionStatus
@@ -555,4 +560,10 @@ data ConnectionStatus
   | FatalConnectionError Text
   deriving (Eq, Show)
 
-data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq, Show)
+data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq)
+
+instance Show LogLevel where
+  show LogCrit  = "crit"
+  show LogError = "error"
+  show LogWarn  = "warn"
+  show LogInfo  = "info"

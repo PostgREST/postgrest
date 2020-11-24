@@ -27,8 +27,9 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings,
 import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
-import PostgREST.Config      (AppConfig (..), configPoolTimeout',
-                              prettyVersion, readPathShowHelp,
+import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
+                              configPoolTimeout', dumpAppConfig,
+                              prettyVersion, readCLIShowHelp,
                               readValidateConfig)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
@@ -57,10 +58,13 @@ main = do
   hSetBuffering stderr NoBuffering
 
   -- read path from commad line
-  path <- readPathShowHelp
+  opts <- readCLIShowHelp
 
   -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig path
+  conf <- readValidateConfig $ cliPath opts
+
+  -- dump config and exit if option is set
+  when (cliCommand opts == CmdDumpConfig) $ dumpAppConfig conf
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -122,7 +126,7 @@ main = do
 
   -- Re-read the config on SIGUSR2
   void $ installHandler sigUSR2 (
-    Catch $ reReadConfig path refConf
+    Catch $ reReadConfig (cliPath opts) refConf
     ) Nothing
 #endif
 
