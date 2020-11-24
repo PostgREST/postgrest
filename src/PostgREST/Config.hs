@@ -19,9 +19,12 @@ Other hardcoded options such as the minimum version number also belong here.
 
 module PostgREST.Config ( prettyVersion
                         , docsVersion
+                        , CLI (..)
+                        , Command (..)
                         , AppConfig (..)
                         , configPoolTimeout'
-                        , readPathShowHelp
+                        , dumpAppConfig
+                        , readCLIShowHelp
                         , readValidateConfig
                         )
        where
@@ -30,24 +33,25 @@ import qualified Data.ByteString              as B
 import qualified Data.ByteString.Base64       as B64
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.Configurator            as C
-import           Data.Either.Combinators      (whenLeft)
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
-import Control.Lens       (preview)
-import Control.Monad      (fail)
-import Crypto.JWT         (JWKSet, StringOrURI, stringOrUri)
-import Data.List.NonEmpty (fromList)
-import Data.Scientific    (floatingOrInteger)
-import Data.Text          (dropEnd, dropWhileEnd, intercalate, pack,
-                           replace, splitOn, strip, stripPrefix, take,
-                           unpack)
-import Data.Text.IO       (hPutStrLn)
-import Data.Version       (versionBranch)
-import Development.GitRev (gitHash)
-import Numeric            (readOct)
-import Paths_postgrest    (version)
-import System.IO.Error    (IOError)
-import System.Posix.Types (FileMode)
+import Control.Lens            (preview)
+import Control.Monad           (fail)
+import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
+import Data.Aeson              (encode, toJSON)
+import Data.Either.Combinators (fromRight', whenLeft)
+import Data.List.NonEmpty      (fromList, toList)
+import Data.Scientific         (floatingOrInteger)
+import Data.Text               (dropEnd, dropWhileEnd, intercalate,
+                                pack, replace, splitOn, strip,
+                                stripPrefix, take, toLower, unpack)
+import Data.Text.IO            (hPutStrLn)
+import Data.Version            (versionBranch)
+import Development.GitRev      (gitHash)
+import Numeric                 (readOct, showOct)
+import Paths_postgrest         (version)
+import System.IO.Error         (IOError)
+import System.Posix.Types      (FileMode)
 
 import Control.Applicative
 import Data.Monoid
@@ -62,9 +66,15 @@ import PostgREST.Types            (JSPath, JSPathExp (..),
                                    LogLevel (..))
 import Protolude                  hiding (concat, hPutStrLn,
                                    intercalate, null, replace, take,
-                                   toS, (<>))
+                                   toList, toLower, toS, (<>))
 import Protolude.Conv             (toS)
 
+-- | Command line interface options
+data CLI = CLI
+  { cliCommand :: Command
+  , cliPath    :: FilePath }
+
+data Command = CmdRun | CmdDumpConfig deriving (Eq)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -103,6 +113,7 @@ data AppConfig = AppConfig {
 
   , configDbPrepared        :: Bool
   }
+  deriving (Show)
 
 configPoolTimeout' :: (Fractional a) => AppConfig -> a
 configPoolTimeout' =
@@ -122,13 +133,13 @@ prettyVersion =
 docsVersion :: Text
 docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 
--- | Read config the file path from the command line. Also prints help.
-readPathShowHelp :: IO FilePath
-readPathShowHelp = customExecParser parserPrefs opts
+-- | Read command line interface options. Also prints help.
+readCLIShowHelp :: IO CLI
+readCLIShowHelp = customExecParser parserPrefs opts
   where
     parserPrefs = prefs showHelpOnError
 
-    opts = info (helper <*> pathParser) $
+    opts = info (helper <*> cliParser) $
              fullDesc
              <> progDesc (
                  "PostgREST "
@@ -140,11 +151,16 @@ readPathShowHelp = customExecParser parserPrefs opts
                  L.<> nest 2 (hardline L.<> exampleCfg)
                )
 
-    pathParser :: Parser FilePath
-    pathParser =
-      strArgument $
+    cliParser :: Parser CLI
+    cliParser = CLI <$>
+      flag CmdRun CmdDumpConfig (
+        long "dump-config" <>
+        help "Dump loaded configuration and exit"
+      ) <*>
+      strArgument (
         metavar "FILENAME" <>
         help "Path to configuration file"
+      )
 
     exampleCfg :: Doc
     exampleCfg = vsep . map (text . toS) . lines $
@@ -224,6 +240,62 @@ readPathShowHelp = customExecParser parserPrefs opts
           |## logging level, the admitted values are: crit, error, warn and info.
           |log-level = "error"
           |]
+
+-- | Dump the config
+dumpAppConfig :: AppConfig -> IO ()
+dumpAppConfig conf = do
+  putStr dump
+  exitSuccess
+
+  where
+    dump = unlines $ (\(k, v) -> k <> " = " <> v) <$>
+      pgrstSettings ++ appSettings
+
+    -- apply conf to all pgrst settings
+    pgrstSettings = (\(k, v) -> (k, v conf)) <$>
+      [("db-uri",                    q . configDbUri)
+      ,("db-schema",                 q . intercalate "," . toList . configSchemas)
+      ,("db-anon-role",              q . configAnonRole)
+      ,("db-pool",                       show . configPoolSize)
+      ,("db-pool-timeout",               show . configPoolTimeout)
+      ,("db-extra-search-path",      q . intercalate "," . configExtraSearchPath)
+      ,("db-channel",                q . configDbChannel)
+      ,("db-channel-enabled",            toLower . show . configDbChannelEnabled)
+      ,("db-tx-end",                 q . showTxEnd)
+      ,("db-prepared-statements",        toLower . show . configDbPrepared)
+      ,("server-host",               q . configHost)
+      ,("server-port",                   show . configPort)
+      ,("server-unix-socket",        q . maybe mempty pack . configSocket)
+      ,("server-unix-socket-mode",   q . pack . showSocketMode)
+      ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenAPIProxyUri)
+      ,("jwt-secret",                q . toS . showJwtSecret)
+      ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
+      ,("secret-is-base64",              toLower . show . configJwtSecretIsBase64)
+      ,("role-claim-key",            q . intercalate mempty . fmap show . fromRight' . configRoleClaimKey)
+      ,("max-rows",                      maybe "\"\"" show . configMaxRows)
+      ,("pre-request",               q . fromMaybe mempty . configPreReq)
+      ,("root-spec",                 q . fromMaybe mempty . configRootSpec)
+      ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
+      ,("log-level",                 q . show . configLogLevel)
+      ]
+
+    -- quote all app.settings
+    appSettings = second q <$> configSettings conf
+
+    -- quote strings and replace " with \"
+    q s = "\"" <> replace "\"" "\\\"" s <> "\""
+
+    showTxEnd c = case (configTxRollbackAll c, configTxAllowOverride c) of
+      ( False, False ) -> "commit"
+      ( False, True  ) -> "commit-allow-override"
+      ( True , False ) -> "rollback"
+      ( True , True  ) -> "rollback-allow-override"
+    showSocketMode c = showOct (fromRight' $ configSocketMode c) ""
+    showJwtSecret c
+      | configJwtSecretIsBase64 c = B64.encode secret
+      | otherwise                 = toS secret
+      where
+        secret = fromMaybe mempty $ configJwtSecret c
 
 -- | Parse the config file
 readAppConfig :: FilePath -> IO AppConfig
