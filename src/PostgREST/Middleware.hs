@@ -8,16 +8,21 @@ Description : Sets CORS policy. Also the PostgreSQL GUCs, role, search_path and 
 
 module PostgREST.Middleware where
 
-import qualified Data.Aeson            as JSON
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.CaseInsensitive  as CI
-import           Data.Function         (id)
-import qualified Data.HashMap.Strict   as M
-import           Data.List             (lookup)
-import           Data.Scientific       (FPFormat (..),
-                                        formatScientific, isInteger)
-import qualified Data.Text             as T
-import qualified Hasql.Transaction     as H
+import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Statement as H
+import           PostgREST.Private.Common
+
+import qualified Data.Aeson                as JSON
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.CaseInsensitive      as CI
+import           Data.Function             (id)
+import qualified Data.HashMap.Strict       as M
+import           Data.List                 (lookup)
+import           Data.Scientific           (FPFormat (..),
+                                            formatScientific,
+                                            isInteger)
+import qualified Data.Text                 as T
+import qualified Hasql.Transaction         as H
 import           Network.HTTP.Types.Status (Status, status400,
                                             status500, statusCode)
 import           Network.Wai.Logger        (showSockAddr)
@@ -43,7 +48,9 @@ runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
                (ApiRequest -> H.Transaction Response) ->
                ApiRequest  -> H.Transaction Response
 runPgLocals conf claims app req = do
-  H.sql . toS $ "select " <> T.intercalate ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql)
+  H.statement mempty $ H.dynamicallyParameterized
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
+    HD.noResult (configDbPreparedStatements conf)
   traverse_ H.sql preReqSql
   app req
   where
