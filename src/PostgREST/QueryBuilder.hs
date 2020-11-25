@@ -26,6 +26,7 @@ import qualified Hasql.DynamicStatements.Snippet as H
 import Data.Tree (Tree (..))
 
 import Data.Maybe
+import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
 import PostgREST.Types
 import Protolude                       hiding (cast, intercalate,
@@ -173,6 +174,6 @@ limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
 
 -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: Text -> (Text, Text) -> Text
+setConfigLocal :: Text -> (Text, Text) -> H.Snippet
 setConfigLocal prefix (k, v) =
-  "set_config(" <> decodeUtf8 (pgFmtLit (prefix <> k)) <> ", " <> decodeUtf8 (pgFmtLit v) <> ", true)"
+  "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"

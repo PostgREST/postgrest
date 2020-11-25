@@ -30,9 +30,8 @@ import           Protolude                       hiding (cast,
 import           Protolude.Conv                  (toS)
 import           Text.InterpolatedString.Perl6   (qc)
 
-import qualified Hasql.Encoders as HE
-
-import Data.Foldable (foldr1)
+import qualified Hasql.Encoders           as HE
+import           PostgREST.Private.Common
 
 noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
@@ -250,10 +249,3 @@ unknownEncoder = H.encoderAndParam (HE.nonNullable HE.unknown)
 
 unknownLiteral :: Text -> H.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
-
-emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
-emptySnippetOnFalse val cond = if cond then mempty else val
-
-intercalateSnippet :: SqlFragment -> [H.Snippet] -> H.Snippet
-intercalateSnippet _ [] = mempty
-intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets

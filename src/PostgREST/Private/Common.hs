@@ -5,9 +5,12 @@ Description : Common helper functions.
 module PostgREST.Private.Common where
 
 import           Data.Maybe
-import qualified Hasql.Decoders as HD
-import qualified Hasql.Encoders as HE
+import qualified Hasql.Decoders                  as HD
+import qualified Hasql.DynamicStatements.Snippet as H
+import qualified Hasql.Encoders                  as HE
 import           Protolude
+
+import Data.Foldable (foldr1)
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
@@ -23,3 +26,10 @@ param = HE.param . HE.nonNullable
 
 arrayParam :: HE.Value a -> HE.Params [a]
 arrayParam = param . HE.array . HE.dimension foldl' . HE.element . HE.nonNullable
+
+emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
+emptySnippetOnFalse val cond = if cond then mempty else val
+
+intercalateSnippet :: ByteString -> [H.Snippet] -> H.Snippet
+intercalateSnippet _ [] = mempty
+intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets
