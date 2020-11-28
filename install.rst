@@ -30,10 +30,11 @@ If you use **Nix**, then you can install PostgREST from nixpkgs.
 
   nix-env -i haskellPackages.postgrest
 
-If you use Windows, you can install PostgREST using `Scoop command-line installer <https://scoop.sh>`_.
+If you use Windows, you can install PostgREST using `Chocolatey <https://chocolatey.org>`_ or `Scoop <https://scoop.sh>`_.
 
 .. code:: bash
 
+  choco install postgrest
   scoop install postgrest
 
 When a pre-built binary does not exist for your system you can :ref:`build the project from source <build_source>`.
