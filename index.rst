@@ -238,7 +238,7 @@ Testimonials
   -- Louis Brauer
 
   "I really enjoyed the fact that all of a sudden I was writing
-  microservices in SQL DDL (and v8 javascript functions). I dodged so
+  microservices in SQL DDL (and v8 JavaScript functions). I dodged so
   much boilerplate. The next thing I knew, we pulled out a full rewrite
   of a Spring+MySQL legacy app in 6 months. Literally 10x faster, and
   code was super concise. The old one took 3 years and a team of 4

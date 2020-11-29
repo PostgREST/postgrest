@@ -6,7 +6,7 @@ Community Tutorials
 * `Building a Contacts List with PostgREST and Vue.js <https://www.youtube.com/watch?v=iHtsALtD5-U>`_ -
   In this video series, DigitalOcean shows how to build and deploy an Nginx + PostgREST(using a managed PostgreSQL database) + Vue.js webapp in an Ubuntu server droplet.
 
-* `PostgREST + Auth0: Create REST API in mintutes, and add social login using Auth0 <https://samkhawase.com/blog/postgrest/>`_ - A step-by-step tutorial to show how to Dockerize and integrate Auth0 to PostgREST service.
+* `PostgREST + Auth0: Create REST API in mintutes, and add social login using Auth0 <https://samkhawase.com/blog/postgrest/>`_ - A step-by-step tutorial to show how to dockerize and integrate Auth0 to PostgREST service.
 
 * `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-geospatial-api-in-5-minutes/>`_ -
   In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`s_procs` interface.
@@ -23,10 +23,10 @@ Example Apps
 * `tatut/postgrest-ui <https://github.com/tatut/postgrest-ui>`_ - ClojureScript UI components for PostgREST
 * `priyank-purohit/PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
 * `Qu4tro/pgrst-dev-setup <https://github.com/Qu4tro/pgrst-dev-setup>`_ - docker-compose and tmuxp setup for experimentation.
-* `subzerocloud/postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - Boilerplate for new project
-* `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - Calling to external translation service
+* `subzerocloud/postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - boilerplate for new project
+* `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - calling to external translation service
 * `CodeforAustralia/heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
-* `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - An excel-like database table editor
+* `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - an excel-like database table editor
 * `Recmo/PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
 * `benoror/ember-postgrest-dynamic-ui <https://github.com/benoror/ember-postgrest-dynamic-ui>`_ - generating Ember forms to edit data
 * `ruslantalpa/blogdemo <https://github.com/ruslantalpa/blogdemo>`_ - blog api demo in a vagrant image
@@ -39,7 +39,7 @@ Example Apps
 * `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
 * `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth back-end
 * `marmelab/ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
-* `seveibar/postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - Run postgrest on Vercel (Serverless/AWS Lambda)
+* `seveibar/postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - run PostgREST on Vercel (Serverless/AWS Lambda)
 
 .. _eco_external_notification:
 
@@ -48,7 +48,7 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
 
-* `vbalasu/pg-notify-webhook <https://pypi.org/project/pg-notify-webhook/>`_ - Trigger webhooks from postgres LISTEN/NOTIFY
+* `vbalasu/pg-notify-webhook <https://pypi.org/project/pg-notify-webhook/>`_ - trigger webhooks from PostgreSQL's LISTEN/NOTIFY
 * `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
 * `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
@@ -63,14 +63,14 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 Extensions
 ----------
 
-* `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ - Prevent full-table updates or deletes
+* `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ - prevent full-table updates or deletes
 * `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 * `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `wildsurfer/postgrest-oauth-server <https://github.com/wildsurfer/postgrest-oauth-server>`_ - OAuth2 server
 * `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
 * `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
-* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate Nginx rewrite rules to fit an OpenAPI spec
-* `seveibar/postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a postgrest server in NodeJS via an npm module
+* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate nginx rewrite rules to fit an OpenAPI spec
+* `seveibar/postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a PostgREST server in Node.js via npm module
 * `Exahilosys/aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
 
 .. _clientside_libraries:
@@ -95,7 +95,7 @@ Client-Side Libraries
 * `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
 * `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
 * `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
-* `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over Postgrest.
+* `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over PostgREST.
 * `andytango/redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
 
 .. _eco_commercial:

@@ -5,7 +5,7 @@
 v7.0.0
 ======
 
-You can donwload this release at the `PostgREST v7.0.0 release page <https://github.com/PostgREST/postgrest/releases/tag/v7.0.0>`_.
+You can download this release at the `PostgREST v7.0.0 release page <https://github.com/PostgREST/postgrest/releases/tag/v7.0.0>`_.
 
 Added
 -----
@@ -45,7 +45,7 @@ Added
 Fixed
 -----
 
-* Allow embedding a VIEW when its source table foreign key is UNIQUE
+* Allow embedding a view when its source table foreign key is UNIQUE
   |br| -- `@bwbroersma <https://github.com/bwbroersma>`_
 
 * ``Accept: application/vnd.pgrst.object+json`` behavior is now enforced for POST/PATCH/DELETE regardless of ``Prefer: return=minimal``

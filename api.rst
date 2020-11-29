@@ -255,7 +255,7 @@ A full-text search on the computed column:
 
   GET /people?full_name=fts.Beckett HTTP/1.1
 
-As mentioned, computed columns do not appear in the output by default. However you can include them by listing them in the vertical filtering :code:`select` param:
+As mentioned, computed columns do not appear in the output by default. However you can include them by listing them in the vertical filtering :code:`select` parameter:
 
 .. code-block:: HTTP
 
@@ -314,7 +314,7 @@ Here ``information.cpe`` is a column name.
 
 .. note::
 
-   Some http libraries might encode URLs automatically(e.g. :code:`axios`). In these cases you should use double quotes
+   Some HTTP libraries might encode URLs automatically(e.g. :code:`axios`). In these cases you should use double quotes
    :code:`""` directly instead of :code:`%22`.
 
 Ordering
@@ -332,7 +332,7 @@ If no direction is specified it defaults to ascending order:
 
   GET /people?order=age HTTP/1.1
 
-If you care where nulls are sorted, add nullsfirst or nullslast:
+If you care where nulls are sorted, add ``nullsfirst`` or ``nullslast``:
 
 .. code-block:: http
 
@@ -359,7 +359,7 @@ PostgREST uses HTTP range headers to describe the size of results. Every respons
 
 Here items zero through fourteen are returned. This information is available in every response and can help you render pagination controls on the client. This is an RFC7233-compliant solution that keeps the response JSON cleaner.
 
-There are two ways to apply a limit and offset rows: through request headers or query params. When using headers you specify the range of rows desired. This request gets the first twenty people.
+There are two ways to apply a limit and offset rows: through request headers or query parameters. When using headers you specify the range of rows desired. This request gets the first twenty people.
 
 .. code-block:: http
 
@@ -443,7 +443,7 @@ To help with these cases, PostgREST can get the exact count up until a threshold
 that threshold is surpassed. To use this behavior, you can specify the ``Prefer: count=estimated`` header. The **threshold** is
 defined by :ref:`max-rows`.
 
-Here's an example. Suppose we set ``max-rows=1000`` and *smalltable* has 321 rows, then we'll get the exact count:
+Here's an example. Suppose we set ``max-rows=1000`` and ``smalltable`` has 321 rows, then we'll get the exact count:
 
 .. code-block:: http
 
@@ -455,7 +455,7 @@ Here's an example. Suppose we set ``max-rows=1000`` and *smalltable* has 321 row
   HTTP/1.1 206 Partial Content
   Content-Range: 0-24/321
 
-If we make a similar request on *bigtable*, which has 3573458 rows, we would get the planned count:
+If we make a similar request on ``bigtable``, which has 3573458 rows, we would get the planned count:
 
 .. code-block:: http
 
@@ -481,13 +481,13 @@ Use the Accept request header to specify the acceptable format (or formats) for 
   GET /people HTTP/1.1
   Accept: application/json
 
-The current possibilities are
+The current possibilities are:
 
-* \*/\*
-* text/csv
-* application/json
-* application/openapi+json
-* application/octet-stream
+* ``*/*``
+* ``text/csv``
+* ``application/json``
+* ``application/openapi+json``
+* ``application/octet-stream``
 
 The server will default to JSON for API endpoints and OpenAPI on the root.
 
@@ -776,7 +776,7 @@ Embedding Disambiguation
 ------------------------
 
 For doing resource embedding, PostgREST infers the relationship between two tables based on a foreign key between them.
-However, in cases where there's more than one foreign key between two tables, it's not possible to infer the relationship unambiguosly
+However, in cases where there's more than one foreign key between two tables, it's not possible to infer the relationship unambiguously
 by just specifying the tables names.
 
 Target Disambiguation
@@ -850,7 +850,7 @@ Hint Disambiguation
 ~~~~~~~~~~~~~~~~~~~
 
 If specifying the **target** is not enough for unambiguous embedding, you can add a **hint**. For example, let's assume we create
-two VIEWs of ``addresses``: ``central_addresses`` and ``eastern_addresses``.
+two views of ``addresses``: ``central_addresses`` and ``eastern_addresses``.
 
 Since PostgREST supports :ref:`embedding_views` by detecting **source foreign keys** in the views, embedding with the foreign key
 as the **target** will not be enough for an unambiguous embed:
@@ -914,7 +914,7 @@ URL encoded payloads can be posted with ``Content-Type: application/x-www-form-u
     No
     "{ \"a\": 1, \"b\": 2 }"
 
-  Some javascript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
+  Some JavaScript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
 
 To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
 
@@ -1150,7 +1150,7 @@ PostgreSQL has four procedural languages that are part of the core distribution:
 
 .. note::
 
-  Why the `/rpc` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+  Why the ``/rpc`` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
 
 Immutable and stable functions
 ------------------------------
@@ -1171,10 +1171,10 @@ Because ``add_them`` is ``IMMUTABLE``, we can alternately call the function with
 
 The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
 
-Calling functions with a single json parameter
+Calling functions with a single JSON parameter
 ----------------------------------------------
 
-You can also call a function that takes a single parameter of type json by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
+You can also call a function that takes a single parameter of type JSON by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
 
 .. code-block:: plpgsql
 
@@ -1220,7 +1220,7 @@ as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is
 
 .. code-block:: http
 
- GET /rpc/plus_one?arr=%7B1,2,3,4%7D' HTTP/1.1
+  GET /rpc/plus_one?arr=%7B1,2,3,4%7D' HTTP/1.1
 
 .. note::
 
@@ -1232,14 +1232,14 @@ as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is
 
     { "arr": "{1,2,3,4}" }
 
-   In these versions we recommend using function parameters of type json to accept arrays from the client.
+   In these versions we recommend using function parameters of type JSON to accept arrays from the client.
 
 .. _s_procs_variadic:
 
 Calling variadic functions
 --------------------------
 
-You can call a variadic function by passing a json array in a POST request:
+You can call a variadic function by passing a JSON array in a POST request:
 
 .. code-block:: postgres
 
@@ -1299,7 +1299,7 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
 Bulk Call
 ---------
 
-It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert`. To do this, you need to add the
+It's possible to call a function in a bulk way, analogously to :ref:`bulk_insert`. To do this, you need to add the
 ``Prefer: params=multiple-objects`` header to your request.
 
 .. code-block:: http
@@ -1316,7 +1316,7 @@ It's possible to call a function in a bulk way, analoguosly to :ref:`bulk_insert
 
    [ 3, 7 ]
 
-If you have large payloads to process, it's preferrable you instead use a function with an :ref:`array parameter <s_procs_array>` or json parameter, as this will be more efficient.
+If you have large payloads to process, it's preferable you instead use a function with an :ref:`array parameter <s_procs_array>` or JSON parameter, as this will be more efficient.
 
 It's also possible to :ref:`Specify Columns <specify_columns>` on functions calls.
 
@@ -1489,7 +1489,7 @@ HTTP Logic
 Accessing Request Headers, Cookies and JWT claims
 -------------------------------------------------
 
-You can access request headers, cookies and jwt claims by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ`, :code:`request.cookie.XYZ` and :code:`request.jwt.claim.XYZ`.
+You can access request headers, cookies and JWT claims by reading GUC variables set by PostgREST per request. They are named :code:`request.header.XYZ`, :code:`request.cookie.XYZ` and :code:`request.jwt.claim.XYZ`.
 
 .. code-block:: postgresql
 
@@ -1707,7 +1707,7 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | 58*                      | 500                     | system error                    |
 +--------------------------+-------------------------+---------------------------------+
-| F0*                      | 500                     | conf file error                 |
+| F0*                      | 500                     | config file error               |
 +--------------------------+-------------------------+---------------------------------+
 | HV*                      | 500                     | foreign data wrapper error      |
 +--------------------------+-------------------------+---------------------------------+

@@ -51,7 +51,7 @@ If you downloaded PostgREST from the release page, first extract the compressed 
 
   # On Windows you should unzip the file
 
-Now you can run postgrest with the :code:`--help` flag to see usage instructions:
+Now you can run PostgREST with the :code:`--help` flag to see usage instructions:
 
 .. code-block:: bash
 
@@ -218,7 +218,7 @@ Assuming your making modifications locally and then pushing to GitHub, it's easy
 1. Create a new app on Heroku
 2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
 3. Add the require Config Vars in Heroku (see https://github.com/PostgREST/postgrest/blob/master/app.json#L7-L57 for more details)
-4. Modify your postgrest.conf file as required to match your Config Vars in Heroku
+4. Modify your ``postgrest.conf`` file as required to match your Config Vars in Heroku
 5. Create your :code:`Procfile` and add :code:`./env-to-config ./postgrest postgrest.conf`
 6. Push your changes to GitHub
 7. Set Heroku to automatically deploy from Master and then manually deploy the branch for the first build

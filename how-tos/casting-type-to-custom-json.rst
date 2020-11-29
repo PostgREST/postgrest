@@ -80,12 +80,12 @@ The result now is:
      }
    ]
 
-You can use the same idea for creating custom CASTs for different types.
+You can use the same idea for creating custom casts for different types.
 
 .. note::
 
-   If you don't want to modify CASTs for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_
-   for your own ``tsrange`` and add its own CAST.
+   If you don't want to modify casts for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_
+   for your own ``tsrange`` and add its own cast.
 
    .. code-block:: postgres
 

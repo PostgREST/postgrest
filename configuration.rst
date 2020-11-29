@@ -30,9 +30,9 @@ The user specified in the db-uri is also known as the authenticator role. For mo
 
 Here is the full list of configuration parameters.
 
-======================== ======  =========  ========
+======================== ======= =========  ========
 Name                     Type    Default    Required
-======================== ======  =========  ========
+======================== ======= =========  ========
 db-uri                   String             Y
 db-schema                String             Y
 db-anon-role             String             Y
@@ -43,16 +43,16 @@ server-host              String  !4
 server-port              Int     3000
 server-unix-socket       String
 server-unix-socket-mode  String  660
-openapi-server-proxy-uri         String
+openapi-server-proxy-uri String
 jwt-secret               String
 jwt-aud                  String
-secret-is-base64         Bool    False
+secret-is-base64         Boolean False
 max-rows                 Int     ∞
 pre-request              String
 app.settings.*           String
 role-claim-key           String  .role
 raw-media-types          String
-======================== ======  =========  ========
+======================== ======= =========  ========
 
 .. _db-uri:
 
@@ -266,8 +266,8 @@ raw-media-types
 
  These media types can be requested by following the same rules as the ones defined in :ref:`binary_output`.
 
- As an example, the below config would allow you to request an **image** and an **xml** by doing a request with ``Accept: image/png``
- and a request with ``Accept: text/xml``, respectively.
+ As an example, the below config would allow you to request an **image** and a **XML** file by doing a request with ``Accept: image/png``
+ or ``Accept: text/xml``, respectively.
 
  .. code:: bash
 

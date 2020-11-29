@@ -145,7 +145,7 @@ The PostgREST server logs basic request information to stdout, including the req
 HTTP Requests
 -------------
 
-A great way to inspect incoming HTTP requests including headers and query params is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
+A great way to inspect incoming HTTP requests including headers and query parameters is to sniff the network traffic on the port where PostgREST is running. For instance on a development server bound to port 3000 on localhost, run this:
 
 .. code:: bash
 
@@ -250,7 +250,7 @@ Now, whenever the structure of the database schema changes, PostgreSQL will noti
 Daemonizing
 ===========
 
-For linux distros that use **systemd** (ubuntu, debian, archlinux) you can create a daemon in the following way.
+For Linux distributions that use **systemd** (Ubuntu, Debian, Archlinux) you can create a daemon in the following way.
 
 First, create postgrest configuration in ``/etc/postgrest/config``
 
@@ -271,7 +271,7 @@ Then create the systemd service file in ``/etc/systemd/system/postgrest.service`
 .. code-block:: ini
 
   [Unit]
-  Description=REST API for any Postgres database
+  Description=REST API for any PostgreSQL database
   After=postgresql.service
 
   [Service]

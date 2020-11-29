@@ -182,7 +182,7 @@ Next write a stored procedure that returns the token. The one below returns a to
     ) r;
   $$ LANGUAGE sql;
 
-PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`.
+PostgREST exposes this function to clients via a POST request to ``/rpc/jwt_test``.
 
 .. note::
 

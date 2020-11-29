@@ -20,7 +20,7 @@ This allows you to change the internals of your schema and maintain backwards co
 Functions
 =========
 
-By default, when a function is created, the privilege to execute it is not restricted by role. The function access is PUBLIC—executable by all roles (more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
+By default, when a function is created, the privilege to execute it is not restricted by role. The function access is ``PUBLIC`` — executable by all roles (more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/12/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
 
 .. code-block:: postgres
 
@@ -55,7 +55,7 @@ Security definer
 ----------------
 
 A function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
-If the function accesses private database objects, your :ref:`API roles <roles>` won't be able to succesfully execute the function.
+If the function accesses private database objects, your :ref:`API roles <roles>` won't be able to successfully execute the function.
 
 Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself.
 
@@ -84,13 +84,13 @@ For changing this, we can create a non-SUPERUSER role and make this role the vie
 
 .. code-block:: postgres
 
- CREATE ROLE api_views_owner NOINHERIT;
- ALTER VIEW sample_view OWNER TO api_views_owner;
+  CREATE ROLE api_views_owner NOINHERIT;
+  ALTER VIEW sample_view OWNER TO api_views_owner;
 
 Rules
 -----
 
-Insertion on VIEWs with complex `RULEs <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
-It's recommended that you `use triggers instead of RULEs <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
-If you want to keep using RULEs, a workaround is to wrap the VIEW insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+Insertion on views with complex `rules <https://www.postgresql.org/docs/11/sql-createrule.html>`_ might not work out of the box with PostgREST.
+It's recommended that you `use triggers instead of rules <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+If you want to keep using rules, a workaround is to wrap the view insertion in a stored procedure and call it through the :ref:`s_procs` interface.
 For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/1283>`_.
