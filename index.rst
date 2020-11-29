@@ -1,5 +1,8 @@
 .. title:: PostgREST Documentation
 
+PostgREST Documentation
+=======================
+
 .. figure:: _static/logo.png
 
 .. image:: https://img.shields.io/github/stars/postgrest/postgrest.svg?style=social

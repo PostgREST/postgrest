@@ -1,3 +1,15 @@
+.wy-nav-content {
+  max-width: initial;
+}
+
+#postgrest-documentation {
+  max-width: 800px;
+}
+
+#postgrest-documentation > h1 {
+  display: none;
+}
+
 div.wy-menu.rst-pro {
   display: none !important;
 }
@@ -10,11 +22,11 @@ div.line-block {
   margin-bottom: 0px !important;
 }
 
-#sponsors{
+#sponsors {
   text-align: center;
 }
 
-#sponsors h1{
+#sponsors h2 {
   text-align: left;
 }
 
