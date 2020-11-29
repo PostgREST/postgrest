@@ -18,7 +18,7 @@ If you use **FreeBSD**, then you can install PostgREST from the `official ports 
 
   pkg install hs-postgrest
 
-If you use **Arch Linux**, then you can install PostgREST from the `official repo <https://www.archlinux.org/packages/community/x86_64/postgrest>`_.
+If you use **Arch Linux**, then you can install PostgREST from the `community repo <https://www.archlinux.org/packages/community/x86_64/postgrest>`_.
 
 .. code:: bash
 
@@ -40,7 +40,7 @@ If you use Windows, you can install PostgREST using `Chocolatey <https://chocola
 When a pre-built binary does not exist for your system you can :ref:`build the project from source <build_source>`.
 
 Running
-~~~~~~~
+-------
 
 If you downloaded PostgREST from the release page, first extract the compressed file to obtain the executable.
 

@@ -208,20 +208,22 @@ To use Auth0, create `an application <https://auth0.com/docs/applications>`_ for
 
 .. note::
 
-Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write `a rule <https://auth0.com/docs/rules>`_ that will extract the role from the user's app_metadata and set it as a `custom claim <https://auth0.com/docs/scopes/sample-use-cases-scopes-and-claims#add-custom-claims-to-a-token>`_ in the access token. Note that, you may use Auth0's `core authorization feature <https://auth0.com/docs/authorization/rbac>`_ for more complex use cases. Metadata solution is mentioned here for simplicity. 
+  Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write `a rule <https://auth0.com/docs/rules>`_ that will extract the role from the user's app_metadata and set it as a `custom claim <https://auth0.com/docs/scopes/sample-use-cases-scopes-and-claims#add-custom-claims-to-a-token>`_ in the access token. Note that, you may use Auth0's `core authorization feature <https://auth0.com/docs/authorization/rbac>`_ for more complex use cases. Metadata solution is mentioned here for simplicity.
 
-.. code:: javascript
+  .. code:: javascript
 
-  function (user, context, callback) {
+    function (user, context, callback) {
 
-    // Follow the documentations at http://postgrest.org/en/v7.0.0/configuration.html#role-claim-key
-    // to set a custom role claim on PostgREST and use it as custom claim attribute in this rule
-    const myRoleClaim = 'https://myapp.com/role'; 
-    
-    user.app_metadata = user.app_metadata || {};
-    context.accessToken[myRoleClaim] = user.app_metadata.role;
-    callback(null, user, context);
-  }
+      // Follow the documentations at
+      // http://postgrest.org/en/latest/configuration.html#role-claim-key
+      // to set a custom role claim on PostgREST
+      // and use it as custom claim attribute in this rule
+      const myRoleClaim = 'https://myapp.com/role';
+
+      user.app_metadata = user.app_metadata || {};
+      context.accessToken[myRoleClaim] = user.app_metadata.role;
+      callback(null, user, context);
+    }
 
 .. _asym_keys:
 
