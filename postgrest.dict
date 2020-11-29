@@ -9,7 +9,6 @@ balancer
 Bool
 cd
 centric
-Codd
 conf
 config
 cryptographically
@@ -70,7 +69,6 @@ OpenAPI
 openapi
 ORM
 ov
-PaaS
 param
 params
 passphrase
@@ -108,7 +106,6 @@ SQL
 sql
 sr
 SSL
-startup
 stateful
 stdout
 SuperAgent
@@ -130,5 +127,4 @@ Vondra
 WAI
 Websockets
 webuser
-wildcard
 ZeroMQ

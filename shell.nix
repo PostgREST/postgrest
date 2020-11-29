@@ -12,5 +12,6 @@ pkgs.mkShell {
     docs.build
     docs.serve
     docs.spellcheck
+    docs.dictcheck
   ];
 }

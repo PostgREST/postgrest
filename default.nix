@@ -57,4 +57,19 @@ in
          | tee misspellings
         test ! -s misspellings
       '';
+
+  # dictcheck detects obsolete entries in postgrest.dict, that are not used anymore
+  dictcheck =
+    pkgs.writeShellScriptBin "postgrest-docs-dictcheck"
+      ''
+        set -euo pipefail
+
+        FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
+
+        cat postgrest.dict \
+         | tail -n+2 \
+         | tr '\n' '\0' \
+         | xargs -0 -n 1 -i \
+           sh -c "grep \"{}\" $FILES > /dev/null || echo \"{}\""
+      '';
 }
