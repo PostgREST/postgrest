@@ -80,26 +80,26 @@ postgrest-test-spec-postgresql-10
 
 ```
 
-Some additional modules like `ioTests`, `memoryTests`, `docker` and `release`
+Some additional modules like `memoryTests`, `docker` and `release`
 have large dependencies that would need to be built before the shell becomes
 available, which could take an especially long time if the cachix binary cache
 is not used. You can activate those by passing a flag to `nix-shell`, which
 will make the respective utilites available:
 
 ```
-$ nix-shell --arg ioTests true
+$ nix-shell --arg memoryTests true
 [nix-shell]$ postgrest-<tab>
 postgrest-lint                      postgrest-test-spec-postgresql-10
 postgrest-style                     postgrest-test-spec-postgresql-11
 postgrest-style-check               postgrest-test-spec-postgresql-12
-postgrest-test-io                   postgrest-test-spec-postgresql-13
+postgrest-test-memory               postgrest-test-spec-postgresql-13
 postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
 postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 ...
 
 ```
 
-Note that `postgrest-test-io` is now also available.
+Note that `postgrest-test-memory` is now also available.
 
 To run one-off commands, you can also use `nix-shell --run <command>`, which
 will lauch the Nix shell, run that one command and exit. Note that the tab
@@ -138,14 +138,14 @@ temporary test databases:
 
 ```bash
 # Run the tests against the most recent version of PostgreSQL:
-$ nix-shell --arg tests true --run postgrest-test-spec
+$ nix-shell --run postgrest-test-spec
 
 # Run the tests against all supported versions of PostgreSQL:
-$ nix-shell --arg tests true --run postgrest-test-spec-all
+$ nix-shell --run postgrest-test-spec-all
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-$ nix-shell --arg tests true --run postgrest-test-spec-postgresql-9.5
+$ nix-shell --run postgrest-test-spec-postgresql-9.5
 
 ```
 

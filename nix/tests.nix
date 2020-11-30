@@ -8,7 +8,6 @@
 , git
 , haskell
 , lib
-, ncat
 , postgresql
 , postgresqlVersions
 , postgrest
@@ -78,12 +77,14 @@ let
     checkedShellScript
       name
       ''
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:${curl}/bin:$PATH"
+
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
-        export PATH="${postgrestStatic}/bin:${curl}/bin:${ncat}/bin:$PATH"
-
-        ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
+        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
       '';
 
   testMemory =
@@ -110,16 +111,13 @@ buildEnv
       [
         (testSpec "postgrest-test-spec" postgresql).bin
         testSpecAllVersions.bin
+        (testIO "postgrest-test-io" postgresql).bin
       ] ++ testSpecVersions;
   }
-  # The IO an memory tests have large dependencies (a static and a profiled
-  # build of PostgREST respectively) and are run less often than the spec
-  # tests, so we don't include them in the default test environment. We make
-  # them available through separate attributes:
+  # The memory tests have large dependencies (a profiled build of PostgREST)
+  # and are run less often than the spec tests, so we don't include them in 
+  # the default test environment. We make them available through a separate attribute:
   // {
-  ioTests =
-    (testIO "postgrest-test-io" postgresql).bin;
-
   memoryTests =
     (testMemory "postgrest-test-memory" postgresql).bin;
 }

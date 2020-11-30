@@ -194,7 +194,7 @@ jobs:
             fi
       - run:
           name: Install testing scripts
-          command: nix-env -f default.nix -iA tests tests.ioTests tests.memoryTests
+          command: nix-env -f default.nix -iA tests tests.memoryTests
       - run:
           name: Skip tests on build failure
           command: circleci-agent step halt
