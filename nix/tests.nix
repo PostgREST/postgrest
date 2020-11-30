@@ -8,7 +8,6 @@
 , git
 , haskell
 , lib
-, ncat
 , postgresql
 , postgresqlVersions
 , postgrest
@@ -78,12 +77,14 @@ let
     checkedShellScript
       name
       ''
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:${curl}/bin:$PATH"
+
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
-        export PATH="${curl}/bin:$PATH"
-
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} "$rootdir"/test/io-tests.sh
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
+        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
       '';
 
   testMemory =
