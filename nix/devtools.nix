@@ -13,7 +13,7 @@ let
       ''
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
 
-        ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr "$@"
+        ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr -r "$@"
       '';
 
   pushCachix =
