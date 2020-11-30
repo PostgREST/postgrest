@@ -81,9 +81,9 @@ let
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
-        export PATH="${postgrestStatic}/bin:${curl}/bin:${ncat}/bin:$PATH"
+        export PATH="${curl}/bin:$PATH"
 
-        ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
+        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} "$rootdir"/test/io-tests.sh
       '';
 
   testMemory =
@@ -110,16 +110,13 @@ buildEnv
       [
         (testSpec "postgrest-test-spec" postgresql).bin
         testSpecAllVersions.bin
+        (testIO "postgrest-test-io" postgresql).bin
       ] ++ testSpecVersions;
   }
-  # The IO an memory tests have large dependencies (a static and a profiled
-  # build of PostgREST respectively) and are run less often than the spec
-  # tests, so we don't include them in the default test environment. We make
-  # them available through separate attributes:
+  # The memory tests have large dependencies (a profiled build of PostgREST)
+  # and are run less often than the spec tests, so we don't include them in 
+  # the default test environment. We make them available through a separate attribute:
   // {
-  ioTests =
-    (testIO "postgrest-test-io" postgresql).bin;
-
   memoryTests =
     (testMemory "postgrest-test-memory" postgresql).bin;
 }

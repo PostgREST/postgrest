@@ -2,8 +2,7 @@
 # Run unit tests for Input/Ouput of PostgREST seen as a black box
 # with test output in Test Anything Protocol format.
 #
-# These tests expect that `postgrest` is on the PATH, as well as `curl` and
-# `ncat` (from the nmap package in some distribution).
+# These tests expect that `postgrest` is on the PATH, as well as `curl`
 #
 # References:
 #   [1] Test Anything Protocol
