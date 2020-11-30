@@ -5,7 +5,7 @@
 Upcoming
 ========
 
-These are changes yet unreleased. If you'd like to try them out before a new official release, you can :ref:`build_source`.
+These are changes yet unreleased. If you'd like to try them out before a new official release, you can use a `nightly release <https://github.com/PostgREST/postgrest/releases/tag/nightly>`_.
 
 Added
 -----

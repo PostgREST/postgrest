@@ -30,17 +30,15 @@ If you use **Nix**, then you can install PostgREST from nixpkgs.
 
   nix-env -i haskellPackages.postgrest
 
-If you use Windows, you can install PostgREST using `Chocolatey <https://chocolatey.org>`_ or `Scoop <https://scoop.sh>`_.
+If you use Windows, you can install PostgREST using `Chocolatey <https://chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
 
 .. code:: bash
 
   choco install postgrest
   scoop install postgrest
 
-When a pre-built binary does not exist for your system you can :ref:`build the project from source <build_source>`.
-
-Running
--------
+Running PostgREST
+=================
 
 If you downloaded PostgREST from the release page, first extract the compressed file to obtain the executable.
 
@@ -88,14 +86,9 @@ For a complete reference of the configuration file, see :ref:`configuration`.
 .. _pg-dependency:
 
 PostgreSQL dependency
-=====================
+---------------------
 
-To use PostgREST you will need an underlying database. We require PostgreSQL 9.4 or greater, but recommend at least 9.5 for row-level security features.
-You can use something like Amazon `RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development.
-
-* `Instructions for OS X <http://exponential.io/blog/2015/02/21/install-postgresql-on-mac-os-x-via-brew/>`_
-* `Instructions for Ubuntu 14.04 <https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04>`_
-* `Installer for Windows <http://www.enterprisedb.com/products-services-training/pgdownload#windows>`_
+To use PostgREST you will need an underlying database. We require PostgreSQL 9.5 or greater. You can use something like `Amazon RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development. You can also run PostgreSQL in a :ref:`docker container<pg-in-docker>`.
 
 Docker
 ======
@@ -157,6 +150,8 @@ The database connection string above is just an example. Adjust the role and pas
 
     host    all             all             10.0.0.10/32            trust
 
+.. _pg-in-docker:
+
 Containerized PostgREST *and* db with docker-compose
 ----------------------------------------------------
 
@@ -207,6 +202,48 @@ If you want to have a visual overview of your API in your browser you can add sw
       API_URL: http://localhost:3000/
 
 With this you can see the swagger-ui in your browser on port 8080.
+
+.. _build_source:
+
+Building from Source
+====================
+
+When a pre-built binary does not exist for your system you can build the project from source.
+
+.. note::
+
+  We discourage building and using PostgREST on **Alpine Linux** because of a reported GHC memory leak on that platform.
+
+You can build PostgREST from source with `Stack <https://github.com/commercialhaskell/stack>`_. It will install any necessary Haskell dependencies on your system.
+
+* `Install Stack <https://docs.haskellstack.org/en/stable/README/#how-to-install>`_ for your platform
+* Install Library Dependencies
+
+  =====================  =======================================
+  Operating System       Dependencies
+  =====================  =======================================
+  Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev
+  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
+  BSD                    postgresql95-client
+  OS X                   libpq, gmp
+  =====================  =======================================
+
+* Build and install binary
+
+  .. code-block:: bash
+
+    git clone https://github.com/PostgREST/postgrest.git
+    cd postgrest
+
+    # adjust local-bin-path to taste
+    stack build --install-ghc --copy-bins --local-bin-path /usr/local/bin
+
+.. note::
+
+   - If building fails and your system has less than 1GB of memory, try adding a swap file.
+   - `--install-ghc` flag is only needed for the first build and can be omitted in the subsequent builds.
+
+* Check that the server is installed: :code:`postgrest --help`.
 
 Deploying to Heroku
 ===================

@@ -188,15 +188,6 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 * :ref:`eco_extensions`
 * :ref:`clientside_libraries`
 
-For helping with development, see the following page.
-
-* :doc:`Development <development>`
-
-.. toctree::
-   :caption: Development
-   :hidden:
-
-   development.rst
 
 Release Notes
 -------------
@@ -277,3 +268,8 @@ Translations
 ------------
 
 * `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
+
+Contributing
+------------
+
+Please see the `Contributing guidelines <https://github.com/PostgREST/postgrest/blob/main/.github/CONTRIBUTING.md>`_ in the main PostgREST repository.
