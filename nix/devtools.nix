@@ -1,6 +1,7 @@
 { buildEnv
 , cabal-install
 , checkedShellScript
+, devCabalOptions
 , entr
 , git
 , silver-searcher
@@ -25,11 +26,11 @@ let
 
   build =
     checkedShellScript "postgrest-build"
-      ''exec ${cabal-install}/bin/cabal v2-build -f FailOnWarn "$@"'';
+      ''exec ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "$@"'';
 
   run =
     checkedShellScript "postgrest-run"
-      ''exec ${cabal-install}/bin/cabal v2-run postgrest -f FailOnWarn -- "$@"'';
+      ''exec ${cabal-install}/bin/cabal v2-run postgrest ${devCabalOptions} -- "$@"'';
 
   clean =
     checkedShellScript "postgrest-clean"

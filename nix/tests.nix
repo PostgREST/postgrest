@@ -4,6 +4,7 @@
 , cabal-install
 , checkedShellScript
 , curl
+, devCabalOptions
 , git
 , haskell
 , lib
@@ -44,8 +45,7 @@ let
 
         trap 'echo "Failed on ${postgresql.name}"' exit
 
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test -f FailOnWarn \
-          --test-show-detail=direct
+        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
 
         trap "" exit
 

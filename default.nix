@@ -64,6 +64,10 @@ let
   staticHaskellPackage =
     import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
 
+  # Options passed to cabal in dev tools and tests
+  devCabalOptions =
+    "-f FailOnWarn --test-show-detail=direct";
+
   profiledHaskellPackages =
     pkgs.haskell.packages."${compiler}".extend (self: super:
       {
@@ -110,7 +114,7 @@ rec {
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions; };
+    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions devCabalOptions; };
 
   # Linting and styling scripts.
   style =
@@ -118,7 +122,7 @@ rec {
 
   # Development tools, including linting and styling scripts.
   devtools =
-    pkgs.callPackage nix/devtools.nix { inherit tests style; };
+    pkgs.callPackage nix/devtools.nix { inherit tests style devCabalOptions; };
 
   # Scripts for publishing new releases.
   release =
