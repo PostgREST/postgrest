@@ -59,7 +59,7 @@ Within `nix-shell`, you can run Cabal commands as usual. You can also run
 stack with the `--nix` option, which causes stack to pick up the non-Haskell
 dependencies from the same pinned Nixpkgs version that the Nix builds use.
 
-## Aside: Working with `nix-shell` and the PostgREST utility scripts
+## Working with `nix-shell` and the PostgREST utility scripts
 
 The PostgREST utilities available in `nix-shell` all have names that begin with
 `postgrest-`, so you can use tab completion (typing `postgrest-` and pressing
@@ -74,6 +74,7 @@ postgrest-style-check               postgrest-test-spec-postgresql-13
 postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
 postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
 postgrest-test-spec-postgresql-10
+...
 
 [nix-shell]$
 
@@ -94,6 +95,7 @@ postgrest-style-check               postgrest-test-spec-postgresql-12
 postgrest-test-io                   postgrest-test-spec-postgresql-13
 postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
 postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
+...
 
 ```
 
@@ -160,6 +162,20 @@ $ nix-shell --run postgrest-lint
 $ nix-shell --run postgrest-style
 
 ```
+
+There is also `postgrest-style-check` that exits with a non-zero exit code if
+the check resulted in any uncommited changes. It's mostly useful for CI.
+
+## General development tools
+
+Tools like `postgrest-build`, `postgrest-run` etc. are simple wrappers around
+`cabal` and should do what you expect. `postgrest-check` runs most checks that will
+also run in CI, with the exception of the IO and Memory checks that need to be run
+separately.
+
+`postgrest-watch` takes a command as an argument that it will re-run if any source
+file is changed. For example, `postgrest-watch postgrest-test-spec-all` will re-run
+the full spec test suite against all PostgreSQL versions on every change.
 
 ## Tour
 

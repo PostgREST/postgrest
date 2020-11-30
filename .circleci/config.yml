@@ -10,7 +10,7 @@ jobs:
       - checkout
       - run:
           name: Install linting and styling scripts
-          command: nix-env -f default.nix -iA devtools
+          command: nix-env -f default.nix -iA style
       - run:
           name: Run linter
           command: |

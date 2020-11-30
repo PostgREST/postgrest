@@ -1,6 +1,6 @@
-{ curl
+{ checkedShellScript
+, curl
 , jq
-, writeShellScriptBin
 , nix
 }:
 # Utility script for pinning the latest unstable version of Nixpkgs.
@@ -20,23 +20,24 @@ let
 
   tarballUrlBase =
     https://github.com/nixos/nixpkgs/archive/;
+
+  script =
+    checkedShellScript
+      name
+      ''
+        commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r .object.sha)"
+        tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
+        tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
+        currentDate="$(date --iso)"
+
+        cat << EOF
+        # Pinned version of Nixpkgs, generated with ${name}.
+        {
+          date = "$currentDate";
+          rev = "$commitHash";
+          tarballHash = "$tarballHash";
+        }
+        EOF
+      '';
 in
-writeShellScriptBin
-  name
-  ''
-    set -euo pipefail
-
-    commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r .object.sha)"
-    tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
-    tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
-    currentDate="$(date --iso)"
-
-    cat << EOF
-    # Pinned version of Nixpkgs, generated with ${name}.
-    {
-      date = "$currentDate";
-      rev = "$commitHash";
-      tarballHash = "$tarballHash";
-    }
-    EOF
-  ''
+script.bin

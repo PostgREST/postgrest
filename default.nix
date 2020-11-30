@@ -31,9 +31,10 @@ let
 
   overlays =
     [
-      allOverlays.postgresql-default
-      allOverlays.gitignore
+      allOverlays.checked-shell-script
       allOverlays.ghr
+      allOverlays.gitignore
+      allOverlays.postgresql-default
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -42,14 +43,14 @@ let
     import nixpkgs { inherit overlays; };
 
   postgresqlVersions =
-    {
-      postgresql-13 = pkgs.postgresql_13;
-      postgresql-12 = pkgs.postgresql_12;
-      postgresql-11 = pkgs.postgresql_11;
-      postgresql-10 = pkgs.postgresql_10;
-      "postgresql-9.6" = pkgs.postgresql_9_6;
-      "postgresql-9.5" = pkgs.postgresql_9_5;
-    };
+    [
+      { name = "postgresql-13"; postgresql = pkgs.postgresql_13; }
+      { name = "postgresql-12"; postgresql = pkgs.postgresql_12; }
+      { name = "postgresql-11"; postgresql = pkgs.postgresql_11; }
+      { name = "postgresql-10"; postgresql = pkgs.postgresql_10; }
+      { name = "postgresql-9.6"; postgresql = pkgs.postgresql_9_6; }
+      { name = "postgresql-9.5"; postgresql = pkgs.postgresql_9_5; }
+    ];
 
   patches =
     pkgs.callPackage nix/patches { };
@@ -62,6 +63,10 @@ let
   # nh2/static-haskell-nix
   staticHaskellPackage =
     import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
+
+  # Options passed to cabal in dev tools and tests
+  devCabalOptions =
+    "-f FailOnWarn --test-show-detail=direct";
 
   profiledHaskellPackages =
     pkgs.haskell.packages."${compiler}".extend (self: super:
@@ -109,11 +114,15 @@ rec {
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions; };
+    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions devCabalOptions; };
+
+  # Linting and styling scripts.
+  style =
+    pkgs.callPackage nix/style.nix { };
 
   # Development tools, including linting and styling scripts.
   devtools =
-    pkgs.callPackage nix/devtools.nix { };
+    pkgs.callPackage nix/devtools.nix { inherit tests style devCabalOptions; };
 
   # Scripts for publishing new releases.
   release =
