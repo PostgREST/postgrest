@@ -35,5 +35,10 @@ lib.overrideDerivation postgrest.env (
       ++ lib.optional memoryTests postgrest.tests.memoryTests
       ++ lib.optional docker postgrest.docker
       ++ lib.optional release postgrest.release;
+
+    shellHook =
+      ''
+        complete -c postgrest-watch
+      '';
   }
 )
