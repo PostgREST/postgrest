@@ -78,7 +78,14 @@ until pg_isready >> "$setuplog"; do
   sleep 0.1
 done
 
+stopped=0
 stop() {
+  # cleaning up once is enough; otherwise we get some errors
+  if [ $stopped -eq 1 ]; then
+    return
+  fi
+  stopped=1
+
   log "Stopping the database cluster..."
   pg_ctl stop -m i >> "$setuplog"
 
