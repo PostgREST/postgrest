@@ -21,7 +21,17 @@ export POSTGREST_TEST_CONNECTION=${POSTGREST_TEST_CONNECTION:-"postgres:///postg
 cd "$(dirname "$0")"
 cd io-tests
 
-trap "kill 0" int term exit
+cleanup() {
+  # clean up trap to avoid bash segmentation fault
+  trap - sigint sigterm exit
+
+  # kill without output
+  ps=$(pgrep -g0 | sed -e "1,/$$/d")
+  kill $ps 2> /dev/null
+  wait $ps 2> /dev/null
+}
+
+trap cleanup sigint sigterm exit
 
 # Port for Test PostgREST Server (must match config)
 pgrPort=49421 # in range 49152–65535: for private or temporary use
@@ -38,7 +48,12 @@ ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 comment(){ echo "# $1"; }
 
 # Utilities to start/stop test PostgREST server running in the background
-pgrStart(){ postgrest $1 >/dev/null 2>/dev/null & pgrPID="$!"; }
+pgrStart(){
+  # stderr is not piped to /dev/null to catch errors on startup.
+  # to keep $! reference the correct pid, stderr is piped to a subshell and
+  # then filtered for FatalError. Those are part of the tests and expected.
+  postgrest $1 >/dev/null 2> >(grep -v 'FatalError' 1>&2) & pgrPID="$!";
+}
 pgrStartRead(){ postgrest $1 <$2 >/dev/null & pgrPID="$!"; }
 pgrStartStdin(){ postgrest $1 >/dev/null <<< "$2" & pgrPID="$!"; }
 pgrStarted(){ kill -0 "$pgrPID" 2>/dev/null; }
@@ -342,6 +357,6 @@ checkJwtSecretReload
 checkDbSchemaReload
 # TODO: SIGUSR2 tests for other config options
 
-trap - int term exit
+trap - sigint sigterm exit
 
 exit $failedTests
