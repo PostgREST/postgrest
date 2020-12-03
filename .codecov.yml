@@ -1,0 +1,17 @@
+codecov:
+  branch: master
+
+comment: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0%
+        only_pulls: false
+    patch:
+      default:
+        target: auto
+        threshold: 0%
+        only_pulls: true

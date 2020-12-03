@@ -1,7 +1,6 @@
 module Feature.QueryLimitedSpec where
 
-import Network.Wai      (Application)
-import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
+import Network.Wai (Application)
 
 import Network.HTTP.Types
 import Test.Hspec

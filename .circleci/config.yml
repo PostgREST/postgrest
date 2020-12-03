@@ -234,6 +234,13 @@ jobs:
           name: Run memory tests
           command: postgrest-test-memory
           when: always
+      - run:
+          name: Run coverage
+          command: postgrest-coverage
+      - run:
+          name: Upload coverage to codecov
+          command: bash <(curl -s https://codecov.io/bash) -f coverage/codecov.json
+
 
 workflows:
   version: 2

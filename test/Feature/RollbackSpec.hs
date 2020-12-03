@@ -7,8 +7,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude  hiding (get)
-import SpecHelper
+import Protolude hiding (get)
 
 -- two helpers functions to make sure that each test can setup and cleanup properly
 

@@ -5,7 +5,6 @@ import qualified Data.Aeson.Lens                   as L
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
-import qualified Hasql.Encoders                    as HE
 import qualified Hasql.Pool                        as P
 import qualified Hasql.Statement                   as H
 import qualified Hasql.Transaction                 as HT

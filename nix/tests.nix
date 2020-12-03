@@ -5,15 +5,15 @@
 , checkedShellScript
 , curl
 , devCabalOptions
-, diffutils
+, ghc
+, gnugrep
 , haskell
+, hpc-codecov
 , lib
 , postgresql
 , postgresqlVersions
 , postgrest
 , postgrestProfiled
-, postgrestStatic
-, procps
 , python3
 , runtimeShell
 , yq
@@ -164,6 +164,90 @@ let
             postgrest --dump-schema \
             | ${yq}/bin/yq -y .
       '';
+
+  coverage =
+    name: postgresql:
+    checkedShellScript
+      {
+        inherit name;
+        docs = "Run spec and io tests while collecting hpc coverage data.";
+        inRootDir = true;
+      }
+      ''
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:$PATH"
+
+        # clean up previous coverage reports
+        mkdir -p coverage
+        rm -rf coverage/*
+
+        # temporary directory to collect data in
+        tmpdir="$(mktemp -d)"
+
+        # we keep the tmpdir when an error occurs for debugging and only remove it on success
+        trap 'echo Temporary directory kept at: $tmpdir' ERR SIGINT SIGTERM
+
+        # build once before running all the tests
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} --enable-tests all
+
+        # collect all tests
+        HPCTIXFILE="$tmpdir"/io.tix \
+        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
+          ${ioTestPython}/bin/pytest -- -v test/io-tests
+          
+        HPCTIXFILE="$tmpdir"/spec.tix \
+        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
+
+        # collect all the tix files
+        ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io.tix "$tmpdir"/spec.tix
+
+        # prepare the overlay
+        ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
+        ${ghc}/bin/hpc sum --union --output="$tmpdir"/tests-overlay.tix "$tmpdir"/tests.tix "$tmpdir"/overlay.tix
+
+        # check nothing in the overlay is actually tested
+        ${ghc}/bin/hpc map --function=inv --output="$tmpdir"/inverted.tix "$tmpdir"/tests.tix
+        ${ghc}/bin/hpc combine --function=sub \
+          --output="$tmpdir"/check.tix "$tmpdir"/overlay.tix "$tmpdir"/inverted.tix
+        # returns zero exit code if any count="<non-zero>" lines are found, i.e.
+        # something is covered by both the overlay and the tests
+        if ${ghc}/bin/hpc report --xml "$tmpdir"/check.tix | ${gnugrep}/bin/grep -qP 'count="[^0]'
+        then
+          ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/overlay "$tmpdir"/overlay.tix || true
+          ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/check "$tmpdir"/check.tix || true
+          echo "ERROR: Something is covered by both the tests and the overlay:"
+          echo "file://$(pwd)/coverage/check/hpc_index.html"
+          exit 1
+        else
+          # copy the result .tix file to the coverage/ dir to make it available to postgrest-coverage-draft-overlay, too
+          cp "$tmpdir"/tests-overlay.tix coverage/postgrest.tix
+          # prepare codecov json report
+          ${hpc-codecov}/bin/hpc-codecov --mix=.hpc --out=coverage/codecov.json coverage/postgrest.tix
+
+          # create html and stdout reports
+          # TODO: The markup command fails when run outside nix-shell (i.e. in CI!)
+          # Need to fix it properly in the future instead of adding the || true
+          ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix || true
+          echo "file://$(pwd)/coverage/hpc_index.html"
+          ${ghc}/bin/hpc report coverage/postgrest.tix "$@"
+        fi
+
+        rm -rf "$tmpdir"
+      '';
+
+  coverageDraftOverlay =
+    name:
+    checkedShellScript
+      {
+        inherit name;
+        docs = "Create a draft overlay from current coverage report.";
+        inRootDir = true;
+      }
+      ''
+        ${ghc}/bin/hpc draft --output=test/coverage.overlay coverage/postgrest.tix
+        sed -i 's|^module \(.*\):|module \1/|g' test/coverage.overlay
+      '';
+
 in
 # Create an environment that contains all the utility scripts for running tests
   # that we defined above.
@@ -179,6 +263,8 @@ buildEnv
         testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
         (dumpSchema "postgrest-dump-schema" postgresql).bin
+        (coverage "postgrest-coverage" postgresql).bin
+        (coverageDraftOverlay "postgrest-coverage-draft-overlay").bin
       ] ++ testSpecVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)

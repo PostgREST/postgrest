@@ -1,9 +1,5 @@
 resolver: lts-16.26 # 2020-12-13, GHC 8.8.4
 
-flags:
-  postgrest:
-    FailOnWarn: true
-
 nix:
   packages:
     - pcre
