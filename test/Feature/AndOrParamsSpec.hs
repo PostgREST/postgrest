@@ -33,13 +33,24 @@ spec actualPgVersion =
               {"id": 1, "child_entities": [ { "id": 1 }, { "id": 2 } ] }, { "id": 2, "child_entities": []},
               {"id": 3, "child_entities": []}, {"id": 4, "child_entities": []}
             ]|] { matchHeaders = [matchContentTypeJson] }
+
         it "can do logic on the third level" $
-          get "/entities?child_entities.grandchild_entities.or=(id.eq.1,id.eq.2)&select=id,child_entities(id,grandchild_entities(id))" `shouldRespondWith`
-            [json|[
-              {"id": 1, "child_entities": [ { "id": 1, "grandchild_entities": [ { "id": 1 }, { "id": 2 } ]}, { "id": 2, "grandchild_entities": []}]},
-              {"id": 2, "child_entities": [ { "id": 3, "grandchild_entities": []} ]},
-              {"id": 3, "child_entities": []}, {"id": 4, "child_entities": []}
-            ]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?child_entities.grandchild_entities.or=(id.eq.1,id.eq.2)&select=id,child_entities(id,grandchild_entities(id))"
+            `shouldRespondWith`
+              [json|[
+                {"id": 1, "child_entities": [
+                  { "id": 1, "grandchild_entities": [ { "id": 1 }, { "id": 2 } ]},
+                  { "id": 2, "grandchild_entities": []},
+                  { "id": 4, "grandchild_entities": []},
+                  { "id": 5, "grandchild_entities": []}
+                ]},
+                {"id": 2, "child_entities": [
+                  { "id": 3, "grandchild_entities": []},
+                  { "id": 6, "grandchild_entities": []}
+                ]},
+                {"id": 3, "child_entities": []},
+                {"id": 4, "child_entities": []}
+              ]|]
 
       context "and/or params combined" $ do
         it "can be nested inside the same expression" $
@@ -210,12 +221,15 @@ spec actualPgVersion =
     context "used with POST" $
       it "includes related data with filters" $
         request methodPost "/child_entities?select=id,entities(id)&entities.or=(id.eq.2,id.eq.3)&entities.order=id"
-          [("Prefer", "return=representation")]
-          [json|[{"id":4,"name":"entity 4","parent_id":1},
-                 {"id":5,"name":"entity 5","parent_id":2},
-                 {"id":6,"name":"entity 6","parent_id":3}]|] `shouldRespondWith`
-          [json|[{"id": 4, "entities":null}, {"id": 5, "entities": {"id": 2}}, {"id": 6, "entities": {"id": 3}}]|]
-          { matchStatus = 201, matchHeaders = [matchContentTypeJson] }
+            [("Prefer", "return=representation")]
+            [json|[
+              {"id":7,"name":"entity 4","parent_id":1},
+              {"id":8,"name":"entity 5","parent_id":2},
+              {"id":9,"name":"entity 6","parent_id":3}
+            ]|]
+          `shouldRespondWith`
+            [json|[{"id": 7, "entities":null}, {"id": 8, "entities": {"id": 2}}, {"id": 9, "entities": {"id": 3}}]|]
+            { matchStatus = 201 }
 
     context "used with PATCH" $
       it "succeeds when using and/or params" $
@@ -228,9 +242,10 @@ spec actualPgVersion =
     context "used with DELETE" $
       it "succeeds when using and/or params" $
         request methodDelete "/grandchild_entities?or=(id.eq.1,id.eq.2)&select=id,name"
-          [("Prefer", "return=representation")] "" `shouldRespondWith`
-          [json|[{ "id": 1, "name" : "updated grandchild entity"},{ "id": 2, "name" : "updated grandchild entity"}]|]
-          { matchHeaders = [matchContentTypeJson] }
+            [("Prefer", "return=representation")]
+            ""
+          `shouldRespondWith`
+            [json|[{ "id": 1, "name" : "grandchild entity 1" },{ "id": 2, "name" : "grandchild entity 2" }]|]
 
     it "can query columns that begin with and/or reserved words" $
       get "/grandchild_entities?or=(and_starting_col.eq.smth, or_starting_col.eq.smth)" `shouldRespondWith` 200

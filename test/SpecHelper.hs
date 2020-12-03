@@ -90,7 +90,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configRawMediaTypes     = []
   , configJWKS              = parseSecret <$> secret
   , configLogLevel          = LogCrit
-  , configTxRollbackAll     = False
+  , configTxRollbackAll     = True
   , configTxAllowOverride   = True
   , configDbPrepared        = True
   }

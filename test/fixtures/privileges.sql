@@ -144,8 +144,6 @@ GRANT USAGE ON SEQUENCE
     , items_id_seq
     , callcounter_count
     , leak_id_seq
-    , v1.children_id_seq
-    , v2.children_id_seq
 TO postgrest_test_anonymous;
 
 -- Privileges for non anonymous users

@@ -57,14 +57,6 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-      it "actually clears items ouf the db" $ do
-        _ <- request methodDelete "/items?id=lt.15" [] ""
-        get "/items"
-          `shouldRespondWith` [json|[{"id":15}]|]
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-0/*"]
-          }
-
     context "known route, no records matched" $
       it "includes [] body if return=rep" $
         request methodDelete "/items?id=eq.101"

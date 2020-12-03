@@ -96,39 +96,32 @@ main = do
       nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
 
-  let reset, analyze :: IO ()
-      reset = resetDb testDbConn
+  let analyze :: IO ()
       analyze = do
         analyzeTable testDbConn "items"
         analyzeTable testDbConn "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
-        , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
+          ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
+        , ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
         , ("Feature.ConcurrentSpec"          , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
+        , ("Feature.DeleteSpec"              , Feature.DeleteSpec.spec)
+        , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec)
         , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
-        , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
         , ("Feature.RollbackAllowedSpec"     , Feature.RollbackSpec.allowed)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
-        , ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
+        , ("Feature.SingularSpec"            , Feature.SingularSpec.spec)
+        , ("Feature.UpdateSpec"              , Feature.UpdateSpec.spec)
         , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
         ]
 
-      mutSpecs = uncurry describe <$> [
-          ("Feature.DeleteSpec"             , Feature.DeleteSpec.spec)
-        , ("Feature.InsertSpec"             , Feature.InsertSpec.spec actualPgVersion)
-        , ("Feature.SingularSpec"           , Feature.SingularSpec.spec)
-        , ("Feature.UpdateSpec"             , Feature.UpdateSpec.spec)
-        ]
-
   hspec $ do
-    -- Only certain Specs need a database reset, this should be used with care as it slows down the whole test suite.
-    mapM_ (afterAll_ reset . before withApp) mutSpecs
-
     mapM_ (before withApp) specs
 
     -- we analyze to get accurate results from EXPLAIN

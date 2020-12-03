@@ -100,30 +100,38 @@ spec =
             }
 
         it "INSERTs and ignores rows on single unique key conflict" $
-          request methodPost "/single_unique?on_conflict=unique_key" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-            [json| [
-              { "unique_key": 1, "value": "B" },
-              { "unique_key": 2, "value": "C" },
-              { "unique_key": 3, "value": "D" }
-            ]|] `shouldRespondWith` [json| [
-              { "unique_key": 3, "value": "D" }
-            ]|]
-            { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
-            }
+          request methodPost "/single_unique?on_conflict=unique_key"
+              [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+              [json| [
+                { "unique_key": 1, "value": "B" },
+                { "unique_key": 2, "value": "C" },
+                { "unique_key": 3, "value": "D" }
+              ]|]
+            `shouldRespondWith`
+              [json| [
+                { "unique_key": 2, "value": "C" },
+                { "unique_key": 3, "value": "D" }
+              ]|]
+              { matchStatus = 201
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+              }
 
         it "INSERTs and UPDATEs rows on compound unique keys conflict" $
-          request methodPost "/compound_unique?on_conflict=key1,key2" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-            [json| [
-              { "key1": 1, "key2": 1, "value": "B" },
-              { "key1": 1, "key2": 2, "value": "C" },
-              { "key1": 1, "key2": 3, "value": "D" }
-            ]|] `shouldRespondWith` [json| [
-              { "key1": 1, "key2": 3, "value": "D" }
-            ]|]
-            { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
-            }
+          request methodPost "/compound_unique?on_conflict=key1,key2"
+              [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+              [json| [
+                { "key1": 1, "key2": 1, "value": "B" },
+                { "key1": 1, "key2": 2, "value": "C" },
+                { "key1": 1, "key2": 3, "value": "D" }
+              ]|]
+            `shouldRespondWith`
+              [json| [
+                { "key1": 1, "key2": 2, "value": "C" },
+                { "key1": 1, "key2": 3, "value": "D" }
+              ]|]
+              { matchStatus = 201
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+              }
 
       it "succeeds if the table has only PK cols and no other cols" $ do
         request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
@@ -233,58 +241,93 @@ spec =
 
       context "Inserting row" $ do
         it "succeeds on table with single pk col" $ do
-          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` "[]"
-          put "/tiobe_pls?name=eq.Go" [json| [ { "name": "Go", "rank": 19 } ]|] `shouldRespondWith` 204
-          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
+          -- assert that the next request will indeed be an insert
+          get "/tiobe_pls?name=eq.Go"
+            `shouldRespondWith`
+              [json|[]|]
+
+          request methodPut "/tiobe_pls?name=eq.Go"
+              [("Prefer", "return=representation")]
+              [json| [ { "name": "Go", "rank": 19 } ]|]
+            `shouldRespondWith`
+              [json| [ { "name": "Go", "rank": 19 } ]|]
 
         it "succeeds on table with composite pk" $ do
-          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            `shouldRespondWith` "[]"
-          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
-            `shouldRespondWith` 204
+          -- assert that the next request will indeed be an insert
           get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
             `shouldRespondWith`
-            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
-            { matchHeaders = [matchContentTypeJson] }
+              [json|[]|]
+
+          request methodPut "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+              [("Prefer", "return=representation")]
+              [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+            `shouldRespondWith`
+              [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
-          get "/only_pk?id=eq.10" `shouldRespondWith` "[]"
-          put "/only_pk?id=eq.10" [json|[ { "id": 10 } ]|] `shouldRespondWith` 204
-          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
+          -- assert that the next request will indeed be an insert
+          get "/only_pk?id=eq.10"
+            `shouldRespondWith`
+              [json|[]|]
+
+          request methodPut "/only_pk?id=eq.10"
+              [("Prefer", "return=representation")]
+              [json|[ { "id": 10 } ]|]
+            `shouldRespondWith`
+              [json|[ { "id": 10 } ]|]
 
       context "Updating row" $ do
         it "succeeds on table with single pk col" $ do
-          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json|[ { "name": "Go", "rank": 19 } ]|] { matchHeaders = [matchContentTypeJson] }
-          put "/tiobe_pls?name=eq.Go" [json| [ { "name": "Go", "rank": 13 } ]|] `shouldRespondWith` 204
-          get "/tiobe_pls?name=eq.Go" `shouldRespondWith` [json| [ { "name": "Go", "rank": 13 } ]|] { matchHeaders = [matchContentTypeJson] }
-
-        it "succeeds if the payload has more than one row, but it only puts the first element" $
-          request methodPut "/tiobe_pls?name=eq.Go"
-            [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
-            [json| [ { "name": "Go", "rank": 19 }, { "name": "Swift", "rank": 12 } ] |]
+          -- assert that the next request will indeed be an update
+          get "/tiobe_pls?name=eq.Java"
             `shouldRespondWith`
-            [json|{ "name": "Go", "rank": 19 }|]
-            { matchStatus = 200 , matchHeaders = [matchContentTypeSingular] }
+              [json|[ { "name": "Java", "rank": 1 } ]|]
+
+          request methodPut "/tiobe_pls?name=eq.Java"
+              [("Prefer", "return=representation")]
+              [json| [ { "name": "Java", "rank": 13 } ]|]
+            `shouldRespondWith`
+              [json| [ { "name": "Java", "rank": 13 } ]|]
+
+        -- TODO: move this to SingularSpec?
+        it "succeeds if the payload has more than one row, but it only puts the first element" $ do
+          -- assert that the next request will indeed be an update
+          get "/tiobe_pls?name=eq.Java"
+            `shouldRespondWith`
+              [json|[ { "name": "Java", "rank": 1 } ]|]
+
+          request methodPut "/tiobe_pls?name=eq.Java"
+              [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
+              [json| [ { "name": "Java", "rank": 19 }, { "name": "Swift", "rank": 12 } ] |]
+            `shouldRespondWith`
+              [json|{ "name": "Java", "rank": 19 }|]
+              { matchHeaders = [matchContentTypeSingular] }
 
         it "succeeds on table with composite pk" $ do
-          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+          -- assert that the next request will indeed be an update
+          get "/employees?first_name=eq.Frances M.&last_name=eq.Roe"
             `shouldRespondWith`
-            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
-            { matchHeaders = [matchContentTypeJson] }
-          put "/employees?first_name=eq.Susan&last_name=eq.Heidt"
-            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
-            `shouldRespondWith` 204
-          get "/employees?first_name=eq.Susan&last_name=eq.Heidt"
+              [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "$24,000.00", "company": "One-Up Realty", "occupation": "Author" } ]|]
+
+          request methodPut "/employees?first_name=eq.Frances M.&last_name=eq.Roe"
+              [("Prefer", "return=representation")]
+              [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
-            [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$60,000.00", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
-            { matchHeaders = [matchContentTypeJson] }
+              [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "$60,000.00", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
-          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
-          put "/only_pk?id=eq.10" [json|[ { "id": 10 } ]|] `shouldRespondWith` 204
-          get "/only_pk?id=eq.10" `shouldRespondWith` [json|[ { "id": 10 } ]|] { matchHeaders = [matchContentTypeJson] }
+          -- assert that the next request will indeed be an update
+          get "/only_pk?id=eq.1"
+            `shouldRespondWith`
+              [json|[ { "id": 1 } ]|]
 
+          request methodPut "/only_pk?id=eq.1"
+              [("Prefer", "return=representation")]
+              [json|[ { "id": 1 } ]|]
+            `shouldRespondWith`
+              [json|[ { "id": 1 } ]|]
+
+      -- TODO: move this to SingularSpec?
       it "works with return=representation and vnd.pgrst.object+json" $
         request methodPut "/tiobe_pls?name=eq.Ruby"
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
@@ -292,28 +335,38 @@ spec =
           `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|] { matchHeaders = [matchContentTypeSingular] }
 
     context "with a camel case pk column" $ do
-      it "works with POST and merge-duplicates/ignore-duplicates headers" $ do
-        request methodPost "/UnitTest" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
-          [json| [
-            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
-            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
-          ]|] `shouldRespondWith` [json|[
-            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
-            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
-          ]|]
-          { matchStatus = 201
-          , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
-          }
-        request methodPost "/UnitTest" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-          [json| [
-            { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
-            { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
-          ]|] `shouldRespondWith` [json|[]|]
-          { matchStatus = 201
-          , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
-          }
+      it "works with POST and merge-duplicates" $ do
+        request methodPost "/UnitTest"
+            [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json|[
+              { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+              { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+            ]|]
+          `shouldRespondWith`
+            [json|[
+              { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+              { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates"]
+            }
+
+      it "works with POST and ignore-duplicates headers" $ do
+        request methodPost "/UnitTest"
+            [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json|[
+              { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
+              { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+            ]|]
+          `shouldRespondWith`
+            [json|[
+              { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+            }
 
       it "works with PUT" $ do
         put "/UnitTest?idUnitTest=eq.1" [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] `shouldRespondWith` 204
         get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
-          [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] { matchHeaders = [matchContentTypeJson] }
+          [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]

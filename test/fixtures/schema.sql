@@ -365,6 +365,16 @@ CREATE FUNCTION callcounter() RETURNS bigint
     SELECT nextval('test.callcounter_count');
 $_$;
 
+CREATE FUNCTION reset_sequence(name TEXT, value INTEGER) RETURNS void
+SECURITY DEFINER
+LANGUAGE plpgsql AS $_$
+BEGIN
+  EXECUTE FORMAT($exec$
+    ALTER SEQUENCE %s RESTART WITH %s
+  $exec$, name, value);
+END
+$_$;
+
 --
 -- Name: singlejsonparam(json); Type: FUNCTION; Schema: test; Owner: -
 --
@@ -1825,8 +1835,8 @@ create table v1.parents (
 );
 
 create table v1.children (
-  id       serial primary key
-, name    text
+  id int primary key
+, name text
 , parent_id int
 , constraint parent foreign key(parent_id)
   references v1.parents(id)
@@ -1843,7 +1853,7 @@ create table v2.parents (
 );
 
 create table v2.children (
-  id    serial primary key
+  id int primary key
 , name text
 , parent_id int
 , constraint parent foreign key(parent_id)

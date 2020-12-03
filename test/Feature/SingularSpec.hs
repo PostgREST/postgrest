@@ -15,8 +15,7 @@ import SpecHelper
 spec :: SpecWith ((), Application)
 spec =
   describe "Requesting singular json object" $ do
-    let pgrstObj = "application/vnd.pgrst.object+json"
-        singular = ("Accept", pgrstObj)
+    let singular = ("Accept", "application/vnd.pgrst.object+json")
 
     context "with GET request" $ do
       it "fails for zero rows" $
@@ -49,48 +48,52 @@ spec =
 
     context "when updating rows" $ do
       it "works for one row with return=rep" $ do
-        post "/addresses" [json| { id: 97, address: "A Street" } |]
-        request methodPatch "/addresses?id=eq.97"
-           [("Prefer", "return=representation"), singular]
-           [json| { address: "B Street" } |]
+        request methodPatch "/addresses?id=eq.1"
+            [("Prefer", "return=representation"), singular]
+            [json| { address: "B Street" } |]
           `shouldRespondWith`
-            [json|{"id":97,"address":"B Street"}|]
+            [json|{"id":1,"address":"B Street"}|]
             { matchHeaders = [matchContentTypeSingular] }
 
       it "works for one row with return=minimal" $
-        request methodPatch
-          "/addresses?id=eq.97"
-          [("Prefer", "return=minimal"), singular]
-          [json| { address: "C Street" } |]
+        request methodPatch "/addresses?id=eq.1"
+            [("Prefer", "return=minimal"), singular]
+            [json| { address: "C Street" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204 }
 
       it "raises an error for multiple rows" $ do
-        _ <- post "/addresses" [json| { id: 98, address: "xxx" } |]
-        _ <- post "/addresses" [json| { id: 99, address: "yyy" } |]
-        p <- request methodPatch "/addresses?id=gt.0"
-                [singular]
-                [json| { address: "zzz" } |]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPatch "/addresses"
+            [("Prefer", "tx=commit"), singular]
+            [json| { address: "zzz" } |]
+          `shouldRespondWith`
+            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- the rows should not be updated, either
-        get "/addresses?id=eq.98" `shouldRespondWith` [json|[{"id":98,"address":"xxx"}]|]
+        get "/addresses?id=eq.1"
+          `shouldRespondWith`
+            [json|[{"id":1,"address":"address 1"}]|]
 
       it "raises an error for multiple rows with return=rep" $ do
-        _ <- post "/addresses" [json| { id: 100, address: "xxx" } |]
-        _ <- post "/addresses" [json| { id: 101, address: "yyy" } |]
-        p <- request methodPatch "/addresses?id=gt.0"
-                [("Prefer", "return=representation"), singular]
-                [json| { address: "zzz" } |]
-        liftIO $ do
-          simpleStatus p `shouldBe` notAcceptable406
-          isErrorFormat (simpleBody p) `shouldBe` True
+        request methodPatch "/addresses"
+            [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
+            [json| { address: "zzz" } |]
+          `shouldRespondWith`
+            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- the rows should not be updated, either
-        get "/addresses?id=eq.100" `shouldRespondWith` [json|[{"id":100,"address":"xxx"}]|]
+        get "/addresses?id=eq.1"
+          `shouldRespondWith`
+            [json|[{"id":1,"address":"address 1"}]|]
 
       it "raises an error for zero rows" $
         request methodPatch "/items?id=gt.0&id=lt.0"
@@ -123,51 +126,60 @@ spec =
 
       it "works for one row with return=minimal" $ do
         request methodPost "/addresses"
-          [("Prefer", "return=minimal"), singular]
-          [json| [ { id: 103, address: "xxx" } ] |]
+            [("Prefer", "return=minimal"), singular]
+            [json| [ { id: 103, address: "xxx" } ] |]
           `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
-        -- and the element should exist
-        get "/addresses?id=eq.103"
-          `shouldRespondWith` [json|[{"id":103,"address":"xxx"}]|]
-          { matchStatus  = 200
-          , matchHeaders = []
-          }
+            { matchStatus  = 201
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
       it "raises an error when attempting to create multiple entities" $ do
-        p <- request methodPost
-          "/addresses"
-          [singular]
-          [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
-        liftIO $ simpleStatus p `shouldBe` notAcceptable406
+        request methodPost "/addresses"
+            [("Prefer", "tx=commit"), singular]
+            [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
+          `shouldRespondWith`
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- the rows should not exist, either
-        get "/addresses?id=eq.200" `shouldRespondWith` "[]"
+        get "/addresses?id=eq.200"
+          `shouldRespondWith`
+            "[]"
 
       it "raises an error when attempting to create multiple entities with return=rep" $ do
-        p <- request methodPost
-          "/addresses"
-          [("Prefer", "return=representation"), singular]
-          [json| [ { id: 202, address: "xxx" }, { id: 203, address: "yyy" } ] |]
-        liftIO $ simpleStatus p `shouldBe` notAcceptable406
+        request methodPost "/addresses"
+            [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
+            [json| [ { id: 202, address: "xxx" }, { id: 203, address: "yyy" } ] |]
+          `shouldRespondWith`
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- the rows should not exist, either
-        get "/addresses?id=eq.202" `shouldRespondWith` "[]"
+        get "/addresses?id=eq.202"
+          `shouldRespondWith`
+            "[]"
 
       it "raises an error regardless of return=minimal" $ do
         request methodPost "/addresses"
-                [("Prefer", "return=minimal"), singular]
-                [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
+            [("Prefer", "tx=commit"), ("Prefer", "return=minimal"), singular]
+            [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
           `shouldRespondWith`
-                  [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
-                  { matchStatus  = 406
-                  , matchHeaders = [matchContentTypeSingular]
-                  }
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
         -- the rows should not exist, either
-        get "/addresses?id=eq.204" `shouldRespondWith` "[]"
+        get "/addresses?id=eq.204"
+          `shouldRespondWith`
+            "[]"
 
       it "raises an error when creating zero entities" $
         request methodPost "/addresses"
@@ -203,28 +215,40 @@ spec =
         liftIO $ simpleBody p `shouldBe` ""
 
       it "raises an error when attempting to delete multiple entities" $ do
-        let firstItems = "/items?id=gt.0&id=lt.6"
-        request methodDelete firstItems
-          [singular] ""
-          `shouldRespondWith` 406
+        request methodDelete "/items?id=gt.0&id=lt.6"
+            [("Prefer", "tx=commit"), singular]
+            ""
+          `shouldRespondWith`
+            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-        get firstItems
-          `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5}] |]
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-4/*"]
-          }
+        -- the rows should still exist
+        get "/items?id=gt.0&id=lt.6&order=id"
+          `shouldRespondWith`
+            [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5}] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "0-4/*"]
+            }
 
       it "raises an error when attempting to delete multiple entities with return=rep" $ do
-        let firstItems = "/items?id=gt.5&id=lt.11"
-        request methodDelete firstItems
-          [("Prefer", "return=representation"), singular] ""
-          `shouldRespondWith` 406
+        request methodDelete "/items?id=gt.5&id=lt.11"
+            [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular] ""
+          `shouldRespondWith`
+            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-        get firstItems
+        -- the rows should still exist
+        get "/items?id=gt.5&id=lt.11"
           `shouldRespondWith` [json| [{"id":6},{"id":7},{"id":8},{"id":9},{"id":10}] |]
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "0-4/*"]
-          }
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "0-4/*"]
+            }
 
       it "raises an error when deleting zero entities" $
         request methodDelete "/items?id=lt.0"
@@ -277,18 +301,24 @@ spec =
                 , matchHeaders = [matchContentTypeSingular]
                 }
 
-      it "executes the proc exactly once per request" $ do
-        request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]
-          `shouldRespondWith` [json|[{"id":1,"name":"Windows 7"}]|]
-
-        request methodPost "/rpc/setprojects" [singular]
-                [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
+      it "fails for multiple rows with rolled back changes" $ do
+        post "/rpc/getproject?select=id,name"
+            [json| {"id": 1} |]
           `shouldRespondWith`
-                [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
-                { matchStatus  = 406
-                , matchHeaders = [matchContentTypeSingular]
-                }
+            [json|[{"id":1,"name":"Windows 7"}]|]
 
-        -- should not actually have executed the function
-        request methodPost "/rpc/getproject?select=id,name" [] [json| {"id": 1} |]
-          `shouldRespondWith` [json|[{"id":1,"name":"Windows 7"}]|]
+        request methodPost "/rpc/setprojects"
+            [("Prefer", "tx=commit"), singular]
+            [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
+          `shouldRespondWith`
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            { matchStatus  = 406
+            , matchHeaders = [ matchContentTypeSingular
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        -- should rollback function
+        post "/rpc/getproject?select=id,name"
+            [json| {"id": 1} |]
+          `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7"}]|]

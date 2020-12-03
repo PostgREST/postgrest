@@ -2,6 +2,7 @@ module Feature.UnicodeSpec where
 
 import Network.Wai (Application)
 
+import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -16,9 +17,19 @@ spec =
       get "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
         `shouldRespondWith` "[]"
 
-      void $ post "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
-        [json| { "هویت": 1 } |]
+      request methodPost "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
+          [("Prefer", "tx=commit"), ("Prefer", "return=representation")]
+          [json| { "هویت": 1 } |]
+        `shouldRespondWith`
+          [json| [{ "هویت": 1 }] |]
+          { matchStatus = 201 }
 
       get "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
-        `shouldRespondWith` [json| [{ "هویت": 1 }] |]
-        { matchHeaders = [matchContentTypeJson] }
+        `shouldRespondWith`
+          [json| [{ "هویت": 1 }] |]
+
+      request methodDelete "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
+          [("Prefer", "tx=commit")]
+          ""
+        `shouldRespondWith`
+          204

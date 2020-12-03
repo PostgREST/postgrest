@@ -35,7 +35,7 @@ spec actualPgVersion = do
         { matchHeaders = ["Content-Range" <:> "0-0/*"] }
 
     it "matches with equality using not operator" $
-      get "/items?id=not.eq.5"
+      get "/items?id=not.eq.5&order=id"
         `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
         { matchHeaders = ["Content-Range" <:> "0-13/*"] }
 
@@ -401,9 +401,9 @@ spec actualPgVersion = do
         get "/materialized_projects?select=*,users(*)" `shouldRespondWith` 200
 
       it "can request two parents" $
-        get "/articleStars?select=createdAt,article:articles(owner),user:users(name)&limit=1" `shouldRespondWith`
-          [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"owner": "postgrest_test_authenticator"},"user":{"name": "Angela Martin"}}]|]
-          { matchHeaders = [matchContentTypeJson] }
+        get "/articleStars?select=createdAt,article:articles(id),user:users(name)&limit=1"
+          `shouldRespondWith`
+            [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"id": 1},"user":{"name": "Angela Martin"}}]|]
 
       it "can detect relations in views from exposed schema that are based on tables in private schema and have columns renames" $
         get "/articles?id=eq.1&select=id,articleStars(users(*))" `shouldRespondWith`
