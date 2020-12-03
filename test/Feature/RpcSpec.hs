@@ -457,12 +457,24 @@ spec actualPgVersion =
           `shouldRespondWith` 405
 
     it "executes the proc exactly once per request" $ do
-      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
-        [json|1|]
-        { matchHeaders = [matchContentTypeJson] }
-      post "/rpc/callcounter" [json| {} |] `shouldRespondWith`
-        [json|2|]
-        { matchHeaders = [matchContentTypeJson] }
+      -- callcounter is persistent even with rollback, because it uses a sequence
+      -- reset counter first to make test repeatable
+      request methodPost "/rpc/reset_sequence"
+          [("Prefer", "tx=commit")]
+          [json|{"name": "callcounter_count", "value": 1}|]
+        `shouldRespondWith`
+          [json|""|]
+
+      -- now the test
+      post "/rpc/callcounter"
+          [json|{}|]
+        `shouldRespondWith`
+          [json|1|]
+
+      post "/rpc/callcounter"
+          [json|{}|]
+        `shouldRespondWith`
+          [json|2|]
 
     context "a proc that receives no parameters" $ do
       it "interprets empty string as empty json object on a post request" $

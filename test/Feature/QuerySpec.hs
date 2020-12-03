@@ -35,7 +35,7 @@ spec actualPgVersion = do
         { matchHeaders = ["Content-Range" <:> "0-0/*"] }
 
     it "matches with equality using not operator" $
-      get "/items?id=not.eq.5"
+      get "/items?id=not.eq.5&order=id"
         `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}] |]
         { matchHeaders = ["Content-Range" <:> "0-13/*"] }
 

@@ -226,7 +226,7 @@ spec =
             }
 
         -- the rows should still exist
-        get "/items?id=gt.0&id=lt.6"
+        get "/items?id=gt.0&id=lt.6&order=id"
           `shouldRespondWith`
             [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5}] |]
             { matchStatus  = 200

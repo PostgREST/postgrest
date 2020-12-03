@@ -365,6 +365,16 @@ CREATE FUNCTION callcounter() RETURNS bigint
     SELECT nextval('test.callcounter_count');
 $_$;
 
+CREATE FUNCTION reset_sequence(name TEXT, value INTEGER) RETURNS void
+SECURITY DEFINER
+LANGUAGE plpgsql AS $_$
+BEGIN
+  EXECUTE FORMAT($exec$
+    ALTER SEQUENCE %s RESTART WITH %s
+  $exec$, name, value);
+END
+$_$;
+
 --
 -- Name: singlejsonparam(json); Type: FUNCTION; Schema: test; Owner: -
 --

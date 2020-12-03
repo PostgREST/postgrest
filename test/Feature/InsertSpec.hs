@@ -136,6 +136,13 @@ spec actualPgVersion = do
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
         it "succeeds with 201 and location header" $ do
+          -- reset pk sequence first to make test repeatable
+          request methodPost "/rpc/reset_sequence"
+              [("Prefer", "tx=commit")]
+              [json|{"name": "auto_incrementing_pk_id_seq", "value": 2}|]
+            `shouldRespondWith`
+              [json|""|]
+
           post "/auto_incrementing_pk"
               [json| { "non_nullable_string":"not null"} |]
             `shouldRespondWith`
@@ -282,16 +289,30 @@ spec actualPgVersion = do
           , matchHeaders = []
           }
 
-      it "successfully inserts a row with all-default columns with prefer=rep" $
+      it "successfully inserts a row with all-default columns with prefer=rep" $ do
+        -- reset pk sequence first to make test repeatable
+        request methodPost "/rpc/reset_sequence"
+            [("Prefer", "tx=commit")]
+            [json|{"name": "items_id_seq", "value": 20}|]
+          `shouldRespondWith`
+            [json|""|]
+
         request methodPost "/items" [("Prefer", "return=representation")] "{}"
           `shouldRespondWith` [json|[{ id: 20 }]|]
           { matchStatus  = 201,
             matchHeaders = []
           }
 
-      it "successfully inserts a row with all-default columns with prefer=rep and &select=" $
+      it "successfully inserts a row with all-default columns with prefer=rep and &select=" $ do
+        -- reset pk sequence first to make test repeatable
+        request methodPost "/rpc/reset_sequence"
+            [("Prefer", "tx=commit")]
+            [json|{"name": "items_id_seq", "value": 20}|]
+          `shouldRespondWith`
+            [json|""|]
+
         request methodPost "/items?select=id" [("Prefer", "return=representation")] "{}"
-          `shouldRespondWith` [json|[{ id: 21 }]|]
+          `shouldRespondWith` [json|[{ id: 20 }]|]
           { matchStatus  = 201,
             matchHeaders = []
           }
