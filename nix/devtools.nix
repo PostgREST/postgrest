@@ -14,7 +14,9 @@ let
       ''
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
 
-        ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr -r "$@"
+        while true; do
+          (! ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr -dr "$@")
+        done
       '';
 
   pushCachix =
