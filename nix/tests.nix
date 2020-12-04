@@ -13,6 +13,7 @@
 , postgrest
 , postgrestStatic
 , postgrestProfiled
+, procps
 , runtimeShell
 }:
 let
@@ -78,7 +79,7 @@ let
       name
       ''
         env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:${curl}/bin:$PATH"
+        export PATH="$env/bin:${curl}/bin:${procps}/bin:$PATH"
 
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"

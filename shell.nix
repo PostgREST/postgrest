@@ -38,7 +38,8 @@ lib.overrideDerivation postgrest.env (
 
     shellHook =
       ''
-        complete -c postgrest-watch
+        source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
+        complete -F _command postgrest-watch
       '';
   }
 )

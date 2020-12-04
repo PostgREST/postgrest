@@ -16,7 +16,8 @@ let
         ${nixpkgs-fmt}/bin/nixpkgs-fmt "$rootdir" > /dev/null 2> /dev/null
 
         # Format Haskell files
-        ${silver-searcher}/bin/ag -l -g '\.l?hs$' . "$rootdir" \
+        # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . "$rootdir" \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
       '';
 
@@ -35,7 +36,8 @@ let
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
 
         # Lint Haskell files
-        ${silver-searcher}/bin/ag -l -g '\.l?hs$' "$rootdir" \
+        # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' "$rootdir" \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
       '';
 in

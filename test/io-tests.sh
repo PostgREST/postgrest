@@ -88,8 +88,7 @@ readSecretFromFile(){
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   if pgrStarted
   then
@@ -113,8 +112,7 @@ readDbUriFromStdin(){
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   if pgrStarted
   then
@@ -131,8 +129,7 @@ reqWithRoleClaimKey(){
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   authorsJwt=$(psql -qtAX "$POSTGREST_TEST_CONNECTION" -c "select jwt.sign('$2', 'reallyreallyreallyreallyverysafe');")
   httpStatus="$( authorsStatus "$authorsJwt" )"
@@ -151,8 +148,7 @@ invalidRoleClaimKey(){
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   if pgrStarted
   then
@@ -169,8 +165,7 @@ ensureIatClaimWorks(){
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   for i in {1..10}; do \
     iatJwt=$(psql -qtAX "$POSTGREST_TEST_CONNECTION" -c "select jwt.sign(row_to_json(r), 'reallyreallyreallyreallyverysafe') from ( select 'postgrest_test_author' as role, extract(epoch from now()) as iat) r")
@@ -186,16 +181,16 @@ ensureIatClaimWorks(){
   pgrStop
 }
 
-# ensure app settings don't reset on pool timeout of 10 seconds, see https://github.com/PostgREST/postgrest/issues/1141
+# ensure app settings don't reset on pool timeout, see https://github.com/PostgREST/postgrest/issues/1141
+# pool timeout set to 1s to shorten runtime
 ensureAppSettings(){
   pgrStart "./configs/app-settings.config"
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
-  sleep 11
+  sleep 2
   response=$(curl -s "http://localhost:$pgrPort/rpc/get_guc_value?name=app.settings.external_api_secret")
   if test "$response" = "\"0123456789abcdef\""
   then
@@ -207,15 +202,17 @@ ensureAppSettings(){
 }
 
 checkAppSettingsReload(){
-  pgrStart "./configs/sigusr2-settings.config"
+  configFile=$(mktemp)
+  trap "rm -f $configFile" ERR RETURN
+  cat "./configs/sigusr2-settings.config" > "$configFile"
+  pgrStart "$configFile"
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   # change setting
-  replaceConfigValue "app.settings.name_var" "Jane" ./configs/sigusr2-settings.config
+  replaceConfigValue "app.settings.name_var" "Jane" "$configFile"
   # reload
   kill -s SIGUSR2 $pgrPID
   response=$(curl -s "http://localhost:$pgrPort/rpc/get_guc_value?name=app.settings.name_var")
@@ -226,21 +223,21 @@ checkAppSettingsReload(){
     ko "app.settings.name_var config not reloaded with SIGUSR2. Got: $response"
   fi
   pgrStop
-  # go back to original setting
-  replaceConfigValue "app.settings.name_var" "John" ./configs/sigusr2-settings.config
 }
 
 checkJwtSecretReload(){
-  pgrStart "./configs/sigusr2-settings.config"
+  configFile=$(mktemp)
+  trap "rm -f $configFile" ERR RETURN
+  cat "./configs/sigusr2-settings.config" > "$configFile"
+  pgrStart "$configFile"
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   secret="reallyreallyreallyreallyverysafe"
   # change setting
-  replaceConfigValue "jwt-secret" "$secret" ./configs/sigusr2-settings.config
+  replaceConfigValue "jwt-secret" "$secret" "$configFile"
   # reload
   kill -s SIGUSR2 $pgrPID
   payload='{"role":"postgrest_test_author"}'
@@ -253,20 +250,20 @@ checkJwtSecretReload(){
     ko "jwt-secret config not reloaded with SIGUSR2. Got: $httpStatus"
   fi
   pgrStop
-  # go back to original setting
-  replaceConfigValue "jwt-secret" "invalidinvalidinvalidinvalidinvalid" ./configs/sigusr2-settings.config
 }
 
 checkDbSchemaReload(){
-  pgrStart "./configs/sigusr2-settings.config"
+  configFile=$(mktemp)
+  trap "rm -f $configFile" ERR RETURN
+  cat "./configs/sigusr2-settings.config" > "$configFile"
+  pgrStart "$configFile"
   while pgrStarted && test "$( rootStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   # add v1 schema to db-schema
-  replaceConfigValue "db-schema" "test, v1" ./configs/sigusr2-settings.config
+  replaceConfigValue "db-schema" "test, v1" "$configFile"
   # reload
   kill -s SIGUSR2 $pgrPID
   kill -s SIGUSR1 $pgrPID
@@ -278,8 +275,6 @@ checkDbSchemaReload(){
     ko "db-schema config not reloaded with SIGUSR2. Got: $httpStatus"
   fi
   pgrStop
-  # go back to original setting
-  replaceConfigValue "db-schema" "test" ./configs/sigusr2-settings.config
 }
 
 replaceConfigValue(){
@@ -295,8 +290,7 @@ socketConnection(){
   while pgrStarted && test "$( getSocketStatus )" -ne 200
   do
     # wait for the server to start
-    sleep 0.1 \
-    || sleep 1 # fallback: subsecond sleep is not standard and may fail
+    sleep 0.1
   done
   if test $( getSocketStatus ) -eq 200
   then
