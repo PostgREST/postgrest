@@ -5,6 +5,7 @@
 , checkedShellScript
 , curl
 , devCabalOptions
+, diffutils
 , git
 , haskell
 , lib
@@ -79,7 +80,7 @@ let
       name
       ''
         env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:${curl}/bin:${procps}/bin:$PATH"
+        export PATH="$env/bin:${curl}/bin:${procps}/bin:${diffutils}/bin:$PATH"
 
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"

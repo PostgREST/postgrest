@@ -36,15 +36,21 @@ trap cleanup sigint sigterm exit
 # Port for Test PostgREST Server (must match config)
 pgrPort=49421 # in range 49152–65535: for private or temporary use
 
+# Colors
+NC='\033[0m' # no color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+
 # TAP utilities
 currentTest=1
 failedTests=0
 bailOut(){ echo "Bail out! $1"; exit 1; }
-result(){ echo "$1 $currentTest $2"; currentTest=$(( $currentTest + 1 )); }
-todo(){ result 'ok' "# TODO: $*"; }
-skip(){ result 'ok' "# SKIP: $*"; }
-ok(){ result 'ok' "- $1"; }
-ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
+result(){ echo -e "$1 $currentTest $2${NC}"; currentTest=$(( $currentTest + 1 )); }
+todo(){ result "${YELLOW}ok" "# TODO: $*"; }
+skip(){ result "${YELLOW}ok" "# SKIP: $*"; }
+ok(){ result "${GREEN}ok" "- $1"; }
+ko(){ result "${RED}not ok" "- $1"; failedTests=$(( $failedTests + 1 )); }
 comment(){ echo "# $1"; }
 
 ########################
@@ -65,7 +71,7 @@ dumpedConfigMatchesExpectation(){
   }
   trap 'tap $? $1; trap - RETURN; return 0' ERR RETURN
   postgrest --dump-config "$1" > "$dump"
-  diff "$dump" "$2"
+  diff --color "$dump" "$2"
 }
 
 dumpedConfigIsValid(){
@@ -88,7 +94,7 @@ dumpedConfigIsValid(){
   trap 'tap $? $1; trap - RETURN; return 0' ERR RETURN
   postgrest --dump-config "$1" > "$dump"
   postgrest --dump-config "$dump" > "$redump"
-  diff "$dump" "$redump"
+  diff --color "$dump" "$redump"
 }
 
 ####################
