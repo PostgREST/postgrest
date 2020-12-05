@@ -33,8 +33,9 @@ import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
-                              configDbPoolTimeout', dumpAppConfig,
-                              prettyVersion, readCLIShowHelp,
+                              Environment, configDbPoolTimeout',
+                              dumpAppConfig, prettyVersion,
+                              readCLIShowHelp, readEnvironment,
                               readValidateConfig)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
@@ -63,11 +64,14 @@ main = do
   hSetBuffering stdin LineBuffering
   hSetBuffering stderr NoBuffering
 
+  -- read PGRST_ env variables
+  env <- readEnvironment
+
   -- read path from commad line
-  opts <- readCLIShowHelp
+  opts <- readCLIShowHelp env
 
   -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig $ cliPath opts
+  conf <- readValidateConfig env $ cliPath opts
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -140,10 +144,11 @@ main = do
     Catch connWorker
     ) Nothing
 
-  -- Re-read the config on SIGUSR2
-  void $ installHandler sigUSR2 (
-    Catch $ reReadConfig (cliPath opts) refConf
-    ) Nothing
+  -- Re-read the config on SIGUSR2, but only if we have a config file
+  when (isJust $ cliPath opts) $
+    void $ installHandler sigUSR2 (
+      Catch $ reReadConfig env (cliPath opts) refConf
+      ) Nothing
 #endif
 
   -- reload schema cache on NOTIFY
@@ -330,12 +335,12 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
     errorMessage = "Could not listen for notifications on the " <> dbChannel <> " channel" :: Text
     retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
+#ifndef mingw32_HOST_OS
 -- | Re-reads the config at runtime. Invoked on SIGUSR2.
 -- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
-#ifndef mingw32_HOST_OS
-reReadConfig :: FilePath -> IORef AppConfig -> IO ()
-reReadConfig path refConf = do
-  conf <- readValidateConfig path
+reReadConfig :: Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
+reReadConfig env path refConf = do
+  conf <- readValidateConfig env path
   atomicWriteIORef refConf conf
   putStrLn ("Config file reloaded" :: Text)
 #endif

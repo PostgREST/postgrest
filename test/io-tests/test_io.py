@@ -58,10 +58,14 @@ def dburi():
     return os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 
 
-def dumpconfig(configpath, moreenv=None, stdin=None):
+def dumpconfig(configpath=None, moreenv=None, stdin=None):
     "Dump the config as parsed by PostgREST."
+
     env = {**os.environ, **(moreenv or {})}
-    command = ["postgrest", "--dump-config", configpath]
+    command = ["postgrest", "--dump-config"]
+    if configpath:
+        command += [configpath]
+
     process = subprocess.Popen(
         command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
@@ -141,6 +145,16 @@ def test_expected_config(expectedconfig):
     """
     expected = expectedconfig.read_text()
     assert dumpconfig(CONFIGSDIR / expectedconfig.name) == expected
+
+
+def test_expected_config_from_environment():
+    "Config should be read directly from environment without config file."
+
+    envfile = (CONFIGSDIR / "no-defaults-env.yaml").read_text()
+    env = {k: str(v) for k, v in yaml.load(envfile, Loader=yaml.Loader).items()}
+
+    expected = (CONFIGSDIR / "expected" / "no-defaults.config").read_text()
+    assert dumpconfig(moreenv=env) == expected
 
 
 @pytest.mark.parametrize(

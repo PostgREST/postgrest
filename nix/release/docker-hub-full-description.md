@@ -15,13 +15,8 @@ write from scratch.
 To learn how to use this container, see the [PostgREST Docker
 documentation](https://postgrest.com/en/stable/install.html#docker).
 
-You can configure the PostgREST image by setting the enviroment variables used
-in the default `/etc/postgrest.conf` file or overriding that file. This is the
-default configuration file:
-
-```
-$DEFAULT_CONFIG
-```
+You can configure the PostgREST image by setting
+[enviroment variables](https://postgrest.org/en/stable/configuration.html).
 
 # How this image is built
 
