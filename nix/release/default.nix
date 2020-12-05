@@ -94,17 +94,12 @@ let
             | ${jq}/bin/jq -r .token
         )"
 
-        # Plug the default config file into the full description.
-        defaultConfig="$(cat ${docker.config})"
-        export DEFAULT_CONFIG="$defaultConfig"
-        fullDescription="$(${envsubst}/bin/envsubst < ${fullDescription})"
-
-        # Patch the full description.
+        # Patch both descriptions.
         responseCode="$(
           ${curl}/bin/curl -s --write-out "%{response_code}" \
             --output /dev/null -H "Authorization: JWT $token" -X PATCH \
             --data-urlencode description@${description} \
-            --data-urlencode "full_description=$fullDescription" \
+            --data-urlencode full_description@${fullDescription} \
             "https://hub.docker.com/v2/repositories/$DOCKER_REPO/postgrest/"
         )"
 

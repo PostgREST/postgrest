@@ -12,9 +12,12 @@ turned in configurable behaviour if needed.
 
 Other hardcoded options such as the minimum version number also belong here.
 -}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module PostgREST.Config ( prettyVersion
@@ -24,7 +27,9 @@ module PostgREST.Config ( prettyVersion
                         , AppConfig (..)
                         , configDbPoolTimeout'
                         , dumpAppConfig
+                        , Environment
                         , readCLIShowHelp
+                        , readEnvironment
                         , readValidateConfig
                         )
        where
@@ -33,6 +38,7 @@ import qualified Data.ByteString              as B
 import qualified Data.ByteString.Base64       as B64
 import qualified Data.ByteString.Char8        as BS
 import qualified Data.Configurator            as C
+import qualified Data.Map.Strict              as M
 import qualified Text.PrettyPrint.ANSI.Leijen as L
 
 import Control.Lens            (preview)
@@ -41,6 +47,7 @@ import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
 import Data.Aeson              (encode, toJSON)
 import Data.Either.Combinators (fromRight', whenLeft)
 import Data.List.NonEmpty      (fromList, toList)
+import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Data.Text               (dropEnd, dropWhileEnd, filter,
                                 intercalate, pack, replace, splitOn,
@@ -51,6 +58,7 @@ import Data.Version            (versionBranch)
 import Development.GitRev      (gitHash)
 import Numeric                 (readOct, showOct)
 import Paths_postgrest         (version)
+import System.Environment      (getEnvironment)
 import System.IO.Error         (IOError)
 import System.Posix.Types      (FileMode)
 
@@ -74,7 +82,7 @@ import Protolude.Conv             (toS)
 -- | Command line interface options
 data CLI = CLI
   { cliCommand :: Command
-  , cliPath    :: FilePath }
+  , cliPath    :: Maybe FilePath }
 
 data Command
   = CmdRun
@@ -133,8 +141,8 @@ docsVersion :: Text
 docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 
 -- | Read command line interface options. Also prints help.
-readCLIShowHelp :: IO CLI
-readCLIShowHelp = customExecParser parserPrefs opts
+readCLIShowHelp :: Environment -> IO CLI
+readCLIShowHelp env = customExecParser parserPrefs opts
   where
     parserPrefs = prefs showHelpOnError
 
@@ -164,10 +172,16 @@ readCLIShowHelp = customExecParser parserPrefs opts
         )
       )
       <*>
-      strArgument (
+      optionalWithEnvironment (strArgument (
         metavar "FILENAME" <>
-        help "Path to configuration file"
-      )
+        help "Path to configuration file (optional with PGRST_ environment variables)"
+      ))
+
+    optionalWithEnvironment :: Alternative f => f a -> f (Maybe a)
+    optionalWithEnvironment v
+      | M.null env = Just <$> v
+      | otherwise  = optional v
+
 
     exampleCfg :: Doc
     exampleCfg = vsep . map (text . toS) . lines $
@@ -300,25 +314,39 @@ dumpAppConfig conf =
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (fromRight' $ configServerUnixSocketMode c) ""
 
+-- This class is needed for the polymorphism of overrideFromEnvironment
+-- because C.required and C.optional have different signatures
+class JustIfMaybe a b where
+  justIfMaybe :: a -> b
+
+instance JustIfMaybe a a where
+  justIfMaybe a = a
+
+instance JustIfMaybe a (Maybe a) where
+  justIfMaybe a = Just a
+
 -- | Parse the config file
-readAppConfig :: FilePath -> IO AppConfig
-readAppConfig cfgPath = do
+readAppConfig :: Environment -> Maybe FilePath -> IO AppConfig
+readAppConfig env optPath = do
   -- Now read the actual config file
-  conf <- catches (C.load cfgPath)
-    [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
-    , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
-    ]
+  conf <- case optPath of
+    Just cfgPath -> catches (C.load cfgPath)
+      [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
+      , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
+      ]
+    -- if no filename provided, start with an empty map to read config from environment
+    Nothing -> return M.empty
 
   case C.runParser parseConfig conf of
     Left err ->
-      exitErr $ "Error parsing config file:\n\t" <> err
+      exitErr $ "Error in config:\n\t" <> err
     Right appConf ->
       return appConf
 
   where
     parseConfig =
       AppConfig
-        <$> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
+        <$> parseAppSettings "app.settings"
         <*> reqString "db-anon-role"
         <*> (fromMaybe "pgrst" <$> optString "db-channel")
         <*> (fromMaybe False <$> optBool "db-channel-enabled")
@@ -353,9 +381,28 @@ readAppConfig cfgPath = do
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
 
+    parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
+    parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
+      where
+        addFromEnv f = M.toList $ M.union fromEnv $ M.fromList f
+        fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
+        normalize k = ("app.settings." <>) <$> stripPrefix "PGRST_APP_SETTINGS_" (toS k)
+
+    overrideFromEnvironment :: JustIfMaybe a b =>
+                               (C.Key -> C.Parser C.Value a -> C.Parser C.Config b) ->
+                               C.Key -> (C.Value -> a) -> C.Parser C.Config b
+    overrideFromEnvironment necessity key coercion =
+      case M.lookup name env of
+        Just envVal -> pure $ justIfMaybe $ coercion $ C.String envVal
+        Nothing     -> necessity key (coercion <$> C.value)
+      where
+        name = "PGRST_" <> map capitalize (toS key)
+        capitalize '-' = '_'
+        capitalize c   = toUpper c
+
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
-      C.optional k C.string >>= \case
+      overrideFromEnvironment C.optional k coerceText >>= \case
         Nothing -> pure $ Right 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
@@ -368,7 +415,7 @@ readAppConfig cfgPath = do
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
-      C.optional k C.string >>= \case
+      overrideFromEnvironment C.optional k coerceText >>= \case
         Nothing -> pure Nothing -- no audience in config file
         Just aud -> case preview stringOrUri (unpack aud) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
@@ -377,7 +424,7 @@ readAppConfig cfgPath = do
 
     parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
     parseLogLevel k =
-      C.optional k C.string >>= \case
+      overrideFromEnvironment C.optional k coerceText >>= \case
         Nothing      -> pure LogError
         Just ""      -> pure LogError
         Just "crit"  -> pure LogCrit
@@ -388,7 +435,7 @@ readAppConfig cfgPath = do
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =
-      C.optional k C.string >>= \case
+      overrideFromEnvironment C.optional k coerceText >>= \case
         --                                          RollbackAll AllowOverride
         Nothing                        -> pure $ f (False,      False)
         Just ""                        -> pure $ f (False,      False)
@@ -414,19 +461,19 @@ readAppConfig cfgPath = do
         Nothing -> alias
 
     reqString :: C.Key -> C.Parser C.Config Text
-    reqString k = C.required k C.string
+    reqString k = overrideFromEnvironment C.required k coerceText
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
-    optString k = mfilter (/= "") <$> C.optional k C.string
+    optString k = mfilter (/= "") <$> overrideFromEnvironment C.optional k coerceText
 
     optValue :: C.Key -> C.Parser C.Config (Maybe C.Value)
-    optValue k = C.optional k C.value
+    optValue k = overrideFromEnvironment C.optional k identity
 
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
-    optInt k = join <$> C.optional k (coerceInt <$> C.value)
+    optInt k = join <$> overrideFromEnvironment C.optional k coerceInt
 
     optBool :: C.Key -> C.Parser C.Config (Maybe Bool)
-    optBool k = join <$> C.optional k (coerceBool <$> C.value)
+    optBool k = join <$> overrideFromEnvironment C.optional k coerceBool
 
     coerceText :: C.Value -> Text
     coerceText (C.String s) = s
@@ -461,9 +508,9 @@ readAppConfig cfgPath = do
       exitFailure
 
 -- | Parse the AppConfig and validate it. Panic on invalid config options.
-readValidateConfig :: FilePath -> IO AppConfig
-readValidateConfig path = do
-  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
+readValidateConfig :: Environment -> Maybe FilePath -> IO AppConfig
+readValidateConfig env path = do
+  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig env path
   -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> configOpenApiServerProxyUri conf) $
     panic
@@ -473,6 +520,13 @@ readValidateConfig path = do
   -- Check the file mode is valid
   whenLeft (configServerUnixSocketMode conf) panic
   return $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
+
+type Environment = M.Map [Char] Text
+
+readEnvironment :: IO Environment
+readEnvironment = getEnvironment <&> pgrst
+  where
+    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map pack $ M.fromList env
 
 {-|
   The purpose of this function is to load the JWT secret from a file if

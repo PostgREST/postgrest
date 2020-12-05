@@ -2,8 +2,8 @@
 
 In order to build an optimal PostgREST Docker image, we create the image from
 scratch (i.e., without a parent image like `debian` or `alpine`), and only
-include the files that are essential for running PostgREST (the static
-PostgREST binary and a `postgrest.conf`).
+include the file that is essential for running PostgREST: the static
+PostgREST binary.
 
 This is similar to what you would get with the following `Dockerfile`:
 
@@ -17,12 +17,6 @@ FROM scratch
 # need to include for running the application.
 ADD /absolute/path/to/postgrest /bin/postgrest
 
-# Include a default configuration file.
-ADD /absolute/path/to/postgrest.conf /etc/postgrest.conf
-
-ENV PGRST_DB_URI= \
-    ...
-
 EXPOSE 3000
 
 # This is the user id that Docker will run our image under by default. Note
@@ -32,7 +26,7 @@ EXPOSE 3000
 # can be run under any user you specify.
 USER 1000
 
-CMD [ "/bin/postgrest", "/etc/postgrest.conf" ]
+CMD [ "/bin/postgrest" ]
 ```
 
 # Building the Docker image with Nix
