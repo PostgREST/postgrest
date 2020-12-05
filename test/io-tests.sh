@@ -316,17 +316,17 @@ checkDbSchemaReload(){
     # wait for the server to start
     sleep 0.1
   done
-  # add v1 schema to db-schema
-  replaceConfigValue "db-schema" "test, v1" "$configFile"
+  # add v1 schema to db-schemas
+  replaceConfigValue "db-schemas" "test, v1" "$configFile"
   # reload
   kill -s SIGUSR2 $pgrPID
   kill -s SIGUSR1 $pgrPID
   httpStatus="$(v1SchemaParentsStatus)"
   if test "$httpStatus" -eq 200
   then
-    ok "db-schema config reloaded with SIGUSR2"
+    ok "db-schemas config reloaded with SIGUSR2"
   else
-    ko "db-schema config not reloaded with SIGUSR2. Got: $httpStatus"
+    ko "db-schemas config not reloaded with SIGUSR2. Got: $httpStatus"
   fi
   pgrStop
 }

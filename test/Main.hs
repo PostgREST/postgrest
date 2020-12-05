@@ -63,7 +63,7 @@ main = do
 
   actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
 
-  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ testCfg testDbConn) (configExtraSearchPath $ testCfg testDbConn) actualPgVersion
+  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configDbSchemas $ testCfg testDbConn) (configDbExtraSearchPath $ testCfg testDbConn) actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
@@ -73,7 +73,7 @@ main = do
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
-      dbs <- (newIORef . Just) =<< setupDbStructure pool (configSchemas $ cfg testDbConn) (configExtraSearchPath $ cfg testDbConn) actualPgVersion
+      dbs <- (newIORef . Just) =<< setupDbStructure pool (configDbSchemas $ cfg testDbConn) (configDbExtraSearchPath $ cfg testDbConn) actualPgVersion
       refConf <- newIORef $ cfg testDbConn
       return ((), postgrest LogCrit refConf dbs pool getTime $ pure ())
 

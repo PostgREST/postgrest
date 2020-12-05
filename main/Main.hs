@@ -28,7 +28,7 @@ import System.IO                (BufferMode (..), hSetBuffering)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
-                              configPoolTimeout', dumpAppConfig,
+                              configDbPoolTimeout', dumpAppConfig,
                               prettyVersion, readCLIShowHelp,
                               readValidateConfig)
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
@@ -68,11 +68,11 @@ main = do
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
-    host = configHost conf
-    port = configPort conf
-    maybeSocketAddr = configSocket conf
+    host = configServerHost conf
+    port = configServerPort conf
+    maybeSocketAddr = configServerUnixSocket conf
 #ifndef mingw32_HOST_OS
-    socketFileMode = configSocketMode conf
+    socketFileMode = configServerUnixSocketMode conf
 #endif
     dbUri = toS (configDbUri conf)
     (dbChannelEnabled, dbChannel) = (configDbChannelEnabled conf, toS $ configDbChannel conf)
@@ -81,8 +81,8 @@ main = do
       . setPort port
       . setServerName (toS $ "postgrest/" <> prettyVersion) $
       defaultSettings
-    poolSize = configPoolSize conf
-    poolTimeout = configPoolTimeout' conf
+    poolSize = configDbPoolSize conf
+    poolTimeout = configDbPoolTimeout' conf
     logLevel = configLogLevel conf
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
@@ -248,7 +248,7 @@ connectionStatus pool =
 fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
 fillSchemaCache pool actualPgVersion refConf refDbStructure = do
   conf <- readIORef refConf
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configSchemas conf) (configExtraSearchPath conf) actualPgVersion (configDbPrepared conf)
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configDbSchemas conf) (configDbExtraSearchPath conf) actualPgVersion (configDbPreparedStatements conf)
   case result of
     Left e -> do
       -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
