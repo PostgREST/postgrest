@@ -22,7 +22,7 @@ module PostgREST.Config ( prettyVersion
                         , CLI (..)
                         , Command (..)
                         , AppConfig (..)
-                        , configPoolTimeout'
+                        , configDbPoolTimeout'
                         , dumpAppConfig
                         , readCLIShowHelp
                         , readValidateConfig
@@ -78,46 +78,39 @@ data Command = CmdRun | CmdDumpConfig deriving (Eq)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
-    configDbUri             :: Text
-  , configAnonRole          :: Text
-  , configOpenAPIProxyUri   :: Maybe Text
-  , configSchemas           :: NonEmpty Text
-  , configHost              :: Text
-  , configPort              :: Int
-  , configSocket            :: Maybe FilePath
-  , configSocketMode        :: Either Text FileMode
-  , configDbChannel         :: Text
-  , configDbChannelEnabled  :: Bool
-
-  , configJwtSecret         :: Maybe B.ByteString
-  , configJwtSecretIsBase64 :: Bool
-  , configJwtAudience       :: Maybe StringOrURI
-
-  , configPoolSize          :: Int
-  , configPoolTimeout       :: Int
-  , configMaxRows           :: Maybe Integer
-  , configPreReq            :: Maybe Text
-  , configSettings          :: [(Text, Text)]
-  , configRoleClaimKey      :: Either Text JSPath
-  , configExtraSearchPath   :: [Text]
-
-  , configRootSpec          :: Maybe Text
-  , configRawMediaTypes     :: [B.ByteString]
-
-  , configJWKS              :: Maybe JWKSet
-
-  , configLogLevel          :: LogLevel
-
-  , configTxRollbackAll     :: Bool
-  , configTxAllowOverride   :: Bool
-
-  , configDbPrepared        :: Bool
+    configAppSettings           :: [(Text, Text)]
+  , configDbAnonRole            :: Text
+  , configDbChannel             :: Text
+  , configDbChannelEnabled      :: Bool
+  , configDbExtraSearchPath     :: [Text]
+  , configDbMaxRows             :: Maybe Integer
+  , configDbPoolSize            :: Int
+  , configDbPoolTimeout         :: Int
+  , configDbPreRequest          :: Maybe Text
+  , configDbPreparedStatements  :: Bool
+  , configDbRootSpec            :: Maybe Text
+  , configDbSchemas             :: NonEmpty Text
+  , configDbTxAllowOverride     :: Bool
+  , configDbTxRollbackAll       :: Bool
+  , configDbUri                 :: Text
+  , configJWKS                  :: Maybe JWKSet
+  , configJwtAudience           :: Maybe StringOrURI
+  , configJwtRoleClaimKey       :: Either Text JSPath
+  , configJwtSecret             :: Maybe B.ByteString
+  , configJwtSecretIsBase64     :: Bool
+  , configLogLevel              :: LogLevel
+  , configOpenApiServerProxyUri :: Maybe Text
+  , configRawMediaTypes         :: [B.ByteString]
+  , configServerHost            :: Text
+  , configServerPort            :: Int
+  , configServerUnixSocket      :: Maybe FilePath
+  , configServerUnixSocketMode  :: Either Text FileMode
   }
   deriving (Show)
 
-configPoolTimeout' :: (Fractional a) => AppConfig -> a
-configPoolTimeout' =
-  fromRational . toRational . configPoolTimeout
+configDbPoolTimeout' :: (Fractional a) => AppConfig -> a
+configDbPoolTimeout' =
+  fromRational . toRational . configDbPoolTimeout
 
 -- | User friendly version number
 prettyVersion :: Text
@@ -179,6 +172,16 @@ readCLIShowHelp = customExecParser parserPrefs opts
           |## extra schemas to add to the search_path of every request
           |db-extra-search-path = "public"
           |
+          |## limit rows in response
+          |# db-max-rows = 1000
+          |
+          |## stored proc to exec immediately after auth
+          |# db-pre-request = "stored_proc_name"
+          |
+          |## stored proc that overrides the root "/" spec
+          |## it must be inside the db-schema
+          |# db-root-spec = "stored_proc_name"
+          |
           |## Notification channel for reloading the schema cache
           |db-channel = "pgrst"
           |
@@ -219,20 +222,10 @@ readCLIShowHelp = customExecParser parserPrefs opts
           |## (use "@filename" to load from separate file)
           |# jwt-secret = "secret_with_at_least_32_characters"
           |# jwt-aud = "your_audience_claim"
-          |secret-is-base64 = false
+          |jwt-secret-is-base64 = false
           |
           |## jspath to the role claim key
-          |role-claim-key = ".role"
-          |
-          |## limit rows in response
-          |# max-rows = 1000
-          |
-          |## stored proc to exec immediately after auth
-          |# pre-request = "stored_proc_name"
-          |
-          |## stored proc that overrides the root "/" spec
-          |## it must be inside the db-schema
-          |# root-spec = "stored_proc_name"
+          |jwt-role-claim-key = ".role"
           |
           |## content types to produce raw output
           |# raw-media-types="image/png, image/jpg"
@@ -253,49 +246,49 @@ dumpAppConfig conf = do
 
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-uri",                    q . configDbUri)
-      ,("db-schema",                 q . intercalate "," . toList . configSchemas)
-      ,("db-anon-role",              q . configAnonRole)
-      ,("db-pool",                       show . configPoolSize)
-      ,("db-pool-timeout",               show . configPoolTimeout)
-      ,("db-extra-search-path",      q . intercalate "," . configExtraSearchPath)
+      [("db-anon-role",              q . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            toLower . show . configDbChannelEnabled)
+      ,("db-extra-search-path",      q . intercalate "," . configDbExtraSearchPath)
+      ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
+      ,("db-pool",                       show . configDbPoolSize)
+      ,("db-pool-timeout",               show . configDbPoolTimeout)
+      ,("db-pre-request",            q . fromMaybe mempty . configDbPreRequest)
+      ,("db-prepared-statements",        toLower . show . configDbPreparedStatements)
+      ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
+      ,("db-schemas",                q . intercalate "," . toList . configDbSchemas)
       ,("db-tx-end",                 q . showTxEnd)
-      ,("db-prepared-statements",        toLower . show . configDbPrepared)
-      ,("server-host",               q . configHost)
-      ,("server-port",                   show . configPort)
-      ,("server-unix-socket",        q . maybe mempty pack . configSocket)
-      ,("server-unix-socket-mode",   q . pack . showSocketMode)
-      ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenAPIProxyUri)
-      ,("jwt-secret",                q . toS . showJwtSecret)
+      ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
-      ,("secret-is-base64",              toLower . show . configJwtSecretIsBase64)
-      ,("role-claim-key",            q . intercalate mempty . fmap show . fromRight' . configRoleClaimKey)
-      ,("max-rows",                      maybe "\"\"" show . configMaxRows)
-      ,("pre-request",               q . fromMaybe mempty . configPreReq)
-      ,("root-spec",                 q . fromMaybe mempty . configRootSpec)
-      ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
+      ,("jwt-role-claim-key",        q . intercalate mempty . fmap show . fromRight' . configJwtRoleClaimKey)
+      ,("jwt-secret",                q . toS . showJwtSecret)
+      ,("jwt-secret-is-base64",          toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . show . configLogLevel)
+      ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
+      ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
+      ,("server-host",               q . configServerHost)
+      ,("server-port",                   show . configServerPort)
+      ,("server-unix-socket",        q . maybe mempty pack . configServerUnixSocket)
+      ,("server-unix-socket-mode",   q . pack . showSocketMode)
       ]
 
     -- quote all app.settings
-    appSettings = second q <$> configSettings conf
+    appSettings = second q <$> configAppSettings conf
 
     -- quote strings and replace " with \"
     q s = "\"" <> replace "\"" "\\\"" s <> "\""
 
-    showTxEnd c = case (configTxRollbackAll c, configTxAllowOverride c) of
+    showTxEnd c = case (configDbTxRollbackAll c, configDbTxAllowOverride c) of
       ( False, False ) -> "commit"
       ( False, True  ) -> "commit-allow-override"
       ( True , False ) -> "rollback"
       ( True , True  ) -> "rollback-allow-override"
-    showSocketMode c = showOct (fromRight' $ configSocketMode c) ""
     showJwtSecret c
       | configJwtSecretIsBase64 c = B64.encode secret
       | otherwise                 = toS secret
       where
         secret = fromMaybe mempty $ configJwtSecret c
+    showSocketMode c = showOct (fromRight' $ configServerUnixSocketMode c) ""
 
 -- | Parse the config file
 readAppConfig :: FilePath -> IO AppConfig
@@ -315,33 +308,40 @@ readAppConfig cfgPath = do
   where
     parseConfig =
       AppConfig
-        <$> reqString "db-uri"
+        <$> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
         <*> reqString "db-anon-role"
+        <*> (fromMaybe "pgrst" <$> optString "db-channel")
+        <*> (fromMaybe False <$> optBool "db-channel-enabled")
+        <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
+        <*> optWithAlias (optInt "db-max-rows")
+                         (optInt "max-rows")
+        <*> (fromMaybe 10 <$> optInt "db-pool")
+        <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
+        <*> optWithAlias (optString "db-pre-request")
+                         (optString "pre-request")
+        <*> (fromMaybe True <$>  optBool "db-prepared-statements")
+        <*> optWithAlias (optString "db-root-spec")
+                         (optString "root-spec")
+        <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
+                                                       (optValue "db-schema")
+                                                       "missing key: either db-schemas or db-schema must be set")
+        <*> parseTxEnd "db-tx-end" snd
+        <*> parseTxEnd "db-tx-end" fst
+        <*> reqString "db-uri"
+        <*> pure Nothing
+        <*> parseJwtAudience "jwt-aud"
+        <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optWithAlias (optValue "jwt-role-claim-key")
+                                                                              (optValue "role-claim-key"))
+        <*> (fmap encodeUtf8 <$> optString "jwt-secret")
+        <*> (fromMaybe False <$> optWithAlias (optBool "jwt-secret-is-base64")
+                                              (optBool "secret-is-base64"))
+        <*> parseLogLevel "log-level"
         <*> optString "openapi-server-proxy-uri"
-        <*> (fromList . splitOnCommas <$> reqValue "db-schema")
+        <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
-        <*> (fromMaybe "pgrst" <$> optString "db-channel")
-        <*> (fromMaybe False <$> optBool "db-channel-enabled")
-        <*> (fmap encodeUtf8 <$> optString "jwt-secret")
-        <*> (fromMaybe False <$> optBool "secret-is-base64")
-        <*> parseJwtAudience "jwt-aud"
-        <*> (fromMaybe 10 <$> optInt "db-pool")
-        <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
-        <*> optInt "max-rows"
-        <*> optString "pre-request"
-        <*> (fmap (fmap coerceText) <$> C.subassocs "app.settings" C.value)
-        <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optValue "role-claim-key")
-        <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
-        <*> optString "root-spec"
-        <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
-        <*> pure Nothing
-        <*> parseLogLevel "log-level"
-        <*> parseTxEnd "db-tx-end" fst
-        <*> parseTxEnd "db-tx-end" snd
-        <*> (fromMaybe True <$>  optBool "db-prepared-statements")
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
@@ -388,11 +388,23 @@ readAppConfig cfgPath = do
         Just "rollback-allow-override" -> pure $ f (True,       True)
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
 
+    reqWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> [Char] -> C.Parser C.Config a
+    reqWithAlias orig alias err =
+      orig >>= \case
+        Just v  -> pure v
+        Nothing ->
+          alias >>= \case
+            Just v  -> pure v
+            Nothing -> fail err
+
+    optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
+    optWithAlias orig alias =
+      orig >>= \case
+        Just v  -> pure $ Just v
+        Nothing -> alias
+
     reqString :: C.Key -> C.Parser C.Config Text
     reqString k = C.required k C.string
-
-    reqValue :: C.Key -> C.Parser C.Config C.Value
-    reqValue k = C.required k C.value
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> C.optional k C.string
@@ -438,13 +450,13 @@ readValidateConfig :: FilePath -> IO AppConfig
 readValidateConfig path = do
   conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig path
   -- Checks that the provided proxy uri is formated correctly
-  when (isMalformedProxyUri $ toS <$> configOpenAPIProxyUri conf) $
+  when (isMalformedProxyUri $ toS <$> configOpenApiServerProxyUri conf) $
     panic
       "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
   -- Checks that the provided jspath is valid
-  whenLeft (configRoleClaimKey conf) panic
+  whenLeft (configJwtRoleClaimKey conf) panic
   -- Check the file mode is valid
-  whenLeft (configSocketMode conf) panic
+  whenLeft (configServerUnixSocketMode conf) panic
   return $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
 
 {-|

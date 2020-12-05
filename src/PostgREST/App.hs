@@ -75,25 +75,25 @@ postgrest logLev refConf refDbStructure pool getTime connWorker =
       Nothing -> respond . errorResponseFor $ ConnectionLostError
       Just dbStructure -> do
         response <- do
-          let apiReq = userApiRequest (configSchemas conf) (configRootSpec conf) dbStructure req body
+          let apiReq = userApiRequest (configDbSchemas conf) (configDbRootSpec conf) dbStructure req body
           case apiReq of
             Left err -> return . errorResponseFor $ err
             Right apiRequest -> do
               -- The jwt must be checked before touching the db.
-              attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configRoleClaimKey conf)
+              attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configJwtRoleClaimKey conf)
               case jwtClaims attempt of
                 Left errJwt -> return . errorResponseFor $ errJwt
                 Right claims -> do
                   let
                     authed = containsRole claims
-                    shouldCommit   = configTxAllowOverride conf && iPreferTransaction apiRequest == Just Commit
-                    shouldRollback = configTxAllowOverride conf && iPreferTransaction apiRequest == Just Rollback
+                    shouldCommit   = configDbTxAllowOverride conf && iPreferTransaction apiRequest == Just Commit
+                    shouldRollback = configDbTxAllowOverride conf && iPreferTransaction apiRequest == Just Rollback
                     preferenceApplied
                       | shouldCommit    = addHeadersIfNotIncluded [(hPreferenceApplied, BS.pack (show Commit))]
                       | shouldRollback  = addHeadersIfNotIncluded [(hPreferenceApplied, BS.pack (show Rollback))]
                       | otherwise       = identity
                     handleReq = do
-                      when (shouldRollback || (configTxRollbackAll conf && not shouldCommit)) HT.condemn
+                      when (shouldRollback || (configDbTxRollbackAll conf && not shouldCommit)) HT.condemn
                       mapResponseHeaders preferenceApplied <$> runPgLocals conf claims (app dbStructure conf) apiRequest
                   dbResp <- P.use pool $ HT.transaction HT.ReadCommitted (txMode apiRequest) handleReq
                   return $ either (errorResponseFor . PgError authed) identity dbResp
@@ -320,9 +320,9 @@ app dbStructure conf apiRequest =
                       return $ responseLBS status headers rBody
 
         (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
-          let host = configHost conf
-              port = toInteger $ configPort conf
-              proxy = pickProxy $ toS <$> configOpenAPIProxyUri conf
+          let host = configServerHost conf
+              port = toInteger $ configServerPort conf
+              proxy = pickProxy $ toS <$> configOpenApiServerProxyUri conf
               uri Nothing = ("http", host, port, "/")
               uri (Just Proxy { proxyScheme = s, proxyHost = h, proxyPort = p, proxyPath = b }) = (s, h, p, b)
               uri' = uri proxy
@@ -340,8 +340,8 @@ app dbStructure conf apiRequest =
 
       where
         notFound = responseLBS status404 [] ""
-        maxRows = configMaxRows conf
-        prepared = configDbPrepared conf
+        maxRows = configDbMaxRows conf
+        prepared = configDbPreparedStatements conf
         exactCount = iPreferCount apiRequest == Just ExactCount
         estimatedCount = iPreferCount apiRequest == Just EstimatedCount
         plannedCount = iPreferCount apiRequest == Just PlannedCount

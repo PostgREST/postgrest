@@ -66,55 +66,55 @@ getEnvVarWithDefault var def = toS <$>
 _baseCfg :: AppConfig
 _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
-    configDbUri             = mempty
-  , configAnonRole          = "postgrest_test_anonymous"
-  , configOpenAPIProxyUri   = Nothing
-  , configSchemas           = fromList ["test"]
-  , configHost              = "localhost"
-  , configPort              = 3000
-  , configSocket            = Nothing
-  , configSocketMode        = Right 432
-  , configDbChannel         = mempty
-  , configDbChannelEnabled  = False
-  , configJwtSecret         = secret
-  , configJwtSecretIsBase64 = False
-  , configJwtAudience       = Nothing
-  , configPoolSize          = 10
-  , configPoolTimeout       = 10
-  , configMaxRows           = Nothing
-  , configPreReq            = Just "test.switch_role"
-  , configSettings          = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
-  , configRoleClaimKey      = Right [JSPKey "role"]
-  , configExtraSearchPath   = []
-  , configRootSpec          = Nothing
-  , configRawMediaTypes     = []
-  , configJWKS              = parseSecret <$> secret
-  , configLogLevel          = LogCrit
-  , configTxRollbackAll     = True
-  , configTxAllowOverride   = True
-  , configDbPrepared        = True
+    configAppSettings           = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
+  , configDbAnonRole            = "postgrest_test_anonymous"
+  , configDbChannel             = mempty
+  , configDbChannelEnabled      = False
+  , configDbExtraSearchPath     = []
+  , configDbMaxRows             = Nothing
+  , configDbPoolSize            = 10
+  , configDbPoolTimeout         = 10
+  , configDbPreRequest          = Just "test.switch_role"
+  , configDbPreparedStatements  = True
+  , configDbRootSpec            = Nothing
+  , configDbSchemas             = fromList ["test"]
+  , configDbUri                 = mempty
+  , configJWKS                  = parseSecret <$> secret
+  , configJwtAudience           = Nothing
+  , configJwtRoleClaimKey       = Right [JSPKey "role"]
+  , configJwtSecret             = secret
+  , configJwtSecretIsBase64     = False
+  , configLogLevel              = LogCrit
+  , configOpenApiServerProxyUri = Nothing
+  , configRawMediaTypes         = []
+  , configServerHost            = "localhost"
+  , configServerPort            = 3000
+  , configServerUnixSocket      = Nothing
+  , configServerUnixSocketMode  = Right 432
+  , configDbTxAllowOverride     = True
+  , configDbTxRollbackAll       = True
   }
 
 testCfg :: Text -> AppConfig
 testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
 
 testCfgDisallowRollback :: Text -> AppConfig
-testCfgDisallowRollback testDbConn = (testCfg testDbConn) { configTxRollbackAll = False, configTxAllowOverride = False }
+testCfgDisallowRollback testDbConn = (testCfg testDbConn) { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
 
 testCfgForceRollback :: Text -> AppConfig
-testCfgForceRollback testDbConn = (testCfg testDbConn) { configTxRollbackAll = True, configTxAllowOverride = False }
+testCfgForceRollback testDbConn = (testCfg testDbConn) { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
 
 testCfgNoJWT :: Text -> AppConfig
 testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing, configJWKS = Nothing }
 
 testUnicodeCfg :: Text -> AppConfig
-testUnicodeCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["تست"] }
+testUnicodeCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["تست"] }
 
 testMaxRowsCfg :: Text -> AppConfig
-testMaxRowsCfg testDbConn = (testCfg testDbConn) { configMaxRows = Just 2 }
+testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
 
 testProxyCfg :: Text -> AppConfig
-testProxyCfg testDbConn = (testCfg testDbConn) { configOpenAPIProxyUri = Just "https://postgrest.com/openapi.json" }
+testProxyCfg testDbConn = (testCfg testDbConn) { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
 
 testCfgBinaryJWT :: Text -> AppConfig
 testCfgBinaryJWT testDbConn =
@@ -150,22 +150,22 @@ testCfgAsymJWKSet testDbConn =
   }
 
 testNonexistentSchemaCfg :: Text -> AppConfig
-testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["nonexistent"] }
+testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["nonexistent"] }
 
 testCfgExtraSearchPath :: Text -> AppConfig
-testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configExtraSearchPath = ["public", "extensions"] }
+testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configDbExtraSearchPath = ["public", "extensions"] }
 
 testCfgRootSpec :: Text -> AppConfig
-testCfgRootSpec testDbConn = (testCfg testDbConn) { configRootSpec = Just "root"}
+testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just "root"}
 
 testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
 testCfgResponseHeaders :: Text -> AppConfig
-testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configPreReq = Just "custom_headers" }
+testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = Just "custom_headers" }
 
 testMultipleSchemaCfg :: Text -> AppConfig
-testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configSchemas = fromList ["v1", "v2"] }
+testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["v1", "v2"] }
 
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"

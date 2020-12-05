@@ -53,14 +53,14 @@ runPgLocals conf claims app req = do
     headersSql = setLocalQuery "request.header." <$> iHeaders req
     cookiesSql = setLocalQuery "request.cookie." <$> iCookies req
     claimsSql = setLocalQuery "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
-    appSettingsSql = setLocalQuery mempty <$> configSettings conf
+    appSettingsSql = setLocalQuery mempty <$> configAppSettings conf
     setRoleSql = maybeToList $ (\x ->
       setLocalQuery mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
-    setSearchPathSql = setLocalSearchPathQuery (iSchema req : configExtraSearchPath conf)
+    setSearchPathSql = setLocalSearchPathQuery (iSchema req : configDbExtraSearchPath conf)
     -- role claim defaults to anon if not specified in jwt
     claimsWithRole = M.union claims (M.singleton "role" anon)
-    anon = JSON.String . toS $ configAnonRole conf
-    preReq = (\f -> "select " <> toS f <> "();") <$> configPreReq conf
+    anon = JSON.String . toS $ configDbAnonRole conf
+    preReq = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
 
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
