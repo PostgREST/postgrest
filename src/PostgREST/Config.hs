@@ -42,9 +42,10 @@ import Data.Aeson              (encode, toJSON)
 import Data.Either.Combinators (fromRight', whenLeft)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Scientific         (floatingOrInteger)
-import Data.Text               (dropEnd, dropWhileEnd, intercalate,
-                                pack, replace, splitOn, strip,
-                                stripPrefix, take, toLower, unpack)
+import Data.Text               (dropEnd, dropWhileEnd, filter,
+                                intercalate, pack, replace, splitOn,
+                                strip, stripPrefix, take, toLower,
+                                toTitle, unpack)
 import Data.Text.IO            (hPutStrLn)
 import Data.Version            (versionBranch)
 import Development.GitRev      (gitHash)
@@ -64,9 +65,10 @@ import PostgREST.Parsers          (pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
 import PostgREST.Types            (JSPath, JSPathExp (..),
                                    LogLevel (..))
-import Protolude                  hiding (concat, hPutStrLn,
+import Protolude                  hiding (concat, filter, hPutStrLn,
                                    intercalate, null, replace, take,
-                                   toList, toLower, toS, (<>))
+                                   toList, toLower, toS, toTitle,
+                                   (<>))
 import Protolude.Conv             (toS)
 
 -- | Command line interface options
@@ -429,7 +431,12 @@ readAppConfig cfgPath = do
 
     coerceBool :: C.Value -> Maybe Bool
     coerceBool (C.Bool b)   = Just b
-    coerceBool (C.String b) = readMaybe $ toS b
+    coerceBool (C.String s) =
+      -- parse all kinds of text: True, true, TRUE, "true", ...
+      case readMaybe . toS $ toTitle $ filter isAlpha $ toS s of
+        Just b  -> Just b
+        -- numeric instead?
+        Nothing -> (> 0) <$> (readMaybe $ toS s :: Maybe Integer)
     coerceBool _            = Nothing
 
     parseRoleClaimKey :: C.Value -> Either Text JSPath
