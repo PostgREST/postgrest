@@ -1,17 +1,22 @@
 'Tests for inputs and outputs of PostgREST.'
 
+import contextlib
 import pathlib
 import subprocess
 import tempfile
 import os
+import time
 
 import pytest
 import requests
+
+BASEURL = 'http://127.0.0.1:49421'
 
 
 basedir = pathlib.Path(os.path.realpath(__file__)).parent
 configs = [path for path in (basedir / 'configs').iterdir() if path.is_file()]
 expectedconfigs = list((basedir / 'configs' / 'expected').iterdir())
+secrets = [path for path in (basedir / 'secrets').iterdir() if path.suffix != '.jwt']
 
 
 @pytest.fixture(params=configs, ids=[conf.name for conf in configs])
@@ -26,9 +31,14 @@ def expectedconfig(request):
     return request.param
 
 
+@pytest.fixture(params=secrets, ids=[secret.name for secret in secrets])
+def secretpath(request):
+    'Fixture for all secrets.'
+    return request.param
+
+
 def dumpconfig(configpath, moreenv=None):
     'Dump the config as parsed by PostgREST.'
-
     env = os.environ
     if moreenv:
         env = {**env, **moreenv}
@@ -36,6 +46,39 @@ def dumpconfig(configpath, moreenv=None):
     command = ['postgrest', '--dump-config', configpath]
     result = subprocess.run(command, env=env, capture_output=True, check=True)
     return result.stdout.decode('utf-8')
+
+
+@contextlib.contextmanager
+def run(configpath, stdin=None):
+    'Run PostgREST.'
+    command = ['postgrest', configpath]
+    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+
+    try:
+        if stdin:
+            process.stdin.write(stdin)
+        process.stdin.close()
+
+        waitfor200(BASEURL)
+        yield BASEURL
+    finally:
+        process.kill()
+        process.wait()
+
+
+def waitfor200(url):
+    for i in range(10):
+        try:
+            response = requests.get(url, timeout=0.1)
+
+            if response.status_code == 200:
+                return
+        except requests.ConnectionError:
+            pass
+
+        time.sleep(.1)
+
+    raise Exception('Waiting for PostgREST ready timed out')
 
 
 def test_expected_config(expectedconfig):
@@ -68,3 +111,19 @@ def test_stable_config(configpath):
         redumped = dumpconfig(tmpconfigpath, moreenv=env)
 
     assert dumped == redumped
+
+
+def test_read_secret_from_file(secretpath):
+    if secretpath.suffix == '.b64':
+        configfile = basedir / 'configs' / 'base64-secret-from-file.config'
+    else:
+        configfile = basedir / 'configs' / 'secret-from-file.config'
+
+    secret = secretpath.read_bytes()
+
+    jwt = secretpath.with_suffix('.jwt').read_text()
+    headers = {'Authorization': f'Bearer {jwt}'}
+
+    with run(configfile, stdin=secret) as url:
+        response = requests.get(f'{url}/authors_only', headers=headers)
+        assert response.status_code == 200
