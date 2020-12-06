@@ -15,6 +15,7 @@
 , postgrestStatic
 , postgrestProfiled
 , procps
+, python3
 , runtimeShell
 }:
 let
@@ -89,6 +90,25 @@ let
         ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
       '';
 
+  ioTestPython =
+    python3.withPackages (ps: [ ps.pytest ]);
+
+  # Provisional name until all io-tests are migrated
+  testIONew =
+    name: postgresql:
+    checkedShellScript
+      name
+      ''
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:${curl}/bin:${procps}/bin:${diffutils}/bin:$PATH"
+
+        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
+        cd "$rootdir"
+
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
+        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} ${ioTestPython}/bin/py.test "$rootdir"/test/io-tests
+      '';
+
   testMemory =
     name: postgresql:
     checkedShellScript
@@ -114,10 +134,11 @@ buildEnv
         (testSpec "postgrest-test-spec" postgresql).bin
         testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
+        (testIONew "postgrest-test-io-new" postgresql).bin
       ] ++ testSpecVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)
-  # and are run less often than the spec tests, so we don't include them in 
+  # and are run less often than the spec tests, so we don't include them in
   # the default test environment. We make them available through a separate attribute:
   // {
   memoryTests =
