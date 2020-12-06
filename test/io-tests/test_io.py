@@ -1,13 +1,21 @@
 'Tests for inputs and outputs of PostgREST.'
 
+import pathlib
 import subprocess
 import os
 
+import pytest
 import requests
 
 
-basedir = os.path.dirname(os.path.realpath(__file__))
-expectedconfigs = os.listdir(os.path.join(basedir, 'configs/expected'))
+basedir = pathlib.Path(os.path.realpath(__file__)).parent
+expectedconfigs = list((basedir / 'configs' / 'expected').iterdir())
+
+
+@pytest.fixture(params=expectedconfigs)
+def expectedconfig(request):
+    'Fixture for all expected configs'
+    return request.param
 
 
 def dumpconfig(configpath):
@@ -17,12 +25,9 @@ def dumpconfig(configpath):
     return subprocess.run(command, capture_output=True, check=True).stdout.decode('utf-8')
 
 
-def test_configs():
+def test_expected_config(expectedconfig):
     'PostgREST should parse configs as expected.'
 
-    for config in expectedconfigs:
-        expectedpath = os.path.join(basedir, 'configs', 'expected', config)
-        with open(expectedpath) as expectedfile:
-            expected = expectedfile.read()
+    expected = (basedir / 'configs' / 'expected' / expectedconfig).read_text()
 
-        assert dumpconfig(os.path.join(basedir, 'configs', config)) == expected
+    assert dumpconfig(basedir / 'configs' / expectedconfig) == expected
