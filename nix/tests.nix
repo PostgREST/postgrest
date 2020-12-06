@@ -100,14 +100,14 @@ let
       name
       ''
         env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:${curl}/bin:${procps}/bin:${diffutils}/bin:$PATH"
+        export PATH="$env/bin:$PATH"
 
         rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
         cd "$rootdir"
 
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} \
-          ${ioTestPython}/bin/pytest -vv "$rootdir"/test/io-tests
+          ${ioTestPython}/bin/pytest -- -v "$rootdir"/test/io-tests
       '';
 
   testMemory =
