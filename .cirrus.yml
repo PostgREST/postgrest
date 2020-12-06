@@ -36,7 +36,7 @@ build_task:
         sed -i '' "s/^version:.*/version:$cabal_nightly_version/" postgrest.cabal
       fi
       ## compile for 30 minutes tops
-    - timeout 1800 cabal v2-build || (($?==124))
+    - timeout 1800 cabal v2-build -j1 || (($?==124))
 
   publish_script:
     - |
