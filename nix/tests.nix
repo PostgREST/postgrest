@@ -91,7 +91,7 @@ let
       '';
 
   ioTestPython =
-    python3.withPackages (ps: [ ps.pytest ]);
+    python3.withPackages (ps: [ ps.pytest ps.requests ]);
 
   # Provisional name until all io-tests are migrated
   testIONew =
@@ -106,7 +106,8 @@ let
         cd "$rootdir"
 
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} ${ioTestPython}/bin/py.test "$rootdir"/test/io-tests
+        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} \
+          ${ioTestPython}/bin/pytest "$rootdir"/test/io-tests
       '';
 
   testMemory =
