@@ -18,7 +18,7 @@ If you use **FreeBSD**, then you can install PostgREST from the `official ports 
 
   pkg install hs-postgrest
 
-If you use **Arch Linux**, then you can install PostgREST from the `community repo <https://www.archlinux.org/packages/community/x86_64/postgrest>`_.
+If you use **Arch Linux**, then you can install PostgREST from the `community repo <https://archlinux.org/packages/community/x86_64/postgrest>`_.
 
 .. code:: bash
 
@@ -30,7 +30,7 @@ If you use **Nix**, then you can install PostgREST from nixpkgs.
 
   nix-env -i haskellPackages.postgrest
 
-If you use Windows, you can install PostgREST using `Chocolatey <https://chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
+If you use Windows, you can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
 
 .. code:: bash
 
@@ -252,7 +252,7 @@ Assuming you're making modifications locally and then pushing to GitHub, it's ea
 
 1. Create a new app on Heroku
 2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
-3. Add the require Config Vars in Heroku (see https://github.com/PostgREST/postgrest/blob/master/app.json#L7-L57 for more details)
+3. Add the require Config Vars in Heroku (see https://github.com/PostgREST/postgrest/blob/main/app.json for more details)
 4. Modify your ``postgrest.conf`` file as required to match your Config Vars in Heroku
 5. Create your :code:`Procfile` and add :code:`./env-to-config ./postgrest postgrest.conf`
 6. Push your changes to GitHub

@@ -38,7 +38,7 @@ We can retrieve this image in binary format from our PostgREST API by requesting
 Unfortunately, putting the URL into the :code:`src` of an :code:`<img>` tag will not work.
 That's because browsers do not send the required header.
 
-Luckily, we can configure our `Nginx reverse proxy <../admin.html>`_ to fix this problem for us.
+Luckily, we can configure our :ref:`Nginx reverse proxy <admin>` to fix this problem for us.
 We assume that PostgREST is running on port 3000.
 We provide a new location :code:`/files/` that redirects requests to our endpoint with the :code:`Accept` header set to :code:`application/octet-stream`.
 

@@ -16,7 +16,7 @@ The configuration file must contain a set of key value pairs. At minimum you mus
   # postgrest.conf
 
   # The standard connection URI format, documented at
-  # https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347
+  # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
   db-uri       = "postgres://user:pass@host:5432/dbname"
 
   # The name of which database schema to expose to REST clients
@@ -59,9 +59,9 @@ raw-media-types          String
 db-uri
 ------
 
-  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/9.1/static/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
 
-  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <http://www.postgresql.org/docs/current/static/auth-methods.html#AUTH-PEER>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/10/static/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
+  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <https://www.postgresql.org/docs/current/auth-peer.html>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
 
   On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`.
 
@@ -79,7 +79,7 @@ db-schema
 
      db-schema = "api"
 
-  This schema gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+  This schema gets added to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
 
 List of schemas
 ~~~~~~~~~~~~~~~
@@ -92,7 +92,7 @@ List of schemas
 
   If you don't :ref:`Switch Schemas <multiple-schemas>`, the first schema in the list(``tenant1`` in this case) is chosen as the default schema.
 
-  *Only the chosen schema* gets added to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
+  *Only the chosen schema* gets added to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
 
   .. warning::
 
@@ -125,7 +125,7 @@ db-pool-timeout
 db-extra-search-path
 --------------------
 
-  Extra schemas to add to the `search_path <https://www.postgresql.org/docs/11/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. These schemas tables, views and stored procedures **don't get API endpoints**, they can only be referred from the database objects inside your :ref:`db-schema`.
+  Extra schemas to add to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. These schemas tables, views and stored procedures **don't get API endpoints**, they can only be referred from the database objects inside your :ref:`db-schema`.
 
   This parameter was meant to make it easier to use **PostgreSQL extensions** (like PostGIS) that are outside of the :ref:`db-schema`.
 

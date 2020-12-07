@@ -19,27 +19,26 @@ Community Tutorials
 Example Apps
 ------------
 
-* `monacoremo/postgrest-sessions-example <https://github.com/monacoremo/postgrest-sessions-example>`_ - example for cookie-based sessions
-* `tatut/postgrest-ui <https://github.com/tatut/postgrest-ui>`_ - ClojureScript UI components for PostgREST
-* `priyank-purohit/PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
-* `Qu4tro/pgrst-dev-setup <https://github.com/Qu4tro/pgrst-dev-setup>`_ - docker-compose and tmuxp setup for experimentation.
-* `subzerocloud/postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - boilerplate for new project
-* `NikolayS/postgrest-google-translate <https://github.com/NikolayS/postgrest-google-translate>`_ - calling to external translation service
-* `CodeforAustralia/heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
-* `timwis/handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - an excel-like database table editor
-* `Recmo/PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
-* `benoror/ember-postgrest-dynamic-ui <https://github.com/benoror/ember-postgrest-dynamic-ui>`_ - generating Ember forms to edit data
-* `ruslantalpa/blogdemo <https://github.com/ruslantalpa/blogdemo>`_ - blog api demo in a vagrant image
-* `timwis/ext-postgrest-crud <https://github.com/timwis/ext-postgrest-crud>`_ - browser-based spreadsheet
-* `srid/chronicle <https://github.com/srid/chronicle>`_ - tracking a tree of personal memories
-* `diogob/elm-workshop <https://github.com/diogob/elm-workshop>`_ - building a simple database query UI
-* `myfreeweb/moneylog <https://github.com/myfreeweb/moneylog>`_ - accounting web app in Polymer + PostgREST
-* `tyrchen/goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film api
-* `begriffs/postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
-* `SMRxT/postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
-* `PierreRochard/postgrest-boilerplate <https://github.com/PierreRochard/postgrest-boilerplate>`_ - example auth back-end
-* `marmelab/ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
-* `seveibar/postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - run PostgREST on Vercel (Serverless/AWS Lambda)
+* `blogdemo <https://github.com/ruslantalpa/blogdemo>`_ - blog api demo in a vagrant image
+* `chronicle <https://github.com/srid/chronicle>`_ - tracking a tree of personal memories
+* `elm-workshop <https://github.com/diogob/elm-workshop>`_ - building a simple database query UI
+* `ember-postgrest-dynamic-ui <https://github.com/benoror/ember-postgrest-dynamic-ui>`_ - generating Ember forms to edit data
+* `ext-postgrest-crud <https://github.com/timwis/ext-postgrest-crud>`_ - browser-based spreadsheet
+* `general <https://github.com/PierreRochard/general>`_ - example auth back-end
+* `goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film api
+* `handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - an excel-like database table editor
+* `heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
+* `ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
+* `pgrst-dev-setup <https://github.com/Qu4tro/pgrst-dev-setup>`_ - docker-compose and tmuxp setup for experimentation.
+* `postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
+* `postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
+* `postgrest-sessions-example <https://github.com/monacoremo/postgrest-sessions-example>`_ - example for cookie-based sessions
+* `postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - boilerplate for new project
+* `postgrest-translation-proxy <https://github.com/NikolayS/postgrest-translation-proxy>`_ - calling to external translation service
+* `postgrest-ui <https://github.com/tatut/postgrest-ui>`_ - ClojureScript UI components for PostgREST
+* `postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - run PostgREST on Vercel (Serverless/AWS Lambda)
+* `PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
+* `PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
 
 .. _eco_external_notification:
 
@@ -48,14 +47,14 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
 
-* `vbalasu/pg-notify-webhook <https://pypi.org/project/pg-notify-webhook/>`_ - trigger webhooks from PostgreSQL's LISTEN/NOTIFY
-* `diogob/postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
-* `frafra/postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
-* `matthewmueller/pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
-* `aweber/pgsql-listen-exchange <https://github.com/aweber/pgsql-listen-exchange>`_ - RabbitMQ
-* `SpiderOak/skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
-* `FGRibreau/postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
-* `daurnimator/pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
+* `pg-bridge <https://github.com/matthewmueller/pg-bridge>`_ - Amazon SNS
+* `pg-kinesis-bridge <https://github.com/daurnimator/pg-kinesis-bridge>`_ - Amazon Kinesis
+* `pg-notify-webhook <https://github.com/vbalasu/pg-notify-webhook>`_ - trigger webhooks from PostgreSQL's LISTEN/NOTIFY
+* `pgsql-listen-exchange <https://github.com/gmr/pgsql-listen-exchange>`_ - RabbitMQ
+* `postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
+* `postgresql-to-amqp <https://github.com/FGRibreau/postgresql-to-amqp>`_ - AMQP
+* `postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
+* `skeeter <https://github.com/SpiderOak/skeeter>`_ - ZeroMQ
 
 
 .. _eco_extensions:
@@ -63,45 +62,45 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 Extensions
 ----------
 
+* `aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
 * `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ - prevent full-table updates or deletes
-* `srid/spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
-* `svmnotn/postgrest-auth <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
-* `wildsurfer/postgrest-oauth-server <https://github.com/wildsurfer/postgrest-oauth-server>`_ - OAuth2 server
-* `nblumoe/postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
-* `criles25/postgrest-auth <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
-* `ppKrauss/PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate nginx rewrite rules to fit an OpenAPI spec
-* `seveibar/postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a PostgREST server in Node.js via npm module
-* `Exahilosys/aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
+* `postgrest-auth (criles25) <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
+* `postgrest-auth (svmotn) <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
+* `postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a PostgREST server in Node.js via npm module
+* `postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
+* `postgrest-oauth/api <https://github.com/postgrest-oauth/api>`_ - OAuth2 server
+* `PostgREST-writeAPI <https://github.com/ppKrauss/PostgREST-writeAPI>`_ - generate nginx rewrite rules to fit an OpenAPI spec
+* `spas <https://github.com/srid/spas>`_ - allow file uploads and basic auth
 
 .. _clientside_libraries:
 
 Client-Side Libraries
 ---------------------
 
-* `supabase/postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
-* `supabase/postgrest-rs <https://github.com/supabase/postgrest-rs>`_ - Rust
-* `supabase/postgrest-dart <https://github.com/supabase/postgrest-dart>`_ - Dart
-* `supabase/postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
-* `supabase/postgrest-csharp <https://github.com/supabase/postgrest-csharp>`_ - C#
-* `supabase/postgrest-kt <https://github.com/supabase/postgrest-kt>`_ - Kotlin
-* `supabase/postgrest-swift <https://github.com/supabase/postgrest-kt>`_ - Swift
-* `technowledgy/vue-postgrest <https://github.com/technowledgy/vue-postgrest>`_ - Vue.js
-* `SocialGouv/postgrester <https://github.com/SocialGouv/postgrester>`_ - JS + Typescript
-* `Kong/py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
-* `datrium/postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
-* `tomberek/aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
-* `hugomrdias/postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
-* `john-kelly/elm-postgrest <https://github.com/john-kelly/elm-postgrest>`_ - Elm
-* `mithril.postgrest <https://github.com/catarse/mithril.postgrest>`_ - JS, Mithril
-* `lewisjared/postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
-* `JarvusInnovations/jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
-* `davidthewatson/postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
-* `calebmer/postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
-* `clesiemo3/postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
-* `PierreRochard/postgrest-angular <https://github.com/PierreRochard/postgrest-angular>`_ - TypeScript, generate UI from API description
-* `thejettdurham/postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
-* `team142/ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over PostgREST.
-* `andytango/redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
+* `aor-postgrest-client <https://github.com/tomberek/aor-postgrest-client>`_ - JS, admin-on-rest
+* `elm-postgrest <https://github.com/john-kelly/elm-postgrest>`_ - Elm
+* `general-angular <https://github.com/PierreRochard/general-angular>`_ - TypeScript, generate UI from API description
+* `jarvus-postgrest-apikit <https://github.com/JarvusInnovations/jarvus-postgrest-apikit>`_ - JS, Sencha framework
+* `mithril-postgrest <https://github.com/catarse/mithril-postgrest>`_ - JS, Mithril
+* `ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over PostgREST.
+* `postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
+* `postgrest-csharp <https://github.com/supabase/postgrest-csharp>`_ - C#
+* `postgrest-dart <https://github.com/supabase/postgrest-dart>`_ - Dart
+* `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
+* `postgrest-kt <https://github.com/supabase/postgrest-kt>`_ - Kotlin
+* `postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
+* `postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
+* `postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
+* `postgrest-rs <https://github.com/supabase/postgrest-rs>`_ - Rust
+* `postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
+* `postgrest-swift <https://github.com/supabase/postgrest-kt>`_ - Swift
+* `postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
+* `postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
+* `postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
+* `postgrester <https://github.com/SocialGouv/postgrester>`_ - JS + Typescript
+* `py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
+* `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
+* `vue-postgrest <https://github.com/technowledgy/vue-postgrest>`_ - Vue.js
 
 .. _eco_commercial:
 

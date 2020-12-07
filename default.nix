@@ -1,9 +1,9 @@
 let
   # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion = {
-    date = "2020-10-27";
-    rev = "cd63096d6d887d689543a0b97743d28995bc9bc3";
-    tarballHash = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
+    date = "2021-04-04";
+    rev = "c0e881852006b132236cbf0301bd1939bb50867e";
+    tarballHash = "0fy7z7yxk5n7yslsvx5cyc6h21qwi4bhxf3awhirniszlbvaazy2";
   };
 
   # Nix files that describe the Nixpkgs repository. We evaluate the expression
@@ -71,5 +71,13 @@ in
          | tr '\n' '\0' \
          | xargs -0 -n 1 -i \
            sh -c "grep \"{}\" $FILES > /dev/null || echo \"{}\""
+      '';
+
+  linkcheck =
+    pkgs.writeShellScriptBin "postgrest-docs-linkcheck"
+      ''
+        set -euo pipefail
+
+        ${python}/bin/sphinx-build -b linkcheck . _build
       '';
 }

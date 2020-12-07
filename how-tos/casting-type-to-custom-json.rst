@@ -4,11 +4,11 @@ Casting a type to a custom JSON object
 :author: `steve-chavez <https://github.com/steve-chavez>`_
 
 While using PostgREST you might have noticed that certain PostgreSQL types translate to JSON strings when you would
-have expected a JSON object or array. For example, let's see the case of `range types <https://www.postgresql.org/docs/11/rangetypes.html>`_.
+have expected a JSON object or array. For example, let's see the case of `range types <https://www.postgresql.org/docs/current/rangetypes.html>`_.
 
 .. code-block:: postgres
 
-   -- example taken from https://www.postgresql.org/docs/11/rangetypes.html#RANGETYPES-EXAMPLES
+   -- example taken from https://www.postgresql.org/docs/current/rangetypes.html#RANGETYPES-EXAMPLES
    create table reservations (
      room   int
    , during tsrange

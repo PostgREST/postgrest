@@ -8,7 +8,7 @@ PostgREST Documentation
 .. image:: https://img.shields.io/github/stars/postgrest/postgrest.svg?style=social
   :target: https://github.com/PostgREST/postgrest
 
-.. image:: https://img.shields.io/github/release/PostgREST/postgrest.svg
+.. image:: https://img.shields.io/github/v/release/PostgREST/postgrest.svg
   :target: https://github.com/PostgREST/postgrest/releases
 
 .. image:: https://img.shields.io/docker/pulls/postgrest/postgrest.svg
@@ -39,11 +39,11 @@ Sponsors
   :width:  13em
 
 .. image:: _static/retool.png
-  :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
   :width:  13em
 
 .. image:: _static/supabase.png
-  :target: https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+  :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
   :width:  13em
 
 |
@@ -71,7 +71,7 @@ PostgREST has a focused scope. It works well with other tools like Nginx. This f
 Getting Support
 ----------------
 
-The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/begriffs/postgrest/issues>`_ page.
+The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
 
 .. toctree::
    :glob:
@@ -204,25 +204,21 @@ In Production
 
 Here are some companies that use PostgREST in production.
 
-* `Sompani <https://www.sompani.com/>`_
+* `Catarse <https://www.catarse.me>`_
 * `Datrium <https://www.datrium.com>`_
-* `Supabase <https://supabase.io>`_
-* `Nimbus <https://nimbusforwork.com/>`_
-  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
-* `Catarse <https://www.catarse.me/>`_
-* `Moat <https://moat.com/>`_
-* `Netwo <https://www.netwo.io/>`_
-* `Redsmin <https://www.redsmin.com/>`_
-* `Image-charts <https://image-charts.com/>`_
-* `MotionDynamic - Fast highly dynamic video generation at scale <https://api.motiondynamic.tech/>`_
-* `Drip Depot <https://www.dripdepot.com/>`_
-* `Convene <https://info.convene.thomsonreuters.com/en.html>`_ by Thomson-Reuters
-* `eGull <http://www.egull.co>`_
+* `Drip Depot <https://www.dripdepot.com>`_
+* `eGull <https://www.egull.co>`_
 * `Elyios <https://elyios.com>`_
-* `Simply Connected Systems <https://www.simplyconnectedsystems.com/>`_
-
-.. * `OpenBooking <http://openbooking.ch>`_
-.. * `triggerFS - A realtime messaging and distributed trigger system <https://triggerfs.io/>`_
+* `Image-charts <https://www.image-charts.com>`_
+* `Moat <https://moat.com>`_
+* `MotionDynamic - Fast highly dynamic video generation at scale <https://motiondynamic.tech>`_
+* `Netwo <https://www.netwo.io>`_
+* `Nimbus <https://www.nimbusforwork.com>`_
+  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
+* `OpenBooking <https://www.openbooking.ch>`_
+* `Redsmin <https://www.redsmin.com>`_
+* `Sompani <https://www.sompani.com>`_
+* `Supabase <https://supabase.io>`_
 
 Testimonials
 ------------
@@ -263,11 +259,6 @@ Testimonials
   Couldn't be happier."
 
   -- Anupam Garg, Datrium, Inc.
-
-Translations
-------------
-
-* `Chinese <http://postgrest.org/zh/latest/>`_ (latest version ``v0.4.2.0``)
 
 Contributing
 ------------

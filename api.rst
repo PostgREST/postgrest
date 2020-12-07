@@ -108,7 +108,7 @@ The view will provide a new endpoint:
 Full-Text Search
 ~~~~~~~~~~~~~~~~
 
-The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/static/datatype-textsearch.html>`_. The following examples illustrate the possibilities.
+The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/datatype-textsearch.html>`_. The following examples illustrate the possibilities.
 
 .. code-block:: http
 
@@ -183,7 +183,7 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 JSON Columns
 ~~~~~~~~~~~~
 
-You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/9.5/static/functions-json.html>`_.
+You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
 
 .. code-block:: http
 
@@ -427,7 +427,7 @@ To do this, specify the ``Prefer: count=planned`` header.
 
 Note that the accuracy of this count depends on how up-to-date are the PostgreSQL statistics tables.
 For example in this case, to increase the accuracy of the count you can do ``ANALYZE bigtable``.
-See `ANALYZE <https://www.postgresql.org/docs/11/sql-analyze.html>`_ for more details.
+See `ANALYZE <https://www.postgresql.org/docs/current/sql-analyze.html>`_ for more details.
 
 .. _estimated_count:
 
@@ -676,14 +676,14 @@ Since it contains ``competition_id`` and ``film_id`` — and each one has a **fo
 
   GET /nominations_view?select=rank,competitions(name,year),films(title)&rank=eq.5 HTTP/1.1
 
-It's also possible to embed `Materialized Views <https://www.postgresql.org/docs/11/rules-materializedviews.html>`_.
+It's also possible to embed `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
 
 .. warning::
 
    It's not guaranteed that all kinds of views will be embeddable. In particular, views that contain
    UNIONs will not be made embeddable.
 
-   Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/11/catalog-pg-rewrite.html>`_.
+   Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
    This may fail depending on the complexity of the view.
 
    `Report an issue <https://github.com/PostgREST/postgrest/issues>`_ if your view is not made embeddable so we can
@@ -879,7 +879,7 @@ Similarly to the **target**, the **hint** can be a **table name**, **foreign key
 Insertions / Updates
 ====================
 
-All tables and `auto-updatable views <https://www.postgresql.org/docs/current/static/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
+All tables and `auto-updatable views <https://www.postgresql.org/docs/current/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
 
 To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
 
@@ -1044,7 +1044,7 @@ All the columns must be specified in the request body, including the primary key
 
 .. note::
 
-  Upsert features are only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/9.5/static/sql-insert.html#SQL-ON-CONFLICT>`_.
+  Upsert features are only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT>`_.
 
 .. _delete:
 
@@ -1138,7 +1138,7 @@ Procedures must be declared with named parameters. Procedures declared like
 
   CREATE FUNCTION non_named_args(integer, text, integer) ...
 
-cannot be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
+cannot be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
 
 Note that PostgreSQL converts identifier names to lowercase unless you quote them like:
 
@@ -1161,7 +1161,7 @@ Procedures that do not modify the database can be called with the HTTP GET verb 
 
 .. note::
 
-  The `volatility marker <https://www.postgresql.org/docs/current/static/xfunc-volatility.html>`_ is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  However, because of the read-only transaction this would still fail with PostgREST.
+  The `volatility marker <https://www.postgresql.org/docs/current/xfunc-volatility.html>`_ is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  However, because of the read-only transaction this would still fail with PostgREST.
 
 Because ``add_them`` is ``IMMUTABLE``, we can alternately call the function with a GET request:
 
@@ -1215,7 +1215,7 @@ You can call a function that takes an array parameter:
 
    [2,3,4,5]
 
-For calling the function with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/11/arrays.html#ARRAYS-INPUT>`_,
+For calling the function with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/current/arrays.html#ARRAYS-INPUT>`_,
 as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is ``%7B`` and ``}`` is ``%7D``).
 
 .. code-block:: http
@@ -1420,7 +1420,7 @@ This follows the same rules as :ref:`binary_output`.
 OpenAPI Support
 ===============
 
-Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints(tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/static/sql-comment.html>`_ on any database object. For instance,
+Every API hosted by PostgREST automatically serves a full `OpenAPI <https://www.openapis.org/>`_ description on the root path. This provides a list of all endpoints(tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads. For extra customization, the OpenAPI output contains a "description" field for every `SQL comment <https://www.postgresql.org/docs/current/sql-comment.html>`_ on any database object. For instance,
 
 .. code-block:: sql
 
@@ -1446,7 +1446,7 @@ Also if you wish to generate a ``summary`` field you can do it by having a multi
     spans
     multiple lines$$;
 
-You can use a tool like `Swagger UI <http://swagger.io/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
+You can use a tool like `Swagger UI <https://swagger.io/tools/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
 .. important::
 
@@ -1664,7 +1664,7 @@ Returns:
 HTTP Status Codes
 -----------------
 
-PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/static/errcodes-appendix.html>`_ into HTTP status as follows:
+PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_ into HTTP status as follows:
 
 +--------------------------+-------------------------+---------------------------------+
 | PostgreSQL error code(s) | HTTP status             | Error description               |

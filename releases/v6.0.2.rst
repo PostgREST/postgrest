@@ -13,7 +13,7 @@ Added
 * Ignoring payload keys for insert/update can be now done with the ``?columns`` query parameter. See :ref:`specify_columns`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* `websearch_to_tsquery <https://www.postgresql.org/docs/11/functions-textsearch.html#id-1.5.8.18.8.2.2.7.1.1>`_ can now be used
+* `websearch_to_tsquery <https://www.postgresql.org/docs/current/functions-textsearch.html#id-1.5.8.19.7.2.2.7.1.1.1>`_ can now be used
   through the ``wfts`` operator. See :ref:`fts`.
   |br| -- `@herulume <https://github.com/herulume>`_
 
@@ -62,7 +62,7 @@ This release is sponsored by:
   :width:  13em
 
 .. image:: ../_static/retool.png
-  :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
   :width:  13em
 
 * `Daniel Babiak <https://github.com/dbabiak>`_
@@ -76,4 +76,4 @@ This release is sponsored by:
 * Christopher Reid
 * Nathan Bouscal
 
-If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#supporting-development>`_.
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

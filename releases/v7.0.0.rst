@@ -85,7 +85,7 @@ This release was made possible thanks to:
   :width:  13em
 
 .. image:: ../_static/retool.png
-  :target: https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
   :width:  13em
 
 * `Daniel Babiak <https://github.com/dbabiak>`_
@@ -103,4 +103,4 @@ This release was made possible thanks to:
 * David Fenko
 
 
-If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#supporting-development>`_.
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

@@ -23,9 +23,9 @@ As you begin the tutorial, pop open the project `chat room <https://gitter.im/be
 Step 2. Install PostgreSQL
 --------------------------
 
-If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation(see :ref:`pg-dependency` for minimum requirements). For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
+If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation (see :ref:`pg-dependency` for minimum requirements). For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
 
-If Docker is not installed, you can get it `here <https://www.docker.com/community-edition#download>`_. Next, let's pull and start the database image:
+If Docker is not installed, you can get it `here <https://www.docker.com/get-started>`_. Next, let's pull and start the database image:
 
 .. code-block:: bash
 
@@ -109,7 +109,7 @@ You should see the psql command prompt:
 
   postgres=#
 
-The first thing we'll do is create a `named schema <https://www.postgresql.org/docs/current/static/ddl-schemas.html>`_ for the database objects which will be exposed in the API. We can choose any name we like, so how about "api." Execute this and the other SQL statements inside the psql prompt you started.
+The first thing we'll do is create a `named schema <https://www.postgresql.org/docs/current/ddl-schemas.html>`_ for the database objects which will be exposed in the API. We can choose any name we like, so how about "api." Execute this and the other SQL statements inside the psql prompt you started.
 
 .. code-block:: postgres
 

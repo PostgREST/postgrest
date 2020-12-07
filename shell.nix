@@ -13,5 +13,6 @@ pkgs.mkShell {
     docs.serve
     docs.spellcheck
     docs.dictcheck
+    docs.linkcheck
   ];
 }

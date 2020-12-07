@@ -16,7 +16,7 @@ The authenticator should be created :code:`NOINHERIT` and configured in the data
 
 .. image:: _static/security-anon-choice.png
 
-Here are the technical details. We use `JSON Web Tokens <http://jwt.io/>`_ to authenticate API requests. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
+Here are the technical details. We use `JSON Web Tokens <https://jwt.io/>`_ to authenticate API requests. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
 
 .. code:: json
 
@@ -48,7 +48,7 @@ Roles for Each Web User
 
 PostgREST can accommodate either viewpoint. If you treat a role as a single user then the JWT-based role switching described above does most of what you need. When an authenticated user makes a request PostgREST will switch into the role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
 
-You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
+You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <https://www.2ndquadrant.com/en/blog/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
 
 .. code-block:: postgres
 
@@ -208,14 +208,14 @@ To use Auth0, create `an application <https://auth0.com/docs/applications>`_ for
 
 .. note::
 
-  Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write `a rule <https://auth0.com/docs/rules>`_ that will extract the role from the user's app_metadata and set it as a `custom claim <https://auth0.com/docs/scopes/sample-use-cases-scopes-and-claims#add-custom-claims-to-a-token>`_ in the access token. Note that, you may use Auth0's `core authorization feature <https://auth0.com/docs/authorization/rbac>`_ for more complex use cases. Metadata solution is mentioned here for simplicity.
+  Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata>`_. Then, you will need to write `a rule <https://auth0.com/docs/rules>`_ that will extract the role from the user's app_metadata and set it as a `custom claim <https://auth0.com/docs/scopes/sample-use-cases-scopes-and-claims#add-custom-claims-to-a-token>`_ in the access token. Note that, you may use Auth0's `core authorization feature <https://auth0.com/docs/authorization/rbac>`_ for more complex use cases. Metadata solution is mentioned here for simplicity.
 
   .. code:: javascript
 
     function (user, context, callback) {
 
       // Follow the documentations at
-      // http://postgrest.org/en/latest/configuration.html#role-claim-key
+      // https://postgrest.org/en/latest/configuration.html#role-claim-key
       // to set a custom role claim on PostgREST
       // and use it as custom claim attribute in this rule
       const myRoleClaim = 'https://myapp.com/role';
