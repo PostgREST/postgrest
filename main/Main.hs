@@ -35,7 +35,8 @@ import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), minimumPgVersion)
+                              PgVersion (..), SCacheStatus (..),
+                              minimumPgVersion)
 import Protolude             hiding (hPutStrLn, head, toS)
 import Protolude.Conv        (toS)
 
@@ -177,7 +178,7 @@ _1s  = 1000000  :: Int -- 1 second
   1. Tries to connect to pg server and will keep trying until success.
   2. Checks if the pg version is supported and if it's not it kills the main
      program.
-  3. Obtains the dbStructure.
+  3. Obtains the dbStructure. If this fails, it goes back to 1.
 -}
 connectionWorker
   :: ThreadId                      -- ^ Main thread id. Killed if pg version is unsupported
@@ -203,7 +204,11 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
         Connected actualPgVersion   -> do                                            -- Procede with initialization
           putStrLn ("Connection successful" :: Text)
-          fillSchemaCache pool actualPgVersion refConf refDbStructure
+          scStatus <- loadSchemaCache pool actualPgVersion refConf refDbStructure
+          case scStatus of
+            SCLoaded    -> pure ()            -- do nothing and proceed if the load was successful
+            SCOnRetry   -> work               -- retry
+            SCFatalFail -> killThread mainTid -- die if our schema cache query has an error
           liftIO $ atomicWriteIORef refIsWorkerOn False
 
 {-|
@@ -244,21 +249,29 @@ connectionStatus pool =
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
 
--- | Fill the DbStructure by using a connection from the pool
-fillSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO ()
-fillSchemaCache pool actualPgVersion refConf refDbStructure = do
+-- | Load the DbStructure by using a connection from the pool.
+loadSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO SCacheStatus
+loadSchemaCache pool actualPgVersion refConf refDbStructure = do
   conf <- readIORef refConf
   result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configDbSchemas conf) (configDbExtraSearchPath conf) actualPgVersion (configDbPreparedStatements conf)
   case result of
     Left e -> do
-      -- If this error happens it would mean the connection is down again. Improbable because connectionStatus ensured the connection.
-      -- It's not a problem though, because App.postgrest would retry the connectionWorker or the user can do a SIGSUR1 again.
-      hPutStrLn stderr . toS . errorPayload $ PgError False e
-      putStrLn ("Failed to load the schema cache" :: Text)
+      let err = PgError False e
+          putErr = hPutStrLn stderr . toS . errorPayload $ err
+      case checkIsFatal err of
+        Just _  -> do
+          hPutStrLn stderr ("A fatal error ocurred when loading the schema cache" :: Text)
+          putErr
+          hPutStrLn stderr ("This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues" :: Text)
+          return SCFatalFail
+        Nothing -> do
+          hPutStrLn stderr ("An error ocurred when loading the schema cache" :: Text) >> putErr
+          return SCOnRetry
 
     Right dbStructure -> do
       atomicWriteIORef refDbStructure $ Just dbStructure
       putStrLn ("Schema cache loaded" :: Text)
+      return SCLoaded
 
 {-|
   Starts a dedicated pg connection to LISTEN for notifications.
@@ -274,8 +287,12 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
         Connected actualPgVersion -> void $ forkFinally (do -- forkFinally allows to detect if the thread dies
           dbOrError <- C.acquire dbUri
           -- Debounce in case too many NOTIFYs arrive. Could happen on a migration(assuming a pg EVENT TRIGGER is set up).
+          -- This might not be needed according to pg docs https://www.postgresql.org/docs/12/sql-notify.html:
+          -- "If the same channel name is signaled multiple times from the same transaction with identical payload strings, the database server can decide to deliver a single notification only."
+          -- But we do it to be extra safe.
           scFiller <- mkDebounce (defaultDebounceSettings {
-                        debounceAction = fillSchemaCache pool actualPgVersion refConf refDbStructure,
+                        -- It's not necessary to check the loadSchemaCache success here. If the connection drops, the thread will die and proceed to recover below.
+                        debounceAction = void $ loadSchemaCache pool actualPgVersion refConf refDbStructure,
                         debounceEdge = trailingEdge, -- wait until the function hasn’t been called in _1s
                         debounceFreq = _1s })
           case dbOrError of
