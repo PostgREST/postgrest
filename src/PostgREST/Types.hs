@@ -560,6 +560,13 @@ data ConnectionStatus
   | FatalConnectionError Text
   deriving (Eq, Show)
 
+-- | Schema cache status
+data SCacheStatus
+  = SCLoaded
+  | SCOnRetry
+  | SCFatalFail
+  deriving (Eq, Show)
+
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq)
 
 instance Show LogLevel where

@@ -115,7 +115,7 @@ compressedRel rel =
     (_, _, _) ->
       mempty
 
-data PgError = PgError Authenticated P.UsageError
+data PgError = PgError Authenticated P.UsageError deriving Show
 type Authenticated = Bool
 
 instance PgrstError PgError where
@@ -216,7 +216,9 @@ checkIsFatal (PgError _ (P.ConnectionError e))
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
   where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS failureMessage
-        failureMessage = fromMaybe "" e
+        failureMessage = fromMaybe mempty e
+-- Chek for a syntax error(42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
+checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError (H.ServerError "42601" e _ _))))) = Just $ toS e
 checkIsFatal _ = Nothing
 
 

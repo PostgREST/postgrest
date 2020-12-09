@@ -35,7 +35,8 @@ import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), minimumPgVersion)
+                              PgVersion (..), SCacheStatus (..),
+                              minimumPgVersion)
 import Protolude             hiding (hPutStrLn, head, toS)
 import Protolude.Conv        (toS)
 
@@ -203,8 +204,11 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
         Connected actualPgVersion   -> do                                            -- Procede with initialization
           putStrLn ("Connection successful" :: Text)
-          loadSuccess <- loadSchemaCache pool actualPgVersion refConf refDbStructure
-          unless loadSuccess work
+          scStatus <- loadSchemaCache pool actualPgVersion refConf refDbStructure
+          case scStatus of
+            SCLoaded    -> pure ()            -- do nothing and proceed if the load was successful
+            SCOnRetry   -> work               -- retry
+            SCFatalFail -> killThread mainTid -- die if our schema cache query has an error
           liftIO $ atomicWriteIORef refIsWorkerOn False
 
 {-|
@@ -245,21 +249,27 @@ connectionStatus pool =
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
 
--- | Load the DbStructure by using a connection from the pool. Returns True if it succeeds or False if it fails.
-loadSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO Bool
+-- | Load the DbStructure by using a connection from the pool.
+loadSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO SCacheStatus
 loadSchemaCache pool actualPgVersion refConf refDbStructure = do
   conf <- readIORef refConf
   result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList $ configDbSchemas conf) (configDbExtraSearchPath conf) actualPgVersion (configDbPreparedStatements conf)
   case result of
     Left e -> do
-      hPutStrLn stderr . toS . errorPayload $ PgError False e
-      putStrLn ("Failed to load the schema cache" :: Text) -- If this error happens it would mean the connection is down again.
-      pure False
+      let err = PgError False e
+          putErr = hPutStrLn stderr . toS . errorPayload $ err
+      case checkIsFatal err of
+        Just _  -> do
+          hPutStrLn stderr ("A fatal error ocurred when loading the schema cache" :: Text) >> putErr
+          return SCFatalFail
+        Nothing -> do
+          hPutStrLn stderr ("An error ocurred when loading the schema cache" :: Text) >> putErr
+          return SCOnRetry
 
     Right dbStructure -> do
       atomicWriteIORef refDbStructure $ Just dbStructure
       putStrLn ("Schema cache loaded" :: Text)
-      pure True
+      return SCLoaded
 
 {-|
   Starts a dedicated pg connection to LISTEN for notifications.
