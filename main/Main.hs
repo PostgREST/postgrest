@@ -260,7 +260,9 @@ loadSchemaCache pool actualPgVersion refConf refDbStructure = do
           putErr = hPutStrLn stderr . toS . errorPayload $ err
       case checkIsFatal err of
         Just _  -> do
-          hPutStrLn stderr ("A fatal error ocurred when loading the schema cache" :: Text) >> putErr
+          hPutStrLn stderr ("A fatal error ocurred when loading the schema cache" :: Text)
+          putErr
+          hPutStrLn stderr ("This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues" :: Text)
           return SCFatalFail
         Nothing -> do
           hPutStrLn stderr ("An error ocurred when loading the schema cache" :: Text) >> putErr
