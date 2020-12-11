@@ -21,7 +21,7 @@ dburi = os.getenv('POSTGREST_TEST_CONNECTION')
 dburifromfileconfig = basedir / 'configs' / 'dburi-from-file.config'
 roleclaimkeyconfig = basedir / 'configs' / 'role-claim-key.config'
 
-roleclaimkeys = [
+invalidroleclaimkeys = [
         'role.other',
         '.role##',
         '.my_role;;domain',
@@ -53,8 +53,8 @@ def secretpath(request):
     return request.param
 
 
-@pytest.fixture(params=roleclaimkeys)
-def roleclaimkey(request):
+@pytest.fixture(params=invalidroleclaimkeys)
+def invalidroleclaimkey(request):
     'Fixture for all secrets.'
     return request.param
 
@@ -93,7 +93,7 @@ def run(configpath, stdin=None, moreenv=None):
 
 
 def waitfor200(url):
-    for i in range(10):
+    for i in range(2):
         try:
             response = requests.get(url, timeout=0.1)
 
@@ -167,8 +167,8 @@ def test_read_dburi_from_file_witheol():
         assert response.status_code == 200
 
 
-def test_role_claim_key(roleclaimkey):
-    env = {'ROLE_CLAIM_KEY': roleclaimkey}
+def test_invalid_role_claim_key(invalidroleclaimkey):
+    env = {'ROLE_CLAIM_KEY': invalidroleclaimkey}
 
     with pytest.raises(TimeOutException):
         with run(roleclaimkeyconfig, moreenv=env):
