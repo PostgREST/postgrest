@@ -17,6 +17,8 @@ basedir = pathlib.Path(os.path.realpath(__file__)).parent
 configs = [path for path in (basedir / 'configs').iterdir() if path.is_file()]
 expectedconfigs = list((basedir / 'configs' / 'expected').iterdir())
 secrets = [path for path in (basedir / 'secrets').iterdir() if path.suffix != '.jwt']
+dburi = os.getenv('POSTGREST_TEST_CONNECTION')
+dburifromfileconfig = basedir / 'configs' / 'dburi-from-file.config'
 
 
 @pytest.fixture(params=configs, ids=[conf.name for conf in configs])
@@ -126,4 +128,16 @@ def test_read_secret_from_file(secretpath):
 
     with run(configfile, stdin=secret) as url:
         response = requests.get(f'{url}/authors_only', headers=headers)
+        assert response.status_code == 200
+
+
+def test_read_dburi_from_file_withouteol():
+    with run(dburifromfileconfig, stdin=dburi.encode('utf-8')) as url:
+        response = requests.get(f'{url}/')
+        assert response.status_code == 200
+
+
+def test_read_dburi_from_file_witheol():
+    with run(dburifromfileconfig, stdin=dburi.encode('utf-8') + b'\n') as url:
+        response = requests.get(f'{url}/')
         assert response.status_code == 200
