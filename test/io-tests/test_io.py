@@ -19,6 +19,20 @@ expectedconfigs = list((basedir / 'configs' / 'expected').iterdir())
 secrets = [path for path in (basedir / 'secrets').iterdir() if path.suffix != '.jwt']
 dburi = os.getenv('POSTGREST_TEST_CONNECTION')
 dburifromfileconfig = basedir / 'configs' / 'dburi-from-file.config'
+roleclaimkeyconfig = basedir / 'configs' / 'role-claim-key.config'
+
+roleclaimkeys = [
+        'role.other',
+        '.role##',
+        '.my_role;;domain',
+        '.#$$%&$%/',
+        '',
+        '1234'
+    ]
+
+
+class TimeOutException(Exception):
+    pass
 
 
 @pytest.fixture(params=configs, ids=[conf.name for conf in configs])
@@ -39,6 +53,12 @@ def secretpath(request):
     return request.param
 
 
+@pytest.fixture(params=roleclaimkeys)
+def roleclaimkey(request):
+    'Fixture for all secrets.'
+    return request.param
+
+
 def dumpconfig(configpath, moreenv=None):
     'Dump the config as parsed by PostgREST.'
     env = os.environ
@@ -51,8 +71,12 @@ def dumpconfig(configpath, moreenv=None):
 
 
 @contextlib.contextmanager
-def run(configpath, stdin=None):
+def run(configpath, stdin=None, moreenv=None):
     'Run PostgREST.'
+    env = os.environ
+    if moreenv:
+        env = {**env, **moreenv}
+
     command = ['postgrest', configpath]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
 
@@ -80,7 +104,7 @@ def waitfor200(url):
 
         time.sleep(.1)
 
-    raise Exception('Waiting for PostgREST ready timed out')
+    raise TimeOutException('Waiting for PostgREST ready timed out')
 
 
 def test_expected_config(expectedconfig):
@@ -141,3 +165,11 @@ def test_read_dburi_from_file_witheol():
     with run(dburifromfileconfig, stdin=dburi.encode('utf-8') + b'\n') as url:
         response = requests.get(f'{url}/')
         assert response.status_code == 200
+
+
+def test_role_claim_key(roleclaimkey):
+    env = {'ROLE_CLAIM_KEY': roleclaimkey}
+
+    with pytest.raises(TimeOutException):
+        with run(roleclaimkeyconfig, moreenv=env):
+            assert False
