@@ -232,3 +232,10 @@ def test_iat_claim():
             assert response.status_code == 200
 
             time.sleep(.5)
+
+def test_app_settings():
+    with run(basedir / "configs" / "app-settings.config") as baseurl:
+        url = f"{baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
+        response = requests.get(url)
+        assert response.status_code == 200
+        assert response.text == '"0123456789abcdef"'

@@ -107,7 +107,7 @@ let
 
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} \
-          ${ioTestPython}/bin/pytest -- -v "$rootdir"/test/io-tests
+          ${ioTestPython}/bin/pytest -- -v "$rootdir"/test/io-tests "$@"
       '';
 
   testMemory =
