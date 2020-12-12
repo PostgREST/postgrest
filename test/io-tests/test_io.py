@@ -231,7 +231,8 @@ def test_iat_claim():
             response = requests.get(f"{url}/authors_only", headers=headers)
             assert response.status_code == 200
 
-            time.sleep(.5)
+            time.sleep(0.5)
+
 
 def test_app_settings():
     with run(basedir / "configs" / "app-settings.config") as baseurl:
