@@ -2,6 +2,7 @@
 
 import contextlib
 import dataclasses
+from datetime import datetime
 import pathlib
 import subprocess
 import tempfile
@@ -218,3 +219,16 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
 
     with pytest.raises(subprocess.CalledProcessError):
         dumpconfig(roleclaimkeyconfig, moreenv=env)
+
+
+def test_iat_claim():
+    claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
+    token = jwt.encode(claim, secret).decode("utf-8")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with run(basedir / "configs" / "simple.config") as url:
+        for _ in range(10):
+            response = requests.get(f"{url}/authors_only", headers=headers)
+            assert response.status_code == 200
+
+            time.sleep(.5)
