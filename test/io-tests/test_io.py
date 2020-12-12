@@ -294,3 +294,28 @@ def test_jwt_secret_reload(tmp_path):
 
         response = requests.get(url, headers=headers)
         assert response.status_code == 200
+
+
+def test_db_schema_reload(tmp_path):
+    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    headers = {"Accept-Profile": "v1"}
+
+    with run(configfile) as process:
+        url = f"{process.baseurl}/parents"
+
+        response = requests.get(url, headers=headers)
+        assert response.status_code == 404
+
+        # change setting
+        configfile.write_text(
+            config.replace('db-schema = "test"', 'db-schema = "test, v1"')
+        )
+        # reload
+        process.process.send_signal(signal.SIGUSR2)
+        process.process.send_signal(signal.SIGUSR1)
+
+        response = requests.get(url, headers=headers)
+        assert response.status_code == 200
