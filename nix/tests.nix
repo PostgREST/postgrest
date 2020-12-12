@@ -91,7 +91,7 @@ let
       '';
 
   ioTestPython =
-    python3.withPackages (ps: [ ps.pytest ps.requests ps.pyjwt ]);
+    python3.withPackages (ps: [ ps.pytest ps.requests ps.requests-unixsocket ps.pyjwt ]);
 
   # Provisional name until all io-tests are migrated
   testIONew =

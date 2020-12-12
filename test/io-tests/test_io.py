@@ -10,9 +10,11 @@ import os
 import signal
 import time
 
+import jwt
 import pytest
 import requests
-import jwt
+import requests_unixsocket
+
 
 BASEURL = "http://127.0.0.1:49421"
 
@@ -71,6 +73,12 @@ invalidroleclaimkeys = [
 
 class TimeOutException(Exception):
     pass
+
+
+@pytest.fixture
+def session():
+    "Session for http requests."
+    return requests_unixsocket.Session()
 
 
 @pytest.fixture(params=configs, ids=[conf.name for conf in configs])
@@ -137,9 +145,11 @@ def run(configpath, stdin=None, moreenv=None):
 
 
 def waitfor200(url):
+    session = requests_unixsocket.Session()
+
     for i in range(10):
         try:
-            response = requests.get(url, timeout=0.1)
+            response = session.get(url, timeout=0.1)
 
             if response.status_code == 200:
                 return
@@ -182,7 +192,7 @@ def test_stable_config(tmp_path, configpath):
     assert dumped == redumped
 
 
-def test_read_secret_from_file(secretpath):
+def test_read_secret_from_file(session, secretpath):
     if secretpath.suffix == ".b64":
         configfile = basedir / "configs" / "base64-secret-from-file.config"
     else:
@@ -194,29 +204,29 @@ def test_read_secret_from_file(secretpath):
     headers = {"Authorization": f"Bearer {jwt}"}
 
     with run(configfile, stdin=secret) as process:
-        response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
+        response = session.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol():
+def test_read_dburi_from_file_without_eol(session):
     with run(dburifromfileconfig, stdin=dburi) as process:
-        response = requests.get(f"{process.baseurl}/")
+        response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_with_eol():
+def test_read_dburi_from_file_with_eol(session):
     with run(dburifromfileconfig, stdin=dburi + b"\n") as process:
-        response = requests.get(f"{process.baseurl}/")
+        response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
-def test_role_claim_key(roleclaimcase):
+def test_role_claim_key(session, roleclaimcase):
     env = {"ROLE_CLAIM_KEY": roleclaimcase.key}
     token = jwt.encode(roleclaimcase.data, secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
     with run(roleclaimkeyconfig, moreenv=env) as process:
-        response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
+        response = session.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == roleclaimcase.expected_status
 
 
@@ -227,30 +237,30 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
         dumpconfig(roleclaimkeyconfig, moreenv=env)
 
 
-def test_iat_claim():
+def test_iat_claim(session):
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
     token = jwt.encode(claim, secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
     with run(basedir / "configs" / "simple.config") as process:
         for _ in range(10):
-            response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
+            response = session.get(f"{process.baseurl}/authors_only", headers=headers)
             assert response.status_code == 200
 
             time.sleep(0.5)
 
 
-def test_app_settings():
+def test_app_settings(session):
     with run(basedir / "configs" / "app-settings.config") as process:
         url = (
             f"{process.baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
         )
-        response = requests.get(url)
+        response = session.get(url)
         assert response.status_code == 200
         assert response.text == '"0123456789abcdef"'
 
 
-def test_app_settings_reload(tmp_path):
+def test_app_settings_reload(session, tmp_path):
     config = (basedir / "configs" / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -258,7 +268,7 @@ def test_app_settings_reload(tmp_path):
     with run(configfile) as process:
         url = f"{process.baseurl}/rpc/get_guc_value?name=app.settings.name_var"
 
-        response = requests.get(url)
+        response = session.get(url)
         assert response.status_code == 200
         assert response.text == '"John"'
 
@@ -267,12 +277,12 @@ def test_app_settings_reload(tmp_path):
         # reload
         process.process.send_signal(signal.SIGUSR2)
 
-        response = requests.get(url)
+        response = session.get(url)
         assert response.status_code == 200
         assert response.text == '"Jane"'
 
 
-def test_jwt_secret_reload(tmp_path):
+def test_jwt_secret_reload(session, tmp_path):
     config = (basedir / "configs" / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -284,7 +294,7 @@ def test_jwt_secret_reload(tmp_path):
     with run(configfile) as process:
         url = f"{process.baseurl}/authors_only"
 
-        response = requests.get(url, headers=headers)
+        response = session.get(url, headers=headers)
         assert response.status_code == 401
 
         # change setting
@@ -292,11 +302,11 @@ def test_jwt_secret_reload(tmp_path):
         # reload
         process.process.send_signal(signal.SIGUSR2)
 
-        response = requests.get(url, headers=headers)
+        response = session.get(url, headers=headers)
         assert response.status_code == 200
 
 
-def test_db_schema_reload(tmp_path):
+def test_db_schema_reload(session, tmp_path):
     config = (basedir / "configs" / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -306,7 +316,7 @@ def test_db_schema_reload(tmp_path):
     with run(configfile) as process:
         url = f"{process.baseurl}/parents"
 
-        response = requests.get(url, headers=headers)
+        response = session.get(url, headers=headers)
         assert response.status_code == 404
 
         # change setting
@@ -317,5 +327,5 @@ def test_db_schema_reload(tmp_path):
         process.process.send_signal(signal.SIGUSR2)
         process.process.send_signal(signal.SIGUSR1)
 
-        response = requests.get(url, headers=headers)
+        response = session.get(url, headers=headers)
         assert response.status_code == 200
