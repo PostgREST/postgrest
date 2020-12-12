@@ -270,3 +270,27 @@ def test_app_settings_reload(tmp_path):
         response = requests.get(url)
         assert response.status_code == 200
         assert response.text == '"Jane"'
+
+
+def test_jwt_secret_reload(tmp_path):
+    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    claim = {"role": "postgrest_test_author"}
+    token = jwt.encode(claim, secret).decode("utf-8")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with run(configfile) as process:
+        url = f"{process.baseurl}/authors_only"
+
+        response = requests.get(url, headers=headers)
+        assert response.status_code == 401
+
+        # change setting
+        configfile.write_text(config.replace("invalid" * 5, secret))
+        # reload
+        process.process.send_signal(signal.SIGUSR2)
+
+        response = requests.get(url, headers=headers)
+        assert response.status_code == 200
