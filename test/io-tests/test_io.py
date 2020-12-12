@@ -7,6 +7,7 @@ import pathlib
 import subprocess
 import tempfile
 import os
+import signal
 import time
 
 import pytest
@@ -23,6 +24,12 @@ secrets = [path for path in (basedir / "secrets").iterdir() if path.suffix != ".
 dburi = os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 dburifromfileconfig = basedir / "configs" / "dburi-from-file.config"
 roleclaimkeyconfig = basedir / "configs" / "role-claim-key.config"
+
+
+@dataclasses.dataclass
+class PostgrestProcess:
+    baseurl: str
+    process: object
 
 
 @dataclasses.dataclass
@@ -123,7 +130,7 @@ def run(configpath, stdin=None, moreenv=None):
         process.stdin.close()
 
         waitfor200(BASEURL)
-        yield BASEURL
+        yield PostgrestProcess(baseurl=BASEURL, process=process)
     finally:
         process.kill()
         process.wait()
@@ -157,7 +164,7 @@ def test_expected_config(expectedconfig):
     assert dumpconfig(basedir / "configs" / expectedconfig) == expected
 
 
-def test_stable_config(configpath):
+def test_stable_config(tmp_path, configpath):
     """
     A dumped, re-read and re-dumped config should match the dumped config.
 
@@ -168,10 +175,9 @@ def test_stable_config(configpath):
     env = {"ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value'}
     dumped = dumpconfig(configpath, moreenv=env)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpconfigpath = pathlib.Path(tmpdir, "config")
-        tmpconfigpath.write_text(dumped)
-        redumped = dumpconfig(tmpconfigpath, moreenv=env)
+    tmpconfigpath = tmp_path / "config"
+    tmpconfigpath.write_text(dumped)
+    redumped = dumpconfig(tmpconfigpath, moreenv=env)
 
     assert dumped == redumped
 
@@ -187,20 +193,20 @@ def test_read_secret_from_file(secretpath):
     jwt = secretpath.with_suffix(".jwt").read_text()
     headers = {"Authorization": f"Bearer {jwt}"}
 
-    with run(configfile, stdin=secret) as url:
-        response = requests.get(f"{url}/authors_only", headers=headers)
+    with run(configfile, stdin=secret) as process:
+        response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == 200
 
 
 def test_read_dburi_from_file_without_eol():
-    with run(dburifromfileconfig, stdin=dburi) as url:
-        response = requests.get(f"{url}/")
+    with run(dburifromfileconfig, stdin=dburi) as process:
+        response = requests.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
 def test_read_dburi_from_file_with_eol():
-    with run(dburifromfileconfig, stdin=dburi + b"\n") as url:
-        response = requests.get(f"{url}/")
+    with run(dburifromfileconfig, stdin=dburi + b"\n") as process:
+        response = requests.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
@@ -209,8 +215,8 @@ def test_role_claim_key(roleclaimcase):
     token = jwt.encode(roleclaimcase.data, secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(roleclaimkeyconfig, moreenv=env) as url:
-        response = requests.get(f"{url}/authors_only", headers=headers)
+    with run(roleclaimkeyconfig, moreenv=env) as process:
+        response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == roleclaimcase.expected_status
 
 
@@ -226,17 +232,41 @@ def test_iat_claim():
     token = jwt.encode(claim, secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(basedir / "configs" / "simple.config") as url:
+    with run(basedir / "configs" / "simple.config") as process:
         for _ in range(10):
-            response = requests.get(f"{url}/authors_only", headers=headers)
+            response = requests.get(f"{process.baseurl}/authors_only", headers=headers)
             assert response.status_code == 200
 
             time.sleep(0.5)
 
 
 def test_app_settings():
-    with run(basedir / "configs" / "app-settings.config") as baseurl:
-        url = f"{baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
+    with run(basedir / "configs" / "app-settings.config") as process:
+        url = (
+            f"{process.baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
+        )
         response = requests.get(url)
         assert response.status_code == 200
         assert response.text == '"0123456789abcdef"'
+
+
+def test_app_settings_reload(tmp_path):
+    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    with run(configfile) as process:
+        url = f"{process.baseurl}/rpc/get_guc_value?name=app.settings.name_var"
+
+        response = requests.get(url)
+        assert response.status_code == 200
+        assert response.text == '"John"'
+
+        # change setting
+        configfile.write_text(config.replace("John", "Jane"))
+        # reload
+        process.process.send_signal(signal.SIGUSR2)
+
+        response = requests.get(url)
+        assert response.status_code == 200
+        assert response.text == '"Jane"'
