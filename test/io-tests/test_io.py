@@ -6,6 +6,7 @@ from datetime import datetime
 import pathlib
 import subprocess
 import tempfile
+from operator import attrgetter
 import os
 import signal
 import time
@@ -19,7 +20,6 @@ import yaml
 
 
 BASEURL = "http://127.0.0.1:49421"
-
 SECRET = "reallyreallyreallyreallyverysafe"
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
 CONFIGSDIR = BASEDIR / "configs"
@@ -99,9 +99,7 @@ def waitfor200(url):
 
 
 @pytest.mark.parametrize(
-    "expectedconfig",
-    (CONFIGSDIR / "expected").iterdir(),
-    ids=lambda config: config.name,
+    "expectedconfig", (CONFIGSDIR / "expected").iterdir(), ids=attrgetter("name")
 )
 def test_expected_config(expectedconfig):
     """
@@ -119,7 +117,7 @@ def test_expected_config(expectedconfig):
 @pytest.mark.parametrize(
     "config",
     [conf for conf in CONFIGSDIR.iterdir() if conf.is_file()],
-    ids=lambda config: config.name,
+    ids=attrgetter("name"),
 )
 def test_stable_config(tmp_path, config):
     """
@@ -155,7 +153,7 @@ def test_socket_connection(session, tmp_path):
 @pytest.mark.parametrize(
     "secretpath",
     [path for path in (BASEDIR / "secrets").iterdir() if path.suffix != ".jwt"],
-    ids=lambda secret: secret.name,
+    ids=attrgetter("name"),
 )
 def test_read_secret_from_file(session, secretpath):
     if secretpath.suffix == ".b64":
@@ -164,9 +162,7 @@ def test_read_secret_from_file(session, secretpath):
         configfile = CONFIGSDIR / "secret-from-file.config"
 
     secret = secretpath.read_bytes()
-
-    jwt = secretpath.with_suffix(".jwt").read_text()
-    headers = {"Authorization": f"Bearer {jwt}"}
+    headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
     with run(configfile, stdin=secret) as process:
         response = session.get(f"{process.baseurl}/authors_only", headers=headers)
@@ -175,14 +171,12 @@ def test_read_secret_from_file(session, secretpath):
 
 def test_read_dburi_from_file_without_eol(session, dburi):
     with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi) as process:
-        response = session.get(f"{process.baseurl}/")
-        assert response.status_code == 200
+        pass
 
 
 def test_read_dburi_from_file_with_eol(session, dburi):
     with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi + b"\n") as process:
-        response = session.get(f"{process.baseurl}/")
-        assert response.status_code == 200
+        pass
 
 
 @pytest.mark.parametrize(
@@ -190,8 +184,7 @@ def test_read_dburi_from_file_with_eol(session, dburi):
 )
 def test_role_claim_key(session, roleclaim):
     env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
-    token = jwt.encode(roleclaim["data"], SECRET).decode("utf-8")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = jwtauthheader(roleclaim["data"], SECRET)
 
     with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as process:
         response = session.get(f"{process.baseurl}/authors_only", headers=headers)
@@ -206,14 +199,24 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
         dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
 
 
+def authheader(token):
+    "Bearer token HTTP authorization header."
+    return {"Authorization": f"Bearer {token}"}
+
+
+def jwtauthheader(claim, secret):
+    "Authorization header with signed JWT."
+    return authheader(jwt.encode(claim, secret).decode("utf-8"))
+
+
 def test_iat_claim(session):
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
-    token = jwt.encode(claim, SECRET).decode("utf-8")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = jwtauthheader(claim, SECRET)
 
     with run(CONFIGSDIR / "simple.config") as process:
         for _ in range(10):
-            response = session.get(f"{process.baseurl}/authors_only", headers=headers)
+            url = f"{process.baseurl}/authors_only"
+            response = session.get(url, headers=headers)
             assert response.status_code == 200
 
             time.sleep(0.5)
@@ -256,9 +259,7 @@ def test_jwt_secret_reload(session, tmp_path):
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
-    claim = {"role": "postgrest_test_author"}
-    token = jwt.encode(claim, SECRET).decode("utf-8")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
     with run(configfile) as process:
         url = f"{process.baseurl}/authors_only"
