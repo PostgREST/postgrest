@@ -9,6 +9,7 @@ import tempfile
 import os
 import signal
 import time
+import urllib.parse
 
 import jwt
 import pytest
@@ -113,9 +114,7 @@ def invalidroleclaimkey(request):
 
 def dumpconfig(configpath, moreenv=None):
     "Dump the config as parsed by PostgREST."
-    env = os.environ
-    if moreenv:
-        env = {**env, **moreenv}
+    env = {**os.environ, **(moreenv or {})}
 
     command = ["postgrest", "--dump-config", configpath]
     result = subprocess.run(command, env=env, capture_output=True, check=True)
@@ -123,11 +122,14 @@ def dumpconfig(configpath, moreenv=None):
 
 
 @contextlib.contextmanager
-def run(configpath, stdin=None, moreenv=None):
+def run(configpath, stdin=None, moreenv=None, socket=None):
     "Run PostgREST."
-    env = os.environ
-    if moreenv:
-        env = {**env, **moreenv}
+    env = {**os.environ, **(moreenv or {})}
+
+    if socket:
+        baseurl = "http+unix://" + urllib.parse.quote_plus(str(socket))
+    else:
+        baseurl = BASEURL
 
     command = ["postgrest", configpath]
     process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env)
@@ -137,8 +139,8 @@ def run(configpath, stdin=None, moreenv=None):
             process.stdin.write(stdin)
         process.stdin.close()
 
-        waitfor200(BASEURL)
-        yield PostgrestProcess(baseurl=BASEURL, process=process)
+        waitfor200(baseurl)
+        yield PostgrestProcess(baseurl=baseurl, process=process)
     finally:
         process.kill()
         process.wait()
@@ -182,7 +184,10 @@ def test_stable_config(tmp_path, configpath):
     be different because of default values, whitespace, and quoting.
 
     """
-    env = {"ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value'}
+    env = {
+        "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
+        "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
+    }
     dumped = dumpconfig(configpath, moreenv=env)
 
     tmpconfigpath = tmp_path / "config"
@@ -190,6 +195,16 @@ def test_stable_config(tmp_path, configpath):
     redumped = dumpconfig(tmpconfigpath, moreenv=env)
 
     assert dumped == redumped
+
+
+def test_socket_connection(session, tmp_path):
+    socket = tmp_path / "postgrest.sock"
+    env = {
+        "POSTGREST_TEST_SOCKET": str(socket),
+    }
+
+    with run(basedir / "configs" / "unix-socket.config", socket=socket, moreenv=env):
+        pass
 
 
 def test_read_secret_from_file(session, secretpath):
