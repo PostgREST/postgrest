@@ -153,7 +153,10 @@ jobs:
             export DOCKER_REPO=postgrest
             postgrest-docker-login
             postgrest-release-dockerhub $CIRCLE_TAG
-            postgrest-release-dockerhubdescription
+            if test "$CIRCLE_TAG" != "nightly"
+            then
+              postgrest-release-dockerhubdescription
+            fi
 
   # Build everything in default.nix, push to the Cachix binary cache and run tests
   nix-build-test:
