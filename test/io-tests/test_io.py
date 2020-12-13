@@ -139,7 +139,7 @@ def test_expected_config(expectedconfig):
 
 @pytest.mark.parametrize(
     "config",
-    [conf for conf in CONFIGSDIR.iterdir() if conf.is_file()],
+    [conf for conf in CONFIGSDIR.iterdir() if conf.suffix == ".config"],
     ids=attrgetter("name"),
 )
 def test_stable_config(tmp_path, config):
