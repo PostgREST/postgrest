@@ -15,6 +15,7 @@ import jwt
 import pytest
 import requests
 import requests_unixsocket
+import yaml
 
 
 BASEURL = "http://127.0.0.1:49421"
@@ -27,49 +28,13 @@ secrets = [path for path in (basedir / "secrets").iterdir() if path.suffix != ".
 dburi = os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 dburifromfileconfig = basedir / "configs" / "dburi-from-file.config"
 roleclaimkeyconfig = basedir / "configs" / "role-claim-key.config"
+fixtures = yaml.load((basedir / "fixtures.yaml").read_text(), Loader=yaml.Loader)
 
 
 @dataclasses.dataclass
 class PostgrestProcess:
     baseurl: str
     process: object
-
-
-@dataclasses.dataclass
-class RoleClaimCase:
-    key: str
-    data: dict
-    expected_status: int
-
-
-roleclaimcases = [
-    RoleClaimCase(
-        ".postgrest.a_role", {"postgrest": {"a_role": "postgrest_test_author"}}, 200
-    ),
-    RoleClaimCase(
-        ".customObject.manyRoles[1]",
-        {"customObject": {"manyRoles": ["other", "postgrest_test_author"]}},
-        200,
-    ),
-    RoleClaimCase(
-        '."https://www.example.com/roles"[0].value',
-        {"https://www.example.com/roles": [{"value": "postgrest_test_author"}]},
-        200,
-    ),
-    RoleClaimCase(
-        ".myDomain[3]", {"myDomain": ["other", "postgrest_test_author"]}, 401
-    ),
-    RoleClaimCase(".myRole", {"role": "postgrest_test_author"}, 401),
-]
-
-invalidroleclaimkeys = [
-    "role.other",
-    ".role##",
-    ".my_role;;domain",
-    ".#$$%&$%/",
-    "",
-    "1234",
-]
 
 
 class TimeOutException(Exception):
@@ -97,18 +62,6 @@ def expectedconfig(request):
 @pytest.fixture(params=secrets, ids=[secret.name for secret in secrets])
 def secretpath(request):
     "Fixture for all secrets."
-    return request.param
-
-
-@pytest.fixture(params=roleclaimcases, ids=[case.key for case in roleclaimcases])
-def roleclaimcase(request):
-    "Fixture for role claim test cases."
-    return request.param
-
-
-@pytest.fixture(params=invalidroleclaimkeys)
-def invalidroleclaimkey(request):
-    "Fixture for all invalid role claim keys."
     return request.param
 
 
@@ -235,16 +188,20 @@ def test_read_dburi_from_file_with_eol(session):
         assert response.status_code == 200
 
 
-def test_role_claim_key(session, roleclaimcase):
-    env = {"ROLE_CLAIM_KEY": roleclaimcase.key}
-    token = jwt.encode(roleclaimcase.data, secret).decode("utf-8")
+@pytest.mark.parametrize(
+    "roleclaim", fixtures["roleclaims"], ids=lambda claim: claim["key"]
+)
+def test_role_claim_key(session, roleclaim):
+    env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
+    token = jwt.encode(roleclaim["data"], secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
     with run(roleclaimkeyconfig, moreenv=env) as process:
         response = session.get(f"{process.baseurl}/authors_only", headers=headers)
-        assert response.status_code == roleclaimcase.expected_status
+        assert response.status_code == roleclaim["expected_status"]
 
 
+@pytest.mark.parametrize("invalidroleclaimkey", fixtures["invalidroleclaimkeys"])
 def test_invalid_role_claim_key(invalidroleclaimkey):
     env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
 
