@@ -55,19 +55,27 @@ class PostgrestProcess:
 @pytest.fixture
 def dburi():
     "Postgres database connection URI."
-    return os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
+    return os.getenv("PGRST_DB_URI").encode("utf-8")
+
+
+def mkenv(moreenv):
+    """
+    Create env from os.environ and moreenv, while
+    filtering None values to allow overriding "unset".
+    """
+    env = {**os.environ, **(moreenv or {})}
+    return {k: v for k, v in env.items() if v is not None}
 
 
 def dumpconfig(configpath=None, moreenv=None, stdin=None):
     "Dump the config as parsed by PostgREST."
 
-    env = {**os.environ, **(moreenv or {})}
     command = ["postgrest", "--dump-config"]
     if configpath:
         command += [configpath]
 
     process = subprocess.Popen(
-        command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        command, env=mkenv(moreenv), stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
     process.stdin.write(stdin or b"")
     result = process.communicate()[0]
@@ -81,7 +89,6 @@ def dumpconfig(configpath=None, moreenv=None, stdin=None):
 @contextlib.contextmanager
 def run(configpath, stdin=None, moreenv=None, socket=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
-    env = {**os.environ, **(moreenv or {})}
 
     if socket:
         baseurl = "http+unix://" + urllib.parse.quote_plus(str(socket))
@@ -89,7 +96,7 @@ def run(configpath, stdin=None, moreenv=None, socket=None):
         baseurl = BASEURL
 
     command = ["postgrest", configpath]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env)
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, env=mkenv(moreenv))
 
     try:
         process.stdin.write(stdin or b"")
@@ -144,7 +151,10 @@ def test_expected_config(expectedconfig):
 
     """
     expected = expectedconfig.read_text()
-    assert dumpconfig(CONFIGSDIR / expectedconfig.name) == expected
+    config = CONFIGSDIR / expectedconfig.name
+
+    unset = {"PGRST_DB_URI": None, "PGRST_DB_ANON_ROLE": None, "PGRST_DB_SCHEMAS": None}
+    assert dumpconfig(config, moreenv=unset) == expected
 
 
 def test_expected_config_from_environment():
@@ -223,13 +233,17 @@ def test_read_secret_from_file(secretpath):
 
 def test_read_dburi_from_file_without_eol(dburi):
     "Reading the dburi from a file with a single line should work."
-    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi):
+    config = CONFIGSDIR / "dburi-from-file.config"
+    unset = {"PGRST_DB_URI": None}
+    with run(config, moreenv=unset, stdin=dburi):
         pass
 
 
 def test_read_dburi_from_file_with_eol(dburi):
     "Reading the dburi from a file containing a newline should work."
-    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi + b"\n"):
+    config = CONFIGSDIR / "dburi-from-file.config"
+    unset = {"PGRST_DB_URI": None}
+    with run(config, moreenv=unset, stdin=dburi + b"\n"):
         pass
 
 
@@ -350,8 +364,9 @@ def test_db_schema_reload(tmp_path):
     configfile.write_text(config)
 
     headers = {"Accept-Profile": "v1"}
+    unset = {"PGRST_DB_SCHEMAS": None}
 
-    with run(configfile) as postgrest:
+    with run(configfile, moreenv=unset) as postgrest:
         response = postgrest.session.get("/parents", headers=headers)
         assert response.status_code == 404
 

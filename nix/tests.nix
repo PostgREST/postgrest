@@ -140,7 +140,7 @@ let
 
         ${withTmpDb postgresql} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
-            postgrest --dump-schema "$rootdir"/test/io-tests/configs/simple.config \
+            postgrest --dump-schema \
             | ${yq}/bin/yq -y .
       '';
 in
