@@ -338,11 +338,13 @@ def test_db_schema_reload(session, tmp_path):
 
         # change setting
         configfile.write_text(
-            config.replace('db-schema = "test"', 'db-schema = "test, v1"')
+            config.replace('db-schemas = "test"', 'db-schemas = "test, v1"')
         )
         # reload
         postgrest.process.send_signal(signal.SIGUSR2)
         postgrest.process.send_signal(signal.SIGUSR1)
+
+        time.sleep(.1)
 
         response = session.get(url, headers=headers)
         assert response.status_code == 200
