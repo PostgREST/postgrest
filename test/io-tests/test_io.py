@@ -242,7 +242,7 @@ def test_iat_claim(session):
     """
     A claim with an 'iat' (issued at) attribute should be successful.
 
-    The PostgREST time cache lead to issues here, see:
+    The PostgREST time cache leads to issues here, see:
     https://github.com/PostgREST/postgrest/issues/1139
 
     """
