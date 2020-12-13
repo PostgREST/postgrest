@@ -20,11 +20,10 @@ import yaml
 
 BASEURL = "http://127.0.0.1:49421"
 
-secret = "reallyreallyreallyreallyverysafe"
-basedir = pathlib.Path(os.path.realpath(__file__)).parent
-configsdir = basedir / "configs"
-dburifromfileconfig = configsdir / "dburi-from-file.config"
-fixtures = yaml.load((basedir / "fixtures.yaml").read_text(), Loader=yaml.Loader)
+SECRET = "reallyreallyreallyreallyverysafe"
+BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
+CONFIGSDIR = BASEDIR / "configs"
+FIXTURES = yaml.load((BASEDIR / "fixtures.yaml").read_text(), Loader=yaml.Loader)
 
 
 @dataclasses.dataclass
@@ -42,9 +41,11 @@ def session():
     "Session for http requests."
     return requests_unixsocket.Session()
 
+
 @pytest.fixture
 def dburi():
     return os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
+
 
 def dumpconfig(configpath, moreenv=None):
     "Dump the config as parsed by PostgREST."
@@ -98,8 +99,9 @@ def waitfor200(url):
 
 
 @pytest.mark.parametrize(
-    "expectedconfig", (configsdir / "expected").iterdir(),
-    ids=lambda config: config.name
+    "expectedconfig",
+    (CONFIGSDIR / "expected").iterdir(),
+    ids=lambda config: config.name,
 )
 def test_expected_config(expectedconfig):
     """
@@ -111,12 +113,13 @@ def test_expected_config(expectedconfig):
 
     """
     expected = expectedconfig.read_text()
-    assert dumpconfig(configsdir / expectedconfig.name) == expected
+    assert dumpconfig(CONFIGSDIR / expectedconfig.name) == expected
 
 
 @pytest.mark.parametrize(
-    "config", [conf for conf in configsdir.iterdir() if conf.is_file()],
-    ids=lambda config: config.name
+    "config",
+    [conf for conf in CONFIGSDIR.iterdir() if conf.is_file()],
+    ids=lambda config: config.name,
 )
 def test_stable_config(tmp_path, config):
     """
@@ -145,20 +148,20 @@ def test_socket_connection(session, tmp_path):
         "POSTGREST_TEST_SOCKET": str(socket),
     }
 
-    with run(configsdir / "unix-socket.config", socket=socket, moreenv=env):
+    with run(CONFIGSDIR / "unix-socket.config", socket=socket, moreenv=env):
         pass
 
 
 @pytest.mark.parametrize(
     "secretpath",
-    [path for path in (basedir / "secrets").iterdir() if path.suffix != ".jwt"],
-    ids=lambda secret: secret.name
+    [path for path in (BASEDIR / "secrets").iterdir() if path.suffix != ".jwt"],
+    ids=lambda secret: secret.name,
 )
 def test_read_secret_from_file(session, secretpath):
     if secretpath.suffix == ".b64":
-        configfile = configsdir / "base64-secret-from-file.config"
+        configfile = CONFIGSDIR / "base64-secret-from-file.config"
     else:
-        configfile = configsdir / "secret-from-file.config"
+        configfile = CONFIGSDIR / "secret-from-file.config"
 
     secret = secretpath.read_bytes()
 
@@ -171,44 +174,44 @@ def test_read_secret_from_file(session, secretpath):
 
 
 def test_read_dburi_from_file_without_eol(session, dburi):
-    with run(configsdir / "dburi-from-file.config", stdin=dburi) as process:
+    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi) as process:
         response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
 def test_read_dburi_from_file_with_eol(session, dburi):
-    with run(configsdir / "dburi-from-file.config", stdin=dburi + b"\n") as process:
+    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi + b"\n") as process:
         response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
 @pytest.mark.parametrize(
-    "roleclaim", fixtures["roleclaims"], ids=lambda claim: claim["key"]
+    "roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"]
 )
 def test_role_claim_key(session, roleclaim):
     env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
-    token = jwt.encode(roleclaim["data"], secret).decode("utf-8")
+    token = jwt.encode(roleclaim["data"], SECRET).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(configsdir / "role-claim-key.config", moreenv=env) as process:
+    with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as process:
         response = session.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
 
-@pytest.mark.parametrize("invalidroleclaimkey", fixtures["invalidroleclaimkeys"])
+@pytest.mark.parametrize("invalidroleclaimkey", FIXTURES["invalidroleclaimkeys"])
 def test_invalid_role_claim_key(invalidroleclaimkey):
     env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
 
     with pytest.raises(subprocess.CalledProcessError):
-        dumpconfig(configsdir / "role-claim-key.config", moreenv=env)
+        dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
 
 
 def test_iat_claim(session):
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
-    token = jwt.encode(claim, secret).decode("utf-8")
+    token = jwt.encode(claim, SECRET).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(configsdir / "simple.config") as process:
+    with run(CONFIGSDIR / "simple.config") as process:
         for _ in range(10):
             response = session.get(f"{process.baseurl}/authors_only", headers=headers)
             assert response.status_code == 200
@@ -217,7 +220,7 @@ def test_iat_claim(session):
 
 
 def test_app_settings(session):
-    with run(configsdir / "app-settings.config") as process:
+    with run(CONFIGSDIR / "app-settings.config") as process:
         url = (
             f"{process.baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
         )
@@ -227,7 +230,7 @@ def test_app_settings(session):
 
 
 def test_app_settings_reload(session, tmp_path):
-    config = (configsdir / "sigusr2-settings.config").read_text()
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -249,12 +252,12 @@ def test_app_settings_reload(session, tmp_path):
 
 
 def test_jwt_secret_reload(session, tmp_path):
-    config = (configsdir / "sigusr2-settings.config").read_text()
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
     claim = {"role": "postgrest_test_author"}
-    token = jwt.encode(claim, secret).decode("utf-8")
+    token = jwt.encode(claim, SECRET).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
     with run(configfile) as process:
@@ -264,7 +267,7 @@ def test_jwt_secret_reload(session, tmp_path):
         assert response.status_code == 401
 
         # change setting
-        configfile.write_text(config.replace("invalid" * 5, secret))
+        configfile.write_text(config.replace("invalid" * 5, SECRET))
         # reload
         process.process.send_signal(signal.SIGUSR2)
 
@@ -273,7 +276,7 @@ def test_jwt_secret_reload(session, tmp_path):
 
 
 def test_db_schema_reload(session, tmp_path):
-    config = (configsdir / "sigusr2-settings.config").read_text()
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
