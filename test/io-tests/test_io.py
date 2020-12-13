@@ -234,7 +234,7 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
     with pytest.raises(PostgrestError):
         dump = dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
         for line in dump.split("\n"):
-            if "role-claim-key" in line:
+            if line.startswith("jwt-role-claim-key"):
                 print(line)
 
 
