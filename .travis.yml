@@ -120,7 +120,7 @@ jobs:
         export _MIX_DIR=$(stack path --dist-dir)
         export _PKG_NAME=$(stack exec -- ghc-pkg field postgrest key --simple-output)
         # merge the results from `stack test` and the io tests and exclude Paths_postgrest
-        stack --no-terminal exec hpc -- sum --union --exclude=Paths_postgrest --output=/tmp/all.tix $_HPC_DIR/combined/all/all.tix test/io-tests/postgrest.tix
+        stack --no-terminal exec hpc -- sum --union --exclude=Paths_postgrest --output=/tmp/all.tix $_HPC_DIR/combined/all/all.tix postgrest.tix
         # fix a bug in stack-hpc-coveralls
         mv $_MIX_DIR/hpc/Main.mix $_MIX_DIR/hpc/$_PKG_NAME/Main.mix
         mv $_MIX_DIR/hpc/UnixSocket.mix $_MIX_DIR/hpc/$_PKG_NAME/UnixSocket.mix
