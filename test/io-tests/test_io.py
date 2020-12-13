@@ -33,17 +33,23 @@ class PostgrestError(Exception):
     "Postgrest exited with a non-zero return code."
 
 
+class PostgrestSession(requests_unixsocket.Session):
+    "HTTP client session directed at a PostgREST endpoint."
+
+    def __init__(self, baseurl, *args, **kwargs):
+        super(PostgrestSession, self).__init__(*args, **kwargs)
+        self.baseurl = baseurl
+
+    def request(self, method, url, *args, **kwargs):
+        fullurl = urllib.parse.urljoin(self.baseurl, url)
+        return super(PostgrestSession, self).request(method, fullurl, *args, **kwargs)
+
+
 @dataclasses.dataclass
 class PostgrestProcess:
     "Running PostgREST process and its corresponding endpoint."
-    baseurl: str
     process: object
-
-
-@pytest.fixture
-def session():
-    "Session for HTTP requests that supports connecting to unix domain sockets."
-    return requests_unixsocket.Session()
+    session: object
 
 
 @pytest.fixture
@@ -87,7 +93,7 @@ def run(configpath, stdin=None, moreenv=None, socket=None):
 
         wait_until_ready(baseurl)
 
-        yield PostgrestProcess(baseurl=baseurl, process=process)
+        yield PostgrestProcess(process=process, session=PostgrestSession(baseurl))
     finally:
         process.kill()
         process.wait()
@@ -186,7 +192,7 @@ def test_socket_connection(tmp_path):
     [path for path in (BASEDIR / "secrets").iterdir() if path.suffix != ".jwt"],
     ids=attrgetter("name"),
 )
-def test_read_secret_from_file(session, secretpath):
+def test_read_secret_from_file(secretpath):
     "Authorization should succeed when the secret is read from a file."
     if secretpath.suffix == ".b64":
         configfile = CONFIGSDIR / "base64-secret-from-file.config"
@@ -197,7 +203,7 @@ def test_read_secret_from_file(session, secretpath):
     headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
     with run(configfile, stdin=secret) as postgrest:
-        response = session.get(f"{postgrest.baseurl}/authors_only", headers=headers)
+        response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
 
 
@@ -216,13 +222,13 @@ def test_read_dburi_from_file_with_eol(dburi):
 @pytest.mark.parametrize(
     "roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"]
 )
-def test_role_claim_key(session, roleclaim):
+def test_role_claim_key(roleclaim):
     "Authorization should depend on a correct role-claim-key and JWT claim."
     env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
     headers = jwtauthheader(roleclaim["data"], SECRET)
 
     with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as postgrest:
-        response = session.get(f"{postgrest.baseurl}/authors_only", headers=headers)
+        response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
 
@@ -238,7 +244,7 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
                 print(line)
 
 
-def test_iat_claim(session):
+def test_iat_claim():
     """
     A claim with an 'iat' (issued at) attribute should be successful.
 
@@ -251,14 +257,13 @@ def test_iat_claim(session):
 
     with run(CONFIGSDIR / "simple.config") as postgrest:
         for _ in range(10):
-            url = f"{postgrest.baseurl}/authors_only"
-            response = session.get(url, headers=headers)
+            response = postgrest.session.get("/authors_only", headers=headers)
             assert response.status_code == 200
 
             time.sleep(0.5)
 
 
-def test_app_settings(session):
+def test_app_settings():
     """
     App settings should not reset when the db pool times out.
 
@@ -270,22 +275,21 @@ def test_app_settings(session):
         time.sleep(2)
 
         uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
-        response = session.get(postgrest.baseurl + uri)
+        response = postgrest.session.get(uri)
 
         assert response.status_code == 200
         assert response.text == '"0123456789abcdef"'
 
 
-def test_app_settings_reload(session, tmp_path):
+def test_app_settings_reload(tmp_path):
     "App settings should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
+    uri = "/rpc/get_guc_value?name=app.settings.name_var"
 
     with run(configfile) as postgrest:
-        url = f"{postgrest.baseurl}/rpc/get_guc_value?name=app.settings.name_var"
-
-        response = session.get(url)
+        response = postgrest.session.get(uri)
         assert response.status_code == 200
         assert response.text == '"John"'
 
@@ -294,12 +298,14 @@ def test_app_settings_reload(session, tmp_path):
         # reload
         postgrest.process.send_signal(signal.SIGUSR2)
 
-        response = session.get(url)
+        time.sleep(0.1)
+
+        response = postgrest.session.get(uri)
         assert response.status_code == 200
         assert response.text == '"Jane"'
 
 
-def test_jwt_secret_reload(session, tmp_path):
+def test_jwt_secret_reload(tmp_path):
     "JWT secret should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
@@ -308,21 +314,22 @@ def test_jwt_secret_reload(session, tmp_path):
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
     with run(configfile) as postgrest:
-        url = f"{postgrest.baseurl}/authors_only"
-
-        response = session.get(url, headers=headers)
+        response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
 
         # change setting
         configfile.write_text(config.replace("invalid" * 5, SECRET))
-        # reload
+
+        # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
 
-        response = session.get(url, headers=headers)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
 
 
-def test_db_schema_reload(session, tmp_path):
+def test_db_schema_reload(tmp_path):
     "DB schema should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
@@ -331,9 +338,7 @@ def test_db_schema_reload(session, tmp_path):
     headers = {"Accept-Profile": "v1"}
 
     with run(configfile) as postgrest:
-        url = f"{postgrest.baseurl}/parents"
-
-        response = session.get(url, headers=headers)
+        response = postgrest.session.get("/parents", headers=headers)
         assert response.status_code == 404
 
         # change setting
@@ -347,5 +352,7 @@ def test_db_schema_reload(session, tmp_path):
         # reload schema cache to verify that the config reload actually happened
         postgrest.process.send_signal(signal.SIGUSR1)
 
-        response = session.get(url, headers=headers)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/parents", headers=headers)
         assert response.status_code == 200
