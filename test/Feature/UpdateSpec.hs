@@ -51,31 +51,13 @@ spec = do
 
     context "in a nonempty table" $ do
       it "can update a single item" $ do
-        get "/items?id=eq.42"
-          `shouldRespondWith`
-            [json|[]|]
-
-        request methodPatch "/items?id=eq.2"
-            [("Prefer", "tx=commit")]
+        patch "/items?id=eq.2"
             [json| { "id":42 } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = ["Content-Range" <:> "0-0/*"
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
-
-        -- check it really got updated
-        get "/items?id=eq.42"
-          `shouldRespondWith`
-            [json|[ { "id": 42 } ]|]
-
-        -- put value back for other tests
-        request methodPatch "/items?id=eq.42"
-            [("Prefer", "tx=commit")]
-            [json| { "id":2 } |]
-          `shouldRespondWith`
-            204
 
       it "returns empty array when no rows updated and return=rep" $
         request methodPatch "/items?id=eq.999999"

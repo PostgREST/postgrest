@@ -293,29 +293,30 @@ spec actualPgVersion = do
         -- reset pk sequence first to make test repeatable
         request methodPost "/rpc/reset_sequence"
             [("Prefer", "tx=commit")]
-            [json|{"name": "items_id_seq", "value": 20}|]
+            [json|{"name": "items2_id_seq", "value": 20}|]
           `shouldRespondWith`
             [json|""|]
 
-        request methodPost "/items" [("Prefer", "return=representation")] "{}"
-          `shouldRespondWith` [json|[{ id: 20 }]|]
-          { matchStatus  = 201,
-            matchHeaders = []
-          }
+        request methodPost "/items2"
+            [("Prefer", "return=representation")]
+            [json|{}|]
+          `shouldRespondWith`
+            [json|[{ id: 20 }]|]
+            { matchStatus  = 201 }
 
       it "successfully inserts a row with all-default columns with prefer=rep and &select=" $ do
         -- reset pk sequence first to make test repeatable
         request methodPost "/rpc/reset_sequence"
             [("Prefer", "tx=commit")]
-            [json|{"name": "items_id_seq", "value": 20}|]
+            [json|{"name": "items3_id_seq", "value": 20}|]
           `shouldRespondWith`
             [json|""|]
 
-        request methodPost "/items?select=id" [("Prefer", "return=representation")] "{}"
+        request methodPost "/items3?select=id"
+            [("Prefer", "return=representation")]
+            [json|{}|]
           `shouldRespondWith` [json|[{ id: 20 }]|]
-          { matchStatus  = 201,
-            matchHeaders = []
-          }
+            { matchStatus  = 201 }
 
     context "POST with ?columns parameter" $ do
       it "ignores json keys not included in ?columns" $ do
