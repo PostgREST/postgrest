@@ -232,7 +232,7 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
     env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
 
     with pytest.raises(PostgrestError):
-        dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
+        print(dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env))
 
 
 def test_iat_claim(session):
