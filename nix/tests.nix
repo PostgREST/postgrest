@@ -24,7 +24,7 @@ let
     postgresql:
     checkedShellScript "postgrest-test-${postgresql.name}"
       ''
-        export PATH=${postgresql}/bin:${git}/bin:${runtimeShell}/bin:"$PATH"
+        export PATH=${postgresql}/bin:${git}/bin:"$PATH"
 
         exec ${../test/with_tmp_db} "$@"
       '';
@@ -56,6 +56,19 @@ let
         Done running spec against ${postgresql.name}.
 
         EOF
+      '';
+
+  testSpecIdempotence =
+    name: postgrestql:
+    checkedShellScript
+      name
+      ''
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:$PATH"
+
+        ${withTmpDb postgresql} ${runtimeShell} -c " \
+          ${cabal-install}/bin/cabal v2-test ${devCabalOptions} && \
+          ${cabal-install}/bin/cabal v2-test ${devCabalOptions}"
       '';
 
   # Create a `testSpec` for each PostgreSQL version that we want to test
@@ -123,6 +136,7 @@ buildEnv
     paths =
       [
         (testSpec "postgrest-test-spec" postgresql).bin
+        (testSpecIdempotence "postgrest-test-spec-idempotence" postgresql).bin
         testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
       ] ++ testSpecVersions;

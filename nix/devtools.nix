@@ -44,6 +44,8 @@ let
     checkedShellScript "postgrest-check"
       ''
         ${tests}/bin/postgrest-test-spec-all
+        ${tests}/bin/postgrest-test-spec-idempotence
+        ${tests}/bin/postgrest-test-io
         ${style}/bin/postgrest-lint
         ${style}/bin/postgrest-style-check
       '';
