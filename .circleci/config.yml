@@ -222,6 +222,10 @@ jobs:
           command: postgrest-test-spec-postgresql-13
           when: always
       - run:
+          name: Check the spec tests for idempotence
+          command: postgrest-test-spec-idempotence
+          when: always
+      - run:
           name: Run io tests
           command: postgrest-test-io
           when: always
