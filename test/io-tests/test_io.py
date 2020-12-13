@@ -340,8 +340,11 @@ def test_db_schema_reload(session, tmp_path):
         configfile.write_text(
             config.replace('db-schemas = "test"', 'db-schemas = "test, v1"')
         )
-        # reload
+
+        # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
+
+        # reload schema cache to verify that the config reload actually happened
         postgrest.process.send_signal(signal.SIGUSR1)
 
         response = session.get(url, headers=headers)
