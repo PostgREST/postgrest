@@ -87,6 +87,8 @@ jobs:
           update: true
           packages:
             - postgresql-12
+            - python3
+            - python3-pip
       cache:
         yarn: true
         timeout: 1000
@@ -107,11 +109,12 @@ jobs:
         fi
         travis_wait stack --no-terminal setup
         travis_wait stack --no-terminal install hpc
+        pip3 install pytest pyyaml requests requests-unixsocket pyjwt 
       script: |
         travis_wait 50 stack --no-terminal build --fast -j1 --coverage
         travis_wait 50 stack --no-terminal build --fast -j1 --coverage --test --no-run-tests
         test/with_tmp_db stack --no-terminal test --coverage
-        test/with_tmp_db stack --no-terminal exec test/io-tests.sh
+        test/with_tmp_db stack --no-terminal exec pytest -v test/io-tests
       after_script: |
         export _HPC_DIR=$(stack path --local-hpc-root)
         export _MIX_DIR=$(stack path --dist-dir)
