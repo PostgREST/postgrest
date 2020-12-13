@@ -114,7 +114,7 @@ jobs:
         travis_wait 50 stack --no-terminal build --fast -j1 --coverage
         travis_wait 50 stack --no-terminal build --fast -j1 --coverage --test --no-run-tests
         test/with_tmp_db stack --no-terminal test --coverage
-        test/with_tmp_db stack --no-terminal exec pytest -v test/io-tests
+        test/with_tmp_db stack --no-terminal exec -- pytest -v test/io-tests
       after_script: |
         export _HPC_DIR=$(stack path --local-hpc-root)
         export _MIX_DIR=$(stack path --dist-dir)
