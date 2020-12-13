@@ -17,6 +17,8 @@
 set -eu
 
 export POSTGREST_TEST_CONNECTION=${POSTGREST_TEST_CONNECTION:-"postgres:///postgrest_test"}
+export POSTGREST_TEST_SOCKET="/tmp/postgrest.sock"
+
 
 cd "$(dirname "$0")"
 cd io-tests
