@@ -8,7 +8,7 @@ usage() {
 
 USAGE: $0 COMMAND
 
-Runs the given COMMAND with the POSTGREST_TEST_CONNECTION environment variable
+Runs the given COMMAND with the PGRST_DB_URI environment variable
 set to a temporary database that is ready for running the PostgREST test suite.
 
 You'll need to have the Postgres binaries 'initdb', 'pg_ctl' and 'psql' on your
@@ -59,7 +59,9 @@ export PGHOST="$tmpdir/socket"
 export PGUSER=postgrest_test_authenticator
 export PGDATABASE=postgres
 export DB_URI="postgresql://$PGDATABASE?host=$PGHOST&user=$PGUSER"
-export POSTGREST_TEST_CONNECTION="$DB_URI"
+export PGRST_DB_URI="$DB_URI"
+export PGRST_DB_SCHEMAS="test"
+export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
 
 log "Initializing database cluster..."
 # We try to make the database cluster as independent as possible from the host

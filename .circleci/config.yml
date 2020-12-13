@@ -66,8 +66,7 @@ jobs:
       - run:
           name: run spec tests
           command: |
-            POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://circleci@localhost" postgrest_test) \
-              stack test
+            test/create_test_db "postgres://circleci@localhost" postgrest_test stack test
 
   # Run memory usage tests based on stack and docker.
   stack-test-memory:
@@ -111,8 +110,7 @@ jobs:
           name: run memory usage tests
           command: |
             export PATH="~/.local/bin:$PATH"
-            test/create_test_db "postgres://circleci@localhost" postgrest_test
-            test/memory-tests.sh
+            test/create_test_db "postgres://circleci@localhost" postgrest_test test/memory-tests.sh
 
   # Publish a new release. This only runs when a release is tagged (see
   # workflow below).

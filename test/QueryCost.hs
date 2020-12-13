@@ -24,7 +24,7 @@ import Test.Hspec
 
 main :: IO ()
 main = do
-  testDbConn <- getEnvVarWithDefault "POSTGREST_TEST_CONNECTION" "postgres://postgrest_test@localhost/postgrest_test"
+  testDbConn <- getEnvVarWithDefault "PGRST_DB_URI" "postgres://postgrest_test@localhost/postgrest_test"
   pool <- P.acquire (3, 10, toS testDbConn)
 
   hspec $ describe "QueryCost" $

@@ -1,12 +1,15 @@
 #! /usr/bin/env bash
 
 # This test script expects that a `postgrest` executable with profiling enabled
-# is on the PATH. With stack, for example, you can run `stack install --profile
-# postgrest`.
+# is on the PATH.
 
 set -eu
 
-export POSTGREST_TEST_CONNECTION=${POSTGREST_TEST_CONNECTION:-"postgres:///postgrest_test"}
+# PGRST_DB_URI, PGRST_DB_ANON_ROLE and PGRST_DB_SCHEMAS are expected to be set by with_tmp_db
+export PGRST_DB_POOL="1"
+export PGRST_SERVER_HOST="127.0.0.1"
+export PGRST_SERVER_PORT="49421"
+export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
 
 trap "kill 0" int term exit
 
@@ -18,7 +21,7 @@ ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 
 pgrPort=49421
 
-pgrStart(){ postgrest test/memory-tests/config +RTS -p -h > /dev/null & pgrPID="$!"; }
+pgrStart(){ postgrest +RTS -p -h > /dev/null & pgrPID="$!"; }
 pgrStop(){ kill "$pgrPID" 2>/dev/null; }
 
 checkPgrStarted(){
