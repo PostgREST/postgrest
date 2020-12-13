@@ -23,12 +23,7 @@ BASEURL = "http://127.0.0.1:49421"
 secret = "reallyreallyreallyreallyverysafe"
 basedir = pathlib.Path(os.path.realpath(__file__)).parent
 configsdir = basedir / "configs"
-configs = [path for path in configsdir.iterdir() if path.is_file()]
-expectedconfigs = list((configsdir / "expected").iterdir())
-secrets = [path for path in (basedir / "secrets").iterdir() if path.suffix != ".jwt"]
-dburi = os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 dburifromfileconfig = configsdir / "dburi-from-file.config"
-roleclaimkeyconfig = configsdir / "role-claim-key.config"
 fixtures = yaml.load((basedir / "fixtures.yaml").read_text(), Loader=yaml.Loader)
 
 
@@ -47,24 +42,9 @@ def session():
     "Session for http requests."
     return requests_unixsocket.Session()
 
-
-@pytest.fixture(params=configs, ids=[conf.name for conf in configs])
-def configpath(request):
-    "Fixture for all config paths."
-    return configsdir / request.param
-
-
-@pytest.fixture(params=expectedconfigs, ids=[conf.name for conf in expectedconfigs])
-def expectedconfig(request):
-    "Fixture for all expected configs."
-    return request.param
-
-
-@pytest.fixture(params=secrets, ids=[secret.name for secret in secrets])
-def secretpath(request):
-    "Fixture for all secrets."
-    return request.param
-
+@pytest.fixture
+def dburi():
+    return os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 
 def dumpconfig(configpath, moreenv=None):
     "Dump the config as parsed by PostgREST."
@@ -117,6 +97,10 @@ def waitfor200(url):
     raise TimeOutException()
 
 
+@pytest.mark.parametrize(
+    "expectedconfig", (configsdir / "expected").iterdir(),
+    ids=lambda config: config.name
+)
 def test_expected_config(expectedconfig):
     """
     Configs as dumped by PostgREST should match an expected output.
@@ -126,11 +110,15 @@ def test_expected_config(expectedconfig):
     'configs/expected' directory.
 
     """
-    expected = (configsdir / "expected" / expectedconfig).read_text()
-    assert dumpconfig(configsdir / expectedconfig) == expected
+    expected = expectedconfig.read_text()
+    assert dumpconfig(configsdir / expectedconfig.name) == expected
 
 
-def test_stable_config(tmp_path, configpath):
+@pytest.mark.parametrize(
+    "config", [conf for conf in configsdir.iterdir() if conf.is_file()],
+    ids=lambda config: config.name
+)
+def test_stable_config(tmp_path, config):
     """
     A dumped, re-read and re-dumped config should match the dumped config.
 
@@ -142,7 +130,7 @@ def test_stable_config(tmp_path, configpath):
         "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
         "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
     }
-    dumped = dumpconfig(configpath, moreenv=env)
+    dumped = dumpconfig(config, moreenv=env)
 
     tmpconfigpath = tmp_path / "config"
     tmpconfigpath.write_text(dumped)
@@ -161,6 +149,11 @@ def test_socket_connection(session, tmp_path):
         pass
 
 
+@pytest.mark.parametrize(
+    "secretpath",
+    [path for path in (basedir / "secrets").iterdir() if path.suffix != ".jwt"],
+    ids=lambda secret: secret.name
+)
 def test_read_secret_from_file(session, secretpath):
     if secretpath.suffix == ".b64":
         configfile = configsdir / "base64-secret-from-file.config"
@@ -177,14 +170,14 @@ def test_read_secret_from_file(session, secretpath):
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol(session):
-    with run(dburifromfileconfig, stdin=dburi) as process:
+def test_read_dburi_from_file_without_eol(session, dburi):
+    with run(configsdir / "dburi-from-file.config", stdin=dburi) as process:
         response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_with_eol(session):
-    with run(dburifromfileconfig, stdin=dburi + b"\n") as process:
+def test_read_dburi_from_file_with_eol(session, dburi):
+    with run(configsdir / "dburi-from-file.config", stdin=dburi + b"\n") as process:
         response = session.get(f"{process.baseurl}/")
         assert response.status_code == 200
 
@@ -197,7 +190,7 @@ def test_role_claim_key(session, roleclaim):
     token = jwt.encode(roleclaim["data"], secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(roleclaimkeyconfig, moreenv=env) as process:
+    with run(configsdir / "role-claim-key.config", moreenv=env) as process:
         response = session.get(f"{process.baseurl}/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
@@ -207,7 +200,7 @@ def test_invalid_role_claim_key(invalidroleclaimkey):
     env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
 
     with pytest.raises(subprocess.CalledProcessError):
-        dumpconfig(roleclaimkeyconfig, moreenv=env)
+        dumpconfig(configsdir / "role-claim-key.config", moreenv=env)
 
 
 def test_iat_claim(session):
