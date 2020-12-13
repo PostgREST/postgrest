@@ -344,7 +344,5 @@ def test_db_schema_reload(session, tmp_path):
         postgrest.process.send_signal(signal.SIGUSR2)
         postgrest.process.send_signal(signal.SIGUSR1)
 
-        time.sleep(.1)
-
         response = session.get(url, headers=headers)
         assert response.status_code == 200
