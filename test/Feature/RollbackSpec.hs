@@ -80,7 +80,7 @@ shouldPersistMutations reqHeaders respHeaders = do
         [json|[{"id":0}]|]
         { matchStatus  = 201
         , matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[{"id":0}]|]
     deleteItems
@@ -92,7 +92,7 @@ shouldPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":0}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[{"id":0}]|]
     deleteItems
@@ -105,10 +105,10 @@ shouldPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":-1}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]
-    get "items?id=eq.-1"
+    get "/items?id=eq.-1"
       `shouldRespondWith`
         [json|[{"id":-1}]|]
     deleteItems
@@ -121,7 +121,7 @@ shouldPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":0}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]
 
@@ -134,7 +134,7 @@ shouldNotPersistMutations reqHeaders respHeaders = do
         [json|[{"id":0}]|]
         { matchStatus  = 201
         , matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]
 
@@ -145,7 +145,7 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":0}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]
 
@@ -156,7 +156,7 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":0}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.0"
+    get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]
     get "items?id=eq.1"
@@ -170,7 +170,7 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":1}]|]
         { matchHeaders = respHeaders }
-    get "items?id=eq.1"
+    get "/items?id=eq.1"
       `shouldRespondWith`
         [json|[{"id":1}]|]
 

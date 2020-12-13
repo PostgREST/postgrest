@@ -114,7 +114,6 @@ main = do
         , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
-        , ("Feature.RollbackAllowedSpec"     , Feature.RollbackSpec.allowed)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.SingularSpec"            , Feature.SingularSpec.spec)
         , ("Feature.UpdateSpec"              , Feature.UpdateSpec.spec)
@@ -122,55 +121,73 @@ main = do
         ]
 
   hspec $ do
-    mapM_ (before withApp) specs
+    mapM_ (parallel . before withApp) specs
 
     -- we analyze to get accurate results from EXPLAIN
-    beforeAll_ analyze . before withApp $
+    parallel $ beforeAll_ analyze . before withApp $
       describe "Feature.RangeSpec" Feature.RangeSpec.spec
 
     -- this test runs with a raw-output-media-types set to text/html
-    before htmlRawOutputApp $
+    parallel $ before htmlRawOutputApp $
       describe "Feature.HtmlRawOutputSpec" Feature.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
-    before maxRowsApp $
+    parallel $ before maxRowsApp $
       describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
 
     -- this test runs with a different schema
-    before unicodeApp $
+    parallel $ before unicodeApp $
       describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
 
     -- this test runs with a proxy
-    before proxyApp $
+    parallel $ before proxyApp $
       describe "Feature.ProxySpec" Feature.ProxySpec.spec
 
     -- this test runs without a JWT secret
-    before noJwtApp $
+    parallel $ before noJwtApp $
       describe "Feature.NoJwtSpec" Feature.NoJwtSpec.spec
 
     -- this test runs with a binary JWT secret
-    before binaryJwtApp $
+    parallel $ before binaryJwtApp $
       describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
 
     -- this test runs with a binary JWT secret and an audience claim
-    before audJwtApp $
+    parallel $ before audJwtApp $
       describe "Feature.AudienceJwtSecretSpec" Feature.AudienceJwtSecretSpec.spec
 
     -- this test runs with asymmetric JWK
-    before asymJwkApp $
+    parallel $ before asymJwkApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
     -- this test runs with asymmetric JWKSet
-    before asymJwkSetApp $
+    parallel $ before asymJwkSetApp $
       describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
 
     -- this test runs with a nonexistent db-schema
-    before nonexistentSchemaApp $
+    parallel $ before nonexistentSchemaApp $
       describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
 
     -- this test runs with an extra search path
-    before extraSearchPathApp $
+    parallel $ before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
+
+    when (actualPgVersion >= pgVersion96) $ do
+      -- this test runs with a root spec function override
+      parallel $ before rootSpecApp $
+        describe "Feature.RootSpec" Feature.RootSpec.spec
+      parallel $ before responseHeadersApp $
+        describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
+
+    -- this test runs with multiple schemas
+    parallel $ before multipleSchemaApp $
+      describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
+
+    -- Note: the rollback tests can not run in parallel, because they test persistance and
+    -- this results in race conditions
+
+    -- this test runs with tx-rollback-all = true and tx-allow-override = true
+    before withApp $
+      describe"Feature.RollbackAllowedSpec" Feature.RollbackSpec.allowed
 
     -- this test runs with tx-rollback-all = false and tx-allow-override = false
     before disallowRollbackApp $
@@ -179,17 +196,6 @@ main = do
     -- this test runs with tx-rollback-all = true and tx-allow-override = false
     before forceRollbackApp $
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
-
-    when (actualPgVersion >= pgVersion96) $ do
-      -- this test runs with a root spec function override
-      before rootSpecApp $
-        describe "Feature.RootSpec" Feature.RootSpec.spec
-      before responseHeadersApp $
-        describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
-
-    -- this test runs with multiple schemas
-    before multipleSchemaApp $
-      describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
 
   where
     setupDbStructure pool schemas extraSearchPath ver =

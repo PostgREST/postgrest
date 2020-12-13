@@ -16,6 +16,7 @@ SET search_path = test, "تست", pg_catalog;
 GRANT ALL ON TABLE
     items
     , items2
+    , items3
     , "articleStars"
     , articles
     , auto_incrementing_pk
@@ -143,6 +144,8 @@ GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
 GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq
     , items_id_seq
+    , items2_id_seq
+    , items3_id_seq
     , callcounter_count
     , leak_id_seq
 TO postgrest_test_anonymous;

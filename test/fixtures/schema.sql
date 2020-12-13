@@ -113,6 +113,10 @@ CREATE TABLE items2 (
     id bigserial primary key
 );
 
+CREATE TABLE items3 (
+    id bigserial primary key
+);
+
 CREATE FUNCTION search(id BIGINT) RETURNS SETOF items
     LANGUAGE plpgsql
     AS $$BEGIN
