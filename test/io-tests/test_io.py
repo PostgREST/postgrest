@@ -1,11 +1,10 @@
-"Tests for inputs and outputs of PostgREST."
+"Unit tests for Input/Ouput of PostgREST seen as a black box."
 
 import contextlib
 import dataclasses
 from datetime import datetime
 import pathlib
 import subprocess
-import tempfile
 from operator import attrgetter
 import os
 import signal
@@ -19,46 +18,59 @@ import requests_unixsocket
 import yaml
 
 
-BASEURL = "http://127.0.0.1:49421"
-SECRET = "reallyreallyreallyreallyverysafe"
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
 CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load((BASEDIR / "fixtures.yaml").read_text(), Loader=yaml.Loader)
+BASEURL = "http://127.0.0.1:49421"
+SECRET = "reallyreallyreallyreallyverysafe"
+
+
+class PostgrestTimedOut(Exception):
+    "Connecting to PostgREST endpoint timed out."
+
+
+class PostgrestError(Exception):
+    "Postgrest exited with a non-zero return code."
 
 
 @dataclasses.dataclass
 class PostgrestProcess:
+    "Running PostgREST process and its corresponding endpoint."
     baseurl: str
     process: object
 
 
-class TimeOutException(Exception):
-    pass
-
-
 @pytest.fixture
 def session():
-    "Session for http requests."
+    "Session for HTTP requests that supports connecting to unix domain sockets."
     return requests_unixsocket.Session()
 
 
 @pytest.fixture
 def dburi():
+    "Postgres database connection URI."
     return os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
 
 
-def dumpconfig(configpath, moreenv=None):
+def dumpconfig(configpath, moreenv=None, stdin=None):
     "Dump the config as parsed by PostgREST."
     env = {**os.environ, **(moreenv or {})}
-
     command = ["postgrest", "--dump-config", configpath]
-    result = subprocess.run(command, env=env, capture_output=True, check=True)
-    return result.stdout.decode("utf-8")
+    process = subprocess.Popen(
+        command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    )
+    process.stdin.write(stdin or b"")
+    result = process.communicate()[0]
+    process.kill()
+    process.wait()
+    if process.returncode != 0:
+        raise PostgrestError()
+    return result.decode("utf-8")
 
 
 @contextlib.contextmanager
 def run(configpath, stdin=None, moreenv=None, socket=None):
-    "Run PostgREST."
+    "Run PostgREST and yield an endpoint that is ready for connections."
     env = {**os.environ, **(moreenv or {})}
 
     if socket:
@@ -70,21 +82,22 @@ def run(configpath, stdin=None, moreenv=None, socket=None):
     process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env)
 
     try:
-        if stdin:
-            process.stdin.write(stdin)
+        process.stdin.write(stdin or b"")
         process.stdin.close()
 
-        waitfor200(baseurl)
+        wait_until_ready(baseurl)
+
         yield PostgrestProcess(baseurl=baseurl, process=process)
     finally:
         process.kill()
         process.wait()
 
 
-def waitfor200(url):
+def wait_until_ready(url):
+    "Wait for the given HTTP endpoint to return a status of 200."
     session = requests_unixsocket.Session()
 
-    for i in range(10):
+    for _ in range(10):
         try:
             response = session.get(url, timeout=0.1)
 
@@ -95,7 +108,17 @@ def waitfor200(url):
 
         time.sleep(0.1)
 
-    raise TimeOutException()
+    raise PostgrestTimedOut()
+
+
+def authheader(token):
+    "Bearer token HTTP authorization header."
+    return {"Authorization": f"Bearer {token}"}
+
+
+def jwtauthheader(claim, secret):
+    "Authorization header with signed JWT."
+    return authheader(jwt.encode(claim, secret).decode("utf-8"))
 
 
 @pytest.mark.parametrize(
@@ -127,11 +150,18 @@ def test_stable_config(tmp_path, config):
     be different because of default values, whitespace, and quoting.
 
     """
+
+    # Set environment variables that some of the configs expect. Using a
+    # complex ROLE_CLAIM_KEY to make sure quoting works.
     env = {
         "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
         "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
     }
-    dumped = dumpconfig(config, moreenv=env)
+
+    # Some configs expect input from stdin, at least on base64.
+    stdin = b"Y29ubmVjdGlvbl9zdHJpbmc="
+
+    dumped = dumpconfig(config, moreenv=env, stdin=stdin)
 
     tmpconfigpath = tmp_path / "config"
     tmpconfigpath.write_text(dumped)
@@ -140,7 +170,8 @@ def test_stable_config(tmp_path, config):
     assert dumped == redumped
 
 
-def test_socket_connection(session, tmp_path):
+def test_socket_connection(tmp_path):
+    "Connections via unix domain sockets should work."
     socket = tmp_path / "postgrest.sock"
     env = {
         "POSTGREST_TEST_SOCKET": str(socket),
@@ -156,6 +187,7 @@ def test_socket_connection(session, tmp_path):
     ids=attrgetter("name"),
 )
 def test_read_secret_from_file(session, secretpath):
+    "Authorization should succeed when the secret is read from a file."
     if secretpath.suffix == ".b64":
         configfile = CONFIGSDIR / "base64-secret-from-file.config"
     else:
@@ -164,18 +196,20 @@ def test_read_secret_from_file(session, secretpath):
     secret = secretpath.read_bytes()
     headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
-    with run(configfile, stdin=secret) as process:
-        response = session.get(f"{process.baseurl}/authors_only", headers=headers)
+    with run(configfile, stdin=secret) as postgrest:
+        response = session.get(f"{postgrest.baseurl}/authors_only", headers=headers)
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol(session, dburi):
-    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi) as process:
+def test_read_dburi_from_file_without_eol(dburi):
+    "Reading the dburi from a file with a single line should work."
+    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi):
         pass
 
 
-def test_read_dburi_from_file_with_eol(session, dburi):
-    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi + b"\n") as process:
+def test_read_dburi_from_file_with_eol(dburi):
+    "Reading the dburi from a file containing a newline should work."
+    with run(CONFIGSDIR / "dburi-from-file.config", stdin=dburi + b"\n"):
         pass
 
 
@@ -183,39 +217,38 @@ def test_read_dburi_from_file_with_eol(session, dburi):
     "roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"]
 )
 def test_role_claim_key(session, roleclaim):
+    "Authorization should depend on a correct role-claim-key and JWT claim."
     env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
     headers = jwtauthheader(roleclaim["data"], SECRET)
 
-    with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as process:
-        response = session.get(f"{process.baseurl}/authors_only", headers=headers)
+    with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as postgrest:
+        response = session.get(f"{postgrest.baseurl}/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
 
 @pytest.mark.parametrize("invalidroleclaimkey", FIXTURES["invalidroleclaimkeys"])
 def test_invalid_role_claim_key(invalidroleclaimkey):
+    "Given an invalid role-claim-key, Postgrest should exit with a non-zero exit code."
     env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
 
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(PostgrestError):
         dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
 
 
-def authheader(token):
-    "Bearer token HTTP authorization header."
-    return {"Authorization": f"Bearer {token}"}
-
-
-def jwtauthheader(claim, secret):
-    "Authorization header with signed JWT."
-    return authheader(jwt.encode(claim, secret).decode("utf-8"))
-
-
 def test_iat_claim(session):
+    """
+    A claim with an 'iat' (issued at) attribute should be successful.
+
+    The PostgREST time cache lead to issues here, see:
+    https://github.com/PostgREST/postgrest/issues/1139
+
+    """
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
     headers = jwtauthheader(claim, SECRET)
 
-    with run(CONFIGSDIR / "simple.config") as process:
+    with run(CONFIGSDIR / "simple.config") as postgrest:
         for _ in range(10):
-            url = f"{process.baseurl}/authors_only"
+            url = f"{postgrest.baseurl}/authors_only"
             response = session.get(url, headers=headers)
             assert response.status_code == 200
 
@@ -223,22 +256,31 @@ def test_iat_claim(session):
 
 
 def test_app_settings(session):
-    with run(CONFIGSDIR / "app-settings.config") as process:
-        url = (
-            f"{process.baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
-        )
-        response = session.get(url)
+    """
+    App settings should not reset when the db pool times out.
+
+    See: https://github.com/PostgREST/postgrest/issues/1141
+
+    """
+    with run(CONFIGSDIR / "app-settings.config") as postgrest:
+        # Wait for the db pool to time out, set to 1s in config
+        time.sleep(2)
+
+        uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
+        response = session.get(postgrest.baseurl + uri)
+
         assert response.status_code == 200
         assert response.text == '"0123456789abcdef"'
 
 
 def test_app_settings_reload(session, tmp_path):
+    "App settings should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
-    with run(configfile) as process:
-        url = f"{process.baseurl}/rpc/get_guc_value?name=app.settings.name_var"
+    with run(configfile) as postgrest:
+        url = f"{postgrest.baseurl}/rpc/get_guc_value?name=app.settings.name_var"
 
         response = session.get(url)
         assert response.status_code == 200
@@ -247,7 +289,7 @@ def test_app_settings_reload(session, tmp_path):
         # change setting
         configfile.write_text(config.replace("John", "Jane"))
         # reload
-        process.process.send_signal(signal.SIGUSR2)
+        postgrest.process.send_signal(signal.SIGUSR2)
 
         response = session.get(url)
         assert response.status_code == 200
@@ -255,14 +297,15 @@ def test_app_settings_reload(session, tmp_path):
 
 
 def test_jwt_secret_reload(session, tmp_path):
+    "JWT secret should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
-    with run(configfile) as process:
-        url = f"{process.baseurl}/authors_only"
+    with run(configfile) as postgrest:
+        url = f"{postgrest.baseurl}/authors_only"
 
         response = session.get(url, headers=headers)
         assert response.status_code == 401
@@ -270,21 +313,22 @@ def test_jwt_secret_reload(session, tmp_path):
         # change setting
         configfile.write_text(config.replace("invalid" * 5, SECRET))
         # reload
-        process.process.send_signal(signal.SIGUSR2)
+        postgrest.process.send_signal(signal.SIGUSR2)
 
         response = session.get(url, headers=headers)
         assert response.status_code == 200
 
 
 def test_db_schema_reload(session, tmp_path):
+    "DB schema should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
     headers = {"Accept-Profile": "v1"}
 
-    with run(configfile) as process:
-        url = f"{process.baseurl}/parents"
+    with run(configfile) as postgrest:
+        url = f"{postgrest.baseurl}/parents"
 
         response = session.get(url, headers=headers)
         assert response.status_code == 404
@@ -294,8 +338,8 @@ def test_db_schema_reload(session, tmp_path):
             config.replace('db-schema = "test"', 'db-schema = "test, v1"')
         )
         # reload
-        process.process.send_signal(signal.SIGUSR2)
-        process.process.send_signal(signal.SIGUSR1)
+        postgrest.process.send_signal(signal.SIGUSR2)
+        postgrest.process.send_signal(signal.SIGUSR1)
 
         response = session.get(url, headers=headers)
         assert response.status_code == 200
