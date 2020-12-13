@@ -22,12 +22,13 @@ BASEURL = "http://127.0.0.1:49421"
 
 secret = "reallyreallyreallyreallyverysafe"
 basedir = pathlib.Path(os.path.realpath(__file__)).parent
-configs = [path for path in (basedir / "configs").iterdir() if path.is_file()]
-expectedconfigs = list((basedir / "configs" / "expected").iterdir())
+configsdir = basedir / "configs"
+configs = [path for path in configsdir.iterdir() if path.is_file()]
+expectedconfigs = list((configsdir / "expected").iterdir())
 secrets = [path for path in (basedir / "secrets").iterdir() if path.suffix != ".jwt"]
 dburi = os.getenv("POSTGREST_TEST_CONNECTION").encode("utf-8")
-dburifromfileconfig = basedir / "configs" / "dburi-from-file.config"
-roleclaimkeyconfig = basedir / "configs" / "role-claim-key.config"
+dburifromfileconfig = configsdir / "dburi-from-file.config"
+roleclaimkeyconfig = configsdir / "role-claim-key.config"
 fixtures = yaml.load((basedir / "fixtures.yaml").read_text(), Loader=yaml.Loader)
 
 
@@ -50,7 +51,7 @@ def session():
 @pytest.fixture(params=configs, ids=[conf.name for conf in configs])
 def configpath(request):
     "Fixture for all config paths."
-    return basedir / "configs" / request.param
+    return configsdir / request.param
 
 
 @pytest.fixture(params=expectedconfigs, ids=[conf.name for conf in expectedconfigs])
@@ -125,8 +126,8 @@ def test_expected_config(expectedconfig):
     'configs/expected' directory.
 
     """
-    expected = (basedir / "configs" / "expected" / expectedconfig).read_text()
-    assert dumpconfig(basedir / "configs" / expectedconfig) == expected
+    expected = (configsdir / "expected" / expectedconfig).read_text()
+    assert dumpconfig(configsdir / expectedconfig) == expected
 
 
 def test_stable_config(tmp_path, configpath):
@@ -156,15 +157,15 @@ def test_socket_connection(session, tmp_path):
         "POSTGREST_TEST_SOCKET": str(socket),
     }
 
-    with run(basedir / "configs" / "unix-socket.config", socket=socket, moreenv=env):
+    with run(configsdir / "unix-socket.config", socket=socket, moreenv=env):
         pass
 
 
 def test_read_secret_from_file(session, secretpath):
     if secretpath.suffix == ".b64":
-        configfile = basedir / "configs" / "base64-secret-from-file.config"
+        configfile = configsdir / "base64-secret-from-file.config"
     else:
-        configfile = basedir / "configs" / "secret-from-file.config"
+        configfile = configsdir / "secret-from-file.config"
 
     secret = secretpath.read_bytes()
 
@@ -214,7 +215,7 @@ def test_iat_claim(session):
     token = jwt.encode(claim, secret).decode("utf-8")
     headers = {"Authorization": f"Bearer {token}"}
 
-    with run(basedir / "configs" / "simple.config") as process:
+    with run(configsdir / "simple.config") as process:
         for _ in range(10):
             response = session.get(f"{process.baseurl}/authors_only", headers=headers)
             assert response.status_code == 200
@@ -223,7 +224,7 @@ def test_iat_claim(session):
 
 
 def test_app_settings(session):
-    with run(basedir / "configs" / "app-settings.config") as process:
+    with run(configsdir / "app-settings.config") as process:
         url = (
             f"{process.baseurl}/rpc/get_guc_value?name=app.settings.external_api_secret"
         )
@@ -233,7 +234,7 @@ def test_app_settings(session):
 
 
 def test_app_settings_reload(session, tmp_path):
-    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    config = (configsdir / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -255,7 +256,7 @@ def test_app_settings_reload(session, tmp_path):
 
 
 def test_jwt_secret_reload(session, tmp_path):
-    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    config = (configsdir / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -279,7 +280,7 @@ def test_jwt_secret_reload(session, tmp_path):
 
 
 def test_db_schema_reload(session, tmp_path):
-    config = (basedir / "configs" / "sigusr2-settings.config").read_text()
+    config = (configsdir / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
