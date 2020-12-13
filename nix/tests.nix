@@ -75,21 +75,6 @@ let
     checkedShellScript "postgrest-test-spec-all"
       (lib.concatStringsSep "\n" testRunners);
 
-  testIO =
-    name: postgresql:
-    checkedShellScript
-      name
-      ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:${curl}/bin:${procps}/bin:${diffutils}/bin:$PATH"
-
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-        cd "$rootdir"
-
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} "$rootdir"/test/io-tests.sh
-      '';
-
   ioTestPython =
     python3.withPackages (ps: [
       ps.pytest
@@ -99,8 +84,7 @@ let
       ps.pyyaml
     ]);
 
-  # Provisional name until all io-tests are migrated
-  testIONew =
+  testIO =
     name: postgresql:
     checkedShellScript
       name
@@ -141,7 +125,6 @@ buildEnv
         (testSpec "postgrest-test-spec" postgresql).bin
         testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
-        (testIONew "postgrest-test-io-new" postgresql).bin
       ] ++ testSpecVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)
