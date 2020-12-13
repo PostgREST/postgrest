@@ -223,9 +223,11 @@ jobs:
           when: always
       - run:
           name: Run io tests
-          command: |
-            postgrest-test-io
-            postgrest-test-io-new
+          command: postgrest-test-io
+          when: always
+      - run:
+          name: Run new io tests
+          command: postgrest-test-io-new
           when: always
       - run:
           name: Run memory tests
