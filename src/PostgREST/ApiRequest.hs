@@ -129,6 +129,7 @@ data ApiRequest = ApiRequest {
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
   , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
+  , iParams               :: [(Text, Text)]                   -- ^ All request params
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -177,6 +178,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       , iMethod = method
       , iProfile = profile
       , iSchema = schema
+      , iParams = second (toS . fromMaybe mempty) <$> qParams
       }
  where
   -- queryString with '+' converted to ' '(space)
