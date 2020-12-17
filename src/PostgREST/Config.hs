@@ -76,7 +76,11 @@ data CLI = CLI
   { cliCommand :: Command
   , cliPath    :: FilePath }
 
-data Command = CmdRun | CmdDumpConfig deriving (Eq)
+data Command
+  = CmdRun
+  | CmdDumpConfig
+  | CmdDumpSchema
+  deriving (Eq)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -148,10 +152,18 @@ readCLIShowHelp = customExecParser parserPrefs opts
 
     cliParser :: Parser CLI
     cliParser = CLI <$>
-      flag CmdRun CmdDumpConfig (
-        long "dump-config" <>
-        help "Dump loaded configuration and exit"
-      ) <*>
+      (
+        flag CmdRun CmdDumpConfig (
+          long "dump-config" <>
+          help "Dump loaded configuration and exit"
+        )
+        <|>
+        flag CmdRun CmdDumpSchema (
+          long "dump-schema" <>
+          help "Dump loaded schema and exit"
+        )
+      )
+      <*>
       strArgument (
         metavar "FILENAME" <>
         help "Path to configuration file"

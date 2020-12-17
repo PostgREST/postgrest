@@ -17,6 +17,7 @@
 , procps
 , python3
 , runtimeShell
+, yq
 }:
 let
   # Wrap the `test/with_tmp_db` script with the required dependencies from Nix.
@@ -125,6 +126,23 @@ let
 
         ${withTmpDb postgresql} "$rootdir/test/memory-tests.sh"
       '';
+
+  dumpSchema =
+    name: postgresql:
+    checkedShellScript
+      name
+      ''
+        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
+        cd "$rootdir"
+
+        env="$(cat ${postgrest.env})"
+        export PATH="$env/bin:$PATH"
+
+        ${withTmpDb postgresql} \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
+            postgrest --dump-schema "$rootdir"/test/io-tests/configs/simple.config \
+            | ${yq}/bin/yq -y .
+      '';
 in
 # Create an environment that contains all the utility scripts for running tests
   # that we defined above.
@@ -139,6 +157,7 @@ buildEnv
         (testSpecIdempotence "postgrest-test-spec-idempotence" postgresql).bin
         testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
+        (dumpSchema "postgrest-dump-schema" postgresql).bin
       ] ++ testSpecVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)

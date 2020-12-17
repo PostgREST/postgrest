@@ -3,9 +3,11 @@
 module Main where
 
 import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
+import qualified Hasql.Session              as S
 import qualified Hasql.Transaction.Sessions as HT
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
@@ -17,6 +19,7 @@ import Control.Debounce         (debounceAction, debounceEdge,
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
+import Data.Aeson               (encode)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
@@ -64,9 +67,6 @@ main = do
   -- build the 'AppConfig' from the config file path
   conf <- readValidateConfig $ cliPath opts
 
-  -- dump config and exit if option is set
-  when (cliCommand opts == CmdDumpConfig) $ dumpAppConfig conf
-
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
     host = configServerHost conf
@@ -85,6 +85,17 @@ main = do
     poolSize = configDbPoolSize conf
     poolTimeout = configDbPoolTimeout' conf
     logLevel = configLogLevel conf
+
+  case cliCommand opts of
+    CmdDumpConfig ->
+      dumpAppConfig conf
+    CmdDumpSchema ->
+      do
+        schema <- dumpSchema conf
+        putStrLn schema
+        exitSuccess
+    CmdRun ->
+      pass
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
@@ -157,6 +168,7 @@ main = do
   whenNothing maybeSocketAddr $ do
     putStrLn $ ("Listening on port " :: Text) <> show port
     runSettings serverSettings postgrestApplication
+
 
 -- Time constants
 _32s :: Int
@@ -321,6 +333,26 @@ reReadConfig path refConf = do
   conf <- readValidateConfig path
   atomicWriteIORef refConf conf
   putStrLn ("Config file reloaded" :: Text)
+
+
+-- | Dump DbStructure schema to JSON
+dumpSchema :: AppConfig -> IO LBS.ByteString
+dumpSchema conf =
+  do
+    Right conn <- C.acquire . toS $ configDbUri conf
+    Right pgVersion <- S.run getPgVersion conn
+    let
+      getDbStructureTransaction =
+        HT.transaction HT.ReadCommitted HT.Read $
+          getDbStructure
+            (toList $ configDbSchemas conf)
+            (configDbExtraSearchPath conf)
+            pgVersion
+            (configDbPreparedStatements conf)
+    Right dbStructure <- S.run getDbStructureTransaction conn
+    C.release conn
+    return $ encode dbStructure
+
 
 -- Utilitarian functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
