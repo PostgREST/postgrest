@@ -1,0 +1,31 @@
+From 37cafab49907880838f777b068e9634d5206f61f Mon Sep 17 00:00:00 2001
+From: monacoremo <59358383+monacoremo@users.noreply.github.com>
+Date: Tue, 22 Dec 2020 14:43:41 +0100
+Subject: [PATCH] Revert "gdb: 9.2 -> 10.1"
+
+This reverts commit 6d2cad8a4ed76e42407546bc6b4c717fd9e1a535.
+---
+ pkgs/development/tools/misc/gdb/default.nix | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/pkgs/development/tools/misc/gdb/default.nix b/pkgs/development/tools/misc/gdb/default.nix
+index d9bac6e3c83..a4806634432 100644
+--- a/pkgs/development/tools/misc/gdb/default.nix
++++ b/pkgs/development/tools/misc/gdb/default.nix
+@@ -26,11 +26,11 @@ assert pythonSupport -> python3 != null;
+ 
+ stdenv.mkDerivation rec {
+   pname = targetPrefix + basename;
+-  version = "10.1";
++  version = "9.2";
+ 
+   src = fetchurl {
+     url = "mirror://gnu/gdb/${basename}-${version}.tar.xz";
+-    sha256 = "1h32dckz1y8fnyxh22iyw8h3hnhxr79v1ng85px3ljn1xv71wbzq";
++    sha256 = "0mf5fn8v937qwnal4ykn3ji1y2sxk0fa1yfqi679hxmpg6pdf31n";
+   };
+ 
+   postPatch = if stdenv.isDarwin then ''
+-- 
+2.28.0
+
