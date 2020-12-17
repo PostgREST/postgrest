@@ -105,11 +105,11 @@ def wait_until_ready(url):
 
     for _ in range(10):
         try:
-            response = session.get(url, timeout=0.1)
+            response = session.get(url, timeout=1)
 
             if response.status_code == 200:
                 return
-        except requests.ConnectionError:
+        except (requests.ConnectionError, requests.ReadTimeout):
             pass
 
         time.sleep(0.1)
