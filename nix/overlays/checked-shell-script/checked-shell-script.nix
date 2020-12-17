@@ -9,8 +9,7 @@
 }:
 name: text:
 let
-  writeBin =
-    name: text:
+  bin =
     writeTextFile {
       inherit name;
       executable = true;
@@ -33,9 +32,6 @@ let
           ${shellcheck}/bin/shellcheck $out/bin/${name}
         '';
     };
-
-  bin =
-    writeBin name text;
 
   script =
     runCommand name { inherit bin name; } "ln -s $bin/bin/$name $out";

@@ -25,8 +25,8 @@ let
     patches.applyPatches "patched-nixpkgs"
       nixpkgs
       [
-        patches.nixpkgs-revert-ghc-bootstrap
         patches.nixpkgs-openssl-split-runtime-dependencies-of-static-builds
+        patches.nixpkgs-gdb-fix-libintl
       ];
 
   extraOverrides =
@@ -52,7 +52,7 @@ let
   # Each version of GHC needs a specific version of Cabal.
   defaultCabalPackageVersionComingWithGhc =
     {
-      ghc883 = "Cabal_3_2_0_0";
+      ghc884 = "Cabal_3_2_1_0";
     }."${compiler}";
 
   # The static-haskell-nix 'survey' derives a full static set of Haskell

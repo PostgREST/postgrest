@@ -82,7 +82,7 @@ To push all new artifacts to Cachix, run:
 nix-store -qR --include-outputs $$(nix-instantiate) | cachix push postgrest
 
 # Or, equivalently
-make cachix-push-all
+nix-shell --run postgrest-push-cachix
 
 ```
 

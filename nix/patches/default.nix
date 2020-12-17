@@ -18,14 +18,13 @@
         done
       '';
 
-  # Patch is required for static builds on GHC 8.8.3, see:
-  # https://github.com/NixOS/nixpkgs/issues/85924
-  nixpkgs-revert-ghc-bootstrap =
-    ./nixpkgs-revert-ghc-bootstrap.patch;
-
   # See: https://github.com/NixOS/nixpkgs/pull/87879
   nixpkgs-openssl-split-runtime-dependencies-of-static-builds =
     ./nixpkgs-openssl-split-runtime-dependencies-of-static-builds.patch;
+
+  # See: https://github.com/NixOS/nixpkgs/issues/104133
+  nixpkgs-gdb-fix-libintl =
+    ./nixpkgs-gdb-fix-libintl.patch;
 
   # Fix how openssl is linked on static builds, see:
   # https://github.com/nh2/static-haskell-nix/pull/91
