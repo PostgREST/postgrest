@@ -249,15 +249,11 @@ readCLIShowHelp = customExecParser parserPrefs opts
           |]
 
 -- | Dump the config
-dumpAppConfig :: AppConfig -> IO ()
-dumpAppConfig conf = do
-  putStr dump
-  exitSuccess
-
+dumpAppConfig :: AppConfig -> Text
+dumpAppConfig conf =
+  unlines $ (\(k, v) -> k <> " = " <> v) <$>
+    pgrstSettings ++ appSettings
   where
-    dump = unlines $ (\(k, v) -> k <> " = " <> v) <$>
-      pgrstSettings ++ appSettings
-
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
       [("db-anon-role",              q . configDbAnonRole)

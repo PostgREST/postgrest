@@ -2,6 +2,7 @@
 
 module Main where
 
+import qualified Data.Aeson                 as Aeson
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Connection           as C
@@ -19,7 +20,6 @@ import Control.Debounce         (debounceAction, debounceEdge,
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
-import Data.Aeson               (encode)
 import Data.IORef               (IORef, atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..))
@@ -88,11 +88,13 @@ main = do
 
   case cliCommand opts of
     CmdDumpConfig ->
-      dumpAppConfig conf
+      do
+        putStr $ dumpAppConfig conf
+        exitSuccess
     CmdDumpSchema ->
       do
-        schema <- dumpSchema conf
-        putStrLn schema
+        dumpedSchema <- dumpSchema conf
+        putStrLn dumpedSchema
         exitSuccess
     CmdRun ->
       pass
@@ -351,7 +353,7 @@ dumpSchema conf =
             (configDbPreparedStatements conf)
     Right dbStructure <- S.run getDbStructureTransaction conn
     C.release conn
-    return $ encode dbStructure
+    return $ Aeson.encode dbStructure
 
 
 -- Utilitarian functions.
