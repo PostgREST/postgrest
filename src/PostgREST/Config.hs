@@ -160,7 +160,7 @@ readCLIShowHelp = customExecParser parserPrefs opts
         <|>
         flag CmdRun CmdDumpSchema (
           long "dump-schema" <>
-          help "Dump loaded schema and exit"
+          help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
         )
       )
       <*>
