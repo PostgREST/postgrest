@@ -95,7 +95,7 @@ main = do
         exitSuccess
     CmdDumpSchema ->
       do
-        dumpedSchema <- timeToStderr "Loaded schema in %.3f seconds" $ dumpSchema conf
+        dumpedSchema <- dumpSchema conf
         putStrLn dumpedSchema
         exitSuccess
     CmdRun ->
@@ -332,12 +332,13 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
 
 -- | Re-reads the config at runtime. Invoked on SIGUSR2.
 -- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
+#ifndef mingw32_HOST_OS
 reReadConfig :: FilePath -> IORef AppConfig -> IO ()
 reReadConfig path refConf = do
   conf <- readValidateConfig path
   atomicWriteIORef refConf conf
   putStrLn ("Config file reloaded" :: Text)
-
+#endif
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: AppConfig -> IO LBS.ByteString
@@ -353,7 +354,9 @@ dumpSchema conf =
             (configDbExtraSearchPath conf)
             pgVersion
             (configDbPreparedStatements conf)
-    Right dbStructure <- S.run getDbStructureTransaction conn
+    Right dbStructure <-
+      timeToStderr "Loaded schema in %.3f seconds" $
+        S.run getDbStructureTransaction conn
     C.release conn
     return $ Aeson.encode dbStructure
 
@@ -378,9 +381,11 @@ picoseconds = 1000000000000
 
 
 -- Utility functions.
+#ifndef mingw32_HOST_OS
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
 whenJust (Just x) f = f x
 whenJust Nothing _  = pass
+#endif
 
 whenNothing :: Applicative f => Maybe a -> f () -> f ()
 whenNothing Nothing f = f
