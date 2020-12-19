@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Main where
+module Main (main) where
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.ByteString            as BS
@@ -27,7 +27,9 @@ import Data.Text.IO             (hPutStrLn)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
+import System.CPUTime           (getCPUTime)
 import System.IO                (BufferMode (..), hSetBuffering)
+import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
@@ -93,7 +95,7 @@ main = do
         exitSuccess
     CmdDumpSchema ->
       do
-        dumpedSchema <- dumpSchema conf
+        dumpedSchema <- timeToStderr "Loaded schema in %.3f seconds" $ dumpSchema conf
         putStrLn dumpedSchema
         exitSuccess
     CmdRun ->
@@ -356,7 +358,26 @@ dumpSchema conf =
     return $ Aeson.encode dbStructure
 
 
--- Utilitarian functions.
+-- | Print the time taken to run an IO action to stderr with the given printf string
+timeToStderr :: [Char] -> IO a -> IO a
+timeToStderr fmtString a =
+  do
+    start <- getCPUTime
+    result <- a
+    end <- getCPUTime
+    let
+      duration :: Double
+      duration = fromIntegral (end - start) / picoseconds
+    hPrintf stderr (fmtString ++ "\n") duration
+    return result
+
+
+-- | 10^12 picoseconds per second
+picoseconds :: Double
+picoseconds = 1000000000000
+
+
+-- Utility functions.
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
 whenJust (Just x) f = f x
 whenJust Nothing _  = pass
