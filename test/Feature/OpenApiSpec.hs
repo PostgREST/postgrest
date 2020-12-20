@@ -114,7 +114,7 @@ spec = describe "OpenAPI" $ do
             }
           |]
 
-    it "includes definitions to tables" $ do
+    it "includes definitions to tables(with id pk comment overwritten)" $ do
       r <- simpleBody <$> get "/"
 
       let def = r ^? key "definitions" . key "child_entities"
@@ -128,9 +128,12 @@ spec = describe "OpenAPI" $ do
               "description": "child_entities comment",
               "properties": {
                 "id": {
-                  "description": "child_entities id comment\n\nNote:\nThis is a Primary Key.<pk/>",
+                  "description": "child_entities id comment",
                   "format": "integer",
-                  "type": "integer"
+                  "type": "integer",
+                  "additionalProperties": {
+                    "description": "Note:\nThis is a Primary Key.<pk/>"
+                  }
                 },
                 "name": {
                   "description": "child_entities name comment. Can be longer than sixty-three characters long",
@@ -138,9 +141,11 @@ spec = describe "OpenAPI" $ do
                   "type": "string"
                 },
                 "parent_id": {
-                  "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>",
                   "format": "integer",
-                  "type": "integer"
+                  "type": "integer",
+                  "additionalProperties": {
+                    "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>"
+                  }
                 }
               },
               "required": [
@@ -240,7 +245,9 @@ spec = describe "OpenAPI" $ do
             {
               "format": "integer",
               "type": "integer",
-              "description": "Note:\nThis is a Foreign Key to `pages.link`.<fk table='pages' column='link'/>"
+              "additionalProperties": {
+                "description": "Note:\nThis is a Foreign Key to `pages.link`.<fk table='pages' column='link'/>"
+              }
             }
           |]
 

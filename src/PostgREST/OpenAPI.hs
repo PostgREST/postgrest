@@ -16,7 +16,7 @@ import Data.Aeson                 (decode, encode)
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
 import Data.Maybe                 (fromJust)
 import Data.String                (IsString (..))
-import Data.Text                  (append, breakOn, dropWhile, init,
+import Data.Text                  (breakOn, dropWhile, init,
                                    intercalate, pack, tail, toLower,
                                    unpack)
 import Network.URI                (URI (..), URIAuth (..))
@@ -68,20 +68,19 @@ makeProperty pks c = (colName c, Inline s)
       intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
     pk :: Bool
     pk = any (\p -> pkTable p == colTable c && pkName p == colName c) pks
-    n = catMaybes
+    notes = catMaybes
       [ Just "Note:"
       , if pk then Just "This is a Primary Key.<pk/>" else Nothing
       , fk <$> colFK c
       ]
-    d =
-      if length n > 1 then
-        Just $ append (maybe "" (`append` "\n\n") $ colDescription c) (intercalate "\n" n)
-      else
-        colDescription c
+    additionalProp = if length notes > 1
+      then Just $ AdditionalPropertiesSchema . Inline $ (mempty :: Schema) & description ?~ intercalate "\n" notes
+      else Nothing
     s =
       (mempty :: Schema)
         & default_ .~ (decode . toS =<< colDefault c)
-        & description .~ d
+        & description .~ colDescription c
+        & additionalProperties .~ additionalProp
         & enum_ .~ e
         & format ?~ colType c
         & maxLength .~ (fromIntegral <$> colMaxLen c)

@@ -217,7 +217,9 @@ spec actualPgVersion =
                     "type" : "object",
                     "properties" : {
                       "id" : {
-                        "description" : "Note:\nThis is a Primary Key.<pk/>",
+                        "additionalProperties": {
+                          "description": "Note:\nThis is a Primary Key.<pk/>"
+                        },
                         "format" : "integer",
                         "type" : "integer"
                       },
@@ -246,7 +248,9 @@ spec actualPgVersion =
                     "type" : "object",
                     "properties" : {
                       "id" : {
-                        "description" : "Note:\nThis is a Primary Key.<pk/>",
+                        "additionalProperties": {
+                          "description": "Note:\nThis is a Primary Key.<pk/>"
+                        },
                         "format" : "integer",
                         "type" : "integer"
                       },
@@ -275,7 +279,9 @@ spec actualPgVersion =
                     "type" : "object",
                     "properties" : {
                       "id" : {
-                        "description" : "Note:\nThis is a Primary Key.<pk/>",
+                        "additionalProperties": {
+                          "description": "Note:\nThis is a Primary Key.<pk/>"
+                        },
                         "format" : "integer",
                         "type" : "integer"
                       },
@@ -304,7 +310,9 @@ spec actualPgVersion =
                     "type" : "object",
                     "properties" : {
                       "id" : {
-                        "description" : "Note:\nThis is a Primary Key.<pk/>",
+                        "additionalProperties": {
+                          "description": "Note:\nThis is a Primary Key.<pk/>"
+                        },
                         "format" : "integer",
                         "type" : "integer"
                       },
