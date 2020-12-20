@@ -76,7 +76,11 @@ data CLI = CLI
   { cliCommand :: Command
   , cliPath    :: FilePath }
 
-data Command = CmdRun | CmdDumpConfig deriving (Eq)
+data Command
+  = CmdRun
+  | CmdDumpConfig
+  | CmdDumpSchema
+  deriving (Eq)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -148,10 +152,18 @@ readCLIShowHelp = customExecParser parserPrefs opts
 
     cliParser :: Parser CLI
     cliParser = CLI <$>
-      flag CmdRun CmdDumpConfig (
-        long "dump-config" <>
-        help "Dump loaded configuration and exit"
-      ) <*>
+      (
+        flag CmdRun CmdDumpConfig (
+          long "dump-config" <>
+          help "Dump loaded configuration and exit"
+        )
+        <|>
+        flag CmdRun CmdDumpSchema (
+          long "dump-schema" <>
+          help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+        )
+      )
+      <*>
       strArgument (
         metavar "FILENAME" <>
         help "Path to configuration file"
@@ -237,15 +249,11 @@ readCLIShowHelp = customExecParser parserPrefs opts
           |]
 
 -- | Dump the config
-dumpAppConfig :: AppConfig -> IO ()
-dumpAppConfig conf = do
-  putStr dump
-  exitSuccess
-
+dumpAppConfig :: AppConfig -> Text
+dumpAppConfig conf =
+  unlines $ (\(k, v) -> k <> " = " <> v) <$>
+    pgrstSettings ++ appSettings
   where
-    dump = unlines $ (\(k, v) -> k <> " = " <> v) <$>
-      pgrstSettings ++ appSettings
-
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
       [("db-anon-role",              q . configDbAnonRole)

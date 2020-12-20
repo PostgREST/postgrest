@@ -1,11 +1,14 @@
 {-# LANGUAGE CPP #-}
 
-module Main where
+module Main (main) where
 
+import qualified Data.Aeson                 as Aeson
 import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
+import qualified Hasql.Session              as S
 import qualified Hasql.Transaction.Sessions as HT
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
@@ -24,7 +27,9 @@ import Data.Text.IO             (hPutStrLn)
 import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
+import System.CPUTime           (getCPUTime)
 import System.IO                (BufferMode (..), hSetBuffering)
+import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
@@ -64,9 +69,6 @@ main = do
   -- build the 'AppConfig' from the config file path
   conf <- readValidateConfig $ cliPath opts
 
-  -- dump config and exit if option is set
-  when (cliCommand opts == CmdDumpConfig) $ dumpAppConfig conf
-
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
     host = configServerHost conf
@@ -85,6 +87,19 @@ main = do
     poolSize = configDbPoolSize conf
     poolTimeout = configDbPoolTimeout' conf
     logLevel = configLogLevel conf
+
+  case cliCommand opts of
+    CmdDumpConfig ->
+      do
+        putStr $ dumpAppConfig conf
+        exitSuccess
+    CmdDumpSchema ->
+      do
+        dumpedSchema <- dumpSchema conf
+        putStrLn dumpedSchema
+        exitSuccess
+    CmdRun ->
+      pass
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
@@ -157,6 +172,7 @@ main = do
   whenNothing maybeSocketAddr $ do
     putStrLn $ ("Listening on port " :: Text) <> show port
     runSettings serverSettings postgrestApplication
+
 
 -- Time constants
 _32s :: Int
@@ -316,16 +332,60 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
 
 -- | Re-reads the config at runtime. Invoked on SIGUSR2.
 -- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
+#ifndef mingw32_HOST_OS
 reReadConfig :: FilePath -> IORef AppConfig -> IO ()
 reReadConfig path refConf = do
   conf <- readValidateConfig path
   atomicWriteIORef refConf conf
   putStrLn ("Config file reloaded" :: Text)
+#endif
 
--- Utilitarian functions.
+-- | Dump DbStructure schema to JSON
+dumpSchema :: AppConfig -> IO LBS.ByteString
+dumpSchema conf =
+  do
+    Right conn <- C.acquire . toS $ configDbUri conf
+    Right pgVersion <- S.run getPgVersion conn
+    let
+      getDbStructureTransaction =
+        HT.transaction HT.ReadCommitted HT.Read $
+          getDbStructure
+            (toList $ configDbSchemas conf)
+            (configDbExtraSearchPath conf)
+            pgVersion
+            (configDbPreparedStatements conf)
+    Right dbStructure <-
+      timeToStderr "Loaded schema in %.3f seconds" $
+        S.run getDbStructureTransaction conn
+    C.release conn
+    return $ Aeson.encode dbStructure
+
+
+-- | Print the time taken to run an IO action to stderr with the given printf string
+timeToStderr :: [Char] -> IO a -> IO a
+timeToStderr fmtString a =
+  do
+    start <- getCPUTime
+    result <- a
+    end <- getCPUTime
+    let
+      duration :: Double
+      duration = fromIntegral (end - start) / picoseconds
+    hPrintf stderr (fmtString ++ "\n") duration
+    return result
+
+
+-- | 10^12 picoseconds per second
+picoseconds :: Double
+picoseconds = 1000000000000
+
+
+-- Utility functions.
+#ifndef mingw32_HOST_OS
 whenJust :: Applicative f => Maybe a -> (a -> f ()) -> f ()
 whenJust (Just x) f = f x
 whenJust Nothing _  = pass
+#endif
 
 whenNothing :: Applicative f => Maybe a -> f () -> f ()
 whenNothing Nothing f = f

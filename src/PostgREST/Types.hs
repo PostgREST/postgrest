@@ -2,6 +2,7 @@
 Module      : PostgREST.Types
 Description : PostgREST common types and functions used by the rest of the modules
 -}
+{-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
@@ -125,7 +126,7 @@ data DbStructure = DbStructure {
 , dbPrimaryKeys :: [PrimaryKey]
 , dbProcs       :: ProcsMap
 , pgVersion     :: PgVersion
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic, JSON.ToJSON)
 
 -- TODO Table could hold references to all its Columns
 tableCols :: DbStructure -> Schema -> TableName -> [Column]
@@ -140,14 +141,14 @@ data PgArg = PgArg {
 , pgaType :: Text
 , pgaReq  :: Bool
 , pgaVar  :: Bool
-} deriving (Show, Eq, Ord)
+} deriving (Show, Eq, Ord, Generic, JSON.ToJSON)
 
-data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord)
+data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
-data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord)
+data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 data ProcVolatility = Volatile | Stable | Immutable
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 data ProcDescription = ProcDescription {
   pdSchema      :: Schema
@@ -157,7 +158,7 @@ data ProcDescription = ProcDescription {
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
 , pdHasVariadic :: Bool
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic, JSON.ToJSON)
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
@@ -225,7 +226,7 @@ data Table = Table {
 , tableName        :: TableName
 , tableDescription :: Maybe Text
 , tableInsertable  :: Bool
-} deriving (Show, Ord)
+} deriving (Show, Ord, Generic, JSON.ToJSON)
 
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
@@ -233,7 +234,7 @@ instance Eq Table where
 tableQi :: Table -> QualifiedIdentifier
 tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
 
-newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord)
+newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord, Generic, JSON.ToJSON)
 
 data Column =
     Column {
@@ -249,7 +250,7 @@ data Column =
     , colDefault     :: Maybe Text
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
-    } deriving (Show, Ord)
+    } deriving (Show, Ord, Generic, JSON.ToJSON)
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
@@ -261,7 +262,7 @@ type ViewColumn = Column
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
   , pkName  :: Text
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic, JSON.ToJSON)
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
@@ -286,7 +287,7 @@ data OrderTerm = OrderTerm {
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
 , qiName   :: TableName
-} deriving (Show, Eq, Ord, Generic)
+} deriving (Show, Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 instance Hashable QualifiedIdentifier
 
 -- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
@@ -294,7 +295,7 @@ instance Hashable QualifiedIdentifier
 data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
                  | M2O -- ^ many-to-one,  previously known as Child
                  | M2M -- ^ many-to-many, previously known as Many
-                 deriving Eq
+                 deriving (Eq, Generic, JSON.ToJSON)
 instance Show Cardinality where
   show O2M = "o2m"
   show M2O = "m2o"
@@ -315,7 +316,7 @@ data Relation = Relation {
 , relFColumns   :: [Column]
 , relType       :: Cardinality
 , relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic, JSON.ToJSON)
 
 -- | Junction table on an M2M relationship
 data Junction = Junction {
@@ -324,7 +325,7 @@ data Junction = Junction {
 , junCols1       :: [Column]
 , junConstraint2 :: Maybe ConstraintName
 , junCols2       :: [Column]
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic, JSON.ToJSON)
 
 isSelfReference :: Relation -> Bool
 isSelfReference r = relTable r == relFTable r
@@ -510,7 +511,7 @@ fstFieldNames (Node (sel, _) _) =
 data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic, JSON.ToJSON)
 
 instance Ord PgVersion where
   (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
