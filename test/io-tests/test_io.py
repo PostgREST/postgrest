@@ -90,13 +90,13 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, socket=None):
+def run(configpath=None, stdin=None, env=None, serversocket=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
-    if socket:
-        baseurl = "http+unix://" + urllib.parse.quote_plus(str(socket))
+    if serversocket:
+        baseurl = "http+unix://" + urllib.parse.quote_plus(str(serversocket))
     else:
         port = freeport()
-        env["POSTGREST_TEST_PORT"] = str(port)
+        env["PGRST_SERVER_PORT"] = str(port)
         baseurl = f"http://localhost:{port}"
 
     command = [POSTGREST_BIN]
@@ -219,13 +219,13 @@ def test_stable_config(tmp_path, config, defaultenv):
 
 def test_socket_connection(tmp_path, defaultenv):
     "Connections via unix domain sockets should work."
-    socket = tmp_path / "postgrest.sock"
+    serversocket = tmp_path / "postgrest.sock"
     env = {
         **defaultenv,
-        "POSTGREST_TEST_SOCKET": str(socket),
+        "POSTGREST_TEST_SOCKET": str(serversocket),
     }
 
-    with run(CONFIGSDIR / "unix-socket.config", socket=socket, env=env):
+    with run(CONFIGSDIR / "unix-socket.config", serversocket=serversocket, env=env):
         pass
 
 
