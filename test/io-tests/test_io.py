@@ -8,6 +8,7 @@ import os
 import pathlib
 import shutil
 import signal
+import socket
 import subprocess
 import time
 import urllib.parse
@@ -20,10 +21,9 @@ import yaml
 
 
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
-BASEURL = "http://127.0.0.1:49421"
 CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load((BASEDIR / "fixtures.yaml").read_text(), Loader=yaml.Loader)
-POSTGREST_BIN = shutil.which('postgrest')
+POSTGREST_BIN = shutil.which("postgrest")
 SECRET = "reallyreallyreallyreallyverysafe"
 
 
@@ -95,7 +95,9 @@ def run(configpath=None, stdin=None, env=None, socket=None):
     if socket:
         baseurl = "http+unix://" + urllib.parse.quote_plus(str(socket))
     else:
-        baseurl = BASEURL
+        port = freeport()
+        env["POSTGREST_TEST_PORT"] = str(port)
+        baseurl = f"http://localhost:{port}"
 
     command = [POSTGREST_BIN]
 
@@ -114,6 +116,14 @@ def run(configpath=None, stdin=None, env=None, socket=None):
     finally:
         process.kill()
         process.wait()
+
+
+def freeport():
+    "Find a free port on localhost."
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
 
 
 def wait_until_ready(url):
@@ -192,6 +202,7 @@ def test_stable_config(tmp_path, config, defaultenv):
         **defaultenv,
         "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
         "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
+        "POSTGREST_TEST_PORT": "80",
     }
 
     # Some configs expect input from stdin, at least on base64.

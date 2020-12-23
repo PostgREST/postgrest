@@ -20,6 +20,7 @@ ok(){ result 'ok' "- $1"; }
 ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
 
 pgrPort=49421
+export POSTGREST_TEST_PORT="$pgrPort"
 
 pgrStart(){ postgrest +RTS -p -h > /dev/null & pgrPID="$!"; }
 pgrStop(){ kill "$pgrPID" 2>/dev/null; }
