@@ -160,7 +160,21 @@ $ nix-shell --run postgrest-test-spec-all
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-$ nix-shell --run postgrest-test-spec-postgresql-9.5
+$ nix-shell --run postgrest-test-spec-postgresql-13
+
+```
+
+The io-test that test PostgREST as a black box with inputs and outputs can be
+run with `postgrest-test-io`. The test runner under the hood is
+[pytest](https://docs.pytest.org/) and you can pass it the usual options:
+
+```
+# Filter the tests to run by name, including all that contain 'config':
+postgrest-test-io -k config
+
+# Run tests in parallel using xdist, specifying the number of processes:
+postgrest-test-io -n auto
+postgrest-test-io -n 8
 
 ```
 
