@@ -37,7 +37,7 @@ GHC version and all the build dependencies.
 We recommend that you use the PostgREST binary cache on
 [cachix](https://cachix.org/):
 
-```
+```bash
 # Install cachix:
 nix-env -iA cachix -f https://cachix.org/api/v1/install
 
@@ -70,7 +70,7 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 `postgrest-`, so you can use tab completion (typing `postgrest-` and pressing
 `<tab>`) in `nix-shell` to see all that are available:
 
-```
+```bash
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
 postgrest-lint                      postgrest-test-spec-postgresql-11
@@ -88,10 +88,10 @@ postgrest-test-spec-postgresql-10
 Some additional modules like `memoryTests`, `docker` and `release`
 have large dependencies that would need to be built before the shell becomes
 available, which could take an especially long time if the cachix binary cache
-is not used. You can activate those by passing a flag to `nix-shell`, which
-will make the respective utilites available:
+is not used. You can activate those by passing a flag to `nix-shell` with
+`nix-shell --arg <module> true`. This will make the respective utilites available:
 
-```
+```bash
 $ nix-shell --arg memoryTests true
 [nix-shell]$ postgrest-<tab>
 postgrest-lint                      postgrest-test-spec-postgresql-10
@@ -111,7 +111,7 @@ will lauch the Nix shell, run that one command and exit. Note that the tab
 completion will not work with `nix-shell --run`, as Nix has yet to evaluate
 our Nix expressions to see which utilities are available.
 
-```
+```bash
 $ nix-shell --run postgrest-style
 
 # Note that you need to quote any arguments that you would like to pass to
@@ -122,7 +122,7 @@ $ nix-shell --run "postgrest-foo --bar"
 
 A third option is to install utilities that you use very often locally:
 
-```
+```bash
 $ nix-env -f default.nix -iA devtools
 
 # `postgrest-style` can now be run directly:
@@ -134,6 +134,16 @@ If you use `nix-shell` very often, you might like to use
 https://github.com/xzfc/cached-nix-shell, which skips evaluating all our Nix
 expressions if nothing changed, reducing startup time for the shell
 considerably.
+
+Note: Once inside nix-shell, the utilities work from any directory inside
+the PostgREST repo. Paths are resolved relative to the repo root:
+
+```bash
+$ cd src
+# Even though the current directory is ./src, the config path must still start
+# from the repo root:
+$ postgrest-run test/io-tests/configs/simple.conf
+```
 
 ## Testing
 
