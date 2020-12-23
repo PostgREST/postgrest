@@ -56,7 +56,7 @@ export PGDATA="$tmpdir/db"
 export PGHOST="$tmpdir/socket"
 export PGUSER=postgrest_test_authenticator
 export PGDATABASE=postgres
-export DB_URI="postgresql://$PGDATABASE?host=$PGHOST&user=$PGUSER"
+export DB_URI="postgresql:///$PGDATABASE?host=$PGHOST&user=$PGUSER"
 export PGRST_DB_URI="$DB_URI"
 export PGRST_DB_SCHEMAS="test"
 export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"

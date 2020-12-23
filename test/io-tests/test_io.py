@@ -3,11 +3,12 @@
 import contextlib
 import dataclasses
 from datetime import datetime
-import pathlib
-import subprocess
 from operator import attrgetter
 import os
+import pathlib
+import shutil
 import signal
+import subprocess
 import time
 import urllib.parse
 
@@ -19,9 +20,10 @@ import yaml
 
 
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
+BASEURL = "http://127.0.0.1:49421"
 CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load((BASEDIR / "fixtures.yaml").read_text(), Loader=yaml.Loader)
-BASEURL = "http://127.0.0.1:49421"
+POSTGREST_BIN = shutil.which('postgrest')
 SECRET = "reallyreallyreallyreallyverysafe"
 
 
@@ -58,24 +60,25 @@ def dburi():
     return os.getenv("PGRST_DB_URI").encode("utf-8")
 
 
-def mkenv(moreenv):
-    """
-    Create env from os.environ and moreenv, while
-    filtering None values to allow overriding "unset".
-    """
-    env = {**os.environ, **(moreenv or {})}
-    return {k: v for k, v in env.items() if v is not None}
+@pytest.fixture
+def defaultenv():
+    "Default environment for PostgREST."
+    return {
+        "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
+        "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
+        "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
+    }
 
 
-def dumpconfig(configpath=None, moreenv=None, stdin=None):
+def dumpconfig(configpath=None, env=None, stdin=None):
     "Dump the config as parsed by PostgREST."
+    command = [POSTGREST_BIN, "--dump-config"]
 
-    command = ["postgrest", "--dump-config"]
     if configpath:
-        command += [configpath]
+        command.append(configpath)
 
     process = subprocess.Popen(
-        command, env=mkenv(moreenv), stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        command, env=env or {}, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
     process.stdin.write(stdin or b"")
     result = process.communicate()[0]
@@ -87,16 +90,19 @@ def dumpconfig(configpath=None, moreenv=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath, stdin=None, moreenv=None, socket=None):
+def run(configpath=None, stdin=None, env=None, socket=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
-
     if socket:
         baseurl = "http+unix://" + urllib.parse.quote_plus(str(socket))
     else:
         baseurl = BASEURL
 
-    command = ["postgrest", configpath]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE, env=mkenv(moreenv))
+    command = [POSTGREST_BIN]
+
+    if configpath:
+        command.append(configpath)
+
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env or {})
 
     try:
         process.stdin.write(stdin or b"")
@@ -153,8 +159,7 @@ def test_expected_config(expectedconfig):
     expected = expectedconfig.read_text()
     config = CONFIGSDIR / expectedconfig.name
 
-    unset = {"PGRST_DB_URI": None, "PGRST_DB_ANON_ROLE": None, "PGRST_DB_SCHEMAS": None}
-    assert dumpconfig(config, moreenv=unset) == expected
+    assert dumpconfig(config) == expected
 
 
 def test_expected_config_from_environment():
@@ -164,7 +169,7 @@ def test_expected_config_from_environment():
     env = {k: str(v) for k, v in yaml.load(envfile, Loader=yaml.Loader).items()}
 
     expected = (CONFIGSDIR / "expected" / "no-defaults.config").read_text()
-    assert dumpconfig(moreenv=env) == expected
+    assert dumpconfig(env=env) == expected
 
 
 @pytest.mark.parametrize(
@@ -172,7 +177,7 @@ def test_expected_config_from_environment():
     [conf for conf in CONFIGSDIR.iterdir() if conf.suffix == ".config"],
     ids=attrgetter("name"),
 )
-def test_stable_config(tmp_path, config):
+def test_stable_config(tmp_path, config, defaultenv):
     """
     A dumped, re-read and re-dumped config should match the dumped config.
 
@@ -184,6 +189,7 @@ def test_stable_config(tmp_path, config):
     # Set environment variables that some of the configs expect. Using a
     # complex ROLE_CLAIM_KEY to make sure quoting works.
     env = {
+        **defaultenv,
         "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
         "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
     }
@@ -191,23 +197,24 @@ def test_stable_config(tmp_path, config):
     # Some configs expect input from stdin, at least on base64.
     stdin = b"Y29ubmVjdGlvbl9zdHJpbmc="
 
-    dumped = dumpconfig(config, moreenv=env, stdin=stdin)
+    dumped = dumpconfig(config, env=env, stdin=stdin)
 
     tmpconfigpath = tmp_path / "config"
     tmpconfigpath.write_text(dumped)
-    redumped = dumpconfig(tmpconfigpath, moreenv=env)
+    redumped = dumpconfig(tmpconfigpath, env=env)
 
     assert dumped == redumped
 
 
-def test_socket_connection(tmp_path):
+def test_socket_connection(tmp_path, defaultenv):
     "Connections via unix domain sockets should work."
     socket = tmp_path / "postgrest.sock"
     env = {
+        **defaultenv,
         "POSTGREST_TEST_SOCKET": str(socket),
     }
 
-    with run(CONFIGSDIR / "unix-socket.config", socket=socket, moreenv=env):
+    with run(CONFIGSDIR / "unix-socket.config", socket=socket, env=env):
         pass
 
 
@@ -216,7 +223,7 @@ def test_socket_connection(tmp_path):
     [path for path in (BASEDIR / "secrets").iterdir() if path.suffix != ".jwt"],
     ids=attrgetter("name"),
 )
-def test_read_secret_from_file(secretpath):
+def test_read_secret_from_file(secretpath, defaultenv):
     "Authorization should succeed when the secret is read from a file."
     if secretpath.suffix == ".b64":
         configfile = CONFIGSDIR / "base64-secret-from-file.config"
@@ -226,53 +233,59 @@ def test_read_secret_from_file(secretpath):
     secret = secretpath.read_bytes()
     headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
-    with run(configfile, stdin=secret) as postgrest:
+    with run(configfile, stdin=secret, env=defaultenv) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol(dburi):
+def test_read_dburi_from_file_without_eol(dburi, defaultenv):
     "Reading the dburi from a file with a single line should work."
     config = CONFIGSDIR / "dburi-from-file.config"
-    unset = {"PGRST_DB_URI": None}
-    with run(config, moreenv=unset, stdin=dburi):
+    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
+    with run(config, env=env, stdin=dburi):
         pass
 
 
-def test_read_dburi_from_file_with_eol(dburi):
+def test_read_dburi_from_file_with_eol(dburi, defaultenv):
     "Reading the dburi from a file containing a newline should work."
     config = CONFIGSDIR / "dburi-from-file.config"
-    unset = {"PGRST_DB_URI": None}
-    with run(config, moreenv=unset, stdin=dburi + b"\n"):
+    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
+    with run(config, env=env, stdin=dburi + b"\n"):
         pass
 
 
 @pytest.mark.parametrize(
     "roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"]
 )
-def test_role_claim_key(roleclaim):
+def test_role_claim_key(roleclaim, defaultenv):
     "Authorization should depend on a correct role-claim-key and JWT claim."
-    env = {"ROLE_CLAIM_KEY": roleclaim["key"]}
+    env = {
+        **defaultenv,
+        "ROLE_CLAIM_KEY": roleclaim["key"],
+    }
     headers = jwtauthheader(roleclaim["data"], SECRET)
 
-    with run(CONFIGSDIR / "role-claim-key.config", moreenv=env) as postgrest:
+    with run(CONFIGSDIR / "role-claim-key.config", env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
 
 @pytest.mark.parametrize("invalidroleclaimkey", FIXTURES["invalidroleclaimkeys"])
-def test_invalid_role_claim_key(invalidroleclaimkey):
+def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
     "Given an invalid role-claim-key, Postgrest should exit with a non-zero exit code."
-    env = {"ROLE_CLAIM_KEY": invalidroleclaimkey}
+    env = {
+        **defaultenv,
+        "ROLE_CLAIM_KEY": invalidroleclaimkey,
+    }
 
     with pytest.raises(PostgrestError):
-        dump = dumpconfig(CONFIGSDIR / "role-claim-key.config", moreenv=env)
+        dump = dumpconfig(CONFIGSDIR / "role-claim-key.config", env=env)
         for line in dump.split("\n"):
             if line.startswith("jwt-role-claim-key"):
                 print(line)
 
 
-def test_iat_claim():
+def test_iat_claim(defaultenv):
     """
     A claim with an 'iat' (issued at) attribute should be successful.
 
@@ -283,7 +296,7 @@ def test_iat_claim():
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
     headers = jwtauthheader(claim, SECRET)
 
-    with run(CONFIGSDIR / "simple.config") as postgrest:
+    with run(CONFIGSDIR / "simple.config", env=defaultenv) as postgrest:
         for _ in range(10):
             response = postgrest.session.get("/authors_only", headers=headers)
             assert response.status_code == 200
@@ -291,14 +304,14 @@ def test_iat_claim():
             time.sleep(0.5)
 
 
-def test_app_settings():
+def test_app_settings(defaultenv):
     """
     App settings should not reset when the db pool times out.
 
     See: https://github.com/PostgREST/postgrest/issues/1141
 
     """
-    with run(CONFIGSDIR / "app-settings.config") as postgrest:
+    with run(CONFIGSDIR / "app-settings.config", env=defaultenv) as postgrest:
         # Wait for the db pool to time out, set to 1s in config
         time.sleep(2)
 
@@ -309,14 +322,14 @@ def test_app_settings():
         assert response.text == '"0123456789abcdef"'
 
 
-def test_app_settings_reload(tmp_path):
+def test_app_settings_reload(tmp_path, defaultenv):
     "App settings should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
     uri = "/rpc/get_guc_value?name=app.settings.name_var"
 
-    with run(configfile) as postgrest:
+    with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get(uri)
         assert response.status_code == 200
         assert response.text == '"John"'
@@ -333,7 +346,7 @@ def test_app_settings_reload(tmp_path):
         assert response.text == '"Jane"'
 
 
-def test_jwt_secret_reload(tmp_path):
+def test_jwt_secret_reload(tmp_path, defaultenv):
     "JWT secret should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
@@ -341,7 +354,7 @@ def test_jwt_secret_reload(tmp_path):
 
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
-    with run(configfile) as postgrest:
+    with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
 
@@ -357,16 +370,16 @@ def test_jwt_secret_reload(tmp_path):
         assert response.status_code == 200
 
 
-def test_db_schema_reload(tmp_path):
+def test_db_schema_reload(tmp_path, defaultenv):
     "DB schema should be reloaded when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
     headers = {"Accept-Profile": "v1"}
-    unset = {"PGRST_DB_SCHEMAS": None}
+    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_SCHEMAS"}
 
-    with run(configfile, moreenv=unset) as postgrest:
+    with run(configfile, env=env) as postgrest:
         response = postgrest.session.get("/parents", headers=headers)
         assert response.status_code == 404
 
