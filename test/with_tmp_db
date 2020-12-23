@@ -34,8 +34,6 @@ if [ "$#" -lt 1 ]; then
   usage
 fi
 
-rootdir="$(git rev-parse --show-toplevel)"
-
 # All data will be stored in a temporary directory.
 tmpdir="$(mktemp -d)"
 
@@ -105,7 +103,7 @@ psql -v ON_ERROR_STOP=1 >> "$setuplog" << EOF
   create extension pgcrypto;
   alter database $PGDATABASE set request.jwt.claim.id = '-1';
   alter role $PGUSER set default_text_search_config to english;
-  \i $rootdir/test/fixtures/load.sql
+  \i test/fixtures/load.sql
 EOF
 
 log "Done. Running command..."

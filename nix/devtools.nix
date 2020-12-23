@@ -3,7 +3,6 @@
 , checkedShellScript
 , devCabalOptions
 , entr
-, git
 , silver-searcher
 , style
 , tests
@@ -12,10 +11,8 @@ let
   watch =
     checkedShellScript "postgrest-watch"
       ''
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-
         while true; do
-          (! ${silver-searcher}/bin/ag -l . "$rootdir" | ${entr}/bin/entr -dr "$@")
+          (! ${silver-searcher}/bin/ag -l . | ${entr}/bin/entr -dr "$@")
         done
       '';
 

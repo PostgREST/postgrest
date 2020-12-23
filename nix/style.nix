@@ -11,18 +11,16 @@ let
   style =
     checkedShellScript "postgrest-style"
       ''
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-
         # Format Nix files
-        ${nixpkgs-fmt}/bin/nixpkgs-fmt "$rootdir" > /dev/null 2> /dev/null
+        ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
 
         # Format Haskell files
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . "$rootdir" \
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
 
         # Format Python files
-        ${black}/bin/black "$rootdir" 2> /dev/null
+        ${black}/bin/black . 2> /dev/null
       '';
 
   # Script to check whether any uncommited changes result from postgrest-style
@@ -37,11 +35,9 @@ let
   lint =
     checkedShellScript "postgrest-lint"
       ''
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-
         # Lint Haskell files
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' "$rootdir" \
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
       '';
 in

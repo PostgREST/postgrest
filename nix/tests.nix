@@ -6,14 +6,13 @@
 , curl
 , devCabalOptions
 , diffutils
-, git
 , haskell
 , lib
 , postgresql
 , postgresqlVersions
 , postgrest
-, postgrestStatic
 , postgrestProfiled
+, postgrestStatic
 , procps
 , python3
 , runtimeShell
@@ -25,7 +24,7 @@ let
     postgresql:
     checkedShellScript "postgrest-test-${postgresql.name}"
       ''
-        export PATH=${postgresql}/bin:${git}/bin:"$PATH"
+        export PATH=${postgresql}/bin:"$PATH"
 
         exec ${../test/with_tmp_db} "$@"
       '';
@@ -106,12 +105,9 @@ let
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-        cd "$rootdir"
-
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} \
-          ${ioTestPython}/bin/pytest -- -v "$rootdir"/test/io-tests "$@"
+          ${ioTestPython}/bin/pytest -- -v test/io-tests "$@"
       '';
 
   testMemory =
@@ -119,12 +115,9 @@ let
     checkedShellScript
       name
       ''
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-        cd "$rootdir"
-
         export PATH="${postgrestProfiled}/bin:${curl}/bin:$PATH"
 
-        ${withTmpDb postgresql} "$rootdir/test/memory-tests.sh"
+        ${withTmpDb postgresql} test/memory-tests.sh
       '';
 
   dumpSchema =
@@ -132,9 +125,6 @@ let
     checkedShellScript
       name
       ''
-        rootdir="$(${git}/bin/git rev-parse --show-toplevel)"
-        cd "$rootdir"
-
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
