@@ -32,7 +32,7 @@ let
 
   run =
     checkedShellScript "postgrest-run"
-      ''exec ${cabal-install}/bin/cabal v2-run postgrest ${devCabalOptions} -- "$@"'';
+      ''exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- postgrest "$@"'';
 
   clean =
     checkedShellScript "postgrest-clean"

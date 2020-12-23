@@ -34,12 +34,11 @@ module PostgREST.Config ( prettyVersion
                         )
        where
 
-import qualified Data.ByteString              as B
-import qualified Data.ByteString.Base64       as B64
-import qualified Data.ByteString.Char8        as BS
-import qualified Data.Configurator            as C
-import qualified Data.Map.Strict              as M
-import qualified Text.PrettyPrint.ANSI.Leijen as L
+import qualified Data.ByteString        as B
+import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Char8  as BS
+import qualified Data.Configurator      as C
+import qualified Data.Map.Strict        as M
 
 import Control.Lens            (preview)
 import Control.Monad           (fail)
@@ -64,9 +63,8 @@ import System.Posix.Types      (FileMode)
 
 import Control.Applicative
 import Data.Monoid
-import Options.Applicative          hiding (str)
+import Options.Applicative hiding (str)
 import Text.Heredoc
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (<>))
 
 import PostgREST.Auth             (parseSecret)
 import PostgREST.Parsers          (pRoleClaimKey)
@@ -144,19 +142,16 @@ docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
 readCLIShowHelp :: Environment -> IO CLI
 readCLIShowHelp env = customExecParser parserPrefs opts
   where
-    parserPrefs = prefs showHelpOnError
+    parserPrefs = prefs $ showHelpOnError <> showHelpOnEmpty
 
-    opts = info (helper <*> cliParser) $
+    opts = info (helper <*> exampleParser <*> cliParser) $
              fullDesc
              <> progDesc (
                  "PostgREST "
                  <> toS prettyVersion
                  <> " / create a REST API to an existing Postgres database"
                )
-             <> footerDoc (Just $
-                 text "Example Config File:"
-                 L.<> nest 2 (hardline L.<> exampleCfg)
-               )
+             <> footer "To run PostgREST, please pass the FILENAME argument or set PGRST_ environment variables."
 
     cliParser :: Parser CLI
     cliParser = CLI <$>
@@ -182,9 +177,15 @@ readCLIShowHelp env = customExecParser parserPrefs opts
       | M.null env = Just <$> v
       | otherwise  = optional v
 
+    exampleParser :: Parser (a -> a)
+    exampleParser =
+      infoOption example (
+        long "example" <>
+        short 'e' <>
+        help "Show an example configuration file"
+      )
 
-    exampleCfg :: Doc
-    exampleCfg = vsep . map (text . toS) . lines $
+    example =
       [str|### REQUIRED:
           |db-uri = "postgres://user:pass@localhost:5432/dbname"
           |db-schema = "public"
