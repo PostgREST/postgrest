@@ -168,7 +168,7 @@ The io-test that test PostgREST as a black box with inputs and outputs can be
 run with `postgrest-test-io`. The test runner under the hood is
 [pytest](https://docs.pytest.org/) and you can pass it the usual options:
 
-```
+```bash
 # Filter the tests to run by name, including all that contain 'config':
 postgrest-test-io -k config
 
