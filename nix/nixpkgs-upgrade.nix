@@ -10,7 +10,7 @@
 # to pin.
 let
   name =
-    "nixpkgs-upgrade";
+    "postgrest-nixpkgs-upgrade";
 
   refUrl =
     https://api.github.com/repos/nixos/nixpkgs/git/ref/heads/nixpkgs-unstable;
@@ -23,14 +23,18 @@ let
 
   script =
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Pin the newest unstable version of Nixpkgs.";
+        inRootDir = true;
+      }
       ''
         commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r .object.sha)"
         tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
         tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
         currentDate="$(date --iso)"
 
-        cat << EOF
+        cat > nix/nixpkgs-version.nix << EOF
         # Pinned version of Nixpkgs, generated with ${name}.
         {
           date = "$currentDate";

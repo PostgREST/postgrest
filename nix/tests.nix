@@ -22,11 +22,16 @@ let
   # Wrap the `test/with_tmp_db` script with the required dependencies from Nix.
   withTmpDb =
     postgresql:
-    checkedShellScript "postgrest-test-${postgresql.name}"
+    checkedShellScript
+      {
+        name = "postgrest-test-withtmpdb-${postgresql.name}";
+        docs = "Run the given command in a temporary database";
+        inRootDir = true;
+      }
       ''
         export PATH=${postgresql}/bin:"$PATH"
 
-        exec ${../test/with_tmp_db} "$@"
+        exec test/with_tmp_db "$@"
       '';
 
   # Script to run the Haskell test suite against a specific version of
@@ -34,7 +39,11 @@ let
   testSpec =
     name: postgresql:
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Run the Haskell test suite against ${postgresql.name}.";
+        inRootDir = true;
+      }
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
@@ -61,7 +70,11 @@ let
   testSpecIdempotence =
     name: postgrestql:
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Check that the Haskell tests can be run multiple times against the same db.";
+        inRootDir = true;
+      }
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
@@ -85,7 +98,12 @@ let
       testRunners =
         map (test: "${test}/bin/${test.name}") testSpecVersions;
     in
-    checkedShellScript "postgrest-test-spec-all"
+    checkedShellScript
+      {
+        name = "postgrest-test-spec-all";
+        docs = "Run the Haskell tests against all supported PostgreSQL versions.";
+        inRootDir = true;
+      }
       (lib.concatStringsSep "\n" testRunners);
 
   ioTestPython =
@@ -101,7 +119,11 @@ let
   testIO =
     name: postgresql:
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Run the pytest-based IO tests.";
+        inRootDir = true;
+      }
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
@@ -114,7 +136,11 @@ let
   testMemory =
     name: postgresql:
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Run the memory tests.";
+        inRootDir = true;
+      }
       ''
         export PATH="${postgrestProfiled}/bin:${curl}/bin:$PATH"
 
@@ -124,7 +150,11 @@ let
   dumpSchema =
     name: postgresql:
     checkedShellScript
-      name
+      {
+        inherit name;
+        docs = "Dump the loaded schema's DbStructure as a yaml file.";
+        inRootDir = true;
+      }
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"

@@ -28,9 +28,12 @@ let
       };
     };
 
-  # Helper script for loading the image.
   load =
-    checkedShellScript "postgrest-docker-load"
+    checkedShellScript
+      {
+        name = "postgrest-docker-load";
+        docs = "Load the PostgREST image into Docker.";
+      }
       ''
         docker load -i ${image}
       '';

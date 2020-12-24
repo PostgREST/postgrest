@@ -5,7 +5,7 @@ should be a very simple operation.
 
 ```bash
 # Update pinned version of Nixpkgs
-nix-shell --run nixpkgs-upgrade > nix/nixpkgs-version.nix
+nix-shell --run postgrest-nixpkgs-upgrade
 
 # Verify that everything builds
 nix-build
@@ -27,7 +27,7 @@ the complete Git repository. To upgrade it to the current `master` of
 nix-shell
 
 # Run the utility script to pin the latest revision in master
-nixpkgs-upgrade > nix/nixpkgs-version.nix
+postgrest-nixpkgs-upgrade
 
 # Exit the nix-shell with Ctrl-d
 
