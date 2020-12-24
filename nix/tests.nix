@@ -90,11 +90,12 @@ let
 
   ioTestPython =
     python3.withPackages (ps: [
+      ps.pyjwt
       ps.pytest
+      ps.pytest_xdist
+      ps.pyyaml
       ps.requests
       ps.requests-unixsocket
-      ps.pyjwt
-      ps.pyyaml
     ]);
 
   testIO =
