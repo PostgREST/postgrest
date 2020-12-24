@@ -10,6 +10,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.parse
 
@@ -43,7 +44,9 @@ class PostgrestSession(requests_unixsocket.Session):
         self.baseurl = baseurl
 
     def request(self, method, url, *args, **kwargs):
-        fullurl = urllib.parse.urljoin(self.baseurl, url)
+        # Not using urllib.parse.urljoin to compose the url, as it doesn't play
+        # well with our 'http+unix://' unix domain socket urls.
+        fullurl = self.baseurl + url
         return super(PostgrestSession, self).request(method, fullurl, *args, **kwargs)
 
 
@@ -80,6 +83,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
     process = subprocess.Popen(
         command, env=env or {}, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
+
     process.stdin.write(stdin or b"")
     result = process.communicate()[0]
     process.kill()
@@ -90,33 +94,36 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, serversocket=None):
+def run(configpath=None, stdin=None, env=None, port=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
-    if serversocket:
-        baseurl = "http+unix://" + urllib.parse.quote_plus(str(serversocket))
-    else:
-        port = freeport()
-        env["PGRST_SERVER_PORT"] = str(port)
-        env["PGRST_SERVER_HOST"] = "localhost"
-        baseurl = f"http://localhost:{port}"
 
-    command = [POSTGREST_BIN]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if port:
+            env["PGRST_SERVER_PORT"] = str(port)
+            env["PGRST_SERVER_HOST"] = "localhost"
+            baseurl = f"http://localhost:{port}"
+        else:
+            socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
+            env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
+            baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
-    if configpath:
-        command.append(configpath)
+        command = [POSTGREST_BIN]
 
-    process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env or {})
+        if configpath:
+            command.append(configpath)
 
-    try:
-        process.stdin.write(stdin or b"")
-        process.stdin.close()
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env or {})
 
-        wait_until_ready(baseurl)
+        try:
+            process.stdin.write(stdin or b"")
+            process.stdin.close()
 
-        yield PostgrestProcess(process=process, session=PostgrestSession(baseurl))
-    finally:
-        process.kill()
-        process.wait()
+            wait_until_ready(baseurl)
+
+            yield PostgrestProcess(process=process, session=PostgrestSession(baseurl))
+        finally:
+            process.kill()
+            process.wait()
 
 
 def freeport():
@@ -218,15 +225,9 @@ def test_stable_config(tmp_path, config, defaultenv):
     assert dumped == redumped
 
 
-def test_socket_connection(tmp_path, defaultenv):
-    "Connections via unix domain sockets should work."
-    serversocket = tmp_path / "postgrest.sock"
-    env = {
-        **defaultenv,
-        "POSTGREST_TEST_SOCKET": str(serversocket),
-    }
-
-    with run(CONFIGSDIR / "unix-socket.config", serversocket=serversocket, env=env):
+def test_port_connection(defaultenv):
+    "Connections via a port on localhost should work."
+    with run(env=defaultenv, port=freeport()):
         pass
 
 
