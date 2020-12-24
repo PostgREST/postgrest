@@ -5,10 +5,12 @@
 
 set -eu
 
+pgrPort=49421
+
 # PGRST_DB_URI, PGRST_DB_ANON_ROLE and PGRST_DB_SCHEMAS are expected to be set by with_tmp_db
 export PGRST_DB_POOL="1"
 export PGRST_SERVER_HOST="127.0.0.1"
-export PGRST_SERVER_PORT="49421"
+export PGRST_SERVER_PORT="$pgrPort"
 export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
 
 trap "kill 0" int term exit
@@ -18,9 +20,6 @@ failedTests=0
 result(){ echo "$1 $currentTest $2"; currentTest=$(( $currentTest + 1 )); }
 ok(){ result 'ok' "- $1"; }
 ko(){ result 'not ok' "- $1"; failedTests=$(( $failedTests + 1 )); }
-
-pgrPort=49421
-export POSTGREST_TEST_PORT="$pgrPort"
 
 pgrStart(){ postgrest +RTS -p -h > /dev/null & pgrPID="$!"; }
 pgrStop(){ kill "$pgrPID" 2>/dev/null; }
