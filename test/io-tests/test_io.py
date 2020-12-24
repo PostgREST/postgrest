@@ -97,6 +97,7 @@ def run(configpath=None, stdin=None, env=None, serversocket=None):
     else:
         port = freeport()
         env["PGRST_SERVER_PORT"] = str(port)
+        env["PGRST_SERVER_HOST"] = "localhost"
         baseurl = f"http://localhost:{port}"
 
     command = [POSTGREST_BIN]
