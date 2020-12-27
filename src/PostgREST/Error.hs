@@ -3,14 +3,13 @@ Module      : PostgREST.Error
 Description : PostgREST error HTTP responses
 -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Error (
   errorResponseFor
 , ApiRequestError(..)
 , PgError(..)
-, SimpleError(..)
+, Error(..)
 , errorPayload
 , checkIsFatal
 , singularityError
@@ -220,7 +219,7 @@ checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError (H.Serv
 checkIsFatal _ = Nothing
 
 
-data SimpleError
+data Error
   = GucHeadersError
   | GucStatusError
   | BinaryFieldError ContentType
@@ -231,8 +230,11 @@ data SimpleError
   | JwtTokenInvalid Text
   | SingularityError Integer
   | ContentTypeError [ByteString]
+  | NotFound
+  | ApiRequestError ApiRequestError
+  | PgErr PgError
 
-instance PgrstError SimpleError where
+instance PgrstError Error where
   status GucHeadersError         = HT.status500
   status GucStatusError          = HT.status500
   status (BinaryFieldError _)    = HT.status406
@@ -243,12 +245,17 @@ instance PgrstError SimpleError where
   status (JwtTokenInvalid _)     = HT.unauthorized401
   status (SingularityError _)    = HT.status406
   status (ContentTypeError _)    = HT.status415
+  status NotFound                = HT.status404
+  status (PgErr err)             = status err
+  status (ApiRequestError err)   = status err
 
   headers (SingularityError _)     = [toHeader CTSingularJSON]
   headers (JwtTokenInvalid m)      = [toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers (PgErr err)              = headers err
+  headers (ApiRequestError err)    = headers err
   headers _                        = [toHeader CTApplicationJSON]
 
-instance JSON.ToJSON SimpleError where
+instance JSON.ToJSON Error where
   toJSON GucHeadersError           = JSON.object [
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text)]
   toJSON GucStatusError           = JSON.object [
@@ -273,10 +280,13 @@ instance JSON.ToJSON SimpleError where
     "message" .= ("Server lacks JWT secret" :: Text)]
   toJSON (JwtTokenInvalid message) = JSON.object [
     "message" .= (message :: Text)]
+  toJSON NotFound = JSON.object []
+  toJSON (PgErr err) = JSON.toJSON err
+  toJSON (ApiRequestError err) = JSON.toJSON err
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
 
-singularityError :: (Integral a) => a -> SimpleError
+singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger

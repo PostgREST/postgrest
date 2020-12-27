@@ -20,20 +20,24 @@ Other hardcoded options such as the minimum version number also belong here.
 {-# LANGUAGE TemplateHaskell       #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-module PostgREST.Config ( prettyVersion
-                        , docsVersion
-                        , CLI (..)
-                        , Command (..)
-                        , AppConfig (..)
-                        , configDbPoolTimeout'
-                        , dumpAppConfig
-                        , Environment
-                        , readCLIShowHelp
-                        , readEnvironment
-                        , readConfig
-                        )
-       where
+module PostgREST.Config
+  ( prettyVersion
+  , docsVersion
+  , CLI (..)
+  , Command (..)
+  , AppConfig (..)
+  , configDbPoolTimeout'
+  , dumpAppConfig
+  , Environment
+  , readCLIShowHelp
+  , readEnvironment
+  , readConfig
+  , parseSecret
+  ) where
 
+import qualified Crypto.JOSE.Types      as JOSE
+import qualified Crypto.JWT             as JWT
+import qualified Data.Aeson             as JSON
 import qualified Data.ByteString        as B
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8  as BS
@@ -42,7 +46,7 @@ import qualified Data.Map.Strict        as M
 
 import Control.Lens            (preview)
 import Control.Monad           (fail)
-import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
+import Crypto.JWT              (JWK, JWKSet, StringOrURI, stringOrUri)
 import Data.Aeson              (encode, toJSON)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
@@ -63,9 +67,8 @@ import System.Posix.Types      (FileMode)
 import Control.Applicative
 import Data.Monoid
 import Options.Applicative hiding (str)
-import Text.Heredoc
+import Text.Heredoc        (str)
 
-import PostgREST.Auth             (parseSecret)
 import PostgREST.Parsers          (pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
 import PostgREST.Types            (JSPath, JSPathExp (..),
@@ -593,3 +596,21 @@ loadDbUriFile conf = extractDbUri mDbUri
         Nothing       -> return dbUri
         Just filename -> strip <$> readFile (toS filename)
     setDbUri dbUri = conf {configDbUri = dbUri}
+
+
+{-|
+  Parse `jwt-secret` configuration option and turn into a JWKSet.
+
+  There are three ways to specify `jwt-secret`: text secret, JSON Web Key
+  (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JWKSet
+  with one key and the last is converted as is.
+-}
+parseSecret :: ByteString -> JWKSet
+parseSecret bytes =
+  fromMaybe (maybe secret (\jwk' -> JWT.JWKSet [jwk']) maybeJWK)
+    maybeJWKSet
+ where
+  maybeJWKSet = JSON.decode (toS bytes) :: Maybe JWKSet
+  maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
+  secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
+  keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes

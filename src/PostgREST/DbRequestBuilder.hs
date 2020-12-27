@@ -7,7 +7,6 @@ This module is in charge of building an intermediate representation(ReadRequest,
 A query tree is built in case of resource embedding. By inferring the relationship between tables, join conditions are added for every embedded resource.
 -}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
@@ -28,10 +27,9 @@ import Data.Text               (isInfixOf)
 
 import Control.Applicative
 import Data.Tree
-import Network.Wai
 
 import PostgREST.ApiRequest (Action (..), ApiRequest (..))
-import PostgREST.Error      (ApiRequestError (..), errorResponseFor)
+import PostgREST.Error      (ApiRequestError (..), Error (..))
 import PostgREST.Parsers
 import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
 import PostgREST.Types
@@ -40,9 +38,9 @@ import Protolude            hiding (from)
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Response ReadRequest
+readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Error ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
-  mapLeft errorResponseFor $
+  mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
   augmentRequestWithJoin schema rootRels =<<
   addFiltersOrdersRanges apiRequest =<<
@@ -281,8 +279,8 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
   where
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
-mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Response MutateRequest
-mutateRequest schema tName apiRequest pkCols readReq = mapLeft errorResponseFor $
+mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
+mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
   case action of
     ActionCreate -> do
         confCols <- case iOnConflict apiRequest of
