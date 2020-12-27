@@ -211,7 +211,7 @@ With this you can see the swagger-ui in your browser on port 8080.
 Deploying to Heroku
 ===================
 
-Assuming your making modifications locally and then pushing to GitHub, it's easy to deploy to Heroku.
+Assuming you're making modifications locally and then pushing to GitHub, it's easy to deploy to Heroku.
 
 1. Create a new app on Heroku
 2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
