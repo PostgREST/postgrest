@@ -137,9 +137,9 @@ app dbStructure conf apiRequest =
               case gucs of
                 Left err -> return $ errorResponseFor err
                 Right (ghdrs, gstatus) -> do
-                  total <- if | plannedCount   -> H.statement () explStm
+                  total <- if | plannedCount   -> H.statement mempty explStm
                               | estimatedCount -> if tableTotal > (fromIntegral <$> maxRows)
-                                                    then do estTotal <- H.statement () explStm
+                                                    then do estTotal <- H.statement mempty explStm
                                                             pure $ if estTotal > tableTotal then estTotal else tableTotal
                                                     else pure tableTotal
                               | otherwise      -> pure tableTotal
@@ -197,7 +197,7 @@ app dbStructure conf apiRequest =
               row <- H.statement mempty $
                      createWriteStatement sq mq
                        (contentType == CTSingularJSON) False (contentType == CTTextCSV)
-                       (iPreferRepresentation apiRequest) [] pgVer prepared
+                       (iPreferRepresentation apiRequest) mempty pgVer prepared
               let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
               case gucs of
@@ -230,7 +230,7 @@ app dbStructure conf apiRequest =
               else do
                 row <- H.statement mempty $
                        createWriteStatement sq mq (contentType == CTSingularJSON) False
-                                            (contentType == CTTextCSV) (iPreferRepresentation apiRequest) [] pgVer prepared
+                                            (contentType == CTTextCSV) (iPreferRepresentation apiRequest) mempty pgVer prepared
                 let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                     gucs =  (,) <$> gucHeaders <*> gucStatus
                 case gucs of
@@ -256,7 +256,7 @@ app dbStructure conf apiRequest =
               let stm = createWriteStatement sq mq
                     (contentType == CTSingularJSON) False
                     (contentType == CTTextCSV)
-                    (iPreferRepresentation apiRequest) [] pgVer prepared
+                    (iPreferRepresentation apiRequest) mempty pgVer prepared
               row <- H.statement mempty stm
               let (_, queryTotal, _, body, gucHeaders, gucStatus) = row
                   gucs =  (,) <$> gucHeaders <*> gucStatus
@@ -338,7 +338,7 @@ app dbStructure conf apiRequest =
         _ -> return notFound
 
       where
-        notFound = responseLBS status404 [] ""
+        notFound = responseLBS status404 mempty ""
         maxRows = configDbMaxRows conf
         prepared = configDbPreparedStatements conf
         exactCount = iPreferCount apiRequest == Just ExactCount

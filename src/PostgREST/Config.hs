@@ -86,7 +86,6 @@ data Command
   = CmdRun
   | CmdDumpConfig
   | CmdDumpSchema
-  deriving (Eq)
 
 -- | Config file settings for the server
 data AppConfig = AppConfig {
@@ -118,7 +117,6 @@ data AppConfig = AppConfig {
   , configServerUnixSocket      :: Maybe FilePath
   , configServerUnixSocketMode  :: Either Text FileMode
   }
-  deriving (Show)
 
 configDbPoolTimeout' :: (Fractional a) => AppConfig -> a
 configDbPoolTimeout' =
