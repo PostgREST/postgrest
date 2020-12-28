@@ -9,9 +9,13 @@
 , checkedShellScript
 }:
 let
-  # Script for publishing a new release on GitHub.
   github =
-    checkedShellScript "postgrest-release-github"
+    checkedShellScript
+      {
+        name = "postgrest-release-github";
+        docs = "Push a new release to GitHub.";
+        inRootDir = true;
+      }
       ''
         version=$1
 
@@ -43,17 +47,29 @@ let
         fi
       '';
 
-  # Wrapper for login with docker. $DOCKER_USER/$DOCKER_PASS vars come from CircleCI.
-  # The DOCKER_USER is not the same as DOCKER_REPO because we use the https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
   dockerLogin =
-    checkedShellScript "postgrest-docker-login"
+    checkedShellScript
+      {
+        name = "postgrest-docker-login";
+        docs =
+          ''
+            Log in to Docker Hub using the DOCKER_USER and DOCKER_PASS env vars.
+
+            Those env vars are usually provided by CircleCI. The DOCKER_USER is
+            not the same as DOCKER_REPO because we use the
+            https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
+          '';
+      }
       ''
         docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
       '';
 
-  # Script for publishing a new release on Docker Hub.
   dockerHub =
-    checkedShellScript "postgrest-release-dockerhub"
+    checkedShellScript
+      {
+        name = "postgrest-release-dockerhub";
+        docs = "Push a new release to Docker Hub";
+      }
       ''
         version=$1
 
@@ -74,7 +90,6 @@ let
         fi
       '';
 
-  # Script for updating the repository description on Docker Hub.
   dockerHubDescription =
     let
       description =
@@ -83,7 +98,11 @@ let
       fullDescription =
         ./docker-hub-full-description.md;
     in
-    checkedShellScript "postgrest-release-dockerhubdescription"
+    checkedShellScript
+      {
+        name = "postgrest-release-dockerhubdescription";
+        docs = "Update the repository description on Docker Hub.";
+      }
       ''
         # Login to Docker Hub and get a token.
         token="$(

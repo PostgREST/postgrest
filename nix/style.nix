@@ -9,7 +9,12 @@
 }:
 let
   style =
-    checkedShellScript "postgrest-style"
+    checkedShellScript
+      {
+        name = "postgrest-style";
+        docs = "Automatically format Haskell, Nix and Python files.";
+        inRootDir = true;
+      }
       ''
         # Format Nix files
         ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
@@ -25,7 +30,12 @@ let
 
   # Script to check whether any uncommited changes result from postgrest-style
   styleCheck =
-    checkedShellScript "postgrest-style-check"
+    checkedShellScript
+      {
+        name = "postgrest-style-check";
+        docs = "Check whether postgrest-style results in any uncommited changes.";
+        inRootDir = true;
+      }
       ''
         ${style}
 
@@ -33,7 +43,12 @@ let
       '';
 
   lint =
-    checkedShellScript "postgrest-lint"
+    checkedShellScript
+      {
+        name = "postgrest-lint";
+        docs = "Lint all Haskell files.";
+        inRootDir = true;
+      }
       ''
         # Lint Haskell files
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753

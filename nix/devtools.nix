@@ -9,7 +9,20 @@
 }:
 let
   watch =
-    checkedShellScript "postgrest-watch"
+    checkedShellScript
+      {
+        name = "postgrest-watch";
+        docs =
+          ''
+            Watch the project for changes and reinvoke the given command.
+
+            Example:
+
+              postgrest-watch postgrest-test-io
+
+          '';
+        inRootDir = true;
+      }
       ''
         while true; do
           (! ${silver-searcher}/bin/ag -l . | ${entr}/bin/entr -dr "$@")
@@ -17,28 +30,63 @@ let
       '';
 
   pushCachix =
-    checkedShellScript "postgrest-push-cachix"
+    checkedShellScript
+      {
+        name = "postgrest-push-cachix";
+        docs = ''
+          Push all build artifacts to cachix.
+
+          Requires that the CACHIX_SIGNING_KEY for postgrest is set as an
+          environment variable.
+        '';
+        inRootDir = true;
+      }
       ''
-        nix-store -qR --include-outputs "$(nix-instantiate)" \
-          | cachix push postgrest
+        nix-store -qR --include-outputs "$(nix-instantiate)" | cachix push postgrest
       '';
 
   build =
-    checkedShellScript "postgrest-build"
+    checkedShellScript
+      {
+        name = "postgrest-build";
+        docs = "Build PostgREST interactively using cabal-install.";
+        inRootDir = true;
+      }
       ''exec ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "$@"'';
 
   run =
-    checkedShellScript "postgrest-run"
+    checkedShellScript
+      {
+        name = "postgrest-run";
+        docs = "Run PostgREST after buidling it interactively with cabal-install";
+        inRootDir = true;
+      }
       ''exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- postgrest "$@"'';
 
   clean =
-    checkedShellScript "postgrest-clean"
+    checkedShellScript
+      {
+        name = "postgrest-clean";
+        docs = "Clean the PostgREST project, including all cabal-install artifacts.";
+        inRootDir = true;
+      }
       ''
         ${cabal-install}/bin/cabal v2-clean
       '';
 
   check =
-    checkedShellScript "postgrest-check"
+    checkedShellScript
+      {
+        name = "postgrest-check";
+        docs =
+          ''
+            Run most checks that will also run on CI.
+
+            This currently excludes the memory tests, as those are particularly
+            expensive.
+          '';
+        inRootDir = true;
+      }
       ''
         ${tests}/bin/postgrest-test-spec-all
         ${tests}/bin/postgrest-test-spec-idempotence

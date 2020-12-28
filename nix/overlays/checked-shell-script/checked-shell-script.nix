@@ -2,13 +2,15 @@
 # directly, or use the .bin attribute to get the script in a bin/ directory,
 # to be used in a path for example.
 { git
+, lib
 , runCommand
 , runtimeShell
 , shellcheck
 , stdenv
 , writeTextFile
 }:
-name: text:
+{ name, docs, inRootDir ? false }: text:
+# TODO: do something sensible with docs, e.g. provide automated --help
 let
   bin =
     writeTextFile {
@@ -20,7 +22,8 @@ let
         ''
           #!${runtimeShell}
           set -euo pipefail
-
+        ''
+        + lib.optionalString inRootDir ''
           cd "$(${git}/bin/git rev-parse --show-toplevel)"
 
           if test ! -f postgrest.cabal; then
@@ -28,9 +31,8 @@ let
                      "run this command somewhere in the PostgREST repo."
             exit 1
           fi
-
-          ${text}
-        '';
+        ''
+        + text;
 
       checkPhase =
         ''
