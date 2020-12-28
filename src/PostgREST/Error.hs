@@ -55,7 +55,6 @@ data ApiRequestError
   | UnacceptableSchema [Text]
   | UnknownRelation                -- Unreachable?
   | UnsupportedVerb                -- Unreachable?
-  deriving (Show, Eq)
 
 instance PgrstError ApiRequestError where
   status InvalidRange            = HT.status416
@@ -114,7 +113,7 @@ compressedRel Relation{..} =
       "relationship" .= (constName <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
       ]
 
-data PgError = PgError Authenticated P.UsageError deriving Show
+data PgError = PgError Authenticated P.UsageError
 type Authenticated = Bool
 
 instance PgrstError PgError where
@@ -232,7 +231,6 @@ data SimpleError
   | JwtTokenInvalid Text
   | SingularityError Integer
   | ContentTypeError [ByteString]
-  deriving (Show, Eq)
 
 instance PgrstError SimpleError where
   status GucHeadersError         = HT.status500

@@ -46,11 +46,11 @@ import PostgREST.Types
 getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure
 getDbStructure schemas extraSearchPath pgVer prepared = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- HT.statement () $ allTables prepared
+  tabs    <- HT.statement mempty $ allTables prepared
   cols    <- HT.statement schemas $ allColumns tabs prepared
   srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- HT.statement () $ allM2ORels tabs cols prepared
-  keys    <- HT.statement () $ allPrimaryKeys tabs prepared
+  m2oRels <- HT.statement mempty $ allM2ORels tabs cols prepared
+  keys    <- HT.statement mempty $ allPrimaryKeys tabs prepared
   procs   <- HT.statement schemas $ allProcs prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
@@ -160,7 +160,7 @@ decodeProcs =
         qi = QualifiedIdentifier schema name
         pgType
           | isComposite = Composite qi
-          | otherwise   = Scalar qi
+          | otherwise   = Scalar
 
     parseVolatility :: Char -> ProcVolatility
     parseVolatility v | v == 'i' = Immutable
@@ -835,7 +835,7 @@ pfkSourceColumns cols =
       order by view_schema, view_name, view_column_name; |]
 
 getPgVersion :: H.Session PgVersion
-getPgVersion = H.statement () $ H.Statement sql HE.noParams versionRow False
+getPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text

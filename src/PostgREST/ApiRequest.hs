@@ -67,8 +67,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
-            | TargetUnknown [Text]
-            deriving Eq
+            | TargetUnknown
 
 -- | RPC query param value `/rpc/func?v=<value>`, used for VARIADIC functions on form-urlencoded POST and GETs
 -- | It can be fixed `?v=1` or repeated `?v=1&v=2&v=3.
@@ -279,7 +278,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
                         Nothing    -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
       ["rpc", pName] -> TargetProc (callFindProc pName) False
-      other          -> TargetUnknown other
+      _              -> TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
   relevantPayload = case (target, action) of

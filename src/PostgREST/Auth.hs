@@ -27,7 +27,6 @@ import           Data.Vector         as V
 import Control.Lens    (set)
 import Data.Time.Clock (UTCTime)
 
-import Control.Lens.Operators
 import Crypto.JWT
 
 import PostgREST.Error (SimpleError (..))
@@ -41,7 +40,6 @@ import Protolude.Conv  (toS)
 data JWTAttempt = JWTInvalid JWTError
                 | JWTMissingSecret
                 | JWTClaims (M.HashMap Text JSON.Value)
-                deriving (Eq, Show)
 
 
 jwtClaims :: JWTAttempt -> Either SimpleError (M.HashMap Text JSON.Value)
@@ -117,7 +115,5 @@ parseSecret str =
 jwkFromSecret :: ByteString -> JWK
 jwkFromSecret key =
   fromKeyMaterial km
-    & jwkUse ?~ Sig
-    & jwkAlg ?~ JWSAlg HS256
  where
   km = OctKeyMaterial (OctKeyParameters (JOSE.Types.Base64Octets key))
