@@ -148,7 +148,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      "like"  -> unknownLiteral (T.map star val)
      "ilike" -> unknownLiteral (T.map star val)
-     "is"    -> whiteList val
+     "is"    -> isAllowed val
      _       -> unknownLiteral val
 
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
@@ -172,8 +172,8 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
    -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
    -- However that would not accept the TRUE/FALSE/NULL keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
-   whiteList :: Text -> H.Snippet
-   whiteList v = H.sql $ maybe
+   isAllowed :: Text -> H.Snippet
+   isAllowed v = H.sql $ maybe
      (pgFmtLit v <> "::unknown") encodeUtf8
      (find ((==) . T.toLower $ v) ["null","true","false"])
 

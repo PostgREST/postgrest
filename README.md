@@ -8,8 +8,8 @@
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
 [![Docker Stars](https://img.shields.io/docker/pulls/postgrest/postgrest.svg)](https://hub.docker.com/r/postgrest/postgrest/)
-[![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/master.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/master)
-[![Coverage Status](https://img.shields.io/codecov/c/github/postgrest/postgrest/master)](https://app.codecov.io/gh/PostgREST/postgrest)
+[![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/main.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/main)
+[![Coverage Status](https://img.shields.io/codecov/c/github/postgrest/postgrest/main)](https://app.codecov.io/gh/PostgREST/postgrest)
 [![Hackage docs](https://img.shields.io/hackage/v/postgrest.svg?label=hackage)](http://hackage.haskell.org/package/postgrest)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL
@@ -151,8 +151,8 @@ Every donation will be spent on making PostgREST better for the whole community.
 
 The PostgREST organization is grateful to:
 
-- The project [sponsors and backers](https://github.com/PostgREST/postgrest/blob/master/BACKERS.md) who support PostgREST's development.
+- The project [sponsors and backers](https://github.com/PostgREST/postgrest/blob/main/BACKERS.md) who support PostgREST's development.
 - The project [contributors](https://github.com/PostgREST/postgrest/graphs/contributors) who have improved PostgREST immensely with their code
-  and good judgement. See more details in the [changelog](https://github.com/PostgREST/postgrest/blob/master/CHANGELOG.md).
+  and good judgement. See more details in the [changelog](https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md).
 
 The cool logo came from [Mikey Casalaina](https://github.com/casalaina).

@@ -18,7 +18,7 @@ The following checklist guides you through the complete process in more detail.
 The pinned version of [`nixpkgs`](https://github.com/NixOS/nixpkgs) is defined
 in [`nix/nixpkgs-version.nix`](nixpkgs-version.nix). The pin refers directly to
 a GitHub tarball for the given revision, which is more efficient than pulling
-the complete Git repository. To upgrade it to the current `master` of
+the complete Git repository. To upgrade it to the current `main` of
 `nixpkgs`, you can use a small utility script defined in
 [`nix/nixpkgs-update.nix`](nixpkgs-update.nix):
 
@@ -26,7 +26,7 @@ the complete Git repository. To upgrade it to the current `master` of
 # From the root of the repository, enter nix-shell
 nix-shell
 
-# Run the utility script to pin the latest revision in master
+# Run the utility script to pin the latest revision in main
 postgrest-nixpkgs-upgrade
 
 # Exit the nix-shell with Ctrl-d
