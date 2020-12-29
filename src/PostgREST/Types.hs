@@ -32,7 +32,7 @@ import Protolude.Conv       (toS)
 data ContentType = CTApplicationJSON | CTSingularJSON
                  | CTTextCSV | CTTextPlain
                  | CTOpenAPI | CTUrlEncoded | CTOctetStream
-                 | CTAny | CTOther ByteString deriving (Show, Eq)
+                 | CTAny | CTOther ByteString deriving (Eq)
 
 -- | Convert from ContentType to a full HTTP Header
 toHeader :: ContentType -> Header
@@ -75,7 +75,7 @@ type SqlQuery = ByteString
 -- | A part of a SQL query that cannot be executed independently
 type SqlFragment = ByteString
 
-data PreferResolution = MergeDuplicates | IgnoreDuplicates deriving Eq
+data PreferResolution = MergeDuplicates | IgnoreDuplicates
 instance Show PreferResolution where
   show MergeDuplicates  = "resolution=merge-duplicates"
   show IgnoreDuplicates = "resolution=ignore-duplicates"
@@ -126,7 +126,7 @@ data DbStructure = DbStructure {
 , dbPrimaryKeys :: [PrimaryKey]
 , dbProcs       :: ProcsMap
 , pgVersion     :: PgVersion
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+} deriving (Generic, JSON.ToJSON)
 
 -- TODO Table could hold references to all its Columns
 tableCols :: DbStructure -> Schema -> TableName -> [Column]
@@ -141,14 +141,14 @@ data PgArg = PgArg {
 , pgaType :: Text
 , pgaReq  :: Bool
 , pgaVar  :: Bool
-} deriving (Show, Eq, Ord, Generic, JSON.ToJSON)
+} deriving (Eq, Ord, Generic, JSON.ToJSON)
 
-data PgType = Scalar QualifiedIdentifier | Composite QualifiedIdentifier deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+data PgType = Scalar | Composite QualifiedIdentifier deriving (Eq, Ord, Generic, JSON.ToJSON)
 
-data RetType = Single PgType | SetOf PgType deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+data RetType = Single PgType | SetOf PgType deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data ProcVolatility = Volatile | Stable | Immutable
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data ProcDescription = ProcDescription {
   pdSchema      :: Schema
@@ -158,7 +158,7 @@ data ProcDescription = ProcDescription {
 , pdReturnType  :: RetType
 , pdVolatility  :: ProcVolatility
 , pdHasVariadic :: Bool
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+} deriving (Eq, Generic, JSON.ToJSON)
 
 -- Order by least number of args in the case of overloaded functions
 instance Ord ProcDescription where
@@ -203,9 +203,9 @@ specifiedProcArgs keys proc =
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
-  ProcDescription{pdReturnType = (Single (Scalar _))} -> True
-  ProcDescription{pdReturnType = (SetOf (Scalar _))}  -> True
-  _                                                   -> False
+  ProcDescription{pdReturnType = (Single Scalar)} -> True
+  ProcDescription{pdReturnType = (SetOf Scalar)}  -> True
+  _                                               -> False
 
 procReturnsSingle :: ProcDescription -> Bool
 procReturnsSingle proc = case proc of
@@ -234,7 +234,7 @@ instance Eq Table where
 tableQi :: Table -> QualifiedIdentifier
 tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
 
-newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Show, Eq, Ord, Generic, JSON.ToJSON)
+newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data Column =
     Column {
@@ -250,7 +250,7 @@ data Column =
     , colDefault     :: Maybe Text
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
-    } deriving (Show, Ord, Generic, JSON.ToJSON)
+    } deriving (Ord, Generic, JSON.ToJSON)
 
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
@@ -262,7 +262,7 @@ type ViewColumn = Column
 data PrimaryKey = PrimaryKey {
     pkTable :: Table
   , pkName  :: Text
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+} deriving (Generic, JSON.ToJSON)
 
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
@@ -278,7 +278,7 @@ data OrderTerm = OrderTerm {
   otTerm      :: Field
 , otDirection :: Maybe OrderDirection
 , otNullOrder :: Maybe OrderNulls
-} deriving (Show, Eq)
+} deriving (Eq)
 
 {-|
   Represents a pg identifier with a prepended schema name "schema.table"
@@ -287,7 +287,7 @@ data OrderTerm = OrderTerm {
 data QualifiedIdentifier = QualifiedIdentifier {
   qiSchema :: Schema
 , qiName   :: TableName
-} deriving (Show, Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+} deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 instance Hashable QualifiedIdentifier
 
 -- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
@@ -311,12 +311,14 @@ type ConstraintName = Text
 data Relation = Relation {
   relTable      :: Table
 , relColumns    :: [Column]
+-- TODO: Move this to O2M / M2O type
 , relConstraint :: Maybe ConstraintName -- ^ Just on O2M/M2O, Nothing on M2M
 , relFTable     :: Table
 , relFColumns   :: [Column]
 , relType       :: Cardinality
+-- TODO: Move this to M2M type
 , relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+} deriving (Eq, Generic, JSON.ToJSON)
 
 -- | Junction table on an M2M relationship
 data Junction = Junction {
@@ -325,7 +327,7 @@ data Junction = Junction {
 , junCols1       :: [Column]
 , junConstraint2 :: Maybe ConstraintName
 , junCols2       :: [Column]
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+} deriving (Eq, Generic, JSON.ToJSON)
 
 isSelfReference :: Relation -> Bool
 isSelfReference r = relTable r == relFTable r
@@ -342,16 +344,16 @@ data PayloadJSON =
   }|
   RawJSON {
     pjRaw  :: BL.ByteString
-  } deriving (Show, Eq)
+  }
 
-data PJType = PJArray { pjaLength :: Int } | PJObject deriving (Show, Eq)
+data PJType = PJArray { pjaLength :: Int } | PJObject
 
 data Proxy = Proxy {
   proxyScheme :: Text
 , proxyHost   :: Text
 , proxyPort   :: Integer
 , proxyPath   :: Text
-} deriving (Show, Eq)
+}
 
 type Operator = Text
 operators :: M.HashMap Operator SqlFragment
@@ -383,10 +385,10 @@ ftsOperators = M.fromList [
   ("wfts", "@@ websearch_to_tsquery")
   ]
 
-data OpExpr = OpExpr Bool Operation deriving (Eq, Show)
+data OpExpr = OpExpr Bool Operation deriving (Eq)
 data Operation = Op Operator SingleVal |
                  In ListVal |
-                 Fts Operator (Maybe Language) SingleVal deriving (Eq, Show)
+                 Fts Operator (Maybe Language) SingleVal deriving (Eq)
 type Language = Text
 
 -- | Represents a single value in a filter, e.g. id=eq.singleval
@@ -407,7 +409,7 @@ instance Show LogicOperator where
                /  \
          id.eq.1   id.eq.2
 -}
-data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Show, Eq)
+data LogicTree = Expr Bool LogicOperator [LogicTree] | Stmnt Filter deriving (Eq)
 
 type FieldName = Text
 {-|
@@ -415,9 +417,9 @@ type FieldName = Text
 -}
 type JsonPath = [JsonOperation]
 -- | Represents the single arrow `->` or double arrow `->>` operators
-data JsonOperation = JArrow{jOp :: JsonOperand} | J2Arrow{jOp :: JsonOperand} deriving (Show, Eq)
+data JsonOperation = JArrow{jOp :: JsonOperand} | J2Arrow{jOp :: JsonOperand} deriving (Eq)
 -- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text because we reuse our escaping functons and let pg do the casting with '1'::int
-data JsonOperand = JKey{jVal :: Text} | JIdx{jVal :: Text} deriving (Show, Eq)
+data JsonOperand = JKey{jVal :: Text} | JIdx{jVal :: Text} deriving (Eq)
 
 type Field = (FieldName, JsonPath)
 type Alias = Text
@@ -430,7 +432,6 @@ type NodeName = Text
   `SET LOCAL "response.headers" = '[{"Set-Cookie": ".."}]'
 -}
 newtype GucHeader = GucHeader (CI.CI ByteString, ByteString)
-  deriving (Show, Eq)
 
 instance JSON.FromJSON GucHeader where
   parseJSON (JSON.Object o) = case headMay (M.toList o) of
@@ -458,9 +459,9 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)
 type EmbedHint = Text
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path ["clients", "projects"]
 type EmbedPath = [Text]
-data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Show, Eq)
+data Filter = Filter { field::Field, opExpr::OpExpr } deriving (Eq)
 data JoinCondition = JoinCondition (QualifiedIdentifier, FieldName)
-                                   (QualifiedIdentifier, FieldName) deriving (Show, Eq)
+                                   (QualifiedIdentifier, FieldName) deriving (Eq)
 
 data ReadQuery = Select {
     select         :: [SelectItem]
@@ -473,7 +474,7 @@ data ReadQuery = Select {
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
   , range_         :: NonnegRange
-} deriving (Show, Eq)
+} deriving (Eq)
 
 data MutateQuery =
   Insert {
@@ -495,7 +496,7 @@ data MutateQuery =
     in_       :: QualifiedIdentifier
   , where_    :: [LogicTree]
   , returning :: [FieldName]
-  } deriving (Show, Eq)
+  }
 
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
@@ -511,7 +512,7 @@ fstFieldNames (Node (sel, _) _) =
 data PgVersion = PgVersion {
   pgvNum  :: Int32
 , pgvName :: Text
-} deriving (Eq, Show, Generic, JSON.ToJSON)
+} deriving (Eq, Generic, JSON.ToJSON)
 
 instance Ord PgVersion where
   (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
@@ -553,7 +554,7 @@ sourceCTEName = "pgrst_source"
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"
-data JSPathExp = JSPKey Text | JSPIdx Int deriving (Eq)
+data JSPathExp = JSPKey Text | JSPIdx Int
 
 instance Show JSPathExp where
   -- TODO: this needs to be quoted properly for special chars
@@ -565,16 +566,15 @@ data ConnectionStatus
   = NotConnected
   | Connected PgVersion
   | FatalConnectionError Text
-  deriving (Eq, Show)
+  deriving (Eq)
 
 -- | Schema cache status
 data SCacheStatus
   = SCLoaded
   | SCOnRetry
   | SCFatalFail
-  deriving (Eq, Show)
 
-data LogLevel = LogCrit | LogError | LogWarn | LogInfo deriving (Eq)
+data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
 instance Show LogLevel where
   show LogCrit  = "crit"

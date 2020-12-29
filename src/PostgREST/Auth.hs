@@ -41,7 +41,6 @@ import Protolude.Conv  (toS)
 data JWTAttempt = JWTInvalid JWTError
                 | JWTMissingSecret
                 | JWTClaims (M.HashMap Text JSON.Value)
-                deriving (Eq, Show)
 
 
 jwtClaims :: JWTAttempt -> Either SimpleError (M.HashMap Text JSON.Value)
