@@ -32,11 +32,7 @@ import System.IO                (BufferMode (..), hSetBuffering)
 import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
-import PostgREST.Config      (AppConfig (..), CLI (..), Command (..),
-                              Environment, configDbPoolTimeout',
-                              dumpAppConfig, prettyVersion,
-                              readCLIShowHelp, readEnvironment,
-                              readValidateConfig)
+import PostgREST.Config
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
