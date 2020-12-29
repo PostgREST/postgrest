@@ -666,6 +666,12 @@ CREATE TABLE simple_pk (
     extra character varying NOT NULL
 );
 
+CREATE TABLE simple_pk2 (
+    PRIMARY KEY (k),
+    k character varying NOT NULL,
+    extra character varying NOT NULL
+);
+
 CREATE TABLE users (
     id integer primary key,
     name text NOT NULL

@@ -38,6 +38,7 @@ GRANT ALL ON TABLE
     , projects_view
     , projects_view_alt
     , simple_pk
+    , simple_pk2
     , tasks
     , filtered_tasks
     , tsearch

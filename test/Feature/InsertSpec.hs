@@ -421,7 +421,7 @@ spec actualPgVersion = do
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
         let payload = [json| { "k":"圍棋", "extra":"￥" } |]
-        p <- request methodPost "/simple_pk?select=extra,k"
+        p <- request methodPost "/simple_pk2?select=extra,k"
             [("Prefer", "tx=commit"), ("Prefer", "return=representation")]
             payload
         liftIO $ do
