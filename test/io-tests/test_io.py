@@ -3,6 +3,7 @@
 import contextlib
 import dataclasses
 from datetime import datetime
+from itertools import repeat
 from operator import attrgetter
 import os
 import pathlib
@@ -26,6 +27,22 @@ CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load((BASEDIR / "fixtures.yaml").read_text(), Loader=yaml.Loader)
 POSTGREST_BIN = shutil.which("postgrest")
 SECRET = "reallyreallyreallyreallyverysafe"
+
+
+def itemgetter(*items):
+    "operator.itemgetter with None as fallback when key does not exist"
+    if len(items) == 1:
+        item = items[0]
+
+        def g(obj):
+            return obj.get(item)
+
+    else:
+
+        def g(obj):
+            return tuple(obj.get(item) for item in items)
+
+    return g
 
 
 class PostgrestTimedOut(Exception):
@@ -83,27 +100,36 @@ def hpctixfile():
     return tixfile.with_suffix(f".{test}.tix")
 
 
-def dumpconfig(configpath=None, env=None, stdin=None):
-    "Dump the config as parsed by PostgREST."
+def cli(args, env=None, stdin=None):
+    "Run PostgREST and return stdout."
     env = env or {}
 
-    command = [POSTGREST_BIN, "--dump-config"]
+    command = [POSTGREST_BIN] + args
     env["HPCTIXFILE"] = hpctixfile()
-
-    if configpath:
-        command.append(configpath)
 
     process = subprocess.Popen(
         command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
 
     process.stdin.write(stdin or b"")
-    result = process.communicate(timeout=5)[0]
-    process.kill()
-    process.wait()
-    if process.returncode != 0:
-        raise PostgrestError()
-    return result.decode("utf-8")
+    try:
+        result = process.communicate(timeout=5)[0]
+        if process.returncode != 0:
+            raise PostgrestError()
+        return result.decode("utf-8")
+    finally:
+        process.kill()
+        process.wait()
+
+
+def dumpconfig(configpath=None, env=None, stdin=None):
+    "Dump the config as parsed by PostgREST."
+    args = ["--dump-config"]
+
+    if configpath:
+        args.append(configpath)
+
+    return cli(args, env=env, stdin=stdin)
 
 
 @contextlib.contextmanager
@@ -179,6 +205,32 @@ def authheader(token):
 def jwtauthheader(claim, secret):
     "Authorization header with signed JWT."
     return authheader(jwt.encode(claim, secret).decode("utf-8"))
+
+
+@pytest.mark.parametrize(
+    "args,env,use_defaultenv,expect",
+    map(itemgetter("args", "env", "use_defaultenv", "expect"), FIXTURES["cli"]),
+    ids=map(itemgetter("name"), FIXTURES["cli"]),
+)
+def test_cli(args, env, use_defaultenv, expect, defaultenv):
+    """
+    When PostgREST is run with <args> arguments and <env>/<defaultenv> environment variabales
+    it should return. Exit code should be according to <expect_error>.
+    """
+    # use --dump-config by default to make sure that the postgrest process will terminate for sure
+    args = args or ["--dump-config"]
+
+    env = env or {}
+    if use_defaultenv:
+        env = {**defaultenv, **env}
+
+    if expect == "error":
+        with pytest.raises(PostgrestError):
+            print(cli(args, env=env))
+    else:
+        dump = cli(args, env=env).split("\n")
+        if expect:
+            assert expect in dump
 
 
 @pytest.mark.parametrize(
