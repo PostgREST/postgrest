@@ -6,6 +6,7 @@
 , curl
 , devCabalOptions
 , ghc
+, glibcLocales
 , gnugrep
 , haskell
 , hpc-codecov
@@ -176,6 +177,7 @@ let
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
+        export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
 
         # clean up previous coverage reports
         mkdir -p coverage
@@ -227,9 +229,7 @@ let
           ${hpc-codecov}/bin/hpc-codecov --mix=.hpc --out=coverage/codecov.json coverage/postgrest.tix
 
           # create html and stdout reports
-          # TODO: The markup command fails when run outside nix-shell (i.e. in CI!)
-          # Need to fix it properly in the future instead of adding the || true
-          ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix || true
+          ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix
           echo "file://$(pwd)/coverage/hpc_index.html"
           ${ghc}/bin/hpc report coverage/postgrest.tix "$@"
         fi
