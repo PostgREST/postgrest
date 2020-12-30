@@ -73,12 +73,22 @@ def defaultenv():
     }
 
 
+def hpctixfile():
+    "Returns an individual filename for each test, if the HPCTIXFILE environment variable is set."
+    if "HPCTIXFILE" not in os.environ:
+        return ""
+
+    tixfile = pathlib.Path(os.environ["HPCTIXFILE"])
+    test = hash(os.environ["PYTEST_CURRENT_TEST"])
+    return tixfile.with_suffix(f".{test}.tix")
+
+
 def dumpconfig(configpath=None, env=None, stdin=None):
     "Dump the config as parsed by PostgREST."
     env = env or {}
 
     command = [POSTGREST_BIN, "--dump-config"]
-    env["HPCTIXFILE"] = os.getenv("HPCTIXFILE", "")
+    env["HPCTIXFILE"] = hpctixfile()
 
     if configpath:
         command.append(configpath)
@@ -88,7 +98,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
     )
 
     process.stdin.write(stdin or b"")
-    result = process.communicate()[0]
+    result = process.communicate(timeout=5)[0]
     process.kill()
     process.wait()
     if process.returncode != 0:
@@ -112,7 +122,7 @@ def run(configpath=None, stdin=None, env=None, port=None):
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
         command = [POSTGREST_BIN]
-        env["HPCTIXFILE"] = os.getenv("HPCTIXFILE", "")
+        env["HPCTIXFILE"] = hpctixfile()
 
         if configpath:
             command.append(configpath)
@@ -127,8 +137,12 @@ def run(configpath=None, stdin=None, env=None, port=None):
 
             yield PostgrestProcess(process=process, session=PostgrestSession(baseurl))
         finally:
-            process.kill()
-            process.wait()
+            process.terminate()
+            try:
+                process.wait(timeout=1)
+            except:
+                process.kill()
+                process.wait()
 
 
 def freeport():
