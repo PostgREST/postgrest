@@ -184,8 +184,10 @@ let
         # temporary directory to collect data in
         tmpdir="$(mktemp -d)"
 
-        # we keep the tmpdir when an error occurs for debugging and only remove it on success
-        trap 'echo Temporary directory kept at: $tmpdir' ERR SIGINT SIGTERM
+        # we keep the tmpdir when an error occurs for debugging
+        trap 'echo Temporary directory kept at: $tmpdir' ERR
+        # remove the tmpdir when cancelled (postgrest-watch)
+        trap 'rm -rf "$tmpdir"' SIGINT SIGTERM
 
         # build once before running all the tests
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} --enable-tests all
@@ -199,7 +201,7 @@ let
         ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
 
         # collect all the tix files
-        ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io.tix "$tmpdir"/spec.tix
+        ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io*.tix "$tmpdir"/spec.tix
 
         # prepare the overlay
         ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
