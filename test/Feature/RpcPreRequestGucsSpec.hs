@@ -1,18 +1,13 @@
 module Feature.RpcPreRequestGucsSpec where
 
-import qualified Data.ByteString.Lazy as BL (empty)
-
-import Network.Wai      (Application)
-import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Network.Wai (Application)
 
 import Network.HTTP.Types
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
-import Text.Heredoc
 
-import Protolude  hiding (get, put)
-import SpecHelper
+import Protolude hiding (get, put)
 
 spec :: SpecWith ((), Application)
 spec =

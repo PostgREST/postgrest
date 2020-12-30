@@ -66,7 +66,7 @@ let
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
-    "-f FailOnWarn --test-show-detail=direct";
+    "-f dev --test-show-detail=direct";
 
   profiledHaskellPackages =
     pkgs.haskell.packages."${compiler}".extend (self: super:
@@ -87,7 +87,7 @@ rec {
   # libraries and documentation. We disable running the test suite on Nix
   # builds, as they require a database to be set up.
   postgrestPackage =
-    lib.dontCheck (lib.enableCabalFlag postgrest "FailOnWarn");
+    lib.dontCheck postgrest;
 
   # Static executable.
   postgrestStatic =
@@ -114,7 +114,11 @@ rec {
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix { inherit postgrest postgrestStatic postgrestProfiled postgresqlVersions devCabalOptions; };
+    pkgs.callPackage nix/tests.nix {
+      inherit postgrest postgrestProfiled postgresqlVersions devCabalOptions;
+      ghc = pkgs.haskell.compiler."${compiler}";
+      hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
+    };
 
   # Linting and styling scripts.
   style =

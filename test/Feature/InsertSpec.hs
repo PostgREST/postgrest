@@ -1,14 +1,10 @@
 module Feature.InsertSpec where
 
-import qualified Data.Aeson as JSON
-
 import Data.List              (lookup)
-import Data.Maybe             (fromJust)
 import Network.Wai            (Application)
 import Network.Wai.Test       (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import Test.Hspec             hiding (pendingWith)
 import Test.Hspec.Wai.Matcher (bodyEquals)
-import TestTypes              (CompoundPK (..), IncPK (..))
 
 import Network.HTTP.Types
 import Test.Hspec.Wai
@@ -441,9 +437,6 @@ spec actualPgVersion = do
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
-      post "/postgrest/users" [json| { "id":"jdoe", "pass": "1234", "role": "postgrest_test_author" } |]
-      post "/postgrest/users" [json| { "id":"jroe", "pass": "1234", "role": "postgrest_test_author" } |]
-
       request methodPost "/authors_only"
           [ authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0", ("Prefer", "return=representation") ]
           [json| { "secret": "nyancat" } |]

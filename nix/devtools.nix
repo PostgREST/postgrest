@@ -72,6 +72,8 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-clean
+        # clean old coverage data, too
+        rm -rf .hpc coverage
       '';
 
   check =

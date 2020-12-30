@@ -75,13 +75,16 @@ def defaultenv():
 
 def dumpconfig(configpath=None, env=None, stdin=None):
     "Dump the config as parsed by PostgREST."
+    env = env or {}
+
     command = [POSTGREST_BIN, "--dump-config"]
+    env["HPCTIXFILE"] = os.getenv("HPCTIXFILE", "")
 
     if configpath:
         command.append(configpath)
 
     process = subprocess.Popen(
-        command, env=env or {}, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
 
     process.stdin.write(stdin or b"")
@@ -96,6 +99,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 @contextlib.contextmanager
 def run(configpath=None, stdin=None, env=None, port=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
+    env = env or {}
 
     with tempfile.TemporaryDirectory() as tmpdir:
         if port:
@@ -108,11 +112,12 @@ def run(configpath=None, stdin=None, env=None, port=None):
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
         command = [POSTGREST_BIN]
+        env["HPCTIXFILE"] = os.getenv("HPCTIXFILE", "")
 
         if configpath:
             command.append(configpath)
 
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env or {})
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env)
 
         try:
             process.stdin.write(stdin or b"")

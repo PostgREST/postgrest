@@ -19,12 +19,17 @@ source-repository head
   type:     git
   location: git://github.com/PostgREST/postgrest.git
 
-flag FailOnWarn
+flag dev
   default:     False
   manual:      True
-  description: No warnings allowed
+  description: Development flags
 
 library
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+                      QuasiQuotes
+                      NoImplicitPrelude
+  hs-source-dirs:     src
   exposed-modules:    PostgREST.ApiRequest
                       PostgREST.App
                       PostgREST.Auth
@@ -43,7 +48,6 @@ library
                       PostgREST.Private.Common
                       PostgREST.Private.ProxyUri
                       PostgREST.Private.QueryFragment
-  hs-source-dirs:     src
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4
                     , Ranged-sets               >= 0.3 && < 0.5
@@ -88,15 +92,12 @@ library
                     , wai-extra                 >= 3.0.19 && < 3.2
                     , wai-logger                >= 2.3.2
                     , wai-middleware-static     >= 0.8.1 && < 0.10
-  default-language:   Haskell2010
-  default-extensions: OverloadedStrings
-                      QuasiQuotes
-                      NoImplicitPrelude
-  if flag(FailOnWarn)
-    ghc-options: -O2 -Werror -Wall -fwarn-identities
+  if flag(dev)
+    ghc-options: -O0 -Werror -Wall -fwarn-identities
                  -fno-spec-constr -optP-Wno-nonportable-include-path
+                 -fhpc -hpcdir .hpc
   else
-    ghc-options: -O2 -Wall -fwarn-identities
+    ghc-options: -O2 -Werror -Wall -fwarn-identities
                  -fno-spec-constr -optP-Wno-nonportable-include-path
           -- -fno-spec-constr may help keep compile time memory use in check,
           --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
@@ -105,8 +106,12 @@ library
           --   see https://github.com/commercialhaskell/stack/issues/3918
 
 executable postgrest
-  main-is:            Main.hs
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+                      QuasiQuotes
+                      NoImplicitPrelude
   hs-source-dirs:     main
+  main-is:            Main.hs
   build-depends:      base                >= 4.9 && < 4.15
                     , aeson               >= 1.4.7 && < 1.6
                     , auto-update         >= 0.1.4 && < 0.2
@@ -126,17 +131,14 @@ executable postgrest
                     , time                >= 1.6 && < 1.11
                     , wai                 >= 3.2.1 && < 3.3
                     , warp                >= 3.2.12 && < 3.4
-  default-language:   Haskell2010
-  default-extensions: OverloadedStrings
-                      QuasiQuotes
-                      NoImplicitPrelude
-  if flag(FailOnWarn)
+  if flag(dev)
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
-                      -O2 -Werror -Wall -fwarn-identities
+                      -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
+                      -fhpc -hpcdir .hpc
   else
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N -I2"
-                      -O2 -Wall -fwarn-identities
+                      -O2 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if !os(windows)
@@ -145,6 +147,11 @@ executable postgrest
 
 test-suite spec
   type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+                      QuasiQuotes
+                      NoImplicitPrelude
+  hs-source-dirs:     test
   main-is:            Main.hs
   other-modules:      Feature.AndOrParamsSpec
                       Feature.AsymmetricJwtSpec
@@ -179,7 +186,6 @@ test-suite spec
                       Feature.UpsertSpec
                       SpecHelper
                       TestTypes
-  hs-source-dirs:     test
   build-depends:      base              >= 4.9 && < 4.15
                     , aeson             >= 1.4.7 && < 1.6
                     , aeson-qq          >= 0.8.1 && < 0.9
@@ -211,20 +217,21 @@ test-suite spec
                     , transformers-base >= 0.4.4 && < 0.5
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.2
-  default-language:   Haskell2010
-  default-extensions: OverloadedStrings
-                      QuasiQuotes
-                      NoImplicitPrelude
   ghc-options:        -threaded -rtsopts -with-rtsopts=-N
+                      -O0 -Werror -Wall -fwarn-identities
+                      -fno-spec-constr -optP-Wno-nonportable-include-path
+                      -fno-warn-missing-signatures
 
-Test-Suite spec-querycost
-  Type:                exitcode-stdio-1.0
-  Default-Language:    Haskell2010
-  default-extensions:  OverloadedStrings, QuasiQuotes, NoImplicitPrelude
-  Hs-Source-Dirs:      test
-  Main-Is:             QueryCost.hs
-  Other-Modules:       SpecHelper
-  Build-Depends:       base              >= 4.9 && < 4.15
+test-suite spec-querycost
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings
+                       QuasiQuotes
+                       NoImplicitPrelude
+  hs-source-dirs:      test
+  main-is:             QueryCost.hs
+  other-modules:       SpecHelper
+  build-depends:       base              >= 4.9 && < 4.15
                      , aeson             >= 1.4.7 && < 1.6
                      , aeson-qq          >= 0.8.1 && < 0.9
                      , async             >= 2.1.1 && < 2.3
@@ -256,3 +263,5 @@ Test-Suite spec-querycost
                      , transformers-base >= 0.4.4 && < 0.5
                      , wai               >= 3.2.1 && < 3.3
                      , wai-extra         >= 3.0.19 && < 3.2
+  ghc-options:         -O0 -Werror -Wall -fwarn-identities
+                       -fno-spec-constr -optP-Wno-nonportable-include-path
