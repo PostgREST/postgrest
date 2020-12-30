@@ -1,5 +1,6 @@
 codecov:
   branch: master
+  require_ci_to_pass: false
 
 comment: false
 
