@@ -22,6 +22,14 @@ let
         ''
           #!${runtimeShell}
           set -euo pipefail
+
+          # make sure that no script creates conflicting tix files
+          # postgrest-coverage will override HPCTIXFILE to make proper use of it
+          if test ! -v HPCTIXFILE; then
+            hpctixdir=$(mktemp -d)
+            export HPCTIXFILE="$hpctixdir"/postgrest.tix
+            trap 'rm -rf $hpctixdir' EXIT
+          fi
         ''
         + lib.optionalString inRootDir ''
           cd "$(${git}/bin/git rev-parse --show-toplevel)"
@@ -32,7 +40,7 @@ let
             exit 1
           fi
         ''
-        + text;
+        + "(${text})";
 
       checkPhase =
         ''
