@@ -129,7 +129,7 @@ sourceColumnFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey . addHasVariadic) <$> HD.rowList procRow
+  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
   where
     procRow = ProcDescription
               <$> column HD.text
@@ -142,10 +142,7 @@ decodeProcs =
                   <*> column HD.bool
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
-              <*> pure False
-
-    addHasVariadic :: ProcDescription -> ProcDescription
-    addHasVariadic pd@ProcDescription{pdArgs} = pd{pdHasVariadic=isJust $ find pgaVar pdArgs}
+              <*> column HD.bool
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -232,7 +229,8 @@ procsSqlQuery = [q|
      -- if any INOUT or OUT arguments present, treat as composite
      or COALESCE(proargmodes::text[] && '{b,o}', false)
     ) AS rettype_is_composite,
-    p.provolatile
+    p.provolatile,
+    p.provariadic > 0 AS hasvariadic
   FROM pg_proc p
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
   JOIN base_types bt ON bt.oid = p.prorettype
