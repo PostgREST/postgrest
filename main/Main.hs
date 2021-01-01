@@ -355,15 +355,19 @@ dumpSchema conf =
             (configDbExtraSearchPath conf)
             pgVersion
             (configDbPreparedStatements conf)
-    Right dbStructure <-
+    result <-
       timeToStderr "Loaded schema in %.3f seconds" $
         S.run getDbStructureTransaction conn
     C.release conn
-    return $ Aeson.encode dbStructure
+    case result of
+      Left e -> do
+        hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
+        exitFailure
+      Right dbStructure -> return $ Aeson.encode dbStructure
 
 
 -- | Print the time taken to run an IO action to stderr with the given printf string
-timeToStderr :: [Char] -> IO a -> IO a
+timeToStderr :: [Char] -> IO (Either a b) -> IO (Either a b)
 timeToStderr fmtString a =
   do
     start <- getCPUTime
@@ -372,7 +376,8 @@ timeToStderr fmtString a =
     let
       duration :: Double
       duration = fromIntegral (end - start) / picoseconds
-    hPrintf stderr (fmtString ++ "\n") duration
+    when (isRight result) $
+      hPrintf stderr (fmtString ++ "\n") duration
     return result
 
 
