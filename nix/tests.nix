@@ -30,42 +30,84 @@ let
         inRootDir = true;
       }
       ''
-        export PATH=${postgresql}/bin:"$PATH"
+        # avoid starting multiple layers of with_tmp_db
+        if test ! -v PGRST_DB_URI; then
+          export PATH=${postgresql}/bin:"$PATH"
 
-        exec test/with_tmp_db "$@"
+          exec test/with_tmp_db "$@"
+        else
+          "$@"
+        fi
       '';
 
-  # Script to run the Haskell test suite against a specific version of
-  # PostgreSQL.
+  # Create a `withPostgresql` for each PostgreSQL version that we want to test
+  # against.
+  withPostgresqlVersions =
+    builtins.map
+      ({ name, postgresql }:
+        (checkedShellScript
+          {
+            name = "postgrest-with-${name}";
+            docs = "Run the given command in a temporary database with ${name}";
+            inRootDir = false;
+          }
+          ''
+            ${withTmpDb postgresql} "$@"
+          ''
+        ).bin
+      )
+      postgresqlVersions;
+
+  # Helper script for running a command against all PostgreSQL versions.
+  withAllVersions =
+    name:
+    let
+      runners =
+        builtins.map
+          ({ name, postgresql }:
+            ''
+              cat << EOF
+
+              Running against ${name}...
+
+              EOF
+
+              trap 'echo "Failed on ${name}"' exit
+
+              ${withTmpDb postgresql} "$@"
+
+              trap "" exit
+
+              cat << EOF
+
+              Done running against ${name}.
+
+              EOF
+            '')
+          postgresqlVersions;
+    in
+    checkedShellScript
+      {
+        inherit name;
+        docs = "Run command against all supported PostgreSQL versions.";
+        inRootDir = true;
+      }
+      (lib.concatStringsSep "\n\n" runners);
+
+  # Script to run the Haskell test suite
   testSpec =
     name: postgresql:
     checkedShellScript
       {
         inherit name;
-        docs = "Run the Haskell test suite against ${postgresql.name}.";
+        docs = "Run the Haskell test suite";
         inRootDir = true;
       }
       ''
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
-        cat << EOF
-
-        Running spec against ${postgresql.name}...
-
-        EOF
-
-        trap 'echo "Failed on ${postgresql.name}"' exit
-
         ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
-
-        trap "" exit
-
-        cat << EOF
-
-        Done running spec against ${postgresql.name}.
-
-        EOF
       '';
 
   testSpecIdempotence =
@@ -84,28 +126,6 @@ let
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions} && \
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions}"
       '';
-
-  # Create a `testSpec` for each PostgreSQL version that we want to test
-  # against.
-  testSpecVersions =
-    builtins.map
-      ({ name, postgresql }:
-        (testSpec "postgrest-test-spec-${name}" postgresql).bin)
-      postgresqlVersions;
-
-  # Helper script for running the tests against all PostgreSQL versions.
-  testSpecAllVersions =
-    let
-      testRunners =
-        map (test: "${test}/bin/${test.name}") testSpecVersions;
-    in
-    checkedShellScript
-      {
-        name = "postgrest-test-spec-all";
-        docs = "Run the Haskell tests against all supported PostgreSQL versions.";
-        inRootDir = true;
-      }
-      (lib.concatStringsSep "\n" testRunners);
 
   ioTestPython =
     python3.withPackages (ps: [
@@ -262,12 +282,12 @@ buildEnv
       [
         (testSpec "postgrest-test-spec" postgresql).bin
         (testSpecIdempotence "postgrest-test-spec-idempotence" postgresql).bin
-        testSpecAllVersions.bin
         (testIO "postgrest-test-io" postgresql).bin
         (dumpSchema "postgrest-dump-schema" postgresql).bin
         (coverage "postgrest-coverage" postgresql).bin
         (coverageDraftOverlay "postgrest-coverage-draft-overlay").bin
-      ] ++ testSpecVersions;
+        (withAllVersions "postgrest-with-all").bin
+      ] ++ withPostgresqlVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)
   # and are run less often than the spec tests, so we don't include them in

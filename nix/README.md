@@ -73,12 +73,15 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```bash
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-lint                      postgrest-test-spec-postgresql-11
-postgrest-style                     postgrest-test-spec-postgresql-12
-postgrest-style-check               postgrest-test-spec-postgresql-13
-postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
-postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
-postgrest-test-spec-postgresql-10
+postgrest-build                   postgrest-test-spec
+postgrest-check                   postgrest-watch
+postgrest-clean                   postgrest-with-all
+postgrest-coverage                postgrest-with-postgresql-10
+postgrest-lint                    postgrest-with-postgresql-11
+postgrest-run                     postgrest-with-postgresql-12
+postgrest-style                   postgrest-with-postgresql-13
+postgrest-style-check             postgrest-with-postgresql-9.5
+postgrest-test-io                 postgrest-with-postgresql-9.6
 ...
 
 [nix-shell]$
@@ -94,12 +97,16 @@ is not used. You can activate those by passing a flag to `nix-shell` with
 ```bash
 $ nix-shell --arg memoryTests true
 [nix-shell]$ postgrest-<tab>
-postgrest-lint                      postgrest-test-spec-postgresql-10
-postgrest-style                     postgrest-test-spec-postgresql-11
-postgrest-style-check               postgrest-test-spec-postgresql-12
-postgrest-test-memory               postgrest-test-spec-postgresql-13
-postgrest-test-spec                 postgrest-test-spec-postgresql-9.5
-postgrest-test-spec-all             postgrest-test-spec-postgresql-9.6
+postgrest-build                   postgrest-test-spec
+postgrest-check                   postgrest-watch
+postgrest-clean                   postgrest-with-all
+postgrest-coverage                postgrest-with-postgresql-10
+postgrest-lint                    postgrest-with-postgresql-11
+postgrest-run                     postgrest-with-postgresql-12
+postgrest-style                   postgrest-with-postgresql-13
+postgrest-style-check             postgrest-with-postgresql-9.5
+postgrest-test-io                 postgrest-with-postgresql-9.6
+postgrest-test-memory
 ...
 
 ```
@@ -156,11 +163,11 @@ temporary test databases:
 $ nix-shell --run postgrest-test-spec
 
 # Run the tests against all supported versions of PostgreSQL:
-$ nix-shell --run postgrest-test-spec-all
+$ nix-shell --run "postgrest-with-all postgrest-test-spec"
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-$ nix-shell --run postgrest-test-spec-postgresql-13
+$ nix-shell --run "postgrest-with-postgresql-13 postgrest-test-spec"
 
 ```
 
@@ -202,9 +209,14 @@ Tools like `postgrest-build`, `postgrest-run` etc. are simple wrappers around
 also run in CI, with the exception of the IO and Memory checks that need to be run
 separately.
 
+`postgrest-with-postgresql-*` take a command as an argument and will run it
+with a temporary database. `postgrest-with-all` will run the command against
+all supported PostgreSQL versions. Tests run without `postgrest-with-*` are
+run against the latest PostgreSQL version by default.
+
 `postgrest-watch` takes a command as an argument that it will re-run if any source
-file is changed. For example, `postgrest-watch postgrest-test-spec-all` will re-run
-the full spec test suite against all PostgreSQL versions on every change.
+file is changed. For example, `postgrest-watch postgrest-with-all postgrest-test-spec`
+will re-run the full spec test suite against all PostgreSQL versions on every change.
 
 ## Tour
 

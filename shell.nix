@@ -40,6 +40,13 @@ lib.overrideDerivation postgrest.env (
       ''
         source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
         complete -F _command postgrest-watch
+        complete -F _command postgrest-with-all
+        complete -F _command postgrest-with-postgresql-13
+        complete -F _command postgrest-with-postgresql-12
+        complete -F _command postgrest-with-postgresql-11
+        complete -F _command postgrest-with-postgresql-10
+        complete -F _command postgrest-with-postgresql-9.6
+        complete -F _command postgrest-with-postgresql-9.5
       '';
   }
 )

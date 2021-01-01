@@ -200,30 +200,26 @@ jobs:
           when: on_fail
       - run:
           name: Run the spec tests against PostgreSQL 9.5
-          command: postgrest-test-spec-postgresql-9.5
+          command: postgrest-with-postgresql-9.5 postgrest-test-spec
           when: always
       - run:
           name: Run the spec tests against PostgreSQL 9.6
-          command: postgrest-test-spec-postgresql-9.6
+          command: postgrest-with-postgresql-9.6 postgrest-test-spec
           when: always
       - run:
           name: Run the spec tests against PostgreSQL 10
-          command: postgrest-test-spec-postgresql-10
+          command: postgrest-with-postgresql-10 postgrest-test-spec
           when: always
       - run:
           name: Run the spec tests against PostgreSQL 11
-          command: postgrest-test-spec-postgresql-11
+          command: postgrest-with-postgresql-11 postgrest-test-spec
           when: always
       - run:
           name: Run the spec tests against PostgreSQL 12
-          command: postgrest-test-spec-postgresql-12
+          command: postgrest-with-postgresql-12 postgrest-test-spec
           when: always
       - run:
-          name: Run the spec tests against PostgreSQL 13
-          command: postgrest-test-spec-postgresql-13
-          when: always
-      - run:
-          name: Check the spec tests for idempotence
+          name: Check the spec tests for idempotence against PostgreSQL 13
           command: postgrest-test-spec-idempotence
           when: always
       - run:
