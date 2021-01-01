@@ -90,7 +90,7 @@ let
         inRootDir = true;
       }
       ''
-        ${tests}/bin/postgrest-test-spec-all
+        ${tests}/bin/postgrest-with-all ${tests}/bin/postgrest-test-spec
         ${tests}/bin/postgrest-test-spec-idempotence
         ${tests}/bin/postgrest-test-io
         ${style}/bin/postgrest-lint
