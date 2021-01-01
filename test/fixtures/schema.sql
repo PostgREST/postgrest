@@ -119,35 +119,36 @@ CREATE TABLE items3 (
 
 CREATE FUNCTION search(id BIGINT) RETURNS SETOF items
     LANGUAGE plpgsql
+    STABLE
     AS $$BEGIN
         RETURN QUERY SELECT items.id FROM items WHERE items.id=search.id;
     END$$;
 
 CREATE FUNCTION always_true(test.items) RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $$ SELECT true $$;
 
 CREATE FUNCTION computed_overload(test.items) RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $$ SELECT true $$;
 
 CREATE FUNCTION computed_overload(test.items2) RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $$ SELECT true $$;
 
 CREATE FUNCTION is_first(test.items) RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $$ SELECT $1.id = 1 $$;
 
 
 CREATE FUNCTION anti_id(test.items) RETURNS bigint
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $_$ SELECT $1.id * -1 $_$;
 
 SET search_path = public, pg_catalog;
 
 CREATE FUNCTION always_false(test.items) RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE sql IMMUTABLE
     AS $$ SELECT false $$;
 
 create table public_consumers (
@@ -194,6 +195,7 @@ create view consumers_extra_view as
 
 CREATE FUNCTION getitemrange(min bigint, max bigint) RETURNS SETOF items
     LANGUAGE sql
+    STABLE
     AS $_$
     SELECT * FROM test.items WHERE id > $1 AND id <= $2;
 $_$;
@@ -204,6 +206,7 @@ $_$;
 
 CREATE FUNCTION noparamsproc() RETURNS text
 	LANGUAGE sql
+        IMMUTABLE
 	AS $$
 		SELECT a FROM (VALUES ('Return value of no parameters procedure.')) s(a);
 	$$;
@@ -214,6 +217,7 @@ CREATE FUNCTION noparamsproc() RETURNS text
 
 CREATE FUNCTION login(id text, pass text) RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
+    STABLE
     AS $$
 SELECT jwt.sign(
     row_to_json(r), 'reallyreallyreallyreallyverysafe'
@@ -239,6 +243,7 @@ CREATE FUNCTION varied_arguments(
   jsonb jsonb default '{}'
 ) RETURNS json
 LANGUAGE sql
+IMMUTABLE
 AS $_$
   SELECT json_build_object(
     'double', double,
@@ -262,6 +267,7 @@ Just a test for RPC function arguments$_$;
 
 CREATE FUNCTION json_argument(arg json) RETURNS text
 LANGUAGE sql
+IMMUTABLE
 AS $_$
   SELECT json_typeof(arg);
 $_$;
@@ -272,6 +278,7 @@ $_$;
 
 CREATE FUNCTION jwt_test() RETURNS public.jwt_token
     LANGUAGE sql SECURITY DEFINER
+    IMMUTABLE
     AS $$
 SELECT jwt.sign(
     row_to_json(r), 'reallyreallyreallyreallyverysafe'
@@ -306,6 +313,7 @@ $$;
 
 CREATE FUNCTION get_current_user() RETURNS text
   LANGUAGE sql
+  STABLE
   AS $$
 SELECT current_user::text;
 $$;
@@ -319,6 +327,7 @@ CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
       nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
     )
     LANGUAGE sql SECURITY DEFINER
+    STABLE
     AS $$
 SELECT current_setting('request.jwt.claim.iss') as iss,
        current_setting('request.jwt.claim.sub') as sub,
@@ -385,6 +394,7 @@ $_$;
 
 CREATE FUNCTION singlejsonparam(single_param json) RETURNS json
     LANGUAGE sql
+    IMMUTABLE
     AS $_$
     SELECT single_param;
 $_$;
@@ -395,6 +405,7 @@ $_$;
 
 CREATE FUNCTION test_empty_rowset() RETURNS SETOF integer
     LANGUAGE sql
+    IMMUTABLE
     AS $$
     SELECT null::int FROM (SELECT 1) a WHERE false;
 $$;
@@ -952,6 +963,7 @@ DO $do$BEGIN
 
       CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
           LANGUAGE sql
+          STABLE
           AS $_$
           SELECT projects::projects_domain FROM test.projects WHERE id = $1;
     $_$;
@@ -1163,11 +1175,13 @@ create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bo
 $$ language sql;
 
 CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[] DEFAULT '{}') RETURNS text[]
+IMMUTABLE
 LANGUAGE SQL AS $$
   SELECT v
 $$;
 
 CREATE FUNCTION test.sayhello_variadic(name TEXT, VARIADIC v TEXT[]) RETURNS text
+IMMUTABLE
 LANGUAGE SQL AS $$
   SELECT 'Hello, ' || name
 $$;
@@ -1680,7 +1694,7 @@ CREATE TABLE web_content (
 
 CREATE FUNCTION getallusers() RETURNS SETOF users AS $$
   SELECT * FROM test.users;
-$$ LANGUAGE sql;
+$$ LANGUAGE sql STABLE;
 
 create table app_users (
   id       integer    primary key,
