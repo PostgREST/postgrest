@@ -24,7 +24,6 @@ module PostgREST.DbStructure (
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import qualified Data.Text           as T
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
 import qualified Hasql.Session       as H
@@ -33,8 +32,7 @@ import qualified Hasql.Transaction   as HT
 
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
-import Data.Text                     (breakOn, dropAround, split,
-                                      splitOn, strip)
+import Data.Text                     (split)
 import GHC.Exts                      (groupWith)
 import Protolude                     hiding (toS)
 import Protolude.Conv                (toS)
@@ -135,7 +133,12 @@ decodeProcs =
               <$> column HD.text
               <*> column HD.text
               <*> nullableColumn HD.text
-              <*> (parseArgs <$> column HD.text)
+              <*> compositeArrayColumn
+                  (PgArg
+                  <$> compositeField HD.text
+                  <*> compositeField HD.text
+                  <*> compositeField HD.bool
+                  <*> compositeField HD.bool)
               <*> (parseRetType
                   <$> column HD.text
                   <*> column HD.text
@@ -146,24 +149,6 @@ decodeProcs =
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
-
-    parseArgs :: Text -> [PgArg]
-    parseArgs = mapMaybe parseArg . filter (not . isPrefixOf "OUT" . toS) . map strip . split (==',')
-
-    -- TODO: does parseArg properly handle unnamed "character varying" arguments or arguments with spaces in their names?
-    parseArg :: Text -> Maybe PgArg
-    parseArg arg =
-      let isVariadic = isPrefixOf "VARIADIC " $ toS arg
-          -- argmode can be IN, OUT, INOUT, or VARIADIC
-          argNoMode = lastDef "" $ splitOn (if isVariadic then "VARIADIC " else "INOUT ") arg
-          (body, def) = breakOn " DEFAULT " argNoMode
-          (name, typ) = breakOn " " body in
-      if T.null typ
-         -- Handle unnamed args. TODO: refactor to types
-         then Just $
-           PgArg mempty (strip name) (T.null def) isVariadic
-         else Just $
-           PgArg (dropAround (== '"') name) (strip typ) (T.null def) isVariadic
 
     parseRetType :: Text -> Text -> Bool -> Bool -> RetType
     parseRetType schema name isSetOf isComposite
@@ -193,33 +178,49 @@ accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
 procsSqlQuery :: SqlQuery
 procsSqlQuery = [q|
  -- Recursively get the base types of domains
-  WITH RECURSIVE
-  rec_types AS (
-    SELECT
-      oid,
-      typbasetype,
-      COALESCE(NULLIF(typbasetype, 0), oid) AS base
-    FROM pg_type
-    UNION
-    SELECT
-      t.oid,
-      b.typbasetype,
-      COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base
-    FROM rec_types t
-    JOIN pg_type b ON t.typbasetype = b.oid
-  ),
+  WITH
   base_types AS (
+    WITH RECURSIVE
+    recurse AS (
+      SELECT
+        oid,
+        typbasetype,
+        COALESCE(NULLIF(typbasetype, 0), oid) AS base
+      FROM pg_type
+      UNION
+      SELECT
+        t.oid,
+        b.typbasetype,
+        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base
+      FROM recurse t
+      JOIN pg_type b ON t.typbasetype = b.oid
+    )
     SELECT
       oid,
       base
-    FROM rec_types
+    FROM recurse
     WHERE typbasetype = 0
+  ),
+  arguments AS (
+    SELECT
+      oid,
+      array_agg((
+        COALESCE(name, ''), -- name
+        type::regtype::text, -- type
+        idx <= (pronargs - pronargdefaults), -- is_required
+        COALESCE(mode = 'v', FALSE) -- is_variadic
+      ) ORDER BY idx) AS args
+    FROM pg_proc,
+         unnest(proargnames, proargtypes, proargmodes)
+           WITH ORDINALITY AS _ (name, type, mode, idx)
+    WHERE type IS NOT NULL -- only input arguments
+    GROUP BY oid
   )
   SELECT
     pn.nspname AS proc_schema,
     p.proname AS proc_name,
     d.description AS proc_description,
-    pg_get_function_arguments(p.oid) AS args,
+    COALESCE(a.args, '{}') AS args,
     tn.nspname AS schema,
     COALESCE(comp.relname, t.typname) AS name,
     p.proretset AS rettype_is_setof,
@@ -230,8 +231,9 @@ procsSqlQuery = [q|
      or COALESCE(proargmodes::text[] && '{b,o}', false)
     ) AS rettype_is_composite,
     p.provolatile,
-    p.provariadic > 0 AS hasvariadic
+    p.provariadic > 0 as hasvariadic
   FROM pg_proc p
+  LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
   JOIN base_types bt ON bt.oid = p.prorettype
   JOIN pg_type t ON t.oid = bt.base

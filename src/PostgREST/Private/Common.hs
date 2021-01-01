@@ -15,17 +15,23 @@ import Data.Foldable (foldr1)
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
 
+compositeField :: HD.Value a -> HD.Composite a
+compositeField = HD.field . HD.nonNullable
+
 nullableColumn :: HD.Value a -> HD.Row (Maybe a)
 nullableColumn = HD.column . HD.nullable
 
 arrayColumn :: HD.Value a -> HD.Row [a]
-arrayColumn = column . HD.array . HD.dimension replicateM . HD.element . HD.nonNullable
+arrayColumn = column . HD.listArray . HD.nonNullable
+
+compositeArrayColumn :: HD.Composite a -> HD.Row [a]
+compositeArrayColumn = arrayColumn . HD.composite
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
 
 arrayParam :: HE.Value a -> HE.Params [a]
-arrayParam = param . HE.array . HE.dimension foldl' . HE.element . HE.nonNullable
+arrayParam = param . HE.foldableArray . HE.nonNullable
 
 emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
 emptySnippetOnFalse val cond = if cond then mempty else val
