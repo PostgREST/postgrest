@@ -12,8 +12,10 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
+
 module PostgREST.DbStructure (
   getDbStructure
 , accessibleTables
@@ -33,7 +35,6 @@ import qualified Hasql.Transaction   as HT
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (split)
-import GHC.Exts                      (groupWith)
 import Protolude                     hiding (toS)
 import Protolude.Conv                (toS)
 import Protolude.Unsafe              (unsafeHead)
@@ -52,7 +53,7 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
   keys    <- HT.statement () $ allPrimaryKeys tabs prepared
   procs   <- HT.statement schemas $ allProcs prepared
 
-  let rels = addM2MRels . addO2MRels $ addViewM2ORels srcCols m2oRels
+  let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       cols' = addForeignKeys rels cols
       keys' = addViewPrimaryKeys srcCols keys
 
@@ -339,71 +340,55 @@ When having t1_view.c1 and a t2_view.c2 source columns, we need to add a View-Vi
 The logic for composite pks is similar just need to make sure all the Relation columns have source columns.
 -}
 addViewM2ORels :: [SourceColumn] -> [Relation] -> [Relation]
-addViewM2ORels allSrcCols = concatMap (\rel ->
-  rel : case rel of
-    Relation{relType=M2O, relTable, relColumns, relConstraint, relFTable, relFColumns} ->
+addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
+  let
+    srcColsGroupedByView :: [Column] -> [[SourceColumn]]
+    srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
+                   filter (\(c, _) -> c `elem` relCols) allSrcCols
+    relSrcCols = srcColsGroupedByView relColumns
+    relFSrcCols = srcColsGroupedByView relFColumns
+    getView :: [SourceColumn] -> Table
+    getView = colTable . snd . unsafeHead
+    srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
+    -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
+    -- So we need to change the order of the SourceColumns to match the relColumns
+    -- TODO: This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
+    srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
 
-      let srcColsGroupedByView :: [Column] -> [[SourceColumn]]
-          srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
-                                         filter (\(c, _) -> c `elem` relCols) allSrcCols
-          relSrcCols = srcColsGroupedByView relColumns
-          relFSrcCols = srcColsGroupedByView relFColumns
-          getView :: [SourceColumn] -> Table
-          getView = colTable . snd . unsafeHead
-          srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
-          -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
-          -- So we need to change the order of the SourceColumns to match the relColumns
-          -- TODO: This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
-          srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
+    viewTableM2O =
+      [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
+             relConstraint relFTable relFColumns
+             M2O Nothing
+      | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
-          viewTableM2O =
-            [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-                       relConstraint relFTable relFColumns
-                       M2O Nothing
-            | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
+    tableViewM2O =
+      [ Relation relTable relColumns
+             relConstraint
+             (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
+             M2O Nothing
+      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
-          tableViewM2O =
-            [ Relation relTable relColumns
-                       relConstraint
-                       (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing
-            | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
+    viewViewM2O =
+      [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
+             relConstraint
+             (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
+             M2O Nothing
+      | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
+      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
-          viewViewM2O =
-            [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-                       relConstraint
-                       (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-                       M2O Nothing
-            | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
-            , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
-
-      in viewTableM2O ++ tableViewM2O ++ viewViewM2O
-
-    _ -> [])
+  in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
 addO2MRels :: [Relation] -> [Relation]
-addO2MRels = concatMap (\rel@(Relation t c cn ft fc _ _) -> [rel, Relation ft fc cn t c O2M Nothing])
+addO2MRels rels = rels ++ [ Relation ft fc con t c O2M Nothing
+                          | Relation t c con ft fc typ _ <- rels
+                          , typ == M2O]
 
 addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ addMirrorRel (mapMaybe junction2Rel junctions)
-  where
-    junctions = join $ map (combinations 2) $ groupWith groupFn $ filter ( (==M2O). relType) rels
-    groupFn :: Relation -> (Text,Text)
-    groupFn Relation{relTable=Table{tableSchema=s, tableName=t}} = (s,t)
-    -- Reference : https://wiki.haskell.org/99_questions/Solutions/26
-    combinations :: Int -> [a] -> [[a]]
-    combinations 0 _  = [ [] ]
-    combinations n xs = [ y:ys | y:xs' <- tails xs
-                               , ys <- combinations (n-1) xs']
-    junction2Rel [
-      Relation{relTable=jt, relColumns=jc1, relConstraint=const1, relFTable=t,  relFColumns=c},
-      Relation{             relColumns=jc2, relConstraint=const2, relFTable=ft, relFColumns=fc}
-      ]
-      | jc1 /= jc2 = Just $ Relation t c Nothing ft fc M2M (Just $ Junction jt const1 jc1 const2 jc2)
-      | otherwise = Nothing
-    junction2Rel _ = Nothing
-    addMirrorRel = concatMap (\rel@(Relation t c _ ft fc _ (Just (Junction jt const1 jc1 const2 jc2))) ->
-      [rel, Relation ft fc Nothing t c M2M (Just (Junction jt const2 jc2 const1 jc1))])
+addM2MRels rels = rels ++ [ Relation t c Nothing ft fc M2M (Just $ Junction jt1 con1 jc1 con2 jc2)
+                          | Relation jt1 jc1 con1 t c _ _ <- rels
+                          , Relation jt2 jc2 con2 ft fc _ _ <- rels
+                          , jt1 == jt2
+                          , con1 /= con2]
 
 addViewPrimaryKeys :: [SourceColumn] -> [PrimaryKey] -> [PrimaryKey]
 addViewPrimaryKeys srcCols = concatMap (\pk ->
