@@ -80,12 +80,13 @@ decodeColumns tables =
   mapMaybe (columnFromRow tables) <$> HD.rowList colRow
  where
   colRow =
-    (,,,,,,,,,,,)
-      <$> column HD.text <*> column HD.text
-      <*> column HD.text <*> nullableColumn HD.text
-      <*> column HD.int4 <*> column HD.bool
-      <*> column HD.text <*> column HD.bool
-      <*> nullableColumn HD.int4
+    (,,,,,,,,)
+      <$> column HD.text
+      <*> column HD.text
+      <*> column HD.text
+      <*> nullableColumn HD.text
+      <*> column HD.bool
+      <*> column HD.text
       <*> nullableColumn HD.int4
       <*> nullableColumn HD.text
       <*> nullableColumn HD.text
@@ -433,14 +434,12 @@ allColumns tabs =
         info.table_name AS table_name,
         info.column_name AS name,
         info.description AS description,
-        info.ordinal_position AS position,
         info.is_nullable::boolean AS nullable,
         info.data_type AS col_type,
-        info.is_updatable::boolean AS updatable,
         info.character_maximum_length AS max_len,
-        info.numeric_precision AS precision,
         info.column_default AS default_value,
-        array_to_string(enum_info.vals, ',') AS enum
+        array_to_string(enum_info.vals, ',') AS enum,
+        info.position
     FROM (
         -- CTE based on pg_catalog to get PRIMARY/FOREIGN key and UNIQUE columns outside api schema
         WITH key_columns AS (
@@ -475,7 +474,6 @@ allColumns tabs =
                 c.relname::name AS table_name,
                 a.attname::name AS column_name,
                 d.description AS description,
-                a.attnum::integer AS ordinal_position,
                 pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,
                 not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
                     CASE
@@ -496,15 +494,8 @@ allColumns tabs =
                     information_schema._pg_truetypid(a.*, t.*),
                     information_schema._pg_truetypmod(a.*, t.*)
                 )::integer AS character_maximum_length,
-                information_schema._pg_numeric_precision(
-                    information_schema._pg_truetypid(a.*, t.*),
-                    information_schema._pg_truetypmod(a.*, t.*)
-                )::integer AS numeric_precision,
                 COALESCE(bt.typname, t.typname)::name AS udt_name,
-                (
-                    c.relkind in ('r', 'v', 'f')
-                    AND pg_column_is_updatable(c.oid::regclass, a.attnum, false)
-                )::bool is_updatable
+                a.attnum::integer AS position
             FROM pg_attribute a
                 LEFT JOIN key_columns kc
                     ON kc.conkey = a.attnum AND kc.c_oid = a.attrelid
@@ -533,14 +524,12 @@ allColumns tabs =
             table_name,
             column_name,
             description,
-            ordinal_position,
             is_nullable,
             data_type,
-            is_updatable,
             character_maximum_length,
-            numeric_precision,
             column_default,
-            udt_name
+            udt_name,
+            position
         FROM columns
         WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
     ) AS info
@@ -558,13 +547,12 @@ allColumns tabs =
 
 columnFromRow :: [Table] ->
                  (Text,        Text,        Text,
-                  Maybe Text,  Int32,       Bool,
-                  Text,        Bool,        Maybe Int32,
+                  Maybe Text,  Bool,        Text,
                   Maybe Int32, Maybe Text,  Maybe Text)
                  -> Maybe Column
-columnFromRow tabs (s, t, n, desc, pos, nul, typ, u, l, p, d, e) = buildColumn <$> table
+columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
   where
-    buildColumn tbl = Column tbl n desc pos nul typ u l p d (parseEnum e) Nothing
+    buildColumn tbl = Column tbl n desc nul typ l d (parseEnum e) Nothing
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))

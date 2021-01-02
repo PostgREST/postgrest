@@ -241,12 +241,9 @@ data Column =
       colTable       :: Table
     , colName        :: FieldName
     , colDescription :: Maybe Text
-    , colPosition    :: Int32
     , colNullable    :: Bool
     , colType        :: Text
-    , colUpdatable   :: Bool
     , colMaxLen      :: Maybe Int32
-    , colPrecision   :: Maybe Int32
     , colDefault     :: Maybe Text
     , colEnum        :: [Text]
     , colFK          :: Maybe ForeignKey
