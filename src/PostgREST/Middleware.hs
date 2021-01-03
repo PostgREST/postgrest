@@ -8,8 +8,6 @@ module PostgREST.Middleware
   ( runPgLocals
   , pgrstFormat
   , pgrstMiddleware
-  , defaultCorsPolicy
-  , corsPolicy
   , optionalRollback
   ) where
 
@@ -132,21 +130,21 @@ pgrstMiddleware logLevel =
       LogWarn  -> unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status400}
       LogInfo  -> Wai.logStdout
 
-defaultCorsPolicy :: Wai.CorsResourcePolicy
-defaultCorsPolicy =  Wai.CorsResourcePolicy Nothing
-  ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] ["Authorization"] Nothing
-  (Just $ 60*60*24) False False True
-
 -- | CORS policy to be used in by Wai Cors middleware
 corsPolicy :: Wai.Request -> Maybe Wai.CorsResourcePolicy
 corsPolicy req = case lookup "origin" headers of
-  Just origin -> Just defaultCorsPolicy {
-      Wai.corsOrigins = Just ([origin], True)
-    , Wai.corsRequestHeaders = "Authentication" : accHeaders
-    , Wai.corsExposedHeaders = Just [
-        "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
-      , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
-      ]
+  Just origin ->
+    Just Wai.CorsResourcePolicy
+    { Wai.corsOrigins = Just ([origin], True)
+    , Wai.corsMethods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+    , Wai.corsRequestHeaders = "Authorization" : accHeaders
+    , Wai.corsExposedHeaders = Just
+      [ "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
+      , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"]
+    , Wai.corsMaxAge = Just $ 60*60*24
+    , Wai.corsVaryOrigin = False
+    , Wai.corsRequireOrigin = False
+    , Wai.corsIgnoreFailures = True
     }
   Nothing -> Nothing
   where
