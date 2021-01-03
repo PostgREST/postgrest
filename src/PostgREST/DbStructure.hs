@@ -357,39 +357,40 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
 
     viewTableM2O =
-      [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-             relConstraint relFTable relFColumns
-             M2O Nothing
+      [ Relation
+          (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
+          relFTable relFColumns
+          relType relLink
       | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
     tableViewM2O =
-      [ Relation relTable relColumns
-             relConstraint
-             (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-             M2O Nothing
+      [ Relation
+          relTable relColumns
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
+          relType relLink
       | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
     viewViewM2O =
-      [ Relation (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-             relConstraint
-             (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-             M2O Nothing
+      [ Relation
+          (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
+          relType relLink
       | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
       , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
 
   in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
 addO2MRels :: [Relation] -> [Relation]
-addO2MRels rels = rels ++ [ Relation ft fc con t c O2M Nothing
-                          | Relation t c con ft fc typ _ <- rels
+addO2MRels rels = rels ++ [ Relation ft fc t c O2M lnk
+                          | Relation t c ft fc typ lnk <- rels
                           , typ == M2O]
 
 addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ [ Relation t c Nothing ft fc M2M (Just $ Junction jt1 con1 jc1 con2 jc2)
-                          | Relation jt1 jc1 con1 t c _ _ <- rels
-                          , Relation jt2 jc2 con2 ft fc _ _ <- rels
+addM2MRels rels = rels ++ [ Relation t c ft fc M2M (Junction jt1 lnk1 jc1 lnk2 jc2)
+                          | Relation jt1 jc1 t c _ lnk1 <- rels
+                          , Relation jt2 jc2 ft fc _ lnk2 <- rels
                           , jt1 == jt2
-                          , con1 /= con2]
+                          , lnk1 /= lnk2]
 
 addViewPrimaryKeys :: [SourceColumn] -> [PrimaryKey] -> [PrimaryKey]
 addViewPrimaryKeys srcCols = concatMap (\pk ->
@@ -586,7 +587,7 @@ allM2ORels tabs cols =
 
 relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relation <$> table <*> cols <*> pure (Just cn) <*> tableF <*> colsF <*> pure M2O <*> pure Nothing
+  Relation <$> table <*> cols <*> tableF <*> colsF <*> pure M2O <*> pure (Constraint cn)
   where
     findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols

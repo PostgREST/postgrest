@@ -298,31 +298,33 @@ instance Show Cardinality where
   show M2O = "m2o"
   show M2M = "m2m"
 
-type ConstraintName = Text
-
 {-|
   "Relation"ship between two tables.
   The order of the relColumns and relFColumns should be maintained to get the join conditions right.
   TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 -}
 data Relation = Relation {
-  relTable      :: Table
-, relColumns    :: [Column]
-, relConstraint :: Maybe ConstraintName -- ^ Just on O2M/M2O, Nothing on M2M
-, relFTable     :: Table
-, relFColumns   :: [Column]
-, relType       :: Cardinality
-, relJunction   :: Maybe Junction -- ^ Junction for M2M Cardinality
+  relTable    :: Table
+, relColumns  :: [Column]
+, relFTable   :: Table
+, relFColumns :: [Column]
+, relType     :: Cardinality
+, relLink     :: Link -- ^ Constraint on O2M/M2O, Junction for M2M Cardinality
 } deriving (Show, Eq, Generic, JSON.ToJSON)
 
+type ConstraintName = Text
+
 -- | Junction table on an M2M relationship
-data Junction = Junction {
-  junTable       :: Table
-, junConstraint1 :: Maybe ConstraintName
-, junCols1       :: [Column]
-, junConstraint2 :: Maybe ConstraintName
-, junCols2       :: [Column]
-} deriving (Show, Eq, Generic, JSON.ToJSON)
+data Link
+  = Constraint { constName :: ConstraintName }
+  | Junction {
+    junTable :: Table
+  , junLink1 :: Link
+  , junCols1 :: [Column]
+  , junLink2 :: Link
+  , junCols2 :: [Column]
+  }
+  deriving (Show, Eq, Generic, JSON.ToJSON)
 
 isSelfReference :: Relation -> Bool
 isSelfReference r = relTable r == relFTable r
