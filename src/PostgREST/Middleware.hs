@@ -28,7 +28,6 @@ import qualified Network.Wai.Logger                   as Wai
 import qualified Network.Wai.Middleware.Cors          as Wai
 import qualified Network.Wai.Middleware.Gzip          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
-import qualified Network.Wai.Middleware.Static        as Wai
 
 import Control.Arrow ((***))
 
@@ -129,7 +128,6 @@ pgrstMiddleware :: LogLevel -> Wai.Application -> Wai.Application
 pgrstMiddleware logLevel =
     logger
   . Wai.cors corsPolicy
-  . Wai.staticPolicy (Wai.only [("favicon.ico", "static/favicon.ico")])
   where
     logger = case logLevel of
       LogCrit  -> id
