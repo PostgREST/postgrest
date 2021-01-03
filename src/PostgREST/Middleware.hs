@@ -89,6 +89,13 @@ runPgLocals conf claims app req jsonDbS actualPgVersion = do
       _                             -> mempty
     usesLegacyGucs = configDbUseLegacyGucs conf && actualPgVersion < pgVersion140
 
+    unquoted :: JSON.Value -> Text
+    unquoted (JSON.String t) = t
+    unquoted (JSON.Number n) =
+      toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+    unquoted (JSON.Bool b) = show b
+    unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
+
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
 -- | So here we copy wai-logger apacheLogStr function: https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
@@ -152,13 +159,6 @@ corsPolicy req = case lookup "origin" headers of
     accHeaders = case lookup "access-control-request-headers" headers of
       Just hdrs -> map (CI.mk . BS.strip) $ BS.split ',' hdrs
       Nothing   -> []
-
-unquoted :: JSON.Value -> Text
-unquoted (JSON.String t) = t
-unquoted (JSON.Number n) =
-  toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-unquoted (JSON.Bool b) = show b
-unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 
 -- | Set a transaction to eventually roll back if requested and set respective
 -- headers on the response.
