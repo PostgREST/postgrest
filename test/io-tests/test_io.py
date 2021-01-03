@@ -816,10 +816,7 @@ def test_admin_live_dependent_on_main_app(defaultenv):
 def test_log_level(level, has_output, defaultenv):
     "log_level should filter request logging"
 
-    env = {
-        **defaultenv,
-        "PGRST_LOG_LEVEL": level
-    }
+    env = {**defaultenv, "PGRST_LOG_LEVEL": level}
 
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")

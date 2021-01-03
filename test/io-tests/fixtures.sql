@@ -73,3 +73,9 @@ create function reload_pgrst_config() returns void as $_$
 begin
   perform pg_notify('pgrst', 'reload config');
 end $_$ language plpgsql ;
+
+create or replace function raise_bad_pt() returns void as $$
+begin
+  raise sqlstate 'PT40A' using message = 'Wrong';
+end;
+$$ language plpgsql;
