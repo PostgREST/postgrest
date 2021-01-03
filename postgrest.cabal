@@ -112,7 +112,6 @@ library
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.0.19 && < 3.2
                     , wai-logger                >= 2.3.2
-                    , wai-middleware-static     >= 0.8.1 && < 0.10
                     , warp                      >= 3.2.12 && < 3.4
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
