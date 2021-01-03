@@ -10,6 +10,7 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 module PostgREST.DbRequestBuilder (
   readRequest
@@ -135,13 +136,13 @@ findRel schema allRels origin target hint =
       -- In a self reference we get two relationships with the same foreign key and relTable/relFtable but with different cardinalities(m2o/o2m)
       -- We output the O2M rel, the M2O rel can be obtained by using the origin column as an embed hint.
       let [rel0, rel1] = take 2 rs in
-      if length rs == 2 && relConstraint rel0 == relConstraint rel1 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
+      if length rs == 2 && relLink rel0 == relLink rel1 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
         then note (NoRelBetween origin target) (find (\r -> relType r == O2M) rs)
         else Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ cols = length cols == 1 && hint_ == (colName <$> head cols)
     rel = filter (
-      \Relation{relTable, relColumns, relConstraint, relFTable, relFColumns, relType, relJunction} ->
+      \Relation{..} ->
         -- Both relationship ends need to be on the exposed schema
         schema == tableSchema relTable && schema == tableSchema relFTable &&
         (
@@ -152,7 +153,7 @@ findRel schema allRels origin target hint =
           -- /projects?select=projects_client_id_fkey(*)
           (
             origin == tableName relTable && -- projects
-            Just target == relConstraint    -- projects_client_id_fkey
+            Constraint target == relLink    -- projects_client_id_fkey
           ) ||
           -- /projects?select=client_id(*)
           (
@@ -163,7 +164,10 @@ findRel schema allRels origin target hint =
           isNothing hint || -- hint is optional
 
           -- /projects?select=clients!projects_client_id_fkey(*)
-          hint == relConstraint             || -- projects_client_id_fkey
+          (
+            relType /= M2M &&
+            hint == Just (constName relLink) -- projects_client_id_fkey
+          ) ||
 
           -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
           matchFKSingleCol hint relColumns  || -- client_id
@@ -171,8 +175,8 @@ findRel schema allRels origin target hint =
 
           -- /users?select=tasks!users_tasks(*)
           (
-            relType == M2M &&                              -- many-to-many between users and tasks
-            hint == (tableName . junTable <$> relJunction) -- users_tasks
+            relType == M2M &&                           -- many-to-many between users and tasks
+            hint == Just (tableName $ junTable relLink) -- users_tasks
           )
         )
       ) allRels
@@ -181,15 +185,10 @@ findRel schema allRels origin target hint =
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, depth)) forest) =
   case rel of
-    Just r@Relation{relType=O2M} -> Node (augmentQuery r, nodeProps) <$> updatedForest
-    Just r@Relation{relType=M2O} -> Node (augmentQuery r, nodeProps) <$> updatedForest
-    Just r@Relation{relType=M2M, relJunction=junction} ->
-      case junction of
-        Just Junction{junTable} ->
-          let rq = augmentQuery r in
-          Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
-        Nothing ->
-          Left UnknownRelation
+    Just r@Relation{relType=M2M, relLink=Junction{junTable}} ->
+      let rq = augmentQuery r in
+      Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
+    Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Nothing -> Node node <$> updatedForest
   where
     newAlias = case isSelfReference <$> rel of
@@ -206,17 +205,12 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols _ Table{tableName=ftN} fCols typ jun) =
-  case typ of
-    O2M ->
-        zipWith (toJoinCondition tN ftN) cols fCols
-    M2O ->
-        zipWith (toJoinCondition tN ftN) cols fCols
-    M2M -> case jun of
-        Just (Junction jt _ jc1 _ jc2) ->
-          let jtn = tableName jt in
-          zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
-        Nothing -> []
+getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols _ lnk) =
+  case lnk of
+    Junction Table{tableName=jtn} _ jc1 _ jc2 ->
+      zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
+    Constraint _ ->
+      zipWith (toJoinCondition tN ftN) cols fCols
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
     toJoinCondition tb ftb c fc =

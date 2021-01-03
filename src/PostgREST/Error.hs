@@ -4,6 +4,7 @@ Description : PostgREST error HTTP responses
 -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 module PostgREST.Error (
   errorResponseFor
@@ -95,25 +96,23 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
 
 compressedRel :: Relation -> JSON.Value
-compressedRel rel =
+compressedRel Relation{..} =
   let
-    fmtTbl tbl = tableSchema tbl <> "." <> tableName tbl
+    fmtTbl Table{..} = tableSchema <> "." <> tableName
     fmtEls els = "[" <> T.intercalate ", " els <> "]"
   in
   JSON.object $ [
-    "origin"      .= fmtTbl (relTable rel)
-  , "target"      .= fmtTbl (relFTable rel)
-  , "cardinality" .= (show $ relType rel :: Text)
+    "origin"      .= fmtTbl relTable
+  , "target"      .= fmtTbl relFTable
+  , "cardinality" .= (show relType :: Text)
   ] ++
-  case (relType rel, relJunction rel, relConstraint rel) of
-    (M2M, Just (Junction jt (Just const1) _ (Just const2) _), _) -> [
-      "relationship" .= (fmtTbl jt <> fmtEls [const1] <> fmtEls [const2])
+  case relLink of
+    Junction{..} -> [
+      "relationship" .= (fmtTbl junTable <> fmtEls [constName junLink1] <> fmtEls [constName junLink2])
       ]
-    (_, _, Just relCon) -> [
-      "relationship" .= (relCon <> fmtEls (colName <$> relColumns rel) <> fmtEls (colName <$> relFColumns rel))
+    Constraint{..} -> [
+      "relationship" .= (constName <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
       ]
-    (_, _, _) ->
-      mempty
 
 data PgError = PgError Authenticated P.UsageError deriving Show
 type Authenticated = Bool
