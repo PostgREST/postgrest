@@ -172,8 +172,8 @@ allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
-accessibleProcs :: H.Statement Schema ProcsMap
-accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs True
+accessibleProcs :: Bool -> H.Statement Schema ProcsMap
+accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
@@ -244,9 +244,9 @@ procsSqlQuery = [q|
   LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
 |]
 
-schemaDescription :: H.Statement Schema (Maybe Text)
+schemaDescription :: Bool -> H.Statement Schema (Maybe Text)
 schemaDescription =
-    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text)) True
+    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
   where
     sql = [q|
       select
@@ -257,9 +257,9 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: H.Statement Schema [Table]
+accessibleTables :: Bool -> H.Statement Schema [Table]
 accessibleTables =
-  H.Statement sql (param HE.text) decodeTables True
+  H.Statement sql (param HE.text) decodeTables
  where
   sql = [q|
     select

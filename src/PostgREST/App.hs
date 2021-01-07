@@ -330,9 +330,9 @@ app dbStructure conf apiRequest =
               encodeApi ti sd procs = encodeOpenAPI (concat $ M.elems procs) (toTableInfo ti) uri' sd $ dbPrimaryKeys dbStructure
 
           body <- encodeApi <$>
-            H.statement tSchema accessibleTables <*>
-            H.statement tSchema schemaDescription <*>
-            H.statement tSchema accessibleProcs
+            H.statement tSchema (accessibleTables prepared) <*>
+            H.statement tSchema (schemaDescription prepared) <*>
+            H.statement tSchema (accessibleProcs prepared)
           return $ responseLBS status200 (catMaybes [Just $ toHeader CTOpenAPI, profileH]) (if headersOnly then mempty else toS body)
 
         _ -> return notFound
