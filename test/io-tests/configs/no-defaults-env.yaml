@@ -11,6 +11,7 @@ PGRST_DB_PREPARED_STATEMENTS: false
 PGRST_DB_PRE_REQUEST: please_run_fast
 PGRST_DB_ROOT_SPEC: openapi_v3
 PGRST_DB_SCHEMAS: multi,   tenant,setup
+PGRST_DB_LOAD_GUC_CONFIG: false
 PGRST_DB_TX_END: rollback-allow-override
 PGRST_DB_URI: tmp_db
 PGRST_JWT_AUD: 'https://postgrest.org'

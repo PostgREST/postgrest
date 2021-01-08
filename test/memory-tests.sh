@@ -12,6 +12,7 @@ export PGRST_DB_POOL="1"
 export PGRST_SERVER_HOST="127.0.0.1"
 export PGRST_SERVER_PORT="$pgrPort"
 export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
+export PGRST_DB_LOAD_GUC_CONFIG="false"
 
 trap "kill 0" int term exit
 

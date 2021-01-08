@@ -1924,3 +1924,10 @@ $$ language sql;
 -- Only used for manually testing creating prepared statements
 create view prepared_statements as
 select * from pg_catalog.pg_prepared_statements;
+
+create or replace function change_max_rows_config(val int) returns void as $_$
+begin
+  execute format($$
+    alter role postgrest_test_authenticator set pgrst."db-max-rows" = %L;
+  $$, val);
+end $_$ volatile security definer language plpgsql ;
