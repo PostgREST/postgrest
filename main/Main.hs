@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
-import qualified Hasql.Session              as S
+import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
@@ -28,8 +28,7 @@ import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
 import System.CPUTime           (getCPUTime)
-import System.IO                (BufferMode (..), hPrint,
-                                 hSetBuffering)
+import System.IO                (BufferMode (..), hSetBuffering)
 import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
@@ -37,6 +36,7 @@ import PostgREST.Config
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
 import PostgREST.Error       (PgError (PgError), checkIsFatal,
                               errorPayload)
+import PostgREST.Statements  (dbSettingsStatement)
 import PostgREST.Types       (ConnectionStatus (..), DbStructure,
                               PgVersion (..), SCacheStatus (..),
                               minimumPgVersion)
@@ -68,7 +68,7 @@ main = do
   opts <- readCLIShowHelp env
 
   -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig env $ cliPath opts
+  conf <- readValidateConfig mempty env $ cliPath opts
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -88,19 +88,7 @@ main = do
     poolSize = configDbPoolSize conf
     poolTimeout = configDbPoolTimeout' conf
     logLevel = configLogLevel conf
-
-  case cliCommand opts of
-    CmdDumpConfig ->
-      do
-        putStr $ dumpAppConfig conf
-        exitSuccess
-    CmdDumpSchema ->
-      do
-        dumpedSchema <- dumpSchema conf
-        putStrLn dumpedSchema
-        exitSuccess
-    CmdRun ->
-      pass
+    gucConfigEnabled = configDbLoadGucConfig conf
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
@@ -116,6 +104,24 @@ main = do
 
   -- Config that can change at runtime
   refConf <- newIORef conf
+
+  -- re-read and override the config if db-load-guc-config is true
+  when gucConfigEnabled $
+    reReadConfig pool gucConfigEnabled env (cliPath opts) refConf
+
+  case cliCommand opts of
+    CmdDumpConfig ->
+      do
+        dumpedConfig <- dumpAppConfig <$> readIORef refConf
+        putStr dumpedConfig
+        exitSuccess
+    CmdDumpSchema ->
+      do
+        dumpedSchema <- dumpSchema pool =<< readIORef refConf
+        putStrLn dumpedSchema
+        exitSuccess
+    CmdRun ->
+      pass
 
   -- This is passed to the connectionWorker method so it can kill the main thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
@@ -141,11 +147,10 @@ main = do
     Catch connWorker
     ) Nothing
 
-  -- Re-read the config on SIGUSR2, but only if we have a config file
-  when (isJust $ cliPath opts) $
-    void $ installHandler sigUSR2 (
-      Catch $ reReadConfig env (cliPath opts) refConf
-      ) Nothing
+  -- Re-read the config on SIGUSR2
+  void $ installHandler sigUSR2 (
+    Catch $ reReadConfig pool gucConfigEnabled env (cliPath opts) refConf >> putStrLn ("Config reloaded" :: Text)
+    ) Nothing
 #endif
 
   -- reload schema cache on NOTIFY
@@ -267,6 +272,15 @@ connectionStatus pool =
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
 
+loadDbSettings :: P.Pool -> IO [(Text, Text)]
+loadDbSettings pool = do
+  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ HT.statement mempty dbSettingsStatement
+  case result of
+    Left  e -> do
+      hPutStrLn stderr ("An error ocurred when trying to query database settings for the config parameters:\n" <> show e :: Text)
+      pure []
+    Right x -> pure x
+
 -- | Load the DbStructure by using a connection from the pool.
 loadSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO SCacheStatus
 loadSchemaCache pool actualPgVersion refConf refDbStructure = do
@@ -332,41 +346,33 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
     errorMessage = "Could not listen for notifications on the " <> dbChannel <> " channel" :: Text
     retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
-#ifndef mingw32_HOST_OS
--- | Re-reads the config at runtime. Invoked on SIGUSR2.
+-- | Re-reads the config at runtime.
 -- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
-reReadConfig :: Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
-reReadConfig env path refConf = do
-  conf <- readValidateConfig env path
+reReadConfig :: P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
+reReadConfig pool gucConfigEnabled env path refConf = do
+  dbSettings <- if gucConfigEnabled then loadDbSettings pool else pure []
+  conf <- readValidateConfig dbSettings env path
   atomicWriteIORef refConf conf
-  putStrLn ("Config file reloaded" :: Text)
-#endif
 
 -- | Dump DbStructure schema to JSON
-dumpSchema :: AppConfig -> IO LBS.ByteString
-dumpSchema conf =
-  do
-    eitherConn <- C.acquire . toS $ configDbUri conf
-    case eitherConn of
-      Left e -> hPrint stderr e >> exitFailure
-      Right conn -> do
-        result <-
-          timeToStderr "Loaded schema in %.3f seconds" $
-            flip S.run conn $ do
-              pgVersion <- getPgVersion
-              HT.transaction HT.ReadCommitted HT.Read $
-                getDbStructure
-                  (toList $ configDbSchemas conf)
-                  (configDbExtraSearchPath conf)
-                  pgVersion
-                  (configDbPreparedStatements conf)
-        C.release conn
-        case result of
-          Left e -> do
-            hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
-            exitFailure
-          Right dbStructure -> return $ Aeson.encode dbStructure
-
+dumpSchema :: P.Pool -> AppConfig -> IO LBS.ByteString
+dumpSchema pool conf = do
+  result <-
+    timeToStderr "Loaded schema in %.3f seconds" $
+      P.use pool $ do
+        pgVersion <- getPgVersion
+        HT.transaction HT.ReadCommitted HT.Read $
+          getDbStructure
+            (toList $ configDbSchemas conf)
+            (configDbExtraSearchPath conf)
+            pgVersion
+            (configDbPreparedStatements conf)
+  P.release pool
+  case result of
+    Left e -> do
+      hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
+      exitFailure
+    Right dbStructure -> return $ Aeson.encode dbStructure
 
 -- | Print the time taken to run an IO action to stderr with the given printf string
 timeToStderr :: [Char] -> IO (Either a b) -> IO (Either a b)

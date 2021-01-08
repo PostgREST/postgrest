@@ -78,6 +78,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbPreparedStatements  = True
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
+  , configDbLoadGucConfig       = False
   , configDbUri                 = mempty
   , configJWKS                  = parseSecret <$> secret
   , configJwtAudience           = Nothing

@@ -87,6 +87,7 @@ def defaultenv():
         "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
         "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
+        "PGRST_DB_LOAD_GUC_CONFIG": "false"
     }
 
 
@@ -234,7 +235,13 @@ def test_cli(args, env, use_defaultenv, expect, defaultenv):
 
 
 @pytest.mark.parametrize(
-    "expectedconfig", (CONFIGSDIR / "expected").iterdir(), ids=attrgetter("name")
+    "expectedconfig",
+    [
+        expectedconfig
+        for expectedconfig in (CONFIGSDIR / "expected").iterdir()
+        if (CONFIGSDIR / expectedconfig.name).exists()
+    ],
+    ids=attrgetter("name"),
 )
 def test_expected_config(expectedconfig):
     """
@@ -259,6 +266,23 @@ def test_expected_config_from_environment():
 
     expected = (CONFIGSDIR / "expected" / "no-defaults.config").read_text()
     assert dumpconfig(env=env) == expected
+
+
+def test_expected_config_from_db_settings(defaultenv):
+    "Config should be overriden from database settings"
+
+    config = CONFIGSDIR / "no-defaults.config"
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+    }
+    expected = (
+        (CONFIGSDIR / "expected" / "no-defaults-with-db.config")
+        .read_text()
+        .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
+    )
+
+    assert dumpconfig(configpath=config, env=env) == expected
 
 
 @pytest.mark.parametrize(
@@ -482,3 +506,28 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
         response = postgrest.session.get("/parents", headers=headers)
         assert response.status_code == 200
+
+
+def test_max_rows_reload(defaultenv):
+    "max-rows should be reloaded from role settings when PostgREST receives a SIGUSR2."
+    config = CONFIGSDIR / "sigusr2-settings.config"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+    }
+
+    with run(config, env=env) as postgrest:
+        response = postgrest.session.head("/projects")
+        assert response.headers["Content-Range"] == "0-4/*"
+
+        # change max-rows config on the db
+        postgrest.session.post("/rpc/change_max_rows_config", data={"val": 1})
+
+        # reload config
+        postgrest.process.send_signal(signal.SIGUSR2)
+
+        time.sleep(0.1)
+
+        response = postgrest.session.head("/projects")
+        assert response.headers["Content-Range"] == "0-0/*"

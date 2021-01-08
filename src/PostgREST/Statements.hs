@@ -14,6 +14,7 @@ module PostgREST.Statements (
   , createReadStatement
   , callProcStatement
   , createExplainStatement
+  , dbSettingsStatement
 ) where
 
 
@@ -24,6 +25,7 @@ import qualified Data.ByteString.Char8           as BS
 import           Data.Maybe
 import           Data.Text.Read                  (decimal)
 import qualified Hasql.Decoders                  as HD
+import qualified Hasql.Encoders                  as HE
 import qualified Hasql.Statement                 as H
 import           Network.HTTP.Types.Status
 import           PostgREST.Error
@@ -36,6 +38,8 @@ import           Protolude.Conv                  (toS)
 
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
+
+import Text.InterpolatedString.Perl6 (q)
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -190,3 +194,19 @@ decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> H
 
 decodeGucStatus :: HD.Value (Either SimpleError (Maybe Status))
 decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
+
+-- | Get db settings from the connection role. Only used for configuration.
+dbSettingsStatement :: H.Statement () [(Text, Text)]
+dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
+  where
+    sql = [q|
+      with
+      role_setting as (
+        select unnest(setconfig) as setting from pg_catalog.pg_db_role_setting where setrole = 'postgrest_test_authenticator'::regrole::oid
+      ),
+      kv_settings as (
+        select split_part(setting, '=', 1) as key, split_part(setting, '=', 2) as value from role_setting
+      )
+      select replace(key, 'pgrst.', '') as key, value from kv_settings where key like 'pgrst.%';
+    |]
+    decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text

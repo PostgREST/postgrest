@@ -45,6 +45,7 @@ import Control.Monad           (fail)
 import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
 import Data.Aeson              (encode, toJSON)
 import Data.Either.Combinators (fromRight', whenLeft)
+import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
@@ -101,6 +102,7 @@ data AppConfig = AppConfig {
   , configDbPreparedStatements  :: Bool
   , configDbRootSpec            :: Maybe Text
   , configDbSchemas             :: NonEmpty Text
+  , configDbLoadGucConfig       :: Bool
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
@@ -215,6 +217,9 @@ readCLIShowHelp env = customExecParser parserPrefs opts
           |## Enable or disable the notification channel
           |db-channel-enabled = false
           |
+          |## Enable loading config parameters from the database by changing the connection role settings
+          |db-load-guc-config = true
+          |
           |## how to terminate database transactions
           |## possible values are:
           |## commit (default)
@@ -280,6 +285,7 @@ dumpAppConfig conf =
       ,("db-prepared-statements",        toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
       ,("db-schemas",                q . intercalate "," . toList . configDbSchemas)
+      ,("db-load-guc-config",        q . toLower . show . configDbLoadGucConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
@@ -313,7 +319,7 @@ dumpAppConfig conf =
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (fromRight' $ configServerUnixSocketMode c) ""
 
--- This class is needed for the polymorphism of overrideFromEnvironment
+-- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures
 class JustIfMaybe a b where
   justIfMaybe :: a -> b
@@ -325,8 +331,8 @@ instance JustIfMaybe a (Maybe a) where
   justIfMaybe a = Just a
 
 -- | Parse the config file
-readAppConfig :: Environment -> Maybe FilePath -> IO AppConfig
-readAppConfig env optPath = do
+readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO AppConfig
+readAppConfig dbSettings env optPath = do
   -- Now read the actual config file
   conf <- case optPath of
     Just cfgPath -> catches (C.load cfgPath)
@@ -356,12 +362,13 @@ readAppConfig env optPath = do
         <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
         <*> optWithAlias (optString "db-pre-request")
                          (optString "pre-request")
-        <*> (fromMaybe True <$>  optBool "db-prepared-statements")
+        <*> (fromMaybe True <$> optBool "db-prepared-statements")
         <*> optWithAlias (optString "db-root-spec")
                          (optString "root-spec")
         <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
                                                        (optValue "db-schema")
                                                        "missing key: either db-schemas or db-schema must be set")
+        <*> (fromMaybe True <$> optBool "db-load-guc-config")
         <*> parseTxEnd "db-tx-end" snd
         <*> parseTxEnd "db-tx-end" fst
         <*> reqString "db-uri"
@@ -387,21 +394,27 @@ readAppConfig env optPath = do
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> stripPrefix "PGRST_APP_SETTINGS_" (toS k)
 
-    overrideFromEnvironment :: JustIfMaybe a b =>
+    overrideFromDbOrEnvironment :: JustIfMaybe a b =>
                                (C.Key -> C.Parser C.Value a -> C.Parser C.Config b) ->
                                C.Key -> (C.Value -> a) -> C.Parser C.Config b
-    overrideFromEnvironment necessity key coercion =
-      case M.lookup name env of
-        Just envVal -> pure $ justIfMaybe $ coercion $ C.String envVal
-        Nothing     -> necessity key (coercion <$> C.value)
+    overrideFromDbOrEnvironment necessity key coercion =
+      case reloadableDbSetting <|> M.lookup name env of
+        Just dbOrEnvVal -> pure $ justIfMaybe $ coercion $ C.String dbOrEnvVal
+        Nothing  -> necessity key (coercion <$> C.value)
       where
         name = "PGRST_" <> map capitalize (toS key)
         capitalize '-' = '_'
         capitalize c   = toUpper c
+        reloadableDbSetting =
+          if key `notElem` [
+            "server-host", "server-port", "server-unix-socket", "server-unix-socket-mode", "log-level",
+            "db-anon-role", "db-uri", "db-channel-enabled", "db-channel", "db-pool", "db-pool-timeout", "db-load-guc-config"]
+          then lookup key dbSettings
+          else Nothing
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
-      overrideFromEnvironment C.optional k coerceText >>= \case
+      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
         Nothing -> pure $ Right 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
@@ -414,7 +427,7 @@ readAppConfig env optPath = do
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
-      overrideFromEnvironment C.optional k coerceText >>= \case
+      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
         Nothing -> pure Nothing -- no audience in config file
         Just aud -> case preview stringOrUri (unpack aud) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
@@ -423,7 +436,7 @@ readAppConfig env optPath = do
 
     parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
     parseLogLevel k =
-      overrideFromEnvironment C.optional k coerceText >>= \case
+      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
         Nothing      -> pure LogError
         Just ""      -> pure LogError
         Just "crit"  -> pure LogCrit
@@ -434,7 +447,7 @@ readAppConfig env optPath = do
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =
-      overrideFromEnvironment C.optional k coerceText >>= \case
+      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
         --                                          RollbackAll AllowOverride
         Nothing                        -> pure $ f (False,      False)
         Just ""                        -> pure $ f (False,      False)
@@ -460,19 +473,19 @@ readAppConfig env optPath = do
         Nothing -> alias
 
     reqString :: C.Key -> C.Parser C.Config Text
-    reqString k = overrideFromEnvironment C.required k coerceText
+    reqString k = overrideFromDbOrEnvironment C.required k coerceText
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
-    optString k = mfilter (/= "") <$> overrideFromEnvironment C.optional k coerceText
+    optString k = mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
 
     optValue :: C.Key -> C.Parser C.Config (Maybe C.Value)
-    optValue k = overrideFromEnvironment C.optional k identity
+    optValue k = overrideFromDbOrEnvironment C.optional k identity
 
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
-    optInt k = join <$> overrideFromEnvironment C.optional k coerceInt
+    optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
 
     optBool :: C.Key -> C.Parser C.Config (Maybe Bool)
-    optBool k = join <$> overrideFromEnvironment C.optional k coerceBool
+    optBool k = join <$> overrideFromDbOrEnvironment C.optional k coerceBool
 
     coerceText :: C.Value -> Text
     coerceText (C.String s) = s
@@ -506,10 +519,10 @@ readAppConfig env optPath = do
       hPutStrLn stderr err
       exitFailure
 
--- | Parse the AppConfig and validate it. Panic on invalid config options.
-readValidateConfig :: Environment -> Maybe FilePath -> IO AppConfig
-readValidateConfig env path = do
-  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig env path
+-- | Parse the AppConfig and validate it. Overrides the config options from env vars or db settings. Panics on invalid config options.
+readValidateConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO AppConfig
+readValidateConfig dbSettings env path = do
+  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig dbSettings env path
   -- Checks that the provided proxy uri is formated correctly
   when (isMalformedProxyUri $ toS <$> configOpenApiServerProxyUri conf) $
     panic
