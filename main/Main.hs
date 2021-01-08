@@ -28,7 +28,8 @@ import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
 import System.CPUTime           (getCPUTime)
-import System.IO                (BufferMode (..), hSetBuffering)
+import System.IO                (BufferMode (..), hPrint,
+                                 hSetBuffering)
 import Text.Printf              (hPrintf)
 
 import PostgREST.App         (postgrest)
@@ -345,25 +346,26 @@ reReadConfig env path refConf = do
 dumpSchema :: AppConfig -> IO LBS.ByteString
 dumpSchema conf =
   do
-    Right conn <- C.acquire . toS $ configDbUri conf
-    Right pgVersion <- S.run getPgVersion conn
-    let
-      getDbStructureTransaction =
-        HT.transaction HT.ReadCommitted HT.Read $
-          getDbStructure
-            (toList $ configDbSchemas conf)
-            (configDbExtraSearchPath conf)
-            pgVersion
-            (configDbPreparedStatements conf)
-    result <-
-      timeToStderr "Loaded schema in %.3f seconds" $
-        S.run getDbStructureTransaction conn
-    C.release conn
-    case result of
-      Left e -> do
-        hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
-        exitFailure
-      Right dbStructure -> return $ Aeson.encode dbStructure
+    eitherConn <- C.acquire . toS $ configDbUri conf
+    case eitherConn of
+      Left e -> hPrint stderr e >> exitFailure
+      Right conn -> do
+        result <-
+          timeToStderr "Loaded schema in %.3f seconds" $
+            flip S.run conn $ do
+              pgVersion <- getPgVersion
+              HT.transaction HT.ReadCommitted HT.Read $
+                getDbStructure
+                  (toList $ configDbSchemas conf)
+                  (configDbExtraSearchPath conf)
+                  pgVersion
+                  (configDbPreparedStatements conf)
+        C.release conn
+        case result of
+          Left e -> do
+            hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
+            exitFailure
+          Right dbStructure -> return $ Aeson.encode dbStructure
 
 
 -- | Print the time taken to run an IO action to stderr with the given printf string
