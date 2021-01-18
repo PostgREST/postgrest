@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP            #-}
+{-# LANGUAGE MultiWayIf     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Main (main) where
 
@@ -13,10 +15,6 @@ import qualified Hasql.Transaction.Sessions as HT
 
 import Control.AutoUpdate       (defaultUpdateSettings, mkAutoUpdate,
                                  updateAction)
-import Control.Debounce         (debounceAction, debounceEdge,
-                                 debounceFreq,
-                                 defaultDebounceSettings, mkDebounce,
-                                 trailingEdge)
 import Control.Retry            (RetryStatus, capDelay,
                                  exponentialBackoff, retrying,
                                  rsPreviousDelay)
@@ -64,11 +62,11 @@ main = do
   -- read PGRST_ env variables
   env <- readEnvironment
 
-  -- read path from commad line
-  opts <- readCLIShowHelp env
+  -- read command/path from commad line
+  CLI{cliCommand, cliPath} <- readCLIShowHelp env
 
   -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig mempty env $ cliPath opts
+  conf <- readValidateConfig mempty env cliPath
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -105,11 +103,12 @@ main = do
   -- Config that can change at runtime
   refConf <- newIORef conf
 
-  -- re-read and override the config if db-load-guc-config is true
-  when gucConfigEnabled $
-    reReadConfig pool gucConfigEnabled env (cliPath opts) refConf
+  let configRereader = reReadConfig pool gucConfigEnabled env cliPath refConf
 
-  case cliCommand opts of
+  -- re-read and override the config if db-load-guc-config is true
+  when gucConfigEnabled configRereader
+
+  case cliCommand of
     CmdDumpConfig ->
       do
         dumpedConfig <- dumpAppConfig <$> readIORef refConf
@@ -149,13 +148,13 @@ main = do
 
   -- Re-read the config on SIGUSR2
   void $ installHandler sigUSR2 (
-    Catch $ reReadConfig pool gucConfigEnabled env (cliPath opts) refConf >> putStrLn ("Config reloaded" :: Text)
+    Catch $ configRereader >> putStrLn ("Config reloaded" :: Text)
     ) Nothing
 #endif
 
-  -- reload schema cache on NOTIFY
+  -- reload schema cache + config on NOTIFY
   when dbChannelEnabled $
-    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker
+    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker configRereader
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -310,32 +309,27 @@ loadSchemaCache pool actualPgVersion refConf refDbStructure = do
   When a NOTIFY <db-channel> - with an empty payload - is done, it refills the schema cache.
   It uses the connectionWorker in case the LISTEN connection dies.
 -}
-listener :: ByteString -> Text -> P.Pool -> IORef AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO ()
-listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker = start
+listener :: ByteString -> Text -> P.Pool -> IORef AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO () -> IO ()
+listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker configRereader = start
   where
     start = do
       connStatus <- takeMVar mvarConnectionStatus -- takeMVar makes the thread wait if the MVar is empty(until there's a connection).
       case connStatus of
         Connected actualPgVersion -> void $ forkFinally (do -- forkFinally allows to detect if the thread dies
           dbOrError <- C.acquire dbUri
-          -- Debounce in case too many NOTIFYs arrive. Could happen on a migration(assuming a pg EVENT TRIGGER is set up).
-          -- This might not be needed according to pg docs https://www.postgresql.org/docs/12/sql-notify.html:
-          -- "If the same channel name is signaled multiple times from the same transaction with identical payload strings, the database server can decide to deliver a single notification only."
-          -- But we do it to be extra safe.
-          scFiller <- mkDebounce (defaultDebounceSettings {
-                        -- It's not necessary to check the loadSchemaCache success here. If the connection drops, the thread will die and proceed to recover below.
-                        debounceAction = void $ loadSchemaCache pool actualPgVersion refConf refDbStructure,
-                        debounceEdge = trailingEdge, -- wait until the function hasn’t been called in _1s
-                        debounceFreq = _1s })
           case dbOrError of
             Right db -> do
               putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
               let channelToListen = N.toPgIdentifier dbChannel
+                  cfLoader = configRereader >> putStrLn ("Config reloaded" :: Text)
+                  scLoader = void $ loadSchemaCache pool actualPgVersion refConf refDbStructure -- It's not necessary to check the loadSchemaCache success here. If the connection drops, the thread will die and proceed to recover below.
               N.listen db channelToListen
               N.waitForNotifications (\_ msg ->
-                if BS.null msg
-                  then scFiller    -- reload the schema cache
-                  else pure ()) db -- Do nothing if anything else than an empty message is sent
+                if | BS.null msg            -> scLoader -- reload the schema cache
+                   | msg == "reload schema" -> scLoader -- reload the schema cache
+                   | msg == "reload config" -> cfLoader -- reload the config
+                   | otherwise              -> pure ()  -- Do nothing if anything else than an empty message is sent
+                ) db
             _ -> die errorMessage)
           (\_ -> do -- if the thread dies, we try to recover
             putStrLn retryMessage

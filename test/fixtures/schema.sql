@@ -1925,9 +1925,33 @@ $$ language sql;
 create view prepared_statements as
 select * from pg_catalog.pg_prepared_statements;
 
-create or replace function change_max_rows_config(val int) returns void as $_$
+create or replace function change_max_rows_config(val int, notify bool default false) returns void as $_$
 begin
   execute format($$
     alter role postgrest_test_authenticator set pgrst."db-max-rows" = %L;
   $$, val);
+  if notify then
+    perform pg_notify('pgrst', 'reload config');
+  end if;
+end $_$ volatile security definer language plpgsql ;
+
+create or replace function reset_max_rows_config() returns void as $_$
+begin
+  alter role postgrest_test_authenticator set pgrst."db-max-rows" = '1000';
+end $_$ volatile security definer language plpgsql ;
+
+create or replace function change_db_schema_and_full_reload(schemas text) returns void as $_$
+begin
+  execute format($$
+    alter role postgrest_test_authenticator set pgrst."db-schemas" = %L;
+  $$, schemas);
+  perform pg_notify('pgrst', 'reload config');
+  perform pg_notify('pgrst', 'reload schema');
+end $_$ volatile security definer language plpgsql ;
+
+create or replace function v1.reset_db_schema_config() returns void as $_$
+begin
+  alter role postgrest_test_authenticator set pgrst."db-schemas" = 'test';
+  perform pg_notify('pgrst', 'reload config');
+  perform pg_notify('pgrst', 'reload schema');
 end $_$ volatile security definer language plpgsql ;

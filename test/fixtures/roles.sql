@@ -17,7 +17,7 @@ ALTER ROLE postgrest_test_authenticator SET pgrst."db-tx-end" = 'commit-allow-ov
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-schemas" = 'test, tenant1, tenant2';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-root-spec" = 'root';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-prepared-statements" = 'false';
-ALTER ROLE postgrest_test_authenticator SET pgrst."db-pre-request" = 'custom_headers';
+ALTER ROLE postgrest_test_authenticator SET pgrst."db-pre-request" = 'test.custom_headers';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-max-rows" = '1000';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-extra-search-path" = 'public, extensions';
 

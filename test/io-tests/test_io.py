@@ -87,7 +87,7 @@ def defaultenv():
         "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
         "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
-        "PGRST_DB_LOAD_GUC_CONFIG": "false"
+        "PGRST_DB_LOAD_GUC_CONFIG": "false",
     }
 
 
@@ -187,7 +187,6 @@ def wait_until_ready(url):
     for _ in range(10):
         try:
             response = session.get(url, timeout=1)
-
             if response.status_code == 200:
                 return
         except (requests.ConnectionError, requests.ReadTimeout):
@@ -508,6 +507,34 @@ def test_db_schema_reload(tmp_path, defaultenv):
         assert response.status_code == 200
 
 
+def test_db_schema_notify_reload(defaultenv):
+    "DB schema and config should be reloaded when PostgREST is sent a NOTIFY"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_SCHEMAS": "test",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/parents")
+        assert response.status_code == 404
+
+        # change db-schemas config on the db and reload config and cache with notify
+        postgrest.session.post(
+            "/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"}
+        )
+
+        time.sleep(0.5)
+
+        response = postgrest.session.get("/parents?select=*,children(*)")
+        assert response.status_code == 200
+
+        # reset db-schemas config on the db
+        postgrest.session.post("/rpc/reset_db_schema_config")
+
+
 def test_max_rows_reload(defaultenv):
     "max-rows should be reloaded from role settings when PostgREST receives a SIGUSR2."
     config = CONFIGSDIR / "sigusr2-settings.config"
@@ -530,4 +557,36 @@ def test_max_rows_reload(defaultenv):
         time.sleep(0.1)
 
         response = postgrest.session.head("/projects")
+
         assert response.headers["Content-Range"] == "0-0/*"
+
+        # reset max-rows config on the db
+        postgrest.session.post("/rpc/reset_max_rows_config")
+
+
+def test_max_rows_notify_reload(defaultenv):
+    "max-rows should be reloaded from role settings when PostgREST receives a NOTIFY"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.head("/projects")
+        assert response.headers["Content-Range"] == "0-4/*"
+
+        # change max-rows config on the db and reload with notify
+        postgrest.session.post(
+            "/rpc/change_max_rows_config", data={"val": 1, "notify": True}
+        )
+
+        time.sleep(0.1)
+
+        response = postgrest.session.head("/projects")
+
+        assert response.headers["Content-Range"] == "0-0/*"
+
+        # reset max-rows config on the db
+        postgrest.session.post("/rpc/reset_max_rows_config")
