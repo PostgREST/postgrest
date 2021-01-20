@@ -394,27 +394,9 @@ readAppConfig dbSettings env optPath = do
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> stripPrefix "PGRST_APP_SETTINGS_" (toS k)
 
-    overrideFromDbOrEnvironment :: JustIfMaybe a b =>
-                               (C.Key -> C.Parser C.Value a -> C.Parser C.Config b) ->
-                               C.Key -> (C.Value -> a) -> C.Parser C.Config b
-    overrideFromDbOrEnvironment necessity key coercion =
-      case reloadableDbSetting <|> M.lookup name env of
-        Just dbOrEnvVal -> pure $ justIfMaybe $ coercion $ C.String dbOrEnvVal
-        Nothing  -> necessity key (coercion <$> C.value)
-      where
-        name = "PGRST_" <> map capitalize (toS key)
-        capitalize '-' = '_'
-        capitalize c   = toUpper c
-        reloadableDbSetting =
-          if key `notElem` [
-            "server-host", "server-port", "server-unix-socket", "server-unix-socket-mode", "log-level",
-            "db-anon-role", "db-uri", "db-channel-enabled", "db-channel", "db-pool", "db-pool-timeout", "db-load-guc-config"]
-          then lookup key dbSettings
-          else Nothing
-
     parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
     parseSocketFileMode k =
-      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
+      optString k >>= \case
         Nothing -> pure $ Right 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
@@ -427,18 +409,16 @@ readAppConfig dbSettings env optPath = do
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
-      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
+      optString k >>= \case
         Nothing -> pure Nothing -- no audience in config file
         Just aud -> case preview stringOrUri (unpack aud) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
-          (Just "") -> pure Nothing
           aud' -> pure aud'
 
     parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
     parseLogLevel k =
-      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
+      optString k >>= \case
         Nothing      -> pure LogError
-        Just ""      -> pure LogError
         Just "crit"  -> pure LogCrit
         Just "error" -> pure LogError
         Just "warn"  -> pure LogWarn
@@ -447,10 +427,9 @@ readAppConfig dbSettings env optPath = do
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =
-      overrideFromDbOrEnvironment C.optional k coerceText >>= \case
+      optString k >>= \case
         --                                          RollbackAll AllowOverride
         Nothing                        -> pure $ f (False,      False)
-        Just ""                        -> pure $ f (False,      False)
         Just "commit"                  -> pure $ f (False,      False)
         Just "commit-allow-override"   -> pure $ f (False,      True)
         Just "rollback"                -> pure $ f (True,       False)
@@ -486,6 +465,24 @@ readAppConfig dbSettings env optPath = do
 
     optBool :: C.Key -> C.Parser C.Config (Maybe Bool)
     optBool k = join <$> overrideFromDbOrEnvironment C.optional k coerceBool
+
+    overrideFromDbOrEnvironment :: JustIfMaybe a b =>
+                               (C.Key -> C.Parser C.Value a -> C.Parser C.Config b) ->
+                               C.Key -> (C.Value -> a) -> C.Parser C.Config b
+    overrideFromDbOrEnvironment necessity key coercion =
+      case reloadableDbSetting <|> M.lookup name env of
+        Just dbOrEnvVal -> pure $ justIfMaybe $ coercion $ C.String dbOrEnvVal
+        Nothing  -> necessity key (coercion <$> C.value)
+      where
+        name = "PGRST_" <> map capitalize (toS key)
+        capitalize '-' = '_'
+        capitalize c   = toUpper c
+        reloadableDbSetting =
+          if key `notElem` [
+            "server-host", "server-port", "server-unix-socket", "server-unix-socket-mode", "log-level",
+            "db-anon-role", "db-uri", "db-channel-enabled", "db-channel", "db-pool", "db-pool-timeout", "db-load-guc-config"]
+          then lookup key dbSettings
+          else Nothing
 
     coerceText :: C.Value -> Text
     coerceText (C.String s) = s
