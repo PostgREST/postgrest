@@ -44,7 +44,6 @@ import Control.Lens            (preview)
 import Control.Monad           (fail)
 import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
 import Data.Aeson              (encode, toJSON)
-import Data.Either.Combinators (fromRight', whenLeft)
 import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
@@ -108,7 +107,7 @@ data AppConfig = AppConfig {
   , configDbUri                 :: Text
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
-  , configJwtRoleClaimKey       :: Either Text JSPath
+  , configJwtRoleClaimKey       :: JSPath
   , configJwtSecret             :: Maybe B.ByteString
   , configJwtSecretIsBase64     :: Bool
   , configLogLevel              :: LogLevel
@@ -117,7 +116,7 @@ data AppConfig = AppConfig {
   , configServerHost            :: Text
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
-  , configServerUnixSocketMode  :: Either Text FileMode
+  , configServerUnixSocketMode  :: FileMode
   }
 
 configDbPoolTimeout' :: (Fractional a) => AppConfig -> a
@@ -289,7 +288,7 @@ dumpAppConfig conf =
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
-      ,("jwt-role-claim-key",        q . intercalate mempty . fmap show . fromRight' . configJwtRoleClaimKey)
+      ,("jwt-role-claim-key",        q . intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
       ,("jwt-secret-is-base64",          toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . show . configLogLevel)
@@ -317,7 +316,7 @@ dumpAppConfig conf =
       | otherwise                 = toS secret
       where
         secret = fromMaybe mempty $ configJwtSecret c
-    showSocketMode c = showOct (fromRight' $ configServerUnixSocketMode c) ""
+    showSocketMode c = showOct (configServerUnixSocketMode c) mempty
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures
@@ -374,13 +373,12 @@ readAppConfig dbSettings env optPath = do
         <*> reqString "db-uri"
         <*> pure Nothing
         <*> parseJwtAudience "jwt-aud"
-        <*> (maybe (Right [JSPKey "role"]) parseRoleClaimKey <$> optWithAlias (optValue "jwt-role-claim-key")
-                                                                              (optValue "role-claim-key"))
+        <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
         <*> (fmap encodeUtf8 <$> optString "jwt-secret")
         <*> (fromMaybe False <$> optWithAlias (optBool "jwt-secret-is-base64")
                                               (optBool "secret-is-base64"))
         <*> parseLogLevel "log-level"
-        <*> optString "openapi-server-proxy-uri"
+        <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
@@ -394,18 +392,25 @@ readAppConfig dbSettings env optPath = do
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> stripPrefix "PGRST_APP_SETTINGS_" (toS k)
 
-    parseSocketFileMode :: C.Key -> C.Parser C.Config (Either Text FileMode)
+    parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
       optString k >>= \case
-        Nothing -> pure $ Right 432 -- return default 660 mode if no value was provided
+        Nothing -> pure $ 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
             []              ->
-              pure $ Left "Invalid server-unix-socket-mode: not an octal"
+              fail "Invalid server-unix-socket-mode: not an octal"
             (fileMode, _):_ ->
               if fileMode < 384 || fileMode > 511
-                then pure $ Left "Invalid server-unix-socket-mode: needs to be between 600 and 777"
-                else pure $ Right fileMode
+                then fail "Invalid server-unix-socket-mode: needs to be between 600 and 777"
+                else pure fileMode
+
+    parseOpenAPIServerProxyURI :: C.Key -> C.Parser C.Config (Maybe Text)
+    parseOpenAPIServerProxyURI k =
+      optString k >>= \case
+        Nothing                            -> pure Nothing
+        Just val | isMalformedProxyUri val -> fail "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
+                 | otherwise               -> pure $ Just val
 
     parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
     parseJwtAudience k =
@@ -435,6 +440,12 @@ readAppConfig dbSettings env optPath = do
         Just "rollback"                -> pure $ f (True,       False)
         Just "rollback-allow-override" -> pure $ f (True,       True)
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
+
+    parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath
+    parseRoleClaimKey k al =
+      optWithAlias (optString k) (optString al) >>= \case
+        Nothing  -> pure [JSPKey "role"]
+        Just rck -> either (fail . show) pure $ pRoleClaimKey rck
 
     reqWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> [Char] -> C.Parser C.Config a
     reqWithAlias orig alias err =
@@ -503,10 +514,6 @@ readAppConfig dbSettings env optPath = do
         Nothing -> (> 0) <$> (readMaybe $ toS s :: Maybe Integer)
     coerceBool _            = Nothing
 
-    parseRoleClaimKey :: C.Value -> Either Text JSPath
-    parseRoleClaimKey (C.String s) = pRoleClaimKey s
-    parseRoleClaimKey v            = pRoleClaimKey $ show v
-
     splitOnCommas :: C.Value -> [Text]
     splitOnCommas (C.String s) = strip <$> splitOn "," s
     splitOnCommas _            = []
@@ -520,14 +527,6 @@ readAppConfig dbSettings env optPath = do
 readValidateConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO AppConfig
 readValidateConfig dbSettings env path = do
   conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig dbSettings env path
-  -- Checks that the provided proxy uri is formated correctly
-  when (isMalformedProxyUri $ toS <$> configOpenApiServerProxyUri conf) $
-    panic
-      "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
-  -- Checks that the provided jspath is valid
-  whenLeft (configJwtRoleClaimKey conf) panic
-  -- Check the file mode is valid
-  whenLeft (configServerUnixSocketMode conf) panic
   return $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
 
 type Environment = M.Map [Char] Text

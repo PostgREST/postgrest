@@ -80,7 +80,7 @@ postgrest logLev refConf refDbStructure pool getTime connWorker =
             Left err -> return . errorResponseFor $ err
             Right apiRequest -> do
               -- The jwt must be checked before touching the db.
-              attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (rightToMaybe $ configJwtRoleClaimKey conf)
+              attempt <- attemptJwtClaims (configJWKS conf) (configJwtAudience conf) (toS $ iJWT apiRequest) time (configJwtRoleClaimKey conf)
               case jwtClaims attempt of
                 Left errJwt -> return . errorResponseFor $ errJwt
                 Right claims -> do

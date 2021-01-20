@@ -173,5 +173,4 @@ invalidroleclaimkeys:
   - '.role##'
   - '.my_role;;domain'
   - '.#$$%&$%/'
-  - ''
   - '1234'

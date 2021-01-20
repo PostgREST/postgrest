@@ -16,12 +16,12 @@ import System.Posix.Types       (FileMode)
 
 import Protolude
 
-createAndBindSocket :: FilePath -> Maybe FileMode -> IO Socket
-createAndBindSocket socketFilePath maybeSocketFileMode = do
+createAndBindSocket :: FilePath -> FileMode -> IO Socket
+createAndBindSocket socketFilePath socketFileMode = do
   deleteSocketFileIfExist socketFilePath
   sock <- socket AF_UNIX Stream defaultProtocol
   bind sock $ SockAddrUnix socketFilePath
-  mapM_ (setFileMode socketFilePath) maybeSocketFileMode
+  setFileMode socketFilePath socketFileMode
   return sock
   where
     deleteSocketFileIfExist path = removeFile path `catch` handleDoesNotExist
@@ -30,9 +30,9 @@ createAndBindSocket socketFilePath maybeSocketFileMode = do
       | otherwise = throwIO e
 
 -- run the postgrest application with user defined socket.
-runAppInSocket :: Settings -> Application -> Either Text FileMode -> FilePath -> IO ()
+runAppInSocket :: Settings -> Application -> FileMode -> FilePath -> IO ()
 runAppInSocket settings app socketFileMode sockPath = do
-  sock <- createAndBindSocket sockPath (rightToMaybe socketFileMode)
+  sock <- createAndBindSocket sockPath socketFileMode
   putStrLn $ ("Listening on unix socket " :: Text) <> show sockPath
   listen sock maxListenQueue
   runSettingsSocket settings sock app

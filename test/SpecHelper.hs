@@ -82,7 +82,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbUri                 = mempty
   , configJWKS                  = parseSecret <$> secret
   , configJwtAudience           = Nothing
-  , configJwtRoleClaimKey       = Right [JSPKey "role"]
+  , configJwtRoleClaimKey       = [JSPKey "role"]
   , configJwtSecret             = secret
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
@@ -91,7 +91,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerHost            = "localhost"
   , configServerPort            = 3000
   , configServerUnixSocket      = Nothing
-  , configServerUnixSocketMode  = Right 432
+  , configServerUnixSocketMode  = 432
   , configDbTxAllowOverride     = True
   , configDbTxRollbackAll       = True
   }
