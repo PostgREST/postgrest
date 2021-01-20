@@ -25,9 +25,8 @@ import Protolude.Conv (toS)
   http://postgrest.com/openapi.json
   https://postgrest.com:8080/openapi.json
 -}
-isMalformedProxyUri :: Maybe Text -> Bool
-isMalformedProxyUri Nothing =  False
-isMalformedProxyUri (Just uri)
+isMalformedProxyUri :: Text -> Bool
+isMalformedProxyUri uri
   | isAbsoluteURI (toS uri) = not $ isUriValid $ toURI uri
   | otherwise = True
 

@@ -54,7 +54,7 @@ jwtClaims attempt =
   Receives the JWT secret and audience (from config) and a JWT and returns a map
   of JWT claims.
 -}
-attemptJwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> Maybe JSPath -> IO JWTAttempt
+attemptJwtClaims :: Maybe JWKSet -> Maybe StringOrURI -> LByteString -> UTCTime -> JSPath -> IO JWTAttempt
 attemptJwtClaims _ _ "" _ _ = return $ JWTClaims M.empty
 attemptJwtClaims maybeSecret audience payload time jspath =
   case maybeSecret of
@@ -72,11 +72,11 @@ attemptJwtClaims maybeSecret audience payload time jspath =
   Turn JWT ClaimSet into something easier to work with,
   also here the jspath is applied to put the "role" in the map
 -}
-claims2map :: ClaimsSet -> Maybe JSPath -> M.HashMap Text JSON.Value
+claims2map :: ClaimsSet -> JSPath -> M.HashMap Text JSON.Value
 claims2map claims jspath = (\case
     val@(JSON.Object o) ->
       let role = maybe M.empty (M.singleton "role") $
-                 walkJSPath (Just val) =<< jspath in
+                 walkJSPath (Just val) jspath in
       M.delete "role" o `M.union` role -- mutating the map
     _ -> M.empty
   ) $ JSON.toJSON claims

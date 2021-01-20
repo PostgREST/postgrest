@@ -312,7 +312,7 @@ pickProxy proxy
   -- should never happen
   -- since the request would have been rejected by the middleware if proxy uri
   -- is malformed
-  | isMalformedProxyUri proxy = Nothing
+  | isMalformedProxyUri $ fromMaybe mempty proxy = Nothing
   | otherwise = Just Proxy {
     proxyScheme = scheme
   , proxyHost = host'
