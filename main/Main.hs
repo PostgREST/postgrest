@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP            #-}
+{-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE MultiWayIf     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
@@ -66,7 +67,7 @@ main = do
   CLI{cliCommand, cliPath} <- readCLIShowHelp env
 
   -- build the 'AppConfig' from the config file path
-  conf <- readValidateConfig mempty env cliPath
+  conf <- either panic identity <$> readConfig mempty env cliPath
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -103,10 +104,10 @@ main = do
   -- Config that can change at runtime
   refConf <- newIORef conf
 
-  let configRereader = reReadConfig pool gucConfigEnabled env cliPath refConf
+  let configRereader startingUp = reReadConfig startingUp pool gucConfigEnabled env cliPath refConf
 
   -- re-read and override the config if db-load-guc-config is true
-  when gucConfigEnabled configRereader
+  when gucConfigEnabled $ configRereader True
 
   case cliCommand of
     CmdDumpConfig ->
@@ -148,13 +149,13 @@ main = do
 
   -- Re-read the config on SIGUSR2
   void $ installHandler sigUSR2 (
-    Catch $ configRereader >> putStrLn ("Config reloaded" :: Text)
+    Catch $ configRereader False
     ) Nothing
 #endif
 
   -- reload schema cache + config on NOTIFY
   when dbChannelEnabled $
-    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker configRereader
+    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker $ configRereader False
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -310,7 +311,7 @@ loadSchemaCache pool actualPgVersion refConf refDbStructure = do
   It uses the connectionWorker in case the LISTEN connection dies.
 -}
 listener :: ByteString -> Text -> P.Pool -> IORef AppConfig -> IORef (Maybe DbStructure) -> MVar ConnectionStatus -> IO () -> IO () -> IO ()
-listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker configRereader = start
+listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker configLoader = start
   where
     start = do
       connStatus <- takeMVar mvarConnectionStatus -- takeMVar makes the thread wait if the MVar is empty(until there's a connection).
@@ -321,14 +322,13 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
             Right db -> do
               putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
               let channelToListen = N.toPgIdentifier dbChannel
-                  cfLoader = configRereader >> putStrLn ("Config reloaded" :: Text)
                   scLoader = void $ loadSchemaCache pool actualPgVersion refConf refDbStructure -- It's not necessary to check the loadSchemaCache success here. If the connection drops, the thread will die and proceed to recover below.
               N.listen db channelToListen
               N.waitForNotifications (\_ msg ->
-                if | BS.null msg            -> scLoader -- reload the schema cache
-                   | msg == "reload schema" -> scLoader -- reload the schema cache
-                   | msg == "reload config" -> cfLoader -- reload the config
-                   | otherwise              -> pure ()  -- Do nothing if anything else than an empty message is sent
+                if | BS.null msg            -> scLoader      -- reload the schema cache
+                   | msg == "reload schema" -> scLoader      -- reload the schema cache
+                   | msg == "reload config" -> configLoader  -- reload the config
+                   | otherwise              -> pure ()       -- Do nothing if anything else than an empty message is sent
                 ) db
             _ -> die errorMessage)
           (\_ -> do -- if the thread dies, we try to recover
@@ -341,12 +341,19 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
     retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
 -- | Re-reads the config at runtime.
--- | If it panics(config path was changed, invalid setting), it'll show an error but won't kill the main thread.
-reReadConfig :: P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
-reReadConfig pool gucConfigEnabled env path refConf = do
+reReadConfig :: Bool -> P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
+reReadConfig startingUp pool gucConfigEnabled env path refConf = do
   dbSettings <- if gucConfigEnabled then loadDbSettings pool else pure []
-  conf <- readValidateConfig dbSettings env path
-  atomicWriteIORef refConf conf
+  readConfig dbSettings env path >>= \case
+    Left err   ->
+      if startingUp
+        then panic err -- die on invalid config if the program is starting up
+        else hPutStrLn stderr $ "Failed config reload. " <> err
+    Right conf -> do
+      atomicWriteIORef refConf conf
+      if startingUp
+        then pass
+        else putStrLn ("Config reloaded" :: Text)
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: P.Pool -> AppConfig -> IO LBS.ByteString
