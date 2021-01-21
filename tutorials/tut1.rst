@@ -122,7 +122,7 @@ A request for the todos shows three of them, and all completed.
     }
   ]
 
-Step 4. Add Expiration
+Step 5. Add Expiration
 ----------------------
 
 Currently our authentication token is valid for all eternity. The server, as long as it continues using the same JWT password, will honor the token.
