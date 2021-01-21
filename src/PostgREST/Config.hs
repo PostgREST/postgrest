@@ -30,7 +30,7 @@ module PostgREST.Config ( prettyVersion
                         , Environment
                         , readCLIShowHelp
                         , readEnvironment
-                        , readValidateConfig
+                        , readConfig
                         )
        where
 
@@ -44,6 +44,7 @@ import Control.Lens            (preview)
 import Control.Monad           (fail)
 import Crypto.JWT              (JWKSet, StringOrURI, stringOrUri)
 import Data.Aeson              (encode, toJSON)
+import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
@@ -52,7 +53,6 @@ import Data.Text               (dropEnd, dropWhileEnd, filter,
                                 intercalate, pack, replace, splitOn,
                                 strip, stripPrefix, take, toLower,
                                 toTitle, unpack)
-import Data.Text.IO            (hPutStrLn)
 import Data.Version            (versionBranch)
 import Development.GitRev      (gitHash)
 import Numeric                 (readOct, showOct)
@@ -330,22 +330,18 @@ instance JustIfMaybe a (Maybe a) where
   justIfMaybe a = Just a
 
 -- | Parse the config file
-readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO AppConfig
+readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO (Either Text AppConfig)
 readAppConfig dbSettings env optPath = do
   -- Now read the actual config file
   conf <- case optPath of
-    Just cfgPath -> catches (C.load cfgPath)
-      [ Handler (\(ex :: IOError)    -> exitErr $ "Cannot open config file:\n\t" <> show ex)
-      , Handler (\(C.ParseError err) -> exitErr $ "Error parsing config file:\n" <> err)
+    Just cfgPath -> C.load cfgPath `catches`
+      [ Handler (\(ex :: IOError)    -> panic $ "Cannot open config file: " <> show ex)
+      , Handler (\(C.ParseError err) -> panic $ "Error parsing config file: " <> err)
       ]
     -- if no filename provided, start with an empty map to read config from environment
     Nothing -> return M.empty
 
-  case C.runParser parseConfig conf of
-    Left err ->
-      exitErr $ "Error in config:\n\t" <> err
-    Right appConf ->
-      return appConf
+  pure $ mapLeft ("Error in config: " <>) $ C.runParser parseConfig conf
 
   where
     parseConfig =
@@ -395,7 +391,7 @@ readAppConfig dbSettings env optPath = do
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
       optString k >>= \case
-        Nothing -> pure $ 432 -- return default 660 mode if no value was provided
+        Nothing -> pure 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case (readOct . unpack) fileModeText of
             []              ->
@@ -518,16 +514,14 @@ readAppConfig dbSettings env optPath = do
     splitOnCommas (C.String s) = strip <$> splitOn "," s
     splitOnCommas _            = []
 
-    exitErr :: Text -> IO a
-    exitErr err = do
-      hPutStrLn stderr err
-      exitFailure
-
--- | Parse the AppConfig and validate it. Overrides the config options from env vars or db settings. Panics on invalid config options.
-readValidateConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO AppConfig
-readValidateConfig dbSettings env path = do
-  conf <- loadDbUriFile =<< loadSecretFile =<< readAppConfig dbSettings env path
-  return $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
+-- | Reads the config and overrides its parameters from files, env vars or db settings.
+readConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO (Either Text AppConfig)
+readConfig dbSettings env path =
+  readAppConfig dbSettings env path >>= \case
+    Left err -> pure $ Left err
+    Right appConf -> do
+      conf <- loadDbUriFile =<< loadSecretFile appConf
+      pure $ Right $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
 
 type Environment = M.Map [Char] Text
 

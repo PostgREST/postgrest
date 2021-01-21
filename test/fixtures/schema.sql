@@ -1955,3 +1955,15 @@ begin
   perform pg_notify('pgrst', 'reload config');
   perform pg_notify('pgrst', 'reload schema');
 end $_$ volatile security definer language plpgsql ;
+
+create or replace function test.invalid_role_claim_key_reload() returns void as $_$
+begin
+  alter role postgrest_test_authenticator set pgrst."jwt-role-claim-key" = 'test';
+  perform pg_notify('pgrst', 'reload config');
+end $_$ volatile security definer language plpgsql ;
+
+create or replace function test.reset_invalid_role_claim_key() returns void as $_$
+begin
+  alter role postgrest_test_authenticator set pgrst."jwt-role-claim-key" = '."a"."role"';
+  perform pg_notify('pgrst', 'reload config');
+end $_$ volatile security definer language plpgsql ;

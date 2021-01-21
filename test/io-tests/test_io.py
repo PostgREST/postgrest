@@ -154,7 +154,7 @@ def run(configpath=None, stdin=None, env=None, port=None):
         if configpath:
             command.append(configpath)
 
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env)
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
         try:
             process.stdin.write(stdin or b"")
@@ -590,3 +590,19 @@ def test_max_rows_notify_reload(defaultenv):
 
         # reset max-rows config on the db
         postgrest.session.post("/rpc/reset_max_rows_config")
+
+def invalid_role_claim_key_notify_reload(defaultenv):
+    "NOTIFY reload config should show an error if role-claim-key is invalid"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        postgrest.session.post("/rpc/invalid_role_claim_key_reload")
+
+        assert "failed to parse role-claim-key value" in str(postgrest.process.stderr.readline())
+
+        postgrest.session.post("/rpc/reset_invalid_role_claim_key")
