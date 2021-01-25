@@ -202,7 +202,7 @@ dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
     sql = [q|
       with
       role_setting as (
-        select unnest(setconfig) as setting from pg_catalog.pg_db_role_setting where setrole = 'postgrest_test_authenticator'::regrole::oid
+        select unnest(setconfig) as setting from pg_catalog.pg_db_role_setting where setrole = current_user::regrole::oid
       ),
       kv_settings as (
         select split_part(setting, '=', 1) as key, split_part(setting, '=', 2) as value from role_setting
