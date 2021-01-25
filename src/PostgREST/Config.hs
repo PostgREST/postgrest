@@ -58,7 +58,6 @@ import Development.GitRev      (gitHash)
 import Numeric                 (readOct, showOct)
 import Paths_postgrest         (version)
 import System.Environment      (getEnvironment)
-import System.IO.Error         (IOError)
 import System.Posix.Types      (FileMode)
 
 import Control.Applicative
@@ -334,14 +333,12 @@ readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO (Either T
 readAppConfig dbSettings env optPath = do
   -- Now read the actual config file
   conf <- case optPath of
-    Just cfgPath -> C.load cfgPath `catches`
-      [ Handler (\(ex :: IOError)    -> panic $ "Cannot open config file: " <> show ex)
-      , Handler (\(C.ParseError err) -> panic $ "Error parsing config file: " <> err)
-      ]
+    -- Both C.ParseError and IOError are shown here
+    Just cfgPath -> mapLeft (("Bad config file. " <>) . show) <$> (try $ C.load cfgPath :: IO (Either SomeException C.Config))
     -- if no filename provided, start with an empty map to read config from environment
-    Nothing -> return M.empty
+    Nothing -> return $ Right M.empty
 
-  pure $ mapLeft ("Error in config: " <>) $ C.runParser parseConfig conf
+  pure $ mapLeft ("Error in config: " <>) $ C.runParser parseConfig =<< conf
 
   where
     parseConfig =

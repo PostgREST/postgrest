@@ -34,3 +34,19 @@ ALTER ROLE postgrest_test_authenticator SET pgrst."db-channel" = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-pool" = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-pool-timeout" = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db-load-guc-config" = 'ignored';
+
+-- other authenticator reloadable config options for io tests
+CREATE ROLE other_authenticator LOGIN NOINHERIT;
+ALTER ROLE other_authenticator SET pgrst."jwt-aud" = 'https://otherexample.org';
+ALTER ROLE other_authenticator SET pgrst."openapi-server-proxy-uri" = 'https://otherexample.org/api';
+ALTER ROLE other_authenticator SET pgrst."raw-media-types" = 'application/vnd.pgrst.other-db-config';
+ALTER ROLE other_authenticator SET pgrst."jwt-secret" = 'ODERREALLYREALLYREALLYREALLYVERYSAFE';
+ALTER ROLE other_authenticator SET pgrst."jwt-secret-is-base64" = 'true';
+ALTER ROLE other_authenticator SET pgrst."jwt-role-claim-key" = '."other"."role"';
+ALTER ROLE other_authenticator SET pgrst."db-tx-end" = 'rollback-allow-override';
+ALTER ROLE other_authenticator SET pgrst."db-schemas" = 'test, other_tenant1, other_tenant2';
+ALTER ROLE other_authenticator SET pgrst."db-root-spec" = 'other_root';
+ALTER ROLE other_authenticator SET pgrst."db-prepared-statements" = 'false';
+ALTER ROLE other_authenticator SET pgrst."db-pre-request" = 'test.other_custom_headers';
+ALTER ROLE other_authenticator SET pgrst."db-max-rows" = '100';
+ALTER ROLE other_authenticator SET pgrst."db-extra-search-path" = 'public, extensions, other';

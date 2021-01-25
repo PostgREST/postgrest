@@ -283,6 +283,24 @@ def test_expected_config_from_db_settings(defaultenv):
 
     assert dumpconfig(configpath=config, env=env) == expected
 
+def test_expected_config_from_db_settings_other_authenticator(defaultenv):
+    "NOTIFY reload config should show an error if role-claim-key is invalid"
+
+    config = CONFIGSDIR / "no-defaults.config"
+    env = {
+        **defaultenv,
+        "PGRST_DB_URI": f'postgresql:///{os.environ["PGDATABASE"]}?host={os.environ["PGHOST"]}&user=other_authenticator',
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    expected = (
+        (CONFIGSDIR / "expected" / "no-defaults-with-db-other-authenticator.config")
+        .read_text()
+        .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
+    )
+
+    assert dumpconfig(configpath=config, env=env) == expected
 
 @pytest.mark.parametrize(
     "config",
@@ -591,7 +609,7 @@ def test_max_rows_notify_reload(defaultenv):
         # reset max-rows config on the db
         postgrest.session.post("/rpc/reset_max_rows_config")
 
-def invalid_role_claim_key_notify_reload(defaultenv):
+def test_invalid_role_claim_key_notify_reload(defaultenv):
     "NOTIFY reload config should show an error if role-claim-key is invalid"
 
     env = {
