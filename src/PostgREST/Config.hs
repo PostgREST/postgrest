@@ -334,7 +334,7 @@ readAppConfig dbSettings env optPath = do
   -- Now read the actual config file
   conf <- case optPath of
     -- Both C.ParseError and IOError are shown here
-    Just cfgPath -> mapLeft (("Bad config file. " <>) . show) <$> (try $ C.load cfgPath :: IO (Either SomeException C.Config))
+    Just cfgPath -> mapLeft show <$> (try $ C.load cfgPath :: IO (Either SomeException C.Config))
     -- if no filename provided, start with an empty map to read config from environment
     Nothing -> return $ Right M.empty
 

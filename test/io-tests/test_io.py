@@ -154,7 +154,9 @@ def run(configpath=None, stdin=None, env=None, port=None):
         if configpath:
             command.append(configpath)
 
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        process = subprocess.Popen(
+            command, stdin=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+        )
 
         try:
             process.stdin.write(stdin or b"")
@@ -267,35 +269,28 @@ def test_expected_config_from_environment():
     assert dumpconfig(env=env) == expected
 
 
-def test_expected_config_from_db_settings(defaultenv):
+@pytest.mark.parametrize(
+    "role, expectedconfig",
+    [
+        ("postgrest_test_authenticator", "no-defaults-with-db.config"),
+        ("other_authenticator", "no-defaults-with-db-other-authenticator.config"),
+    ],
+)
+def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
     "Config should be overriden from database settings"
 
     config = CONFIGSDIR / "no-defaults.config"
-    env = {
-        **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
-    }
-    expected = (
-        (CONFIGSDIR / "expected" / "no-defaults-with-db.config")
-        .read_text()
-        .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
+
+    db_uri = defaultenv["PGRST_DB_URI"].replace(
+        "user=postgrest_test_authenticator", f"user={role}"
     )
-
-    assert dumpconfig(configpath=config, env=env) == expected
-
-def test_expected_config_from_db_settings_other_authenticator(defaultenv):
-    "NOTIFY reload config should show an error if role-claim-key is invalid"
-
-    config = CONFIGSDIR / "no-defaults.config"
     env = {
         **defaultenv,
-        "PGRST_DB_URI": f'postgresql:///{os.environ["PGDATABASE"]}?host={os.environ["PGHOST"]}&user=other_authenticator',
+        "PGRST_DB_URI": db_uri,
         "PGRST_DB_LOAD_GUC_CONFIG": "true",
-        "PGRST_DB_CHANNEL_ENABLED": "true",
     }
-
     expected = (
-        (CONFIGSDIR / "expected" / "no-defaults-with-db-other-authenticator.config")
+        (CONFIGSDIR / "expected" / expectedconfig)
         .read_text()
         .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
     )
@@ -621,6 +616,8 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
     with run(env=env) as postgrest:
         postgrest.session.post("/rpc/invalid_role_claim_key_reload")
 
-        assert "failed to parse role-claim-key value" in str(postgrest.process.stderr.readline())
+        assert "failed to parse role-claim-key value" in str(
+            postgrest.process.stderr.readline()
+        )
 
         postgrest.session.post("/rpc/reset_invalid_role_claim_key")
