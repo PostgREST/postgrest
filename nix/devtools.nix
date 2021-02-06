@@ -3,6 +3,7 @@
 , checkedShellScript
 , devCabalOptions
 , entr
+, graphviz
 , silver-searcher
 , style
 , tests
@@ -96,6 +97,29 @@ let
         ${style}/bin/postgrest-lint
         ${style}/bin/postgrest-style-check
       '';
+
+  importsgraph =
+    checkedShellScript
+      {
+        name = "postgrest-importsgraph";
+        docs =
+          ''
+            Render the imports between PostgREST modules as a graph.
+
+            Output is written to 'imports.png' in the root directory of the project.
+          '';
+        inRootDir = true;
+      }
+      ''
+        grep -rE 'import .*PostgREST\.' src \
+          | sed -E \
+              -e 's|/|\.|g' \
+              -e 's/src\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\1" -> "\2"/' \
+              -e '1 i digraph \{' \
+              -e '$ a \}' \
+          | ${graphviz}/bin/dot -Tpng \
+          > imports.png
+      '';
 in
 buildEnv {
   name = "postgrest-devtools";
@@ -106,5 +130,6 @@ buildEnv {
     run.bin
     clean.bin
     check.bin
+    importsgraph.bin
   ];
 }
