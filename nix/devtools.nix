@@ -121,7 +121,7 @@ let
         labels=$(
           grep -rE '^(--)?\s*Description\s*:' src main \
             | sed -E \
-                -e 's/\//\./g' \
+                -e 's|/|\.|g' \
                 -e 's/^(src|main)\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\2" [label="\2\\n\4"]/'
         )
 
