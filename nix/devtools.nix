@@ -7,6 +7,7 @@
 , silver-searcher
 , style
 , tests
+, writeText
 }:
 let
   watch =
@@ -125,12 +126,94 @@ let
                 -e 's/^(src|main)\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\2" [label="\2\\n\4"]/'
         )
 
-        cat <<EOF | ${graphviz}/bin/dot -Tpng > imports.png
+      cat <<EOF | ${graphviz}/bin/dot -Tpng > imports.png
+        digraph {
+          $imports
+          $labels
+        }
+      EOF
+      '';
+
+  symbolimportsgraph =
+    checkedShellScript
+      {
+        name = "postgrest-symbolimportsgraph";
+        docs =
+          ''
+            Render the imports of symbols between PostgREST modules as a graph.
+
+            Output is written to 'symbolimports.png' in the root directory of the project.
+          '';
+        inRootDir = true;
+      }
+      ''
+        tmpdir="$(mktemp -d)"
+        ${cabal-install}/bin/cabal v2-clean
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
+          --ghc-option=-ddump-minimal-imports --ghc-option=-dumpdir="$tmpdir"
+
+        symbols=$(
+          for importsfile in "$tmpdir"/*.imports; do
+            filename="$(basename "$importsfile")"
+            modulename="''${filename%.*}"
+            sed -Ef ${symbolImportsSed} < "$importsfile" \
+              | sed -Ee '/^\S/{h;d};G' -e 's/ {6}(.*)\n(.*)/\2\:\1/' \
+              | sed -Ee "s/^/$modulename:/"
+          done
+        )
+
+        rm -r "$tmpdir"
+
+        pgrstSymbols=$(
+          echo "$symbols" | grep -E '^.*:PostgREST\..*:.*$' | sort
+        )
+
+        targetModules=$(
+          echo "$pgrstSymbols" | sed -Ee 's/^(.*):(.*):(.*)$/\2/' | uniq
+        )
+
+        groups=$(
+          for module in $targetModules; do
+            echo "$pgrstSymbols" \
+              | grep -E "^.*:$module.*:.*$" \
+              | sed -E \
+                  -e 's/.*:(.*):(.*)/  "\1.\2"/' \
+                  -e "1 i subgraph \"cluster_$module\" {\n  \"$module\"" \
+                  -e '$ a }'
+          done
+        )
+
+        edges=$(
+          echo "$pgrstSymbols" | sed -Ee 's/^(.*):(.*):(.*)$/"\1" -> "\2\.\3"/'
+        )
+
+        cat <<EOF | ${graphviz}/bin/dot -Tpng > "symbolimports.png"
           digraph {
-            $imports
-            $labels
+            rankdir=LR
+            ranksep=10
+            $edges
+            $groups
           }
         EOF
+      '';
+
+  symbolImportsSed =
+    writeText "symbolimports.sed"
+      ''
+        # Break single-line imports into a new line, removing the paren and with indentation
+        s/(import .*) \( /\1\n      /
+        # Remove the opening paren of multi-line imports, maintaining a consistent indent
+        s/    \( /      /
+        # Remove all closing parens from import statements
+        s/ \)//
+        # Remove all imported constructors (might be '(..)' or an explicit list)
+        s/(\w+)\(.*\)/\1/
+        # Break all one-liner import lists into multiple lines, maintaining indentation
+        s/, /\n      /g
+        # Remove commas at the end multi-line import lines
+        s/,$//
+        # Filter the module name from import statements
+        s/^import( qualified)? (\S+)( as \S)?/\2/
       '';
 in
 buildEnv {
@@ -143,5 +226,6 @@ buildEnv {
     clean.bin
     check.bin
     importsgraph.bin
+    symbolimportsgraph.bin
   ];
 }
