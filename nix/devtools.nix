@@ -112,17 +112,17 @@ let
       }
       ''
         imports=$(
-          grep -rE 'import .*PostgREST\.' src \
+          grep -rE 'import .*PostgREST\.' src main \
             | sed -E \
                 -e 's|/|\.|g' \
-                -e 's/src\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\1" -> "\2"/'
+                -e 's/(src|main)\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\2" -> "\3"/'
         )
 
         labels=$(
-          grep -rE '^(--)?\s*Description\s*:' src \
+          grep -rE '^(--)?\s*Description\s*:' src main \
             | sed -E \
                 -e 's/\//\./g' \
-                -e 's/^src\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\1" [label="\1\\n\3"]/'
+                -e 's/^(src|main)\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\2" [label="\2\\n\4"]/'
         )
 
         cat <<EOF | ${graphviz}/bin/dot -Tpng > imports.png
