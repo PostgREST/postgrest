@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase  #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-|
 Module      : PostgREST.Private.QueryFragment
 Description : Helper functions for PostgREST.QueryBuilder.

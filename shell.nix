@@ -31,6 +31,7 @@ lib.overrideDerivation postgrest.env (
         postgrest.devtools
         postgrest.tests
         postgrest.style
+        postgrest.hsie.bin
       ]
       ++ lib.optional memoryTests postgrest.tests.memoryTests
       ++ lib.optional docker postgrest.docker
@@ -47,6 +48,7 @@ lib.overrideDerivation postgrest.env (
         complete -F _command postgrest-with-postgresql-10
         complete -F _command postgrest-with-postgresql-9.6
         complete -F _command postgrest-with-postgresql-9.5
+        source ${postgrest.hsie.bashCompletion}
       '';
   }
 )

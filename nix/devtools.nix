@@ -4,6 +4,7 @@
 , devCabalOptions
 , entr
 , graphviz
+, hsie
 , silver-searcher
 , style
 , tests
@@ -98,40 +99,57 @@ let
         ${style}/bin/postgrest-style-check
       '';
 
-  importsgraph =
+  dumpMinimalImports =
     checkedShellScript
       {
-        name = "postgrest-importsgraph";
-        docs =
-          ''
-            Render the imports between PostgREST modules as a graph.
-
-            Output is written to 'imports.png' in the root directory of the project.
-          '';
+        name = "postgrest-dumpminimalimports";
+        docs = "Dump minimal imports into given directory.";
         inRootDir = true;
       }
       ''
-        imports=$(
-          grep -rE 'import .*PostgREST\.' src main \
-            | sed -E \
-                -e 's|/|\.|g' \
-                -e 's/(src|main)\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\2" -> "\3"/'
-        )
+        dumpdir="$1"
+        tmpdir="$(mktemp -d)"
+        mkdir -p "$dumpdir"
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
+          --builddir="$tmpdir" \
+          --ghc-option=-ddump-minimal-imports \
+          --ghc-option=-dumpdir="$dumpdir" \
+          1>&2
+        rm -rf "$tmpdir"
 
-        labels=$(
-          grep -rE '^(--)?\s*Description\s*:' src main \
-            | sed -E \
-                -e 's|/|\.|g' \
-                -e 's/^(src|main)\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\2" [label="\2\\n\4"]/'
-        )
-
-        cat <<EOF | ${graphviz}/bin/dot -Tpng > imports.png
-          digraph {
-            $imports
-            $labels
-          }
-        EOF
+        # Fix OverloadedRecordFields imports
+        # shellcheck disable=SC2016
+        sed -E 's/\$sel:.*://g' -i "$dumpdir"/*
       '';
+
+  hsieMinimalImports =
+    checkedShellScript
+      {
+        name = "postgrest-hsie-minimalimports";
+        docs = "Run hsie with a provided dump of minimal imports.";
+      }
+      ''
+        tmpdir="$(mktemp -d)"
+        ${dumpMinimalImports} "$tmpdir"
+        ${hsie} -i "$tmpdir" "$@"
+        rm -rf "$tmpdir"
+      '';
+
+  hsieGraphModules =
+    checkedShellScript
+      {
+        name = "postgrest-hsie-graph-modules";
+        docs = "Create a PNG graph of modules imported within the codebase.";
+      }
+      ''${hsie} graph-modules -s main -s src | ${graphviz}/bin/dot -Tpng -o "$1"'';
+
+  hsieGraphSymbols =
+    checkedShellScript
+      {
+        name = "postgrest-hsie-graph-symbols";
+        docs = "Create a PNG graph of symbols imported within the codebase.";
+      }
+      ''${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$1"'';
 in
 buildEnv {
   name = "postgrest-devtools";
@@ -142,6 +160,9 @@ buildEnv {
     run.bin
     clean.bin
     check.bin
-    importsgraph.bin
+    dumpMinimalImports.bin
+    hsieMinimalImports.bin
+    hsieGraphModules.bin
+    hsieGraphSymbols.bin
   ];
 }

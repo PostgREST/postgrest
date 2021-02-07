@@ -124,9 +124,15 @@ rec {
   style =
     pkgs.callPackage nix/style.nix { };
 
+  # Tooling for analyzing Haskell imports and exports.
+  hsie =
+    pkgs.callPackage nix/hsie {
+      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
+    };
+
   # Development tools, including linting and styling scripts.
   devtools =
-    pkgs.callPackage nix/devtools.nix { inherit tests style devCabalOptions; };
+    pkgs.callPackage nix/devtools.nix { inherit tests style devCabalOptions hsie; };
 
   # Scripts for publishing new releases.
   release =
