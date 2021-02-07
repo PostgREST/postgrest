@@ -111,14 +111,26 @@ let
         inRootDir = true;
       }
       ''
-        grep -rE 'import .*PostgREST\.' src \
-          | sed -E \
-              -e 's|/|\.|g' \
-              -e 's/src\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\1" -> "\2"/' \
-              -e '1 i digraph \{' \
-              -e '$ a \}' \
-          | ${graphviz}/bin/dot -Tpng \
-          > imports.png
+        imports=$(
+          grep -rE 'import .*PostgREST\.' src \
+            | sed -E \
+                -e 's|/|\.|g' \
+                -e 's/src\.(.*)\.hs:import .*(PostgREST\.\S+)( .*)?/"\1" -> "\2"/'
+        )
+
+        labels=$(
+          grep -rE '^(--)?\s*Description\s*:' src \
+            | sed -E \
+                -e 's/\//\./g' \
+                -e 's/^src\.(.*)\.hs:(--)?\s*Description\s*:\s*(.*)$/"\1" [label="\1\\n\3"]/'
+        )
+
+        cat <<EOF | ${graphviz}/bin/dot -Tpng > imports.png
+          digraph {
+            $imports
+            $labels
+          }
+        EOF
       '';
 in
 buildEnv {
