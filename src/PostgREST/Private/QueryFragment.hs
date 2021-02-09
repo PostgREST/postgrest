@@ -101,7 +101,7 @@ asJsonSingleF returnsScalar
   | otherwise     = "coalesce(string_agg(to_json(_postgrest_t)::text, ','), '')::character varying"
 
 asBinaryF :: FieldName -> SqlFragment
-asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
+asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> "::text, ''::text), '')"
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys = [qc|(
