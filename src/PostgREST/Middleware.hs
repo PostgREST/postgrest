@@ -49,13 +49,14 @@ runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
                ApiRequest  -> H.Transaction Response
 runPgLocals conf claims app req = do
   H.statement mempty $ H.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ paramsSql ++ appSettingsSql))
     HD.noResult (configDbPreparedStatements conf)
   traverse_ H.sql preReqSql
   app req
   where
     methodSql = setConfigLocal mempty ("request.method", toS $ iMethod req)
     pathSql = setConfigLocal mempty ("request.path", toS $ iPath req)
+    paramsSql = setConfigLocal "request.param." <$> iParams req
     headersSql = setConfigLocal "request.header." <$> iHeaders req
     cookiesSql = setConfigLocal "request.cookie." <$> iCookies req
     claimsWithRole =
