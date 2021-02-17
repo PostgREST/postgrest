@@ -298,6 +298,23 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
     assert dumpconfig(configpath=config, env=env) == expected
 
 
+def test_read_db_setting(defaultenv):
+    """
+    Should be able to read db settings with current_setting.
+
+    See: https://github.com/PostgREST/postgrest/pull/1729#discussion_r572946461
+    """
+    env = {
+        **defaultenv,
+        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+    }
+    with run(env=env) as postgrest:
+        uri = "/rpc/get_guc_value?name=pgrst.db_max_rows"
+        response = postgrest.session.get(uri)
+
+        assert response.text == '"1000"'
+
+
 @pytest.mark.parametrize(
     "config",
     [conf for conf in CONFIGSDIR.iterdir() if conf.suffix == ".config"],
