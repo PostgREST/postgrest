@@ -309,10 +309,10 @@ def test_read_db_setting(defaultenv):
         "PGRST_DB_LOAD_GUC_CONFIG": "true",
     }
     with run(env=env) as postgrest:
-        uri = "/rpc/get_guc_value?name=pgrst.db_max_rows"
+        uri = "/rpc/get_guc_value?name=pgrst.jwt_secret"
         response = postgrest.session.get(uri)
 
-        assert response.text == '"1000"'
+        assert response.text == '"OVERRIDEREALLYREALLYREALLYREALLYVERYSAFE"'
 
 
 @pytest.mark.parametrize(

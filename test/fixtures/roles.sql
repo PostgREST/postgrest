@@ -21,6 +21,15 @@ ALTER ROLE postgrest_test_authenticator SET pgrst."db_pre_request" = 'test.custo
 ALTER ROLE postgrest_test_authenticator SET pgrst."db_max_rows" = '1000';
 ALTER ROLE postgrest_test_authenticator SET pgrst."db_extra_search_path" = 'public, extensions';
 
+-- override with database specific setting
+ALTER ROLE postgrest_test_authenticator IN DATABASE :DBNAME SET pgrst."jwt_secret" = 'OVERRIDEREALLYREALLYREALLYREALLYVERYSAFE';
+ALTER ROLE postgrest_test_authenticator IN DATABASE :DBNAME SET pgrst."db_extra_search_path" = 'public, extensions, private';
+
+-- other database settings that should be ignored
+DROP DATABASE IF EXISTS other;
+CREATE DATABASE other;
+ALTER ROLE postgrest_test_authenticator IN DATABASE other SET pgrst."db_max_rows" = '1111';
+
 -- non-reloadable configs for io tests
 ALTER ROLE postgrest_test_authenticator SET pgrst."server_host" = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst."server_port" = 'ignored';

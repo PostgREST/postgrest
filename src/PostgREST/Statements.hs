@@ -195,18 +195,23 @@ decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> H
 decodeGucStatus :: HD.Value (Either Error (Maybe Status))
 decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
 
--- | Get db settings from the connection role. Only used for configuration.
+-- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
 dbSettingsStatement :: H.Statement () [(Text, Text)]
 dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
   where
     sql = [q|
       with
       role_setting as (
-        select unnest(setconfig) as setting from pg_catalog.pg_db_role_setting where setrole = current_user::regrole::oid
+        select setdatabase, unnest(setconfig) as setting from pg_catalog.pg_db_role_setting
+        where setrole = current_user::regrole::oid
+          and setdatabase in (0, (select oid from pg_catalog.pg_database where datname = current_catalog))
       ),
       kv_settings as (
-        select split_part(setting, '=', 1) as key, split_part(setting, '=', 2) as value from role_setting
+        select setdatabase, split_part(setting, '=', 1) as k, split_part(setting, '=', 2) as value from role_setting
+        where setting like 'pgrst.%'
       )
-      select replace(key, 'pgrst.', '') as key, value from kv_settings where key like 'pgrst.%';
+      select distinct on (key) replace(k, 'pgrst.', '') as key, value
+      from kv_settings
+      order by key, setdatabase desc;
     |]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
