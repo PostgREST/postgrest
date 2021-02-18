@@ -209,6 +209,7 @@ Here are some companies that use PostgREST in production.
 
 * `Sompani <https://www.sompani.com/>`_
 * `Datrium <https://www.datrium.com>`_
+* `Supabase <https://supabase.io>`_
 * `Nimbus <https://nimbusforwork.com/>`_
   - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
 * `Catarse <https://www.catarse.me/>`_
