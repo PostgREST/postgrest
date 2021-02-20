@@ -9,8 +9,8 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
 module PostgREST.App (postgrest) where
 
 import Control.Monad.Except    (liftEither)
@@ -41,14 +41,13 @@ import qualified PostgREST.OpenAPI          as OpenAPI
 import qualified PostgREST.QueryBuilder     as QueryBuilder
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Statements       as Statements
-import qualified PostgREST.Types            as Types
 
 import PostgREST.ApiRequest (Action (..), ApiRequest (..),
                              InvokeMethod (..), Target (..))
 import PostgREST.Config     (AppConfig (..))
 import PostgREST.Error      (Error)
-import PostgREST.Types      (ContentType, DbStructure,
-                             QualifiedIdentifier (..), ReadRequest)
+
+import PostgREST.Types
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -67,7 +66,7 @@ type DbHandler = Handler SQL.Transaction
 
 -- | PostgREST application
 postgrest
-  :: Types.LogLevel
+  :: LogLevel
   -> IORef AppConfig
   -> IORef (Maybe DbStructure)
   -> SQL.Pool
@@ -124,7 +123,7 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure pool time req = do
       Just ct ->
         return ct
       Nothing ->
-        throwError . Error.ContentTypeError $ map Types.toMime iAccepts
+        throwError . Error.ContentTypeError $ map toMime iAccepts
 
   let
     handleReq apiReq =
@@ -181,17 +180,17 @@ handleRead headersOnly identifier context@RequestContext{..} = do
     lift . SQL.statement mempty $
       Statements.createReadStatement
         (QueryBuilder.readRequestToQuery req)
-        (if iPreferCount == Just Types.EstimatedCount then
+        (if iPreferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
          else
            countQuery
         )
-        (ctxContentType == Types.CTSingularJSON)
+        (ctxContentType == CTSingularJSON)
         (shouldCount iPreferCount)
-        (ctxContentType == Types.CTTextCSV)
+        (ctxContentType == CTTextCSV)
         bField
-        (Types.pgVersion ctxDbStructure)
+        (pgVersion ctxDbStructure)
         configDbPreparedStatements
 
   total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
@@ -203,7 +202,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       [ contentRange
       , ( "Content-Location"
         , "/"
-            <> toS (Types.qiName identifier)
+            <> toS (qiName identifier)
             <> if BS8.null iCanonicalQS then mempty else "?" <> toS iCanonicalQS
         )
       ]
@@ -215,9 +214,9 @@ handleRead headersOnly identifier context@RequestContext{..} = do
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
   case iPreferCount of
-    Just Types.PlannedCount ->
+    Just PlannedCount ->
       explain
-    Just Types.EstimatedCount ->
+    Just EstimatedCount ->
       if tableTotal > (fromIntegral <$> configDbMaxRows) then
         max tableTotal <$> explain
       else
@@ -233,7 +232,7 @@ handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
-    pkCols = Types.tablePKCols ctxDbStructure qiSchema qiName
+    pkCols = tablePKCols ctxDbStructure qiSchema qiName
 
   WriteQueryResult{..} <- writeQuery identifier True pkCols context
 
@@ -259,7 +258,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
         ]
 
   failNotSingular ctxContentType resQueryTotal $
-    if iPreferRepresentation == Types.Full then
+    if iPreferRepresentation == Full then
       response HTTP.status201 (headers ++ contentTypeHeaders context) (toS resBody)
     else
       response HTTP.status201 headers mempty
@@ -270,7 +269,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} contentType) 
 
   let
     response = gucResponse resGucStatus resGucHeaders
-    fullRepr = iPreferRepresentation == Types.Full
+    fullRepr = iPreferRepresentation == Full
     updateIsNoOp = Set.null iColumns
     status
       | resQueryTotal == 0 && not updateIsNoOp = HTTP.status404
@@ -305,7 +304,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
     throwError Error.PutMatchingPkError
 
   return $
-    if iPreferRepresentation == Types.Full then
+    if iPreferRepresentation == Full then
       response HTTP.status200 (contentTypeHeaders context) (toS resBody)
     else
       response HTTP.status204 (contentTypeHeaders context) mempty
@@ -321,7 +320,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} contentType) 
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
   failNotSingular contentType resQueryTotal $
-    if iPreferRepresentation == Types.Full then
+    if iPreferRepresentation == Full then
       response HTTP.status200
         (contentTypeHeaders context ++ [contentRangeHeader])
         (toS resBody)
@@ -330,7 +329,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} contentType) 
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{ctxDbStructure} =
-  case find tableMatches $ Types.dbTables ctxDbStructure of
+  case find tableMatches $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
@@ -339,23 +338,23 @@ handleInfo identifier RequestContext{ctxDbStructure} =
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
-      , if Types.tableInsertable table then "GET,POST,PATCH,DELETE" else "GET"
+      , if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET"
       )
     tableMatches table =
-      Types.tableName table == Types.qiName identifier
-      && Types.tableSchema table == Types.qiSchema identifier
+      tableName table == qiName identifier
+      && tableSchema table == qiSchema identifier
 
-handleInvoke :: InvokeMethod -> Types.ProcDescription -> RequestContext -> DbHandler Wai.Response
+handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
 
     identifier =
-      Types.QualifiedIdentifier
-        (Types.pdSchema proc)
-        (fromMaybe (Types.pdName proc) $ Types.procTableName proc)
+      QualifiedIdentifier
+        (pdSchema proc)
+        (fromMaybe (pdName proc) $ procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _) = Types.procReturnsSingle target
+    returnsSingle (ApiRequest.TargetProc target _) = procReturnsSingle target
     returnsSingle _                                = False
 
   req <- readRequest identifier context
@@ -367,8 +366,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (returnsScalar iTarget)
         (returnsSingle iTarget)
         (QueryBuilder.requestToCallProcQuery
-          (Types.QualifiedIdentifier (Types.pdSchema proc) (Types.pdName proc))
-          (Types.specifiedProcArgs iColumns proc)
+          (QualifiedIdentifier (pdSchema proc) (pdName proc))
+          (specifiedProcArgs iColumns proc)
           iPayload
           (returnsScalar iTarget)
           iPreferParameters
@@ -377,11 +376,11 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (QueryBuilder.readRequestToQuery req)
         (QueryBuilder.readRequestToCountQuery req)
         (shouldCount iPreferCount)
-        (ctxContentType == Types.CTSingularJSON)
-        (ctxContentType == Types.CTTextCSV)
-        (iPreferParameters == Just Types.MultipleObjects)
+        (ctxContentType == CTSingularJSON)
+        (ctxContentType == CTTextCSV)
+        (iPreferParameters == Just MultipleObjects)
         bField
-        (Types.pgVersion ctxDbStructure)
+        (pgVersion ctxDbStructure)
         (configDbPreparedStatements ctxConfig)
 
   response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
@@ -395,7 +394,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       (contentTypeHeaders context ++ [contentRange])
       (if invMethod == InvHead then mempty else toS body)
 
-handleOpenApi :: Bool -> Types.Schema -> RequestContext -> DbHandler Wai.Response
+handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
   body <-
     lift $
@@ -406,7 +405,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
 
   return $
     Wai.responseLBS HTTP.status200
-      (Types.toHeader Types.CTOpenAPI : maybeToList (profileHeader apiRequest))
+      (toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
       (if headersOnly then mempty else toS body)
 
 txMode :: ApiRequest -> SQL.Mode
@@ -422,9 +421,9 @@ txMode ApiRequest{..} =
       SQL.Read
     (ActionInvoke InvHead, _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc Types.ProcDescription{Types.pdVolatility=Types.Stable} _) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc Types.ProcDescription{Types.pdVolatility=Types.Immutable} _) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) ->
       SQL.Read
     _ ->
       SQL.Write
@@ -435,7 +434,7 @@ data WriteQueryResult = WriteQueryResult
   , resFields     :: [ByteString]
   , resBody       :: ByteString
   , resGucStatus  :: Maybe HTTP.Status
-  , resGucHeaders :: [Types.GucHeader]
+  , resGucHeaders :: [GucHeader]
   }
 
 writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
@@ -445,7 +444,7 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
   mutateReq <-
     liftEither $
       ReqBuilder.mutateRequest qiSchema qiName ctxApiRequest
-        (Types.tablePKCols ctxDbStructure qiSchema qiName)
+        (tablePKCols ctxDbStructure qiSchema qiName)
         readReq
 
   (_, queryTotal, fields, body, gucHeaders, gucStatus) <-
@@ -453,12 +452,12 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
       Statements.createWriteStatement
         (QueryBuilder.readRequestToQuery readReq)
         (QueryBuilder.mutateRequestToQuery mutateReq)
-        (ctxContentType == Types.CTSingularJSON)
+        (ctxContentType == CTSingularJSON)
         isInsert
-        (ctxContentType == Types.CTTextCSV)
+        (ctxContentType == CTTextCSV)
         (iPreferRepresentation ctxApiRequest)
         pkCols
-        (Types.pgVersion ctxDbStructure)
+        (pgVersion ctxDbStructure)
         (configDbPreparedStatements ctxConfig)
 
   liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
@@ -466,73 +465,73 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
 -- | Response with headers and status overridden from GUCs.
 gucResponse
   :: Maybe HTTP.Status
-  -> [Types.GucHeader]
+  -> [GucHeader]
   -> HTTP.Status
   -> [HTTP.Header]
   -> LBS.ByteString
   -> Wai.Response
 gucResponse gucStatus gucHeaders status headers =
   Wai.responseLBS (fromMaybe status gucStatus) $
-    Types.addHeadersIfNotIncluded headers (map Types.unwrapGucHeader gucHeaders)
+    addHeadersIfNotIncluded headers (map unwrapGucHeader gucHeaders)
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
 -- was found.
 failNotSingular :: ContentType -> Int64 -> Wai.Response -> DbHandler Wai.Response
 failNotSingular contentType queryTotal response =
-  if contentType == Types.CTSingularJSON && queryTotal /= 1 then
+  if contentType == CTSingularJSON && queryTotal /= 1 then
     do
       lift SQL.condemn
       throwError $ Error.singularityError queryTotal
   else
     return response
 
-shouldCount :: Maybe Types.PreferCount -> Bool
+shouldCount :: Maybe PreferCount -> Bool
 shouldCount preferCount =
-  preferCount == Just Types.ExactCount || preferCount == Just Types.EstimatedCount
+  preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _) = Types.procReturnsScalar proc
+returnsScalar (TargetProc proc _) = procReturnsScalar proc
 returnsScalar _                   = False
 
-readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Types.ReadRequest
+readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
   liftEither $
     ReqBuilder.readRequest qiSchema qiName configDbMaxRows
-      (Types.dbRelations dbStructure)
+      (dbRelations dbStructure)
       apiRequest
 
 contentTypeHeaders :: RequestContext -> [HTTP.Header]
 contentTypeHeaders RequestContext{..} =
-  Types.toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
+  toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
 
 requestContentTypes :: AppConfig -> ApiRequest -> [ContentType]
 requestContentTypes conf ApiRequest{..} =
   case iAction of
     ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
     ActionInvoke _  -> invokeContentTypes
-    ActionInspect _ -> [Types.CTOpenAPI, Types.CTApplicationJSON]
-    ActionInfo      -> [Types.CTTextCSV]
+    ActionInspect _ -> [CTOpenAPI, CTApplicationJSON]
+    ActionInfo      -> [CTTextCSV]
     _               -> defaultContentTypes
   where
     invokeContentTypes =
       defaultContentTypes
         ++ rawContentTypes conf
-        ++ [Types.CTOpenAPI | ApiRequest.tpIsRootSpec iTarget]
+        ++ [CTOpenAPI | ApiRequest.tpIsRootSpec iTarget]
     defaultContentTypes =
-      [Types.CTApplicationJSON, Types.CTSingularJSON, Types.CTTextCSV]
+      [CTApplicationJSON, CTSingularJSON, CTTextCSV]
 
 -- |
 -- If raw(binary) output is requested, check that ContentType is one of the admitted
 -- rawContentTypes and that`?select=...` contains only one field other than `*`
 binaryField :: Monad m =>
-  RequestContext -> ReadRequest -> Handler m (Maybe Types.FieldName)
+  RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
 binaryField RequestContext{..} readReq
   | returnsScalar (iTarget ctxApiRequest) && ctxContentType `elem` rawContentTypes ctxConfig =
       return $ Just "pgrst_scalar"
   | ctxContentType `elem` rawContentTypes ctxConfig =
       let
-        fldNames = Types.fstFieldNames readReq
+        fldNames = fstFieldNames readReq
         fieldName = headMay fldNames
       in
       if length fldNames == 1 && fieldName /= Just "*" then
@@ -544,7 +543,7 @@ binaryField RequestContext{..} readReq
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
-  (Types.decodeContentType <$> configRawMediaTypes) `union` [Types.CTOctetStream, Types.CTTextPlain]
+  (decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
