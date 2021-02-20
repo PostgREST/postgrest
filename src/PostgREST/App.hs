@@ -10,6 +10,7 @@ Some of its functionality includes:
 - Content Negotiation
 -}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 module PostgREST.App (postgrest) where
 
 import Control.Monad.Except    (liftEither)
@@ -145,7 +146,7 @@ runDbHandler pool mode jwtClaims handler = do
   liftEither resp
 
 handleRequest :: RequestContext -> DbHandler Wai.Response
-handleRequest context@(RequestContext _ dbStructure ApiRequest{..} _) =
+handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
@@ -158,7 +159,7 @@ handleRequest context@(RequestContext _ dbStructure ApiRequest{..} _) =
     (ActionDelete, TargetIdent identifier) ->
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
-      handleInfo identifier dbStructure
+      handleInfo identifier context
     (ActionInvoke invMethod, TargetProc proc _) ->
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
@@ -180,11 +181,11 @@ handleRead headersOnly identifier context@RequestContext{..} = do
     lift . SQL.statement mempty $
       Statements.createReadStatement
         (QueryBuilder.readRequestToQuery req)
-        ( if iPreferCount == Just Types.EstimatedCount then
-            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
-            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
-          else
-            countQuery
+        (if iPreferCount == Just Types.EstimatedCount then
+           -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
+           QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
+         else
+           countQuery
         )
         (ctxContentType == Types.CTSingularJSON)
         (shouldCount iPreferCount)
@@ -327,9 +328,9 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} contentType) 
     else
       response HTTP.status204 [contentRangeHeader] mempty
 
-handleInfo :: Monad m => QualifiedIdentifier -> DbStructure -> Handler m Wai.Response
-handleInfo identifier dbStructure =
-  case find tableMatches $ Types.dbTables dbStructure of
+handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
+handleInfo identifier RequestContext{ctxDbStructure} =
+  case find tableMatches $ Types.dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
