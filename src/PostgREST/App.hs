@@ -229,40 +229,39 @@ readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
         configDbPreparedStatements
 
 handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} =
+handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
     pkCols = Types.tablePKCols ctxDbStructure qiSchema qiName
-  in
-  do
-    CreateResult{..} <- writeQuery identifier True pkCols context
 
-    let
-      response = gucResponse rGucStatus rGucHeaders
-      headers =
-        catMaybes
-          [ if null rFields then
-              Nothing
-            else
-              Just
-                ( HTTP.hLocation
-                , "/"
-                    <> toS qiName
-                    <> HTTP.renderSimpleQuery True (splitKeyValue <$> rFields)
-                )
-          , Just . RangeQuery.contentRangeH 1 0 $
-              if shouldCount iPreferCount then Just rQueryTotal else Nothing
-          , if null pkCols && isNothing iOnConflict then
-              Nothing
-            else
-              (\x -> ("Preference-Applied", BS8.pack $ show x)) <$> iPreferResolution
-          ]
+  CreateResult{..} <- writeQuery identifier True pkCols context
 
-    failNotSingular ctxContentType rQueryTotal $
-      if iPreferRepresentation == Types.Full then
-        response HTTP.status201 (headers ++ contentTypeHeaders context) (toS rBody)
-      else
-        response HTTP.status201 headers mempty
+  let
+    response = gucResponse rGucStatus rGucHeaders
+    headers =
+      catMaybes
+        [ if null rFields then
+            Nothing
+          else
+            Just
+              ( HTTP.hLocation
+              , "/"
+                  <> toS qiName
+                  <> HTTP.renderSimpleQuery True (splitKeyValue <$> rFields)
+              )
+        , Just . RangeQuery.contentRangeH 1 0 $
+            if shouldCount iPreferCount then Just rQueryTotal else Nothing
+        , if null pkCols && isNothing iOnConflict then
+            Nothing
+          else
+            (\x -> ("Preference-Applied", BS8.pack $ show x)) <$> iPreferResolution
+        ]
+
+  failNotSingular ctxContentType rQueryTotal $
+    if iPreferRepresentation == Types.Full then
+      response HTTP.status201 (headers ++ contentTypeHeaders context) (toS rBody)
+    else
+      response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} contentType) = do
@@ -346,7 +345,7 @@ handleInfo identifier dbStructure =
       && Types.tableSchema table == Types.qiSchema identifier
 
 handleInvoke :: InvokeMethod -> Types.ProcDescription -> RequestContext -> DbHandler Wai.Response
-handleInvoke invMethod proc context@RequestContext{..} =
+handleInvoke invMethod proc context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
 
@@ -357,58 +356,57 @@ handleInvoke invMethod proc context@RequestContext{..} =
 
     returnsSingle (ApiRequest.TargetProc target _) = Types.procReturnsSingle target
     returnsSingle _                                = False
-  in
-  do
-    req <- readRequest identifier context
-    bField <- binaryField context req
 
-    (tableTotal, queryTotal, body, gucHeaders, gucStatus) <-
-      lift . SQL.statement mempty $
-        Statements.callProcStatement
+  req <- readRequest identifier context
+  bField <- binaryField context req
+
+  (tableTotal, queryTotal, body, gucHeaders, gucStatus) <-
+    lift . SQL.statement mempty $
+      Statements.callProcStatement
+        (returnsScalar iTarget)
+        (returnsSingle iTarget)
+        (QueryBuilder.requestToCallProcQuery
+          (Types.QualifiedIdentifier (Types.pdSchema proc) (Types.pdName proc))
+          (Types.specifiedProcArgs iColumns proc)
+          iPayload
           (returnsScalar iTarget)
-          (returnsSingle iTarget)
-          (QueryBuilder.requestToCallProcQuery
-            (Types.QualifiedIdentifier (Types.pdSchema proc) (Types.pdName proc))
-            (Types.specifiedProcArgs iColumns proc)
-            iPayload
-            (returnsScalar iTarget)
-            iPreferParameters
-            (ReqBuilder.returningCols req [])
-          )
-          (QueryBuilder.readRequestToQuery req)
-          (QueryBuilder.readRequestToCountQuery req)
-          (shouldCount iPreferCount)
-          (ctxContentType == Types.CTSingularJSON)
-          (ctxContentType == Types.CTTextCSV)
-          (iPreferParameters == Just Types.MultipleObjects)
-          bField
-          (Types.pgVersion ctxDbStructure)
-          (configDbPreparedStatements ctxConfig)
+          iPreferParameters
+          (ReqBuilder.returningCols req [])
+        )
+        (QueryBuilder.readRequestToQuery req)
+        (QueryBuilder.readRequestToCountQuery req)
+        (shouldCount iPreferCount)
+        (ctxContentType == Types.CTSingularJSON)
+        (ctxContentType == Types.CTTextCSV)
+        (iPreferParameters == Just Types.MultipleObjects)
+        bField
+        (Types.pgVersion ctxDbStructure)
+        (configDbPreparedStatements ctxConfig)
 
-    response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
+  response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
 
-    let
-      (status, contentRange) =
-        RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
+  let
+    (status, contentRange) =
+      RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
 
-    failNotSingular ctxContentType queryTotal $
-      response status
-        (contentTypeHeaders context ++ [contentRange])
-        (if invMethod == InvHead then mempty else toS body)
+  failNotSingular ctxContentType queryTotal $
+    response status
+      (contentTypeHeaders context ++ [contentRange])
+      (if invMethod == InvHead then mempty else toS body)
 
 handleOpenApi :: Bool -> Types.Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
-    body <-
-      lift $
-        OpenAPI.encode conf dbStructure
-          <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
-          <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
-          <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+  body <-
+    lift $
+      OpenAPI.encode conf dbStructure
+        <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
+        <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+        <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
 
-    return $
-      Wai.responseLBS HTTP.status200
-        (Types.toHeader Types.CTOpenAPI : maybeToList (profileHeader apiRequest))
-        (if headersOnly then mempty else toS body)
+  return $
+    Wai.responseLBS HTTP.status200
+      (Types.toHeader Types.CTOpenAPI : maybeToList (profileHeader apiRequest))
+      (if headersOnly then mempty else toS body)
 
 txMode :: ApiRequest -> SQL.Mode
 txMode ApiRequest{..} =
