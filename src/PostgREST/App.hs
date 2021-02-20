@@ -235,54 +235,54 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
     ApiRequest{..} = ctxApiRequest
     pkCols = Types.tablePKCols ctxDbStructure qiSchema qiName
 
-  CreateResult{..} <- writeQuery identifier True pkCols context
+  WriteQueryResult{..} <- writeQuery identifier True pkCols context
 
   let
-    response = gucResponse rGucStatus rGucHeaders
+    response = gucResponse resGucStatus resGucHeaders
     headers =
       catMaybes
-        [ if null rFields then
+        [ if null resFields then
             Nothing
           else
             Just
               ( HTTP.hLocation
               , "/"
                   <> toS qiName
-                  <> HTTP.renderSimpleQuery True (splitKeyValue <$> rFields)
+                  <> HTTP.renderSimpleQuery True (splitKeyValue <$> resFields)
               )
         , Just . RangeQuery.contentRangeH 1 0 $
-            if shouldCount iPreferCount then Just rQueryTotal else Nothing
+            if shouldCount iPreferCount then Just resQueryTotal else Nothing
         , if null pkCols && isNothing iOnConflict then
             Nothing
           else
             (\x -> ("Preference-Applied", BS8.pack $ show x)) <$> iPreferResolution
         ]
 
-  failNotSingular ctxContentType rQueryTotal $
+  failNotSingular ctxContentType resQueryTotal $
     if iPreferRepresentation == Types.Full then
-      response HTTP.status201 (headers ++ contentTypeHeaders context) (toS rBody)
+      response HTTP.status201 (headers ++ contentTypeHeaders context) (toS resBody)
     else
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} contentType) = do
-  CreateResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
-    response = gucResponse rGucStatus rGucHeaders
+    response = gucResponse resGucStatus resGucHeaders
     fullRepr = iPreferRepresentation == Types.Full
     updateIsNoOp = Set.null iColumns
     status
-      | rQueryTotal == 0 && not updateIsNoOp = HTTP.status404
+      | resQueryTotal == 0 && not updateIsNoOp = HTTP.status404
       | fullRepr = HTTP.status200
       | otherwise = HTTP.status204
     contentRangeHeader =
-      RangeQuery.contentRangeH 0 (rQueryTotal - 1) $
-        if shouldCount iPreferCount then Just rQueryTotal else Nothing
+      RangeQuery.contentRangeH 0 (resQueryTotal - 1) $
+        if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
-  failNotSingular contentType rQueryTotal $
+  failNotSingular contentType resQueryTotal $
     if fullRepr then
-      response status (contentTypeHeaders context ++ [contentRangeHeader]) (toS rBody)
+      response status (contentTypeHeaders context ++ [contentRangeHeader]) (toS resBody)
     else
       response status [contentRangeHeader] mempty
 
@@ -291,40 +291,40 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
-  CreateResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery identifier False mempty context
 
-  let response = gucResponse rGucStatus rGucHeaders
+  let response = gucResponse resGucStatus resGucHeaders
 
   -- Makes sure the querystring pk matches the payload pk
   -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
   -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
   -- If this condition is not satisfied then nothing is inserted,
   -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-  when (rQueryTotal /= 1) $ do
+  when (resQueryTotal /= 1) $ do
     lift SQL.condemn
     throwError Error.PutMatchingPkError
 
   return $
     if iPreferRepresentation == Types.Full then
-      response HTTP.status200 (contentTypeHeaders context) (toS rBody)
+      response HTTP.status200 (contentTypeHeaders context) (toS resBody)
     else
       response HTTP.status204 (contentTypeHeaders context) mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} contentType) = do
-  CreateResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
-    response = gucResponse rGucStatus rGucHeaders
+    response = gucResponse resGucStatus resGucHeaders
     contentRangeHeader =
       RangeQuery.contentRangeH 1 0 $
-        if shouldCount iPreferCount then Just rQueryTotal else Nothing
+        if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
-  failNotSingular contentType rQueryTotal $
+  failNotSingular contentType resQueryTotal $
     if iPreferRepresentation == Types.Full then
       response HTTP.status200
         (contentTypeHeaders context ++ [contentRangeHeader])
-        (toS rBody)
+        (toS resBody)
     else
       response HTTP.status204 [contentRangeHeader] mempty
 
@@ -429,15 +429,16 @@ txMode ApiRequest{..} =
     _ ->
       SQL.Write
 
-data CreateResult = CreateResult
-  { rQueryTotal :: Int64
-  , rFields     :: [ByteString]
-  , rBody       :: ByteString
-  , rGucStatus  :: Maybe HTTP.Status
-  , rGucHeaders :: [Types.GucHeader]
+-- | Result from executing a write query on the database
+data WriteQueryResult = WriteQueryResult
+  { resQueryTotal :: Int64
+  , resFields     :: [ByteString]
+  , resBody       :: ByteString
+  , resGucStatus  :: Maybe HTTP.Status
+  , resGucHeaders :: [Types.GucHeader]
   }
 
-writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler CreateResult
+writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
 writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
   readReq <- readRequest identifier context
 
@@ -460,7 +461,7 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
         (Types.pgVersion ctxDbStructure)
         (configDbPreparedStatements ctxConfig)
 
-  liftEither $ CreateResult queryTotal fields body <$> gucStatus <*> gucHeaders
+  liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
 
 -- | Response with headers and status overridden from GUCs.
 gucResponse
