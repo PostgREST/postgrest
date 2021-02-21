@@ -88,6 +88,7 @@ def defaultenv():
         "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
         "PGRST_DB_LOAD_GUC_CONFIG": "false",
+        "PGRST_LOG_LEVEL": "info",
     }
 
 
@@ -336,6 +337,7 @@ def test_stable_config(tmp_path, config, defaultenv):
         "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
         "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
         "POSTGREST_TEST_PORT": "80",
+        "JWT_SECRET_FILE": "a_file",
     }
 
     # Some configs expect input from stdin, at least on base64.
@@ -506,6 +508,53 @@ def test_jwt_secret_reload(tmp_path, defaultenv):
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
+
+
+def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
+    "JWT secret external file should be reloaded when PostgREST is sent a SIGUSR2 or a NOTIFY."
+    config = CONFIGSDIR / "sigusr2-settings-external-secret.config"
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    external_secret_file = tmp_path / "jwt-secret-config"
+    external_secret_file.write_text("invalid" * 5)
+
+    env = {
+        **defaultenv,
+        "JWT_SECRET_FILE": f"@{external_secret_file}",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(config, env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
+
+        # change external file
+        external_secret_file.write_text(SECRET)
+
+        # SIGUSR1 doesn't reload external files
+        postgrest.process.send_signal(signal.SIGUSR1)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
+
+        # reload config and external file with SIGUSR2
+        postgrest.process.send_signal(signal.SIGUSR2)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 200
+
+        # change external file to wrong value again
+        external_secret_file.write_text("invalid" * 5)
+
+        # reload config and external file with NOTIFY
+        postgrest.session.post("/rpc/reload_pgrst_config")
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
 
 
 def test_db_schema_reload(tmp_path, defaultenv):

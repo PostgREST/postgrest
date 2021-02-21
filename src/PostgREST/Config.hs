@@ -31,7 +31,9 @@ module PostgREST.Config
   , Environment
   , readCLIShowHelp
   , readEnvironment
-  , readConfig
+  , readAppConfig
+  , readDbUriFile
+  , readSecretFile
   , parseSecret
   ) where
 
@@ -331,9 +333,9 @@ instance JustIfMaybe a a where
 instance JustIfMaybe a (Maybe a) where
   justIfMaybe a = Just a
 
--- | Parse the config file
-readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO (Either Text AppConfig)
-readAppConfig dbSettings env optPath = do
+-- | Reads and parses the config and overrides its parameters from env vars, files or db settings.
+readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> Maybe Text -> Maybe B.ByteString -> IO (Either Text AppConfig)
+readAppConfig dbSettings env optPath dbUriFile secretFile = do
   -- Now read the actual config file
   conf <- case optPath of
     -- Both C.ParseError and IOError are shown here
@@ -345,6 +347,10 @@ readAppConfig dbSettings env optPath = do
 
   where
     parseConfig =
+      let pB64 = fromMaybe False <$> optWithAlias (optBool "jwt-secret-is-base64")
+                                                  (optBool "secret-is-base64")
+          pSec = parseJwtSecret "jwt-secret" =<< pB64
+      in
       AppConfig
         <$> parseAppSettings "app.settings"
         <*> reqString "db-anon-role"
@@ -366,13 +372,12 @@ readAppConfig dbSettings env optPath = do
         <*> (fromMaybe True <$> optBool "db-load-guc-config")
         <*> parseTxEnd "db-tx-end" snd
         <*> parseTxEnd "db-tx-end" fst
-        <*> reqString "db-uri"
-        <*> pure Nothing
+        <*> parseDbUri "db-uri"
+        <*> (fmap parseSecret <$> pSec)
         <*> parseJwtAudience "jwt-aud"
         <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
-        <*> (fmap encodeUtf8 <$> optString "jwt-secret")
-        <*> (fromMaybe False <$> optWithAlias (optBool "jwt-secret-is-base64")
-                                              (optBool "secret-is-base64"))
+        <*> pSec
+        <*> pB64
         <*> parseLogLevel "log-level"
         <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
@@ -380,6 +385,25 @@ readAppConfig dbSettings env optPath = do
         <*> (fromMaybe 3000 <$> optInt "server-port")
         <*> (fmap unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
+
+    parseDbUri :: C.Key -> C.Parser C.Config Text
+    parseDbUri k = flip fromMaybe dbUriFile <$> reqString k
+
+    parseJwtSecret :: C.Key -> Bool -> C.Parser C.Config (Maybe B.ByteString)
+    parseJwtSecret k isB64 = optString k >>= \case
+      Nothing -> pure Nothing
+      Just sec  ->
+        let secStr = encodeUtf8 sec
+            secFile = fromMaybe secStr secretFile
+            -- replace because the JWT is actually base64url encoded which must be turned into just base64 before decoding.
+            replaceUrlChars = replace "_" "/" . replace "-" "+" . replace "." "="
+            willBeFile = isPrefixOf "@" (toS secStr) && isNothing secretFile
+        in
+        if isB64 && not willBeFile -- don't decode in bas64 if the secret will be a file or it will err. The secFile will be filled with the file contents in a later stage.
+          then case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 secFile of
+            Left errMsg -> fail errMsg
+            Right bs    -> pure $ Just bs
+          else pure $ Just secFile
 
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
@@ -515,90 +539,6 @@ readAppConfig dbSettings env optPath = do
     splitOnCommas (C.String s) = strip <$> splitOn "," s
     splitOnCommas _            = []
 
--- | Reads the config and overrides its parameters from files, env vars or db settings.
-readConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> IO (Either Text AppConfig)
-readConfig dbSettings env path =
-  readAppConfig dbSettings env path >>= \case
-    Left err -> pure $ Left err
-    Right appConf -> do
-      conf <- loadDbUriFile =<< loadSecretFile appConf
-      pure $ Right $ conf { configJWKS = parseSecret <$> configJwtSecret conf}
-
-type Environment = M.Map [Char] Text
-
-readEnvironment :: IO Environment
-readEnvironment = getEnvironment <&> pgrst
-  where
-    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map pack $ M.fromList env
-
-{-|
-  The purpose of this function is to load the JWT secret from a file if
-  configJwtSecret is actually a filepath and replaces some characters if the JWT
-  is base64 encoded.
-
-  The reason some characters need to be replaced is because JWT is actually
-  base64url encoded which must be turned into just base64 before decoding.
-
-  To check if the JWT secret is provided is in fact a file path, it must be
-  decoded as 'Text' to be processed.
-
-  decodeUtf8: Decode a ByteString containing UTF-8 encoded text that is known to
-  be valid.
--}
-loadSecretFile :: AppConfig -> IO AppConfig
-loadSecretFile conf = extractAndTransform mSecret
-  where
-    mSecret = decodeUtf8 <$> configJwtSecret conf
-    isB64 = configJwtSecretIsBase64 conf
-    --
-    -- The Text (variable name secret) here is mSecret from above which is the JWT
-    -- decoded as Utf8
-    --
-    -- stripPrefix: Return the suffix of the second string if its prefix matches
-    -- the entire first string.
-    --
-    -- The configJwtSecret is a filepath instead of the JWT secret itself if the
-    -- secret has @ as its prefix.
-    extractAndTransform :: Maybe Text -> IO AppConfig
-    extractAndTransform Nothing = return conf
-    extractAndTransform (Just secret) =
-      fmap setSecret $
-      transformString isB64 =<<
-      case stripPrefix "@" secret of
-        Nothing       -> return . encodeUtf8 $ secret
-        Just filename -> chomp <$> BS.readFile (toS filename)
-      where
-        chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
-    --
-    -- Turns the Base64url encoded JWT into Base64
-    transformString :: Bool -> ByteString -> IO ByteString
-    transformString False t = return t
-    transformString True t =
-      case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 t of
-        Left errMsg -> panic $ pack errMsg
-        Right bs    -> return bs
-    setSecret bs = conf {configJwtSecret = Just bs}
-    --
-    -- replace: Replace every occurrence of one substring with another
-    replaceUrlChars =
-      replace "_" "/" . replace "-" "+" . replace "." "="
-
-{-
-  Load database uri from a separate file if `db-uri` is a filepath.
--}
-loadDbUriFile :: AppConfig -> IO AppConfig
-loadDbUriFile conf = extractDbUri mDbUri
-  where
-    mDbUri = configDbUri conf
-    extractDbUri :: Text -> IO AppConfig
-    extractDbUri dbUri =
-      fmap setDbUri $
-      case stripPrefix "@" dbUri of
-        Nothing       -> return dbUri
-        Just filename -> strip <$> readFile (toS filename)
-    setDbUri dbUri = conf {configDbUri = dbUri}
-
-
 {-|
   Parse `jwt-secret` configuration option and turn into a JWKSet.
 
@@ -615,3 +555,26 @@ parseSecret bytes =
   maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
   secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
   keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
+
+type Environment = M.Map [Char] Text
+
+readEnvironment :: IO Environment
+readEnvironment = getEnvironment <&> pgrst
+  where
+    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map pack $ M.fromList env
+
+-- | Read the JWT secret from a file if configJwtSecret is actually a filepath(has @ as its prefix).
+-- | To check if the JWT secret is provided is in fact a file path, it must be decoded as 'Text' to be processed.
+readSecretFile :: Maybe B.ByteString -> IO (Maybe B.ByteString)
+readSecretFile mSecret =
+  case (stripPrefix "@" . decodeUtf8) =<< mSecret of
+    Nothing       -> return Nothing
+    Just filename -> Just . chomp <$> BS.readFile (toS filename)
+  where
+    chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
+
+-- | Read database uri from a separate file if `db-uri` is a filepath.
+readDbUriFile :: Text -> IO (Maybe Text)
+readDbUriFile dbUri = case stripPrefix "@" dbUri of
+  Nothing       -> return Nothing
+  Just filename -> Just . strip <$> readFile (toS filename)

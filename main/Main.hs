@@ -66,8 +66,15 @@ main = do
   -- read command/path from commad line
   CLI{cliCommand, cliPath} <- readCLIShowHelp env
 
-  -- build the 'AppConfig' from the config file path
-  conf <- either panic identity <$> readConfig mempty env cliPath
+  -- build the 'AppConfig' from the config file path and env vars
+  pathEnvConf <- either panic identity <$> readAppConfig mempty env cliPath Nothing Nothing
+
+  -- read external files
+  dbUriFile  <- readDbUriFile $ configDbUri pathEnvConf
+  secretFile <- readSecretFile $ configJwtSecret pathEnvConf
+
+  -- add the external files to AppConfig
+  conf <- either panic identity <$> readAppConfig mempty env cliPath dbUriFile secretFile
 
   -- These are config values that can't be reloaded at runtime. Reloading some of them would imply restarting the web server.
   let
@@ -104,10 +111,19 @@ main = do
   -- Config that can change at runtime
   refConf <- newIORef conf
 
-  let configRereader startingUp = reReadConfig startingUp pool gucConfigEnabled env cliPath refConf
+  let
+    -- re-reads config file + db config
+    dbConfigReReader startingUp = when gucConfigEnabled $
+      reReadConfig startingUp pool gucConfigEnabled env cliPath refConf dbUriFile secretFile
+    -- re-reads jwt-secret external file + config file + db config
+    fullConfigReReader =
+      reReadConfig False pool gucConfigEnabled env cliPath refConf
+        dbUriFile =<< -- db-uri external file could be re-read, but it doesn't make sense as db-uri is not reloadable
+        readSecretFile (configJwtSecret pathEnvConf)
 
-  -- re-read and override the config if db-load-guc-config is true
-  when gucConfigEnabled $ configRereader True
+  -- Override the config with config options from the db
+  -- TODO: the same operation is repeated on connectionWorker, ideally this would be done only once, but dump CmdDumpConfig needs it for tests.
+  dbConfigReReader True
 
   case cliCommand of
     CmdDumpConfig ->
@@ -126,7 +142,8 @@ main = do
   -- This is passed to the connectionWorker method so it can kill the main thread if the PostgreSQL's version is not supported.
   mainTid <- myThreadId
 
-  let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus)
+  let connWorker = connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) $
+                     dbConfigReReader False
 
   -- Sets the initial refDbStructure
   connWorker
@@ -149,13 +166,13 @@ main = do
 
   -- Re-read the config on SIGUSR2
   void $ installHandler sigUSR2 (
-    Catch $ configRereader False
+    Catch fullConfigReReader
     ) Nothing
 #endif
 
   -- reload schema cache + config on NOTIFY
   when dbChannelEnabled $
-    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker $ configRereader False
+    listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWorker fullConfigReReader
 
   -- ask for the OS time at most once per second
   getTime <- mkAutoUpdate defaultUpdateSettings {updateAction = getCurrentTime}
@@ -211,7 +228,8 @@ connectionWorker
   -> IORef Bool                    -- ^ Used as a binary Semaphore
   -> (Bool, MVar ConnectionStatus) -- ^ For interacting with the LISTEN channel
   -> IO ()
-connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) = do
+  -> IO ()
+connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEnabled, mvarConnectionStatus) dbCfReader = do
   isWorkerOn <- readIORef refIsWorkerOn
   unless isWorkerOn $ do -- Prevents multiple workers to be running at the same time. Could happen on too many SIGUSR1s.
     atomicWriteIORef refIsWorkerOn True
@@ -227,6 +245,7 @@ connectionWorker mainTid pool refConf refDbStructure refIsWorkerOn (dbChannelEna
         NotConnected                -> return ()                                     -- Unreachable because connectionStatus will keep trying to connect
         Connected actualPgVersion   -> do                                            -- Procede with initialization
           putStrLn ("Connection successful" :: Text)
+          dbCfReader -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           scStatus <- loadSchemaCache pool actualPgVersion refConf refDbStructure
           case scStatus of
             SCLoaded    -> pure ()            -- do nothing and proceed if the load was successful
@@ -271,15 +290,6 @@ connectionStatus pool =
       when itShould $
         putStrLn $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
       return itShould
-
-loadDbSettings :: P.Pool -> IO [(Text, Text)]
-loadDbSettings pool = do
-  result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ HT.statement mempty dbSettingsStatement
-  case result of
-    Left  e -> do
-      hPutStrLn stderr ("An error ocurred when trying to query database settings for the config parameters:\n" <> show e :: Text)
-      pure []
-    Right x -> pure x
 
 -- | Load the DbStructure by using a connection from the pool.
 loadSchemaCache :: P.Pool -> PgVersion -> IORef AppConfig -> IORef (Maybe DbStructure) -> IO SCacheStatus
@@ -340,20 +350,29 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
     errorMessage = "Could not listen for notifications on the " <> dbChannel <> " channel" :: Text
     retryMessage = "Retrying listening for notifications on the " <> dbChannel <> " channel.." :: Text
 
--- | Re-reads the config at runtime.
-reReadConfig :: Bool -> P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> IO ()
-reReadConfig startingUp pool gucConfigEnabled env path refConf = do
-  dbSettings <- if gucConfigEnabled then loadDbSettings pool else pure []
-  readConfig dbSettings env path >>= \case
+-- | Re-reads the config plus config options from the db
+reReadConfig :: Bool -> P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> Maybe Text -> Maybe BS.ByteString -> IO ()
+reReadConfig startingUp pool gucConfigEnabled env path refConf dbUriFile secretFile = do
+  dbSettings <- if gucConfigEnabled then loadDbSettings else pure []
+  readAppConfig dbSettings env path dbUriFile secretFile >>= \case
     Left err   ->
       if startingUp
         then panic err -- die on invalid config if the program is starting up
-        else hPutStrLn stderr $ "Failed config reload. " <> err
+        else hPutStrLn stderr $ "Failed config load. " <> err
     Right conf -> do
       atomicWriteIORef refConf conf
       if startingUp
         then pass
-        else putStrLn ("Config reloaded" :: Text)
+        else putStrLn ("Config loaded" :: Text)
+  where
+    loadDbSettings :: IO [(Text, Text)]
+    loadDbSettings = do
+      result <- P.use pool $ HT.transaction HT.ReadCommitted HT.Read $ HT.statement mempty dbSettingsStatement
+      case result of
+        Left  e -> do
+          hPutStrLn stderr ("An error ocurred when trying to query database settings for the config parameters:\n" <> show e :: Text)
+          pure []
+        Right x -> pure x
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: P.Pool -> AppConfig -> IO LBS.ByteString
