@@ -64,6 +64,7 @@ type Handler = ExceptT Error
 
 type DbHandler = Handler SQL.Transaction
 
+
 -- | PostgREST application
 postgrest
   :: LogLevel
@@ -524,8 +525,7 @@ requestContentTypes conf ApiRequest{..} =
 -- |
 -- If raw(binary) output is requested, check that ContentType is one of the admitted
 -- rawContentTypes and that`?select=...` contains only one field other than `*`
-binaryField :: Monad m =>
-  RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
+binaryField :: Monad m => RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
 binaryField RequestContext{..} readReq
   | returnsScalar (iTarget ctxApiRequest) && ctxContentType `elem` rawContentTypes ctxConfig =
       return $ Just "pgrst_scalar"
