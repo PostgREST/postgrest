@@ -9,7 +9,6 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App (postgrest) where
 
@@ -329,7 +328,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} contentType) 
       response HTTP.status204 [contentRangeHeader] mempty
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
-handleInfo identifier RequestContext{ctxDbStructure} =
+handleInfo identifier RequestContext{..} =
   case find tableMatches $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
