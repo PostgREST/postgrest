@@ -81,6 +81,7 @@ library
                     , jose                      >= 0.8.1 && < 0.9
                     , lens                      >= 4.14 && < 4.20
                     , lens-aeson                >= 1.0.1 && < 1.2
+                    , mtl                       >= 2.2.2 && < 2.3
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.17
                     , parsec                    >= 3.1.11 && < 3.2

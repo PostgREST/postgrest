@@ -297,6 +297,7 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
 
     assert dumpconfig(configpath=config, env=env) == expected
 
+
 @pytest.mark.parametrize(
     "config",
     [conf for conf in CONFIGSDIR.iterdir() if conf.suffix == ".config"],
@@ -603,6 +604,7 @@ def test_max_rows_notify_reload(defaultenv):
 
         # reset max-rows config on the db
         postgrest.session.post("/rpc/reset_max_rows_config")
+
 
 def test_invalid_role_claim_key_notify_reload(defaultenv):
     "NOTIFY reload config should show an error if role-claim-key is invalid"

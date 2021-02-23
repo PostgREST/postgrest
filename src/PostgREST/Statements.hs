@@ -45,7 +45,7 @@ import Text.InterpolatedString.Perl6 (q)
     is represented as a list of strings containing variable bindings like
     @"k1=eq.42"@, or the empty list if there is no location header.
 -}
-type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
+type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 createWriteStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion -> Bool ->
@@ -130,7 +130,7 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                       <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
                       <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
 
-type ProcResults = (Maybe Int64, Int64, ByteString, Either SimpleError [GucHeader], Either SimpleError (Maybe Status))
+type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 callProcStatement :: Bool -> Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
                      Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
@@ -189,10 +189,10 @@ createExplainStatement countQuery =
       let row = HD.singleRow $ column HD.bytea in
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
-decodeGucHeaders :: HD.Value (Either SimpleError [GucHeader])
+decodeGucHeaders :: HD.Value (Either Error [GucHeader])
 decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> HD.bytea
 
-decodeGucStatus :: HD.Value (Either SimpleError (Maybe Status))
+decodeGucStatus :: HD.Value (Either Error (Maybe Status))
 decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
 
 -- | Get db settings from the connection role. Only used for configuration.
