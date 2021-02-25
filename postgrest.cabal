@@ -79,7 +79,7 @@ library
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , interpolatedstring-perl6  >= 1 && < 1.1
                     , jose                      >= 0.8.1 && < 0.9
-                    , lens                      >= 4.14 && < 4.20
+                    , lens                      >= 4.14 && < 5.1
                     , lens-aeson                >= 1.0.1 && < 1.2
                     , mtl                       >= 2.2.2 && < 2.3
                     , network-uri               >= 2.6.1 && < 2.8
@@ -214,7 +214,7 @@ test-suite spec
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
-                    , lens              >= 4.14 && < 4.20
+                    , lens              >= 4.14 && < 5.1
                     , lens-aeson        >= 1.0.1 && < 1.2
                     , monad-control     >= 1.0.1 && < 1.1
                     , postgrest
@@ -260,7 +260,7 @@ test-suite spec-querycost
                      , hspec-wai         >= 0.10 && < 0.12
                      , hspec-wai-json    >= 0.10 && < 0.12
                      , http-types        >= 0.12.3 && < 0.13
-                     , lens              >= 4.14 && < 4.20
+                     , lens              >= 4.14 && < 5.1
                      , lens-aeson        >= 1.0.1 && < 1.2
                      , monad-control     >= 1.0.1 && < 1.1
                      , postgrest
