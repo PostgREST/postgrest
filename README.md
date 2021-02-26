@@ -22,8 +22,8 @@ API than you are likely to write from scratch.
   <tbody>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://www.cybertec-postgresql.com/en/" target="_blank">
-          <img width="222px" src="static/cybertec.png">
+        <a href="https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest" target="_blank">
+          <img width="222px" src="static/cybertec-new.png">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -58,7 +58,7 @@ Latest documentation is at [postgrest.org](http://postgrest.org). You can contri
 ## Performance
 
 TLDR; subsecond response times for up to 2000 requests/sec on Heroku
-free tier. If you're used to servers written in interpreted languages, 
+free tier. If you're used to servers written in interpreted languages,
 prepare to be pleasantly surprised by PostgREST performance.
 
 Three factors contribute to the speed. First the server is written

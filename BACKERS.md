@@ -8,8 +8,8 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
   <tbody>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://www.cybertec-postgresql.com/en/" target="_blank">
-          <img width="222px" src="static/cybertec.png">
+        <a href="https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest" target="_blank">
+          <img width="222px" src="static/cybertec-new.png">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -46,6 +46,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Severin Ibarluzea
 - Tom Saleeba
 - Pawel Tyll
+- Franz Gusenbauer
 
 ## Former Backers
 
