@@ -1,5 +1,5 @@
 freebsd_instance:
-  image: freebsd-12-1-release-amd64
+  image: freebsd-12-2-release-amd64
 
 build_task:
   env:
@@ -10,6 +10,7 @@ build_task:
     folder: /var/cache/pkg
 
   install_script:
+  #  - pkg update
     - pkg install -y postgresql95-client ghc hs-cabal-install jq git
 
   # cache the hackage index file and downloads which are
