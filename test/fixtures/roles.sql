@@ -42,7 +42,7 @@ ALTER ROLE postgrest_test_authenticator SET pgrst.db_channel_enabled = 'ignored'
 ALTER ROLE postgrest_test_authenticator SET pgrst.db_channel = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst.db_pool = 'ignored';
 ALTER ROLE postgrest_test_authenticator SET pgrst.db_pool_timeout = 'ignored';
-ALTER ROLE postgrest_test_authenticator SET pgrst.db_load_guc_config = 'ignored';
+ALTER ROLE postgrest_test_authenticator SET pgrst.db_config = 'ignored';
 
 -- other authenticator reloadable config options for io tests
 CREATE ROLE other_authenticator LOGIN NOINHERIT;
