@@ -87,7 +87,7 @@ def defaultenv():
         "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
         "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
-        "PGRST_DB_LOAD_GUC_CONFIG": "false",
+        "PGRST_DB_CONFIG": "false",
         "PGRST_LOG_LEVEL": "info",
     }
 
@@ -288,7 +288,7 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
     env = {
         **defaultenv,
         "PGRST_DB_URI": db_uri,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
     }
     expected = (
         (CONFIGSDIR / "expected" / expectedconfig)
@@ -307,7 +307,7 @@ def test_read_db_setting(defaultenv):
     """
     env = {
         **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
     }
     with run(env=env) as postgrest:
         uri = "/rpc/get_guc_value?name=pgrst.jwt_secret"
@@ -592,7 +592,7 @@ def test_db_schema_notify_reload(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
         "PGRST_DB_CHANNEL_ENABLED": "true",
         "PGRST_DB_SCHEMAS": "test",
     }
@@ -621,7 +621,7 @@ def test_max_rows_reload(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
     }
 
     with run(config, env=env) as postgrest:
@@ -649,7 +649,7 @@ def test_max_rows_notify_reload(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
@@ -677,7 +677,7 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_DB_LOAD_GUC_CONFIG": "true",
+        "PGRST_DB_CONFIG": "true",
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 

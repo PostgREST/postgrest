@@ -94,7 +94,7 @@ main = do
     poolSize = configDbPoolSize conf
     poolTimeout = configDbPoolTimeout' conf
     logLevel = configLogLevel conf
-    gucConfigEnabled = configDbLoadGucConfig conf
+    dbConfigEnabled = configDbConfig conf
 
   -- create connection pool with the provided settings, returns either a 'Connection' or a 'ConnectionError'. Does not throw.
   pool <- P.acquire (poolSize, poolTimeout, dbUri)
@@ -113,11 +113,11 @@ main = do
 
   let
     -- re-reads config file + db config
-    dbConfigReReader startingUp = when gucConfigEnabled $
-      reReadConfig startingUp pool gucConfigEnabled env cliPath refConf dbUriFile secretFile
+    dbConfigReReader startingUp = when dbConfigEnabled $
+      reReadConfig startingUp pool dbConfigEnabled env cliPath refConf dbUriFile secretFile
     -- re-reads jwt-secret external file + config file + db config
     fullConfigReReader =
-      reReadConfig False pool gucConfigEnabled env cliPath refConf
+      reReadConfig False pool dbConfigEnabled env cliPath refConf
         dbUriFile =<< -- db-uri external file could be re-read, but it doesn't make sense as db-uri is not reloadable
         readSecretFile (configJwtSecret pathEnvConf)
 
@@ -352,18 +352,18 @@ listener dbUri dbChannel pool refConf refDbStructure mvarConnectionStatus connWo
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> P.Pool -> Bool -> Environment -> Maybe FilePath -> IORef AppConfig -> Maybe Text -> Maybe BS.ByteString -> IO ()
-reReadConfig startingUp pool gucConfigEnabled env path refConf dbUriFile secretFile = do
-  dbSettings <- if gucConfigEnabled then loadDbSettings else pure []
+reReadConfig startingUp pool dbConfigEnabled env path refConf dbUriFile secretFile = do
+  dbSettings <- if dbConfigEnabled then loadDbSettings else pure []
   readAppConfig dbSettings env path dbUriFile secretFile >>= \case
     Left err   ->
       if startingUp
         then panic err -- die on invalid config if the program is starting up
-        else hPutStrLn stderr $ "Failed config load. " <> err
+        else hPutStrLn stderr $ "Failed loading in-database config. " <> err
     Right conf -> do
       atomicWriteIORef refConf conf
       if startingUp
         then pass
-        else putStrLn ("Config loaded" :: Text)
+        else putStrLn ("In-database config loaded" :: Text)
   where
     loadDbSettings :: IO [(Text, Text)]
     loadDbSettings = do

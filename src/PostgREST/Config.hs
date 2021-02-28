@@ -105,7 +105,7 @@ data AppConfig = AppConfig {
   , configDbPreparedStatements  :: Bool
   , configDbRootSpec            :: Maybe Text
   , configDbSchemas             :: NonEmpty Text
-  , configDbLoadGucConfig       :: Bool
+  , configDbConfig              :: Bool
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
@@ -220,8 +220,8 @@ readCLIShowHelp env = customExecParser parserPrefs opts
           |## Enable or disable the notification channel
           |db-channel-enabled = false
           |
-          |## Enable loading config parameters from the database by changing the connection role settings
-          |db-load-guc-config = true
+          |## Enable in-database configuration
+          |db-config = true
           |
           |## how to terminate database transactions
           |## possible values are:
@@ -288,7 +288,7 @@ dumpAppConfig conf =
       ,("db-prepared-statements",        toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
       ,("db-schemas",                q . intercalate "," . toList . configDbSchemas)
-      ,("db-load-guc-config",        q . toLower . show . configDbLoadGucConfig)
+      ,("db-config",                 q . toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
@@ -369,7 +369,7 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
         <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
                                                        (optValue "db-schema")
                                                        "missing key: either db-schemas or db-schema must be set")
-        <*> (fromMaybe True <$> optBool "db-load-guc-config")
+        <*> (fromMaybe True <$> optBool "db-config")
         <*> parseTxEnd "db-tx-end" snd
         <*> parseTxEnd "db-tx-end" fst
         <*> parseDbUri "db-uri"
@@ -512,7 +512,7 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
           let dbSettingName = pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "log_level",
-            "db_anon_role", "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_load_guc_config"]
+            "db_anon_role", "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 
