@@ -1530,9 +1530,9 @@ PostgREST reads the ``response.headers`` SQL variable to add extra headers to th
 
   -- tell client to cache response for two days
 
-  SET LOCAL "response.headers" =
-    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]';
-
+  SELECT set_config('response.headers',
+    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]', true);
+  
 Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
 .. note::
