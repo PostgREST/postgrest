@@ -26,7 +26,7 @@ jobs:
   # that we support.
   stack-test:
     docker:
-      - image: circleci/buildpack-deps:trusty
+      - image: cimg/base:2021.03
         environment:
           - PGHOST=localhost
       - image: circleci/postgres:9.5
@@ -71,7 +71,7 @@ jobs:
   # Run memory usage tests based on stack and docker.
   stack-test-memory:
     docker:
-      - image: circleci/buildpack-deps:trusty
+      - image: cimg/base:2021.03
         environment:
           - PGHOST=localhost
           - TERM=xterm
