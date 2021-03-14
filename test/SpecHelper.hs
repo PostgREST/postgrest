@@ -8,7 +8,7 @@ import qualified Data.Set               as S
 import qualified System.IO.Error        as E
 
 import Data.Aeson           (Value (..), decode, encode)
-import Data.CaseInsensitive (CI (..))
+import Data.CaseInsensitive (CI (..), original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
@@ -32,6 +32,12 @@ matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
 
 matchContentTypeSingular :: MatchHeader
 matchContentTypeSingular = "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
+
+matchHeaderAbsent :: HeaderName -> MatchHeader
+matchHeaderAbsent name = MatchHeader $ \headers _body ->
+  case lookup name headers of
+    Just _  -> Just $ "unexpected header: " <> toS (original name) <> "\n"
+    Nothing -> Nothing
 
 validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do
