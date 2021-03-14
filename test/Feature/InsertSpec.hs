@@ -2,7 +2,7 @@ module Feature.InsertSpec where
 
 import Data.List              (lookup)
 import Network.Wai            (Application)
-import Network.Wai.Test       (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Network.Wai.Test       (SResponse (simpleHeaders))
 import Test.Hspec             hiding (pendingWith)
 import Test.Hspec.Wai.Matcher (bodyEquals)
 
@@ -20,17 +20,16 @@ spec actualPgVersion = do
   describe "Posting new record" $ do
     context "disparate json types" $ do
       it "accepts disparate json types" $ do
-        p <- post "/menagerie"
+        post "/menagerie"
           [json| {
             "integer": 13, "double": 3.14159, "varchar": "testing!"
           , "boolean": false, "date": "1900-01-01", "money": "$3.99"
           , "enum": "foo"
-          } |]
-        liftIO $ do
-          simpleBody p `shouldBe` ""
-          simpleStatus p `shouldBe` created201
-          -- should not have content type set when body is empty
-          lookup hContentType (simpleHeaders p) `shouldBe` Nothing
+          } |] `shouldRespondWith` ""
+          { matchStatus  = 201
+            -- should not have content type set when body is empty
+          , matchHeaders = [matchHeaderAbsent hContentType]
+          }
 
       it "filters columns in result using &select" $
         request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=representation")]
@@ -121,13 +120,13 @@ spec actualPgVersion = do
 
     context "from an html form" $
       it "accepts disparate json types" $ do
-        p <- request methodPost "/menagerie"
-               [("Content-Type", "application/x-www-form-urlencoded")]
-               ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
-                "boolean=false&date=1900-01-01&money=$3.99&enum=foo")
-        liftIO $ do
-          simpleBody p `shouldBe` ""
-          simpleStatus p `shouldBe` created201
+        request methodPost "/menagerie"
+            [("Content-Type", "application/x-www-form-urlencoded")]
+             ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
+              "boolean=false&date=1900-01-01&money=$3.99&enum=foo")
+          `shouldRespondWith`
+            ""
+            { matchStatus = 201 }
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
@@ -162,37 +161,40 @@ spec actualPgVersion = do
 
       context "into a table with no pk" $ do
         it "succeeds with 201 but no location header" $ do
-          p <- post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` ""
-            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
-            simpleStatus p `shouldBe` created201
+          post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 201
+              , matchHeaders = [matchHeaderAbsent hLocation]
+              }
 
         it "returns full details of inserted record if asked" $ do
-          p <- request methodPost "/no_pk"
-                       [("Prefer", "return=representation")]
-                       [json| { "a":"bar", "b":"baz" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` [json| [{ "a":"bar", "b":"baz" }] |]
-            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
-            simpleStatus p `shouldBe` created201
+          request methodPost "/no_pk"
+              [("Prefer", "return=representation")]
+              [json| { "a":"bar", "b":"baz" } |]
+            `shouldRespondWith`
+              [json| [{ "a":"bar", "b":"baz" }] |]
+              { matchStatus  = 201
+              , matchHeaders = [matchHeaderAbsent hLocation]
+              }
 
         it "returns empty array when no items inserted, and return=rep" $ do
-          p <- request methodPost "/no_pk"
-                       [("Prefer", "return=representation")]
-                       [json| [] |]
-          liftIO $ do
-            simpleBody p `shouldBe` [json| [] |]
-            simpleStatus p `shouldBe` created201
+          request methodPost "/no_pk"
+              [("Prefer", "return=representation")]
+              [json| [] |]
+            `shouldRespondWith`
+              [json| [] |]
+              { matchStatus = 201 }
 
         it "can post nulls" $ do
-          p <- request methodPost "/no_pk"
-                       [("Prefer", "return=representation")]
-                       [json| { "a":null, "b":"foo" } |]
-          liftIO $ do
-            simpleBody p `shouldBe` [json| [{ "a":null, "b":"foo" }] |]
-            lookup hLocation (simpleHeaders p) `shouldBe` Nothing
-            simpleStatus p `shouldBe` created201
+          request methodPost "/no_pk"
+              [("Prefer", "return=representation")]
+              [json| { "a":null, "b":"foo" } |]
+            `shouldRespondWith`
+              [json| [{ "a":null, "b":"foo" }] |]
+              { matchStatus  = 201
+              , matchHeaders = [matchHeaderAbsent hLocation]
+              }
 
     context "with compound pk supplied" $
       it "builds response location header appropriately" $ do
@@ -210,10 +212,12 @@ spec actualPgVersion = do
         let bulkData = [json| [ {"k1":21, "k2":"hello world"}
                               , {"k1":22, "k2":"bye for now"}]
                             |]
-        p <- request methodPost "/compound_pk" [] bulkData
-        liftIO $ do
-          simpleStatus p `shouldBe` created201
-          lookup hLocation (simpleHeaders p) `shouldBe` Nothing
+        request methodPost "/compound_pk" [] bulkData
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [matchHeaderAbsent hLocation]
+            }
 
     context "with invalid json payload" $
       it "fails with 400 and error" $
@@ -416,13 +420,12 @@ spec actualPgVersion = do
 
     context "with unicode values" $
       it "succeeds and returns usable location header" $ do
-        let payload = [json| { "k":"圍棋", "extra":"￥" } |]
         p <- request methodPost "/simple_pk2?select=extra,k"
             [("Prefer", "tx=commit"), ("Prefer", "return=representation")]
-            payload
-        liftIO $ do
-          simpleBody p `shouldBe` "["<>payload<>"]"
-          simpleStatus p `shouldBe` created201
+            [json| { "k":"圍棋", "extra":"￥" } |]
+        pure p `shouldRespondWith`
+          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+          { matchStatus = 201 }
 
         let Just location = lookup hLocation $ simpleHeaders p
         get location
@@ -496,12 +499,12 @@ spec actualPgVersion = do
         }
 
     it "can insert in a table with no select and return=minimal" $ do
-      p <- request methodPost "/insertonly"
-                   [("Prefer", "return=minimal")]
-                   [json| { "v":"some value" } |]
-      liftIO $ do
-        simpleBody p `shouldBe` ""
-        simpleStatus p `shouldBe` created201
+      request methodPost "/insertonly"
+          [("Prefer", "return=minimal")]
+          [json| { "v":"some value" } |]
+        `shouldRespondWith`
+          ""
+          { matchStatus = 201 }
 
   describe "Inserting into VIEWs" $
     it "returns a location header" $
