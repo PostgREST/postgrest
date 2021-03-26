@@ -11,7 +11,7 @@ build_task:
 
   install_script:
   #  - pkg update
-    - pkg install -y postgresql95-client ghc hs-cabal-install jq git
+    - pkg install -y postgresql12-client ghc hs-cabal-install jq git
 
   # cache the hackage index file and downloads which are
   # cabal v2-update downloads an incremental update, so we don't need to keep this up2date
