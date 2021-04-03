@@ -13,12 +13,13 @@
 
 module Main (main) where
 
-import qualified Data.Aeson                              as Aeson
-import qualified Data.ByteString.Lazy.Char8              as LBS8
-import qualified Data.Csv                                as Csv
-import qualified Data.Map                                as Map
-import qualified Data.Set                                as Set
-import qualified Data.Text                               as T
+import qualified Data.Aeson                 as Aeson
+import qualified Data.ByteString.Lazy.Char8 as LBS8
+import qualified Data.Csv                   as Csv
+import qualified Data.Map                   as Map
+import qualified Data.Set                   as Set
+import qualified Data.Text                  as T
+--import qualified Data.Text.Lazy.Builder                  as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
@@ -170,7 +171,7 @@ run Options{..} =
   where
     runCommand :: Command -> [ImportedSymbol] -> IO ()
     runCommand (Dump format) = LBS8.putStr . dump format
-    runCommand GraphSymbols = T.putStr . Dot.encode . symbolsGraph
+    runCommand GraphSymbols = T.putStr . symbolsGraph
     runCommand GraphModules = T.putStr . Dot.encode . modulesGraph
     runCommand CheckAliases = runInconsistentAliases . inconsistentAliases
     runCommand (CheckWildcards okModules) = runWildcards . wildcards okModules
@@ -332,18 +333,38 @@ modulesGraph symbols =
     internalModules = Set.fromList $ fmap impFromModule symbols
     unique = Set.toList . Set.fromList
 
-symbolsGraph :: [ImportedSymbol] -> Dot.DotGraph
+-- Building Text directly as the Dot package currently doesn't support subgraphs.
+symbolsGraph :: [ImportedSymbol] -> Text
 symbolsGraph symbols =
-  Dot.DotGraph Dot.Strict Dot.Directed (Just "Symbols") $ fmap edge edges
+  "digraph Symbols {\n"
+    <> "  rankdir=LR\n"
+    <> "  ranksep=5\n"
+    <> T.concat (fmap edge edges)
+    <> T.concat (fmap cluster symbolsByModule)
+    <> "}\n"
   where
     edge (from, to, symbol) =
-      Dot.StatementEdge $ Dot.EdgeStatement
-        (Dot.ListTwo (edgeNode from) (edgeNode to) mempty)
-          (catMaybes [label <$> symbol])
-    edgeNode t = Dot.EdgeNode $ Dot.NodeId (Dot.Id t) Nothing
+      "  "
+        <> quoted from
+        <> " -> "
+        <> quoted (to <> maybe "" ("." <>) symbol)
+        <> "\n"
+    cluster (moduleName, clusterSymbols) =
+      "  subgraph "
+        <> quoted ("cluster_" <> moduleName)
+        <> " {\n"
+        <> "    " <> quoted moduleName <> "\n"
+        <> T.concat (fmap (clusterNode moduleName) clusterSymbols)
+        <> "  }\n"
+    clusterNode moduleName symbol =
+      "    " <> quoted (moduleName <> "." <> symbol) <> "\n"
+    quoted t = "\"" <> t <> "\""
     edges = unique . fmap edgeTuple . filter isInternalModule $ symbols
     edgeTuple ImportedSymbol{..} = (impFromModule, impModule, impSymbol)
     internalModules = Set.fromList $ fmap impFromModule symbols
     isInternalModule = flip Set.member internalModules . impModule
-    label symbol = Dot.Attribute "label" $ Dot.Id symbol
     unique = Set.toList . Set.fromList
+    symbolsByModule =
+      Map.toList . Map.map (catMaybes . Set.toList) . foldr insertMap Map.empty $ edges
+    insertMap (_, to, symbol) =
+      Map.insertWith Set.union to $ Set.singleton symbol
