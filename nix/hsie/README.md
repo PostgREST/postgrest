@@ -52,7 +52,7 @@ To check whether modules are imported under consistent aliases in your project,
 run:
 
 ```
-hsie check-aliase -s main -s src
+hsie check-aliases -s main -s src
 ```
 
 This will exit with a non-zero exit code if any inconsistent aliases are found.
