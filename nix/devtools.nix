@@ -102,7 +102,7 @@ let
   dumpMinimalImports =
     checkedShellScript
       {
-        name = "postgrest-dumpminimalimports";
+        name = "postgrest-dump-minimal-imports";
         docs = "Dump minimal imports into given directory.";
         inRootDir = true;
       }
