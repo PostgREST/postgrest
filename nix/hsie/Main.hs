@@ -14,12 +14,12 @@
 
 module Main (main) where
 
-import qualified Data.Aeson                 as JSON
-import qualified Data.ByteString.Lazy.Char8 as LBS8
-import qualified Data.Csv                   as Csv
-import qualified Data.Map                   as Map
-import qualified Data.Set                   as Set
-import qualified Data.Text                  as T
+import qualified Data.Aeson                              as JSON
+import qualified Data.ByteString.Lazy.Char8              as LBS8
+import qualified Data.Csv                                as Csv
+import qualified Data.Map                                as Map
+import qualified Data.Set                                as Set
+import qualified Data.Text                               as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
