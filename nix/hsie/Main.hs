@@ -166,7 +166,7 @@ main =
         <> O.help "Module that is ok to import as wildcard"
 
 run :: Options -> IO ()
-run Options{..} =
+run Options{command, sources} =
   runCommand command . concat =<< mapM sourceSymbols sources
   where
     runCommand :: Command -> [ImportedSymbol] -> IO ()
