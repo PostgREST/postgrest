@@ -125,7 +125,7 @@ let
   hsieMinimalImports =
     checkedShellScript
       {
-        name = "postgrest-hsie-minimalimports";
+        name = "postgrest-hsie-minimal-imports";
         docs = "Run hsie with a provided dump of minimal imports.";
       }
       ''
