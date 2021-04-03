@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
@@ -13,13 +14,12 @@
 
 module Main (main) where
 
-import qualified Data.Aeson                 as Aeson
+import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.Csv                   as Csv
 import qualified Data.Map                   as Map
 import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
---import qualified Data.Text.Lazy.Builder                  as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
@@ -52,7 +52,7 @@ data Options =
 data Source
   = SourceDir FilePath
   | ImportsDir FilePath
-  deriving (Generic, Aeson.ToJSON)
+  deriving (Generic, JSON.ToJSON)
 
 sourceDir :: Source -> FilePath
 sourceDir (SourceDir path)  = path
@@ -82,12 +82,12 @@ data ImportedSymbol =
     , impHiding     :: ImportHiding
     , impSymbol     :: Maybe Text
     }
-    deriving (Generic, Csv.ToNamedRecord, Csv.DefaultOrdered, Aeson.ToJSON)
+    deriving (Generic, Csv.ToNamedRecord, Csv.DefaultOrdered, JSON.ToJSON)
 
 data ImportQualified
   = Qualified
   | NotQualified
-  deriving (Eq, Generic, Aeson.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON)
 
 instance Csv.ToField ImportQualified where
   toField Qualified    = "qualified"
@@ -97,7 +97,7 @@ data ImportHiding
   = Wildcard
   | Hiding
   | NotHiding
-  deriving (Eq, Generic, Aeson.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON)
 
 instance Csv.ToField ImportHiding where
   toField Wildcard  = "wildcard"
