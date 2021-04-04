@@ -25,6 +25,18 @@ jobs:
           name: Run spellcheck
           command: postgrest-docs-spellcheck
 
+  linkcheck:
+    docker:
+      - image: nixos/nix:2.3
+    steps:
+      - checkout
+      - run:
+          name: Install linkcheck script
+          command: nix-env -f default.nix -iA linkcheck
+      - run:
+          name: Run linkcheck
+          command: postgrest-docs-linkcheck
+
 workflows:
   check:
     jobs:
