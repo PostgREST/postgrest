@@ -8,7 +8,7 @@ project. It's available in PostgREST's `nix-shell` by default.
 Given source code in the directories `src` and `main`, for example, you can run:
 
 ```
-hsie dump --src src --src main
+hsie dump-imports src main
 ```
 
 This dumps all imports of the modules in the given directory to a CSV file,
@@ -18,20 +18,7 @@ To dump to a JSON file (e.g., to further process with `jq`), add the `--json`
 flag:
 
 ```
-hsie dump --json --src src --src main
-```
-
-`-s` is a shorthand for `--src` and `-j` for `--json`:
-
-```
-hsie dump -j -s src -s main
-```
-
-If you dumped minimal imports into the `imports` directory using GHC's
-`--ddump-minimal-imports`, you can analyse them using `--imports` or `-i`:
-
-```
-hsie dump -i imports
+hsie dump-imports --json src main
 ```
 
 ## Graphing imports
@@ -40,7 +27,7 @@ The tool can generate `graphviz` graphs of module and symbol imports by printing
 a file to `stdout` that can directly be rendered with `dot`:
 
 ```
-hsie graph-modules -s src -s main | dot -Tpng -o modules.png
+hsie graph-modules src main | dot -Tpng -o modules.png
 ```
 
 The command `graph-modules` prints a graph of which modules insert which other
@@ -52,7 +39,7 @@ To check whether modules are imported under consistent aliases in your project,
 run:
 
 ```
-hsie check-aliases -s main -s src
+hsie check-aliases main src
 ```
 
 This will exit with a non-zero exit code if any inconsistent aliases are found.
@@ -61,13 +48,13 @@ The following command checks whether any modules are imported as wildcards, i.e.
 not qualified and without specifying symbols.
 
 ```
-hsie check-wildcards -s main -s src
+hsie check-wildcards main src
 ```
 
 To whitelist certain modules to be imported as wildcards, use `--ok`:
 
 ```
-hsie check-wildcards -s main -s src --ok Protolude --ok Test.Module
+hsie check-wildcards main src --ok Protolude --ok Test.Module
 ```
 
 ## Current limitations
