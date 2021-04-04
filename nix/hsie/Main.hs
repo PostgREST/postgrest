@@ -14,12 +14,12 @@
 
 module Main (main) where
 
-import qualified Data.Aeson                              as JSON
-import qualified Data.ByteString.Lazy.Char8              as LBS8
-import qualified Data.Csv                                as Csv
-import qualified Data.Map                                as Map
-import qualified Data.Set                                as Set
-import qualified Data.Text                               as T
+import qualified Data.Aeson                 as JSON
+import qualified Data.ByteString.Lazy.Char8 as LBS8
+import qualified Data.Csv                   as Csv
+import qualified Data.Map                   as Map
+import qualified Data.Set                   as Set
+import qualified Data.Text                  as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
@@ -79,7 +79,7 @@ data ImportedSymbol =
     , impModule     :: Text
     , impQualified  :: ImportQualified
     , impAs         :: Maybe Text
-    , impHiding     :: ImportHiding
+    , impType       :: ImportType
     , impSymbol     :: Maybe Text
     }
     deriving (Generic, Csv.ToNamedRecord, Csv.DefaultOrdered, JSON.ToJSON)
@@ -93,16 +93,16 @@ instance Csv.ToField ImportQualified where
   toField Qualified    = "qualified"
   toField NotQualified = "not qualified"
 
-data ImportHiding
+data ImportType
   = Wildcard
   | Hiding
-  | NotHiding
+  | Explicit
   deriving (Eq, Generic, JSON.ToJSON)
 
-instance Csv.ToField ImportHiding where
-  toField Wildcard  = "wildcard"
-  toField Hiding    = "hiding"
-  toField NotHiding = "not hiding"
+instance Csv.ToField ImportType where
+  toField Wildcard = "wildcard"
+  toField Hiding   = "hiding"
+  toField Explicit = "explicit"
 
 -- | Mapping of modules to their aliases and to the files they are found in
 type ModuleAliases = [(Text, [(Text, [Text])])]
@@ -222,7 +222,7 @@ importSymbols _ _  (GHC.XImportDecl _) = mempty
 importSymbols source filepath GHC.ImportDecl{..} =
   case ideclHiding of
     Just (hiding, syms) ->
-      symbol (if hiding then Hiding else NotHiding) . Just . GHC.unLoc <$> GHC.unLoc syms
+      symbol (if hiding then Hiding else Explicit) . Just . GHC.unLoc <$> GHC.unLoc syms
     Nothing ->
       [ symbol Wildcard Nothing ]
   where
@@ -234,7 +234,7 @@ importSymbols source filepath GHC.ImportDecl{..} =
         , impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName
         , impQualified = if ideclQualified then Qualified else NotQualified
         , impAs = T.pack . moduleNameString . GHC.unLoc <$> ideclAs
-        , impHiding = hiding
+        , impType = hiding
         , impSymbol = T.pack . occNameString . rdrNameOcc . GHC.ieName <$> sym
         }
     moduleFromPath =
@@ -301,7 +301,7 @@ wildcards okModules =
   groupByFile . filter isWildcard . filter (not . isOkModule)
   where
     isWildcard ImportedSymbol{..} =
-      impQualified == NotQualified && impHiding /= NotHiding
+      impQualified == NotQualified && impType /= Explicit
     isOkModule = flip Set.member (Set.fromList okModules) . impModule
     groupByFile = Map.toList . fmap Set.toList . foldr insertMap Map.empty
     insertMap ImportedSymbol{..} =
