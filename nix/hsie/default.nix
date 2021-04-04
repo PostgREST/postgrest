@@ -14,17 +14,17 @@ let
     ps.optparse-applicative
   ];
   ghc = ghcWithPackages modules;
-  executable =
-    runCommand "haskellimports" { inherit name; }
-      "${ghc}/bin/ghc -O -Werror -Wall -package ghc ${src} -o $out";
+  hsie =
+    runCommand "haskellimports" { inherit name src; }
+      "${ghc}/bin/ghc -O -Werror -Wall -package ghc $src -o $out";
   bin =
-    runCommand name { inherit executable name; }
+    runCommand name { inherit hsie name; }
       ''
         mkdir -p $out/bin
-        ln -s $executable $out/bin/$name
+        ln -s $hsie $out/bin/$name
       '';
   bashCompletion =
-    runCommand "${name}-bash-completion" { }
-      "${executable} --bash-completion-script ${executable} > $out";
+    runCommand "${name}-bash-completion" { inherit bin name; }
+      "${hsie} --bash-completion-script $bin/bin/$name > $out";
 in
-executable // { inherit bashCompletion bin; }
+hsie // { inherit bashCompletion bin; }
