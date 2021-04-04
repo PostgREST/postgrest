@@ -62,9 +62,10 @@ data ImportedSymbol =
     { impFromModule :: Text
     , impModule     :: Text
     , impQualified  :: ImportQualified
-    , impAs         :: Maybe Text
+    , impAlias      :: Maybe Text
     , impType       :: ImportType
     , impSymbol     :: Maybe Text
+    , impInternal   :: ModuleInternal
     , impSource     :: FilePath
     , impFile       :: FilePath
     }
@@ -78,6 +79,15 @@ data ImportQualified
 instance Csv.ToField ImportQualified where
   toField Qualified    = "qualified"
   toField NotQualified = "not qualified"
+
+data ModuleInternal
+  = Internal
+  | External
+  deriving (Eq, Generic, JSON.ToJSON)
+
+instance Csv.ToField ModuleInternal where
+  toField Internal = "internal"
+  toField External = "external"
 
 data ImportType
   = Wildcard
@@ -144,7 +154,7 @@ main =
 
 run :: Options -> IO ()
 run Options{command, sources} =
-  runCommand command . concat =<< mapM sourceSymbols sources
+  runCommand command . markInternal . concat =<< mapM sourceSymbols sources
   where
     runCommand :: Command -> [ImportedSymbol] -> IO ()
     runCommand (Dump format) = LBS8.putStr . dump format
@@ -160,6 +170,15 @@ run Options{command, sources} =
     runWildcards :: WildcardImports -> IO ()
     runWildcards [] = T.putStrLn "No unwanted wildcard imports found."
     runWildcards xs = T.putStr (formatWildcards xs) >> exitFailure
+
+-- | Mark imports from modules that are among the analyzed ones as internal.
+markInternal :: [ImportedSymbol] -> [ImportedSymbol]
+markInternal symbols =
+  fmap mark symbols
+  where
+    mark s = s { impInternal = if isInternal s then Internal else External }
+    isInternal = flip Set.member internalModules . impModule
+    internalModules = Set.fromList $ fmap impFromModule symbols
 
 
 -- SYMBOLS
@@ -205,7 +224,8 @@ importSymbols source filepath GHC.ImportDecl{..} =
         , impFromModule = T.pack $ moduleFromPath filepath
         , impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName
         , impQualified = if ideclQualified then Qualified else NotQualified
-        , impAs = T.pack . moduleNameString . GHC.unLoc <$> ideclAs
+        , impAlias = T.pack . moduleNameString . GHC.unLoc <$> ideclAs
+        , impInternal = External
         , impType = hiding
         , impSymbol = T.pack . occNameString . rdrNameOcc . GHC.ieName <$> sym
         }
@@ -234,7 +254,7 @@ inconsistentAliases symbols =
     & Map.toList
   where
     moduleAlias ImportedSymbol{..} =
-      (impModule, impAs, FP.joinPath [impSource, impFile])
+      (impModule, impAlias, FP.joinPath [impSource, impFile])
     insertSetMapMap (k1, k2, v) =
       Map.insertWith (Map.unionWith Set.union) k1
         (Map.singleton k2 $ Set.singleton v)
@@ -300,10 +320,8 @@ modulesGraph symbols =
       Dot.StatementEdge $ Dot.EdgeStatement
         (Dot.ListTwo (edgeNode from) (edgeNode to) mempty) mempty
     edgeNode t = Dot.EdgeNode $ Dot.NodeId (Dot.Id t) Nothing
-    edges = unique . fmap edgeTuple . filter isInternalModule $ symbols
+    edges = unique . fmap edgeTuple . filter ((==) Internal . impInternal) $ symbols
     edgeTuple ImportedSymbol{..} = (impFromModule, impModule)
-    isInternalModule = flip Set.member internalModules . impModule
-    internalModules = Set.fromList $ fmap impFromModule symbols
     unique = Set.toList . Set.fromList
 
 -- Building Text directly as the Dot package currently doesn't support subgraphs.
@@ -332,12 +350,9 @@ symbolsGraph symbols =
     clusterNode moduleName symbol =
       "    " <> quoted (moduleName <> "." <> symbol) <> "\n"
     quoted t = "\"" <> t <> "\""
-    edges = unique . fmap edgeTuple . filter isInternalModule $ symbols
+    edges = unique . fmap edgeTuple . filter ((==) Internal . impInternal) $ symbols
     edgeTuple ImportedSymbol{..} = (impFromModule, impModule, impSymbol)
-    internalModules = Set.fromList $ fmap impFromModule symbols
-    isInternalModule = flip Set.member internalModules . impModule
     unique = Set.toList . Set.fromList
     symbolsByModule =
       Map.toList . Map.map (catMaybes . Set.toList) . foldr insertMap Map.empty $ edges
-    insertMap (_, to, symbol) =
-      Map.insertWith Set.union to $ Set.singleton symbol
+    insertMap (_, to, symbol) = Map.insertWith Set.union to $ Set.singleton symbol
