@@ -131,7 +131,7 @@ let
       ''
         tmpdir="$(mktemp -d)"
         ${dumpMinimalImports} "$tmpdir"
-        ${hsie} -i "$tmpdir" "$@"
+        ${hsie} "$tmpdir" "$@"
         rm -rf "$tmpdir"
       '';
 
@@ -141,7 +141,7 @@ let
         name = "postgrest-hsie-graph-modules";
         docs = "Create a PNG graph of modules imported within the codebase.";
       }
-      ''${hsie} graph-modules -s main -s src | ${graphviz}/bin/dot -Tpng -o "$1"'';
+      ''${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$1"'';
 
   hsieGraphSymbols =
     checkedShellScript

@@ -14,12 +14,12 @@
 
 module Main (main) where
 
-import qualified Data.Aeson                 as JSON
-import qualified Data.ByteString.Lazy.Char8 as LBS8
-import qualified Data.Csv                   as Csv
-import qualified Data.Map                   as Map
-import qualified Data.Set                   as Set
-import qualified Data.Text                  as T
+import qualified Data.Aeson                              as JSON
+import qualified Data.ByteString.Lazy.Char8              as LBS8
+import qualified Data.Csv                                as Csv
+import qualified Data.Map                                as Map
+import qualified Data.Set                                as Set
+import qualified Data.Text                               as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
@@ -27,7 +27,6 @@ import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
 import qualified Options.Applicative                     as O
 import qualified System.FilePath                         as FP
 
-import Control.Applicative        ((<|>))
 import Data.Aeson.Encode.Pretty   (encodePretty)
 import Data.Function              ((&))
 import Data.List                  (intercalate)
@@ -46,21 +45,8 @@ import System.Exit                (exitFailure)
 data Options =
   Options
     { command :: Command
-    , sources :: [Source]
+    , sources :: [FilePath]
     }
-
-data Source
-  = SourceDir FilePath
-  | ImportsDir FilePath
-  deriving (Generic, JSON.ToJSON)
-
-sourceDir :: Source -> FilePath
-sourceDir (SourceDir path)  = path
-sourceDir (ImportsDir path) = path
-
-instance Csv.ToField Source where
-  toField (SourceDir _)  = "source"
-  toField (ImportsDir _) = "imports"
 
 data Command
   = Dump OutputFormat
@@ -73,14 +59,14 @@ data OutputFormat = OutputCsv | OutputJson
 
 data ImportedSymbol =
   ImportedSymbol
-    { impSourceFile :: Text
-    , impSourceType :: Source
-    , impFromModule :: Text
+    { impFromModule :: Text
     , impModule     :: Text
     , impQualified  :: ImportQualified
     , impAs         :: Maybe Text
     , impType       :: ImportType
     , impSymbol     :: Maybe Text
+    , impSource     :: FilePath
+    , impFile       :: FilePath
     }
     deriving (Generic, Csv.ToNamedRecord, Csv.DefaultOrdered, JSON.ToJSON)
 
@@ -105,10 +91,10 @@ instance Csv.ToField ImportType where
   toField Explicit = "explicit"
 
 -- | Mapping of modules to their aliases and to the files they are found in
-type ModuleAliases = [(Text, [(Text, [Text])])]
+type ModuleAliases = [(Text, [(Text, [FilePath])])]
 
 -- | Mapping of modules to files
-type WildcardImports = [(Text, [Text])]
+type WildcardImports = [(FilePath, [Text])]
 
 
 -- MAIN
@@ -124,24 +110,15 @@ main =
         <> O.header "hsie - Swiss army knife for HaSkell Imports and Exports"
         <> O.progDesc "Parse Haskell code to analyze it's imports and exports"
     opts =
-      Options <$> commandOption <*> O.some (srcOption <|> importsOption)
+      Options <$> commandOption <*> O.some srcOption
     srcOption =
-      O.option (SourceDir <$> O.str) $
-        O.long "src"
-        <> O.short 's'
-        <> O.metavar "SRCDIR"
+      O.argument O.str $
+        O.metavar "SRCDIR"
         <> O.help "Haskell source directory"
-        <> O.action "directory"
-    importsOption =
-      O.option (ImportsDir <$> O.str) $
-        O.long "imports"
-        <> O.short 'i'
-        <> O.metavar "IMPORTSDIR"
-        <> O.help "Imports directory generated with GHC's '--ddump-minimal-imports'"
         <> O.action "directory"
     commandOption =
       O.subparser $
-        command "dump" "Dump imported symbols as CSV or JSON"
+        command "dump-imports" "Dump imported symbols as CSV or JSON"
           (Dump <$> jsonOutputFlag)
         <> command "graph-modules" "Print dot graph of module imports"
              (pure GraphModules)
@@ -188,14 +165,9 @@ run Options{command, sources} =
 -- SYMBOLS
 
 -- | Parse all imported symbols from a source of Haskell source files
-sourceSymbols :: Source -> IO [ImportedSymbol]
+sourceSymbols :: FilePath -> IO [ImportedSymbol]
 sourceSymbols source = do
-  files <-
-    case source of
-      SourceDir dirpath ->
-        filterExts [".hs"] <$> getFilesRecursive dirpath
-      ImportsDir dirpath ->
-        filterExts [".imports"] <$> getFilesRecursive dirpath
+  files <- filterExts [".hs", "imports"] <$> getFilesRecursive source
   concat <$> mapM moduleSymbols files
   where
     filterExts exts = filter $ flip elem exts . FP.takeExtension
@@ -217,7 +189,7 @@ parseModule filepath = do
 --
 -- If the import is a wildcard, i.e. no symbols are selected for import, then
 -- only one item is returned.
-importSymbols :: Source -> FilePath -> GHC.ImportDecl GhcPs -> [ImportedSymbol]
+importSymbols :: FilePath -> FilePath -> GHC.ImportDecl GhcPs -> [ImportedSymbol]
 importSymbols _ _  (GHC.XImportDecl _) = mempty
 importSymbols source filepath GHC.ImportDecl{..} =
   case ideclHiding of
@@ -228,8 +200,8 @@ importSymbols source filepath GHC.ImportDecl{..} =
   where
     symbol hiding sym =
       ImportedSymbol
-        { impSourceFile = T.pack filepath
-        , impSourceType = source
+        { impFile = relativePath filepath
+        , impSource = source
         , impFromModule = T.pack $ moduleFromPath filepath
         , impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName
         , impQualified = if ideclQualified then Qualified else NotQualified
@@ -239,7 +211,7 @@ importSymbols source filepath GHC.ImportDecl{..} =
         }
     moduleFromPath =
       intercalate "." . FP.splitDirectories . FP.dropExtension . relativePath
-    relativePath = FP.makeRelative $ sourceDir source
+    relativePath = FP.makeRelative source
 
 
 -- DUMP
@@ -261,11 +233,12 @@ inconsistentAliases symbols =
     & Map.filter ((<) 1 . length)
     & Map.toList
   where
-    moduleAlias ImportedSymbol{..} = (impModule, impAs, impSourceFile)
+    moduleAlias ImportedSymbol{..} =
+      (impModule, impAs, FP.joinPath [impSource, impFile])
     insertSetMapMap (k1, k2, v) =
       Map.insertWith (Map.unionWith Set.union) k1
         (Map.singleton k2 $ Set.singleton v)
-    aliases :: [(Maybe Text, Set.Set Text)] -> [(Text, [Text])]
+    aliases :: [(Maybe Text, Set.Set FilePath)] -> [(Text, [FilePath])]
     aliases = mapMaybe (\(k, v) -> fmap (, Set.toList v) k)
 
 formatInconsistentAliases :: ModuleAliases -> Text
@@ -287,7 +260,7 @@ formatInconsistentAliases modules =
         <> ":\n"
         <> T.concat (fmap formatFile sourceFiles)
     formatFile sourceFile =
-      "    " <> sourceFile <> "\n"
+      "    " <> T.pack sourceFile <> "\n"
 
 
 -- WILDCARDS
@@ -305,7 +278,7 @@ wildcards okModules =
     isOkModule = flip Set.member (Set.fromList okModules) . impModule
     groupByFile = Map.toList . fmap Set.toList . foldr insertMap Map.empty
     insertMap ImportedSymbol{..} =
-      Map.insertWith Set.union impSourceFile (Set.singleton impModule)
+      Map.insertWith Set.union impFile (Set.singleton impModule)
 
 formatWildcards :: WildcardImports -> Text
 formatWildcards files =
@@ -313,7 +286,7 @@ formatWildcards files =
     <> T.concat (fmap formatFile files)
   where
     formatFile (filepath, modules) =
-      "In " <> filepath <> ":\n" <> T.concat (fmap formatModule modules) <> "\n"
+      "In " <> T.pack filepath <> ":\n" <> T.concat (fmap formatModule modules) <> "\n"
     formatModule moduleName = "  " <> moduleName <> "\n"
 
 
