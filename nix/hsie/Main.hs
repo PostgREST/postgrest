@@ -118,7 +118,7 @@ main =
       O.info (O.helper <*> opts) $
         O.fullDesc
         <> O.header "hsie - Swiss army knife for HaSkell Imports and Exports"
-        <> O.progDesc "Parse Haskell code to analyze it's imports and exports"
+        <> O.progDesc "Parse Haskell code to analyze imports and exports"
     opts =
       Options <$> commandOption <*> O.some srcOption
     srcOption =
