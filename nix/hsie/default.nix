@@ -25,6 +25,6 @@ let
       '';
   bashCompletion =
     runCommand "${name}-bash-completion" { inherit bin name; }
-      "${hsie} --bash-completion-script $bin/bin/$name > $out";
+      "$bin/bin/$name --bash-completion-script $bin/bin/$name > $out";
 in
 hsie // { inherit bashCompletion bin; }
