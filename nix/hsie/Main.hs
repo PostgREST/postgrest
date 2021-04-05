@@ -150,7 +150,7 @@ main =
         O.long "ok"
         <> O.short 'o'
         <> O.metavar "OKMODULE"
-        <> O.help "Module that is ok to import as wildcard"
+        <> O.help "Module that is ok to import as unqualified wildcard"
 
 run :: Options -> IO ()
 run Options{command, sources} =
