@@ -146,7 +146,7 @@ main =
       O.flag OutputCsv OutputJson $
         O.long "json" <> O.short 'j' <> O.help "Output JSON"
     okModuleOption =
-      O.option O.auto $
+      O.strOption $
         O.long "ok"
         <> O.short 'o'
         <> O.metavar "OKMODULE"
