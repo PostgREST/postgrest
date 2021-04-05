@@ -138,7 +138,7 @@ main =
              "Check that aliases of imported modules are consistent"
              (pure CheckAliases)
         <> command "check-wildcards"
-             "Check that no unwanted modules are imported as wildcards"
+             "Check that no modules are imported as unqualified wildcards"
              (CheckWildcards <$> O.many okModuleOption)
     command name desc options =
       O.command name . O.info (O.helper <*> options) $ O.progDesc desc
