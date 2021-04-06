@@ -27,6 +27,8 @@ import Network.Wai (Response, responseLBS)
 import Network.HTTP.Types.Header
 
 import PostgREST.Types
+import PostgREST.ContentTypes (ContentType(..), toMime, toHeader)
+
 import Protolude       hiding (toS)
 import Protolude.Conv  (toS, toSL)
 

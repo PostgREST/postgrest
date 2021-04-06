@@ -41,6 +41,7 @@ import qualified PostgREST.QueryBuilder     as QueryBuilder
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Statements       as Statements
 
+import PostgREST.ContentTypes (ContentType(..), toHeader, toMime, decodeContentType)
 import PostgREST.ApiRequest (Action (..), ApiRequest (..),
                              InvokeMethod (..), Target (..))
 import PostgREST.Config     (AppConfig (..))

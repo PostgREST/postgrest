@@ -45,6 +45,7 @@ import Web.Cookie                (parseCookiesText)
 
 import Data.Ranged.Boundaries
 
+import PostgREST.ContentTypes (ContentType(..), toMime, decodeContentType)
 import PostgREST.Error      (ApiRequestError (..))
 import PostgREST.Parsers    (pRequestColumns)
 import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,

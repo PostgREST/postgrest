@@ -8,66 +8,24 @@ Description : PostgREST common types and functions used by the rest of the modul
 
 module PostgREST.Types where
 
-import Control.Lens.Getter (view)
-import Control.Lens.Tuple  (_1)
 
 import qualified Data.Aeson               as JSON
-import qualified Data.ByteString          as BS
-import qualified Data.ByteString.Internal as BS (c2w)
 import qualified Data.ByteString.Lazy     as BL
 import qualified Data.CaseInsensitive     as CI
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Set                 as S
-import qualified GHC.Show
 
-import Network.HTTP.Types.Header (Header, hContentType)
+import Control.Lens.Getter (view)
+import Control.Lens.Tuple  (_1)
+import Data.Tree (Tree(..))
+import Network.HTTP.Types.Header (Header)
 
-import Data.Tree
+import qualified GHC.Show (show)
 
 import PostgREST.RangeQuery (NonnegRange)
 import Protolude            hiding (toS)
 import Protolude.Conv       (toS)
 
--- | Enumeration of currently supported response content types
-data ContentType = CTApplicationJSON | CTSingularJSON
-                 | CTTextCSV | CTTextPlain
-                 | CTOpenAPI | CTUrlEncoded | CTOctetStream
-                 | CTAny | CTOther ByteString deriving (Eq)
-
--- | Convert from ContentType to a full HTTP Header
-toHeader :: ContentType -> Header
-toHeader ct = (hContentType, toMime ct <> charset)
-  where
-    charset = case ct of
-      CTOctetStream -> mempty
-      CTOther _     -> mempty
-      _             -> "; charset=utf-8"
-
--- | Convert from ContentType to a ByteString representing the mime type
-toMime :: ContentType -> ByteString
-toMime CTApplicationJSON = "application/json"
-toMime CTTextCSV         = "text/csv"
-toMime CTTextPlain       = "text/plain"
-toMime CTOpenAPI         = "application/openapi+json"
-toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
-toMime CTUrlEncoded      = "application/x-www-form-urlencoded"
-toMime CTOctetStream     = "application/octet-stream"
-toMime CTAny             = "*/*"
-toMime (CTOther ct)      = ct
-
--- | Convert from ByteString to ContentType. Warning: discards MIME parameters
-decodeContentType :: BS.ByteString -> ContentType
-decodeContentType ct = case BS.takeWhile (/= BS.c2w ';') ct of
-  "application/json"                  -> CTApplicationJSON
-  "text/csv"                          -> CTTextCSV
-  "text/plain"                        -> CTTextPlain
-  "application/openapi+json"          -> CTOpenAPI
-  "application/vnd.pgrst.object+json" -> CTSingularJSON
-  "application/vnd.pgrst.object"      -> CTSingularJSON
-  "application/x-www-form-urlencoded" -> CTUrlEncoded
-  "application/octet-stream"          -> CTOctetStream
-  "*/*"                               -> CTAny
-  ct'                                 -> CTOther ct'
 
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString

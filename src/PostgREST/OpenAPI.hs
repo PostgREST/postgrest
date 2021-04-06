@@ -31,7 +31,9 @@ import PostgREST.Types            (Column (..), DbStructure (..),
                                    PrimaryKey (..),
                                    ProcDescription (..), Proxy (..),
                                    Table (..), tableCols, tableName,
-                                   tablePKCols, tableSchema, toMime)
+                                   tablePKCols, tableSchema)
+import PostgREST.ContentTypes (toMime)
+
 import Protolude                  hiding (Proxy, dropWhile, get,
                                    intercalate, toLower, toS, (&))
 import Protolude.Conv             (toS)
