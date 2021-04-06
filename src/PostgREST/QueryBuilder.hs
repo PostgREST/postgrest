@@ -33,8 +33,7 @@ import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
 import PostgREST.Queries
 
-import Protolude                       hiding (cast, intercalate,
-                                        replace)
+import Protolude hiding (cast, intercalate, replace)
 
 readRequestToQuery :: ReadRequest -> H.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =

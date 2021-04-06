@@ -40,11 +40,11 @@ import PostgREST.Error                 (ApiRequestError (..),
 import PostgREST.Parsers
 import PostgREST.Preferences
 import PostgREST.Private.QueryFragment (sourceCTEName)
+import PostgREST.Queries
 import PostgREST.RangeQuery            (NonnegRange, allRange,
                                         restrictRange)
-import PostgREST.Queries
 
-import Protolude                       hiding (from)
+import Protolude hiding (from)
 
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.

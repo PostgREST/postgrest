@@ -14,20 +14,20 @@ import qualified Data.HashMap.Strict             as HM
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
-import qualified Hasql.Encoders           as HE
+import qualified Hasql.Encoders                  as HE
 
 import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.DbStructureTypes
-import PostgREST.PgVersions          (PgVersion, pgVersion96)
-import PostgREST.RangeQuery          (NonnegRange, allRange,
-                                      rangeLimit, rangeOffset)
-import           PostgREST.Private.Common
+import PostgREST.PgVersions       (PgVersion, pgVersion96)
+import PostgREST.Private.Common
 import PostgREST.Queries
+import PostgREST.RangeQuery       (NonnegRange, allRange, rangeLimit,
+                                   rangeOffset)
 
-import Protolude                     hiding (cast, intercalate,
-                                      replace, toLower, toS)
-import Protolude.Conv                (toS)
+import Protolude      hiding (cast, intercalate, replace, toLower,
+                       toS)
+import Protolude.Conv (toS)
 
 
 -- | A part of a SQL query that cannot be executed independently
