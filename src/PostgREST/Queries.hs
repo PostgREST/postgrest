@@ -1,5 +1,33 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-module PostgREST.Queries where
+module PostgREST.Queries
+  ( Alias
+  , Depth
+  , EmbedHint
+  , EmbedPath
+  , Field
+  , Filter(..)
+  , JoinCondition(..)
+  , JsonOperand(..)
+  , JsonOperation(..)
+  , JsonPath
+  , ListVal
+  , LogicOperator(..)
+  , LogicTree(..)
+  , MutateQuery(..)
+  , MutateRequest
+  , NodeName
+  , OpExpr(..)
+  , Operation (..)
+  , OrderDirection(..)
+  , OrderNulls(..)
+  , OrderTerm(..)
+  , ReadNode
+  , ReadQuery(..)
+  , ReadRequest
+  , SelectItem
+  , SingleVal
+  , fstFieldNames
+  ) where
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Set             as S
