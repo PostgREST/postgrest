@@ -31,7 +31,8 @@ import PostgREST.DbStructureTypes
 import PostgREST.Preferences
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
-import PostgREST.Types
+import PostgREST.Queries
+
 import Protolude                       hiding (cast, intercalate,
                                         replace)
 

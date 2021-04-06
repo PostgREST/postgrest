@@ -1,5 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-module PostgREST.Types where
+module PostgREST.Queries where
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Set             as S

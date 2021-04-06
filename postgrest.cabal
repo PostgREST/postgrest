@@ -51,9 +51,9 @@ library
                       PostgREST.PgVersions
                       PostgREST.Preferences
                       PostgREST.QueryBuilder
+                      PostgREST.Queries
                       PostgREST.RangeQuery
                       PostgREST.Statements
-                      PostgREST.Types
   other-modules:      Paths_postgrest
                       PostgREST.Private.Common
                       PostgREST.Private.ProxyUri

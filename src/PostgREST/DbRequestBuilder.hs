@@ -42,7 +42,8 @@ import PostgREST.Preferences
 import PostgREST.Private.QueryFragment (sourceCTEName)
 import PostgREST.RangeQuery            (NonnegRange, allRange,
                                         restrictRange)
-import PostgREST.Types
+import PostgREST.Queries
+
 import Protolude                       hiding (from)
 
 -- | Builds the ReadRequest tree on a number of stages.

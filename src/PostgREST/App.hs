@@ -52,7 +52,7 @@ import PostgREST.DbStructureTypes
 import PostgREST.Headers          (GucHeader, addHeadersIfNotIncluded,
                                    unwrapGucHeader)
 import PostgREST.Preferences
-import PostgREST.Types
+import PostgREST.Queries
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)

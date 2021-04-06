@@ -21,7 +21,7 @@ import Text.ParserCombinators.Parsec hiding (many, (<|>))
 import PostgREST.DbStructureTypes (FieldName)
 import PostgREST.Error            (ApiRequestError (ParseRequestError))
 import PostgREST.RangeQuery       (NonnegRange)
-import PostgREST.Types
+import PostgREST.Queries
 
 import PostgREST.Private.QueryFragment (ftsOperators, operators)
 
