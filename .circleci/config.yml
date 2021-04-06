@@ -42,4 +42,4 @@ workflows:
     jobs:
       - build
       - spellcheck
-
+      - linkcheck

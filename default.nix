@@ -1,9 +1,9 @@
 let
   # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion = {
-    date = "2021-04-04";
-    rev = "c0e881852006b132236cbf0301bd1939bb50867e";
-    tarballHash = "0fy7z7yxk5n7yslsvx5cyc6h21qwi4bhxf3awhirniszlbvaazy2";
+    date = "2021-06-02";
+    rev = "84aa23742f6c72501f9cc209f29c438766f5352d";
+    tarballHash = "0h7xl6q0yjrbl9vm3h6lkxw692nm8bg3wy65gm95a2mivhrdjpxp";
   };
 
   # Nix files that describe the Nixpkgs repository. We evaluate the expression
