@@ -24,10 +24,11 @@ import qualified Network.HTTP.Types.Status as HT
 import Data.Aeson  ((.=))
 import Network.Wai (Response, responseLBS)
 
-import Network.HTTP.Types.Header
+import Network.HTTP.Types.Header (Header)
 
 import PostgREST.ContentTypes     (ContentType (..), toHeader, toMime)
-import PostgREST.DbStructureTypes
+import PostgREST.DbStructureTypes (Column (..), Link (..),
+                                   Relation (..), Table (..))
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS, toSL)
