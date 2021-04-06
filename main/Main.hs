@@ -56,6 +56,11 @@ data ConnectionStatus
   | FatalConnectionError Text
   deriving (Eq)
 
+-- | Schema cache status
+data SCacheStatus
+  = SCLoaded
+  | SCOnRetry
+  | SCFatalFail
 
 -- | This is where everything starts.
 main :: IO ()

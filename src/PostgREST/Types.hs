@@ -273,10 +273,3 @@ instance Show JSPathExp where
   -- TODO: this needs to be quoted properly for special chars
   show (JSPKey k) = "." <> show k
   show (JSPIdx i) = "[" <> show i <> "]"
-
--- | Schema cache status
-data SCacheStatus
-  = SCLoaded
-  | SCOnRetry
-  | SCFatalFail
-
