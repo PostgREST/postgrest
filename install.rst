@@ -256,5 +256,5 @@ Assuming you're making modifications locally and then pushing to GitHub, it's ea
 4. Modify your ``postgrest.conf`` file as required to match your Config Vars in Heroku
 5. Create your :code:`Procfile` and add :code:`./env-to-config ./postgrest postgrest.conf`
 6. Push your changes to GitHub
-7. Set Heroku to automatically deploy from Master and then manually deploy the branch for the first build
+7. Set Heroku to automatically deploy from Main and then manually deploy the branch for the first build
 
