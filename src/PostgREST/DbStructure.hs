@@ -42,6 +42,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.DbStructureTypes
 import PostgREST.Private.Common
+import           PostgREST.PgVersions (PgVersion(..))
 import PostgREST.Types
 
 getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure

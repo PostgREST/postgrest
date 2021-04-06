@@ -20,6 +20,7 @@ import           PostgREST.RangeQuery            (NonnegRange,
                                                   rangeLimit,
                                                   rangeOffset)
 import           PostgREST.Types
+import           PostgREST.PgVersions (PgVersion, pgVersion96)
 import           Protolude                       hiding (cast,
                                                   intercalate,
                                                   replace, toLower,

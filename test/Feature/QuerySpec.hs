@@ -8,8 +8,7 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.DbStructureTypes (PgVersion)
-import PostgREST.Types            (pgVersion112, pgVersion121,
+import PostgREST.PgVersions       (PgVersion, pgVersion112, pgVersion121,
                                    pgVersion96)
 import Protolude                  hiding (get)
 import SpecHelper

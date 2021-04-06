@@ -192,37 +192,6 @@ fstFieldNames :: ReadRequest -> [FieldName]
 fstFieldNames (Node (sel, _) _) =
   fst . view _1 <$> select sel
 
--- | Tells the minimum PostgreSQL version required by this version of PostgREST
-minimumPgVersion :: PgVersion
-minimumPgVersion = pgVersion95
-
-pgVersion95 :: PgVersion
-pgVersion95 = PgVersion 90500 "9.5"
-
-pgVersion96 :: PgVersion
-pgVersion96 = PgVersion 90600 "9.6"
-
-pgVersion100 :: PgVersion
-pgVersion100 = PgVersion 100000 "10"
-
-pgVersion109 :: PgVersion
-pgVersion109 = PgVersion 100009 "10.9"
-
-pgVersion110 :: PgVersion
-pgVersion110 = PgVersion 110000 "11.0"
-
-pgVersion112 :: PgVersion
-pgVersion112 = PgVersion 110002 "11.2"
-
-pgVersion114 :: PgVersion
-pgVersion114 = PgVersion 110004 "11.4"
-
-pgVersion121 :: PgVersion
-pgVersion121 = PgVersion 120001 "12.1"
-
-pgVersion130 :: PgVersion
-pgVersion130 = PgVersion 130000 "13.0"
-
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"

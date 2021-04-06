@@ -46,6 +46,7 @@ library
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Parsers
+                      PostgREST.PgVersions
                       PostgREST.Preferences
                       PostgREST.QueryBuilder
                       PostgREST.Statements

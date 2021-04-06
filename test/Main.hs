@@ -15,7 +15,7 @@ import Test.Hspec
 import PostgREST.App         (postgrest)
 import PostgREST.Config      (AppConfig (..), LogLevel (..))
 import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Types       (pgVersion96)
+import PostgREST.PgVersions  (pgVersion96)
 import Protolude             hiding (toList, toS)
 import Protolude.Conv        (toS)
 import SpecHelper

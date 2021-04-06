@@ -7,6 +7,8 @@ import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
+import PostgREST.PgVersions (PgVersion(..))
+
 import qualified GHC.Show (show)
 
 import Protolude
@@ -217,11 +219,3 @@ isSelfReference :: Relation -> Bool
 isSelfReference r = relTable r == relFTable r
 
 type FieldName = Text
-
-data PgVersion = PgVersion {
-  pgvNum  :: Int32
-, pgvName :: Text
-} deriving (Eq, Generic, JSON.ToJSON)
-
-instance Ord PgVersion where
-  (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2
