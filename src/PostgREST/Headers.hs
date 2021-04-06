@@ -1,5 +1,8 @@
-module PostgREST.Headers where
-
+module PostgREST.Headers
+  ( GucHeader
+  , unwrapGucHeader
+  , addHeadersIfNotIncluded
+  ) where
 
 import qualified Data.Aeson           as JSON
 import qualified Data.CaseInsensitive as CI

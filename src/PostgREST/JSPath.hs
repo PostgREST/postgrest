@@ -4,7 +4,12 @@ Description : PostgREST common types and functions used by the rest of the modul
 -}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module PostgREST.JSPath where
+module PostgREST.JSPath
+  ( JSPath
+  , JSPathExp(..)
+  , pJSPath
+  , pRoleClaimKey
+  ) where
 
 import qualified GHC.Show (show)
 
@@ -20,8 +25,11 @@ import Protolude.Conv (toS)
 
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]
+
 -- | jspath expression, e.g. .property, .property[0] or ."property-dash"
-data JSPathExp = JSPKey Text | JSPIdx Int
+data JSPathExp
+  = JSPKey Text
+  | JSPIdx Int
 
 instance Show JSPathExp where
   -- TODO: this needs to be quoted properly for special chars
