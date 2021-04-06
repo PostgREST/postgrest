@@ -32,7 +32,6 @@ flag hpc
 library
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
-                      QuasiQuotes
                       NoImplicitPrelude
   hs-source-dirs:     src
   exposed-modules:    PostgREST.ApiRequest
@@ -116,7 +115,6 @@ library
 executable postgrest
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
-                      QuasiQuotes
                       NoImplicitPrelude
   hs-source-dirs:     main
   main-is:            Main.hs

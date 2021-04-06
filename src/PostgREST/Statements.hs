@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-|
 Module      : PostgREST.Statements
 Description : PostgREST single SQL statements.
