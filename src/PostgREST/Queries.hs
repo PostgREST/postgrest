@@ -124,7 +124,10 @@ data JsonOperation
 -- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text
 -- because we reuse our escaping functons and let pg do the casting with
 -- '1'::int
-data JsonOperand = JKey{jVal :: Text} | JIdx{jVal :: Text} deriving (Eq)
+data JsonOperand
+  = JKey { jVal :: Text }
+  | JIdx { jVal :: Text }
+  deriving (Eq)
 
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
 fstFieldNames :: ReadRequest -> [FieldName]

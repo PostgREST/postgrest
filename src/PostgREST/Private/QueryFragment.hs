@@ -11,22 +11,27 @@ module PostgREST.Private.QueryFragment where
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
-import qualified Data.HashMap.Strict             as M
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
 import qualified Hasql.Encoders                  as HE
 
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.DbStructureTypes
+import PostgREST.DbStructureTypes (FieldName,
+                                   QualifiedIdentifier (..))
 import PostgREST.PgVersions       (PgVersion, pgVersion96)
-import PostgREST.Private.Common
-import PostgREST.Queries
+import PostgREST.Private.Common   (intercalateSnippet)
+import PostgREST.Queries          (Alias, Field, Filter (..),
+                                   JoinCondition (..),
+                                   JsonOperand (..),
+                                   JsonOperation (..), JsonPath,
+                                   LogicTree (..), OpExpr (..),
+                                   Operation (..), OrderTerm (..),
+                                   SelectItem)
 import PostgREST.RangeQuery       (NonnegRange, allRange, rangeLimit,
                                    rangeOffset)
 
-import Protolude      hiding (cast, intercalate, replace, toLower,
-                       toS)
+import Protolude      hiding (cast, toS)
 import Protolude.Conv (toS)
 
 
@@ -39,8 +44,8 @@ noLocationF = "array[]::text[]"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
-operators :: M.HashMap Text SqlFragment
-operators = M.union (M.fromList [
+operators :: HM.HashMap Text SqlFragment
+operators = HM.union (HM.fromList [
   ("eq", "="),
   ("gte", ">="),
   ("gt", ">"),
@@ -60,8 +65,8 @@ operators = M.union (M.fromList [
   ("nxl", "&>"),
   ("adj", "-|-")]) ftsOperators
 
-ftsOperators :: M.HashMap Text SqlFragment
-ftsOperators = M.fromList [
+ftsOperators :: HM.HashMap Text SqlFragment
+ftsOperators = HM.fromList [
   ("fts", "@@ to_tsquery"),
   ("plfts", "@@ plainto_tsquery"),
   ("phfts", "@@ phraseto_tsquery"),
@@ -255,6 +260,7 @@ returningF qi returnings =
 limitOffsetF :: NonnegRange -> H.Snippet
 limitOffsetF range =
   if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
+  if range /= allRange then "LIMIT " <> limit <> " OFFSET " <> offset else mempty
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
