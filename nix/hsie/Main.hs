@@ -186,7 +186,7 @@ markInternal symbols =
 -- | Parse all imported symbols from a source of Haskell source files
 sourceSymbols :: FilePath -> IO [ImportedSymbol]
 sourceSymbols source = do
-  files <- filterExts [".hs", "imports"] <$> getFilesRecursive source
+  files <- filterExts [".hs", ".imports"] <$> getFilesRecursive source
   concat <$> mapM moduleSymbols files
   where
     filterExts exts = filter $ flip elem exts . FP.takeExtension
