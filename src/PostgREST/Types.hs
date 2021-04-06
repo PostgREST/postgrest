@@ -28,13 +28,6 @@ import Protolude      hiding (toS)
 import Protolude.Conv (toS)
 
 
--- | A SQL query that can be executed independently
-type SqlQuery = ByteString
-
--- | The source table column a view column refers to
-type SourceColumn = (Column, ViewColumn)
-type ViewColumn = Column
-
 data OrderDirection = OrderAsc | OrderDesc deriving (Eq)
 instance Show OrderDirection where
   show OrderAsc  = "ASC"

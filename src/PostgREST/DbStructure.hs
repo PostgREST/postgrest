@@ -43,7 +43,14 @@ import Text.InterpolatedString.Perl6 (q)
 import PostgREST.DbStructureTypes
 import PostgREST.Private.Common
 import           PostgREST.PgVersions (PgVersion(..))
-import PostgREST.Types
+
+
+-- | The source table column a view column refers to
+type SourceColumn = (Column, ViewColumn)
+type ViewColumn = Column
+
+-- | A SQL query that can be executed independently
+type SqlQuery = ByteString
 
 getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure
 getDbStructure schemas extraSearchPath pgVer prepared = do
