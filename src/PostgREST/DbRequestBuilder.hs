@@ -28,9 +28,7 @@ import Control.Arrow           ((***))
 import Data.Either.Combinators (mapLeft)
 import Data.List               (delete)
 import Data.Text               (isInfixOf)
-
-import Control.Applicative
-import Data.Tree
+import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest            (Action (..), ApiRequest (..),
                                         PayloadJSON (..))

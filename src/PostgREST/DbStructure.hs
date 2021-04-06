@@ -16,13 +16,13 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
-module PostgREST.DbStructure (
-  getDbStructure
-, accessibleTables
-, accessibleProcs
-, schemaDescription
-, getPgVersion
-) where
+module PostgREST.DbStructure
+  ( getDbStructure
+  , accessibleTables
+  , accessibleProcs
+  , schemaDescription
+  , getPgVersion
+  ) where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
@@ -35,10 +35,11 @@ import qualified Hasql.Transaction   as HT
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (split)
-import Protolude                     hiding (toS)
-import Protolude.Conv                (toS)
-import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q)
+
+import Protolude        hiding (toS)
+import Protolude.Conv   (toS)
+import Protolude.Unsafe (unsafeHead)
 
 import PostgREST.DbStructureTypes
 import PostgREST.PgVersions       (PgVersion (..))

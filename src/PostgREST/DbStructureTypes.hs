@@ -1,7 +1,36 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructureTypes where
+module PostgREST.DbStructureTypes
+  ( DbStructure(..)
+  , Cardinality(..)
+  , Column(..)
+  , Constraint
+  , FieldName
+  , ForeignKey(..)
+  , Link(..)
+  , PgArg(..)
+  , PgType(..)
+  , PrimaryKey(..)
+  , ProcDescription(..)
+  , ProcVolatility(..)
+  , ProcsMap
+  , QualifiedIdentifier(..)
+  , Relation(..)
+  , RetType(..)
+  , Schema
+  , Table(..)
+  , TableName
+  , findProc
+  , isSelfReference
+  , procReturnsScalar
+  , procReturnsSingle
+  , procTableName
+  , specifiedProcArgs
+  , tableCols
+  , tablePKCols
+  , tableQi
+  ) where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M

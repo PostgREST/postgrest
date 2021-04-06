@@ -48,6 +48,7 @@ import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
+import qualified Data.Text              as T
 
 import qualified GHC.Show (show)
 
@@ -60,30 +61,25 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
-import Data.Text               (dropEnd, dropWhileEnd, filter,
-                                intercalate, pack, replace, splitOn,
-                                strip, stripPrefix, take, toLower,
-                                toTitle, unpack)
 import Data.Version            (versionBranch)
 import Development.GitRev      (gitHash)
 import Numeric                 (readOct, showOct)
+import Options.Applicative     (Parser, customExecParser, flag,
+                                footer, fullDesc, help, helper, info,
+                                infoOption, long, metavar, prefs,
+                                progDesc, short, showHelpOnEmpty,
+                                showHelpOnError, strArgument)
 import Paths_postgrest         (version)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
-
-import Control.Applicative
-import Data.Monoid
-import Options.Applicative hiding (str)
-import Text.Heredoc        (str)
+import Text.Heredoc            (str)
 
 import PostgREST.JSPath           (JSPath, JSPathExp (..),
                                    pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
-import Protolude                  hiding (Proxy, concat, filter,
-                                   hPutStrLn, intercalate, null,
-                                   replace, take, toList, toLower,
-                                   toS, toTitle, (<>))
-import Protolude.Conv             (toS)
+
+import Protolude      hiding (Proxy, toList, toS)
+import Protolude.Conv (toS)
 
 -- | Command line interface options
 data CLI = CLI
@@ -149,16 +145,16 @@ data Proxy = Proxy
 -- | User friendly version number
 prettyVersion :: Text
 prettyVersion =
-  intercalate "." (map show $ versionBranch version) <> gitRev
+  T.intercalate "." (map show $ versionBranch version) <> gitRev
   where
     gitRev =
       if $(gitHash) == "UNKNOWN"
         then mempty
-        else " (" <> take 7 $(gitHash) <> ")"
+        else " (" <> T.take 7 $(gitHash) <> ")"
 
 -- | Version number used in docs
 docsVersion :: Text
-docsVersion = "v" <> dropEnd 1 (dropWhileEnd (/= '.') prettyVersion)
+docsVersion = "v" <> T.dropEnd 1 (T.dropWhileEnd (/= '.') prettyVersion)
 
 -- | Read command line interface options. Also prints help.
 readCLIShowHelp :: Environment -> IO CLI
@@ -298,36 +294,36 @@ dumpAppConfig conf =
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
       [("db-anon-role",              q . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
-      ,("db-channel-enabled",            toLower . show . configDbChannelEnabled)
-      ,("db-extra-search-path",      q . intercalate "," . configDbExtraSearchPath)
+      ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
+      ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-timeout",               show . configDbPoolTimeout)
       ,("db-pre-request",            q . fromMaybe mempty . configDbPreRequest)
-      ,("db-prepared-statements",        toLower . show . configDbPreparedStatements)
+      ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
-      ,("db-schemas",                q . intercalate "," . toList . configDbSchemas)
-      ,("db-config",                 q . toLower . show . configDbConfig)
+      ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
+      ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
-      ,("jwt-role-claim-key",        q . intercalate mempty . fmap show . configJwtRoleClaimKey)
+      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
-      ,("jwt-secret-is-base64",          toLower . show . configJwtSecretIsBase64)
+      ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . show . configLogLevel)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
       ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
-      ,("server-unix-socket",        q . maybe mempty pack . configServerUnixSocket)
-      ,("server-unix-socket-mode",   q . pack . showSocketMode)
+      ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
+      ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ]
 
     -- quote all app.settings
     appSettings = second q <$> configAppSettings conf
 
     -- quote strings and replace " with \"
-    q s = "\"" <> replace "\"" "\\\"" s <> "\""
+    q s = "\"" <> T.replace "\"" "\\\"" s <> "\""
 
     showTxEnd c = case (configDbTxRollbackAll c, configDbTxAllowOverride c) of
       ( False, False ) -> "commit"
@@ -402,7 +398,7 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
         <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
         <*> (fromMaybe "!4" <$> optString "server-host")
         <*> (fromMaybe 3000 <$> optInt "server-port")
-        <*> (fmap unpack <$> optString "server-unix-socket")
+        <*> (fmap T.unpack <$> optString "server-unix-socket")
         <*> parseSocketFileMode "server-unix-socket-mode"
 
     parseDbUri :: C.Key -> C.Parser C.Config Text
@@ -415,11 +411,11 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
         let secStr = encodeUtf8 sec
             secFile = fromMaybe secStr secretFile
             -- replace because the JWT is actually base64url encoded which must be turned into just base64 before decoding.
-            replaceUrlChars = replace "_" "/" . replace "-" "+" . replace "." "="
+            replaceUrlChars = T.replace "_" "/" . T.replace "-" "+" . T.replace "." "="
             willBeFile = isPrefixOf "@" (toS secStr) && isNothing secretFile
         in
         if isB64 && not willBeFile -- don't decode in bas64 if the secret will be a file or it will err. The secFile will be filled with the file contents in a later stage.
-          then case B64.decode $ encodeUtf8 $ strip $ replaceUrlChars $ decodeUtf8 secFile of
+          then case B64.decode . encodeUtf8 . T.strip . replaceUrlChars $ decodeUtf8 secFile of
             Left errMsg -> fail errMsg
             Right bs    -> pure $ Just bs
           else pure $ Just secFile
@@ -429,14 +425,14 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
       where
         addFromEnv f = M.toList $ M.union fromEnv $ M.fromList f
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
-        normalize k = ("app.settings." <>) <$> stripPrefix "PGRST_APP_SETTINGS_" (toS k)
+        normalize k = ("app.settings." <>) <$> T.stripPrefix "PGRST_APP_SETTINGS_" (toS k)
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
       optString k >>= \case
         Nothing -> pure 432 -- return default 660 mode if no value was provided
         Just fileModeText ->
-          case (readOct . unpack) fileModeText of
+          case readOct $ T.unpack fileModeText of
             []              ->
               fail "Invalid server-unix-socket-mode: not an octal"
             (fileMode, _):_ ->
@@ -455,7 +451,7 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
     parseJwtAudience k =
       optString k >>= \case
         Nothing -> pure Nothing -- no audience in config file
-        Just aud -> case preview stringOrUri (unpack aud) of
+        Just aud -> case preview stringOrUri (T.unpack aud) of
           Nothing -> fail "Invalid Jwt audience. Check your configuration."
           aud' -> pure aud'
 
@@ -528,7 +524,7 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
         dashToUnderscore c   = c
         envVarName = "PGRST_" <> (toUpper . dashToUnderscore <$> toS key)
         reloadableDbSetting =
-          let dbSettingName = pack $ dashToUnderscore <$> toS key in
+          let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "log_level",
             "db_anon_role", "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
@@ -548,14 +544,14 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
     coerceBool (C.Bool b)   = Just b
     coerceBool (C.String s) =
       -- parse all kinds of text: True, true, TRUE, "true", ...
-      case readMaybe . toS $ toTitle $ filter isAlpha $ toS s of
+      case readMaybe . toS $ T.toTitle $ T.filter isAlpha $ toS s of
         Just b  -> Just b
         -- numeric instead?
         Nothing -> (> 0) <$> (readMaybe $ toS s :: Maybe Integer)
     coerceBool _            = Nothing
 
     splitOnCommas :: C.Value -> [Text]
-    splitOnCommas (C.String s) = strip <$> splitOn "," s
+    splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s
     splitOnCommas _            = []
 
 {-|
@@ -580,13 +576,13 @@ type Environment = M.Map [Char] Text
 readEnvironment :: IO Environment
 readEnvironment = getEnvironment <&> pgrst
   where
-    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map pack $ M.fromList env
+    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map T.pack $ M.fromList env
 
 -- | Read the JWT secret from a file if configJwtSecret is actually a filepath(has @ as its prefix).
 -- | To check if the JWT secret is provided is in fact a file path, it must be decoded as 'Text' to be processed.
 readSecretFile :: Maybe B.ByteString -> IO (Maybe B.ByteString)
 readSecretFile mSecret =
-  case (stripPrefix "@" . decodeUtf8) =<< mSecret of
+  case (T.stripPrefix "@" . decodeUtf8) =<< mSecret of
     Nothing       -> return Nothing
     Just filename -> Just . chomp <$> BS.readFile (toS filename)
   where
@@ -594,6 +590,6 @@ readSecretFile mSecret =
 
 -- | Read database uri from a separate file if `db-uri` is a filepath.
 readDbUriFile :: Text -> IO (Maybe Text)
-readDbUriFile dbUri = case stripPrefix "@" dbUri of
+readDbUriFile dbUri = case T.stripPrefix "@" dbUri of
   Nothing       -> return Nothing
-  Just filename -> Just . strip <$> readFile (toS filename)
+  Just filename -> Just . T.strip <$> readFile (toS filename)
