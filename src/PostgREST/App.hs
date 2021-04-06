@@ -48,6 +48,7 @@ import PostgREST.Config     (AppConfig (..))
 import PostgREST.Error      (Error)
 
 import PostgREST.Types
+import PostgREST.DbStructureTypes
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)

@@ -16,6 +16,7 @@ import Protolude.Conv (toS)
 
 import PostgREST.QueryBuilder (requestToCallProcQuery)
 import PostgREST.Types
+import PostgREST.DbStructureTypes
 
 import SpecHelper (getEnvVarWithDefault)
 

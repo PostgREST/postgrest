@@ -8,22 +8,17 @@ Any function that outputs a SqlFragment should be in this module.
 -}
 module PostgREST.Private.QueryFragment where
 
-import qualified Data.ByteString.Char8           as BS (intercalate,
-                                                        pack, unwords)
+import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
-import           Data.Maybe
-import qualified Data.Text                       as T (intercalate,
-                                                       isInfixOf, map,
-                                                       null, replace,
-                                                       takeWhile,
-                                                       toLower)
+import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
 import           PostgREST.RangeQuery            (NonnegRange,
                                                   allRange,
                                                   rangeLimit,
                                                   rangeOffset)
 import           PostgREST.Types
+import           PostgREST.DbStructureTypes
 import           Protolude                       hiding (cast,
                                                   intercalate,
                                                   replace, toLower,

@@ -10,13 +10,13 @@ This module constructs single SQL statements that can be parametrized and prepar
 
 TODO: Currently, createReadStatement is not using prepared statements. See https://github.com/PostgREST/postgrest/issues/718.
 -}
-module PostgREST.Statements (
-    createWriteStatement
+module PostgREST.Statements
+  ( createWriteStatement
   , createReadStatement
   , callProcStatement
   , createExplainStatement
   , dbSettingsStatement
-) where
+  ) where
 
 
 import           Control.Lens                    ((^?))
@@ -33,6 +33,7 @@ import           PostgREST.Error
 import           PostgREST.Private.Common
 import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
+import           PostgREST.DbStructureTypes
 import           Protolude                       hiding (cast,
                                                   replace, toS)
 import           Protolude.Conv                  (toS)

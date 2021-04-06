@@ -5,15 +5,15 @@ Description : PostgREST error HTTP responses
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module PostgREST.Error (
-  errorResponseFor
-, ApiRequestError(..)
-, PgError(..)
-, Error(..)
-, errorPayload
-, checkIsFatal
-, singularityError
-) where
+module PostgREST.Error
+  ( errorResponseFor
+  , ApiRequestError(..)
+  , PgError(..)
+  , Error(..)
+  , errorPayload
+  , checkIsFatal
+  , singularityError
+  ) where
 
 import qualified Data.Aeson                as JSON
 import qualified Data.Text                 as T
@@ -26,7 +26,7 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header
 
-import PostgREST.Types
+import PostgREST.DbStructureTypes
 import PostgREST.ContentTypes (ContentType(..), toMime, toHeader)
 
 import Protolude       hiding (toS)

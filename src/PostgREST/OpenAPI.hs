@@ -26,10 +26,11 @@ import PostgREST.ApiRequest       (ContentType (..))
 import PostgREST.Config           (AppConfig (..), docsVersion,
                                    prettyVersion)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
-import PostgREST.Types            (Column (..), DbStructure (..),
+import PostgREST.Types (Proxy(..))
+import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    ForeignKey (..), PgArg (..),
                                    PrimaryKey (..),
-                                   ProcDescription (..), Proxy (..),
+                                   ProcDescription (..),
                                    Table (..), tableCols, tableName,
                                    tablePKCols, tableSchema)
 import PostgREST.ContentTypes (toMime)

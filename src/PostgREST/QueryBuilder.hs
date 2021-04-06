@@ -10,8 +10,8 @@ This module provides functions to consume data types that
 represent database queries (e.g. ReadRequest, MutateRequest) and SqlFragment
 to produce SqlQuery type outputs.
 -}
-module PostgREST.QueryBuilder (
-    readRequestToQuery
+module PostgREST.QueryBuilder
+  ( readRequestToQuery
   , mutateRequestToQuery
   , readRequestToCountQuery
   , requestToCallProcQuery
@@ -29,6 +29,7 @@ import Data.Maybe
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
 import PostgREST.Types
+import PostgREST.DbStructureTypes
 import Protolude                       hiding (cast, intercalate,
                                         replace)
 

@@ -11,11 +11,11 @@ A query tree is built in case of resource embedding. By inferring the relationsh
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
 
-module PostgREST.DbRequestBuilder (
-  readRequest
-, mutateRequest
-, returningCols
-) where
+module PostgREST.DbRequestBuilder
+  ( readRequest
+  , mutateRequest
+  , returningCols
+  ) where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
@@ -33,6 +33,7 @@ import PostgREST.Error      (ApiRequestError (..), Error (..))
 import PostgREST.Parsers
 import PostgREST.RangeQuery (NonnegRange, allRange, restrictRange)
 import PostgREST.Types
+import PostgREST.DbStructureTypes
 import Protolude            hiding (from)
 
 -- | Builds the ReadRequest tree on a number of stages.

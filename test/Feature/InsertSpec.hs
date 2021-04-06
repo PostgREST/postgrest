@@ -11,7 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Types (PgVersion, pgVersion112, pgVersion130)
+import PostgREST.Types (pgVersion112, pgVersion130)
+import PostgREST.DbStructureTypes (PgVersion)
 import Protolude       hiding (get)
 import SpecHelper
 

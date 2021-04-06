@@ -52,6 +52,7 @@ import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
                              rangeLimit, rangeOffset, rangeRequested,
                              restrictRange)
 import PostgREST.Types
+import PostgREST.DbStructureTypes
 import Protolude            hiding (head, toS)
 import Protolude.Conv       (toS)
 
