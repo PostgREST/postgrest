@@ -51,6 +51,7 @@ import PostgREST.DbStructureTypes
 import PostgREST.Error            (ApiRequestError (..))
 import PostgREST.Parsers          (pRequestColumns)
 import PostgREST.Preferences
+import PostgREST.Private.QueryFragment (operators, ftsOperators)
 import PostgREST.RangeQuery       (NonnegRange, allRange, rangeGeq,
                                    rangeLimit, rangeOffset,
                                    rangeRequested, restrictRange)

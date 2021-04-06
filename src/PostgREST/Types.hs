@@ -31,9 +31,6 @@ import Protolude.Conv (toS)
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
--- | A part of a SQL query that cannot be executed independently
-type SqlFragment = ByteString
-
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
 type ViewColumn = Column
@@ -70,42 +67,7 @@ data PayloadJSON =
 
 data PJType = PJArray { pjaLength :: Int } | PJObject
 
-data Proxy = Proxy {
-  proxyScheme :: Text
-, proxyHost   :: Text
-, proxyPort   :: Integer
-, proxyPath   :: Text
-}
-
 type Operator = Text
-operators :: M.HashMap Operator SqlFragment
-operators = M.union (M.fromList [
-  ("eq", "="),
-  ("gte", ">="),
-  ("gt", ">"),
-  ("lte", "<="),
-  ("lt", "<"),
-  ("neq", "<>"),
-  ("like", "LIKE"),
-  ("ilike", "ILIKE"),
-  ("in", "IN"),
-  ("is", "IS"),
-  ("cs", "@>"),
-  ("cd", "<@"),
-  ("ov", "&&"),
-  ("sl", "<<"),
-  ("sr", ">>"),
-  ("nxr", "&<"),
-  ("nxl", "&>"),
-  ("adj", "-|-")]) ftsOperators
-
-ftsOperators :: M.HashMap Operator SqlFragment
-ftsOperators = M.fromList [
-  ("fts", "@@ to_tsquery"),
-  ("plfts", "@@ plainto_tsquery"),
-  ("phfts", "@@ phraseto_tsquery"),
-  ("wfts", "@@ websearch_to_tsquery")
-  ]
 
 data OpExpr = OpExpr Bool Operation deriving (Eq)
 data Operation = Op Operator SingleVal |
@@ -260,9 +222,6 @@ pgVersion121 = PgVersion 120001 "12.1"
 
 pgVersion130 :: PgVersion
 pgVersion130 = PgVersion 130000 "13.0"
-
-sourceCTEName :: SqlFragment
-sourceCTEName = "pgrst_source"
 
 -- | full jspath, e.g. .property[0].attr.detail
 type JSPath = [JSPathExp]

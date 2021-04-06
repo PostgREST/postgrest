@@ -11,6 +11,7 @@ module PostgREST.Private.QueryFragment where
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
+import qualified Data.HashMap.Strict  as M
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
 import           PostgREST.DbStructureTypes
@@ -29,8 +30,43 @@ import           Text.InterpolatedString.Perl6   (qc)
 import qualified Hasql.Encoders           as HE
 import           PostgREST.Private.Common
 
+-- | A part of a SQL query that cannot be executed independently
+type SqlFragment = ByteString
+
 noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
+
+sourceCTEName :: SqlFragment
+sourceCTEName = "pgrst_source"
+
+operators :: M.HashMap Text SqlFragment
+operators = M.union (M.fromList [
+  ("eq", "="),
+  ("gte", ">="),
+  ("gt", ">"),
+  ("lte", "<="),
+  ("lt", "<"),
+  ("neq", "<>"),
+  ("like", "LIKE"),
+  ("ilike", "ILIKE"),
+  ("in", "IN"),
+  ("is", "IS"),
+  ("cs", "@>"),
+  ("cd", "<@"),
+  ("ov", "&&"),
+  ("sl", "<<"),
+  ("sr", ">>"),
+  ("nxr", "&<"),
+  ("nxl", "&>"),
+  ("adj", "-|-")]) ftsOperators
+
+ftsOperators :: M.HashMap Text SqlFragment
+ftsOperators = M.fromList [
+  ("fts", "@@ to_tsquery"),
+  ("plfts", "@@ plainto_tsquery"),
+  ("phfts", "@@ phraseto_tsquery"),
+  ("wfts", "@@ websearch_to_tsquery")
+  ]
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads

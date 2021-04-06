@@ -23,6 +23,9 @@ import PostgREST.DbStructureTypes (FieldName)
 import PostgREST.Error            (ApiRequestError (ParseRequestError))
 import PostgREST.RangeQuery       (NonnegRange)
 import PostgREST.Types
+
+import PostgREST.Private.QueryFragment (operators, ftsOperators)
+
 import Protolude                  hiding (intercalate, option,
                                    replace, toS, try)
 import Protolude.Conv             (toS)

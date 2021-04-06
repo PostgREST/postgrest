@@ -33,6 +33,7 @@ import PostgREST.DbStructureTypes
 import PostgREST.Error            (ApiRequestError (..), Error (..))
 import PostgREST.Parsers
 import PostgREST.Preferences
+import PostgREST.Private.QueryFragment (sourceCTEName)
 import PostgREST.RangeQuery       (NonnegRange, allRange,
                                    restrictRange)
 import PostgREST.Types

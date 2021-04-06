@@ -24,7 +24,7 @@ import Data.Swagger
 
 import PostgREST.ApiRequest       (ContentType (..))
 import PostgREST.Config           (AppConfig (..), docsVersion,
-                                   prettyVersion)
+                                   prettyVersion, Proxy (..))
 import PostgREST.ContentTypes     (toMime)
 import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    ForeignKey (..), PgArg (..),
@@ -33,7 +33,6 @@ import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    tableCols, tableName, tablePKCols,
                                    tableSchema)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
-import PostgREST.Types            (Proxy (..))
 
 import Protolude      hiding (Proxy, dropWhile, get, intercalate,
                        toLower, toS, (&))

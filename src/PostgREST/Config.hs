@@ -28,6 +28,7 @@ module PostgREST.Config
   , CLI (..)
   , Command (..)
   , AppConfig (..)
+  , Proxy(..)
   , configDbPoolTimeout'
   , dumpAppConfig
   , Environment
@@ -81,7 +82,7 @@ import PostgREST.Types            (JSPath, JSPathExp (..))
 import Protolude                  hiding (concat, filter, hPutStrLn,
                                    intercalate, null, replace, take,
                                    toList, toLower, toS, toTitle,
-                                   (<>))
+                                   (<>), Proxy)
 import Protolude.Conv             (toS)
 
 -- | Command line interface options
@@ -138,6 +139,12 @@ instance Show LogLevel where
   show LogWarn  = "warn"
   show LogInfo  = "info"
 
+data Proxy = Proxy
+  { proxyScheme :: Text
+  , proxyHost   :: Text
+  , proxyPort   :: Integer
+  , proxyPath   :: Text
+  }
 
 -- | User friendly version number
 prettyVersion :: Text
