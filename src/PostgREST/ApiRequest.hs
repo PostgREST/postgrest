@@ -33,6 +33,7 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (last, lookup, partition)
 import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
+import Data.Ranged.Boundaries    (Boundary (..))
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
 import Network.HTTP.Base         (urlEncodeVars)
@@ -43,22 +44,29 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
-
-import Data.Ranged.Boundaries
-
 import PostgREST.ContentTypes          (ContentType (..),
                                         decodeContentType, toMime)
-import PostgREST.DbStructureTypes
+import PostgREST.DbStructureTypes      (DbStructure (..), FieldName,
+                                        PgArg (..),
+                                        ProcDescription (..),
+                                        QualifiedIdentifier (..),
+                                        Schema, findProc)
 import PostgREST.Error                 (ApiRequestError (..))
 import PostgREST.Parsers               (pRequestColumns)
-import PostgREST.Preferences
+import PostgREST.Preferences           (PreferCount (..),
+                                        PreferParameters (..),
+                                        PreferRepresentation (..),
+                                        PreferResolution (..),
+                                        PreferTransaction (..))
 import PostgREST.Private.QueryFragment (ftsOperators, operators)
 import PostgREST.RangeQuery            (NonnegRange, allRange,
                                         rangeGeq, rangeLimit,
                                         rangeOffset, rangeRequested,
                                         restrictRange)
-import Protolude                       hiding (head, toS)
-import Protolude.Conv                  (toS)
+
+import Protolude      hiding (head, toS)
+import Protolude.Conv (toS)
+
 
 type RequestBody = BL.ByteString
 
@@ -74,8 +82,6 @@ data PayloadJSON
       -- be the same across all its objects
       }
   | RawJSON { pjRaw  :: BL.ByteString }
-
-
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
