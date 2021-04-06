@@ -18,32 +18,33 @@ module PostgREST.Statements
   , dbSettingsStatement
   ) where
 
-
-import           Control.Lens                    ((^?))
-import           Data.Aeson                      as JSON
-import qualified Data.Aeson.Lens                 as L
-import qualified Data.ByteString.Char8           as BS
-import           Data.Maybe
-import           Data.Text.Read                  (decimal)
-import qualified Hasql.Decoders                  as HD
-import qualified Hasql.Encoders                  as HE
-import qualified Hasql.Statement                 as H
-import           Network.HTTP.Types.Status
-import           PostgREST.DbStructureTypes
-import           PostgREST.Error
-import           PostgREST.Headers               (GucHeader)
-import           PostgREST.PgVersions            (PgVersion)
-import           PostgREST.Preferences
-import           PostgREST.Private.Common
-import           PostgREST.Private.QueryFragment
-import           Protolude                       hiding (cast,
-                                                  replace, toS)
-import           Protolude.Conv                  (toS)
-
+import qualified Data.Aeson                        as JSON
+import qualified Data.Aeson.Lens                   as L
+import qualified Data.ByteString.Char8             as BS
+import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
+import qualified Hasql.Encoders                    as HE
+import qualified Hasql.Statement                   as H
 
+import Control.Lens                  ((^?))
+import Data.Maybe                    (fromJust)
+import Data.Text.Read                (decimal)
+import Network.HTTP.Types.Status     (Status)
 import Text.InterpolatedString.Perl6 (q)
+
+import PostgREST.Error      (Error (..))
+import PostgREST.Headers    (GucHeader)
+import PostgREST.PgVersions (PgVersion)
+
+import PostgREST.DbStructureTypes
+import PostgREST.Preferences
+import PostgREST.Private.Common
+import PostgREST.Private.QueryFragment
+
+import Protolude      hiding (toS)
+import Protolude.Conv (toS)
+
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
