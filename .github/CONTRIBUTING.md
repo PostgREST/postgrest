@@ -15,14 +15,14 @@ your contributions.
 
 ## Issues
 
+For questions on how to use PostgREST, please use
+[GitHub discussions](https://github.com/PostgREST/postgrest/discussions).
+
 ### Reporting an Issue
 
-* Make sure you test against the latest released version. It is possible
-  we already fixed the bug you're experiencing.
-
-* Also check the `CHANGELOG.md` to see if any unreleased changes affect
-  the issue. The very newest changes can take a little while to be released
-  as a new official version.
+* Make sure you test against the latest [stable release](https://github.com/PostgREST/postgrest/releases/latest)
+  and also against the latest [nightly release](https://github.com/PostgREST/postgrest/releases/tag/nightly).
+  It is possible we already fixed the bug you're experiencing.
 
 * Provide steps to reproduce the issue, including your OS version and
   the specific database schema that you are using.
@@ -32,10 +32,13 @@ your contributions.
   then [find your logs](http://blog.endpoint.com/2014/11/dear-postgresql-where-are-my-logs.html).
 
 * If your database schema has changed while the PostgREST server is running,
-  [send the server a `SIGUSR1` signal](http://postgrest.org/en/stable/admin.html#schema-reloading) or restart it to ensure the schema cache
+  [send the server a `SIGUSR1` signal](http://postgrest.org/en/latest/admin.html#schema-reloading) or restart it to ensure the schema cache
   is not stale. This sometimes fixes apparent bugs.
 
 ## Code
+
+We have a fully nix-based development environment with many tools for a smooth development workflow available.
+Check the [development docs](https://github.com/PostgREST/postgrest/blob/main/nix/README.md) on how to set it up and use it.
 
 ### Haskell Conventions
 
@@ -47,11 +50,6 @@ your contributions.
   pull request. There are useful tools in the nix-shell that help with checking this locally. You can run `postgrest-check` to do this manually but
   we recommend adding it to `.git/hooks/pre-commit` as `nix-shell --run postgrest-check` to automatically check this before doing a commit.
 
-* For help building the Haskell code on your computer check out the [building from
-  source](https://postgrest.org/en/stable/development.html#build-from-source) docs section.
-
 ### Running Tests
 
-For instructions on running tests, see the official docs hosted here:
-
-https://postgrest.org/en/stable/development.html#running-the-test-suite
+For instructions on running tests, see the [development docs](https://github.com/PostgREST/postgrest/blob/main/nix/README.md#testing).
