@@ -280,10 +280,3 @@ data SCacheStatus
   | SCOnRetry
   | SCFatalFail
 
-data LogLevel = LogCrit | LogError | LogWarn | LogInfo
-
-instance Show LogLevel where
-  show LogCrit  = "crit"
-  show LogError = "error"
-  show LogWarn  = "warn"
-  show LogInfo  = "info"

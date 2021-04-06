@@ -24,6 +24,7 @@ Other hardcoded options such as the minimum version number also belong here.
 module PostgREST.Config
   ( prettyVersion
   , docsVersion
+  , LogLevel(..)
   , CLI (..)
   , Command (..)
   , AppConfig (..)
@@ -46,6 +47,8 @@ import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
+
+import qualified GHC.Show (show)
 
 import Control.Lens            (preview)
 import Control.Monad           (fail)
@@ -74,8 +77,7 @@ import Text.Heredoc        (str)
 
 import PostgREST.Parsers          (pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
-import PostgREST.Types            (JSPath, JSPathExp (..),
-                                   LogLevel (..))
+import PostgREST.Types            (JSPath, JSPathExp (..))
 import Protolude                  hiding (concat, filter, hPutStrLn,
                                    intercalate, null, replace, take,
                                    toList, toLower, toS, toTitle,
@@ -127,6 +129,15 @@ data AppConfig = AppConfig {
 configDbPoolTimeout' :: (Fractional a) => AppConfig -> a
 configDbPoolTimeout' =
   fromRational . toRational . configDbPoolTimeout
+
+data LogLevel = LogCrit | LogError | LogWarn | LogInfo
+
+instance Show LogLevel where
+  show LogCrit  = "crit"
+  show LogError = "error"
+  show LogWarn  = "warn"
+  show LogInfo  = "info"
+
 
 -- | User friendly version number
 prettyVersion :: Text

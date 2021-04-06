@@ -43,7 +43,7 @@ import qualified PostgREST.Statements       as Statements
 
 import PostgREST.ApiRequest   (Action (..), ApiRequest (..),
                                InvokeMethod (..), Target (..))
-import PostgREST.Config       (AppConfig (..))
+import PostgREST.Config       (AppConfig (..), LogLevel (..))
 import PostgREST.ContentTypes (ContentType (..), decodeContentType,
                                toHeader, toMime)
 import PostgREST.Error        (Error)

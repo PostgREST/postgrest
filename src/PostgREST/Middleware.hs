@@ -44,11 +44,10 @@ import Network.Wai.Middleware.Static        (only, staticPolicy)
 import qualified PostgREST.Types as Types
 
 import PostgREST.ApiRequest   (ApiRequest (..))
-import PostgREST.Config       (AppConfig (..))
+import PostgREST.Config       (AppConfig (..), LogLevel (..))
 import PostgREST.Error        (Error, errorResponseFor)
 import PostgREST.Preferences
 import PostgREST.QueryBuilder (setConfigLocal)
-import PostgREST.Types        (LogLevel (..))
 import Protolude              hiding (head, toS)
 import Protolude.Conv         (toS)
 import System.IO.Unsafe       (unsafePerformIO)
