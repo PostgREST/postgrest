@@ -6,15 +6,16 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 {-# LANGUAGE MultiWayIf     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module PostgREST.ApiRequest (
-  ApiRequest(..)
-, InvokeMethod(..)
-, ContentType(..)
-, Action(..)
-, Target(..)
-, mutuallyAgreeable
-, userApiRequest
-) where
+module PostgREST.ApiRequest
+  ( ApiRequest(..)
+  , InvokeMethod(..)
+  , ContentType(..)
+  , Action(..)
+  , Target(..)
+  , PayloadJSON(..)
+  , mutuallyAgreeable
+  , userApiRequest
+  ) where
 
 import qualified Data.Aeson           as JSON
 import qualified Data.ByteString      as BS
@@ -56,11 +57,25 @@ import PostgREST.RangeQuery            (NonnegRange, allRange,
                                         rangeGeq, rangeLimit,
                                         rangeOffset, rangeRequested,
                                         restrictRange)
-import PostgREST.Types
 import Protolude                       hiding (head, toS)
 import Protolude.Conv                  (toS)
 
 type RequestBody = BL.ByteString
+
+data PayloadJSON
+  = ProcessedJSON -- ^ Cached attributes of a JSON payload
+      { pjRaw  :: BL.ByteString
+      -- ^ This is the raw ByteString that comes from the request body.  We
+      -- cache this instead of an Aeson Value because it was detected that for
+      -- large payloads the encoding had high memory usage, see
+      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
+      , pjKeys :: S.Set Text
+      -- ^ Keys of the object or if it's an array these keys are guaranteed to
+      -- be the same across all its objects
+      }
+  | RawJSON { pjRaw  :: BL.ByteString }
+
+
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs

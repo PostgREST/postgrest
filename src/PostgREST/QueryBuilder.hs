@@ -26,6 +26,7 @@ import qualified Hasql.DynamicStatements.Snippet as H
 import Data.Tree (Tree (..))
 
 import Data.Maybe
+import PostgREST.ApiRequest            (PayloadJSON (..))
 import PostgREST.DbStructureTypes
 import PostgREST.Preferences
 import PostgREST.Private.Common

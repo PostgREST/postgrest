@@ -2,9 +2,13 @@
 Module      : PostgREST.DbRequestBuilder
 Description : PostgREST database request builder
 
-This module is in charge of building an intermediate representation(ReadRequest, MutateRequest) between the HTTP request and the final resulting SQL query.
+This module is in charge of building an intermediate
+representation(ReadRequest, MutateRequest) between the HTTP request and the
+final resulting SQL query.
 
-A query tree is built in case of resource embedding. By inferring the relationship between tables, join conditions are added for every embedded resource.
+A query tree is built in case of resource embedding. By inferring the
+relationship between tables, join conditions are added for every embedded
+resource.
 -}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase            #-}
@@ -28,7 +32,8 @@ import Data.Text               (isInfixOf)
 import Control.Applicative
 import Data.Tree
 
-import PostgREST.ApiRequest            (Action (..), ApiRequest (..))
+import PostgREST.ApiRequest            (Action (..), ApiRequest (..),
+                                        PayloadJSON (..))
 import PostgREST.DbStructureTypes
 import PostgREST.Error                 (ApiRequestError (..),
                                         Error (..))
@@ -55,23 +60,27 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
     (rootName, rootRels) = rootWithRels schema rootTableName allRels (iAction apiRequest)
 
 -- Get the root table name with its relationships according to the Action type.
--- This is done because of the shape of the final SQL Query. The mutation cases are wrapped in a WITH {sourceCTEName}(see Statements.hs).
--- So we need a FROM {sourceCTEName} instead of FROM {tableName}.
+-- This is done because of the shape of the final SQL Query. The mutation cases
+-- are wrapped in a WITH {sourceCTEName}(see Statements.hs).  So we need a FROM
+-- {sourceCTEName} instead of FROM {tableName}.
 rootWithRels :: Schema -> TableName -> [Relation] -> Action -> (QualifiedIdentifier, [Relation])
 rootWithRels schema rootTableName allRels action = case action of
   ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
   _            -> (QualifiedIdentifier mempty _sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
   where
     _sourceCTEName = decodeUtf8 sourceCTEName
-    -- To enable embedding in the sourceCTEName cases we need to replace the foreign key tableName in the Relation
-    -- with {sourceCTEName}. This way findRel can find relationships with sourceCTEName.
+    -- To enable embedding in the sourceCTEName cases we need to replace the
+    -- foreign key tableName in the Relation with {sourceCTEName}. This way
+    -- findRel can find relationships with sourceCTEName.
     toSourceRel :: Relation -> Maybe Relation
     toSourceRel r@Relation{relTable=t}
       | rootTableName == tableName t = Just $ r {relTable=t {tableName=_sourceCTEName}}
       | otherwise                    = Nothing
 
--- Build the initial tree with a Depth attribute so when a self join occurs we can differentiate the parent and child tables by having
--- an alias like "table_depth", this is related to http://github.com/PostgREST/postgrest/issues/987.
+-- Build the initial tree with a Depth attribute so when a self join occurs we
+-- can differentiate the parent and child tables by having an alias like
+-- "table_depth", this is related to
+-- http://github.com/PostgREST/postgrest/issues/987.
 initReadRequest :: QualifiedIdentifier -> [Tree SelectItem] -> ReadRequest
 initReadRequest rootQi =
   foldr (treeEntry rootDepth) initial
@@ -119,10 +128,12 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = addRels schema allRels rq `traverse` forest
 
--- Finds a relationship between an origin and a target in the request: /origin?select=target(*)
--- If more than one relationship is found then the request is ambiguous and we return an error.
--- In that case the request can be disambiguated by adding precision to the target or by using a hint: /origin?select=target!hint(*)
--- The elements will be matched according to these rules:
+-- Finds a relationship between an origin and a target in the request:
+-- /origin?select=target(*) If more than one relationship is found then the
+-- request is ambiguous and we return an error.  In that case the request can
+-- be disambiguated by adding precision to the target or by using a hint:
+-- /origin?select=target!hint(*) The elements will be matched according to
+-- these rules:
 -- origin = table / view
 -- target = table / view / constraint / column-from-origin
 -- hint   = table / view / constraint / column-from-origin / column-from-target
@@ -133,11 +144,14 @@ findRel schema allRels origin target hint =
     []  -> Left $ NoRelBetween origin target
     [r] -> Right r
     rs  ->
-      -- Return error if more than one relationship is found, unless we're in a self reference case.
+      -- Return error if more than one relationship is found, unless we're in a
+      -- self reference case.
       --
-      -- Here we handle a self reference relationship to not cause a breaking change:
-      -- In a self reference we get two relationships with the same foreign key and relTable/relFtable but with different cardinalities(m2o/o2m)
-      -- We output the O2M rel, the M2O rel can be obtained by using the origin column as an embed hint.
+      -- Here we handle a self reference relationship to not cause a breaking
+      -- change: In a self reference we get two relationships with the same
+      -- foreign key and relTable/relFtable but with different
+      -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
+      -- obtained by using the origin column as an embed hint.
       let [rel0, rel1] = take 2 rs in
       if length rs == 2 && relLink rel0 == relLink rel1 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
         then note (NoRelBetween origin target) (find (\r -> relType r == O2M) rs)
@@ -222,9 +236,10 @@ getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, ta
         JoinCondition (maybe qi1 (QualifiedIdentifier mempty) previousAlias, colName c)
                       (maybe qi2 (QualifiedIdentifier mempty) newAlias, colName fc)
 
-    -- On mutation and calling proc cases we wrap the target table in a WITH {sourceCTEName}
-    -- if this happens remove the schema `FROM "schema"."{sourceCTEName}"` and use only the
-    -- `FROM "{sourceCTEName}"`. If the schema remains the FROM would be invalid.
+    -- On mutation and calling proc cases we wrap the target table in a WITH
+    -- {sourceCTEName} if this happens remove the schema `FROM
+    -- "schema"."{sourceCTEName}"` and use only the `FROM "{sourceCTEName}"`.
+    -- If the schema remains the FROM would be invalid.
     removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
     removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == decodeUtf8 sourceCTEName then mempty else schema) tbl
 
@@ -323,16 +338,19 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols
-  -- if * is part of the select, we must not add pk or fk columns manually - otherwise those would be selected and output twice
+  -- if * is part of the select, we must not add pk or fk columns manually -
+  -- otherwise those would be selected and output twice
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
     fldNames = fstFieldNames rr
-    -- Without fkCols, when a mutateRequest to /projects?select=name,clients(name) occurs, the RETURNING SQL part would be
-    -- `RETURNING name`(see QueryBuilder).
-    -- This would make the embedding fail because the following JOIN would need the "client_id" column from projects.
-    -- So this adds the foreign key columns to ensure the embedding succeeds, result would be `RETURNING name, client_id`.
-    -- This also works for the other relType's.
+    -- Without fkCols, when a mutateRequest to
+    -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
+    -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
+    -- fail because the following JOIN would need the "client_id" column from
+    -- projects.  So this adds the foreign key columns to ensure the embedding
+    -- succeeds, result would be `RETURNING name, client_id`.  This also works
+    -- for the other relType's.
     fkCols = concat $ mapMaybe (\case
         Node (_, (_, Just Relation{relColumns=cols, relType=relTyp}, _, _, _)) _ -> case relTyp of
           O2M -> Just cols
@@ -340,10 +358,13 @@ returningCols rr@(Node _ forest) pkCols
           M2M -> Just cols
         _ -> Nothing
       ) forest
-    -- However if the "client_id" is present, e.g. mutateRequest to /projects?select=client_id,name,clients(name)
-    -- we would get `RETURNING client_id, name, client_id` and then we would produce the "column reference \"client_id\" is ambiguous"
-    -- error from PostgreSQL. So we deduplicate with Set:
-    -- We are adding the primary key columns as well to make sure, that a proper location header can always be built for INSERT/POST
+    -- However if the "client_id" is present, e.g. mutateRequest to
+    -- /projects?select=client_id,name,clients(name) we would get `RETURNING
+    -- client_id, name, client_id` and then we would produce the "column
+    -- reference \"client_id\" is ambiguous" error from PostgreSQL. So we
+    -- deduplicate with Set: We are adding the primary key columns as well to
+    -- make sure, that a proper location header can always be built for
+    -- INSERT/POST
     returnings = S.toList . S.fromList $ fldNames ++ (colName <$> fkCols) ++ pkCols
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
