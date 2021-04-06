@@ -558,13 +558,6 @@ instance Show JSPathExp where
   show (JSPKey k) = "." <> show k
   show (JSPIdx i) = "[" <> show i <> "]"
 
--- | Current database connection status data ConnectionStatus
-data ConnectionStatus
-  = NotConnected
-  | Connected PgVersion
-  | FatalConnectionError Text
-  deriving (Eq)
-
 -- | Schema cache status
 data SCacheStatus
   = SCLoaded

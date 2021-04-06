@@ -48,6 +48,15 @@ import System.Posix.Signals
 import UnixSocket
 #endif
 
+
+-- | Current database connection status data ConnectionStatus
+data ConnectionStatus
+  = NotConnected
+  | Connected PgVersion
+  | FatalConnectionError Text
+  deriving (Eq)
+
+
 -- | This is where everything starts.
 main :: IO ()
 main = do
