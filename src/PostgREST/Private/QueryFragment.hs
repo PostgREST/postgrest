@@ -11,16 +11,17 @@ module PostgREST.Private.QueryFragment where
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
-import qualified Data.HashMap.Strict  as M
+import qualified Data.HashMap.Strict             as M
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
 import           PostgREST.DbStructureTypes
+import           PostgREST.PgVersions            (PgVersion,
+                                                  pgVersion96)
 import           PostgREST.RangeQuery            (NonnegRange,
                                                   allRange,
                                                   rangeLimit,
                                                   rangeOffset)
 import           PostgREST.Types
-import           PostgREST.PgVersions (PgVersion, pgVersion96)
 import           Protolude                       hiding (cast,
                                                   intercalate,
                                                   replace, toLower,

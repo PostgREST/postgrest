@@ -31,11 +31,11 @@ import qualified Hasql.Statement                 as H
 import           Network.HTTP.Types.Status
 import           PostgREST.DbStructureTypes
 import           PostgREST.Error
+import           PostgREST.PgVersions            (PgVersion)
 import           PostgREST.Preferences
 import           PostgREST.Private.Common
 import           PostgREST.Private.QueryFragment
 import           PostgREST.Types
-import           PostgREST.PgVersions (PgVersion)
 import           Protolude                       hiding (cast,
                                                   replace, toS)
 import           Protolude.Conv                  (toS)

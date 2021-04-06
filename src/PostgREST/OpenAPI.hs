@@ -23,8 +23,8 @@ import Control.Lens
 import Data.Swagger
 
 import PostgREST.ApiRequest       (ContentType (..))
-import PostgREST.Config           (AppConfig (..), docsVersion,
-                                   prettyVersion, Proxy (..))
+import PostgREST.Config           (AppConfig (..), Proxy (..),
+                                   docsVersion, prettyVersion)
 import PostgREST.ContentTypes     (toMime)
 import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    ForeignKey (..), PgArg (..),

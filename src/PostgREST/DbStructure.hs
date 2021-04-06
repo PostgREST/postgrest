@@ -41,8 +41,8 @@ import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.DbStructureTypes
+import PostgREST.PgVersions       (PgVersion (..))
 import PostgREST.Private.Common
-import           PostgREST.PgVersions (PgVersion(..))
 
 
 -- | The source table column a view column refers to

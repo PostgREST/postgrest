@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
 module PostgREST.PgVersions
   ( PgVersion(..)
   , minimumPgVersion
@@ -14,7 +14,7 @@ module PostgREST.PgVersions
   , pgVersion130
   ) where
 
-import qualified Data.Aeson           as JSON
+import qualified Data.Aeson as JSON
 
 import Protolude
 

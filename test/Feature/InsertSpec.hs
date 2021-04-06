@@ -11,8 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.PgVersions       (PgVersion, pgVersion112, pgVersion130)
-import Protolude                  hiding (get)
+import PostgREST.PgVersions (PgVersion, pgVersion112, pgVersion130)
+import Protolude            hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWith ((), Application)

@@ -76,13 +76,13 @@ import Data.Monoid
 import Options.Applicative hiding (str)
 import Text.Heredoc        (str)
 
-import PostgREST.Parsers          (pRoleClaimKey)
+import PostgREST.JSPath           (JSPath, JSPathExp (..),
+                                   pRoleClaimKey)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri)
-import PostgREST.Types            (JSPath, JSPathExp (..))
-import Protolude                  hiding (concat, filter, hPutStrLn,
-                                   intercalate, null, replace, take,
-                                   toList, toLower, toS, toTitle,
-                                   (<>), Proxy)
+import Protolude                  hiding (Proxy, concat, filter,
+                                   hPutStrLn, intercalate, null,
+                                   replace, take, toList, toLower,
+                                   toS, toTitle, (<>))
 import Protolude.Conv             (toS)
 
 -- | Command line interface options

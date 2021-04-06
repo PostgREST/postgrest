@@ -7,7 +7,7 @@ import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import PostgREST.PgVersions (PgVersion(..))
+import PostgREST.PgVersions (PgVersion (..))
 
 import qualified GHC.Show (show)
 

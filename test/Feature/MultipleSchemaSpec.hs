@@ -15,7 +15,7 @@ import Test.Hspec.Wai.JSON
 import Protolude
 import SpecHelper
 
-import PostgREST.PgVersions            (PgVersion, pgVersion96)
+import PostgREST.PgVersions (PgVersion, pgVersion96)
 
 spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion =

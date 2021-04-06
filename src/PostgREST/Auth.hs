@@ -25,7 +25,7 @@ import Data.Time.Clock         (UTCTime)
 
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error  (Error (..))
-import PostgREST.Types  (JSPath, JSPathExp (..))
+import PostgREST.JSPath (JSPath, JSPathExp (..))
 
 import Protolude
 

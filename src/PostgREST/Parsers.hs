@@ -13,7 +13,6 @@ import Data.Either.Combinators (mapLeft)
 import Data.Foldable           (foldl1)
 import Data.List               (init, last)
 import Data.Text               (intercalate, replace, strip)
-import Text.Read               (read)
 
 import Data.Tree
 import Text.Parsec.Error
@@ -24,11 +23,10 @@ import PostgREST.Error            (ApiRequestError (ParseRequestError))
 import PostgREST.RangeQuery       (NonnegRange)
 import PostgREST.Types
 
-import PostgREST.Private.QueryFragment (operators, ftsOperators)
+import PostgREST.Private.QueryFragment (ftsOperators, operators)
 
-import Protolude                  hiding (intercalate, option,
-                                   replace, toS, try)
-import Protolude.Conv             (toS)
+import Protolude      hiding (intercalate, option, replace, toS, try)
+import Protolude.Conv (toS)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -254,23 +252,3 @@ mapError = mapLeft translateError
         message = show $ errorPos e
         details = strip $ replace "\n" " " $ toS
            $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
--- Used for the config value "role-claim-key"
-pRoleClaimKey :: Text -> Either Text JSPath
-pRoleClaimKey selStr =
-  mapLeft show $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
-
-pJSPath :: Parser JSPath
-pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
-  where
-    toJSPath :: [(Text, Maybe Int)] -> JSPath
-    toJSPath = concatMap (\(key, idx) -> JSPKey key : maybeToList (JSPIdx <$> idx))
-    period = char '.' <?> "period (.)"
-    pPath :: Parser (Text, Maybe Int)
-    pPath = (,) <$> pJSPKey <*> optionMaybe pJSPIdx
-
-pJSPKey :: Parser Text
-pJSPKey = toS <$> many1 (alphaNum <|> oneOf "_$@") <|> pQuotedValue <?> "attribute name [a..z0..9_$@])"
-
-pJSPIdx :: Parser Int
-pJSPIdx = char '[' *> (read <$> many1 digit) <* char ']' <?> "array index [0..n]"

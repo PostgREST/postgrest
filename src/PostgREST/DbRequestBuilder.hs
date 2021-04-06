@@ -28,16 +28,17 @@ import Data.Text               (isInfixOf)
 import Control.Applicative
 import Data.Tree
 
-import PostgREST.ApiRequest       (Action (..), ApiRequest (..))
+import PostgREST.ApiRequest            (Action (..), ApiRequest (..))
 import PostgREST.DbStructureTypes
-import PostgREST.Error            (ApiRequestError (..), Error (..))
+import PostgREST.Error                 (ApiRequestError (..),
+                                        Error (..))
 import PostgREST.Parsers
 import PostgREST.Preferences
 import PostgREST.Private.QueryFragment (sourceCTEName)
-import PostgREST.RangeQuery       (NonnegRange, allRange,
-                                   restrictRange)
+import PostgREST.RangeQuery            (NonnegRange, allRange,
+                                        restrictRange)
 import PostgREST.Types
-import Protolude                  hiding (from)
+import Protolude                       hiding (from)
 
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
