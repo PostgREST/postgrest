@@ -1,7 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
 Module      : PostgREST.QueryBuilder
 Description : PostgREST SQL queries generating functions.
@@ -25,15 +22,15 @@ import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
-import Data.Maybe
 import PostgREST.ApiRequest            (PayloadJSON (..))
-import PostgREST.DbStructureTypes
-import PostgREST.Preferences
+import PostgREST.DbStructureTypes (PgArg(..), FieldName, QualifiedIdentifier(..), qiName, Table(..), Relation(..), Cardinality(..))
+import PostgREST.Preferences (PreferParameters(..), PreferResolution(..))
+
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
 import PostgREST.Queries
 
-import Protolude hiding (cast, intercalate, replace)
+import Protolude
 
 readRequestToQuery :: ReadRequest -> H.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
