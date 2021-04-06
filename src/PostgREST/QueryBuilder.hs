@@ -13,7 +13,6 @@ module PostgREST.QueryBuilder
   , readRequestToCountQuery
   , requestToCallProcQuery
   , limitedQuery
-  , setConfigLocal
   ) where
 
 import qualified Data.ByteString.Char8           as BS
@@ -179,8 +178,3 @@ readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
 
 limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
-
--- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: Text -> (Text, Text) -> H.Snippet
-setConfigLocal prefix (k, v) =
-  "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"

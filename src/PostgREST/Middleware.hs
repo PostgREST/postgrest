@@ -18,6 +18,8 @@ import qualified Data.CaseInsensitive                 as CI
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Text                            as T
 import qualified Hasql.Decoders                       as HD
+import qualified Hasql.DynamicStatements.Snippet      as H hiding
+                                                           (sql)
 import qualified Hasql.DynamicStatements.Statement    as H
 import qualified Hasql.Transaction                    as H
 import qualified Network.HTTP.Types.Header            as HTTP
@@ -37,13 +39,13 @@ import Network.HTTP.Types.Status (Status, status400, status500,
 import System.IO.Unsafe          (unsafePerformIO)
 import System.Log.FastLogger     (toLogStr)
 
-import PostgREST.ApiRequest     (ApiRequest (..))
-import PostgREST.Config         (AppConfig (..), LogLevel (..))
-import PostgREST.Error          (Error, errorResponseFor)
-import PostgREST.Headers        (addHeadersIfNotIncluded)
+import PostgREST.ApiRequest            (ApiRequest (..))
+import PostgREST.Config                (AppConfig (..), LogLevel (..))
+import PostgREST.Error                 (Error, errorResponseFor)
+import PostgREST.Headers               (addHeadersIfNotIncluded)
 import PostgREST.Preferences
 import PostgREST.Private.Common
-import PostgREST.QueryBuilder   (setConfigLocal)
+import PostgREST.Private.QueryFragment (unknownLiteral)
 
 import Protolude      hiding (head, toS)
 import Protolude.Conv (toS)
@@ -172,3 +174,8 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
             [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity
+
+-- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
+setConfigLocal :: Text -> (Text, Text) -> H.Snippet
+setConfigLocal prefix (k, v) =
+  "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"
