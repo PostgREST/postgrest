@@ -41,11 +41,10 @@ import Network.Wai.Middleware.Gzip          (def, gzip)
 import Network.Wai.Middleware.RequestLogger
 import Network.Wai.Middleware.Static        (only, staticPolicy)
 
-import qualified PostgREST.Types as Types
-
 import PostgREST.ApiRequest   (ApiRequest (..))
 import PostgREST.Config       (AppConfig (..), LogLevel (..))
 import PostgREST.Error        (Error, errorResponseFor)
+import PostgREST.Headers      (addHeadersIfNotIncluded)
 import PostgREST.Preferences
 import PostgREST.QueryBuilder (setConfigLocal)
 import Protolude              hiding (head, toS)
@@ -169,10 +168,10 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
       configDbTxAllowOverride && iPreferTransaction == Just Rollback
     preferenceApplied
       | shouldCommit =
-          Types.addHeadersIfNotIncluded
+          addHeadersIfNotIncluded
             [(HTTP.hPreferenceApplied, BS.pack (show Commit))]
       | shouldRollback =
-          Types.addHeadersIfNotIncluded
+          addHeadersIfNotIncluded
             [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity

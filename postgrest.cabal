@@ -43,14 +43,16 @@ library
                       PostgREST.DbStructure
                       PostgREST.DbStructureTypes
                       PostgREST.Error
+                      PostgREST.Headers
+                      PostgREST.JSPath
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Parsers
                       PostgREST.PgVersions
                       PostgREST.Preferences
                       PostgREST.QueryBuilder
-                      PostgREST.Statements
                       PostgREST.RangeQuery
+                      PostgREST.Statements
                       PostgREST.Types
   other-modules:      Paths_postgrest
                       PostgREST.Private.Common

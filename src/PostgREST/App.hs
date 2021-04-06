@@ -49,6 +49,8 @@ import PostgREST.ContentTypes (ContentType (..), decodeContentType,
 import PostgREST.Error        (Error)
 
 import PostgREST.DbStructureTypes
+import PostgREST.Headers          (GucHeader, addHeadersIfNotIncluded,
+                                   unwrapGucHeader)
 import PostgREST.Preferences
 import PostgREST.Types
 
