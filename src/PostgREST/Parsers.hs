@@ -4,26 +4,49 @@ Description : PostgREST parser combinators
 
 This module is in charge of parsing all the querystring values in an url, e.g. the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
 -}
-module PostgREST.Parsers where
+module PostgREST.Parsers
+  ( pColumns
+  , pLogicPath
+  , pLogicSingleVal
+  , pLogicTree
+  , pOrder
+  , pOrderTerm
+  , pRequestColumns
+  , pRequestFilter
+  , pRequestLogicTree
+  , pRequestOnConflict
+  , pRequestOrder
+  , pRequestRange
+  , pRequestSelect
+  , pSingleVal
+  , pTreePath
+  ) where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Data.Either.Combinators (mapLeft)
-import Data.Foldable           (foldl1)
-import Data.List               (init, last)
-import Data.Text               (intercalate, replace, strip)
+import Data.Either.Combinators       (mapLeft)
+import Data.Foldable                 (foldl1)
+import Data.List                     (init, last)
+import Data.Text                     (intercalate, replace, strip)
+import Data.Tree                     (Tree (..))
+import Text.Parsec.Error             (errorMessages,
+                                      showErrorMessages)
+import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
+                                      anyChar, between, char, digit,
+                                      eof, errorPos, letter,
+                                      lookAhead, many1, noneOf,
+                                      notFollowedBy, oneOf, option,
+                                      optionMaybe, parse, sepBy1,
+                                      string, try, (<?>))
 
-import Data.Tree
-import Text.Parsec.Error
-import Text.ParserCombinators.Parsec hiding (many, (<|>))
-
-import PostgREST.DbStructureTypes (FieldName)
-import PostgREST.Error            (ApiRequestError (ParseRequestError))
-import PostgREST.Queries
-import PostgREST.RangeQuery       (NonnegRange)
-
+import PostgREST.DbStructureTypes      (FieldName)
+import PostgREST.Error                 (ApiRequestError (ParseRequestError))
 import PostgREST.Private.QueryFragment (ftsOperators, operators)
+import PostgREST.RangeQuery            (NonnegRange)
+
+import PostgREST.Queries
+
 
 import Protolude      hiding (intercalate, option, replace, toS, try)
 import Protolude.Conv (toS)

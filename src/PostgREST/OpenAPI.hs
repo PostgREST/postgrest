@@ -9,17 +9,16 @@ import qualified Data.Aeson           as JSON
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict  as HashMap
 import qualified Data.HashSet.InsOrd  as Set
+import qualified Data.Text            as T
 
 import Control.Arrow              ((&&&))
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
 import Data.Maybe                 (fromJust)
 import Data.String                (IsString (..))
-import Data.Text                  (append, breakOn, dropWhile, init,
-                                   intercalate, pack, tail, toLower,
-                                   unpack)
 import Network.URI                (URI (..), URIAuth (..))
 
-import Control.Lens
+import Control.Lens (at, (.~), (?~))
+
 import Data.Swagger
 
 import PostgREST.ApiRequest       (ContentType (..))
@@ -34,8 +33,7 @@ import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    tableSchema)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
 
-import Protolude      hiding (Proxy, dropWhile, get, intercalate,
-                       toLower, toS, (&))
+import Protolude      hiding (Proxy, get, toS)
 import Protolude.Conv (toS)
 
 encode :: AppConfig -> DbStructure -> [Table] -> Maybe Text -> HashMap.HashMap k [ProcDescription] -> LBS.ByteString
@@ -49,7 +47,7 @@ encode conf dbStructure tables schemaDescription procs =
       (dbPrimaryKeys dbStructure)
 
 makeMimeList :: [ContentType] -> MimeList
-makeMimeList cs = MimeList $ map (fromString . toS . toMime) cs
+makeMimeList cs = MimeList $ fmap (fromString . toS . toMime) cs
 
 toSwaggerType :: Text -> SwaggerType t
 toSwaggerType "character varying" = SwaggerString
@@ -70,15 +68,15 @@ makeTableDef pks (t, cs, _) =
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ ?~ SwaggerObject
-        & properties .~ fromList (map (makeProperty pks) cs)
-        & required .~ map colName (filter (not . colNullable) cs))
+        & properties .~ fromList (fmap (makeProperty pks) cs)
+        & required .~ fmap colName (filter (not . colNullable) cs))
 
 makeProperty :: [PrimaryKey] -> Column -> (Text, Referenced Schema)
 makeProperty pks c = (colName c, Inline s)
   where
     e = if null $ colEnum c then Nothing else JSON.decode $ JSON.encode $ colEnum c
     fk ForeignKey{fkCol=Column{colTable=Table{tableName=a}, colName=b}} =
-      intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
+      T.intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
     pk :: Bool
     pk = any (\p -> pkTable p == colTable c && pkName p == colName c) pks
     n = catMaybes
@@ -88,7 +86,7 @@ makeProperty pks c = (colName c, Inline s)
       ]
     d =
       if length n > 1 then
-        Just $ append (maybe "" (`append` "\n\n") $ colDescription c) (intercalate "\n" n)
+        Just $ T.append (maybe "" (`T.append` "\n\n") $ colDescription c) (T.intercalate "\n" n)
       else
         colDescription c
     s =
@@ -105,8 +103,8 @@ makeProcSchema pd =
   (mempty :: Schema)
   & description .~ pdDescription pd
   & type_ ?~ SwaggerObject
-  & properties .~ fromList (map makeProcProperty (pdArgs pd))
-  & required .~ map pgaName (filter pgaReq (pdArgs pd))
+  & properties .~ fromList (fmap makeProcProperty (pdArgs pd))
+  & required .~ fmap pgaName (filter pgaReq (pdArgs pd))
 
 makeProcProperty :: PgArg -> (Text, Referenced Schema)
 makeProcProperty (PgArg n t _ _) = (n, Inline s)
@@ -205,7 +203,7 @@ makeObjectBody tn =
 
 makeRowFilter :: Text -> Column -> (Text, Param)
 makeRowFilter tn c =
-  (intercalate "." ["rowFilter", tn, colName c], (mempty :: Param)
+  (T.intercalate "." ["rowFilter", tn, colName c], (mempty :: Param)
     & name .~ colName c
     & description .~ colDescription c
     & required ?~ False
@@ -215,21 +213,21 @@ makeRowFilter tn c =
       & format ?~ colType c))
 
 makeRowFilters :: Text -> [Column] -> [(Text, Param)]
-makeRowFilters tn = map (makeRowFilter tn)
+makeRowFilters tn = fmap (makeRowFilter tn)
 
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
-makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
+makePathItem (t, cs, _) = ("/" ++ T.unpack tn, p $ tableInsertable t)
   where
     -- Use first line of table description as summary; rest as description (if present)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
-    (tSum, tDesc) = fmap fst &&& fmap (dropWhile (=='\n') . snd) $
-                    breakOn "\n" <$> tableDescription t
+    (tSum, tDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
+                    T.breakOn "\n" <$> tableDescription t
     tOp = (mempty :: Operation)
       & tags .~ Set.fromList [tn]
       & summary .~ tSum
       & description .~ mfilter (/="") tDesc
     getOp = tOp
-      & parameters .~ map ref (rs <> ["select", "order", "range", "rangeUnit", "offset", "limit", "preferCount"])
+      & parameters .~ fmap ref (rs <> ["select", "order", "range", "rangeUnit", "offset", "limit", "preferCount"])
       & at 206 ?~ "Partial Content"
       & at 200 ?~ Inline ((mempty :: Response)
         & description .~ "OK"
@@ -239,20 +237,20 @@ makePathItem (t, cs, _) = ("/" ++ unpack tn, p $ tableInsertable t)
         )
       )
     postOp = tOp
-      & parameters .~ map ref ["body." <> tn, "select", "preferReturn"]
+      & parameters .~ fmap ref ["body." <> tn, "select", "preferReturn"]
       & at 201 ?~ "Created"
     patchOp = tOp
-      & parameters .~ map ref (rs <> ["body." <> tn, "preferReturn"])
+      & parameters .~ fmap ref (rs <> ["body." <> tn, "preferReturn"])
       & at 204 ?~ "No Content"
     deletOp = tOp
-      & parameters .~ map ref (rs <> ["preferReturn"])
+      & parameters .~ fmap ref (rs <> ["preferReturn"])
       & at 204 ?~ "No Content"
     pr = (mempty :: PathItem) & get ?~ getOp
     pw = pr & post ?~ postOp & patch ?~ patchOp & delete ?~ deletOp
     p False = pr
     p True  = pw
     tn = tableName t
-    rs = [ intercalate "." ["rowFilter", tn, colName c ] | c <- cs ]
+    rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- cs ]
     ref = Ref . Reference
 
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
@@ -260,8 +258,8 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     -- Use first line of proc description as summary; rest as description (if present)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
-    (pSum, pDesc) = fmap fst &&& fmap (dropWhile (=='\n') . snd) $
-                    breakOn "\n" <$> pdDescription pd
+    (pSum, pDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
+                    T.breakOn "\n" <$> pdDescription pd
     postOp = (mempty :: Operation)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
@@ -284,7 +282,7 @@ makeRootPathItem = ("/", p)
 
 makePathItems :: [ProcDescription] -> [(Table, [Column], [Text])] -> InsOrdHashMap FilePath PathItem
 makePathItems pds ti = fromList $ makeRootPathItem :
-  map makePathItem ti ++ map makeProcPathItem pds
+  fmap makePathItem ti ++ fmap makeProcPathItem pds
 
 escapeHostName :: Text -> Text
 escapeHostName "*"  = "0.0.0.0"
@@ -296,7 +294,7 @@ escapeHostName h    = h
 
 postgrestSpec :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> [PrimaryKey] -> Swagger
 postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
-  & basePath ?~ unpack b
+  & basePath ?~ T.unpack b
   & schemes ?~ [s']
   & info .~ ((mempty :: Info)
       & version .~ prettyVersion
@@ -306,14 +304,14 @@ postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
     & description ?~ "PostgREST Documentation"
     & url .~ URL ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
   & host .~ h'
-  & definitions .~ fromList (map (makeTableDef pks) ti)
+  & definitions .~ fromList (makeTableDef pks <$> ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
   & produces .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
   & consumes .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
     where
       s' = if s == "http" then Http else Https
-      h' = Just $ Host (unpack $ escapeHostName h) (Just (fromInteger p))
+      h' = Just $ Host (T.unpack $ escapeHostName h) (Just (fromInteger p))
       d = fromMaybe "This is a dynamic API generated by PostgREST" sd
 
 pickProxy :: Maybe Text -> Maybe Proxy
@@ -331,19 +329,19 @@ pickProxy proxy
   }
  where
    uri = toURI $ fromJust proxy
-   scheme = init $ toLower $ pack $ uriScheme uri
+   scheme = T.init $ T.toLower $ T.pack $ uriScheme uri
    path URI {uriPath = ""} =  "/"
    path URI {uriPath = p}  = p
-   path' = pack $ path uri
+   path' = T.pack $ path uri
    authority = fromJust $ uriAuthority uri
-   host' = pack $ uriRegName authority
+   host' = T.pack $ uriRegName authority
    port' = uriPort authority
    readPort = fromMaybe 80 . readMaybe
    port'' :: Integer
    port'' = case (port', scheme) of
              ("", "http")  -> 80
              ("", "https") -> 443
-             _             -> readPort $ unpack $ tail $ pack port'
+             _             -> readPort $ T.unpack $ T.tail $ T.pack port'
 
 proxyUri :: AppConfig -> (Text, Text, Integer, Text)
 proxyUri AppConfig{..} =
