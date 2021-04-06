@@ -2,31 +2,30 @@
 Module      : PostgREST.Types
 Description : PostgREST common types and functions used by the rest of the modules
 -}
-{-# LANGUAGE DeriveAnyClass        #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.Types where
 
 
-import qualified Data.Aeson               as JSON
-import qualified Data.ByteString.Lazy     as BL
-import qualified Data.CaseInsensitive     as CI
-import qualified Data.HashMap.Strict      as M
-import qualified Data.Set                 as S
+import qualified Data.Aeson           as JSON
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.CaseInsensitive as CI
+import qualified Data.HashMap.Strict  as M
+import qualified Data.Set             as S
 
-import Control.Lens.Getter (view)
-import Control.Lens.Tuple  (_1)
-import Data.Tree (Tree(..))
+import Control.Lens.Getter       (view)
+import Control.Lens.Tuple        (_1)
+import Data.Tree                 (Tree (..))
 import Network.HTTP.Types.Header (Header)
 
 import qualified GHC.Show (show)
 
-import PostgREST.RangeQuery (NonnegRange)
 import PostgREST.DbStructureTypes
+import PostgREST.Preferences
+import PostgREST.RangeQuery       (NonnegRange)
 
-import Protolude            hiding (toS)
-import Protolude.Conv       (toS)
+import Protolude      hiding (toS)
+import Protolude.Conv (toS)
 
 
 -- | A SQL query that can be executed independently
@@ -34,50 +33,6 @@ type SqlQuery = ByteString
 
 -- | A part of a SQL query that cannot be executed independently
 type SqlFragment = ByteString
-
-data PreferResolution = MergeDuplicates | IgnoreDuplicates
-instance Show PreferResolution where
-  show MergeDuplicates  = "resolution=merge-duplicates"
-  show IgnoreDuplicates = "resolution=ignore-duplicates"
-
--- | How to return the mutated data. From https://tools.ietf.org/html/rfc7240#section-4.2
-data PreferRepresentation = Full        -- ^ Return the body plus the Location header(in case of POST).
-                          | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
-                          | None        -- ^ Return nothing from the mutated data.
-                          deriving Eq
-instance Show PreferRepresentation where
-  show Full        = "return=representation"
-  show None        = "return=minimal"
-  show HeadersOnly = mempty
-
-data PreferParameters
-  = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure
-  | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure
-  deriving Eq
-
-instance Show PreferParameters where
-  show SingleObject    = "params=single-object"
-  show MultipleObjects = "params=multiple-objects"
-
-data PreferCount
-  = ExactCount     -- ^ exact count(slower)
-  | PlannedCount   -- ^ PostgreSQL query planner rows count guess. Done by using EXPLAIN {query}.
-  | EstimatedCount -- ^ use the query planner rows if the count is superior to max-rows, otherwise get the exact count.
-  deriving Eq
-
-instance Show PreferCount where
-  show ExactCount     = "count=exact"
-  show PlannedCount   = "count=planned"
-  show EstimatedCount = "count=estimated"
-
-data PreferTransaction
-  = Commit   -- Commit transaction - the default.
-  | Rollback -- Rollback transaction after sending the response - does not persist changes, e.g. for running tests.
-  deriving Eq
-
-instance Show PreferTransaction where
-  show Commit   = "tx=commit"
-  show Rollback = "tx=rollback"
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)

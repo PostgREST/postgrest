@@ -26,10 +26,11 @@ import qualified Hasql.DynamicStatements.Snippet as H
 import Data.Tree (Tree (..))
 
 import Data.Maybe
+import PostgREST.DbStructureTypes
+import PostgREST.Preferences
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment
 import PostgREST.Types
-import PostgREST.DbStructureTypes
 import Protolude                       hiding (cast, intercalate,
                                         replace)
 

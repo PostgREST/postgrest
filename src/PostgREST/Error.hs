@@ -26,11 +26,11 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header
 
+import PostgREST.ContentTypes     (ContentType (..), toHeader, toMime)
 import PostgREST.DbStructureTypes
-import PostgREST.ContentTypes (ContentType(..), toMime, toHeader)
 
-import Protolude       hiding (toS)
-import Protolude.Conv  (toS, toSL)
+import Protolude      hiding (toS)
+import Protolude.Conv (toS, toSL)
 
 
 class (JSON.ToJSON a) => PgrstError a where

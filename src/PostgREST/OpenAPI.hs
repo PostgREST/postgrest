@@ -25,19 +25,19 @@ import Data.Swagger
 import PostgREST.ApiRequest       (ContentType (..))
 import PostgREST.Config           (AppConfig (..), docsVersion,
                                    prettyVersion)
-import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
-import PostgREST.Types (Proxy(..))
+import PostgREST.ContentTypes     (toMime)
 import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    ForeignKey (..), PgArg (..),
                                    PrimaryKey (..),
-                                   ProcDescription (..),
-                                   Table (..), tableCols, tableName,
-                                   tablePKCols, tableSchema)
-import PostgREST.ContentTypes (toMime)
+                                   ProcDescription (..), Table (..),
+                                   tableCols, tableName, tablePKCols,
+                                   tableSchema)
+import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
+import PostgREST.Types            (Proxy (..))
 
-import Protolude                  hiding (Proxy, dropWhile, get,
-                                   intercalate, toLower, toS, (&))
-import Protolude.Conv             (toS)
+import Protolude      hiding (Proxy, dropWhile, get, intercalate,
+                       toLower, toS, (&))
+import Protolude.Conv (toS)
 
 encode :: AppConfig -> DbStructure -> [Table] -> Maybe Text -> HashMap.HashMap k [ProcDescription] -> LBS.ByteString
 encode conf dbStructure tables schemaDescription procs =

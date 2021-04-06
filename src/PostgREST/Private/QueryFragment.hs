@@ -13,12 +13,12 @@ import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
+import           PostgREST.DbStructureTypes
 import           PostgREST.RangeQuery            (NonnegRange,
                                                   allRange,
                                                   rangeLimit,
                                                   rangeOffset)
 import           PostgREST.Types
-import           PostgREST.DbStructureTypes
 import           Protolude                       hiding (cast,
                                                   intercalate,
                                                   replace, toLower,

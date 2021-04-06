@@ -41,14 +41,16 @@ import qualified PostgREST.QueryBuilder     as QueryBuilder
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Statements       as Statements
 
-import PostgREST.ContentTypes (ContentType(..), toHeader, toMime, decodeContentType)
-import PostgREST.ApiRequest (Action (..), ApiRequest (..),
-                             InvokeMethod (..), Target (..))
-import PostgREST.Config     (AppConfig (..))
-import PostgREST.Error      (Error)
+import PostgREST.ApiRequest   (Action (..), ApiRequest (..),
+                               InvokeMethod (..), Target (..))
+import PostgREST.Config       (AppConfig (..))
+import PostgREST.ContentTypes (ContentType (..), decodeContentType,
+                               toHeader, toMime)
+import PostgREST.Error        (Error)
 
-import PostgREST.Types
 import PostgREST.DbStructureTypes
+import PostgREST.Preferences
+import PostgREST.Types
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)

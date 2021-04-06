@@ -45,16 +45,18 @@ import Web.Cookie                (parseCookiesText)
 
 import Data.Ranged.Boundaries
 
-import PostgREST.ContentTypes (ContentType(..), toMime, decodeContentType)
-import PostgREST.Error      (ApiRequestError (..))
-import PostgREST.Parsers    (pRequestColumns)
-import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
-                             rangeLimit, rangeOffset, rangeRequested,
-                             restrictRange)
-import PostgREST.Types
+import PostgREST.ContentTypes     (ContentType (..),
+                                   decodeContentType, toMime)
 import PostgREST.DbStructureTypes
-import Protolude            hiding (head, toS)
-import Protolude.Conv       (toS)
+import PostgREST.Error            (ApiRequestError (..))
+import PostgREST.Parsers          (pRequestColumns)
+import PostgREST.Preferences
+import PostgREST.RangeQuery       (NonnegRange, allRange, rangeGeq,
+                                   rangeLimit, rangeOffset,
+                                   rangeRequested, restrictRange)
+import PostgREST.Types
+import Protolude                  hiding (head, toS)
+import Protolude.Conv             (toS)
 
 type RequestBody = BL.ByteString
 

@@ -15,8 +15,8 @@ import Test.Hspec.Wai.JSON
 import Protolude
 import SpecHelper
 
-import PostgREST.Types (pgVersion96)
 import PostgREST.DbStructureTypes (PgVersion)
+import PostgREST.Types            (pgVersion96)
 
 spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion =

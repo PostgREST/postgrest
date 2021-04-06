@@ -46,6 +46,7 @@ import qualified PostgREST.Types as Types
 import PostgREST.ApiRequest   (ApiRequest (..))
 import PostgREST.Config       (AppConfig (..))
 import PostgREST.Error        (Error, errorResponseFor)
+import PostgREST.Preferences
 import PostgREST.QueryBuilder (setConfigLocal)
 import PostgREST.Types        (LogLevel (..))
 import Protolude              hiding (head, toS)
@@ -164,15 +165,15 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
   return $ Wai.mapResponseHeaders preferenceApplied resp
   where
     shouldCommit =
-      configDbTxAllowOverride && iPreferTransaction == Just Types.Commit
+      configDbTxAllowOverride && iPreferTransaction == Just Commit
     shouldRollback =
-      configDbTxAllowOverride && iPreferTransaction == Just Types.Rollback
+      configDbTxAllowOverride && iPreferTransaction == Just Rollback
     preferenceApplied
       | shouldCommit =
           Types.addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Types.Commit))]
+            [(HTTP.hPreferenceApplied, BS.pack (show Commit))]
       | shouldRollback =
           Types.addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Types.Rollback))]
+            [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity

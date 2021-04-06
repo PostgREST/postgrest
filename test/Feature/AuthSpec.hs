@@ -7,9 +7,9 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Types (pgVersion112)
 import PostgREST.DbStructureTypes (PgVersion)
-import Protolude       hiding (get)
+import PostgREST.Types            (pgVersion112)
+import Protolude                  hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWith ((), Application)

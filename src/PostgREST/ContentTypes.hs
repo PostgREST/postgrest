@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveAnyClass        #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.ContentTypes

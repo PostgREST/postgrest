@@ -1,11 +1,11 @@
-{-# LANGUAGE DeriveAnyClass        #-}
-{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
 
 module PostgREST.DbStructureTypes where
 
-import qualified Data.Aeson               as JSON
-import qualified Data.HashMap.Strict      as M
-import qualified Data.Set                 as S
+import qualified Data.Aeson          as JSON
+import qualified Data.HashMap.Strict as M
+import qualified Data.Set            as S
 
 import qualified GHC.Show (show)
 

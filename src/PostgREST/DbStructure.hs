@@ -40,8 +40,8 @@ import Protolude.Conv                (toS)
 import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q)
 
-import PostgREST.Private.Common
 import PostgREST.DbStructureTypes
+import PostgREST.Private.Common
 import PostgREST.Types
 
 getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure

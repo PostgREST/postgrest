@@ -41,10 +41,12 @@ library
                       PostgREST.ContentTypes
                       PostgREST.DbRequestBuilder
                       PostgREST.DbStructure
+                      PostgREST.DbStructureTypes
                       PostgREST.Error
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Parsers
+                      PostgREST.Preferences
                       PostgREST.QueryBuilder
                       PostgREST.Statements
                       PostgREST.RangeQuery

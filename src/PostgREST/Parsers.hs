@@ -19,13 +19,13 @@ import Data.Tree
 import Text.Parsec.Error
 import Text.ParserCombinators.Parsec hiding (many, (<|>))
 
-import PostgREST.Error      (ApiRequestError (ParseRequestError))
-import PostgREST.RangeQuery (NonnegRange)
-import PostgREST.Types
 import PostgREST.DbStructureTypes (FieldName)
-import Protolude            hiding (intercalate, option, replace, toS,
-                             try)
-import Protolude.Conv       (toS)
+import PostgREST.Error            (ApiRequestError (ParseRequestError))
+import PostgREST.RangeQuery       (NonnegRange)
+import PostgREST.Types
+import Protolude                  hiding (intercalate, option,
+                                   replace, toS, try)
+import Protolude.Conv             (toS)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
