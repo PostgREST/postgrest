@@ -41,18 +41,26 @@ import qualified PostgREST.QueryBuilder     as QueryBuilder
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Statements       as Statements
 
-import PostgREST.ApiRequest   (Action (..), ApiRequest (..),
-                               InvokeMethod (..), Target (..))
-import PostgREST.Config       (AppConfig (..), LogLevel (..))
-import PostgREST.ContentTypes (ContentType (..), decodeContentType,
-                               toHeader, toMime)
-import PostgREST.Error        (Error)
-
-import PostgREST.DbStructureTypes
+import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
+                                   InvokeMethod (..), Target (..))
+import PostgREST.Config           (AppConfig (..), LogLevel (..))
+import PostgREST.ContentTypes     (ContentType (..),
+                                   decodeContentType, toHeader,
+                                   toMime)
+import PostgREST.DbStructureTypes (DbStructure (..), FieldName,
+                                   ProcDescription (..),
+                                   ProcVolatility (..),
+                                   QualifiedIdentifier (..), Schema,
+                                   Table (..), procReturnsScalar,
+                                   procReturnsSingle, procTableName,
+                                   specifiedProcArgs, tablePKCols)
+import PostgREST.Error            (Error)
 import PostgREST.Headers          (GucHeader, addHeadersIfNotIncluded,
                                    unwrapGucHeader)
-import PostgREST.Preferences
-import PostgREST.Queries
+import PostgREST.Preferences      (PreferCount (..),
+                                   PreferParameters (..),
+                                   PreferRepresentation (..))
+import PostgREST.Queries          (ReadRequest, fstFieldNames)
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
