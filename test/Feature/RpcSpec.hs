@@ -282,11 +282,18 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{"id": 2}|]
 
-      it "returns nothing for void" $
+      it "returns null for void" $
         post "/rpc/ret_void"
             [json|{}|]
           `shouldRespondWith`
-            ""
+            "null"
+            { matchHeaders = [matchContentTypeJson] }
+
+      it "returns null for an integer with null value" $
+        post "/rpc/ret_null"
+            [json|{}|]
+          `shouldRespondWith`
+            "null"
             { matchHeaders = [matchContentTypeJson] }
 
       context "different types when overloaded" $ do
@@ -919,7 +926,7 @@ spec actualPgVersion =
         it "can set the same http header twice" $
           get "/rpc/set_cookie_twice"
             `shouldRespondWith`
-              ""
+              "null"
               { matchHeaders = [ matchContentTypeJson
                                , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
                                , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}

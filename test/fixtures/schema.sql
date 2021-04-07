@@ -1051,6 +1051,10 @@ $$ language sql;
 
 create function test.ret_void() returns void as '' language sql;
 
+create or replace function test.ret_null() returns int as $$
+  select null::int;
+$$ language sql;
+
 create function test.ret_base64_bin() returns text as $$
   select i.img from test.images_base64 i where i.name = 'A.png';
 $$ language sql;
