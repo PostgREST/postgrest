@@ -289,6 +289,13 @@ spec actualPgVersion =
             "null"
             { matchHeaders = [matchContentTypeJson] }
 
+      it "returns null for an integer with null value" $
+        post "/rpc/ret_null"
+            [json|{}|]
+          `shouldRespondWith`
+            "null"
+            { matchHeaders = [matchContentTypeJson] }
+
       context "different types when overloaded" $ do
         it "returns composite type" $
           post "/rpc/ret_point_overloaded"
