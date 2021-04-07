@@ -98,7 +98,7 @@ asJsonF returnsScalar
 
 asJsonSingleF :: Bool -> SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
 asJsonSingleF returnsScalar
-  | returnsScalar = "coalesce(string_agg(to_json(_postgrest_t.pgrst_scalar)::text, ','), '')::character varying"
+  | returnsScalar = "coalesce(string_agg(to_json(_postgrest_t.pgrst_scalar)::text, ','), 'null')::character varying"
   | otherwise     = "coalesce(string_agg(to_json(_postgrest_t)::text, ','), '')::character varying"
 
 asBinaryF :: FieldName -> SqlFragment
