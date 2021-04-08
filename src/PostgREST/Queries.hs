@@ -36,10 +36,11 @@ import Data.Tree (Tree (..))
 
 import qualified GHC.Show (show)
 
-import PostgREST.DbStructureTypes (FieldName, QualifiedIdentifier,
-                                   Relation)
-import PostgREST.Preferences      (PreferResolution)
-import PostgREST.RangeQuery       (NonnegRange)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier)
+import PostgREST.DbStructure.Relation    (Relation)
+import PostgREST.Preferences             (PreferResolution)
+import PostgREST.RangeQuery              (NonnegRange)
 
 import Protolude
 

@@ -21,15 +21,16 @@ import Control.Lens (at, (.~), (?~))
 
 import Data.Swagger
 
-import PostgREST.Config           (AppConfig (..), Proxy (..),
-                                   docsVersion, prettyVersion)
-import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
-                                   ForeignKey (..), PgArg (..),
-                                   PrimaryKey (..),
-                                   ProcDescription (..), Table (..),
-                                   tableCols, tableName, tablePKCols,
-                                   tableSchema)
-import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
+import PostgREST.Config               (AppConfig (..), Proxy (..),
+                                       docsVersion, prettyVersion)
+import PostgREST.DbStructure          (DbStructure (..), tableCols,
+                                       tablePKCols)
+import PostgREST.DbStructure.Proc     (PgArg (..),
+                                       ProcDescription (..))
+import PostgREST.DbStructure.Relation (PrimaryKey (..))
+import PostgREST.DbStructure.Table    (Column (..), ForeignKey (..),
+                                       Table (..))
+import PostgREST.Private.ProxyUri     (isMalformedProxyUri, toURI)
 
 import PostgREST.ContentType
 

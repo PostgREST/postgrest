@@ -30,17 +30,26 @@ import Data.List               (delete)
 import Data.Text               (isInfixOf)
 import Data.Tree               (Tree (..))
 
-import PostgREST.ApiRequest            (Action (..), ApiRequest (..),
-                                        PayloadJSON (..))
-import PostgREST.DbStructureTypes
-import PostgREST.Error                 (ApiRequestError (..),
-                                        Error (..))
+import PostgREST.ApiRequest              (Action (..),
+                                          ApiRequest (..),
+                                          PayloadJSON (..))
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema, TableName)
+import PostgREST.DbStructure.Relation    (Cardinality (..), Link (..),
+                                          Relation (..))
+import PostgREST.DbStructure.Table       (Column (..), Table (..),
+                                          tableQi)
+import PostgREST.Error                   (ApiRequestError (..),
+                                          Error (..))
 import PostgREST.Parsers
 import PostgREST.Preferences
-import PostgREST.Private.QueryFragment (sourceCTEName)
+import PostgREST.Private.QueryFragment   (sourceCTEName)
 import PostgREST.Queries
-import PostgREST.RangeQuery            (NonnegRange, allRange,
-                                        restrictRange)
+import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          restrictRange)
+
+import qualified PostgREST.DbStructure.Relation as Relation
 
 import Protolude hiding (from)
 
@@ -207,7 +216,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Nothing -> Node node <$> updatedForest
   where
-    newAlias = case isSelfReference <$> rel of
+    newAlias = case Relation.isSelfReference <$> rel of
       Just True
         | depth /= 0 -> Just (qiName tbl <> "_" <> show depth) -- root node doesn't get aliased
         | otherwise  -> Nothing

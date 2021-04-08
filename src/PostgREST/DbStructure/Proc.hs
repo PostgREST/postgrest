@@ -1,65 +1,30 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructureTypes
-  ( DbStructure(..)
-  , Cardinality(..)
-  , Column(..)
-  , Constraint
-  , FieldName
-  , ForeignKey(..)
-  , Link(..)
-  , PgArg(..)
+module PostgREST.DbStructure.Proc
+  ( PgArg(..)
   , PgType(..)
-  , PrimaryKey(..)
   , ProcDescription(..)
   , ProcVolatility(..)
   , ProcsMap
-  , QualifiedIdentifier(..)
-  , Relation(..)
   , RetType(..)
-  , Schema
-  , Table(..)
-  , TableName
   , findProc
-  , isSelfReference
   , procReturnsScalar
   , procReturnsSingle
   , procTableName
   , specifiedProcArgs
-  , tableCols
-  , tablePKCols
-  , tableQi
   ) where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import PostgREST.PgVersions (PgVersion (..))
-
-import qualified GHC.Show (show)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema, TableName)
 
 import Protolude
 
-
-data DbStructure = DbStructure
-  { dbTables      :: [Table]
-  , dbColumns     :: [Column]
-  , dbRelations   :: [Relation]
-  , dbPrimaryKeys :: [PrimaryKey]
-  , dbProcs       :: ProcsMap
-  , pgVersion     :: PgVersion
-  }
-  deriving (Generic, JSON.ToJSON)
-
--- TODO Table could hold references to all its Columns
-tableCols :: DbStructure -> Schema -> TableName -> [Column]
-tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
-
--- TODO Table could hold references to all its PrimaryKeys
-tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
-tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
 
 data PgArg = PgArg
   { pgaName :: Text
@@ -153,98 +118,3 @@ procTableName proc = case pdReturnType proc of
   SetOf  (Composite qi) -> Just $ qiName qi
   Single (Composite qi) -> Just $ qiName qi
   _                     -> Nothing
-
-type Schema = Text
-type TableName = Text
-
-data Table = Table
-  { tableSchema      :: Schema
-  , tableName        :: TableName
-  , tableDescription :: Maybe Text
-  , tableInsertable  :: Bool
-  }
-  deriving (Show, Ord, Generic, JSON.ToJSON)
-
-instance Eq Table where
-  Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
-
-tableQi :: Table -> QualifiedIdentifier
-tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
-
-newtype ForeignKey = ForeignKey { fkCol :: Column } deriving (Eq, Ord, Generic, JSON.ToJSON)
-
-data Column = Column
-  { colTable       :: Table
-  , colName        :: FieldName
-  , colDescription :: Maybe Text
-  , colNullable    :: Bool
-  , colType        :: Text
-  , colMaxLen      :: Maybe Int32
-  , colDefault     :: Maybe Text
-  , colEnum        :: [Text]
-  , colFK          :: Maybe ForeignKey
-  }
-  deriving (Ord, Generic, JSON.ToJSON)
-
-instance Eq Column where
-  Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
-
-data PrimaryKey = PrimaryKey {
-    pkTable :: Table
-  , pkName  :: Text
-} deriving (Generic, JSON.ToJSON)
-
-
-{-|
-  Represents a pg identifier with a prepended schema name "schema.table"
-  When qiSchema is "", the schema is defined by the pg search_path
--}
-data QualifiedIdentifier = QualifiedIdentifier {
-  qiSchema :: Schema
-, qiName   :: TableName
-} deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
-instance Hashable QualifiedIdentifier
-
--- | The relationship [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
--- | TODO: missing one-to-one
-data Cardinality = O2M -- ^ one-to-many,  previously known as Parent
-                 | M2O -- ^ many-to-one,  previously known as Child
-                 | M2M -- ^ many-to-many, previously known as Many
-                 deriving (Eq, Generic, JSON.ToJSON)
-instance Show Cardinality where
-  show O2M = "o2m"
-  show M2O = "m2o"
-  show M2M = "m2m"
-
-{-|
-  "Relation"ship between two tables.
-  The order of the relColumns and relFColumns should be maintained to get the join conditions right.
-  TODO merge relColumns and relFColumns to a tuple or Data.Bimap
--}
-data Relation = Relation {
-  relTable    :: Table
-, relColumns  :: [Column]
-, relFTable   :: Table
-, relFColumns :: [Column]
-, relType     :: Cardinality
-, relLink     :: Link -- ^ Constraint on O2M/M2O, Junction for M2M Cardinality
-} deriving (Eq, Generic, JSON.ToJSON)
-
-type ConstraintName = Text
-
--- | Junction table on an M2M relationship
-data Link
-  = Constraint { constName :: ConstraintName }
-  | Junction {
-    junTable :: Table
-  , junLink1 :: Link
-  , junCols1 :: [Column]
-  , junLink2 :: Link
-  , junCols2 :: [Column]
-  }
-  deriving (Eq, Generic, JSON.ToJSON)
-
-isSelfReference :: Relation -> Bool
-isSelfReference r = relTable r == relFTable r
-
-type FieldName = Text

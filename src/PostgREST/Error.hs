@@ -29,8 +29,8 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ContentType (ContentType (..))
 import qualified PostgREST.ContentType as ContentType
 
-import PostgREST.DbStructureTypes (Column (..), Link (..),
-                                   Relation (..), Table (..))
+import PostgREST.DbStructure.Relation (Link (..), Relation (..))
+import PostgREST.DbStructure.Table    (Column (..), Table (..))
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS, toSL)

@@ -21,13 +21,15 @@ import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
-import PostgREST.ApiRequest       (PayloadJSON (..))
-import PostgREST.DbStructureTypes (Cardinality (..), FieldName,
-                                   PgArg (..),
-                                   QualifiedIdentifier (..),
-                                   Relation (..), Table (..), qiName)
-import PostgREST.Preferences      (PreferParameters (..),
-                                   PreferResolution (..))
+import PostgREST.ApiRequest              (PayloadJSON (..))
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..))
+import PostgREST.DbStructure.Proc        (PgArg (..))
+import PostgREST.DbStructure.Relation    (Cardinality (..),
+                                          Relation (..))
+import PostgREST.DbStructure.Table       (Table (..))
+import PostgREST.Preferences             (PreferParameters (..),
+                                          PreferResolution (..))
 
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment

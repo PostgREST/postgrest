@@ -37,7 +37,7 @@ import PostgREST.Error      (Error (..))
 import PostgREST.Headers    (GucHeader)
 import PostgREST.PgVersions (PgVersion)
 
-import PostgREST.DbStructureTypes
+import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.Preferences
 import PostgREST.Private.Common
 import PostgREST.Private.QueryFragment

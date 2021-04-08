@@ -44,24 +44,26 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
-import PostgREST.ContentType           (ContentType (..))
-import PostgREST.DbStructureTypes      (DbStructure (..), FieldName,
-                                        PgArg (..),
-                                        ProcDescription (..),
-                                        QualifiedIdentifier (..),
-                                        Schema, findProc)
-import PostgREST.Error                 (ApiRequestError (..))
-import PostgREST.Parsers               (pRequestColumns)
-import PostgREST.Preferences           (PreferCount (..),
-                                        PreferParameters (..),
-                                        PreferRepresentation (..),
-                                        PreferResolution (..),
-                                        PreferTransaction (..))
-import PostgREST.Private.QueryFragment (ftsOperators, operators)
-import PostgREST.RangeQuery            (NonnegRange, allRange,
-                                        rangeGeq, rangeLimit,
-                                        rangeOffset, rangeRequested,
-                                        restrictRange)
+import PostgREST.ContentType             (ContentType (..))
+import PostgREST.DbStructure             (DbStructure (..))
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.DbStructure.Proc        (PgArg (..),
+                                          ProcDescription (..),
+                                          findProc)
+import PostgREST.Error                   (ApiRequestError (..))
+import PostgREST.Parsers                 (pRequestColumns)
+import PostgREST.Preferences             (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..),
+                                          PreferResolution (..),
+                                          PreferTransaction (..))
+import PostgREST.Private.QueryFragment   (ftsOperators, operators)
+import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          rangeGeq, rangeLimit,
+                                          rangeOffset, rangeRequested,
+                                          restrictRange)
 
 import qualified PostgREST.ContentType as ContentType
 

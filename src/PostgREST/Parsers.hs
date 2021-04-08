@@ -40,10 +40,10 @@ import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
                                       optionMaybe, parse, sepBy1,
                                       string, try, (<?>))
 
-import PostgREST.DbStructureTypes      (FieldName)
-import PostgREST.Error                 (ApiRequestError (ParseRequestError))
-import PostgREST.Private.QueryFragment (ftsOperators, operators)
-import PostgREST.RangeQuery            (NonnegRange)
+import PostgREST.DbStructure.Identifiers (FieldName)
+import PostgREST.Error                   (ApiRequestError (ParseRequestError))
+import PostgREST.Private.QueryFragment   (ftsOperators, operators)
+import PostgREST.RangeQuery              (NonnegRange)
 
 import PostgREST.Queries
 

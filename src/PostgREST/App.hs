@@ -41,26 +41,32 @@ import qualified PostgREST.QueryBuilder     as QueryBuilder
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Statements       as Statements
 
-import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
-                                   InvokeMethod (..), Target (..))
-import PostgREST.Config           (AppConfig (..), LogLevel (..))
-import PostgREST.ContentType      (ContentType (..))
-import PostgREST.DbStructureTypes (DbStructure (..), FieldName,
-                                   ProcDescription (..),
-                                   ProcVolatility (..),
-                                   QualifiedIdentifier (..), Schema,
-                                   Table (..), procReturnsScalar,
-                                   procReturnsSingle, procTableName,
-                                   specifiedProcArgs, tablePKCols)
-import PostgREST.Error            (Error)
-import PostgREST.Headers          (GucHeader, addHeadersIfNotIncluded,
-                                   unwrapGucHeader)
-import PostgREST.Preferences      (PreferCount (..),
-                                   PreferParameters (..),
-                                   PreferRepresentation (..))
-import PostgREST.Queries          (ReadRequest, fstFieldNames)
+import PostgREST.ApiRequest              (Action (..),
+                                          ApiRequest (..),
+                                          InvokeMethod (..),
+                                          Target (..))
+import PostgREST.Config                  (AppConfig (..),
+                                          LogLevel (..))
+import PostgREST.ContentType             (ContentType (..))
+import PostgREST.DbStructure             (DbStructure (..),
+                                          tablePKCols)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.DbStructure.Proc        (ProcDescription (..),
+                                          ProcVolatility (..))
+import PostgREST.DbStructure.Table       (Table (..))
+import PostgREST.Error                   (Error)
+import PostgREST.Headers                 (GucHeader,
+                                          addHeadersIfNotIncluded,
+                                          unwrapGucHeader)
+import PostgREST.Preferences             (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..))
+import PostgREST.Queries                 (ReadRequest, fstFieldNames)
 
-import qualified PostgREST.ContentType as ContentType
+import qualified PostgREST.ContentType      as ContentType
+import qualified PostgREST.DbStructure.Proc as Proc
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -366,9 +372,9 @@ handleInvoke invMethod proc context@RequestContext{..} = do
     identifier =
       QualifiedIdentifier
         (pdSchema proc)
-        (fromMaybe (pdName proc) $ procTableName proc)
+        (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _) = procReturnsSingle target
+    returnsSingle (ApiRequest.TargetProc target _) = Proc.procReturnsSingle target
     returnsSingle _                                = False
 
   req <- readRequest identifier context
@@ -381,7 +387,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (returnsSingle iTarget)
         (QueryBuilder.requestToCallProcQuery
           (QualifiedIdentifier (pdSchema proc) (pdName proc))
-          (specifiedProcArgs iColumns proc)
+          (Proc.specifiedProcArgs iColumns proc)
           iPayload
           (returnsScalar iTarget)
           iPreferParameters
@@ -505,7 +511,7 @@ shouldCount preferCount =
   preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _) = procReturnsScalar proc
+returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
 returnsScalar _                   = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest

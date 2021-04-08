@@ -41,7 +41,10 @@ library
                       PostgREST.ContentType
                       PostgREST.DbRequestBuilder
                       PostgREST.DbStructure
-                      PostgREST.DbStructureTypes
+                      PostgREST.DbStructure.Identifiers
+                      PostgREST.DbStructure.Proc
+                      PostgREST.DbStructure.Relation
+                      PostgREST.DbStructure.Table
                       PostgREST.Error
                       PostgREST.Headers
                       PostgREST.JSPath
@@ -50,8 +53,8 @@ library
                       PostgREST.Parsers
                       PostgREST.PgVersions
                       PostgREST.Preferences
-                      PostgREST.QueryBuilder
                       PostgREST.Queries
+                      PostgREST.QueryBuilder
                       PostgREST.RangeQuery
                       PostgREST.Statements
   other-modules:      Paths_postgrest

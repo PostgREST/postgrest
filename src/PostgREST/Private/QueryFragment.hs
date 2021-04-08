@@ -17,19 +17,19 @@ import qualified Hasql.Encoders                  as HE
 
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.DbStructureTypes (FieldName,
-                                   QualifiedIdentifier (..))
-import PostgREST.PgVersions       (PgVersion, pgVersion96)
-import PostgREST.Private.Common   (intercalateSnippet)
-import PostgREST.Queries          (Alias, Field, Filter (..),
-                                   JoinCondition (..),
-                                   JsonOperand (..),
-                                   JsonOperation (..), JsonPath,
-                                   LogicTree (..), OpExpr (..),
-                                   Operation (..), OrderTerm (..),
-                                   SelectItem)
-import PostgREST.RangeQuery       (NonnegRange, allRange, rangeLimit,
-                                   rangeOffset)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..))
+import PostgREST.PgVersions              (PgVersion, pgVersion96)
+import PostgREST.Private.Common          (intercalateSnippet)
+import PostgREST.Queries                 (Alias, Field, Filter (..),
+                                          JoinCondition (..),
+                                          JsonOperand (..),
+                                          JsonOperation (..),
+                                          JsonPath, LogicTree (..),
+                                          OpExpr (..), Operation (..),
+                                          OrderTerm (..), SelectItem)
+import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          rangeLimit, rangeOffset)
 
 import Protolude      hiding (cast, toS)
 import Protolude.Conv (toS)

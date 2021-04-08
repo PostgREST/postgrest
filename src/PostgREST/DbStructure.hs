@@ -8,6 +8,8 @@ The schema cache is necessary for resource embedding, foreign keys are used for 
 
 These queries are executed once at startup or when PostgREST is reloaded.
 -}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
@@ -17,13 +19,17 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE TypeSynonymInstances  #-}
 
 module PostgREST.DbStructure
-  ( getDbStructure
+  ( DbStructure(..)
+  , getDbStructure
   , accessibleTables
   , accessibleProcs
   , schemaDescription
   , getPgVersion
+  , tableCols
+  , tablePKCols
   ) where
 
+import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
@@ -37,13 +43,43 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
+                                          Schema, TableName)
+import PostgREST.DbStructure.Proc        (PgArg (..), PgType (..),
+                                          ProcDescription (..),
+                                          ProcVolatility (..),
+                                          ProcsMap, RetType (..))
+import PostgREST.DbStructure.Relation    (Cardinality (..),
+                                          ForeignKey (..), Link (..),
+                                          PrimaryKey (..),
+                                          Relation (..))
+import PostgREST.DbStructure.Table       (Column (..), Table (..))
+import PostgREST.PgVersions              (PgVersion (..))
+import PostgREST.Private.Common
+
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)
 import Protolude.Unsafe (unsafeHead)
 
-import PostgREST.DbStructureTypes
-import PostgREST.PgVersions       (PgVersion (..))
-import PostgREST.Private.Common
+
+data DbStructure = DbStructure
+  { dbTables      :: [Table]
+  , dbColumns     :: [Column]
+  , dbRelations   :: [Relation]
+  , dbPrimaryKeys :: [PrimaryKey]
+  , dbProcs       :: ProcsMap
+  , pgVersion     :: PgVersion
+  }
+  deriving (Generic, JSON.ToJSON)
+
+-- TODO Table could hold references to all its Columns
+tableCols :: DbStructure -> Schema -> TableName -> [Column]
+tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
+
+-- TODO Table could hold references to all its PrimaryKeys
+tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
+tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+
 
 
 -- | The source table column a view column refers to

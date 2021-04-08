@@ -30,16 +30,16 @@ import System.CPUTime           (getCPUTime)
 import System.IO                (BufferMode (..), hSetBuffering)
 import Text.Printf              (hPrintf)
 
-import PostgREST.App              (postgrest)
+import PostgREST.App         (postgrest)
 import PostgREST.Config
-import PostgREST.DbStructure      (getDbStructure, getPgVersion)
-import PostgREST.DbStructureTypes (DbStructure)
-import PostgREST.Error            (PgError (PgError), checkIsFatal,
-                                   errorPayload)
-import PostgREST.PgVersions       (PgVersion (..), minimumPgVersion)
-import PostgREST.Statements       (dbSettingsStatement)
-import Protolude                  hiding (hPutStrLn, head, toS)
-import Protolude.Conv             (toS)
+import PostgREST.DbStructure (DbStructure, getDbStructure,
+                              getPgVersion)
+import PostgREST.Error       (PgError (PgError), checkIsFatal,
+                              errorPayload)
+import PostgREST.PgVersions  (PgVersion (..), minimumPgVersion)
+import PostgREST.Statements  (dbSettingsStatement)
+import Protolude             hiding (hPutStrLn, head, toS)
+import Protolude.Conv        (toS)
 
 
 #ifndef mingw32_HOST_OS
