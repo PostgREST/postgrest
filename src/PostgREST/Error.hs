@@ -26,7 +26,9 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import PostgREST.ContentTypes     (ContentType (..), toHeader, toMime)
+import           PostgREST.ContentType (ContentType (..))
+import qualified PostgREST.ContentType as ContentType
+
 import PostgREST.DbStructureTypes (Column (..), Link (..),
                                    Relation (..), Table (..))
 
@@ -70,7 +72,7 @@ instance PgrstError ApiRequestError where
   status AmbiguousRelBetween{}   = HT.status300
   status (UnacceptableSchema _)  = HT.status406
 
-  headers _ = [toHeader CTApplicationJSON]
+  headers _ = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (ParseRequestError message details) = JSON.object [
@@ -123,8 +125,8 @@ instance PgrstError PgError where
 
   headers err =
     if status err == HT.status401
-       then [toHeader CTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
-       else [toHeader CTApplicationJSON]
+       then [ContentType.toHeader CTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
+       else [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
@@ -252,11 +254,11 @@ instance PgrstError Error where
   status (PgErr err)             = status err
   status (ApiRequestError err)   = status err
 
-  headers (SingularityError _)     = [toHeader CTSingularJSON]
-  headers (JwtTokenInvalid m)      = [toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers (SingularityError _)     = [ContentType.toHeader CTSingularJSON]
+  headers (JwtTokenInvalid m)      = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
   headers (PgErr err)              = headers err
   headers (ApiRequestError err)    = headers err
-  headers _                        = [toHeader CTApplicationJSON]
+  headers _                        = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON Error where
   toJSON GucHeadersError           = JSON.object [
@@ -264,7 +266,7 @@ instance JSON.ToJSON Error where
   toJSON GucStatusError           = JSON.object [
     "message" .= ("response.status guc must be a valid status code" :: Text)]
   toJSON (BinaryFieldError ct)          = JSON.object [
-    "message" .= ((toS (toMime ct) <> " requested but more than one column was selected") :: Text)]
+    "message" .= ((toS (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [
     "message" .= ("Database connection lost. Retrying the connection." :: Text)]
 
@@ -277,7 +279,7 @@ instance JSON.ToJSON Error where
     "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
   toJSON (SingularityError n)      = JSON.object [
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", toS (toMime CTSingularJSON), "requires 1 row"]]
+    "details" .= T.unwords ["Results contain", show n, "rows,", toS (ContentType.toMime CTSingularJSON), "requires 1 row"]]
 
   toJSON JwtTokenMissing           = JSON.object [
     "message" .= ("Server lacks JWT secret" :: Text)]

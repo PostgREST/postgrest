@@ -1,6 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module PostgREST.ContentTypes
+module PostgREST.ContentType
   ( ContentType(..)
   , toHeader
   , toMime

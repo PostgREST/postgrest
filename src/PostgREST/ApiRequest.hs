@@ -44,8 +44,7 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
-import PostgREST.ContentTypes          (ContentType (..),
-                                        decodeContentType, toMime)
+import PostgREST.ContentType           (ContentType (..))
 import PostgREST.DbStructureTypes      (DbStructure (..), FieldName,
                                         PgArg (..),
                                         ProcDescription (..),
@@ -63,6 +62,8 @@ import PostgREST.RangeQuery            (NonnegRange, allRange,
                                         rangeGeq, rangeLimit,
                                         rangeOffset, rangeRequested,
                                         restrictRange)
+
+import qualified PostgREST.ContentType as ContentType
 
 import Protolude      hiding (head, toS)
 import Protolude.Conv (toS)
@@ -170,7 +171,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       , iTarget = target
       , iRange = ranges
       , iTopLevelRange = topLevelRange
-      , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
+      , iAccepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
       , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
@@ -229,7 +230,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
   isTargetingDefaultSpec = case target of
     TargetDefaultSpec _ -> True
     _                   -> False
-  contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
+  contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
     | otherwise = Nothing
@@ -263,7 +264,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
           let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> urlEncodedBody in
           Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
-      Left $ toS $ "Content-Type not acceptable: " <> toMime ct
+      Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of

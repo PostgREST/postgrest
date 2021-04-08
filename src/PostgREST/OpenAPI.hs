@@ -21,10 +21,8 @@ import Control.Lens (at, (.~), (?~))
 
 import Data.Swagger
 
-import PostgREST.ApiRequest       (ContentType (..))
 import PostgREST.Config           (AppConfig (..), Proxy (..),
                                    docsVersion, prettyVersion)
-import PostgREST.ContentTypes     (toMime)
 import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    ForeignKey (..), PgArg (..),
                                    PrimaryKey (..),
@@ -32,6 +30,8 @@ import PostgREST.DbStructureTypes (Column (..), DbStructure (..),
                                    tableCols, tableName, tablePKCols,
                                    tableSchema)
 import PostgREST.Private.ProxyUri (isMalformedProxyUri, toURI)
+
+import PostgREST.ContentType
 
 import Protolude      hiding (Proxy, get, toS)
 import Protolude.Conv (toS)

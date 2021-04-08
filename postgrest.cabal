@@ -38,7 +38,7 @@ library
                       PostgREST.App
                       PostgREST.Auth
                       PostgREST.Config
-                      PostgREST.ContentTypes
+                      PostgREST.ContentType
                       PostgREST.DbRequestBuilder
                       PostgREST.DbStructure
                       PostgREST.DbStructureTypes

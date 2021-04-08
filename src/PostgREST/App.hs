@@ -44,9 +44,7 @@ import qualified PostgREST.Statements       as Statements
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    InvokeMethod (..), Target (..))
 import PostgREST.Config           (AppConfig (..), LogLevel (..))
-import PostgREST.ContentTypes     (ContentType (..),
-                                   decodeContentType, toHeader,
-                                   toMime)
+import PostgREST.ContentType      (ContentType (..))
 import PostgREST.DbStructureTypes (DbStructure (..), FieldName,
                                    ProcDescription (..),
                                    ProcVolatility (..),
@@ -61,6 +59,8 @@ import PostgREST.Preferences      (PreferCount (..),
                                    PreferParameters (..),
                                    PreferRepresentation (..))
 import PostgREST.Queries          (ReadRequest, fstFieldNames)
+
+import qualified PostgREST.ContentType as ContentType
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -137,7 +137,7 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure pool time req = do
       Just ct ->
         return ct
       Nothing ->
-        throwError . Error.ContentTypeError $ map toMime iAccepts
+        throwError . Error.ContentTypeError $ map ContentType.toMime iAccepts
 
   let
     handleReq apiReq =
@@ -419,7 +419,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
 
   return $
     Wai.responseLBS HTTP.status200
-      (toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
+      (ContentType.toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
       (if headersOnly then mempty else toS body)
 
 txMode :: ApiRequest -> SQL.Mode
@@ -517,7 +517,7 @@ readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure ap
 
 contentTypeHeaders :: RequestContext -> [HTTP.Header]
 contentTypeHeaders RequestContext{..} =
-  toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
+  ContentType.toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
 
 requestContentTypes :: AppConfig -> ApiRequest -> [ContentType]
 requestContentTypes conf ApiRequest{..} =
@@ -556,7 +556,7 @@ binaryField RequestContext{..} readReq
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
-  (decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
