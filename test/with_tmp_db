@@ -40,7 +40,7 @@ tmpdir="$(mktemp -d)"
 if [ -n "$keeptmp" ]; then
   echo "The temporary directory at $tmpdir will be preserved after exit."
 else
-  trap "rm -rf \"$tmpdir\"" sigint sigterm exit
+  trap 'rm -rf "$tmpdir"' sigint sigterm exit
 fi
 
 dblog="$tmpdir/db.log"
