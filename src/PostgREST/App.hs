@@ -45,6 +45,9 @@ import PostgREST.ApiRequest              (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
                                           Target (..))
+import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..))
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..))
 import PostgREST.ContentType             (ContentType (..))
@@ -60,9 +63,6 @@ import PostgREST.Error                   (Error)
 import PostgREST.Headers                 (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
-import PostgREST.Preferences             (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..))
 import PostgREST.Queries                 (ReadRequest, fstFieldNames)
 
 import qualified PostgREST.ContentType      as ContentType

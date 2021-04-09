@@ -35,6 +35,7 @@ library
                       NoImplicitPrelude
   hs-source-dirs:     src
   exposed-modules:    PostgREST.ApiRequest
+                      PostgREST.ApiRequest.Preferences
                       PostgREST.App
                       PostgREST.Auth
                       PostgREST.Config
@@ -52,15 +53,13 @@ library
                       PostgREST.OpenAPI
                       PostgREST.Parsers
                       PostgREST.PgVersions
-                      PostgREST.Preferences
                       PostgREST.ProxyUri
                       PostgREST.Queries
                       PostgREST.QueryBuilder
                       PostgREST.RangeQuery
                       PostgREST.Statements
+                      PostgREST.SqlFragment
   other-modules:      Paths_postgrest
-                      PostgREST.Private.Common
-                      PostgREST.Private.QueryFragment
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4
                     , Ranged-sets               >= 0.3 && < 0.5

@@ -44,6 +44,11 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
+import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..),
+                                          PreferResolution (..),
+                                          PreferTransaction (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -54,16 +59,11 @@ import PostgREST.DbStructure.Proc        (PgArg (..),
                                           findProc)
 import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.Parsers                 (pRequestColumns)
-import PostgREST.Preferences             (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..),
-                                          PreferResolution (..),
-                                          PreferTransaction (..))
-import PostgREST.Private.QueryFragment   (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
                                           rangeOffset, rangeRequested,
                                           restrictRange)
+import PostgREST.SqlFragment             (ftsOperators, operators)
 
 import qualified PostgREST.ContentType as ContentType
 

@@ -22,18 +22,17 @@ import qualified Hasql.DynamicStatements.Snippet as H
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest              (PayloadJSON (..))
+import PostgREST.ApiRequest.Preferences  (PreferParameters (..),
+                                          PreferResolution (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc        (PgArg (..))
 import PostgREST.DbStructure.Relation    (Cardinality (..),
                                           Relation (..))
 import PostgREST.DbStructure.Table       (Table (..))
-import PostgREST.Preferences             (PreferParameters (..),
-                                          PreferResolution (..))
 
-import PostgREST.Private.Common
-import PostgREST.Private.QueryFragment
 import PostgREST.Queries
+import PostgREST.SqlFragment
 
 import Protolude
 
@@ -180,3 +179,6 @@ readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
 
 limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
+
+emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
+emptySnippetOnFalse val cond = if cond then mempty else val

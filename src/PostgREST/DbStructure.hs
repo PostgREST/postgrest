@@ -55,7 +55,6 @@ import PostgREST.DbStructure.Relation    (Cardinality (..),
                                           Relation (..))
 import PostgREST.DbStructure.Table       (Column (..), Table (..))
 import PostgREST.PgVersions              (PgVersion (..))
-import PostgREST.Private.Common
 
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)
@@ -885,3 +884,24 @@ getPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
+
+param :: HE.Value a -> HE.Params a
+param = HE.param . HE.nonNullable
+
+arrayParam :: HE.Value a -> HE.Params [a]
+arrayParam = param . HE.foldableArray . HE.nonNullable
+
+compositeArrayColumn :: HD.Composite a -> HD.Row [a]
+compositeArrayColumn = arrayColumn . HD.composite
+
+compositeField :: HD.Value a -> HD.Composite a
+compositeField = HD.field . HD.nonNullable
+
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+arrayColumn :: HD.Value a -> HD.Row [a]
+arrayColumn = column . HD.listArray . HD.nonNullable

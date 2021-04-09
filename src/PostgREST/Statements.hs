@@ -37,10 +37,9 @@ import PostgREST.Error      (Error (..))
 import PostgREST.Headers    (GucHeader)
 import PostgREST.PgVersions (PgVersion)
 
+import PostgREST.ApiRequest.Preferences
 import PostgREST.DbStructure.Identifiers (FieldName)
-import PostgREST.Preferences
-import PostgREST.Private.Common
-import PostgREST.Private.QueryFragment
+import PostgREST.SqlFragment
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS)
@@ -220,3 +219,12 @@ dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
       order by key, setdatabase desc;
     |]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
+
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+arrayColumn :: HD.Value a -> HD.Row [a]
+arrayColumn = column . HD.listArray . HD.nonNullable

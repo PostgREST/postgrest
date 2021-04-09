@@ -6,7 +6,35 @@ Description : Helper functions for PostgREST.QueryBuilder.
 
 Any function that outputs a SqlFragment should be in this module.
 -}
-module PostgREST.Private.QueryFragment where
+module PostgREST.SqlFragment
+  ( noLocationF
+  , SqlFragment
+  , asBinaryF
+  , asCsvF
+  , asJsonF
+  , asJsonSingleF
+  , countF
+  , fromQi
+  , ftsOperators
+  , jsonPlaceHolder
+  , limitOffsetF
+  , locationF
+  , normalizedBody
+  , operators
+  , pgFmtColumn
+  , pgFmtIdent
+  , pgFmtJoinCondition
+  , pgFmtLogicTree
+  , pgFmtOrderTerm
+  , pgFmtSelectItem
+  , responseHeadersF
+  , responseStatusF
+  , returningF
+  , selectBody
+  , sourceCTEName
+  , unknownLiteral
+  , intercalateSnippet
+  ) where
 
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
@@ -15,12 +43,12 @@ import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
 import qualified Hasql.Encoders                  as HE
 
+import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
 import PostgREST.PgVersions              (PgVersion, pgVersion96)
-import PostgREST.Private.Common          (intercalateSnippet)
 import PostgREST.Queries                 (Alias, Field, Filter (..),
                                           JoinCondition (..),
                                           JsonOperand (..),
@@ -282,9 +310,13 @@ currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
 
--- Hasql Snippet utilitarians
+-- Hasql Snippet utilities
 unknownEncoder :: ByteString -> H.Snippet
 unknownEncoder = H.encoderAndParam (HE.nonNullable HE.unknown)
 
 unknownLiteral :: Text -> H.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
+
+intercalateSnippet :: ByteString -> [H.Snippet] -> H.Snippet
+intercalateSnippet _ [] = mempty
+intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets

@@ -42,12 +42,13 @@ import PostgREST.DbStructure.Table       (Column (..), Table (..),
                                           tableQi)
 import PostgREST.Error                   (ApiRequestError (..),
                                           Error (..))
-import PostgREST.Parsers
-import PostgREST.Preferences
-import PostgREST.Private.QueryFragment   (sourceCTEName)
-import PostgREST.Queries
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           restrictRange)
+import PostgREST.SqlFragment             (sourceCTEName)
+
+import PostgREST.ApiRequest.Preferences
+import PostgREST.Parsers
+import PostgREST.Queries
 
 import qualified PostgREST.DbStructure.Relation as Relation
 
