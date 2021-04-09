@@ -36,6 +36,7 @@ library
   hs-source-dirs:     src
   exposed-modules:    PostgREST.App
                       PostgREST.Auth
+                      PostgREST.CLI
                       PostgREST.Config
                       PostgREST.Config.JSPath
                       PostgREST.Config.Proxy
