@@ -38,6 +38,10 @@ module PostgREST.Config
   , readDbUriFile
   , readSecretFile
   , parseSecret
+  , JSPath
+  , JSPathExp(..)
+  , isMalformedProxyUri
+  , toURI
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -74,8 +78,8 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 import Text.Heredoc            (str)
 
-import PostgREST.JSPath   (JSPath, JSPathExp (..), pRoleClaimKey)
-import PostgREST.ProxyUri (isMalformedProxyUri)
+import PostgREST.Config.JSPath (JSPath, JSPathExp (..), pRoleClaimKey)
+import PostgREST.Config.Proxy  (Proxy(..), isMalformedProxyUri, toURI)
 
 import Protolude      hiding (Proxy, toList, toS)
 import Protolude.Conv (toS)
@@ -133,13 +137,6 @@ instance Show LogLevel where
   show LogError = "error"
   show LogWarn  = "warn"
   show LogInfo  = "info"
-
-data Proxy = Proxy
-  { proxyScheme :: Text
-  , proxyHost   :: Text
-  , proxyPort   :: Integer
-  , proxyPath   :: Text
-  }
 
 -- | User friendly version number
 prettyVersion :: Text

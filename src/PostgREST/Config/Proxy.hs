@@ -3,8 +3,9 @@
 Module      : PostgREST.Private.ProxyUri
 Description : Proxy Uri validator
 -}
-module PostgREST.ProxyUri
-  ( isMalformedProxyUri
+module PostgREST.Config.Proxy
+  ( Proxy(..)
+  , isMalformedProxyUri
   , toURI
   ) where
 
@@ -15,6 +16,13 @@ import Network.URI (URI (..), URIAuth (..), isAbsoluteURI, parseURI)
 import Protolude      hiding (Proxy, dropWhile, get, intercalate,
                        toLower, toS, (&))
 import Protolude.Conv (toS)
+
+data Proxy = Proxy
+  { proxyScheme :: Text
+  , proxyHost   :: Text
+  , proxyPort   :: Integer
+  , proxyPath   :: Text
+  }
 
 {-|
   Test whether a proxy uri is malformed or not.

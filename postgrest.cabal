@@ -39,6 +39,8 @@ library
                       PostgREST.App
                       PostgREST.Auth
                       PostgREST.Config
+                      PostgREST.Config.JSPath
+                      PostgREST.Config.Proxy
                       PostgREST.ContentType
                       PostgREST.DbRequestBuilder
                       PostgREST.DbStructure
@@ -48,12 +50,10 @@ library
                       PostgREST.DbStructure.Table
                       PostgREST.Error
                       PostgREST.Headers
-                      PostgREST.JSPath
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Parsers
                       PostgREST.PgVersions
-                      PostgREST.ProxyUri
                       PostgREST.Queries
                       PostgREST.QueryBuilder
                       PostgREST.RangeQuery

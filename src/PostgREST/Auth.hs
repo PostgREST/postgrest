@@ -23,9 +23,8 @@ import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.Time.Clock         (UTCTime)
 
-import PostgREST.Config (AppConfig (..))
+import PostgREST.Config (AppConfig (..), JSPath, JSPathExp (..))
 import PostgREST.Error  (Error (..))
-import PostgREST.JSPath (JSPath, JSPathExp (..))
 
 import Protolude
 
