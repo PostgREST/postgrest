@@ -3,10 +3,10 @@
 Module      : PostgREST.Private.ProxyUri
 Description : Proxy Uri validator
 -}
-module PostgREST.Private.ProxyUri (
-  isMalformedProxyUri
-, toURI
-) where
+module PostgREST.ProxyUri
+  ( isMalformedProxyUri
+  , toURI
+  ) where
 
 import Data.Maybe  (fromJust)
 import Data.Text   (pack, toLower)

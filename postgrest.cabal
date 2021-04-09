@@ -53,13 +53,13 @@ library
                       PostgREST.Parsers
                       PostgREST.PgVersions
                       PostgREST.Preferences
+                      PostgREST.ProxyUri
                       PostgREST.Queries
                       PostgREST.QueryBuilder
                       PostgREST.RangeQuery
                       PostgREST.Statements
   other-modules:      Paths_postgrest
                       PostgREST.Private.Common
-                      PostgREST.Private.ProxyUri
                       PostgREST.Private.QueryFragment
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4

@@ -30,7 +30,7 @@ import PostgREST.DbStructure.Proc     (PgArg (..),
 import PostgREST.DbStructure.Relation (PrimaryKey (..))
 import PostgREST.DbStructure.Table    (Column (..), ForeignKey (..),
                                        Table (..))
-import PostgREST.Private.ProxyUri     (isMalformedProxyUri, toURI)
+import PostgREST.ProxyUri             (isMalformedProxyUri, toURI)
 
 import PostgREST.ContentType
 
