@@ -107,7 +107,7 @@ let
         inRootDir = true;
       }
       ''
-        dumpdir="$1"
+        dumpdir="''${1:?dumpdir not set}"
         tmpdir="$(mktemp -d)"
         mkdir -p "$dumpdir"
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
@@ -141,7 +141,10 @@ let
         name = "postgrest-hsie-graph-modules";
         docs = "Create a PNG graph of modules imported within the codebase.";
       }
-      ''${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$1"'';
+      ''
+        outfile="''${1:?outfile not set}"
+        ${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$outfile"
+      '';
 
   hsieGraphSymbols =
     checkedShellScript
@@ -149,7 +152,10 @@ let
         name = "postgrest-hsie-graph-symbols";
         docs = "Create a PNG graph of symbols imported within the codebase.";
       }
-      ''${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$1"'';
+      ''
+        outfile="''${1:?outfile not set}"
+        ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$outfile"
+      '';
 in
 buildEnv {
   name = "postgrest-devtools";
