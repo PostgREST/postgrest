@@ -101,10 +101,3 @@ Client-Side Libraries
 * `py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
 * `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
 * `vue-postgrest <https://github.com/technowledgy/vue-postgrest>`_ - Vue.js
-
-.. _eco_commercial:
-
-Commercial
----------------
-
-* `subZero <https://subzero.cloud/>`_ - Automated GraphQL & REST API with built-in caching (powered in part by PostgREST)
