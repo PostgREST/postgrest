@@ -12,12 +12,12 @@ import Data.Time.Clock    (getCurrentTime)
 import Data.IORef
 import Test.Hspec
 
-import PostgREST.App         (postgrest)
-import PostgREST.Config      (AppConfig (..), LogLevel (..))
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.PgVersions  (pgVersion96)
-import Protolude             hiding (toList, toS)
-import Protolude.Conv        (toS)
+import PostgREST.App                   (postgrest)
+import PostgREST.Config                (AppConfig (..), LogLevel (..))
+import PostgREST.DbStructure           (getDbStructure, getPgVersion)
+import PostgREST.DbStructure.PgVersion (pgVersion96)
+import Protolude                       hiding (toList, toS)
+import Protolude.Conv                  (toS)
 import SpecHelper
 
 import qualified Feature.AndOrParamsSpec

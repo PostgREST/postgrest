@@ -45,6 +45,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
+import PostgREST.DbStructure.PgVersion   (PgVersion (..))
 import PostgREST.DbStructure.Proc        (PgArg (..), PgType (..),
                                           ProcDescription (..),
                                           ProcVolatility (..),
@@ -54,7 +55,6 @@ import PostgREST.DbStructure.Relation    (Cardinality (..),
                                           PrimaryKey (..),
                                           Relation (..))
 import PostgREST.DbStructure.Table       (Column (..), Table (..))
-import PostgREST.PgVersions              (PgVersion (..))
 
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)

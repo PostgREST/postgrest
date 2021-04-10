@@ -22,7 +22,9 @@ import Control.Lens (at, (.~), (?~))
 import Data.Swagger
 
 import PostgREST.Config               (AppConfig (..), Proxy (..),
-                                       docsVersion, prettyVersion, isMalformedProxyUri, toURI)
+                                       docsVersion,
+                                       isMalformedProxyUri,
+                                       prettyVersion, toURI)
 import PostgREST.DbStructure          (DbStructure (..), tableCols,
                                        tablePKCols)
 import PostgREST.DbStructure.Proc     (PgArg (..),

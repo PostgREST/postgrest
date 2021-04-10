@@ -79,7 +79,8 @@ import System.Posix.Types      (FileMode)
 import Text.Heredoc            (str)
 
 import PostgREST.Config.JSPath (JSPath, JSPathExp (..), pRoleClaimKey)
-import PostgREST.Config.Proxy  (Proxy(..), isMalformedProxyUri, toURI)
+import PostgREST.Config.Proxy  (Proxy (..), isMalformedProxyUri,
+                                toURI)
 
 import Protolude      hiding (Proxy, toList, toS)
 import Protolude.Conv (toS)

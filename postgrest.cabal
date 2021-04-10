@@ -48,12 +48,12 @@ library
                       PostgREST.DbStructure.Proc
                       PostgREST.DbStructure.Relation
                       PostgREST.DbStructure.Table
+                      PostgREST.DbStructure.PgVersion
                       PostgREST.Error
                       PostgREST.Headers
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Parsers
-                      PostgREST.PgVersions
                       PostgREST.Queries
                       PostgREST.QueryBuilder
                       PostgREST.RangeQuery

@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
-module PostgREST.PgVersions
+module PostgREST.DbStructure.PgVersion
   ( PgVersion(..)
   , minimumPgVersion
   , pgVersion95
