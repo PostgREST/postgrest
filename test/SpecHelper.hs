@@ -22,8 +22,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
-import PostgREST.Config (AppConfig (..), LogLevel (..), parseSecret)
-import PostgREST.JSPath (JSPathExp (..))
+import PostgREST.Config (AppConfig (..), JSPathExp (..),
+                         LogLevel (..), parseSecret)
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)
 
