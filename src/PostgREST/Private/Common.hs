@@ -33,9 +33,6 @@ param = HE.param . HE.nonNullable
 arrayParam :: HE.Value a -> HE.Params [a]
 arrayParam = param . HE.foldableArray . HE.nonNullable
 
-emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
-emptySnippetOnFalse val cond = if cond then mempty else val
-
 intercalateSnippet :: ByteString -> [H.Snippet] -> H.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets

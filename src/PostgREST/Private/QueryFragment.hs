@@ -120,9 +120,6 @@ fromQi t = (if T.null s then mempty else pgFmtIdent s <> ".") <> pgFmtIdent n
     n = qiName t
     s = qiSchema t
 
-emptyOnFalse :: SqlFragment -> Bool -> SqlFragment
-emptyOnFalse val cond = if cond then mempty else val
-
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
@@ -226,7 +223,7 @@ returningF qi returnings =
 
 limitOffsetF :: NonnegRange -> H.Snippet
 limitOffsetF range =
-  ("LIMIT " <> limit <> " OFFSET " <> offset) `emptySnippetOnFalse` (range == allRange)
+  if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
