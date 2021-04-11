@@ -1,5 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-module PostgREST.Queries
+module PostgREST.Request.Types
   ( Alias
   , Depth
   , EmbedHint
@@ -36,11 +36,11 @@ import Data.Tree (Tree (..))
 
 import qualified GHC.Show (show)
 
-import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier)
 import PostgREST.DbStructure.Relation    (Relation)
 import PostgREST.RangeQuery              (NonnegRange)
+import PostgREST.Request.Preferences     (PreferResolution)
 
 import Protolude
 

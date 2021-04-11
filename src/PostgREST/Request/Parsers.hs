@@ -1,10 +1,10 @@
 {-|
-Module      : PostgREST.Parsers
+Module      : PostgREST.Request.Parsers
 Description : PostgREST parser combinators
 
 This module is in charge of parsing all the querystring values in an url, e.g. the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
 -}
-module PostgREST.Parsers
+module PostgREST.Request.Parsers
   ( pColumns
   , pLogicPath
   , pLogicSingleVal
@@ -42,11 +42,10 @@ import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
 
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.Error                   (ApiRequestError (ParseRequestError))
+import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange)
-import PostgREST.SqlFragment             (ftsOperators, operators)
 
-import PostgREST.Queries
-
+import PostgREST.Request.Types
 
 import Protolude      hiding (intercalate, option, replace, toS, try)
 import Protolude.Conv (toS)

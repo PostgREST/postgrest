@@ -11,7 +11,11 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
-module PostgREST.Auth (containsRole, jwtClaims, JWTClaims) where
+module PostgREST.Auth
+  ( containsRole
+  , jwtClaims
+  , JWTClaims
+  ) where
 
 import qualified Crypto.JWT          as JWT
 import qualified Data.Aeson          as JSON

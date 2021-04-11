@@ -30,24 +30,17 @@ import qualified Network.HTTP.Types.Status       as HTTP
 import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
 
-import qualified PostgREST.ApiRequest       as ApiRequest
-import qualified PostgREST.Auth             as Auth
-import qualified PostgREST.DbRequestBuilder as ReqBuilder
-import qualified PostgREST.DbStructure      as DbStructure
-import qualified PostgREST.Error            as Error
-import qualified PostgREST.Middleware       as Middleware
-import qualified PostgREST.OpenAPI          as OpenAPI
-import qualified PostgREST.QueryBuilder     as QueryBuilder
-import qualified PostgREST.RangeQuery       as RangeQuery
-import qualified PostgREST.Statements       as Statements
+import qualified PostgREST.Auth                     as Auth
+import qualified PostgREST.DbStructure              as DbStructure
+import qualified PostgREST.Error                    as Error
+import qualified PostgREST.Middleware               as Middleware
+import qualified PostgREST.OpenAPI                  as OpenAPI
+import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
+import qualified PostgREST.Query.Statements         as Statements
+import qualified PostgREST.RangeQuery               as RangeQuery
+import qualified PostgREST.Request.ApiRequest       as ApiRequest
+import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
-import PostgREST.ApiRequest              (Action (..),
-                                          ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Target (..))
-import PostgREST.ApiRequest.Preferences  (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..))
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..))
 import PostgREST.ContentType             (ContentType (..))
@@ -63,7 +56,14 @@ import PostgREST.Error                   (Error)
 import PostgREST.Headers                 (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
-import PostgREST.Queries                 (ReadRequest, fstFieldNames)
+import PostgREST.Request.ApiRequest      (Action (..),
+                                          ApiRequest (..),
+                                          InvokeMethod (..),
+                                          Target (..))
+import PostgREST.Request.Preferences     (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..))
+import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 
 import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc

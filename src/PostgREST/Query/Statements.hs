@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-|
-Module      : PostgREST.Statements
+Module      : PostgREST.Query.Statements
 Description : PostgREST single SQL statements.
 
 This module constructs single SQL statements that can be parametrized and prepared.
@@ -10,7 +10,7 @@ This module constructs single SQL statements that can be parametrized and prepar
 
 TODO: Currently, createReadStatement is not using prepared statements. See https://github.com/PostgREST/postgrest/issues/718.
 -}
-module PostgREST.Statements
+module PostgREST.Query.Statements
   ( createWriteStatement
   , createReadStatement
   , callProcStatement
@@ -37,9 +37,9 @@ import PostgREST.DbStructure.PgVersion (PgVersion)
 import PostgREST.Error                 (Error (..))
 import PostgREST.Headers               (GucHeader)
 
-import PostgREST.ApiRequest.Preferences
 import PostgREST.DbStructure.Identifiers (FieldName)
-import PostgREST.SqlFragment
+import PostgREST.Query.SqlFragment
+import PostgREST.Request.Preferences
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS)

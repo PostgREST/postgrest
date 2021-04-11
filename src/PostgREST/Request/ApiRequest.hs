@@ -1,12 +1,12 @@
 {-|
-Module      : PostgREST.ApiRequest
+Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE MultiWayIf     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module PostgREST.ApiRequest
+module PostgREST.Request.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
   , ContentType(..)
@@ -44,11 +44,6 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
-import PostgREST.ApiRequest.Preferences  (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..),
-                                          PreferResolution (..),
-                                          PreferTransaction (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -58,12 +53,17 @@ import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
                                           findProc)
 import PostgREST.Error                   (ApiRequestError (..))
-import PostgREST.Parsers                 (pRequestColumns)
+import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
                                           rangeOffset, rangeRequested,
                                           restrictRange)
-import PostgREST.SqlFragment             (ftsOperators, operators)
+import PostgREST.Request.Parsers         (pRequestColumns)
+import PostgREST.Request.Preferences     (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..),
+                                          PreferResolution (..),
+                                          PreferTransaction (..))
 
 import qualified PostgREST.ContentType as ContentType
 

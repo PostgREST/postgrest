@@ -38,7 +38,7 @@ import PostgREST.DbStructure.PgVersion (PgVersion (..),
                                         minimumPgVersion)
 import PostgREST.Error                 (PgError (PgError),
                                         checkIsFatal, errorPayload)
-import PostgREST.Statements            (dbSettingsStatement)
+import PostgREST.Query.Statements      (dbSettingsStatement)
 
 import Protolude      hiding (hPutStrLn, head, toS)
 import Protolude.Conv (toS)

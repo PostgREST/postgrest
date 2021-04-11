@@ -34,31 +34,31 @@ library
   default-extensions: OverloadedStrings
                       NoImplicitPrelude
   hs-source-dirs:     src
-  exposed-modules:    PostgREST.ApiRequest
-                      PostgREST.ApiRequest.Preferences
-                      PostgREST.App
+  exposed-modules:    PostgREST.App
                       PostgREST.Auth
                       PostgREST.Config
                       PostgREST.Config.JSPath
                       PostgREST.Config.Proxy
                       PostgREST.ContentType
-                      PostgREST.DbRequestBuilder
                       PostgREST.DbStructure
                       PostgREST.DbStructure.Identifiers
+                      PostgREST.DbStructure.PgVersion
                       PostgREST.DbStructure.Proc
                       PostgREST.DbStructure.Relation
                       PostgREST.DbStructure.Table
-                      PostgREST.DbStructure.PgVersion
                       PostgREST.Error
                       PostgREST.Headers
                       PostgREST.Middleware
                       PostgREST.OpenAPI
-                      PostgREST.Parsers
-                      PostgREST.Queries
-                      PostgREST.QueryBuilder
+                      PostgREST.Query.QueryBuilder
+                      PostgREST.Query.SqlFragment
+                      PostgREST.Query.Statements
                       PostgREST.RangeQuery
-                      PostgREST.Statements
-                      PostgREST.SqlFragment
+                      PostgREST.Request.ApiRequest
+                      PostgREST.Request.DbRequestBuilder
+                      PostgREST.Request.Parsers
+                      PostgREST.Request.Preferences
+                      PostgREST.Request.Types
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4

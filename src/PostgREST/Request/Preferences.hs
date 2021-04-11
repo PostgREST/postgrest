@@ -1,4 +1,4 @@
-module PostgREST.ApiRequest.Preferences where
+module PostgREST.Request.Preferences where
 
 import GHC.Show
 import Protolude

@@ -1,5 +1,5 @@
 {-|
-Module      : PostgREST.DbRequestBuilder
+Module      : PostgREST.Request.DbRequestBuilder
 Description : PostgREST database request builder
 
 This module is in charge of building an intermediate
@@ -15,7 +15,7 @@ resource.
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
 
-module PostgREST.DbRequestBuilder
+module PostgREST.Request.DbRequestBuilder
   ( readRequest
   , mutateRequest
   , returningCols
@@ -30,9 +30,6 @@ import Data.List               (delete)
 import Data.Text               (isInfixOf)
 import Data.Tree               (Tree (..))
 
-import PostgREST.ApiRequest              (Action (..),
-                                          ApiRequest (..),
-                                          PayloadJSON (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema, TableName)
@@ -42,13 +39,16 @@ import PostgREST.DbStructure.Table       (Column (..), Table (..),
                                           tableQi)
 import PostgREST.Error                   (ApiRequestError (..),
                                           Error (..))
+import PostgREST.Query.SqlFragment       (sourceCTEName)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           restrictRange)
-import PostgREST.SqlFragment             (sourceCTEName)
+import PostgREST.Request.ApiRequest      (Action (..),
+                                          ApiRequest (..),
+                                          PayloadJSON (..))
 
-import PostgREST.ApiRequest.Preferences
-import PostgREST.Parsers
-import PostgREST.Queries
+import PostgREST.Request.Parsers
+import PostgREST.Request.Preferences
+import PostgREST.Request.Types
 
 import qualified PostgREST.DbStructure.Relation as Relation
 
