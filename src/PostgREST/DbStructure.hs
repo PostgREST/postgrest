@@ -8,6 +8,8 @@ The schema cache is necessary for resource embedding, foreign keys are used for 
 
 These queries are executed once at startup or when PostgREST is reloaded.
 -}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
@@ -16,14 +18,18 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
-module PostgREST.DbStructure (
-  getDbStructure
-, accessibleTables
-, accessibleProcs
-, schemaDescription
-, getPgVersion
-) where
+module PostgREST.DbStructure
+  ( DbStructure(..)
+  , getDbStructure
+  , accessibleTables
+  , accessibleProcs
+  , schemaDescription
+  , getPgVersion
+  , tableCols
+  , tablePKCols
+  ) where
 
+import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
@@ -35,13 +41,52 @@ import qualified Hasql.Transaction   as HT
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (split)
-import Protolude                     hiding (toS)
-import Protolude.Conv                (toS)
-import Protolude.Unsafe              (unsafeHead)
 import Text.InterpolatedString.Perl6 (q)
 
-import PostgREST.Private.Common
-import PostgREST.Types
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
+                                          Schema, TableName)
+import PostgREST.DbStructure.PgVersion   (PgVersion (..))
+import PostgREST.DbStructure.Proc        (PgArg (..), PgType (..),
+                                          ProcDescription (..),
+                                          ProcVolatility (..),
+                                          ProcsMap, RetType (..))
+import PostgREST.DbStructure.Relation    (Cardinality (..),
+                                          ForeignKey (..), Link (..),
+                                          PrimaryKey (..),
+                                          Relation (..))
+import PostgREST.DbStructure.Table       (Column (..), Table (..))
+
+import Protolude        hiding (toS)
+import Protolude.Conv   (toS)
+import Protolude.Unsafe (unsafeHead)
+
+
+data DbStructure = DbStructure
+  { dbTables      :: [Table]
+  , dbColumns     :: [Column]
+  , dbRelations   :: [Relation]
+  , dbPrimaryKeys :: [PrimaryKey]
+  , dbProcs       :: ProcsMap
+  , pgVersion     :: PgVersion
+  }
+  deriving (Generic, JSON.ToJSON)
+
+-- TODO Table could hold references to all its Columns
+tableCols :: DbStructure -> Schema -> TableName -> [Column]
+tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
+
+-- TODO Table could hold references to all its PrimaryKeys
+tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
+tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+
+
+
+-- | The source table column a view column refers to
+type SourceColumn = (Column, ViewColumn)
+type ViewColumn = Column
+
+-- | A SQL query that can be executed independently
+type SqlQuery = ByteString
 
 getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure
 getDbStructure schemas extraSearchPath pgVer prepared = do
@@ -839,3 +884,24 @@ getPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
+
+param :: HE.Value a -> HE.Params a
+param = HE.param . HE.nonNullable
+
+arrayParam :: HE.Value a -> HE.Params [a]
+arrayParam = param . HE.foldableArray . HE.nonNullable
+
+compositeArrayColumn :: HD.Composite a -> HD.Row [a]
+compositeArrayColumn = arrayColumn . HD.composite
+
+compositeField :: HD.Value a -> HD.Composite a
+compositeField = HD.field . HD.nonNullable
+
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+arrayColumn :: HD.Value a -> HD.Row [a]
+arrayColumn = column . HD.listArray . HD.nonNullable

@@ -1,30 +1,54 @@
 {-|
-Module      : PostgREST.Parsers
+Module      : PostgREST.Request.Parsers
 Description : PostgREST parser combinators
 
 This module is in charge of parsing all the querystring values in an url, e.g. the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
 -}
-module PostgREST.Parsers where
+module PostgREST.Request.Parsers
+  ( pColumns
+  , pLogicPath
+  , pLogicSingleVal
+  , pLogicTree
+  , pOrder
+  , pOrderTerm
+  , pRequestColumns
+  , pRequestFilter
+  , pRequestLogicTree
+  , pRequestOnConflict
+  , pRequestOrder
+  , pRequestRange
+  , pRequestSelect
+  , pSingleVal
+  , pTreePath
+  ) where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Data.Either.Combinators (mapLeft)
-import Data.Foldable           (foldl1)
-import Data.List               (init, last)
-import Data.Text               (intercalate, replace, strip)
-import Text.Read               (read)
+import Data.Either.Combinators       (mapLeft)
+import Data.Foldable                 (foldl1)
+import Data.List                     (init, last)
+import Data.Text                     (intercalate, replace, strip)
+import Data.Tree                     (Tree (..))
+import Text.Parsec.Error             (errorMessages,
+                                      showErrorMessages)
+import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
+                                      anyChar, between, char, digit,
+                                      eof, errorPos, letter,
+                                      lookAhead, many1, noneOf,
+                                      notFollowedBy, oneOf, option,
+                                      optionMaybe, parse, sepBy1,
+                                      string, try, (<?>))
 
-import Data.Tree
-import Text.Parsec.Error
-import Text.ParserCombinators.Parsec hiding (many, (<|>))
+import PostgREST.DbStructure.Identifiers (FieldName)
+import PostgREST.Error                   (ApiRequestError (ParseRequestError))
+import PostgREST.Query.SqlFragment       (ftsOperators, operators)
+import PostgREST.RangeQuery              (NonnegRange)
 
-import PostgREST.Error      (ApiRequestError (ParseRequestError))
-import PostgREST.RangeQuery (NonnegRange)
-import PostgREST.Types
-import Protolude            hiding (intercalate, option, replace, toS,
-                             try)
-import Protolude.Conv       (toS)
+import PostgREST.Request.Types
+
+import Protolude      hiding (intercalate, option, replace, toS, try)
+import Protolude.Conv (toS)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -250,23 +274,3 @@ mapError = mapLeft translateError
         message = show $ errorPos e
         details = strip $ replace "\n" " " $ toS
            $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
-
--- Used for the config value "role-claim-key"
-pRoleClaimKey :: Text -> Either Text JSPath
-pRoleClaimKey selStr =
-  mapLeft show $ parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
-
-pJSPath :: Parser JSPath
-pJSPath = toJSPath <$> (period *> pPath `sepBy` period <* eof)
-  where
-    toJSPath :: [(Text, Maybe Int)] -> JSPath
-    toJSPath = concatMap (\(key, idx) -> JSPKey key : maybeToList (JSPIdx <$> idx))
-    period = char '.' <?> "period (.)"
-    pPath :: Parser (Text, Maybe Int)
-    pPath = (,) <$> pJSPKey <*> optionMaybe pJSPIdx
-
-pJSPKey :: Parser Text
-pJSPKey = toS <$> many1 (alphaNum <|> oneOf "_$@") <|> pQuotedValue <?> "attribute name [a..z0..9_$@])"
-
-pJSPIdx :: Parser Int
-pJSPIdx = char '[' *> (read <$> many1 digit) <* char ']' <?> "array index [0..n]"

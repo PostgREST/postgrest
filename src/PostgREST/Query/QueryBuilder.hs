@@ -1,22 +1,18 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# OPTIONS_GHC -fno-warn-orphans  #-}
 {-|
-Module      : PostgREST.QueryBuilder
+Module      : PostgREST.Query.QueryBuilder
 Description : PostgREST SQL queries generating functions.
 
 This module provides functions to consume data types that
 represent database queries (e.g. ReadRequest, MutateRequest) and SqlFragment
 to produce SqlQuery type outputs.
 -}
-module PostgREST.QueryBuilder (
-    readRequestToQuery
+module PostgREST.Query.QueryBuilder
+  ( readRequestToQuery
   , mutateRequestToQuery
   , readRequestToCountQuery
   , requestToCallProcQuery
   , limitedQuery
-  , setConfigLocal
   ) where
 
 import qualified Data.ByteString.Char8           as BS
@@ -25,12 +21,20 @@ import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
-import Data.Maybe
-import PostgREST.Private.Common
-import PostgREST.Private.QueryFragment
-import PostgREST.Types
-import Protolude                       hiding (cast, intercalate,
-                                        replace)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..))
+import PostgREST.DbStructure.Proc        (PgArg (..))
+import PostgREST.DbStructure.Relation    (Cardinality (..),
+                                          Relation (..))
+import PostgREST.DbStructure.Table       (Table (..))
+import PostgREST.Request.ApiRequest      (PayloadJSON (..))
+import PostgREST.Request.Preferences     (PreferParameters (..),
+                                          PreferResolution (..))
+
+import PostgREST.Query.SqlFragment
+import PostgREST.Request.Types
+
+import Protolude
 
 readRequestToQuery :: ReadRequest -> H.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
@@ -175,8 +179,3 @@ readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
 
 limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
-
--- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: Text -> (Text, Text) -> H.Snippet
-setConfigLocal prefix (k, v) =
-  "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"

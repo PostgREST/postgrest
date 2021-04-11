@@ -30,23 +30,38 @@ import System.CPUTime           (getCPUTime)
 import System.IO                (BufferMode (..), hSetBuffering)
 import Text.Printf              (hPrintf)
 
-import PostgREST.App         (postgrest)
+import PostgREST.App                   (postgrest)
 import PostgREST.Config
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
-import PostgREST.Error       (PgError (PgError), checkIsFatal,
-                              errorPayload)
-import PostgREST.Statements  (dbSettingsStatement)
-import PostgREST.Types       (ConnectionStatus (..), DbStructure,
-                              PgVersion (..), SCacheStatus (..),
-                              minimumPgVersion)
-import Protolude             hiding (hPutStrLn, head, toS)
-import Protolude.Conv        (toS)
+import PostgREST.DbStructure           (DbStructure, getDbStructure,
+                                        getPgVersion)
+import PostgREST.DbStructure.PgVersion (PgVersion (..),
+                                        minimumPgVersion)
+import PostgREST.Error                 (PgError (PgError),
+                                        checkIsFatal, errorPayload)
+import PostgREST.Query.Statements      (dbSettingsStatement)
+
+import Protolude      hiding (hPutStrLn, head, toS)
+import Protolude.Conv (toS)
 
 
 #ifndef mingw32_HOST_OS
 import System.Posix.Signals
 import UnixSocket
 #endif
+
+
+-- | Current database connection status data ConnectionStatus
+data ConnectionStatus
+  = NotConnected
+  | Connected PgVersion
+  | FatalConnectionError Text
+  deriving (Eq)
+
+-- | Schema cache status
+data SCacheStatus
+  = SCLoaded
+  | SCOnRetry
+  | SCFatalFail
 
 -- | This is where everything starts.
 main :: IO ()

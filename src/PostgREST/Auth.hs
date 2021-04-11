@@ -11,7 +11,11 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
-module PostgREST.Auth (containsRole, jwtClaims, JWTClaims) where
+module PostgREST.Auth
+  ( containsRole
+  , jwtClaims
+  , JWTClaims
+  ) where
 
 import qualified Crypto.JWT          as JWT
 import qualified Data.Aeson          as JSON
@@ -23,9 +27,8 @@ import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.Time.Clock         (UTCTime)
 
-import PostgREST.Config (AppConfig (..))
+import PostgREST.Config (AppConfig (..), JSPath, JSPathExp (..))
 import PostgREST.Error  (Error (..))
-import PostgREST.Types  (JSPath, JSPathExp (..))
 
 import Protolude
 

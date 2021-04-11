@@ -30,23 +30,43 @@ import qualified Network.HTTP.Types.Status       as HTTP
 import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
 
-import qualified PostgREST.ApiRequest       as ApiRequest
-import qualified PostgREST.Auth             as Auth
-import qualified PostgREST.DbRequestBuilder as ReqBuilder
-import qualified PostgREST.DbStructure      as DbStructure
-import qualified PostgREST.Error            as Error
-import qualified PostgREST.Middleware       as Middleware
-import qualified PostgREST.OpenAPI          as OpenAPI
-import qualified PostgREST.QueryBuilder     as QueryBuilder
-import qualified PostgREST.RangeQuery       as RangeQuery
-import qualified PostgREST.Statements       as Statements
+import qualified PostgREST.Auth                     as Auth
+import qualified PostgREST.DbStructure              as DbStructure
+import qualified PostgREST.Error                    as Error
+import qualified PostgREST.Middleware               as Middleware
+import qualified PostgREST.OpenAPI                  as OpenAPI
+import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
+import qualified PostgREST.Query.Statements         as Statements
+import qualified PostgREST.RangeQuery               as RangeQuery
+import qualified PostgREST.Request.ApiRequest       as ApiRequest
+import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
-import PostgREST.ApiRequest (Action (..), ApiRequest (..),
-                             InvokeMethod (..), Target (..))
-import PostgREST.Config     (AppConfig (..))
-import PostgREST.Error      (Error)
+import PostgREST.Config                  (AppConfig (..),
+                                          LogLevel (..))
+import PostgREST.ContentType             (ContentType (..))
+import PostgREST.DbStructure             (DbStructure (..),
+                                          tablePKCols)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.DbStructure.Proc        (ProcDescription (..),
+                                          ProcVolatility (..))
+import PostgREST.DbStructure.Table       (Table (..))
+import PostgREST.Error                   (Error)
+import PostgREST.GucHeader               (GucHeader,
+                                          addHeadersIfNotIncluded,
+                                          unwrapGucHeader)
+import PostgREST.Request.ApiRequest      (Action (..),
+                                          ApiRequest (..),
+                                          InvokeMethod (..),
+                                          Target (..))
+import PostgREST.Request.Preferences     (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..))
+import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 
-import PostgREST.Types
+import qualified PostgREST.ContentType      as ContentType
+import qualified PostgREST.DbStructure.Proc as Proc
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -123,7 +143,7 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure pool time req = do
       Just ct ->
         return ct
       Nothing ->
-        throwError . Error.ContentTypeError $ map toMime iAccepts
+        throwError . Error.ContentTypeError $ map ContentType.toMime iAccepts
 
   let
     handleReq apiReq =
@@ -352,9 +372,9 @@ handleInvoke invMethod proc context@RequestContext{..} = do
     identifier =
       QualifiedIdentifier
         (pdSchema proc)
-        (fromMaybe (pdName proc) $ procTableName proc)
+        (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _) = procReturnsSingle target
+    returnsSingle (ApiRequest.TargetProc target _) = Proc.procReturnsSingle target
     returnsSingle _                                = False
 
   req <- readRequest identifier context
@@ -367,7 +387,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (returnsSingle iTarget)
         (QueryBuilder.requestToCallProcQuery
           (QualifiedIdentifier (pdSchema proc) (pdName proc))
-          (specifiedProcArgs iColumns proc)
+          (Proc.specifiedProcArgs iColumns proc)
           iPayload
           (returnsScalar iTarget)
           iPreferParameters
@@ -405,7 +425,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
 
   return $
     Wai.responseLBS HTTP.status200
-      (toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
+      (ContentType.toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
       (if headersOnly then mempty else toS body)
 
 txMode :: ApiRequest -> SQL.Mode
@@ -491,7 +511,7 @@ shouldCount preferCount =
   preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _) = procReturnsScalar proc
+returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
 returnsScalar _                   = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
@@ -503,7 +523,7 @@ readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure ap
 
 contentTypeHeaders :: RequestContext -> [HTTP.Header]
 contentTypeHeaders RequestContext{..} =
-  toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
+  ContentType.toHeader ctxContentType : maybeToList (profileHeader ctxApiRequest)
 
 requestContentTypes :: AppConfig -> ApiRequest -> [ContentType]
 requestContentTypes conf ApiRequest{..} =
@@ -542,7 +562,7 @@ binaryField RequestContext{..} readReq
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
-  (decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =

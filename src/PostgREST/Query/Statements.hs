@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-|
-Module      : PostgREST.Statements
+Module      : PostgREST.Query.Statements
 Description : PostgREST single SQL statements.
 
 This module constructs single SQL statements that can be parametrized and prepared.
@@ -10,37 +10,40 @@ This module constructs single SQL statements that can be parametrized and prepar
 
 TODO: Currently, createReadStatement is not using prepared statements. See https://github.com/PostgREST/postgrest/issues/718.
 -}
-module PostgREST.Statements (
-    createWriteStatement
+module PostgREST.Query.Statements
+  ( createWriteStatement
   , createReadStatement
   , callProcStatement
   , createExplainStatement
   , dbSettingsStatement
-) where
+  ) where
 
-
-import           Control.Lens                    ((^?))
-import           Data.Aeson                      as JSON
-import qualified Data.Aeson.Lens                 as L
-import qualified Data.ByteString.Char8           as BS
-import           Data.Maybe
-import           Data.Text.Read                  (decimal)
-import qualified Hasql.Decoders                  as HD
-import qualified Hasql.Encoders                  as HE
-import qualified Hasql.Statement                 as H
-import           Network.HTTP.Types.Status
-import           PostgREST.Error
-import           PostgREST.Private.Common
-import           PostgREST.Private.QueryFragment
-import           PostgREST.Types
-import           Protolude                       hiding (cast,
-                                                  replace, toS)
-import           Protolude.Conv                  (toS)
-
+import qualified Data.Aeson                        as JSON
+import qualified Data.Aeson.Lens                   as L
+import qualified Data.ByteString.Char8             as BS
+import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
+import qualified Hasql.Encoders                    as HE
+import qualified Hasql.Statement                   as H
 
+import Control.Lens                  ((^?))
+import Data.Maybe                    (fromJust)
+import Data.Text.Read                (decimal)
+import Network.HTTP.Types.Status     (Status)
 import Text.InterpolatedString.Perl6 (q)
+
+import PostgREST.DbStructure.PgVersion (PgVersion)
+import PostgREST.Error                 (Error (..))
+import PostgREST.GucHeader             (GucHeader)
+
+import PostgREST.DbStructure.Identifiers (FieldName)
+import PostgREST.Query.SqlFragment
+import PostgREST.Request.Preferences
+
+import Protolude      hiding (toS)
+import Protolude.Conv (toS)
+
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -216,3 +219,12 @@ dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
       order by key, setdatabase desc;
     |]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
+
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+arrayColumn :: HD.Value a -> HD.Row [a]
+arrayColumn = column . HD.listArray . HD.nonNullable

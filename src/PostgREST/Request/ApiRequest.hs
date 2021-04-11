@@ -1,20 +1,21 @@
 {-|
-Module      : PostgREST.ApiRequest
+Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE MultiWayIf     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module PostgREST.ApiRequest (
-  ApiRequest(..)
-, InvokeMethod(..)
-, ContentType(..)
-, Action(..)
-, Target(..)
-, mutuallyAgreeable
-, userApiRequest
-) where
+module PostgREST.Request.ApiRequest
+  ( ApiRequest(..)
+  , InvokeMethod(..)
+  , ContentType(..)
+  , Action(..)
+  , Target(..)
+  , PayloadJSON(..)
+  , mutuallyAgreeable
+  , userApiRequest
+  ) where
 
 import qualified Data.Aeson           as JSON
 import qualified Data.ByteString      as BS
@@ -32,6 +33,7 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (last, lookup, partition)
 import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
+import Data.Ranged.Boundaries    (Boundary (..))
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
 import Network.HTTP.Base         (urlEncodeVars)
@@ -42,19 +44,47 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
+import PostgREST.ContentType             (ContentType (..))
+import PostgREST.DbStructure             (DbStructure (..))
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.DbStructure.Proc        (PgArg (..),
+                                          ProcDescription (..),
+                                          findProc)
+import PostgREST.Error                   (ApiRequestError (..))
+import PostgREST.Query.SqlFragment       (ftsOperators, operators)
+import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          rangeGeq, rangeLimit,
+                                          rangeOffset, rangeRequested,
+                                          restrictRange)
+import PostgREST.Request.Parsers         (pRequestColumns)
+import PostgREST.Request.Preferences     (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..),
+                                          PreferResolution (..),
+                                          PreferTransaction (..))
 
-import Data.Ranged.Boundaries
+import qualified PostgREST.ContentType as ContentType
 
-import PostgREST.Error      (ApiRequestError (..))
-import PostgREST.Parsers    (pRequestColumns)
-import PostgREST.RangeQuery (NonnegRange, allRange, rangeGeq,
-                             rangeLimit, rangeOffset, rangeRequested,
-                             restrictRange)
-import PostgREST.Types
-import Protolude            hiding (head, toS)
-import Protolude.Conv       (toS)
+import Protolude      hiding (head, toS)
+import Protolude.Conv (toS)
+
 
 type RequestBody = BL.ByteString
+
+data PayloadJSON
+  = ProcessedJSON -- ^ Cached attributes of a JSON payload
+      { pjRaw  :: BL.ByteString
+      -- ^ This is the raw ByteString that comes from the request body.  We
+      -- cache this instead of an Aeson Value because it was detected that for
+      -- large payloads the encoding had high memory usage, see
+      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
+      , pjKeys :: S.Set Text
+      -- ^ Keys of the object or if it's an array these keys are guaranteed to
+      -- be the same across all its objects
+      }
+  | RawJSON { pjRaw  :: BL.ByteString }
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
@@ -143,7 +173,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       , iTarget = target
       , iRange = ranges
       , iTopLevelRange = topLevelRange
-      , iAccepts = maybe [CTAny] (map decodeContentType . parseHttpAccept) $ lookupHeader "accept"
+      , iAccepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
       , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
@@ -202,7 +232,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
   isTargetingDefaultSpec = case target of
     TargetDefaultSpec _ -> True
     _                   -> False
-  contentType = decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
+  contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
     | otherwise = Nothing
@@ -236,7 +266,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
           let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> urlEncodedBody in
           Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
-      Left $ toS $ "Content-Type not acceptable: " <> toMime ct
+      Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of

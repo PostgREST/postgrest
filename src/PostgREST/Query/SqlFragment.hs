@@ -1,41 +1,105 @@
 {-# LANGUAGE LambdaCase  #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-|
-Module      : PostgREST.Private.QueryFragment
+Module      : PostgREST.Query.SqlFragment
 Description : Helper functions for PostgREST.QueryBuilder.
 
 Any function that outputs a SqlFragment should be in this module.
 -}
-module PostgREST.Private.QueryFragment where
+module PostgREST.Query.SqlFragment
+  ( noLocationF
+  , SqlFragment
+  , asBinaryF
+  , asCsvF
+  , asJsonF
+  , asJsonSingleF
+  , countF
+  , fromQi
+  , ftsOperators
+  , jsonPlaceHolder
+  , limitOffsetF
+  , locationF
+  , normalizedBody
+  , operators
+  , pgFmtColumn
+  , pgFmtIdent
+  , pgFmtJoinCondition
+  , pgFmtLogicTree
+  , pgFmtOrderTerm
+  , pgFmtSelectItem
+  , responseHeadersF
+  , responseStatusF
+  , returningF
+  , selectBody
+  , sourceCTEName
+  , unknownLiteral
+  , intercalateSnippet
+  ) where
 
-import qualified Data.ByteString.Char8           as BS (intercalate,
-                                                        pack, unwords)
+import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.HashMap.Strict             as HM
-import           Data.Maybe
-import qualified Data.Text                       as T (intercalate,
-                                                       isInfixOf, map,
-                                                       null, replace,
-                                                       takeWhile,
-                                                       toLower)
+import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as H
-import           PostgREST.RangeQuery            (NonnegRange,
-                                                  allRange,
-                                                  rangeLimit,
-                                                  rangeOffset)
-import           PostgREST.Types
-import           Protolude                       hiding (cast,
-                                                  intercalate,
-                                                  replace, toLower,
-                                                  toS)
-import           Protolude.Conv                  (toS)
-import           Text.InterpolatedString.Perl6   (qc)
+import qualified Hasql.Encoders                  as HE
 
-import qualified Hasql.Encoders           as HE
-import           PostgREST.Private.Common
+import Data.Foldable                 (foldr1)
+import Text.InterpolatedString.Perl6 (qc)
+
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier (..))
+import PostgREST.DbStructure.PgVersion   (PgVersion, pgVersion96)
+import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          rangeLimit, rangeOffset)
+import PostgREST.Request.Types           (Alias, Field, Filter (..),
+                                          JoinCondition (..),
+                                          JsonOperand (..),
+                                          JsonOperation (..),
+                                          JsonPath, LogicTree (..),
+                                          OpExpr (..), Operation (..),
+                                          OrderTerm (..), SelectItem)
+
+import Protolude      hiding (cast, toS)
+import Protolude.Conv (toS)
+
+
+-- | A part of a SQL query that cannot be executed independently
+type SqlFragment = ByteString
 
 noLocationF :: SqlFragment
 noLocationF = "array[]::text[]"
+
+sourceCTEName :: SqlFragment
+sourceCTEName = "pgrst_source"
+
+operators :: HM.HashMap Text SqlFragment
+operators = HM.union (HM.fromList [
+  ("eq", "="),
+  ("gte", ">="),
+  ("gt", ">"),
+  ("lte", "<="),
+  ("lt", "<"),
+  ("neq", "<>"),
+  ("like", "LIKE"),
+  ("ilike", "ILIKE"),
+  ("in", "IN"),
+  ("is", "IS"),
+  ("cs", "@>"),
+  ("cd", "<@"),
+  ("ov", "&&"),
+  ("sl", "<<"),
+  ("sr", ">>"),
+  ("nxr", "&<"),
+  ("nxl", "&>"),
+  ("adj", "-|-")]) ftsOperators
+
+ftsOperators :: HM.HashMap Text SqlFragment
+ftsOperators = HM.fromList [
+  ("fts", "@@ to_tsquery"),
+  ("plfts", "@@ plainto_tsquery"),
+  ("phfts", "@@ phraseto_tsquery"),
+  ("wfts", "@@ websearch_to_tsquery")
+  ]
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
@@ -245,9 +309,13 @@ currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
 
--- Hasql Snippet utilitarians
+-- Hasql Snippet utilities
 unknownEncoder :: ByteString -> H.Snippet
 unknownEncoder = H.encoderAndParam (HE.nonNullable HE.unknown)
 
 unknownLiteral :: Text -> H.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
+
+intercalateSnippet :: ByteString -> [H.Snippet] -> H.Snippet
+intercalateSnippet _ [] = mempty
+intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets

@@ -14,8 +14,12 @@ import           Text.Heredoc
 import Protolude      hiding (get, toS)
 import Protolude.Conv (toS)
 
-import PostgREST.QueryBuilder (requestToCallProcQuery)
-import PostgREST.Types
+import PostgREST.Query.QueryBuilder (requestToCallProcQuery)
+import PostgREST.Request.ApiRequest (PayloadJSON (..))
+
+import PostgREST.DbStructure.Identifiers
+import PostgREST.DbStructure.Proc
+import PostgREST.Request.Preferences
 
 import SpecHelper (getEnvVarWithDefault)
 

@@ -12,50 +12,49 @@ module PostgREST.Middleware
   , optionalRollback
   ) where
 
-import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Statement as H
-import           PostgREST.Private.Common
+import qualified Data.Aeson                           as JSON
+import qualified Data.ByteString.Char8                as BS
+import qualified Data.CaseInsensitive                 as CI
+import qualified Data.HashMap.Strict                  as M
+import qualified Data.Text                            as T
+import qualified Hasql.Decoders                       as HD
+import qualified Hasql.DynamicStatements.Snippet      as H hiding
+                                                           (sql)
+import qualified Hasql.DynamicStatements.Statement    as H
+import qualified Hasql.Transaction                    as H
+import qualified Network.HTTP.Types.Header            as HTTP
+import qualified Network.Wai                          as Wai
+import qualified Network.Wai.Logger                   as Wai
+import qualified Network.Wai.Middleware.Cors          as Wai
+import qualified Network.Wai.Middleware.Gzip          as Wai
+import qualified Network.Wai.Middleware.RequestLogger as Wai
+import qualified Network.Wai.Middleware.Static        as Wai
 
-import qualified Data.Aeson                as JSON
-import qualified Data.ByteString.Char8     as BS
-import qualified Data.CaseInsensitive      as CI
-import           Data.Function             (id)
-import qualified Data.HashMap.Strict       as M
-import           Data.List                 (lookup)
-import           Data.Scientific           (FPFormat (..),
-                                            formatScientific,
-                                            isInteger)
-import qualified Data.Text                 as T
-import qualified Hasql.Transaction         as H
-import qualified Network.HTTP.Types.Header as HTTP
-import           Network.HTTP.Types.Status (Status, status400,
-                                            status500, statusCode)
-import qualified Network.Wai               as Wai
-import           Network.Wai.Logger        (showSockAddr)
-import           System.Log.FastLogger     (toLogStr)
+import Data.Function             (id)
+import Data.List                 (lookup)
+import Data.Scientific           (FPFormat (..), formatScientific,
+                                  isInteger)
+import Network.HTTP.Types.Status (Status, status400, status500,
+                                  statusCode)
+import System.IO.Unsafe          (unsafePerformIO)
+import System.Log.FastLogger     (toLogStr)
 
-import Network.Wai
-import Network.Wai.Middleware.Cors          (CorsResourcePolicy (..),
-                                             cors)
-import Network.Wai.Middleware.Gzip          (def, gzip)
-import Network.Wai.Middleware.RequestLogger
-import Network.Wai.Middleware.Static        (only, staticPolicy)
+import PostgREST.Config             (AppConfig (..), LogLevel (..))
+import PostgREST.Error              (Error, errorResponseFor)
+import PostgREST.GucHeader          (addHeadersIfNotIncluded)
+import PostgREST.Query.SqlFragment  (intercalateSnippet,
+                                     unknownLiteral)
+import PostgREST.Request.ApiRequest (ApiRequest (..))
 
-import qualified PostgREST.Types as Types
+import PostgREST.Request.Preferences
 
-import PostgREST.ApiRequest   (ApiRequest (..))
-import PostgREST.Config       (AppConfig (..))
-import PostgREST.Error        (Error, errorResponseFor)
-import PostgREST.QueryBuilder (setConfigLocal)
-import PostgREST.Types        (LogLevel (..))
-import Protolude              hiding (head, toS)
-import Protolude.Conv         (toS)
-import System.IO.Unsafe       (unsafePerformIO)
+import Protolude      hiding (head, toS)
+import Protolude.Conv (toS)
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
-               (ApiRequest -> ExceptT Error H.Transaction Response) ->
-               ApiRequest  -> ExceptT Error H.Transaction Response
+               (ApiRequest -> ExceptT Error H.Transaction Wai.Response) ->
+               ApiRequest  -> ExceptT Error H.Transaction Wai.Response
 runPgLocals conf claims app req = do
   lift $ H.statement mempty $ H.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
@@ -78,11 +77,16 @@ runPgLocals conf claims app req = do
       setConfigLocal mempty ("search_path", schemas)
     preReqSql = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
 
+    -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
+    setConfigLocal :: Text -> (Text, Text) -> H.Snippet
+    setConfigLocal prefix (k, v) =
+      "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"
+
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
 -- | So here we copy wai-logger apacheLogStr function: https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
 -- | TODO: Add the ability to filter apache logs on wai-extra and remove this function.
-pgrstFormat :: Status -> OutputFormatter
+pgrstFormat :: Status -> Wai.OutputFormatter
 pgrstFormat minStatus date req status responseSize =
   if status < minStatus
     then mempty
@@ -90,55 +94,55 @@ pgrstFormat minStatus date req status responseSize =
     <> " - - ["
     <> toLogStr date
     <> "] \""
-    <> toLogStr (requestMethod req)
+    <> toLogStr (Wai.requestMethod req)
     <> " "
-    <> toLogStr (rawPathInfo req <> rawQueryString req)
+    <> toLogStr (Wai.rawPathInfo req <> Wai.rawQueryString req)
     <> " "
-    <> toLogStr (show (httpVersion req)::Text)
+    <> toLogStr (show (Wai.httpVersion req)::Text)
     <> "\" "
     <> toLogStr (show (statusCode status)::Text)
     <> " "
     <> toLogStr (maybe "-" show responseSize::Text)
     <> " \""
-    <> toLogStr (fromMaybe mempty $ requestHeaderReferer req)
+    <> toLogStr (fromMaybe mempty $ Wai.requestHeaderReferer req)
     <> "\" \""
-    <> toLogStr (fromMaybe mempty $ requestHeaderUserAgent req)
+    <> toLogStr (fromMaybe mempty $ Wai.requestHeaderUserAgent req)
     <> "\"\n"
   where
-    getSourceFromSocket = BS.pack . showSockAddr . remoteHost
+    getSourceFromSocket = BS.pack . Wai.showSockAddr . Wai.remoteHost
 
-pgrstMiddleware :: LogLevel -> Application -> Application
+pgrstMiddleware :: LogLevel -> Wai.Application -> Wai.Application
 pgrstMiddleware logLevel =
     logger
-  . gzip def
-  . cors corsPolicy
-  . staticPolicy (only [("favicon.ico", "static/favicon.ico")])
+  . Wai.gzip Wai.def
+  . Wai.cors corsPolicy
+  . Wai.staticPolicy (Wai.only [("favicon.ico", "static/favicon.ico")])
   where
     logger = case logLevel of
       LogCrit  -> id
-      LogError -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat $ pgrstFormat status500}
-      LogWarn  -> unsafePerformIO $ mkRequestLogger def { outputFormat = CustomOutputFormat $ pgrstFormat status400}
-      LogInfo  -> logStdout
+      LogError -> unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status500}
+      LogWarn  -> unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status400}
+      LogInfo  -> Wai.logStdout
 
-defaultCorsPolicy :: CorsResourcePolicy
-defaultCorsPolicy =  CorsResourcePolicy Nothing
+defaultCorsPolicy :: Wai.CorsResourcePolicy
+defaultCorsPolicy =  Wai.CorsResourcePolicy Nothing
   ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] ["Authorization"] Nothing
   (Just $ 60*60*24) False False True
 
 -- | CORS policy to be used in by Wai Cors middleware
-corsPolicy :: Request -> Maybe CorsResourcePolicy
+corsPolicy :: Wai.Request -> Maybe Wai.CorsResourcePolicy
 corsPolicy req = case lookup "origin" headers of
   Just origin -> Just defaultCorsPolicy {
-      corsOrigins = Just ([origin], True)
-    , corsRequestHeaders = "Authentication":accHeaders
-    , corsExposedHeaders = Just [
+      Wai.corsOrigins = Just ([origin], True)
+    , Wai.corsRequestHeaders = "Authentication" : accHeaders
+    , Wai.corsExposedHeaders = Just [
         "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
       , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"
       ]
     }
   Nothing -> Nothing
   where
-    headers = requestHeaders req
+    headers = Wai.requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
       Just hdrs -> map (CI.mk . toS . T.strip . toS) $ BS.split ',' hdrs
       Nothing -> []
@@ -164,15 +168,15 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
   return $ Wai.mapResponseHeaders preferenceApplied resp
   where
     shouldCommit =
-      configDbTxAllowOverride && iPreferTransaction == Just Types.Commit
+      configDbTxAllowOverride && iPreferTransaction == Just Commit
     shouldRollback =
-      configDbTxAllowOverride && iPreferTransaction == Just Types.Rollback
+      configDbTxAllowOverride && iPreferTransaction == Just Rollback
     preferenceApplied
       | shouldCommit =
-          Types.addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Types.Commit))]
+          addHeadersIfNotIncluded
+            [(HTTP.hPreferenceApplied, BS.pack (show Commit))]
       | shouldRollback =
-          Types.addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Types.Rollback))]
+          addHeadersIfNotIncluded
+            [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity
