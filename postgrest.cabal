@@ -60,6 +60,7 @@ library
                       PostgREST.Request.Parsers
                       PostgREST.Request.Preferences
                       PostgREST.Request.Types
+                      PostgREST.Version
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4

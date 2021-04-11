@@ -11,8 +11,8 @@ import Network.HTTP.Types
 import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
 
-import PostgREST.Config (docsVersion)
-import Protolude        hiding (get)
+import PostgREST.Version (docsVersion)
+import Protolude         hiding (get)
 import SpecHelper
 
 spec :: SpecWith ((), Application)
