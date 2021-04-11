@@ -179,6 +179,3 @@ readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
 
 limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
-
-emptySnippetOnFalse :: H.Snippet -> Bool -> H.Snippet
-emptySnippetOnFalse val cond = if cond then mempty else val
