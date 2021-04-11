@@ -35,8 +35,8 @@ import PostgREST.CLI                   (CLI (..), Command (..),
                                         readCLIShowHelp)
 import PostgREST.Config                (AppConfig (..), Environment,
                                         configDbPoolTimeout',
-                                        dumpAppConfig, prettyVersion,
-                                        readAppConfig, readDbUriFile,
+                                        dumpAppConfig, readAppConfig,
+                                        readDbUriFile,
                                         readEnvironment,
                                         readSecretFile)
 import PostgREST.DbStructure           (DbStructure, getDbStructure,
@@ -46,6 +46,7 @@ import PostgREST.DbStructure.PgVersion (PgVersion (..),
 import PostgREST.Error                 (PgError (PgError),
                                         checkIsFatal, errorPayload)
 import PostgREST.Query.Statements      (dbSettingsStatement)
+import PostgREST.Version               (prettyVersion)
 
 import Protolude      hiding (hPutStrLn, head, toS)
 import Protolude.Conv (toS)
