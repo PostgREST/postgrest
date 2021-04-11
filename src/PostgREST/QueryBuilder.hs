@@ -38,9 +38,9 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <>
   "FROM " <> H.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
   intercalateSnippet " " joins <> " " <>
-  ("WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
-    `emptySnippetOnFalse` (null logicForest && null joinConditions_) <> " " <>
-  (("ORDER BY " <> intercalateSnippet ", " (map (pgFmtOrderTerm qi) ordts)) `emptySnippetOnFalse` null ordts) <> " " <>
+  (if null logicForest && null joinConditions_ then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
+  <> " " <>
+  (if null ordts then mempty else "ORDER BY " <> intercalateSnippet ", " (map (pgFmtOrderTerm qi) ordts)) <> " " <>
   limitOffsetF range
   where
     implJs = fromQi <$> implJoins
@@ -73,17 +73,20 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
   "SELECT " <> H.sql cols <> " " <>
   H.sql ("FROM json_populate_recordset (null::" <> fromQi mainQi <> ", " <> selectBody <> ") _ ") <>
   -- Only used for PUT
-  ("WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) `emptySnippetOnFalse` null putConditions <>
+  (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
   H.sql (BS.unwords [
-    maybe "" (\(oncDo, oncCols) -> (
-      "ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
-      IgnoreDuplicates ->
-        "DO NOTHING"
-      MergeDuplicates  ->
-        if S.null iCols
-           then "DO NOTHING"
-           else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
-                                   ) `emptyOnFalse` null oncCols) onConflct,
+    maybe "" (\(oncDo, oncCols) ->
+      if null oncCols then
+        mempty
+      else
+        "ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
+        IgnoreDuplicates ->
+          "DO NOTHING"
+        MergeDuplicates  ->
+          if S.null iCols
+             then "DO NOTHING"
+             else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
+      ) onConflct,
     returningF mainQi returnings
     ])
   where
@@ -98,7 +101,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
       "WITH " <> normalizedBody body <> " " <>
       "UPDATE " <> H.sql (fromQi mainQi) <> " SET " <> H.sql cols <> " " <>
       "FROM (SELECT * FROM json_populate_recordset (null::" <> H.sql (fromQi mainQi) <> " , " <> H.sql selectBody <> " )) _ " <>
-      ("WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)) `emptySnippetOnFalse` null logicForest <> " " <>
+      (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)) <> " " <>
       H.sql (returningF mainQi returnings)
   where
     cols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
@@ -108,7 +111,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
       | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
 mutateRequestToQuery (Delete mainQi logicForest returnings) =
   "DELETE FROM " <> H.sql (fromQi mainQi) <> " " <>
-  ("WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) `emptySnippetOnFalse` null logicForest <> " " <>
+  (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
   H.sql (returningF mainQi returnings)
 
 requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Maybe PayloadJSON -> Bool -> Maybe PreferParameters -> [FieldName] -> H.Snippet
@@ -168,7 +171,7 @@ requestToCallProcQuery qi pgArgs pj returnsScalar preferParams returnings =
 readRequestToCountQuery :: ReadRequest -> H.Snippet
 readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
  "SELECT 1 " <> "FROM " <> H.sql (fromQi qi) <> " " <>
- ("WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest)) `emptySnippetOnFalse` null logicForest
+ if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest)
 
 limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
 limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
