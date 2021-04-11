@@ -288,7 +288,6 @@ returningF qi returnings =
 limitOffsetF :: NonnegRange -> H.Snippet
 limitOffsetF range =
   if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
-  if range /= allRange then "LIMIT " <> limit <> " OFFSET " <> offset else mempty
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
