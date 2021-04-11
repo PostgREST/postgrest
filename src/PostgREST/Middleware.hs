@@ -77,6 +77,11 @@ runPgLocals conf claims app req = do
       setConfigLocal mempty ("search_path", schemas)
     preReqSql = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
 
+    -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
+    setConfigLocal :: Text -> (Text, Text) -> H.Snippet
+    setConfigLocal prefix (k, v) =
+      "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"
+
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
 -- | So here we copy wai-logger apacheLogStr function: https://github.com/kazu-yamamoto/logger/blob/a4f51b909a099c51af7a3f75cf16e19a06f9e257/wai-logger/Network/Wai/Logger/Apache.hs#L45
@@ -175,8 +180,3 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
             [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity
-
--- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: Text -> (Text, Text) -> H.Snippet
-setConfigLocal prefix (k, v) =
-  "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"
