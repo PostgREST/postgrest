@@ -53,7 +53,7 @@ import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..))
 import PostgREST.DbStructure.Table       (Table (..))
 import PostgREST.Error                   (Error)
-import PostgREST.Headers                 (GucHeader,
+import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
 import PostgREST.Request.ApiRequest      (Action (..),

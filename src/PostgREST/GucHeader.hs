@@ -1,4 +1,4 @@
-module PostgREST.Headers
+module PostgREST.GucHeader
   ( GucHeader
   , unwrapGucHeader
   , addHeadersIfNotIncluded

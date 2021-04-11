@@ -47,7 +47,7 @@ library
                       PostgREST.DbStructure.Relation
                       PostgREST.DbStructure.Table
                       PostgREST.Error
-                      PostgREST.Headers
+                      PostgREST.GucHeader
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Query.QueryBuilder

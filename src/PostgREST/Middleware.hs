@@ -41,7 +41,7 @@ import System.Log.FastLogger     (toLogStr)
 
 import PostgREST.Config             (AppConfig (..), LogLevel (..))
 import PostgREST.Error              (Error, errorResponseFor)
-import PostgREST.Headers            (addHeadersIfNotIncluded)
+import PostgREST.GucHeader          (addHeadersIfNotIncluded)
 import PostgREST.Query.SqlFragment  (intercalateSnippet,
                                      unknownLiteral)
 import PostgREST.Request.ApiRequest (ApiRequest (..))
