@@ -3,13 +3,9 @@ module Main where
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
-import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
-                           updateAction)
 import Data.Function      (id)
 import Data.List.NonEmpty (toList)
-import Data.Time.Clock    (getCurrentTime)
 
-import Data.IORef
 import Test.Hspec
 
 import PostgREST.App                   (postgrest)
@@ -19,6 +15,8 @@ import PostgREST.DbStructure.PgVersion (pgVersion96)
 import Protolude                       hiding (toList, toS)
 import Protolude.Conv                  (toS)
 import SpecHelper
+
+import qualified PostgREST.AppState as AppState
 
 import qualified Feature.AndOrParamsSpec
 import qualified Feature.AsymmetricJwtSpec
@@ -55,27 +53,35 @@ import qualified Feature.UpsertSpec
 
 main :: IO ()
 main = do
-  getTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
-
   testDbConn <- getEnvVarWithDefault "PGRST_DB_URI" "postgres://postgrest_test@localhost/postgrest_test"
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
   actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
 
-  refDbStructure <- (newIORef . Just) =<< setupDbStructure pool (configDbSchemas $ testCfg testDbConn) (configDbExtraSearchPath $ testCfg testDbConn) actualPgVersion
+  baseDbStructure <-
+    loadDbStructure pool
+      (configDbSchemas $ testCfg testDbConn)
+      (configDbExtraSearchPath $ testCfg testDbConn)
+      actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
     app cfg = do
-      refConf <- newIORef $ cfg testDbConn
-      return ((), postgrest LogCrit refConf refDbStructure pool getTime $ pure ())
+      appState <- AppState.initWithPool pool $ cfg testDbConn
+      AppState.putDbStructure appState baseDbStructure
+      return ((), postgrest LogCrit appState $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
-      dbs <- (newIORef . Just) =<< setupDbStructure pool (configDbSchemas $ cfg testDbConn) (configDbExtraSearchPath $ cfg testDbConn) actualPgVersion
-      refConf <- newIORef $ cfg testDbConn
-      return ((), postgrest LogCrit refConf dbs pool getTime $ pure ())
+      customDbStructure <-
+        loadDbStructure pool
+          (configDbSchemas $ cfg testDbConn)
+          (configDbExtraSearchPath $ cfg testDbConn)
+          actualPgVersion
+      appState <- AppState.initWithPool pool $ cfg testDbConn
+      AppState.putDbStructure appState customDbStructure
+      return ((), postgrest LogCrit appState $ pure ())
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
@@ -198,5 +204,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    setupDbStructure pool schemas extraSearchPath ver =
+    loadDbStructure pool schemas extraSearchPath ver =
       either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath ver True)

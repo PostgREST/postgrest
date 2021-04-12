@@ -7,6 +7,7 @@ Description : Manages PostgREST configuration type and parser.
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module PostgREST.Config
@@ -16,14 +17,12 @@ module PostgREST.Config
   , JSPathExp(..)
   , LogLevel(..)
   , Proxy(..)
-  , configDbPoolTimeout'
-  , dumpAppConfig
+  , toText
   , isMalformedProxyUri
-  , parseSecret
   , readAppConfig
-  , readDbUriFile
-  , readSecretFile
+  , readPGRSTEnvironment
   , toURI
+  , parseSecret
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -47,7 +46,9 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
+import Data.Time.Clock         (NominalDiffTime)
 import Numeric                 (readOct, showOct)
+import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.JSPath (JSPath, JSPathExp (..), pRoleClaimKey)
@@ -58,15 +59,15 @@ import Protolude      hiding (Proxy, toList, toS)
 import Protolude.Conv (toS)
 
 
-data AppConfig = AppConfig {
-    configAppSettings           :: [(Text, Text)]
+data AppConfig = AppConfig
+  { configAppSettings           :: [(Text, Text)]
   , configDbAnonRole            :: Text
   , configDbChannel             :: Text
   , configDbChannelEnabled      :: Bool
   , configDbExtraSearchPath     :: [Text]
   , configDbMaxRows             :: Maybe Integer
   , configDbPoolSize            :: Int
-  , configDbPoolTimeout         :: Int
+  , configDbPoolTimeout         :: NominalDiffTime
   , configDbPreRequest          :: Maybe Text
   , configDbPreparedStatements  :: Bool
   , configDbRootSpec            :: Maybe Text
@@ -75,6 +76,7 @@ data AppConfig = AppConfig {
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
+  , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
   , configJwtRoleClaimKey       :: JSPath
@@ -89,10 +91,6 @@ data AppConfig = AppConfig {
   , configServerUnixSocketMode  :: FileMode
   }
 
-configDbPoolTimeout' :: (Fractional a) => AppConfig -> a
-configDbPoolTimeout' =
-  fromRational . toRational . configDbPoolTimeout
-
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
 instance Show LogLevel where
@@ -102,10 +100,9 @@ instance Show LogLevel where
   show LogInfo  = "info"
 
 -- | Dump the config
-dumpAppConfig :: AppConfig -> Text
-dumpAppConfig conf =
-  unlines $ (\(k, v) -> k <> " = " <> v) <$>
-    pgrstSettings ++ appSettings
+toText :: AppConfig -> Text
+toText conf =
+  unlines $ (\(k, v) -> k <> " = " <> v) <$> pgrstSettings ++ appSettings
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
@@ -115,7 +112,7 @@ dumpAppConfig conf =
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-pool",                       show . configDbPoolSize)
-      ,("db-pool-timeout",               show . configDbPoolTimeout)
+      ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
       ,("db-pre-request",            q . fromMaybe mempty . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
@@ -165,78 +162,69 @@ instance JustIfMaybe a a where
 instance JustIfMaybe a (Maybe a) where
   justIfMaybe a = Just a
 
--- | Reads and parses the config and overrides its parameters from env vars, files or db settings.
-readAppConfig :: [(Text, Text)] -> Environment -> Maybe FilePath -> Maybe Text -> Maybe B.ByteString -> IO (Either Text AppConfig)
-readAppConfig dbSettings env optPath dbUriFile secretFile = do
-  -- Now read the actual config file
-  conf <- case optPath of
-    -- Both C.ParseError and IOError are shown here
-    Just cfgPath -> mapLeft show <$> (try $ C.load cfgPath :: IO (Either SomeException C.Config))
-    -- if no filename provided, start with an empty map to read config from environment
-    Nothing -> return $ Right M.empty
+-- | Reads and parses the config and overrides its parameters from env vars,
+-- files or db settings.
+readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> IO (Either Text AppConfig)
+readAppConfig dbSettings optPath prevDbUri = do
+  env <- readPGRSTEnvironment
+  -- if no filename provided, start with an empty map to read config from environment
+  conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  pure $ mapLeft ("Error in config: " <>) $ C.runParser parseConfig =<< conf
-
+  case C.runParser (parser optPath env dbSettings) =<< mapLeft show conf of
+    Left err ->
+      return . Left $ "Error in config " <> err
+    Right parsedConfig ->
+      Right <$> decodeLoadFiles parsedConfig
   where
-    parseConfig =
-      let pB64 = fromMaybe False <$> optWithAlias (optBool "jwt-secret-is-base64")
-                                                  (optBool "secret-is-base64")
-          pSec = parseJwtSecret "jwt-secret" =<< pB64
-      in
-      AppConfig
-        <$> parseAppSettings "app.settings"
-        <*> reqString "db-anon-role"
-        <*> (fromMaybe "pgrst" <$> optString "db-channel")
-        <*> (fromMaybe False <$> optBool "db-channel-enabled")
-        <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
-        <*> optWithAlias (optInt "db-max-rows")
-                         (optInt "max-rows")
-        <*> (fromMaybe 10 <$> optInt "db-pool")
-        <*> (fromMaybe 10 <$> optInt "db-pool-timeout")
-        <*> optWithAlias (optString "db-pre-request")
-                         (optString "pre-request")
-        <*> (fromMaybe True <$> optBool "db-prepared-statements")
-        <*> optWithAlias (optString "db-root-spec")
-                         (optString "root-spec")
-        <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
-                                                       (optValue "db-schema")
-                                                       "missing key: either db-schemas or db-schema must be set")
-        <*> (fromMaybe True <$> optBool "db-config")
-        <*> parseTxEnd "db-tx-end" snd
-        <*> parseTxEnd "db-tx-end" fst
-        <*> parseDbUri "db-uri"
-        <*> (fmap parseSecret <$> pSec)
-        <*> parseJwtAudience "jwt-aud"
-        <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
-        <*> pSec
-        <*> pB64
-        <*> parseLogLevel "log-level"
-        <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
-        <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
-        <*> (fromMaybe "!4" <$> optString "server-host")
-        <*> (fromMaybe 3000 <$> optInt "server-port")
-        <*> (fmap T.unpack <$> optString "server-unix-socket")
-        <*> parseSocketFileMode "server-unix-socket-mode"
+    -- Both C.ParseError and IOError are shown here
+    loadConfig :: FilePath -> IO (Either SomeException C.Config)
+    loadConfig = try . C.load
 
-    parseDbUri :: C.Key -> C.Parser C.Config Text
-    parseDbUri k = flip fromMaybe dbUriFile <$> reqString k
+    decodeLoadFiles :: AppConfig -> IO AppConfig
+    decodeLoadFiles parsedConfig =
+      decodeJWKS <$>
+        (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
 
-    parseJwtSecret :: C.Key -> Bool -> C.Parser C.Config (Maybe B.ByteString)
-    parseJwtSecret k isB64 = optString k >>= \case
-      Nothing -> pure Nothing
-      Just sec  ->
-        let secStr = encodeUtf8 sec
-            secFile = fromMaybe secStr secretFile
-            -- replace because the JWT is actually base64url encoded which must be turned into just base64 before decoding.
-            replaceUrlChars = T.replace "_" "/" . T.replace "-" "+" . T.replace "." "="
-            willBeFile = isPrefixOf "@" (toS secStr) && isNothing secretFile
-        in
-        if isB64 && not willBeFile -- don't decode in bas64 if the secret will be a file or it will err. The secFile will be filled with the file contents in a later stage.
-          then case B64.decode . encodeUtf8 . T.strip . replaceUrlChars $ decodeUtf8 secFile of
-            Left errMsg -> fail errMsg
-            Right bs    -> pure $ Just bs
-          else pure $ Just secFile
-
+parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> C.Parser C.Config AppConfig
+parser optPath env dbSettings =
+  AppConfig
+    <$> parseAppSettings "app.settings"
+    <*> reqString "db-anon-role"
+    <*> (fromMaybe "pgrst" <$> optString "db-channel")
+    <*> (fromMaybe False <$> optBool "db-channel-enabled")
+    <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
+    <*> optWithAlias (optInt "db-max-rows")
+                     (optInt "max-rows")
+    <*> (fromMaybe 10 <$> optInt "db-pool")
+    <*> (fromIntegral . fromMaybe 10 <$> optInt "db-pool-timeout")
+    <*> optWithAlias (optString "db-pre-request")
+                     (optString "pre-request")
+    <*> (fromMaybe True <$> optBool "db-prepared-statements")
+    <*> optWithAlias (optString "db-root-spec")
+                     (optString "root-spec")
+    <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
+                                                   (optValue "db-schema")
+                                                   "missing key: either db-schemas or db-schema must be set")
+    <*> (fromMaybe True <$> optBool "db-config")
+    <*> parseTxEnd "db-tx-end" snd
+    <*> parseTxEnd "db-tx-end" fst
+    <*> reqString "db-uri"
+    <*> pure optPath
+    <*> pure Nothing
+    <*> parseJwtAudience "jwt-aud"
+    <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
+    <*> (fmap encodeUtf8 <$> optString "jwt-secret")
+    <*> (fromMaybe False <$> optWithAlias
+          (optBool "jwt-secret-is-base64")
+          (optBool "secret-is-base64"))
+    <*> parseLogLevel "log-level"
+    <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
+    <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
+    <*> (fromMaybe "!4" <$> optString "server-host")
+    <*> (fromMaybe 3000 <$> optInt "server-port")
+    <*> (fmap T.unpack <$> optString "server-unix-socket")
+    <*> parseSocketFileMode "server-unix-socket-mode"
+  where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
       where
@@ -371,37 +359,65 @@ readAppConfig dbSettings env optPath dbUriFile secretFile = do
     splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s
     splitOnCommas _            = []
 
-{-|
-  Parse `jwt-secret` configuration option and turn into a JWKSet.
+-- | Read the JWT secret from a file if configJwtSecret is actually a
+-- filepath(has @ as its prefix). To check if the JWT secret is provided is
+-- in fact a file path, it must be decoded as 'Text' to be processed.
+readSecretFile :: AppConfig -> IO AppConfig
+readSecretFile conf =
+  maybe (return conf) readSecret maybeFilename
+  where
+    maybeFilename = T.stripPrefix "@" . decodeUtf8 =<< configJwtSecret conf
+    readSecret filename = do
+      jwtSecret <- chomp <$> BS.readFile (toS filename)
+      return $ conf { configJwtSecret = Just jwtSecret }
+    chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
 
-  There are three ways to specify `jwt-secret`: text secret, JSON Web Key
-  (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JWKSet
-  with one key and the last is converted as is.
--}
+decodeSecret :: AppConfig -> IO AppConfig
+decodeSecret conf@AppConfig{..} =
+  case (configJwtSecretIsBase64, configJwtSecret) of
+    (True, Just secret) ->
+      either fail (return . updateSecret) $ decodeB64 secret
+    _ -> return conf
+  where
+    updateSecret bs = conf { configJwtSecret = Just bs }
+    decodeB64 = B64.decode . encodeUtf8 . T.strip . replaceUrlChars . decodeUtf8
+    replaceUrlChars = T.replace "_" "/" . T.replace "-" "+" . T.replace "." "="
+
+-- | Parse `jwt-secret` configuration option and turn into a JWKSet.
+--
+-- There are three ways to specify `jwt-secret`: text secret, JSON Web Key
+-- (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JWKSet
+-- with one key and the last is converted as is.
+decodeJWKS :: AppConfig -> AppConfig
+decodeJWKS conf =
+  conf { configJWKS = parseSecret <$> configJwtSecret conf }
+
 parseSecret :: ByteString -> JWKSet
 parseSecret bytes =
   fromMaybe (maybe secret (\jwk' -> JWT.JWKSet [jwk']) maybeJWK)
     maybeJWKSet
- where
-  maybeJWKSet = JSON.decode (toS bytes) :: Maybe JWKSet
-  maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
-  secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
-  keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
-
--- | Read the JWT secret from a file if configJwtSecret is actually a filepath(has @ as its prefix).
--- | To check if the JWT secret is provided is in fact a file path, it must be decoded as 'Text' to be processed.
-readSecretFile :: Maybe B.ByteString -> IO (Maybe B.ByteString)
-readSecretFile mSecret =
-  case (T.stripPrefix "@" . decodeUtf8) =<< mSecret of
-    Nothing       -> return Nothing
-    Just filename -> Just . chomp <$> BS.readFile (toS filename)
   where
-    chomp bs = fromMaybe bs (BS.stripSuffix "\n" bs)
+    maybeJWKSet = JSON.decode (toS bytes) :: Maybe JWKSet
+    maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
+    secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
+    keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
 
 -- | Read database uri from a separate file if `db-uri` is a filepath.
-readDbUriFile :: Text -> IO (Maybe Text)
-readDbUriFile dbUri = case T.stripPrefix "@" dbUri of
-  Nothing       -> return Nothing
-  Just filename -> Just . T.strip <$> readFile (toS filename)
+readDbUriFile :: Maybe Text -> AppConfig -> IO AppConfig
+readDbUriFile maybeDbUri conf =
+  case maybeDbUri of
+    Just prevDbUri ->
+      pure $ conf { configDbUri = prevDbUri }
+    Nothing ->
+      case T.stripPrefix "@" $ configDbUri conf of
+        Nothing -> return conf
+        Just filename -> do
+          dbUri <- T.strip <$> readFile (toS filename)
+          return $ conf { configDbUri = dbUri }
 
 type Environment = M.Map [Char] Text
+
+-- | Read environment variables that start with PGRST_
+readPGRSTEnvironment :: IO Environment
+readPGRSTEnvironment =
+  M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment

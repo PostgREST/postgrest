@@ -10,13 +10,21 @@ Some of its functionality includes:
 - Content Negotiation
 -}
 {-# LANGUAGE RecordWildCards #-}
-module PostgREST.App (postgrest) where
+module PostgREST.App
+  ( SignalHandlerInstaller
+  , SocketRunner
+  , postgrest
+  , run
+  ) where
 
-import Control.Monad.Except    (liftEither)
-import Data.Either.Combinators (mapLeft)
-import Data.IORef              (IORef, readIORef)
-import Data.List               (union)
-import Data.Time.Clock         (UTCTime)
+import Control.Monad.Except     (liftEither)
+import Data.Either.Combinators  (mapLeft)
+import Data.List                (union)
+import Data.String              (IsString (..))
+import Data.Time.Clock          (UTCTime)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
+                                 setServerName)
+import System.Posix.Types       (FileMode)
 
 import qualified Data.ByteString.Char8           as BS8
 import qualified Data.ByteString.Lazy            as LBS
@@ -29,7 +37,9 @@ import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.HTTP.Types.Status       as HTTP
 import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
+import qualified Network.Wai.Handler.Warp        as Warp
 
+import qualified PostgREST.AppState                 as AppState
 import qualified PostgREST.Auth                     as Auth
 import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
@@ -41,6 +51,7 @@ import qualified PostgREST.RangeQuery               as RangeQuery
 import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
+import PostgREST.AppState                (AppState)
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..))
 import PostgREST.ContentType             (ContentType (..))
@@ -64,6 +75,8 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..))
 import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
+import PostgREST.Version                 (prettyVersion)
+import PostgREST.Workers                 (connectionWorker, listener)
 
 import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc
@@ -83,27 +96,50 @@ type Handler = ExceptT Error
 
 type DbHandler = Handler SQL.Transaction
 
+type SignalHandlerInstaller = AppState -> IO()
+
+type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
+
+
+run :: SignalHandlerInstaller -> SocketRunner -> AppState -> IO ()
+run installHandlers runInSocket appState = do
+  conf@AppConfig{..} <- AppState.getConfig appState
+  connectionWorker appState -- Loads the initial DbStructure
+  installHandlers appState
+  -- reload schema cache + config on NOTIFY
+  when configDbChannelEnabled $ listener appState
+
+  let app = postgrest configLogLevel appState (connectionWorker appState)
+
+  case configServerUnixSocket of
+    Just socket ->
+      -- run the postgrest application with user defined socket. Only for UNIX systems.
+      runInSocket (serverSettings conf) app configServerUnixSocketMode socket
+    Nothing ->
+      do
+        putStrLn $ ("Listening on port " :: Text) <> show configServerPort
+        Warp.runSettings (serverSettings conf) app
+
+serverSettings :: AppConfig -> Warp.Settings
+serverSettings AppConfig{..} =
+  defaultSettings
+    & setHost (fromString $ toS configServerHost)
+    & setPort configServerPort
+    & setServerName (toS $ "postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest
-  :: LogLevel
-  -> IORef AppConfig
-  -> IORef (Maybe DbStructure)
-  -> SQL.Pool
-  -> IO UTCTime
-  -> IO () -- ^ Lauch connection worker in a separate thread
-  -> Wai.Application
-postgrest logLev refConf refDbStructure pool getTime connWorker =
+postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
+postgrest logLev appState connWorker =
   Middleware.pgrstMiddleware logLev $
     \req respond -> do
-      time <- getTime
-      conf <- readIORef refConf
-      maybeDbStructure <- readIORef refDbStructure
+      time <- AppState.getTime appState
+      conf <- AppState.getConfig appState
+      maybeDbStructure <- AppState.getDbStructure appState
 
       let
         eitherResponse :: IO (Either Error Wai.Response)
         eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure pool time req
+          runExceptT $ postgrestResponse conf maybeDbStructure (AppState.getPool appState) time req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
 

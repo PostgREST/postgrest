@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-|
 Module      : PostgREST.Query.Statements
 Description : PostgREST single SQL statements.
@@ -15,7 +14,6 @@ module PostgREST.Query.Statements
   , createReadStatement
   , callProcStatement
   , createExplainStatement
-  , dbSettingsStatement
   ) where
 
 import qualified Data.Aeson                        as JSON
@@ -24,14 +22,12 @@ import qualified Data.ByteString.Char8             as BS
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as H
 import qualified Hasql.DynamicStatements.Statement as H
-import qualified Hasql.Encoders                    as HE
 import qualified Hasql.Statement                   as H
 
-import Control.Lens                  ((^?))
-import Data.Maybe                    (fromJust)
-import Data.Text.Read                (decimal)
-import Network.HTTP.Types.Status     (Status)
-import Text.InterpolatedString.Perl6 (q)
+import Control.Lens              ((^?))
+import Data.Maybe                (fromJust)
+import Data.Text.Read            (decimal)
+import Network.HTTP.Types.Status (Status)
 
 import PostgREST.DbStructure.PgVersion (PgVersion)
 import PostgREST.Error                 (Error (..))
@@ -43,7 +39,6 @@ import PostgREST.Request.Preferences
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS)
-
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -198,27 +193,6 @@ decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> H
 
 decodeGucStatus :: HD.Value (Either Error (Maybe Status))
 decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
-
--- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
-dbSettingsStatement :: H.Statement () [(Text, Text)]
-dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
-  where
-    sql = [q|
-      with
-      role_setting as (
-        select setdatabase, unnest(setconfig) as setting from pg_catalog.pg_db_role_setting
-        where setrole = current_user::regrole::oid
-          and setdatabase in (0, (select oid from pg_catalog.pg_database where datname = current_catalog))
-      ),
-      kv_settings as (
-        select setdatabase, split_part(setting, '=', 1) as k, split_part(setting, '=', 2) as value from role_setting
-        where setting like 'pgrst.%'
-      )
-      select distinct on (key) replace(k, 'pgrst.', '') as key, value
-      from kv_settings
-      order by key, setdatabase desc;
-    |]
-    decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable

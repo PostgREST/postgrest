@@ -1,19 +1,73 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE QuasiQuotes     #-}
+{-# LANGUAGE RecordWildCards #-}
 module PostgREST.CLI
-  ( CLI (..)
+  ( main
+  , CLI (..)
   , Command (..)
   , readCLIShowHelp
   ) where
 
-import qualified Options.Applicative as O
-import qualified Protolude.Conv      as Conv
+import qualified Data.Aeson                 as Aeson
+import qualified Data.ByteString.Lazy       as LBS
+import qualified Hasql.Pool                 as P
+import qualified Hasql.Transaction.Sessions as HT
+import qualified Options.Applicative        as O
+import qualified Protolude.Conv             as Conv
 
+import Data.Text.IO (hPutStrLn)
 import Text.Heredoc (str)
 
-import PostgREST.Version (prettyVersion)
+import PostgREST.AppState    (AppState)
+import PostgREST.Config      (AppConfig (..))
+import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.Version     (prettyVersion)
+import PostgREST.Workers     (reReadConfig)
 
-import Protolude
+import qualified PostgREST.App      as App
+import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Config   as Config
 
+import Protolude hiding (hPutStrLn)
+
+
+main :: App.SignalHandlerInstaller -> App.SocketRunner -> CLI -> IO ()
+main installSignalHandlers runAppInSocket CLI{cliCommand, cliPath} = do
+  conf@AppConfig{..} <-
+    either panic identity <$> Config.readAppConfig mempty cliPath Nothing
+  appState <- AppState.init conf
+
+  -- Override the config with config options from the db
+  -- TODO: the same operation is repeated on connectionWorker, ideally this
+  -- would be done only once, but dump CmdDumpConfig needs it for tests.
+  when configDbConfig $ reReadConfig True appState
+
+  exec cliCommand appState
+  where
+    exec :: Command -> AppState -> IO ()
+    exec CmdDumpConfig appState = putStr . Config.toText =<< AppState.getConfig appState
+    exec CmdDumpSchema appState = putStrLn =<< dumpSchema appState
+    exec CmdRun appState = App.run installSignalHandlers runAppInSocket appState
+
+-- | Dump DbStructure schema to JSON
+dumpSchema :: AppState -> IO LBS.ByteString
+dumpSchema appState = do
+  AppConfig{..} <- AppState.getConfig appState
+  result <-
+    P.use (AppState.getPool appState) $ do
+      pgVersion <- getPgVersion
+      HT.transaction HT.ReadCommitted HT.Read $
+        getDbStructure
+          (toList configDbSchemas)
+          configDbExtraSearchPath
+          pgVersion
+          configDbPreparedStatements
+  P.release $ AppState.getPool appState
+  case result of
+    Left e -> do
+      hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
+      exitFailure
+    Right dbStructure -> return $ Aeson.encode dbStructure
 
 -- | Command line interface options
 data CLI = CLI

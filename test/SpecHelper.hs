@@ -85,6 +85,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
   , configDbUri                 = mempty
+  , configFilePath              = Nothing
   , configJWKS                  = parseSecret <$> secret
   , configJwtAudience           = Nothing
   , configJwtRoleClaimKey       = [JSPKey "role"]
