@@ -7,6 +7,7 @@ checkedShellScript
   name = "postgrest-test-withtmpdb-${postgresql.name}";
   docs = "Run the given command in a temporary database";
   inRootDir = true;
+  redirectTixFiles = false;
 }
   ''
     # avoid starting multiple layers of with_tmp_db
