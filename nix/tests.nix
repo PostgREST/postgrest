@@ -174,6 +174,7 @@ let
         inherit name;
         docs = "Run spec and io tests while collecting hpc coverage data.";
         inRootDir = true;
+        redirectTixFiles = false;
         withTmpDir = true;
       }
       ''

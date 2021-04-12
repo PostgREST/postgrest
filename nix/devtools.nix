@@ -23,6 +23,7 @@ let
               postgrest-watch postgrest-test-io
 
           '';
+        redirectTixFiles = false; # will be done by sub-command
         inRootDir = true;
       }
       ''

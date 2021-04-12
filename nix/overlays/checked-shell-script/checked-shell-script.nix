@@ -9,7 +9,7 @@
 , stdenv
 , writeTextFile
 }:
-{ name, docs, inRootDir ? false, withTmpDir ? false }: text:
+{ name, docs, inRootDir ? false, redirectTixFiles ? true, withTmpDir ? false }: text:
 # TODO: do something sensible with docs, e.g. provide automated --help
 let
   bin =
@@ -22,14 +22,12 @@ let
         ''
           #!${runtimeShell}
           set -euo pipefail
-
-          # make sure that no script creates conflicting tix files
-          # postgrest-coverage will override HPCTIXFILE to make proper use of it
-          if test ! -v HPCTIXFILE; then
-            hpctixdir=$(mktemp -d)
-            export HPCTIXFILE="$hpctixdir"/postgrest.tix
-            trap 'rm -rf $hpctixdir' EXIT
-          fi
+        ''
+        + lib.optionalString redirectTixFiles ''
+          # storing tix files in a temporary throw away directory avoids mix/tix conflicts after changes
+          hpctixdir=$(mktemp -d)
+          export HPCTIXFILE="$hpctixdir"/postgrest.tix
+          trap 'rm -rf $hpctixdir' EXIT
         ''
         + lib.optionalString inRootDir ''
           cd "$(${git}/bin/git rev-parse --show-toplevel)"
