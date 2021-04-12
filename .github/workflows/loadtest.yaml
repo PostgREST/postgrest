@@ -1,0 +1,34 @@
+name: Loadtest
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Loadtest-Nix:
+    name: Loadtest (Nix)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+        with:
+          fetch-depth: 0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: loadtest
+      - name: Run loadtest
+        run: |
+          postgrest-loadtest-against main
+          postgrest-loadtest-report > loadtest/loadtest.md
+      - name: Upload report
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: loadtest.md
+          path: loadtest/loadtest.md
+          if-no-files-found: error
