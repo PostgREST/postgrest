@@ -35,9 +35,11 @@ library
                       NoImplicitPrelude
   hs-source-dirs:     src
   exposed-modules:    PostgREST.App
+                      PostgREST.AppState
                       PostgREST.Auth
                       PostgREST.CLI
                       PostgREST.Config
+                      PostgREST.Config.Database
                       PostgREST.Config.JSPath
                       PostgREST.Config.Proxy
                       PostgREST.ContentType
@@ -61,12 +63,14 @@ library
                       PostgREST.Request.Preferences
                       PostgREST.Request.Types
                       PostgREST.Version
+                      PostgREST.Workers
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.15
                     , HTTP                      >= 4000.3.7 && < 4000.4
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 1.4.7 && < 1.6
                     , ansi-wl-pprint            >= 0.6.7 && < 0.7
+                    , auto-update               >= 0.1.4 && < 0.2
                     , base64-bytestring         >= 1 && < 1.3
                     , bytestring                >= 0.10.8 && < 0.11
                     , case-insensitive          >= 1.2 && < 1.3
@@ -81,6 +85,7 @@ library
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-dynamic-statements  == 0.3.1
+                    , hasql-notifications       >= 0.1 && < 0.2
                     , hasql-pool                >= 0.5 && < 0.6
                     , hasql-transaction         >= 0.7.2 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
@@ -96,6 +101,7 @@ library
                     , parsec                    >= 3.1.11 && < 3.2
                     , protolude                 >= 0.3 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
+                    , retry                     >= 0.7.4 && < 0.9
                     , scientific                >= 0.3.4 && < 0.4
                     , swagger2                  >= 2.4 && < 2.7
                     , text                      >= 1.2.2 && < 1.3
@@ -107,6 +113,7 @@ library
                     , wai-extra                 >= 3.0.19 && < 3.2
                     , wai-logger                >= 2.3.2
                     , wai-middleware-static     >= 0.8.1 && < 0.10
+                    , warp                      >= 3.2.12 && < 3.4
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
@@ -122,6 +129,14 @@ library
   else
     ghc-options: -O2
 
+  if !os(windows)
+    build-depends:
+      unix
+      , directory >= 1.2.6 && < 1.4
+      , network   >= 2.6 && < 3.2
+    exposed-modules:
+      PostgREST.Unix
+
 executable postgrest
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
@@ -129,25 +144,9 @@ executable postgrest
   hs-source-dirs:     main
   main-is:            Main.hs
   build-depends:      base                >= 4.9 && < 4.15
-                    , aeson               >= 1.4.7 && < 1.6
-                    , auto-update         >= 0.1.4 && < 0.2
-                    , base64-bytestring   >= 1 && < 1.3
-                    , bytestring          >= 0.10.8 && < 0.11
                     , containers          >= 0.5.7 && < 0.7
-                    , directory           >= 1.2.6 && < 1.4
-                    , either              >= 4.4.1 && < 5.1
-                    , hasql               >= 1.4 && < 1.5
-                    , hasql-pool          >= 0.5 && < 0.6
-                    , hasql-transaction   >= 0.7.2 && < 1.1
-                    , hasql-notifications >= 0.1 && < 0.2
-                    , network             >= 2.6 && < 3.2
                     , postgrest
                     , protolude           >= 0.3 && < 0.4
-                    , retry               >= 0.7.4 && < 0.9
-                    , text                >= 1.2.2 && < 1.3
-                    , time                >= 1.6 && < 1.11
-                    , wai                 >= 3.2.1 && < 3.3
-                    , warp                >= 3.2.12 && < 3.4
   ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I2"
                       -O2 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
@@ -158,10 +157,6 @@ executable postgrest
       ghc-options: -fhpc -hpcdir .hpc
   else
     ghc-options: -O2
-
-  if !os(windows)
-    build-depends: unix
-    other-modules: UnixSocket
 
 test-suite spec
   type:               exitcode-stdio-1.0
