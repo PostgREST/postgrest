@@ -105,17 +105,16 @@ let
         name = "postgrest-dump-minimal-imports";
         docs = "Dump minimal imports into given directory.";
         inRootDir = true;
+        withTmpDir = true;
       }
       ''
         dumpdir="''${1:?dumpdir not set}"
-        tmpdir="$(mktemp -d)"
         mkdir -p "$dumpdir"
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
           --builddir="$tmpdir" \
           --ghc-option=-ddump-minimal-imports \
           --ghc-option=-dumpdir="$dumpdir" \
           1>&2
-        rm -rf "$tmpdir"
 
         # Fix OverloadedRecordFields imports
         # shellcheck disable=SC2016
@@ -127,12 +126,11 @@ let
       {
         name = "postgrest-hsie-minimal-imports";
         docs = "Run hsie with a provided dump of minimal imports.";
+        withTmpDir = true;
       }
       ''
-        tmpdir="$(mktemp -d)"
         ${dumpMinimalImports} "$tmpdir"
         ${hsie} "$tmpdir" "$@"
-        rm -rf "$tmpdir"
       '';
 
   hsieGraphModules =
