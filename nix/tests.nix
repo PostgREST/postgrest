@@ -174,6 +174,7 @@ let
         inherit name;
         docs = "Run spec and io tests while collecting hpc coverage data.";
         inRootDir = true;
+        withTmpDir = true;
       }
       ''
         env="$(cat ${postgrest.env})"
@@ -183,14 +184,6 @@ let
         # clean up previous coverage reports
         mkdir -p coverage
         rm -rf coverage/*
-
-        # temporary directory to collect data in
-        tmpdir="$(mktemp -d)"
-
-        # we keep the tmpdir when an error occurs for debugging
-        trap 'echo Temporary directory kept at: $tmpdir' ERR
-        # remove the tmpdir when cancelled (postgrest-watch)
-        trap 'rm -rf "$tmpdir"' SIGINT SIGTERM
 
         # build once before running all the tests
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} --enable-tests all
@@ -234,8 +227,6 @@ let
           echo "file://$(pwd)/coverage/hpc_index.html"
           ${ghc}/bin/hpc report coverage/postgrest.tix "$@"
         fi
-
-        rm -rf "$tmpdir"
       '';
 
   coverageDraftOverlay =

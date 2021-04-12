@@ -9,7 +9,7 @@
 , stdenv
 , writeTextFile
 }:
-{ name, docs, inRootDir ? false }: text:
+{ name, docs, inRootDir ? false, withTmpDir ? false }: text:
 # TODO: do something sensible with docs, e.g. provide automated --help
 let
   bin =
@@ -40,7 +40,19 @@ let
             exit 1
           fi
         ''
-        + "(${text})";
+        + lib.optionalString withTmpDir ''
+          tmpdir="$(mktemp -d)"
+
+          # we keep the tmpdir when an error occurs for debugging
+          trap 'echo Temporary directory kept at: $tmpdir' ERR
+          # remove the tmpdir when cancelled (postgrest-watch)
+          trap 'rm -rf "$tmpdir"' SIGINT SIGTERM
+        ''
+        + "(${text})"
+        + lib.optionalString withTmpDir ''
+
+          rm -rf "$tmpdir"
+        '';
 
       checkPhase =
         ''
