@@ -22,7 +22,6 @@ module PostgREST.Config
   , parseSecret
   , readAppConfig
   , readDbUriFile
-  , readEnvironment
   , readSecretFile
   , toURI
   ) where
@@ -49,7 +48,6 @@ import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Numeric                 (readOct, showOct)
-import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.JSPath (JSPath, JSPathExp (..), pRoleClaimKey)
@@ -407,8 +405,3 @@ readDbUriFile dbUri = case T.stripPrefix "@" dbUri of
   Just filename -> Just . T.strip <$> readFile (toS filename)
 
 type Environment = M.Map [Char] Text
-
-readEnvironment :: IO Environment
-readEnvironment = getEnvironment <&> pgrst
-  where
-    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map T.pack $ M.fromList env

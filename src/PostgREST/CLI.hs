@@ -5,13 +5,11 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
-import qualified Data.Map.Strict     as M
 import qualified Options.Applicative as O
 import qualified Protolude.Conv      as Conv
 
 import Text.Heredoc (str)
 
-import PostgREST.Config  (Environment)
 import PostgREST.Version (prettyVersion)
 
 import Protolude
@@ -29,54 +27,58 @@ data Command
   | CmdDumpSchema
 
 -- | Read command line interface options. Also prints help.
-readCLIShowHelp :: Environment -> IO CLI
-readCLIShowHelp env = O.customExecParser parserPrefs opts
+readCLIShowHelp :: Bool -> IO CLI
+readCLIShowHelp hasEnvironment =
+  O.customExecParser prefs opts
   where
-    parserPrefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
+    prefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
+    opts = O.info parser $ O.fullDesc <> progDesc <> footer
+    parser = O.helper <*> exampleParser <*> cliParser
 
-    opts = O.info (O.helper <*> exampleParser <*> cliParser) $
-             O.fullDesc
-             <> O.progDesc (
-                 "PostgREST "
-                 <> Conv.toS prettyVersion
-                 <> " / create a REST API to an existing Postgres database"
-               )
-             <> O.footer "To run PostgREST, please pass the FILENAME argument or set PGRST_ environment variables."
+    progDesc =
+      O.progDesc $
+        "PostgREST "
+        <> Conv.toS prettyVersion
+        <> " / create a REST API to an existing Postgres database"
+
+    footer =
+      O.footer $
+        "To run PostgREST, please pass the FILENAME argument"
+        <> " or set PGRST_ environment variables."
+
+    exampleParser =
+      O.infoOption exampleConfigFile $
+        O.long "example"
+        <> O.short 'e'
+        <> O.help "Show an example configuration file"
 
     cliParser :: O.Parser CLI
-    cliParser = CLI <$>
-      (
-        O.flag CmdRun CmdDumpConfig (
-          O.long "dump-config" <>
-          O.help "Dump loaded configuration and exit"
-        )
-        <|>
-        O.flag CmdRun CmdDumpSchema (
-          O.long "dump-schema" <>
-          O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
-        )
-      )
-      <*>
-      optionalWithEnvironment (O.strArgument (
-        O.metavar "FILENAME" <>
-        O.help "Path to configuration file (optional with PGRST_ environment variables)"
-      ))
+    cliParser =
+      CLI
+        <$> (dumpConfigFlag <|> dumpSchemaFlag)
+        <*> optionalIf hasEnvironment configFileOption
 
-    optionalWithEnvironment :: Alternative f => f a -> f (Maybe a)
-    optionalWithEnvironment v
-      | M.null env = Just <$> v
-      | otherwise  = O.optional v
+    configFileOption =
+      O.strArgument $
+        O.metavar "FILENAME"
+        <> O.help "Path to configuration file (optional with PGRST_ environment variables)"
 
-    exampleParser :: O.Parser (a -> a)
-    exampleParser =
-      O.infoOption example (
-        O.long "example" <>
-        O.short 'e' <>
-        O.help "Show an example configuration file"
-      )
+    dumpConfigFlag =
+      O.flag CmdRun CmdDumpConfig $
+        O.long "dump-config"
+        <> O.help "Dump loaded configuration and exit"
 
-example :: [Char]
-example =
+    dumpSchemaFlag =
+      O.flag CmdRun CmdDumpSchema $
+        O.long "dump-schema"
+        <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+
+    optionalIf :: Alternative f => Bool -> f a -> f (Maybe a)
+    optionalIf True  = O.optional
+    optionalIf False = fmap Just
+
+exampleConfigFile :: [Char]
+exampleConfigFile =
   [str|### REQUIRED:
       |db-uri = "postgres://user:pass@localhost:5432/dbname"
       |db-schema = "public"
@@ -156,4 +158,3 @@ example =
       |## logging level, the admitted values are: crit, error, warn and info.
       |log-level = "error"
       |]
-

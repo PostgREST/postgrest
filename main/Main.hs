@@ -8,6 +8,7 @@ module Main (main) where
 import qualified Data.Aeson                 as Aeson
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.Map.Strict            as M
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
 import qualified Hasql.Pool                 as P
@@ -27,6 +28,7 @@ import Data.Time.Clock          (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings,
                                  setHost, setPort, setServerName)
 import System.CPUTime           (getCPUTime)
+import System.Environment       (getEnvironment)
 import System.IO                (BufferMode (..), hSetBuffering)
 import Text.Printf              (hPrintf)
 
@@ -36,9 +38,7 @@ import PostgREST.CLI                   (CLI (..), Command (..),
 import PostgREST.Config                (AppConfig (..), Environment,
                                         configDbPoolTimeout',
                                         dumpAppConfig, readAppConfig,
-                                        readDbUriFile,
-                                        readEnvironment,
-                                        readSecretFile)
+                                        readDbUriFile, readSecretFile)
 import PostgREST.DbStructure           (DbStructure, getDbStructure,
                                         getPgVersion)
 import PostgREST.DbStructure.PgVersion (PgVersion (..),
@@ -47,6 +47,8 @@ import PostgREST.Error                 (PgError (PgError),
                                         checkIsFatal, errorPayload)
 import PostgREST.Query.Statements      (dbSettingsStatement)
 import PostgREST.Version               (prettyVersion)
+
+import qualified Data.Text as T
 
 import Protolude      hiding (hPutStrLn, head, toS)
 import Protolude.Conv (toS)
@@ -87,7 +89,7 @@ main = do
   env <- readEnvironment
 
   -- read command/path from commad line
-  CLI{cliCommand, cliPath} <- readCLIShowHelp env
+  CLI{cliCommand, cliPath} <- readCLIShowHelp . not $ M.null env
 
   -- build the 'AppConfig' from the config file path and env vars
   pathEnvConf <- either panic identity <$> readAppConfig mempty env cliPath Nothing Nothing
@@ -220,6 +222,10 @@ main = do
     putStrLn $ ("Listening on port " :: Text) <> show port
     runSettings serverSettings postgrestApplication
 
+readEnvironment :: IO Environment
+readEnvironment = getEnvironment <&> pgrst
+  where
+    pgrst env = M.filterWithKey (\k _ -> "PGRST_" `isPrefixOf` k) $ M.map T.pack $ M.fromList env
 
 -- Time constants
 _32s :: Int
