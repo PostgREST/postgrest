@@ -21,3 +21,4 @@ __pycache__
 *.tix
 coverage
 .hpc
+loadtest
