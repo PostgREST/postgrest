@@ -119,7 +119,7 @@ spec actualPgVersion = do
           , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
                            , "Content-Range" <:> "*/*" ]
           }
-    
+
     context "requesting no representation" $
       it "should not throw and return no location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" []
@@ -524,7 +524,7 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [ "Content-Range" <:> "*/*" ]
+            , matchHeaders = [ matchHeaderAbsent hLocation ]
             }
 
     context "requesting header only representation" $
