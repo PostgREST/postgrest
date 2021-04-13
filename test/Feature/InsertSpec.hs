@@ -121,12 +121,11 @@ spec actualPgVersion = do
           }
     
     context "requesting no representation" $
-      it "should not throw and return location header when selecting without PK" $
+      it "should not throw and return no location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" []
           [json|{"id":12,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
           { matchStatus  = 201
-          , matchHeaders = [ "Location" <:> "/projects?id=eq.12"
-                           , "Content-Range" <:> "*/*" ]
+          , matchHeaders = [ matchHeaderAbsent hLocation ]
           }
 
     context "from an html form" $
@@ -149,7 +148,7 @@ spec actualPgVersion = do
             `shouldRespondWith`
               [json|""|]
 
-          post "/auto_incrementing_pk"
+          request methodPost "/auto_incrementing_pk" [("Prefer", "return=headers-only")]
               [json| { "non_nullable_string":"not null"} |]
             `shouldRespondWith`
               ""
@@ -517,13 +516,24 @@ spec actualPgVersion = do
           ""
           { matchStatus = 201 }
 
-  describe "Inserting into VIEWs" $
-    it "returns a location header" $
-      post "/compound_pk_view"
-          [json|{"k1":1,"k2":"test","extra":2}|]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 201
-          , matchHeaders = [ "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
-                           , "Content-Range" <:> "*/*" ]
-          }
+  describe "Inserting into VIEWs" $ do
+    context "requesting no representation" $
+      it "succeeds with 201" $
+        post "/compound_pk_view"
+            [json|{"k1":1,"k2":"test","extra":2}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [ "Content-Range" <:> "*/*" ]
+            }
+
+    context "requesting header only representation" $
+      it "returns a location header" $
+        request methodPost "/compound_pk_view" [("Prefer", "return=headers-only")]
+            [json|{"k1":1,"k2":"test","extra":2}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [ "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
+                             , "Content-Range" <:> "*/*" ]
+            }
