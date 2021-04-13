@@ -22,7 +22,7 @@ data PreferRepresentation
 instance Show PreferRepresentation where
   show Full        = "return=representation"
   show None        = "return=minimal"
-  show HeadersOnly = mempty
+  show HeadersOnly = "return=headers-only"
 
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure

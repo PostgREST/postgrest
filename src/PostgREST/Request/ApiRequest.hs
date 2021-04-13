@@ -336,6 +336,7 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
   representation
     | hasPrefer (show Full) = Full
     | hasPrefer (show None) = None
+    | hasPrefer (show HeadersOnly) = HeadersOnly
     | otherwise             = if action == ActionCreate
                                 then HeadersOnly -- Assume the user wants the Location header(for POST) by default
                                 else None

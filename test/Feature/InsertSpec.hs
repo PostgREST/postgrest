@@ -111,12 +111,21 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
-    context "requesting no representation" $
+    context "requesting headers only representation" $
       it "should not throw and return location header when selecting without PK" $
-        request methodPost "/projects?select=name,client_id" []
+        request methodPost "/projects?select=name,client_id" [("Prefer", "return=headers-only")]
           [json|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
+                           , "Content-Range" <:> "*/*" ]
+          }
+    
+    context "requesting no representation" $
+      it "should not throw and return location header when selecting without PK" $
+        request methodPost "/projects?select=name,client_id" []
+          [json|{"id":12,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
+          { matchStatus  = 201
+          , matchHeaders = [ "Location" <:> "/projects?id=eq.12"
                            , "Content-Range" <:> "*/*" ]
           }
 
