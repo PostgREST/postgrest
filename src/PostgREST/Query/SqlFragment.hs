@@ -135,6 +135,7 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
+-- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SqlFragment
 pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 
