@@ -6,9 +6,12 @@ module PostgREST.DbStructure.Identifiers
   , Schema
   , TableName
   , FieldName
+  , toQi
   ) where
 
 import qualified Data.Aeson as JSON
+import qualified Data.Text  as T
+import qualified GHC.Show
 
 import Protolude
 
@@ -22,6 +25,17 @@ data QualifiedIdentifier = QualifiedIdentifier
   deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 
 instance Hashable QualifiedIdentifier
+
+instance Show QualifiedIdentifier where
+  show (QualifiedIdentifier s i) =
+    (if T.null s then mempty else toS s <> ".") <> toS i
+
+-- TODO: Handle a case where the QI comes like this: "my.fav.schema"."my.identifier"
+-- Right now it only handles the schema.identifier case
+toQi :: Text -> QualifiedIdentifier
+toQi txt = case T.drop 1 <$> T.breakOn "." txt of
+  (i, "") -> QualifiedIdentifier mempty i
+  (s, i)  -> QualifiedIdentifier s i
 
 type Schema = Text
 type TableName = Text

@@ -42,7 +42,7 @@ import System.Log.FastLogger     (toLogStr)
 import PostgREST.Config             (AppConfig (..), LogLevel (..))
 import PostgREST.Error              (Error, errorResponseFor)
 import PostgREST.GucHeader          (addHeadersIfNotIncluded)
-import PostgREST.Query.SqlFragment  (intercalateSnippet,
+import PostgREST.Query.SqlFragment  (fromQi, intercalateSnippet,
                                      unknownLiteral)
 import PostgREST.Request.ApiRequest (ApiRequest (..))
 
@@ -75,7 +75,7 @@ runPgLocals conf claims app req = do
     searchPathSql =
       let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
       setConfigLocal mempty ("search_path", schemas)
-    preReqSql = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
+    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
 
     -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
     setConfigLocal :: Text -> (Text, Text) -> H.Snippet
