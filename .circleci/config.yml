@@ -156,8 +156,8 @@ jobs:
               postgrest-release-dockerhubdescription
             fi
 
-  # Build everything in default.nix, push to the Cachix binary cache and run tests
-  nix-build-test:
+  # Build everything in default.nix and push to the Cachix binary cache if running on main
+  nix-build:
     machine: true
     steps:
       - checkout
@@ -191,6 +191,22 @@ jobs:
               echo "Building all derivations (caching skipped for outside pull requests)..."
               nix-build
             fi
+
+  # Run tests
+  nix-test:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Install Nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh
+            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
+      - run:
+          name: Install and use the Cachix binary cache
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use postgrest
       - run:
           name: Install testing scripts
           command: nix-env -f default.nix -iA tests tests.memoryTests
@@ -261,7 +277,15 @@ workflows:
               only:
                 - /v[0-9]+(\.[0-9]+)*/
                 - nightly
-      - nix-build-test:
+      - nix-build:
+          filters:
+            tags:
+              only:
+                - /v[0-9]+(\.[0-9]+)*/
+                - nightly
+          context:
+            - cachix
+      - nix-test:
           filters:
             tags:
               only:
@@ -272,7 +296,8 @@ workflows:
             - style-check
             - stack-test
             - stack-test-memory
-            - nix-build-test
+            - nix-build
+            - nix-test
           filters:
             tags:
               only:
@@ -280,3 +305,6 @@ workflows:
                 - nightly
             branches:
               ignore: /.*/
+          context:
+            - docker
+            - github
