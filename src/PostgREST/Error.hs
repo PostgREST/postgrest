@@ -29,7 +29,8 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ContentType (ContentType (..))
 import qualified PostgREST.ContentType as ContentType
 
-import PostgREST.DbStructure.Relation (Link (..), Relation (..))
+import PostgREST.DbStructure.Relation (Cardinality (..),
+                                       Junction (..), Relation (..))
 import PostgREST.DbStructure.Table    (Column (..), Table (..))
 
 import Protolude      hiding (toS)
@@ -107,14 +108,19 @@ compressedRel Relation{..} =
   JSON.object $ [
     "origin"      .= fmtTbl relTable
   , "target"      .= fmtTbl relFTable
-  , "cardinality" .= (show relType :: Text)
   ] ++
-  case relLink of
-    Junction{..} -> [
-      "relationship" .= (fmtTbl junTable <> fmtEls [constName junLink1] <> fmtEls [constName junLink2])
+  case relCard of
+    M2M Junction{..} -> [
+        "cardinality" .= ("m2m" :: Text)
+      , "relationship" .= (fmtTbl junTable <> fmtEls [junCons1] <> fmtEls [junCons2])
       ]
-    Constraint{..} -> [
-      "relationship" .= (constName <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
+    M2O cons -> [
+        "cardinality" .= ("m2o" :: Text)
+      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
+      ]
+    O2M cons -> [
+        "cardinality" .= ("o2m" :: Text)
+      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
       ]
 
 data PgError = PgError Authenticated P.UsageError
