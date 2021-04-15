@@ -68,50 +68,6 @@ jobs:
           command: |
             test/create_test_db "postgres://circleci@localhost" postgrest_test stack test
 
-  # Run memory usage tests based on stack and docker.
-  stack-test-memory:
-    docker:
-      - image: cimg/base:2021.03
-        environment:
-          - PGHOST=localhost
-          - TERM=xterm
-      - image: circleci/postgres:12
-        environment:
-          - POSTGRES_USER=circleci
-          - POSTGRES_DB=circleci
-          - POSTGRES_HOST_AUTH_METHOD=trust
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install stack & dependencies
-          command: |
-            curl -L https://github.com/commercialhaskell/stack/releases/download/v2.3.1/stack-2.3.1-linux-x86_64.tar.gz | tar zx -C /tmp
-            sudo mv /tmp/stack-2.3.1-linux-x86_64/stack /usr/bin
-            sudo apt-get update
-            sudo apt-get install -y libgmp-dev postgresql-client
-            stack setup
-      - run:
-          name: build dependencies with profiling enabled
-          command: |
-            stack build --profile -j1  --only-dependencies
-      - save_cache:
-          paths:
-            - "~/.stack"
-            - ".stack-work"
-          key: v1-stack-prof-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
-      - run:
-          name: install with profiling enabled
-          command: |
-            stack install --profile -j1
-      - run:
-          name: run memory usage tests
-          command: |
-            export PATH="~/.local/bin:$PATH"
-            test/create_test_db "postgres://circleci@localhost" postgrest_test test/memory-tests.sh
-
   # Publish a new release. This only runs when a release is tagged (see
   # workflow below).
   release:
@@ -268,12 +224,6 @@ workflows:
               only:
                 - /v[0-9]+(\.[0-9]+)*/
                 - nightly
-      - stack-test-memory:
-          filters:
-            tags:
-              only:
-                - /v[0-9]+(\.[0-9]+)*/
-                - nightly
       - nix-build:
           filters:
             tags:
@@ -292,7 +242,6 @@ workflows:
           requires:
             - style-check
             - stack-test
-            - stack-test-memory
             - nix-build
             - nix-test
           filters:
