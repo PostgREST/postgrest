@@ -211,47 +211,44 @@ jobs:
           name: Install testing scripts
           command: nix-env -f default.nix -iA tests tests.memoryTests
       - run:
-          name: Skip tests on build failure
+          name: Run coverage (io tests and spec tests against PostgreSQL 13)
+          command: postgrest-coverage
+          when: always
+      - run:
+          name: Skip tests on build or primary test failure
           command: circleci-agent step halt
           when: on_fail
       - run:
-          name: Run the spec tests against PostgreSQL 9.5
-          command: postgrest-with-postgresql-9.5 postgrest-test-spec
-          when: always
+          name: Upload coverage to codecov
+          command: bash <(curl -s https://codecov.io/bash) -f coverage/codecov.json
       - run:
-          name: Run the spec tests against PostgreSQL 9.6
-          command: postgrest-with-postgresql-9.6 postgrest-test-spec
-          when: always
-      - run:
-          name: Run the spec tests against PostgreSQL 10
-          command: postgrest-with-postgresql-10 postgrest-test-spec
+          name: Run the spec tests against PostgreSQL 12
+          command: postgrest-with-postgresql-12 postgrest-test-spec
           when: always
       - run:
           name: Run the spec tests against PostgreSQL 11
           command: postgrest-with-postgresql-11 postgrest-test-spec
           when: always
       - run:
-          name: Run the spec tests against PostgreSQL 12
-          command: postgrest-with-postgresql-12 postgrest-test-spec
+          name: Run the spec tests against PostgreSQL 10
+          command: postgrest-with-postgresql-10 postgrest-test-spec
           when: always
       - run:
-          name: Check the spec tests for idempotence against PostgreSQL 13
+          name: Run the spec tests against PostgreSQL 9.6
+          command: postgrest-with-postgresql-9.6 postgrest-test-spec
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 9.5
+          command: postgrest-with-postgresql-9.5 postgrest-test-spec
+          when: always
+      - run:
+          name: Check the spec tests for idempotence
           command: postgrest-test-spec-idempotence
-          when: always
-      - run:
-          name: Run io tests
-          command: postgrest-test-io
           when: always
       - run:
           name: Run memory tests
           command: postgrest-test-memory
           when: always
-      - run:
-          name: Run coverage
-          command: postgrest-coverage
-      - run:
-          name: Upload coverage to codecov
-          command: bash <(curl -s https://codecov.io/bash) -f coverage/codecov.json
 
 
 workflows:
