@@ -176,7 +176,13 @@ jobs:
           when: on_fail
       - run:
           name: Upload coverage to codecov
-          command: bash <(curl -s https://codecov.io/bash) -f coverage/codecov.json
+          command: |
+            # Modified from:
+            # https://docs.codecov.io/docs/about-the-codecov-bash-uploader#validating-the-bash-script
+            curl -s https://codecov.io/bash > codecov;
+            VERSION=$(grep 'VERSION=\".*\"' codecov | cut -d'"' -f2);
+            shasum -a 512 -c <(curl -s https://raw.githubusercontent.com/codecov/codecov-bash/${VERSION}/SHA512SUM | grep codecov)
+            bash codecov -f coverage/codecov.json
       - run:
           name: Run the spec tests against PostgreSQL 12
           command: postgrest-with-postgresql-12 postgrest-test-spec
