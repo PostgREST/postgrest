@@ -311,20 +311,27 @@ accessibleTables =
       relname as table_name,
       d.description as table_description,
       (
-        c.relkind in ('r', 'v', 'f')
-        and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
-        -- The function `pg_relation_is_updateable` returns a bitmask where 8
-        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
-        -- it's possible to insert into the relation.
-        or (exists (
-          select 1
-          from pg_trigger
-          where
-            pg_trigger.tgrelid = c.oid
-            and (pg_trigger.tgtype::integer & 69) = 69)
-            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
-            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
-            -- in the PostgreSQL source code.
+        (
+          has_table_privilege(c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE')
+          or has_any_column_privilege(c.oid, 'INSERT, UPDATE')
+        ) 
+        and 
+        (
+          c.relkind in ('r', 'v', 'f')
+          and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
+          -- The function `pg_relation_is_updateable` returns a bitmask where 8
+          -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
+          -- it's possible to insert into the relation.
+          or (exists (
+            select 1
+            from pg_trigger
+            where
+              pg_trigger.tgrelid = c.oid
+              and (pg_trigger.tgtype::integer & 69) = 69)
+              -- The trigger type `tgtype` is a bitmask where 69 corresponds to
+              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
+              -- in the PostgreSQL source code.
+          )
         )
       ) as insertable
     from
