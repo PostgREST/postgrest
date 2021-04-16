@@ -25,11 +25,11 @@ import Protolude
 --
 -- TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 data Relation = Relation
-  { relTable    :: Table
-  , relColumns  :: [Column]
-  , relFTable   :: Table
-  , relFColumns :: [Column]
-  , relCard     :: Cardinality
+  { relTable          :: Table
+  , relColumns        :: [Column]
+  , relForeignTable   :: Table
+  , relForeignColumns :: [Column]
+  , relCardinality    :: Cardinality
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
@@ -37,25 +37,25 @@ data Relation = Relation
 -- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
 -- TODO: missing one-to-one
 data Cardinality
-  = O2M ConstraintName -- ^ one-to-many cardinality
-  | M2O ConstraintName -- ^ many-to-one cardinality
-  | M2M Junction       -- ^ many-to-many cardinality
+  = O2M FKConstraint -- ^ one-to-many cardinality
+  | M2O FKConstraint -- ^ many-to-one cardinality
+  | M2M Junction     -- ^ many-to-many cardinality
   deriving (Eq, Generic, JSON.ToJSON)
 
-type ConstraintName = Text
+type FKConstraint = Text
 
 -- | Junction table on an M2M relationship
 data Junction = Junction
   { junTable       :: Table
-  , junConstraint1 :: ConstraintName
+  , junConstraint1 :: FKConstraint
   , junColumns1    :: [Column]
-  , junConstraint2 :: ConstraintName
+  , junConstraint2 :: FKConstraint
   , junColumns2    :: [Column]
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
 isSelfReference :: Relation -> Bool
-isSelfReference r = relTable r == relFTable r
+isSelfReference r = relTable r == relForeignTable r
 
 data PrimaryKey = PrimaryKey
   { pkTable :: Table

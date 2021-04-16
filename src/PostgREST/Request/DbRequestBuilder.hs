@@ -126,7 +126,7 @@ addRels :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Ap
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
-      let newFrom r = if qiName tbl == nodeName then tableQi (relFTable r) else tbl
+      let newFrom r = if qiName tbl == nodeName then tableQi (relForeignTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
           rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
       in
@@ -158,7 +158,7 @@ findRel schema allRels origin target hint =
     -- foreign key and relTable/relFtable but with different
     -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
     -- obtained by using the origin column as an embed hint.
-    rs@[rel0, rel1]  -> case (relCard rel0, relCard rel1, relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1) of
+    rs@[rel0, rel1]  -> case (relCardinality rel0, relCardinality rel1, relTable rel0 == relTable rel1 && relForeignTable rel0 == relForeignTable rel1) of
       (O2M cons1, M2O cons2, True) -> if cons1 == cons2 then Right rel0 else Left $ AmbiguousRelBetween origin target rs
       (M2O cons1, O2M cons2, True) -> if cons1 == cons2 then Right rel1 else Left $ AmbiguousRelBetween origin target rs
       _                            -> Left $ AmbiguousRelBetween origin target rs
@@ -175,16 +175,16 @@ findRel schema allRels origin target hint =
     rel = filter (
       \Relation{..} ->
         -- Both relationship ends need to be on the exposed schema
-        schema == tableSchema relTable && schema == tableSchema relFTable &&
+        schema == tableSchema relTable && schema == tableSchema relForeignTable &&
         (
           -- /projects?select=clients(*)
           origin == tableName relTable  &&  -- projects
-          target == tableName relFTable ||  -- clients
+          target == tableName relForeignTable ||  -- clients
 
           -- /projects?select=projects_client_id_fkey(*)
           (
-            origin == tableName relTable &&       -- projects
-            matchConstraint (Just target) relCard -- projects_client_id_fkey
+            origin == tableName relTable &&              -- projects
+            matchConstraint (Just target) relCardinality -- projects_client_id_fkey
           ) ||
           -- /projects?select=client_id(*)
           (
@@ -195,14 +195,14 @@ findRel schema allRels origin target hint =
           isNothing hint || -- hint is optional
 
           -- /projects?select=clients!projects_client_id_fkey(*)
-          matchConstraint hint relCard || -- projects_client_id_fkey
+          matchConstraint hint relCardinality || -- projects_client_id_fkey
 
           -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
           matchFKSingleCol hint relColumns  || -- client_id
-          matchFKSingleCol hint relFColumns || -- id
+          matchFKSingleCol hint relForeignColumns || -- id
 
           -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
-          matchJunction hint relCard -- users_tasks
+          matchJunction hint relCardinality -- users_tasks
         )
       ) allRels
 
@@ -210,7 +210,7 @@ findRel schema allRels origin target hint =
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, depth)) forest) =
   case rel of
-    Just r@Relation{relCard=M2M Junction{junTable}} ->
+    Just r@Relation{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
       Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest

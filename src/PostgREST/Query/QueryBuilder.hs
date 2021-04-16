@@ -53,7 +53,7 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([H.Snippet], [H.Snippet]) -> ([H.Snippet], [H.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relation{relCard=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
+getJoinsSelects rr@(Node (_, (name, Just Relation{relCardinality=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->

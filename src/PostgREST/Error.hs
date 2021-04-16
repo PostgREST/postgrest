@@ -107,20 +107,20 @@ compressedRel Relation{..} =
   in
   JSON.object $ [
     "origin"      .= fmtTbl relTable
-  , "target"      .= fmtTbl relFTable
+  , "target"      .= fmtTbl relForeignTable
   ] ++
-  case relCard of
+  case relCardinality of
     M2M Junction{..} -> [
         "cardinality" .= ("m2m" :: Text)
       , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
       ]
     M2O cons -> [
         "cardinality" .= ("m2o" :: Text)
-      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
+      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
       ]
     O2M cons -> [
         "cardinality" .= ("o2m" :: Text)
-      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relFColumns))
+      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
       ]
 
 data PgError = PgError Authenticated P.UsageError

@@ -348,9 +348,9 @@ addForeignKeys rels = map addFk
     fk col = find (lookupFn col) rels >>= relToFk col
     lookupFn :: Column -> Relation -> Bool
     lookupFn c rel = case rel of
-      Relation{relColumns=cs, relCard=M2O _} -> c `elem` cs
-      _                                      -> False
-    relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
+      Relation{relColumns=cs, relCardinality=M2O _} -> c `elem` cs
+      _                                             -> False
+    relToFk col Relation{relColumns=cols, relForeignColumns=colsF} = do
       pos <- L.elemIndex col cols
       colF <- atMay colsF pos
       return $ ForeignKey colF
@@ -358,7 +358,7 @@ addForeignKeys rels = map addFk
 {-
 Adds Views M2O Relations based on SourceColumns found, the logic is as follows:
 
-Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCard=M2O} represented by:
+Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCardinality=M2O} represented by:
 
 t1.c1------t2.c2
 
@@ -393,7 +393,7 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
                    filter (\(c, _) -> c `elem` relCols) allSrcCols
     relSrcCols = srcColsGroupedByView relColumns
-    relFSrcCols = srcColsGroupedByView relFColumns
+    relFSrcCols = srcColsGroupedByView relForeignColumns
     getView :: [SourceColumn] -> Table
     getView = colTable . snd . unsafeHead
     srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
@@ -405,23 +405,23 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     viewTableM2O =
       [ Relation
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          relFTable relFColumns relCard
+          relForeignTable relForeignColumns relCardinality
       | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
     tableViewM2O =
       [ Relation
           relTable relColumns
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-          relCard
-      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
+          relCardinality
+      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
 
     viewViewM2O =
       [ Relation
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-          relCard
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
+          relCardinality
       | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
-      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
+      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
 
   in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
