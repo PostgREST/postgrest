@@ -112,7 +112,7 @@ compressedRel Relation{..} =
   case relCard of
     M2M Junction{..} -> [
         "cardinality" .= ("m2m" :: Text)
-      , "relationship" .= (fmtTbl junTable <> fmtEls [junCons1] <> fmtEls [junCons2])
+      , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
       ]
     M2O cons -> [
         "cardinality" .= ("m2o" :: Text)

@@ -46,11 +46,11 @@ type ConstraintName = Text
 
 -- | Junction table on an M2M relationship
 data Junction = Junction
-  { junTable :: Table
-  , junCons1 :: ConstraintName
-  , junCols1 :: [Column]
-  , junCons2 :: ConstraintName
-  , junCols2 :: [Column]
+  { junTable       :: Table
+  , junConstraint1 :: ConstraintName
+  , junColumns1    :: [Column]
+  , junConstraint2 :: ConstraintName
+  , junColumns2    :: [Column]
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
