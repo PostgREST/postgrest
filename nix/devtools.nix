@@ -19,16 +19,19 @@ let
             Watch the project for changes and reinvoke the given command.
 
             Example:
-
               postgrest-watch postgrest-test-io
-
           '';
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
         redirectTixFiles = false; # will be done by sub-command
         inRootDir = true;
       }
       ''
         while true; do
-          (! ${silver-searcher}/bin/ag -l . | ${entr}/bin/entr -dr "$@")
+          (! ${silver-searcher}/bin/ag -l . | ${entr}/bin/entr -dr "$_arg_command" "''${_arg_leftovers[@]}")
         done
       '';
 
@@ -56,18 +59,25 @@ let
       {
         name = "postgrest-build";
         docs = "Build PostgREST interactively using cabal-install.";
+        args = [ "ARG_LEFTOVERS([Cabal arguments])" ];
         inRootDir = true;
       }
-      ''exec ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "$@"'';
+      ''
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "''${_arg_leftovers[@]}"
+      '';
 
   run =
     checkedShellScript
       {
         name = "postgrest-run";
         docs = "Run PostgREST after buidling it interactively with cabal-install";
+        args = [ "ARG_LEFTOVERS([PostgREST arguments])" ];
         inRootDir = true;
       }
-      ''exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- postgrest "$@"'';
+      ''
+        ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
+          postgrest "''${_arg_leftovers[@]}"
+      '';
 
   clean =
     checkedShellScript
@@ -108,21 +118,21 @@ let
       {
         name = "postgrest-dump-minimal-imports";
         docs = "Dump minimal imports into given directory.";
+        args = [ "ARG_POSITIONAL_SINGLE([dumpdir], [Output directory])" ];
         inRootDir = true;
         withTmpDir = true;
       }
       ''
-        dumpdir="''${1:?dumpdir not set}"
-        mkdir -p "$dumpdir"
+        mkdir -p "$_arg_dumpdir"
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
           --builddir="$tmpdir" \
           --ghc-option=-ddump-minimal-imports \
-          --ghc-option=-dumpdir="$dumpdir" \
+          --ghc-option=-dumpdir="$_arg_dumpdir" \
           1>&2
 
         # Fix OverloadedRecordFields imports
         # shellcheck disable=SC2016
-        sed -E 's/\$sel:.*://g' -i "$dumpdir"/*
+        sed -E 's/\$sel:.*://g' -i "$_arg_dumpdir"/*
       '';
 
   hsieMinimalImports =
@@ -130,11 +140,12 @@ let
       {
         name = "postgrest-hsie-minimal-imports";
         docs = "Run hsie with a provided dump of minimal imports.";
+        args = [ "ARG_LEFTOVERS([hsie arguments])" ];
         withTmpDir = true;
       }
       ''
         ${dumpMinimalImports} "$tmpdir"
-        ${hsie} "$tmpdir" "$@"
+        ${hsie} "$tmpdir" "''${_arg_leftovers[@]}"
       '';
 
   hsieGraphModules =
@@ -142,10 +153,10 @@ let
       {
         name = "postgrest-hsie-graph-modules";
         docs = "Create a PNG graph of modules imported within the codebase.";
+        args = [ "ARG_POSITIONAL_SINGLE([outfile], [Output filename])" ];
       }
       ''
-        outfile="''${1:?outfile not set}"
-        ${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$outfile"
+        ${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
 
   hsieGraphSymbols =
@@ -153,10 +164,10 @@ let
       {
         name = "postgrest-hsie-graph-symbols";
         docs = "Create a PNG graph of symbols imported within the codebase.";
+        args = [ "ARG_POSITIONAL_SINGLE([outfile], [Output filename])" ];
       }
       ''
-        outfile="''${1:?outfile not set}"
-        ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$outfile"
+        ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
 in
 buildEnv {
