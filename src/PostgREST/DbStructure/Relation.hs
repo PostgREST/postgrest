@@ -3,11 +3,10 @@
 
 module PostgREST.DbStructure.Relation
   ( Cardinality(..)
-  , Constraint
   , ForeignKey(..)
-  , Link(..)
   , PrimaryKey(..)
   , Relation(..)
+  , Junction(..)
   , isSelfReference
   ) where
 
@@ -15,8 +14,6 @@ import qualified Data.Aeson as JSON
 
 import PostgREST.DbStructure.Table (Column (..), ForeignKey (..),
                                     Table (..))
-
-import qualified GHC.Show (show)
 
 import Protolude
 
@@ -28,49 +25,40 @@ import Protolude
 --
 -- TODO merge relColumns and relFColumns to a tuple or Data.Bimap
 data Relation = Relation
-  { relTable    :: Table
-  , relColumns  :: [Column]
-  , relFTable   :: Table
-  , relFColumns :: [Column]
-  , relType     :: Cardinality
-  , relLink     :: Link -- ^ Constraint on O2M/M2O, Junction for M2M Cardinality
+  { relTable          :: Table
+  , relColumns        :: [Column]
+  , relForeignTable   :: Table
+  , relForeignColumns :: [Column]
+  , relCardinality    :: Cardinality
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
-type ConstraintName = Text
+-- | The relationship cardinality
+-- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
+-- TODO: missing one-to-one
+data Cardinality
+  = O2M FKConstraint -- ^ one-to-many cardinality
+  | M2O FKConstraint -- ^ many-to-one cardinality
+  | M2M Junction     -- ^ many-to-many cardinality
+  deriving (Eq, Generic, JSON.ToJSON)
+
+type FKConstraint = Text
 
 -- | Junction table on an M2M relationship
-data Link
-  = Constraint
-      { constName :: ConstraintName }
-  | Junction
-      { junTable :: Table
-      , junLink1 :: Link
-      , junCols1 :: [Column]
-      , junLink2 :: Link
-      , junCols2 :: [Column]
-      }
+data Junction = Junction
+  { junTable       :: Table
+  , junConstraint1 :: FKConstraint
+  , junColumns1    :: [Column]
+  , junConstraint2 :: FKConstraint
+  , junColumns2    :: [Column]
+  }
   deriving (Eq, Generic, JSON.ToJSON)
+
+isSelfReference :: Relation -> Bool
+isSelfReference r = relTable r == relForeignTable r
 
 data PrimaryKey = PrimaryKey
   { pkTable :: Table
   , pkName  :: Text
   }
   deriving (Generic, JSON.ToJSON)
-
--- | The relationship
--- [cardinality](https://en.wikipedia.org/wiki/Cardinality_(data_modeling)).
--- TODO: missing one-to-one
-data Cardinality
-  = O2M -- ^ one-to-many,  previously known as Parent
-  | M2O -- ^ many-to-one,  previously known as Child
-  | M2M -- ^ many-to-many, previously known as Many
-  deriving (Eq, Generic, JSON.ToJSON)
-
-instance Show Cardinality where
-  show O2M = "o2m"
-  show M2O = "m2o"
-  show M2M = "m2m"
-
-isSelfReference :: Relation -> Bool
-isSelfReference r = relTable r == relFTable r

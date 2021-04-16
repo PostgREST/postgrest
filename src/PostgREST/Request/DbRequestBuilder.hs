@@ -33,7 +33,8 @@ import Data.Tree               (Tree (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema, TableName)
-import PostgREST.DbStructure.Relation    (Cardinality (..), Link (..),
+import PostgREST.DbStructure.Relation    (Cardinality (..),
+                                          Junction (..),
                                           Relation (..))
 import PostgREST.DbStructure.Table       (Column (..), Table (..),
                                           tableQi)
@@ -125,7 +126,7 @@ addRels :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either Ap
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
-      let newFrom r = if qiName tbl == nodeName then tableQi (relFTable r) else tbl
+      let newFrom r = if qiName tbl == nodeName then tableQi (relForeignTable r) else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
           rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
       in
@@ -152,34 +153,38 @@ findRel schema allRels origin target hint =
   case rel of
     []  -> Left $ NoRelBetween origin target
     [r] -> Right r
-    rs  ->
-      -- Return error if more than one relationship is found, unless we're in a
-      -- self reference case.
-      --
-      -- Here we handle a self reference relationship to not cause a breaking
-      -- change: In a self reference we get two relationships with the same
-      -- foreign key and relTable/relFtable but with different
-      -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
-      -- obtained by using the origin column as an embed hint.
-      let [rel0, rel1] = take 2 rs in
-      if length rs == 2 && relLink rel0 == relLink rel1 && relTable rel0 == relTable rel1 && relFTable rel0 == relFTable rel1
-        then note (NoRelBetween origin target) (find (\r -> relType r == O2M) rs)
-        else Left $ AmbiguousRelBetween origin target rs
+    -- Here we handle a self reference relationship to not cause a breaking
+    -- change: In a self reference we get two relationships with the same
+    -- foreign key and relTable/relFtable but with different
+    -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
+    -- obtained by using the origin column as an embed hint.
+    rs@[rel0, rel1]  -> case (relCardinality rel0, relCardinality rel1, relTable rel0 == relTable rel1 && relForeignTable rel0 == relForeignTable rel1) of
+      (O2M cons1, M2O cons2, True) -> if cons1 == cons2 then Right rel0 else Left $ AmbiguousRelBetween origin target rs
+      (M2O cons1, O2M cons2, True) -> if cons1 == cons2 then Right rel1 else Left $ AmbiguousRelBetween origin target rs
+      _                            -> Left $ AmbiguousRelBetween origin target rs
+    rs -> Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ cols = length cols == 1 && hint_ == (colName <$> head cols)
+    matchConstraint tar card = case card of
+      O2M cons -> tar == Just cons
+      M2O cons -> tar == Just cons
+      _        -> False
+    matchJunction hint_ card = case card of
+      M2M Junction{junTable} -> hint_ == Just (tableName junTable)
+      _                      -> False
     rel = filter (
       \Relation{..} ->
         -- Both relationship ends need to be on the exposed schema
-        schema == tableSchema relTable && schema == tableSchema relFTable &&
+        schema == tableSchema relTable && schema == tableSchema relForeignTable &&
         (
           -- /projects?select=clients(*)
           origin == tableName relTable  &&  -- projects
-          target == tableName relFTable ||  -- clients
+          target == tableName relForeignTable ||  -- clients
 
           -- /projects?select=projects_client_id_fkey(*)
           (
-            origin == tableName relTable && -- projects
-            Constraint target == relLink    -- projects_client_id_fkey
+            origin == tableName relTable &&              -- projects
+            matchConstraint (Just target) relCardinality -- projects_client_id_fkey
           ) ||
           -- /projects?select=client_id(*)
           (
@@ -190,20 +195,14 @@ findRel schema allRels origin target hint =
           isNothing hint || -- hint is optional
 
           -- /projects?select=clients!projects_client_id_fkey(*)
-          (
-            relType /= M2M &&
-            hint == Just (constName relLink) -- projects_client_id_fkey
-          ) ||
+          matchConstraint hint relCardinality || -- projects_client_id_fkey
 
           -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
           matchFKSingleCol hint relColumns  || -- client_id
-          matchFKSingleCol hint relFColumns || -- id
+          matchFKSingleCol hint relForeignColumns || -- id
 
-          -- /users?select=tasks!users_tasks(*)
-          (
-            relType == M2M &&                           -- many-to-many between users and tasks
-            hint == Just (tableName $ junTable relLink) -- users_tasks
-          )
+          -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
+          matchJunction hint relCardinality -- users_tasks
         )
       ) allRels
 
@@ -211,7 +210,7 @@ findRel schema allRels origin target hint =
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, depth)) forest) =
   case rel of
-    Just r@Relation{relType=M2M, relLink=Junction{junTable}} ->
+    Just r@Relation{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
       Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
@@ -231,11 +230,11 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols _ lnk) =
-  case lnk of
-    Junction Table{tableName=jtn} _ jc1 _ jc2 ->
+getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols card) =
+  case card of
+    M2M (Junction Table{tableName=jtn} _ jc1 _ jc2) ->
       zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
-    Constraint _ ->
+    _ ->
       zipWith (toJoinCondition tN ftN) cols fCols
   where
     toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
@@ -358,14 +357,10 @@ returningCols rr@(Node _ forest) pkCols
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
     -- fail because the following JOIN would need the "client_id" column from
     -- projects.  So this adds the foreign key columns to ensure the embedding
-    -- succeeds, result would be `RETURNING name, client_id`.  This also works
-    -- for the other relType's.
+    -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relation{relColumns=cols, relType=relTyp}, _, _, _)) _ -> case relTyp of
-          O2M -> Just cols
-          M2O -> Just cols
-          M2M -> Just cols
-        _ -> Nothing
+        Node (_, (_, Just Relation{relColumns=cols}, _, _, _)) _ -> Just cols
+        _                                                        -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to
     -- /projects?select=client_id,name,clients(name) we would get `RETURNING

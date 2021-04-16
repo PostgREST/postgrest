@@ -51,7 +51,8 @@ import PostgREST.DbStructure.Proc        (PgArg (..), PgType (..),
                                           ProcVolatility (..),
                                           ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relation    (Cardinality (..),
-                                          ForeignKey (..), Link (..),
+                                          ForeignKey (..),
+                                          Junction (..),
                                           PrimaryKey (..),
                                           Relation (..))
 import PostgREST.DbStructure.Table       (Column (..), Table (..))
@@ -78,8 +79,6 @@ tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tabl
 -- TODO Table could hold references to all its PrimaryKeys
 tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
 tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
-
-
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
@@ -348,8 +347,10 @@ addForeignKeys rels = map addFk
     addFk col = col { colFK = fk col }
     fk col = find (lookupFn col) rels >>= relToFk col
     lookupFn :: Column -> Relation -> Bool
-    lookupFn c Relation{relColumns=cs, relType=rty} = c `elem` cs && rty==M2O
-    relToFk col Relation{relColumns=cols, relFColumns=colsF} = do
+    lookupFn c rel = case rel of
+      Relation{relColumns=cs, relCardinality=M2O _} -> c `elem` cs
+      _                                             -> False
+    relToFk col Relation{relColumns=cols, relForeignColumns=colsF} = do
       pos <- L.elemIndex col cols
       colF <- atMay colsF pos
       return $ ForeignKey colF
@@ -357,7 +358,7 @@ addForeignKeys rels = map addFk
 {-
 Adds Views M2O Relations based on SourceColumns found, the logic is as follows:
 
-Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relType=M2O} represented by:
+Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCardinality=M2O} represented by:
 
 t1.c1------t2.c2
 
@@ -392,7 +393,7 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
                    filter (\(c, _) -> c `elem` relCols) allSrcCols
     relSrcCols = srcColsGroupedByView relColumns
-    relFSrcCols = srcColsGroupedByView relFColumns
+    relFSrcCols = srcColsGroupedByView relForeignColumns
     getView :: [SourceColumn] -> Table
     getView = colTable . snd . unsafeHead
     srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
@@ -404,38 +405,36 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     viewTableM2O =
       [ Relation
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          relFTable relFColumns
-          relType relLink
+          relForeignTable relForeignColumns relCardinality
       | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
     tableViewM2O =
       [ Relation
           relTable relColumns
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-          relType relLink
-      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
+          relCardinality
+      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
 
     viewViewM2O =
       [ Relation
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relFColumns)
-          relType relLink
+          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
+          relCardinality
       | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
-      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relFColumns ]
+      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
 
   in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
 addO2MRels :: [Relation] -> [Relation]
-addO2MRels rels = rels ++ [ Relation ft fc t c O2M lnk
-                          | Relation t c ft fc typ lnk <- rels
-                          , typ == M2O]
+addO2MRels rels = rels ++ [ Relation ft fc t c (O2M cons)
+                          | Relation t c ft fc (M2O cons) <- rels ]
 
 addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ [ Relation t c ft fc M2M (Junction jt1 lnk1 jc1 lnk2 jc2)
-                          | Relation jt1 jc1 t c _ lnk1 <- rels
-                          , Relation jt2 jc2 ft fc _ lnk2 <- rels
+addM2MRels rels = rels ++ [ Relation t c ft fc (M2M $ Junction jt1 cons1 jc1 cons2 jc2)
+                          | Relation jt1 jc1 t c (M2O cons1) <- rels
+                          , Relation jt2 jc2 ft fc (M2O cons2) <- rels
                           , jt1 == jt2
-                          , lnk1 /= lnk2]
+                          , cons1 /= cons2]
 
 addViewPrimaryKeys :: [SourceColumn] -> [PrimaryKey] -> [PrimaryKey]
 addViewPrimaryKeys srcCols = concatMap (\pk ->
@@ -632,7 +631,7 @@ allM2ORels tabs cols =
 
 relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relation <$> table <*> cols <*> tableF <*> colsF <*> pure M2O <*> pure (Constraint cn)
+  Relation <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
   where
     findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols

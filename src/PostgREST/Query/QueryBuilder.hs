@@ -53,10 +53,10 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([H.Snippet], [H.Snippet]) -> ([H.Snippet], [H.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relation{relType=relTyp,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
+getJoinsSelects rr@(Node (_, (name, Just Relation{relCardinality=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
   let subquery = readRequestToQuery rr in
-  case relTyp of
-    M2O ->
+  case card of
+    M2O _ ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
           sel = H.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
