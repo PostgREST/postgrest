@@ -59,13 +59,14 @@ let
       {
         name = "postgrest-test-io";
         docs = "Run the pytest-based IO tests.";
+        args = [ "ARG_LEFTOVERS([pytest arguments])" ];
         inRootDir = true;
         withEnv = postgrest.env;
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTools.latest} \
-          ${ioTestPython}/bin/pytest -- -v test/io-tests "$@"
+          ${ioTestPython}/bin/pytest -- -v test/io-tests "''${_arg_leftovers[@]}"
       '';
 
   testMemory =
@@ -101,6 +102,7 @@ let
       {
         name = "postgrest-coverage";
         docs = "Run spec and io tests while collecting hpc coverage data.";
+        args = [ "ARG_LEFTOVERS([hpc report arguments])" ];
         inRootDir = true;
         redirectTixFiles = false;
         withEnv = postgrest.env;
@@ -153,7 +155,7 @@ let
           # create html and stdout reports
           ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix
           echo "file://$(pwd)/coverage/hpc_index.html"
-          ${ghc}/bin/hpc report coverage/postgrest.tix "$@"
+          ${ghc}/bin/hpc report coverage/postgrest.tix "''${_arg_leftovers[@]}"
         fi
       '';
 

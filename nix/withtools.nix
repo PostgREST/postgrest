@@ -11,6 +11,11 @@ let
       {
         name = "postgrest-with-${name}";
         docs = "Run the given command in a temporary database with ${name}";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
         inRootDir = true;
         redirectTixFiles = false;
       }
@@ -19,7 +24,7 @@ let
         if test ! -v PGRST_DB_URI; then
           export PATH=${postgresql}/bin:"$PATH"
 
-          exec ${../test/with_tmp_db} "$@"
+          exec ${../test/with_tmp_db} "$_arg_command" "''${_arg_leftovers[@]}"
         else
           "$@"
         fi
@@ -40,7 +45,7 @@ let
 
               trap 'echo "Failed on ${pg.name}"' exit
 
-              ${withTmpDb pg} "$@"
+              ${withTmpDb pg} "$_arg_command" "''${_arg_leftovers[@]}"
 
               trap "" exit
 
@@ -56,6 +61,11 @@ let
       {
         name = "postgrest-with-all";
         docs = "Run command against all supported PostgreSQL versions.";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
         inRootDir = true;
       }
       (lib.concatStringsSep "\n\n" runners);
