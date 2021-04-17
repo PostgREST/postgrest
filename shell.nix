@@ -27,11 +27,12 @@ lib.overrideDerivation postgrest.env (
         pkgs.cabal-install
         pkgs.cabal2nix
         pkgs.postgresql
-        postgrest.nixpkgsUpgrade
         postgrest.devtools
-        postgrest.tests
-        postgrest.style
         postgrest.hsie.bin
+        postgrest.nixpkgsUpgrade
+        postgrest.style
+        postgrest.tests
+        postgrest.withTools
       ]
       ++ lib.optional memoryTests postgrest.tests.memoryTests
       ++ lib.optional docker postgrest.docker

@@ -10,71 +10,14 @@
 , gnugrep
 , haskell
 , hpc-codecov
-, lib
-, postgresql
-, postgresqlVersions
 , postgrest
 , postgrestProfiled
 , python3
 , runtimeShell
-, withTmpDb
+, withTools
 , yq
 }:
 let
-  # Create a `withPostgresql` for each PostgreSQL version that we want to test
-  # against.
-  withPostgresqlVersions =
-    builtins.map
-      ({ name, postgresql }:
-        (checkedShellScript
-          {
-            name = "postgrest-with-${name}";
-            docs = "Run the given command in a temporary database with ${name}";
-            inRootDir = false;
-          }
-          ''
-            ${withTmpDb postgresql} "$@"
-          ''
-        ).bin
-      )
-      postgresqlVersions;
-
-  # Helper script for running a command against all PostgreSQL versions.
-  withAllVersions =
-    let
-      runners =
-        builtins.map
-          ({ name, postgresql }:
-            ''
-              cat << EOF
-
-              Running against ${name}...
-
-              EOF
-
-              trap 'echo "Failed on ${name}"' exit
-
-              ${withTmpDb postgresql} "$@"
-
-              trap "" exit
-
-              cat << EOF
-
-              Done running against ${name}.
-
-              EOF
-            '')
-          postgresqlVersions;
-    in
-    checkedShellScript
-      {
-        name = "postgrest-with-all";
-        docs = "Run command against all supported PostgreSQL versions.";
-        inRootDir = true;
-      }
-      (lib.concatStringsSep "\n\n" runners);
-
-  # Script to run the Haskell test suite
   testSpec =
     checkedShellScript
       {
@@ -86,7 +29,7 @@ let
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
+        ${withTools.latest} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
       '';
 
   testSpecIdempotence =
@@ -100,7 +43,7 @@ let
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
-        ${withTmpDb postgresql} ${runtimeShell} -c " \
+        ${withTools.latest} ${runtimeShell} -c " \
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions} && \
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions}"
       '';
@@ -127,7 +70,7 @@ let
         export PATH="$env/bin:$PATH"
 
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTmpDb postgresql} \
+        ${cabal-install}/bin/cabal v2-exec ${withTools.latest} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests "$@"
       '';
 
@@ -141,7 +84,7 @@ let
       ''
         export PATH="${postgrestProfiled}/bin:${curl}/bin:$PATH"
 
-        ${withTmpDb postgresql} test/memory-tests.sh
+        ${withTools.latest} test/memory-tests.sh
       '';
 
   dumpSchema =
@@ -155,7 +98,7 @@ let
         env="$(cat ${postgrest.env})"
         export PATH="$env/bin:$PATH"
 
-        ${withTmpDb postgresql} \
+        ${withTools.latest} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
             | ${yq}/bin/yq -y .
@@ -184,11 +127,11 @@ let
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
+        ${withTools.latest} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests
           
         HPCTIXFILE="$tmpdir"/spec.tix \
-        ${withTmpDb postgresql} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
+        ${withTools.latest} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
 
         # collect all the tix files
         ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io*.tix "$tmpdir"/spec.tix
@@ -251,8 +194,7 @@ buildEnv
         dumpSchema.bin
         coverage.bin
         coverageDraftOverlay.bin
-        withAllVersions.bin
-      ] ++ withPostgresqlVersions;
+      ];
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)
   # and are run less often than the spec tests, so we don't include them in

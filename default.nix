@@ -112,13 +112,13 @@ rec {
   nixpkgsUpgrade =
     pkgs.callPackage nix/nixpkgs-upgrade.nix { };
 
-  withTmpDb =
-    pkgs.callPackage nix/withtmpdb.nix { };
+  withTools =
+    pkgs.callPackage nix/withtools.nix { inherit postgresqlVersions; };
 
   # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tests.nix {
-      inherit postgrest postgrestProfiled postgresqlVersions devCabalOptions withTmpDb;
+      inherit postgrest postgrestProfiled devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
     };
