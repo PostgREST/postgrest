@@ -37,6 +37,7 @@ let
 
           # ARG_HELP([${name}], [${escapedDocs}])
           ${lib.strings.concatMapStrings (arg: "# " + arg) args}
+          # ARG_POSITIONAL_DOUBLEDASH()
           # ARG_DEFAULTS_POS()
           # ARGBASH_GO
 
@@ -45,7 +46,16 @@ let
 
   argsParser =
     runCommand "${name}-parser" { }
-      "${argbash}/bin/argbash -o $out ${argsTemplate}/${name}.m4";
+      ''
+        ${argbash}/bin/argbash ${argsTemplate}/${name}.m4 > $out
+
+        # This forces optional arguments to go *before* positional arguments,
+        # which allows leftovers to pass optional arguments to sub-commands.
+        # Example: This way `postgrest-watch -h` will return the help output for watch, while
+        # `postgrest-watch postgrest-test-spec -h` will return the help output for test-spec.
+        # Taken from: https://github.com/matejak/argbash/issues/114#issuecomment-557108274
+        sed '/_positionals_count + 1/a\\t\t\t\tset -- "''${@:1:1}" "--" "''${@:2}"' -i $out
+      '';
 
   bashCompletion =
     runCommand "${name}-completion" { } (
