@@ -4,6 +4,7 @@
 , git
 , hlint
 , nixpkgs-fmt
+, shellcheck
 , silver-searcher
 , stylish-haskell
 }:
@@ -46,7 +47,7 @@ let
     checkedShellScript
       {
         name = "postgrest-lint";
-        docs = "Lint all Haskell files.";
+        docs = "Lint all Haskell files and bash scripts.";
         inRootDir = true;
       }
       ''
@@ -54,6 +55,9 @@ let
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
+
+        # Lint bash scripts
+        ${shellcheck}/bin/shellcheck test/create_test_db test/memory-tests.sh test/with_tmp_db
       '';
 
   tools = [ style styleCheck lint ];
