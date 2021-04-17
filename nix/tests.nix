@@ -41,7 +41,6 @@ let
 
   # Helper script for running a command against all PostgreSQL versions.
   withAllVersions =
-    name:
     let
       runners =
         builtins.map
@@ -69,7 +68,7 @@ let
     in
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-with-all";
         docs = "Run command against all supported PostgreSQL versions.";
         inRootDir = true;
       }
@@ -77,10 +76,9 @@ let
 
   # Script to run the Haskell test suite
   testSpec =
-    name: postgresql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-test-spec";
         docs = "Run the Haskell test suite";
         inRootDir = true;
       }
@@ -92,10 +90,9 @@ let
       '';
 
   testSpecIdempotence =
-    name: postgrestql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-test-spec-idempotence";
         docs = "Check that the Haskell tests can be run multiple times against the same db.";
         inRootDir = true;
       }
@@ -119,10 +116,9 @@ let
     ]);
 
   testIO =
-    name: postgresql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-test-io";
         docs = "Run the pytest-based IO tests.";
         inRootDir = true;
       }
@@ -136,10 +132,9 @@ let
       '';
 
   testMemory =
-    name: postgresql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-test-memory";
         docs = "Run the memory tests.";
         inRootDir = true;
       }
@@ -150,10 +145,9 @@ let
       '';
 
   dumpSchema =
-    name: postgresql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-dump-schema";
         docs = "Dump the loaded schema's DbStructure as a yaml file.";
         inRootDir = true;
       }
@@ -168,10 +162,9 @@ let
       '';
 
   coverage =
-    name: postgresql:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-coverage";
         docs = "Run spec and io tests while collecting hpc coverage data.";
         inRootDir = true;
         redirectTixFiles = false;
@@ -231,10 +224,9 @@ let
       '';
 
   coverageDraftOverlay =
-    name:
     checkedShellScript
       {
-        inherit name;
+        name = "postgrest-coverage-draft-overlay";
         docs = "Create a draft overlay from current coverage report.";
         inRootDir = true;
       }
@@ -253,19 +245,18 @@ buildEnv
 
     paths =
       [
-        (testSpec "postgrest-test-spec" postgresql).bin
-        (testSpecIdempotence "postgrest-test-spec-idempotence" postgresql).bin
-        (testIO "postgrest-test-io" postgresql).bin
-        (dumpSchema "postgrest-dump-schema" postgresql).bin
-        (coverage "postgrest-coverage" postgresql).bin
-        (coverageDraftOverlay "postgrest-coverage-draft-overlay").bin
-        (withAllVersions "postgrest-with-all").bin
+        testSpec.bin
+        testSpecIdempotence.bin
+        testIO.bin
+        dumpSchema.bin
+        coverage.bin
+        coverageDraftOverlay.bin
+        withAllVersions.bin
       ] ++ withPostgresqlVersions;
   }
   # The memory tests have large dependencies (a profiled build of PostgREST)
   # and are run less often than the spec tests, so we don't include them in
   # the default test environment. We make them available through a separate attribute:
   // {
-  memoryTests =
-    (testMemory "postgrest-test-memory" postgresql).bin;
+  memoryTests = testMemory.bin;
 }
