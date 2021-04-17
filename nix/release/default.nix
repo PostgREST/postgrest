@@ -1,12 +1,13 @@
 { buildEnv
+, checkedShellScript
 , curl
+, docker
 , envsubst
 , ghr
+, git
 , jq
 , postgrest
-, docker
 , runCommand
-, checkedShellScript
 }:
 let
   github =
@@ -14,14 +15,25 @@ let
       {
         name = "postgrest-release-github";
         docs = "Push a new release to GitHub.";
+        args = [
+          "ARG_POSITIONAL_SINGLE([version], [git version tag to make release for])"
+          "ARG_USE_ENV([GITHUB_TOKEN], [], [GitHub token])"
+          "ARG_USE_ENV([GITHUB_USERNAME], [], [GitHub user name])"
+          "ARG_USE_ENV([GITHUB_REPONAME], [], [GitHub repository name])"
+        ];
         inRootDir = true;
       }
       ''
-        version=$1
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        GITHUB_TOKEN="''${GITHUB_TOKEN:?GITHUB_TOKEN is required}"
+        GITHUB_USERNAME="''${GITHUB_USERNAME:?GITHUB_USERNAME is required}"
+        GITHUB_REPONAME="''${GITHUB_REPONAME:?GITHUB_REPONAME is required}"
 
-        if test "$version" = "nightly"
+        if test "$_arg_version" = "nightly"
         then
-          suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
+          suffix=$(${git}/bin/git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
           tar cvJf "postgrest-nightly-$suffix-linux-x64-static.tar.xz" \
             -C ${postgrest}/bin postgrest
 
@@ -32,9 +44,9 @@ let
             --replace nightly \
             "postgrest-nightly-$suffix-linux-x64-static.tar.xz"
         else
-          changes="$(sed -n "1,/$version/d;/## \[/q;p" ${../../CHANGELOG.md})"
+          changes="$(sed -n "1,/$_arg_version/d;/## \[/q;p" ${../../CHANGELOG.md})"
 
-          tar cvJf "postgrest-$version-linux-x64-static.tar.xz" \
+          tar cvJf "postgrest-$_arg_version-linux-x64-static.tar.xz" \
             -C ${postgrest}/bin postgrest
 
           ${ghr}/bin/ghr \
@@ -42,8 +54,8 @@ let
             -u "$GITHUB_USERNAME" \
             -r "$GITHUB_REPONAME" \
             -b "$changes" \
-            --replace "$version" \
-            "postgrest-$version-linux-x64-static.tar.xz"
+            --replace "$_arg_version" \
+            "postgrest-$_arg_version-linux-x64-static.tar.xz"
         fi
       '';
 
@@ -59,8 +71,18 @@ let
             not the same as DOCKER_REPO because we use the
             https://hub.docker.com/u/postgrestbot account for uploading to dockerhub.
           '';
+        args = [
+          "ARG_USE_ENV([DOCKER_USER], [], [DockerHub user name])"
+          "ARG_USE_ENV([DOCKER_PASS], [], [DockerHub password])"
+        ];
       }
       ''
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        DOCKER_USER="''${DOCKER_USER:?DOCKER_USER is required}"
+        DOCKER_PASS="''${DOCKER_PASS:?DOCKER_PASS is required}"
+
         docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
       '';
 
@@ -69,24 +91,31 @@ let
       {
         name = "postgrest-release-dockerhub";
         docs = "Push a new release to Docker Hub";
+        args = [
+          "ARG_POSITIONAL_SINGLE([version], [git version tag to tag image with])"
+          "ARG_USE_ENV([DOCKER_REPO], [], [DockerHub repository])"
+        ];
       }
       ''
-        version=$1
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        DOCKER_REPO="''${DOCKER_REPO:?DOCKER_REPO is required}"
 
         docker load -i ${docker.image}
 
-        if test "$version" = "nightly"
+        if test "$_arg_version" = "nightly"
         then
-          suffix=$(git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
+          suffix=$(${git}/bin/git show -s --format="%cd-%h" --date="format:%Y-%m-%d-%H-%M")
 
           docker tag postgrest:latest "$DOCKER_REPO/postgrest:nightly-$suffix"
           docker push "$DOCKER_REPO/postgrest:nightly-$suffix"
         else
           docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-          docker tag postgrest:latest "$DOCKER_REPO/postgrest:$version"
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:$_arg_version"
 
           docker push "$DOCKER_REPO"/postgrest:latest
-          docker push "$DOCKER_REPO/postgrest:$version"
+          docker push "$DOCKER_REPO/postgrest:$_arg_version"
         fi
       '';
 
@@ -102,8 +131,20 @@ let
       {
         name = "postgrest-release-dockerhubdescription";
         docs = "Update the repository description on Docker Hub.";
+        args = [
+          "ARG_USE_ENV([DOCKER_USER], [], [DockerHub user name])"
+          "ARG_USE_ENV([DOCKER_PASS], [], [DockerHub password])"
+          "ARG_USE_ENV([DOCKER_REPO], [], [DockerHub repository])"
+        ];
       }
       ''
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        DOCKER_USER="''${DOCKER_USER:?DOCKER_USER is required}"
+        DOCKER_PASS="''${DOCKER_PASS:?DOCKER_PASS is required}"
+        DOCKER_REPO="''${DOCKER_REPO:?DOCKER_REPO is required}"
+
         # Login to Docker Hub and get a token.
         token="$(
           ${curl}/bin/curl -s \
