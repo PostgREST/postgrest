@@ -24,11 +24,9 @@ let
         name = "postgrest-test-spec";
         docs = "Run the Haskell test suite";
         inRootDir = true;
+        withEnv = postgrest.env;
       }
       ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:$PATH"
-
         ${withTools.latest} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
       '';
 
@@ -38,11 +36,9 @@ let
         name = "postgrest-test-spec-idempotence";
         docs = "Check that the Haskell tests can be run multiple times against the same db.";
         inRootDir = true;
+        withEnv = postgrest.env;
       }
       ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:$PATH"
-
         ${withTools.latest} ${runtimeShell} -c " \
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions} && \
           ${cabal-install}/bin/cabal v2-test ${devCabalOptions}"
@@ -64,11 +60,9 @@ let
         name = "postgrest-test-io";
         docs = "Run the pytest-based IO tests.";
         inRootDir = true;
+        withEnv = postgrest.env;
       }
       ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:$PATH"
-
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTools.latest} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests "$@"
@@ -93,11 +87,9 @@ let
         name = "postgrest-dump-schema";
         docs = "Dump the loaded schema's DbStructure as a yaml file.";
         inRootDir = true;
+        withEnv = postgrest.env;
       }
       ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:$PATH"
-
         ${withTools.latest} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
@@ -111,11 +103,10 @@ let
         docs = "Run spec and io tests while collecting hpc coverage data.";
         inRootDir = true;
         redirectTixFiles = false;
+        withEnv = postgrest.env;
         withTmpDir = true;
       }
       ''
-        env="$(cat ${postgrest.env})"
-        export PATH="$env/bin:$PATH"
         export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
 
         # clean up previous coverage reports

@@ -9,8 +9,14 @@
 , stdenv
 , writeTextFile
 }:
-{ name, docs, inRootDir ? false, redirectTixFiles ? true, withTmpDir ? false }: text:
 # TODO: do something sensible with docs, e.g. provide automated --help
+{ name
+, docs
+, inRootDir ? false
+, redirectTixFiles ? true
+, withEnv ? null
+, withTmpDir ? false
+}: text:
 let
   bin =
     writeTextFile {
@@ -45,6 +51,10 @@ let
           trap 'echo Temporary directory kept at: $tmpdir' ERR
           # remove the tmpdir when cancelled (postgrest-watch)
           trap 'rm -rf "$tmpdir"' SIGINT SIGTERM
+        ''
+        + lib.optionalString (withEnv != null) ''
+          env="$(cat ${withEnv})"
+          export PATH="$env/bin:$PATH"
         ''
         + "(${text})"
         + lib.optionalString withTmpDir ''
