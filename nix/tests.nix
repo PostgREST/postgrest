@@ -3,7 +3,6 @@
 { buildEnv
 , cabal-install
 , checkedShellScript
-, curl
 , devCabalOptions
 , ghc
 , glibcLocales
@@ -11,7 +10,6 @@
 , haskell
 , hpc-codecov
 , postgrest
-, postgrestProfiled
 , python3
 , runtimeShell
 , withTools
@@ -67,19 +65,6 @@ let
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec ${withTools.latest} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests "''${_arg_leftovers[@]}"
-      '';
-
-  testMemory =
-    checkedShellScript
-      {
-        name = "postgrest-test-memory";
-        docs = "Run the memory tests.";
-        inRootDir = true;
-      }
-      ''
-        export PATH="${postgrestProfiled}/bin:${curl}/bin:$PATH"
-
-        ${withTools.latest} test/memory-tests.sh
       '';
 
   dumpSchema =
@@ -192,11 +177,4 @@ buildEnv
       "postgrest-tests";
 
     paths = builtins.map (tool: tool.bin) tools;
-  } // {
-  inherit bashCompletion;
-
-  # The memory tests have large dependencies (a profiled build of PostgREST)
-  # and are run less often than the spec tests, so we don't include them in
-  # the default test environment. We make them available through a separate attribute:
-  memoryTests = testMemory;
-}
+  } // { inherit bashCompletion; }

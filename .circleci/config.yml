@@ -172,7 +172,7 @@ jobs:
             cachix use postgrest
       - run:
           name: Install testing scripts
-          command: nix-env -f default.nix -iA tests tests.memoryTests withTools
+          command: nix-env -f default.nix -iA tests memory withTools
       - run:
           name: Run coverage (io tests and spec tests against PostgreSQL 13)
           command: postgrest-coverage

@@ -118,10 +118,14 @@ rec {
   # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tests.nix {
-      inherit postgrest postgrestProfiled devCabalOptions withTools;
+      inherit postgrest devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
     };
+
+  # Script for running memory tests.
+  memory =
+    pkgs.callPackage nix/memory.nix { inherit postgrestProfiled withTools; };
 
   # Linting and styling scripts.
   style =
