@@ -124,8 +124,14 @@ let
 
         [ "$responseCode" -eq 200 ]
       '';
+
+  tools = [ github dockerLogin dockerHub dockerHubDescription ];
+
+  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
+
 in
-buildEnv {
-  name = "postgrest-release";
-  paths = [ github.bin dockerLogin.bin dockerHub.bin dockerHubDescription.bin ];
-}
+buildEnv
+  {
+    name = "postgrest-release";
+    paths = builtins.map (tool: tool.bin) tools;
+  } // { inherit bashCompletion; }

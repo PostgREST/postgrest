@@ -1,7 +1,9 @@
-{ buildEnv
+{ bashCompletion
+, buildEnv
 , checkedShellScript
 , lib
 , postgresqlVersions
+, writeTextFile
 }:
 let
   # Wrap the `test/with_tmp_db` script with the required dependencies from Nix.
@@ -16,6 +18,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
           ];
+        addCommandCompletion = true;
         inRootDir = true;
         redirectTixFiles = false;
       }
@@ -66,6 +69,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
           ];
+        addCommandCompletion = true;
         inRootDir = true;
       }
       (lib.concatStringsSep "\n\n" runners);
@@ -73,18 +77,20 @@ let
   # Create a `postgrest-with-postgresql-` for each PostgreSQL version
   withVersions = builtins.map withTmpDb postgresqlVersions;
 
+  tools = [ withAll ] ++ withVersions;
+
+  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
+
 in
 buildEnv
   {
     name =
-      "postgrest-with";
+      "postgrest-withtools";
 
-    paths =
-      [
-        withAll.bin
-      ] ++ (builtins.map (v: v.bin) withVersions);
-  }
+    paths = builtins.map (tool: tool.bin) tools;
+  } // {
+  inherit bashCompletion;
+
   # make withTools.latest available for other nix files
-  // {
   latest = withTmpDb (builtins.head postgresqlVersions);
 }

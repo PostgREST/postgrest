@@ -13,6 +13,7 @@
 { name
 , docs
 , args ? [ ]
+, addCommandCompletion ? false
 , inRootDir ? false
 , redirectTixFiles ? true
 , withEnv ? null
@@ -45,6 +46,17 @@ let
   argsParser =
     runCommand "${name}-parser" { }
       "${argbash}/bin/argbash -o $out ${argsTemplate}/${name}.m4";
+
+  bashCompletion =
+    runCommand "${name}-completion" { } (
+      ''
+        ${argbash}/bin/argbash --type completion --strip all ${argsTemplate}/${name}.m4 > $out
+      ''
+
+      + lib.optionalString addCommandCompletion ''
+        sed 's/COMPREPLY.*compgen -o bashdefault .*$/_command/' -i $out
+      ''
+    );
 
   bin =
     writeTextFile {
@@ -111,4 +123,4 @@ let
   script =
     runCommand name { inherit bin name; } "ln -s $bin/bin/$name $out";
 in
-script // { inherit bin; }
+script // { inherit bin bashCompletion; }

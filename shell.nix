@@ -19,6 +19,16 @@ let
 
   lib =
     pkgs.lib;
+
+  modules =
+    [
+      postgrest.devtools
+      postgrest.style
+      postgrest.tests
+      postgrest.withTools
+    ]
+    ++ lib.optional release postgrest.release;
+
 in
 lib.overrideDerivation postgrest.env (
   base: {
@@ -27,29 +37,26 @@ lib.overrideDerivation postgrest.env (
         pkgs.cabal-install
         pkgs.cabal2nix
         pkgs.postgresql
-        postgrest.devtools
         postgrest.hsie.bin
-        postgrest.nixpkgsUpgrade
-        postgrest.style
-        postgrest.tests
-        postgrest.withTools
+        postgrest.nixpkgsUpgrade.bin
       ]
-      ++ lib.optional memoryTests postgrest.tests.memoryTests
-      ++ lib.optional docker postgrest.docker
-      ++ lib.optional release postgrest.release;
+      ++ modules
+      ++ lib.optional memoryTests postgrest.tests.memoryTests.bin
+      ++ lib.optional docker postgrest.docker;
 
     shellHook =
       ''
         source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
-        complete -F _command postgrest-watch
-        complete -F _command postgrest-with-all
-        complete -F _command postgrest-with-postgresql-13
-        complete -F _command postgrest-with-postgresql-12
-        complete -F _command postgrest-with-postgresql-11
-        complete -F _command postgrest-with-postgresql-10
-        complete -F _command postgrest-with-postgresql-9.6
-        complete -F _command postgrest-with-postgresql-9.5
-        source ${postgrest.hsie.bashCompletion}
-      '';
+
+      ''
+      + builtins.concatStringsSep "\n" (
+        builtins.map (bashCompletion: "source ${bashCompletion}") (
+          builtins.concatLists (builtins.map (module: module.bashCompletion) modules)
+          ++ [ postgrest.hsie.bashCompletion postgrest.nixpkgsUpgrade.bashCompletion ]
+          ++ lib.optional memoryTests postgrest.tests.memoryTests.bashCompletion
+          ++ lib.optional docker postgrest.docker.bashCompletion
+
+        )
+      );
   }
 )

@@ -55,12 +55,14 @@ let
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
       '';
+
+  tools = [ style styleCheck lint ];
+
+  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
+
 in
-buildEnv {
-  name = "postgrest-devtools";
-  paths = [
-    style.bin
-    styleCheck.bin
-    lint.bin
-  ];
-}
+buildEnv
+  {
+    name = "postgrest-style";
+    paths = builtins.map (tool: tool.bin) tools;
+  } // { inherit bashCompletion; }
