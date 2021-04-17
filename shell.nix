@@ -41,7 +41,7 @@ lib.overrideDerivation postgrest.env (
         postgrest.nixpkgsUpgrade.bin
       ]
       ++ modules
-      ++ lib.optional memoryTests postgrest.tests.memoryTests.bin
+      ++ lib.optional memoryTests postgrest.memory
       ++ lib.optional docker postgrest.docker;
 
     shellHook =
@@ -53,7 +53,7 @@ lib.overrideDerivation postgrest.env (
         builtins.map (bashCompletion: "source ${bashCompletion}") (
           builtins.concatLists (builtins.map (module: module.bashCompletion) modules)
           ++ [ postgrest.hsie.bashCompletion postgrest.nixpkgsUpgrade.bashCompletion ]
-          ++ lib.optional memoryTests postgrest.tests.memoryTests.bashCompletion
+          ++ lib.optional memoryTests postgrest.memory.bashCompletion
           ++ lib.optional docker postgrest.docker.bashCompletion
 
         )
