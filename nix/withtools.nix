@@ -19,7 +19,7 @@ let
         if test ! -v PGRST_DB_URI; then
           export PATH=${postgresql}/bin:"$PATH"
 
-          exec test/with_tmp_db "$@"
+          exec ${../test/with_tmp_db} "$@"
         else
           "$@"
         fi
