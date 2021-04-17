@@ -42,4 +42,4 @@ buildEnv
   {
     name = "postgrest-docker";
     paths = [ load.bin ];
-  } // { inherit image; }
+  } // { inherit image; bashCompletion = load.bashCompletion; }

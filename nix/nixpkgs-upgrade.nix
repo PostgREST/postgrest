@@ -44,4 +44,4 @@ let
         EOF
       '';
 in
-script.bin
+script

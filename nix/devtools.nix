@@ -26,6 +26,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
           ];
+        addCommandCompletion = true;
         redirectTixFiles = false; # will be done by sub-command
         inRootDir = true;
       }
@@ -169,19 +170,25 @@ let
       ''
         ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
-in
-buildEnv {
-  name = "postgrest-devtools";
-  paths = [
-    watch.bin
-    pushCachix.bin
-    build.bin
-    run.bin
-    clean.bin
-    check.bin
-    dumpMinimalImports.bin
-    hsieMinimalImports.bin
-    hsieGraphModules.bin
-    hsieGraphSymbols.bin
+
+  tools = [
+    watch
+    pushCachix
+    build
+    run
+    clean
+    check
+    dumpMinimalImports
+    hsieMinimalImports
+    hsieGraphModules
+    hsieGraphSymbols
   ];
-}
+
+  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
+
+in
+buildEnv
+  {
+    name = "postgrest-devtools";
+    paths = builtins.map (tool: tool.bin) tools;
+  } // { inherit bashCompletion; }

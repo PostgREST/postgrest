@@ -171,6 +171,18 @@ let
         sed -i 's|^module \(.*\):|module \1/|g' test/coverage.overlay
       '';
 
+  tools =
+    [
+      testSpec
+      testSpecIdempotence
+      testIO
+      dumpSchema
+      coverage
+      coverageDraftOverlay
+    ];
+
+  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
+
 in
 # Create an environment that contains all the utility scripts for running tests
   # that we defined above.
@@ -179,19 +191,12 @@ buildEnv
     name =
       "postgrest-tests";
 
-    paths =
-      [
-        testSpec.bin
-        testSpecIdempotence.bin
-        testIO.bin
-        dumpSchema.bin
-        coverage.bin
-        coverageDraftOverlay.bin
-      ];
-  }
+    paths = builtins.map (tool: tool.bin) tools;
+  } // {
+  inherit bashCompletion;
+
   # The memory tests have large dependencies (a profiled build of PostgREST)
   # and are run less often than the spec tests, so we don't include them in
   # the default test environment. We make them available through a separate attribute:
-  // {
-  memoryTests = testMemory.bin;
+  memoryTests = testMemory;
 }
