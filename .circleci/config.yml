@@ -140,9 +140,16 @@ jobs:
           command: |
             # Only push to the cache when CircleCI makes the CACHIX_SIGNING_KEY
             # available (e.g. not for pull requests).
-            if [ -n "${CACHIX_SIGNING_KEY:-""}" ]; then
+            if [ -n "${CACHIX_AUTH_TOKEN:-""}" ]; then
               echo "Building and caching all derivations..."
+              cachix authtoken "$CACHIX_AUTH_TOKEN"
+
+              # Push new builds as we go
               nix-build | cachix push postgrest
+
+              # Make sure that everything, including .drv files, is pushed
+              nix-env -f default.nix -iA devtools
+              postgrest-push-cachix
             else
               echo "Building all derivations (caching skipped for outside pull requests)..."
               nix-build

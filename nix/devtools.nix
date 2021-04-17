@@ -39,13 +39,16 @@ let
         docs = ''
           Push all build artifacts to cachix.
 
-          Requires that the CACHIX_SIGNING_KEY for postgrest is set as an
-          environment variable.
+          Requires authentication with `cachix authtoken ...`.
         '';
         inRootDir = true;
       }
       ''
-        nix-store -qR --include-outputs "$(nix-instantiate)" | cachix push postgrest
+        nix-instantiate \
+          | while read -r drv; do
+              nix-store -qR --include-outputs "$drv"
+            done \
+          | cachix push postgrest
       '';
 
   build =
