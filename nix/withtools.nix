@@ -45,7 +45,7 @@ let
 
               trap 'echo "Failed on ${pg.name}"' exit
 
-              ${withTmpDb pg} "$_arg_command" "''${_arg_leftovers[@]}"
+              (${withTmpDb pg} "$_arg_command" "''${_arg_leftovers[@]}")
 
               trap "" exit
 
