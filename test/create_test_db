@@ -2,7 +2,7 @@
 
 usage() {
   echo "$0 <db-uri> <test-database>"
-  exit -1
+  exit 1
 }
 
 if [ -z "$1" ]; then
@@ -20,19 +20,19 @@ if [[ $1 != postgres://* ]]; then
   usage
 fi
 
-BASEPATH=$( cd $(dirname $0) ; pwd -P )
+BASEPATH=$( cd "$(dirname "$0")" && pwd -P )
 URI="$1"
 #Extract host and port--we need this to form the new connection string
-HOST_PORT=$(echo $URI | cut -d'/' -f3 | cut -d'@' -f2 )
+HOST_PORT=$(echo "$URI" | cut -d'/' -f3 | cut -d'@' -f2 )
 DB=$2
 # Specify the username of choice, or let the script create a random unique user by appending the database name
 TEST_USER_NAME=postgrest_test_authenticator
 # New password will get assigned only if the user does not already exist
 # Otherwise make sure to provide the correct password for the existing user
-TEST_USER_PASS=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+TEST_USER_PASS=$(< /dev/urandom env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 
-PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xq >/dev/null -c 'select rolcreatedb from pg_authid where rolname = current_user;' 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" -Xq >/dev/null -c 'select rolcreatedb from pg_authid where rolname = current_user;' 2>/dev/null;
+then
   echo "ERROR: Please specify the user with 'Create DB' permissions, and ensure that the default database for the username exists."
   exit 1
 fi
@@ -60,9 +60,9 @@ ALTER DATABASE $DB SET LC_TIME = 'POSIX';
 EOF
 
 #Remove database path from the connection uri--prevents setting up the new database name with PGDATABASE
-URI=$(echo $URI | cut -d'/' -f1-3)
+URI=$(echo "$URI" | cut -d'/' -f1-3)
 
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db=$DB -Xq <<EOF
+PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db="$DB" -Xq <<EOF
   CREATE EXTENSION IF NOT EXISTS pgcrypto;
   ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
 EOF
