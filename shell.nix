@@ -9,7 +9,7 @@
 #
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
-{ memoryTests ? false, docker ? false, release ? false }:
+{ memory ? false, docker ? false, release ? false }:
 let
   postgrest =
     import ./default.nix;
@@ -41,7 +41,7 @@ lib.overrideDerivation postgrest.env (
         postgrest.nixpkgsUpgrade.bin
       ]
       ++ modules
-      ++ lib.optional memoryTests postgrest.memory
+      ++ lib.optional memory postgrest.memory
       ++ lib.optional docker postgrest.docker;
 
     shellHook =
@@ -53,7 +53,7 @@ lib.overrideDerivation postgrest.env (
         builtins.map (bashCompletion: "source ${bashCompletion}") (
           builtins.concatLists (builtins.map (module: module.bashCompletion) modules)
           ++ [ postgrest.hsie.bashCompletion postgrest.nixpkgsUpgrade.bashCompletion ]
-          ++ lib.optional memoryTests postgrest.memory.bashCompletion
+          ++ lib.optional memory postgrest.memory.bashCompletion
           ++ lib.optional docker postgrest.docker.bashCompletion
 
         )
