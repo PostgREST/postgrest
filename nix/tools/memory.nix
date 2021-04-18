@@ -17,7 +17,7 @@ let
         withPath = [ postgrestProfiled curl ];
       }
       ''
-        ${withTools.latest} test/memory-tests.sh
+        ${withTools.withPg} test/memory-tests.sh
       '';
 
 in

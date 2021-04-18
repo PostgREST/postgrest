@@ -24,7 +24,7 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
       '';
 
   testQuerycost =
@@ -36,7 +36,7 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
+        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
       '';
 
   testDoctests =
@@ -66,7 +66,7 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.latest} ${runtimeShell} -c " \
+        ${withTools.withPg} ${runtimeShell} -c " \
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec && \
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec"
       '';
@@ -92,7 +92,7 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTools.latest} \
+        ${cabal-install}/bin/cabal v2-exec ${withTools.withPg} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests "''${_arg_leftovers[@]}"
       '';
 
@@ -106,7 +106,7 @@ let
         withPath = [ jq ];
       }
       ''
-        ${withTools.latest} \
+        ${withTools.withPg} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
             | ${yq}/bin/yq -y .
@@ -135,14 +135,14 @@ let
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
-          ${withTools.latest} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
+          ${withTools.withPg} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests
           
         HPCTIXFILE="$tmpdir"/spec.tix \
-          ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+          ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 
         HPCTIXFILE="$tmpdir"/querycost.tix \
-          ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
+          ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
 
         # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 

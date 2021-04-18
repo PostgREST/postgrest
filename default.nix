@@ -148,5 +148,5 @@ rec {
     };
 
   withTools =
-    pkgs.callPackage nix/tools/withTools.nix { inherit postgresqlVersions; };
+    pkgs.callPackage nix/tools/withTools.nix { inherit devCabalOptions postgresqlVersions postgrest; };
 }

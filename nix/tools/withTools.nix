@@ -1,9 +1,14 @@
 { bashCompletion
 , buildToolbox
+, cabal-install
 , checkedShellScript
+, curl
+, devCabalOptions
+, git
 , lib
 , postgresqlVersions
-, writeTextFile
+, postgrest
+, writeText
 }:
 let
   withTmpDb =
@@ -78,27 +83,27 @@ let
       '';
 
   # Helper script for running a command against all PostgreSQL versions.
-  withAll =
+  withPgAll =
     let
       runners =
         builtins.map
-          (pg:
+          (version:
             ''
               cat << EOF
 
-              Running against ${pg.name}...
+              Running against ${version.name}...
 
               EOF
 
-              trap 'echo "Failed on ${pg.name}"' exit
+              trap 'echo "Failed on ${version.name}"' exit
 
-              (${withTmpDb pg} "$_arg_command" "''${_arg_leftovers[@]}")
+              (${withTmpDb version} "$_arg_command" "''${_arg_leftovers[@]}")
 
               trap "" exit
 
               cat << EOF
 
-              Done running against ${pg.name}.
+              Done running against ${version.name}.
 
               EOF
             '')
@@ -119,15 +124,141 @@ let
       (lib.concatStringsSep "\n\n" runners);
 
   # Create a `postgrest-with-postgresql-` for each PostgreSQL version
-  withVersions = builtins.map withTmpDb postgresqlVersions;
+  withPgVersions = builtins.map withTmpDb postgresqlVersions;
+
+  withPg = builtins.head withPgVersions;
+
+  withGit =
+    checkedShellScript
+      {
+        name = "postgrest-with-git";
+        docs =
+          ''
+            Create a new worktree of the postgrest repo in a temporary directory and
+            check out <commit>, then run <command> with arguments inside the temporary folder.
+          '';
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([commit], [Commit-ish reference to run command with])"
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
+        addCommandCompletion = true; # TODO: first positional argument needs git commit completion
+        inRootDir = true;
+      }
+      ''
+        # not using withTmpDir here, because we don't want to keep the directory on error
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "$tmpdir"' EXIT
+
+        ${git}/bin/git worktree add -f "$tmpdir" "$_arg_commit" > /dev/null
+
+        cd "$tmpdir"
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+
+        ${git}/bin/git worktree remove -f "$tmpdir" > /dev/null
+      '';
+
+  legacyConfig =
+    writeText "legacy.conf"
+      ''
+        # Using this config file to support older postgrest versions for `postgrest-loadtest-against`
+        db-uri="$(PGRST_DB_URI)"
+        db-schema="$(PGRST_DB_SCHEMAS)"
+        db-anon-role="$(PGRST_DB_ANON_ROLE)"
+        db-pool="$(PGRST_DB_POOL)"
+        server-unix-socket="$(PGRST_SERVER_UNIX_SOCKET)"
+        log-level="$(PGRST_LOG_LEVEL)"
+      '';
+
+  waitForPgrstPid =
+    checkedShellScript
+      {
+        name = "postgrest-wait-for-pgrst-pid";
+        docs = "Wait for PostgREST to be running. Needs to be a separate command for timeout to work below.";
+        args = [
+          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to check for running PostgREST instance])"
+        ];
+      }
+      ''
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
+
+        until [ -S "$PGRST_SERVER_UNIX_SOCKET" ]
+        do
+          sleep 0.1
+        done
+
+        # return pid of postgrest process
+        lsof -t -c '/^postgrest$/' "$PGRST_SERVER_UNIX_SOCKET"
+      '';
+
+  waitForPgrstReady =
+    checkedShellScript
+      {
+        name = "postgrest-wait-for-pgrst-ready";
+        docs = "Wait for PostgREST to be ready to serve requests. Needs to be a separate command for timeout to work below.";
+        args = [
+          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to check for running PostgREST instance])"
+        ];
+      }
+      ''
+        # ARG_USE_ENV only adds defaults or docs for environment variables
+        # We manually implement a required check here
+        # See also: https://github.com/matejak/argbash/issues/80
+        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
+
+        function check_status () {
+          ${curl}/bin/curl -s -o /dev/null -w "%{http_code}" --unix-socket "$PGRST_SERVER_UNIX_SOCKET" http://localhost/
+        }
+
+        while [[ "$(check_status)" != "200" ]];
+           do sleep 0.1;
+        done
+      '';
+
+  withPgrst =
+    checkedShellScript
+      {
+        name = "postgrest-with-pgrst";
+        docs = "Build and run PostgREST and run <command> with PGRST_SERVER_UNIX_SOCKET set.";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
+        addCommandCompletion = true;
+        inRootDir = true;
+        withEnv = postgrest.env;
+        withTmpDir = true;
+      }
+      ''
+        export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
+
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} > "$tmpdir"/build.log 2>&1
+        ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
+          postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+
+        # to get the pid of the postgrest process, we need to jump through some hoops
+        # $! will return the pid of cabal - but killing this, will not propagate to postgrest
+        pid=$(timeout -s TERM 1 ${waitForPgrstPid})
+        cleanup() {
+          kill "$pid" || true
+        }
+        trap cleanup EXIT
+
+        timeout -s TERM 5 ${waitForPgrstReady}
+
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
 
 in
 buildToolbox
 {
   name = "postgrest-with";
-  tools = [ withAll ] ++ withVersions;
-  extra = {
-    # make withTools.latest available for other nix files
-    latest = withTmpDb (builtins.head postgresqlVersions);
-  };
+  tools = [ withPgAll withGit withPgrst ] ++ withPgVersions;
+  # make withTools available for other nix files
+  extra = { inherit withGit withPg withPgAll withPgrst; };
 }
