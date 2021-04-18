@@ -167,7 +167,23 @@ jobs:
             cachix use postgrest
       - run:
           name: Install testing scripts
-          command: nix-env -f default.nix -iA style tests withTools
+          command: nix-env -f default.nix -iA cabalTools style tests withTools
+      - restore_cache:
+          keys:
+          - v2-cabal-{{ .Branch }}-{{ .Revision }}
+          - v2-cabal-{{ .Branch }}
+          - v2-cabal-main
+      - run:
+          name: Build postgrest
+          command: postgrest-build exe:postgrest lib:postgrest test:spec test:spec-querycost
+      - run:
+          name: Skip tests on build failure
+          command: circleci-agent step halt
+          when: on_fail
+      - save_cache:
+          paths:
+            - "./dist-newstyle"
+          key: v2-cabal-{{ .Branch }}-{{ .Revision }}
       - run:
           name: Run style check
           command: postgrest-style-check
@@ -180,10 +196,6 @@ jobs:
           name: Run coverage (io tests and spec tests against PostgreSQL 13)
           command: postgrest-coverage
           when: always
-      - run:
-          name: Skip tests on build or primary test failure
-          command: circleci-agent step halt
-          when: on_fail
       - run:
           name: Upload coverage to codecov
           command: |
