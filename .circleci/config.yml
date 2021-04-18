@@ -105,11 +105,11 @@ jobs:
           name: Publish Docker images
           command: |
             export DOCKER_REPO=postgrest
-            postgrest-docker-login
+            postgrest-release-docker-login
             postgrest-release-dockerhub $CIRCLE_TAG
             if test "$CIRCLE_TAG" != "nightly"
             then
-              postgrest-release-dockerhubdescription
+              postgrest-release-dockerhub-description
             fi
 
   # Build everything in default.nix and push to the Cachix binary cache if running on main
