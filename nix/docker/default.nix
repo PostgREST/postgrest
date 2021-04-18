@@ -1,4 +1,4 @@
-{ buildEnv
+{ buildToolbox
 , postgrest
 , dockerTools
 , checkedShellScript
@@ -37,9 +37,13 @@ let
       ''
         docker load -i ${image}
       '';
+
 in
-buildEnv
-  {
-    name = "postgrest-docker";
-    paths = [ load.bin ];
-  } // { inherit image; bashCompletion = load.bashCompletion; }
+buildToolbox
+{
+  name = "postgrest-docker";
+  tools = [ load ];
+  extra = {
+    inherit image;
+  };
+}

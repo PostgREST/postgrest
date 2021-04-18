@@ -9,7 +9,10 @@
 #
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
-{ memory ? false, docker ? false, release ? false }:
+{ docker ? false
+, memory ? false
+, release ? false
+}:
 let
   postgrest =
     import ./default.nix;
@@ -20,13 +23,16 @@ let
   lib =
     pkgs.lib;
 
-  modules =
+  toolboxes =
     [
       postgrest.devtools
+      postgrest.nixpkgsTools
       postgrest.style
       postgrest.tests
       postgrest.withTools
     ]
+    ++ lib.optional docker postgrest.docker
+    ++ lib.optional memory postgrest.memory
     ++ lib.optional release postgrest.release;
 
 in
@@ -38,24 +44,18 @@ lib.overrideDerivation postgrest.env (
         pkgs.cabal2nix
         pkgs.postgresql
         postgrest.hsie.bin
-        postgrest.nixpkgsUpgrade.bin
       ]
-      ++ modules
-      ++ lib.optional memory postgrest.memory
-      ++ lib.optional docker postgrest.docker;
+      ++ toolboxes;
 
     shellHook =
       ''
         source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
+        source ${postgrest.hsie.bashCompletion}
 
       ''
       + builtins.concatStringsSep "\n" (
         builtins.map (bashCompletion: "source ${bashCompletion}") (
-          builtins.concatLists (builtins.map (module: module.bashCompletion) modules)
-          ++ [ postgrest.hsie.bashCompletion postgrest.nixpkgsUpgrade.bashCompletion ]
-          ++ lib.optional memory postgrest.memory.bashCompletion
-          ++ lib.optional docker postgrest.docker.bashCompletion
-
+          builtins.concatLists (builtins.map (toolbox: toolbox.bashCompletion) toolboxes)
         )
       );
   }

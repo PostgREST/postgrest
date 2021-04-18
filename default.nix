@@ -31,6 +31,7 @@ let
 
   overlays =
     [
+      allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.ghr
       allOverlays.gitignore
@@ -109,8 +110,8 @@ rec {
     postgrest.env;
 
   # Utility for updating the pinned version of Nixpkgs.
-  nixpkgsUpgrade =
-    pkgs.callPackage nix/nixpkgs-upgrade.nix { };
+  nixpkgsTools =
+    pkgs.callPackage nix/nixpkgstools.nix { };
 
   withTools =
     pkgs.callPackage nix/withtools.nix { inherit postgresqlVersions; };

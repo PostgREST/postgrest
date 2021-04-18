@@ -1,5 +1,5 @@
 { black
-, buildEnv
+, buildToolbox
 , checkedShellScript
 , git
 , hlint
@@ -60,13 +60,9 @@ let
         ${shellcheck}/bin/shellcheck test/create_test_db test/memory-tests.sh test/with_tmp_db
       '';
 
-  tools = [ style styleCheck lint ];
-
-  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
-
 in
-buildEnv
-  {
-    name = "postgrest-style";
-    paths = builtins.map (tool: tool.bin) tools;
-  } // { inherit bashCompletion; }
+buildToolbox
+{
+  name = "postgrest-style";
+  tools = [ style styleCheck lint ];
+}

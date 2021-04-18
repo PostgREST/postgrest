@@ -1,5 +1,5 @@
 { bashCompletion
-, buildEnv
+, buildToolbox
 , checkedShellScript
 , lib
 , postgresqlVersions
@@ -77,20 +77,13 @@ let
   # Create a `postgrest-with-postgresql-` for each PostgreSQL version
   withVersions = builtins.map withTmpDb postgresqlVersions;
 
-  tools = [ withAll ] ++ withVersions;
-
-  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
-
 in
-buildEnv
-  {
-    name =
-      "postgrest-withtools";
-
-    paths = builtins.map (tool: tool.bin) tools;
-  } // {
-  inherit bashCompletion;
-
-  # make withTools.latest available for other nix files
-  latest = withTmpDb (builtins.head postgresqlVersions);
+buildToolbox
+{
+  name = "postgrest-withtools";
+  tools = [ withAll ] ++ withVersions;
+  extra = {
+    # make withTools.latest available for other nix files
+    latest = withTmpDb (builtins.head postgresqlVersions);
+  };
 }

@@ -1,4 +1,4 @@
-{ buildEnv
+{ buildToolbox
 , cabal-install
 , checkedShellScript
 , devCabalOptions
@@ -171,6 +171,10 @@ let
         ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
 
+in
+buildToolbox
+{
+  name = "postgrest-devtools";
   tools = [
     watch
     pushCachix
@@ -183,12 +187,4 @@ let
     hsieGraphModules
     hsieGraphSymbols
   ];
-
-  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
-
-in
-buildEnv
-  {
-    name = "postgrest-devtools";
-    paths = builtins.map (tool: tool.bin) tools;
-  } // { inherit bashCompletion; }
+}

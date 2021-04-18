@@ -1,4 +1,5 @@
-{ checkedShellScript
+{ buildToolbox
+, checkedShellScript
 , curl
 , jq
 , nix
@@ -21,7 +22,7 @@ let
   tarballUrlBase =
     https://github.com/nixos/nixpkgs/archive/;
 
-  script =
+  upgrade =
     checkedShellScript
       {
         inherit name;
@@ -43,5 +44,10 @@ let
         }
         EOF
       '';
+
 in
-script
+buildToolbox
+{
+  name = "postgrest-nixpkgstools";
+  tools = [ upgrade ];
+}
