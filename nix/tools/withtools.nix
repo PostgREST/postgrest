@@ -27,7 +27,7 @@ let
         if test ! -v PGRST_DB_URI; then
           export PATH=${postgresql}/bin:"$PATH"
 
-          exec ${../test/with_tmp_db} "$_arg_command" "''${_arg_leftovers[@]}"
+          exec ${../../test/with_tmp_db} "$_arg_command" "''${_arg_leftovers[@]}"
         else
           "$@"
         fi

@@ -44,7 +44,7 @@ let
             --replace nightly \
             "postgrest-nightly-$suffix-linux-x64-static.tar.xz"
         else
-          changes="$(sed -n "1,/$_arg_version/d;/## \[/q;p" ${../../CHANGELOG.md})"
+          changes="$(sed -n "1,/$_arg_version/d;/## \[/q;p" ${../../../CHANGELOG.md})"
 
           tar cvJf "postgrest-$_arg_version-linux-x64-static.tar.xz" \
             -C ${postgrest}/bin postgrest
