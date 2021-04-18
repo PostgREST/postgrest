@@ -62,7 +62,7 @@ let
   dockerLogin =
     checkedShellScript
       {
-        name = "postgrest-docker-login";
+        name = "postgrest-release-docker-login";
         docs =
           ''
             Log in to Docker Hub using the DOCKER_USER and DOCKER_PASS env vars.
@@ -129,7 +129,7 @@ let
     in
     checkedShellScript
       {
-        name = "postgrest-release-dockerhubdescription";
+        name = "postgrest-release-dockerhub-description";
         docs = "Update the repository description on Docker Hub.";
         args = [
           "ARG_USE_ENV([DOCKER_USER], [], [DockerHub user name])"
