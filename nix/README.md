@@ -88,14 +88,14 @@ postgrest-test-io                 postgrest-with-postgresql-9.6
 
 ```
 
-Some additional modules like `memoryTests`, `docker` and `release`
+Some additional modules like `memory`, `docker` and `release`
 have large dependencies that would need to be built before the shell becomes
 available, which could take an especially long time if the cachix binary cache
 is not used. You can activate those by passing a flag to `nix-shell` with
 `nix-shell --arg <module> true`. This will make the respective utilites available:
 
 ```bash
-$ nix-shell --arg memoryTests true
+$ nix-shell --arg memory true
 [nix-shell]$ postgrest-<tab>
 postgrest-build                   postgrest-test-spec
 postgrest-check                   postgrest-watch
