@@ -1,6 +1,4 @@
-# Utilities for running the PostgREST test suite
-
-{ buildEnv
+{ buildToolbox
 , cabal-install
 , checkedShellScript
 , devCabalOptions
@@ -156,6 +154,10 @@ let
         sed -i 's|^module \(.*\):|module \1/|g' test/coverage.overlay
       '';
 
+in
+buildToolbox
+{
+  name = "postgrest-tests";
   tools =
     [
       testSpec
@@ -165,16 +167,4 @@ let
       coverage
       coverageDraftOverlay
     ];
-
-  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
-
-in
-# Create an environment that contains all the utility scripts for running tests
-  # that we defined above.
-buildEnv
-  {
-    name =
-      "postgrest-tests";
-
-    paths = builtins.map (tool: tool.bin) tools;
-  } // { inherit bashCompletion; }
+}

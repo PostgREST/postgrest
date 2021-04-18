@@ -1,4 +1,4 @@
-{ buildEnv
+{ buildToolbox
 , checkedShellScript
 , curl
 , docker
@@ -166,13 +166,9 @@ let
         [ "$responseCode" -eq 200 ]
       '';
 
-  tools = [ github dockerLogin dockerHub dockerHubDescription ];
-
-  bashCompletion = builtins.map (tool: tool.bashCompletion) tools;
-
 in
-buildEnv
-  {
-    name = "postgrest-release";
-    paths = builtins.map (tool: tool.bin) tools;
-  } // { inherit bashCompletion; }
+buildToolbox
+{
+  name = "postgrest-release";
+  tools = [ github dockerLogin dockerHub dockerHubDescription ];
+}
