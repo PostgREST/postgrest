@@ -29,7 +29,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
           ];
-        addCommandCompletion = true;
+        positionalCompletion = "_command";
         redirectTixFiles = false; # will be done by sub-command
         inRootDir = true;
       }
