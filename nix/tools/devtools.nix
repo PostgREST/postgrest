@@ -1,10 +1,12 @@
 { buildToolbox
 , cabal-install
+, cachix
 , checkedShellScript
 , devCabalOptions
 , entr
 , graphviz
 , hsie
+, nix
 , silver-searcher
 , style
 , tests
@@ -48,11 +50,11 @@ let
         inRootDir = true;
       }
       ''
-        nix-instantiate \
+        ${nix}/bin/nix-instantiate \
           | while read -r drv; do
-              nix-store -qR --include-outputs "$drv"
+              ${nix}/bin/nix-store -qR --include-outputs "$drv"
             done \
-          | cachix push postgrest
+          | ${cachix}/bin/cachix push postgrest
       '';
 
   build =
