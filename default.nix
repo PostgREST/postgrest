@@ -104,21 +104,21 @@ rec {
 
   # Docker images and loading script.
   docker =
-    pkgs.callPackage nix/docker { postgrest = postgrestStatic; };
+    pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 
   env =
     postgrest.env;
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsTools =
-    pkgs.callPackage nix/nixpkgstools.nix { };
+    pkgs.callPackage nix/tools/nixpkgstools.nix { };
 
   withTools =
-    pkgs.callPackage nix/withtools.nix { inherit postgresqlVersions; };
+    pkgs.callPackage nix/tools/withtools.nix { inherit postgresqlVersions; };
 
   # Scripts for running tests.
   tests =
-    pkgs.callPackage nix/tests.nix {
+    pkgs.callPackage nix/tools/tests.nix {
       inherit postgrest devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
@@ -126,11 +126,11 @@ rec {
 
   # Script for running memory tests.
   memory =
-    pkgs.callPackage nix/memory.nix { inherit postgrestProfiled withTools; };
+    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
 
-  # Linting and styling scripts.
+  # Linting and styling tools.
   style =
-    pkgs.callPackage nix/style.nix { };
+    pkgs.callPackage nix/tools/style.nix { };
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
@@ -138,13 +138,13 @@ rec {
       ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
     };
 
-  # Development tools, including linting and styling scripts.
+  # Development tools.
   devtools =
-    pkgs.callPackage nix/devtools.nix { inherit tests style devCabalOptions hsie; };
+    pkgs.callPackage nix/tools/devtools.nix { inherit tests style devCabalOptions hsie; };
 
   # Scripts for publishing new releases.
   release =
-    pkgs.callPackage nix/release {
+    pkgs.callPackage nix/tools/release {
       inherit docker;
       postgrest = postgrestStatic;
     };
