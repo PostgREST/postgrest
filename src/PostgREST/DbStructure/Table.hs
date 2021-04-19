@@ -22,6 +22,8 @@ data Table = Table
   , tableName        :: TableName
   , tableDescription :: Maybe Text
   , tableInsertable  :: Bool
+  , tableUpdatable   :: Bool
+  , tableDeletable   :: Bool
   }
   deriving (Show, Ord, Generic, JSON.ToJSON)
 
