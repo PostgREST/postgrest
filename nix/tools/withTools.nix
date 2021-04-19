@@ -127,7 +127,7 @@ let
 in
 buildToolbox
 {
-  name = "postgrest-withtools";
+  name = "postgrest-with";
   tools = [ withAll ] ++ withVersions;
   extra = {
     # make withTools.latest available for other nix files
