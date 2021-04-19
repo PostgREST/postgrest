@@ -101,7 +101,7 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
       cols' = addForeignKeys rels cols
       keys' = addViewPrimaryKeys srcCols keys
 
-  return DbStructure {
+  return $ removeInternal schemas $ DbStructure {
       dbTables = tabs
     , dbColumns = cols'
     , dbRelationships = rels
@@ -109,6 +109,24 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
     , dbProcs = procs
     , pgVersion = pgVer
     }
+
+-- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
+removeInternal :: [Schema] -> DbStructure -> DbStructure
+removeInternal schemas dbStruct =
+  DbStructure {
+      dbTables        = filter (\x -> tableSchema x `elem` schemas) $ dbTables dbStruct
+    , dbColumns       = filter (\x -> tableSchema (colTable x) `elem` schemas) (dbColumns dbStruct)
+    , dbRelationships = filter (\x -> tableSchema (relTable x) `elem` schemas &&
+                                      tableSchema (relForeignTable x) `elem` schemas &&
+                                      not (hasInternalJunction x)) $ dbRelationships dbStruct
+    , dbPrimaryKeys   = filter (\x -> tableSchema (pkTable x) `elem` schemas) $ dbPrimaryKeys dbStruct
+    , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+    , pgVersion       = pgVersion dbStruct
+    }
+  where
+    hasInternalJunction rel = case relCardinality rel of
+      M2M Junction{junTable} -> tableSchema junTable `notElem` schemas
+      _                      -> False
 
 decodeTables :: HD.Result [Table]
 decodeTables =

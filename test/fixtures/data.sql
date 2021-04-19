@@ -643,3 +643,23 @@ INSERT INTO v2.another_table VALUES(5, 'value 5'), (6, 'value 6');
 
 TRUNCATE TABLE private.stuff CASCADE;
 INSERT INTO private.stuff (id, name) VALUES (1, 'stuff 1');
+
+TRUNCATE TABLE private.screens CASCADE;
+INSERT INTO private.screens(name) VALUES ('banana'), ('helicopter'), ('formula 1 banana');
+
+INSERT INTO private.labels(name) VALUES ('vehicles'), ('fruit');
+
+INSERT INTO private.label_screen(label_id, screen_id) VALUES
+    ((SELECT id FROM labels WHERE name='vehicles'), (SELECT id FROM screens WHERE name='helicopter')),
+    ((SELECT id FROM labels WHERE name='vehicles'), (SELECT id FROM screens WHERE name='formula 1 banana')),
+    ((SELECT id FROM labels WHERE name='fruit'), (SELECT id FROM screens WHERE name='banana')),
+    ((SELECT id FROM labels WHERE name='fruit'), (SELECT id FROM screens WHERE name='formula 1 banana'));
+
+TRUNCATE TABLE private.actors CASCADE;
+INSERT INTO private.actors (id, name) VALUES (1,'john'), (2,'mary');
+
+TRUNCATE TABLE private.films CASCADE;
+INSERT INTO private.films (id, title) VALUES (12,'douze commandements'), (2001,'odyssée de l''espace');
+
+TRUNCATE TABLE private.personnages CASCADE;
+INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méchant'), (2001,2,'astronaute');
