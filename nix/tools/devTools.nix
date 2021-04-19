@@ -57,44 +57,6 @@ let
           | ${cachix}/bin/cachix push postgrest
       '';
 
-  build =
-    checkedShellScript
-      {
-        name = "postgrest-build";
-        docs = "Build PostgREST interactively using cabal-install.";
-        args = [ "ARG_LEFTOVERS([Cabal arguments])" ];
-        inRootDir = true;
-      }
-      ''
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "''${_arg_leftovers[@]}"
-      '';
-
-  run =
-    checkedShellScript
-      {
-        name = "postgrest-run";
-        docs = "Run PostgREST after buidling it interactively with cabal-install";
-        args = [ "ARG_LEFTOVERS([PostgREST arguments])" ];
-        inRootDir = true;
-      }
-      ''
-        ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
-          postgrest "''${_arg_leftovers[@]}"
-      '';
-
-  clean =
-    checkedShellScript
-      {
-        name = "postgrest-clean";
-        docs = "Clean the PostgREST project, including all cabal-install artifacts.";
-        inRootDir = true;
-      }
-      ''
-        ${cabal-install}/bin/cabal v2-clean
-        # clean old coverage data, too
-        rm -rf .hpc coverage
-      '';
-
   check =
     checkedShellScript
       {
@@ -176,13 +138,10 @@ let
 in
 buildToolbox
 {
-  name = "postgrest-devtools";
+  name = "postgrest-dev";
   tools = [
     watch
     pushCachix
-    build
-    run
-    clean
     check
     dumpMinimalImports
     hsieMinimalImports

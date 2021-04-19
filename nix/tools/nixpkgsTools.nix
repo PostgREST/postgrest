@@ -48,6 +48,6 @@ let
 in
 buildToolbox
 {
-  name = "postgrest-nixpkgstools";
+  name = "postgrest-nixpkgs";
   tools = [ upgrade ];
 }

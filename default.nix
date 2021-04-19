@@ -113,9 +113,12 @@ rec {
 
   ### Tools
 
+  cabalTools =
+    pkgs.callPackage nix/tools/cabalTools.nix { inherit devCabalOptions postgrest; };
+
   # Development tools.
-  devtools =
-    pkgs.callPackage nix/tools/devtools.nix { inherit tests style devCabalOptions hsie; };
+  devTools =
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
 
   # Docker images and loading script.
   docker =
@@ -127,7 +130,7 @@ rec {
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsTools =
-    pkgs.callPackage nix/tools/nixpkgstools.nix { };
+    pkgs.callPackage nix/tools/nixpkgsTools.nix { };
 
   # Scripts for publishing new releases.
   release =
@@ -149,5 +152,5 @@ rec {
     };
 
   withTools =
-    pkgs.callPackage nix/tools/withtools.nix { inherit postgresqlVersions; };
+    pkgs.callPackage nix/tools/withTools.nix { inherit postgresqlVersions; };
 }

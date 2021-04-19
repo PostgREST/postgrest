@@ -25,7 +25,8 @@ let
 
   toolboxes =
     [
-      postgrest.devtools
+      postgrest.cabalTools
+      postgrest.devTools
       postgrest.nixpkgsTools
       postgrest.style
       postgrest.tests
