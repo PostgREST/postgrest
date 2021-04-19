@@ -431,3 +431,25 @@ spec =
           [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+    context "m2m embed when there's a junction in an internal schema" $ do
+      -- https://github.com/PostgREST/postgrest/issues/1736
+      it "works with no ambiguity when there's an exposed view of the junction" $ do
+        get "/screens?select=labels(name)" `shouldRespondWith`
+          [json|[{"labels":[{"name":"fruit"}]}, {"labels":[{"name":"vehicles"}]}, {"labels":[{"name":"vehicles"}, {"name":"fruit"}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/actors?select=*,films(*)" `shouldRespondWith`
+          [json|[ {"id":1,"name":"john","films":[{"id":12,"title":"douze commandements"}]},
+                  {"id":2,"name":"mary","films":[{"id":2001,"title":"odyssée de l'espace"}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "doesn't work if the junction is only internal" $
+        get "/end_1?select=end_2(*)" `shouldRespondWith`
+          [json|{"message":"Could not find foreign keys between these entities. No relationship found between end_1 and end_2"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson] }
+      it "shouldn't try to embed if the private junction has an exposed homonym" $
+        -- ensures the "invalid reference to FROM-clause entry for table "rollen" error doesn't happen.
+        -- Ref: https://github.com/PostgREST/postgrest/issues/1587#issuecomment-734995669
+        get "/schauspieler?select=filme(*)" `shouldRespondWith`
+          [json|{"message":"Could not find foreign keys between these entities. No relationship found between schauspieler and filme"}|]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson] }

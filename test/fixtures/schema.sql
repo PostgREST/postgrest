@@ -1976,3 +1976,95 @@ create or replace function test.reload_pgrst_config() returns void as $_$
 begin
   perform pg_notify('pgrst', 'reload config');
 end $_$ language plpgsql ;
+
+create table private.screens (
+  id serial primary key,
+  name text not null default 'new screen'
+);
+
+create table private.labels (
+  id serial primary key,
+  name text not null default 'new label'
+);
+
+create table private.label_screen (
+  label_id int not null references private.labels(id) on update cascade on delete cascade,
+  screen_id int not null references private.screens(id) on update cascade on delete cascade,
+  constraint label_screen_pkey primary key (label_id, screen_id)
+);
+
+create view test.labels as
+select * from private.labels;
+
+create view test.screens as
+select * from private.screens;
+
+create view test.label_screen as
+select * from private.label_screen;
+
+create table private.actors (
+  id int,
+  name text,
+  constraint actors_id primary key (id)
+);
+
+create table private.films (
+  id integer,
+  title text,
+  constraint films_id primary key (id)
+);
+
+create table private.personnages (
+  film_id int not null,
+  role_id int not null,
+  character text not null,
+  constraint personnages_film_id_role_id primary key (film_id, role_id),
+  constraint personnages_film_id_fkey foreign key (film_id) references private.films(id) not deferrable,
+  constraint personnages_role_id_fkey foreign key (role_id) references private.actors(id) not deferrable
+);
+
+create view test.actors as
+select * from private.actors;
+
+create view test.films as
+select * from private.films;
+
+create view test.personnages as
+select * from private.personnages;
+
+create table test.end_1(
+  id int primary key,
+  name text
+);
+
+create table test.end_2(
+  id int primary key,
+  name text
+);
+
+create table private.junction(
+  end_1_id int not null references test.end_1(id) on update cascade on delete cascade,
+  end_2_id int not null references test.end_2(id) on update cascade on delete cascade,
+  primary key (end_1_id, end_2_id)
+);
+
+create table test.schauspieler (
+  id int primary key,
+  name text
+);
+
+create table test.filme (
+  id int primary key,
+  titel text
+);
+
+create table test.rollen ();
+
+create table private.rollen (
+  film_id int not null,
+  rolle_id int not null,
+  charakter text not null,
+  primary key (film_id, rolle_id),
+  foreign key (film_id) references test.filme(id),
+  foreign key (rolle_id) references test.schauspieler(id)
+);

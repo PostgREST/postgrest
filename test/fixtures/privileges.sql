@@ -138,6 +138,17 @@ GRANT ALL ON TABLE
     , v2.another_table
     , v1.children
     , v2.children
+    , screens
+    , labels
+    , label_screen
+    , actors
+    , films
+    , personnages
+    , end_1
+    , end_2
+    , schauspieler
+    , filme
+    , rollen
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
