@@ -316,8 +316,8 @@ accessibleTables =
         (
           has_table_privilege(c.oid, 'INSERT')
           or has_any_column_privilege(c.oid, 'INSERT')
-        ) 
-        and 
+        )
+        and
         (
           c.relkind in ('r', 'v', 'f')
           and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
@@ -371,7 +371,7 @@ accessibleTables =
             where
               pg_trigger.tgrelid = c.oid
               and (pg_trigger.tgtype::integer & 73) = 73)
-              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_UPDATE
+              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_DELETE
           )
         )
       ) as deletable
