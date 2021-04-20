@@ -358,7 +358,9 @@ handleInfo identifier RequestContext{..} =
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
-      , if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET"
+      , "GET" <> (if tableInsertable table then ",POST" else "")
+              <> (if tableUpdatable table then ",PATCH" else "")
+              <> (if tableDeletable table then ",DELETE" else "")
       )
     tableMatches table =
       tableName table == qiName identifier
