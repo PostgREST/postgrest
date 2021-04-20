@@ -57,7 +57,7 @@ let
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
 
         # Lint bash scripts
-        ${shellcheck}/bin/shellcheck test/create_test_db test/memory-tests.sh test/with_tmp_db
+        ${shellcheck}/bin/shellcheck test/create_test_db test/memory-tests.sh
       '';
 
 in

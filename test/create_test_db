@@ -62,11 +62,6 @@ EOF
 #Remove database path from the connection uri--prevents setting up the new database name with PGDATABASE
 URI=$(echo "$URI" | cut -d'/' -f1-3)
 
-PGDATABASE=$DB PGOPTIONS='-c client_min_messages=WARNING' psql "$URI" --set=db="$DB" -Xq <<EOF
-  CREATE EXTENSION IF NOT EXISTS pgcrypto;
-  ALTER DATABASE ${DB} SET request.jwt.claim.id = '-1';
-EOF
-
 # Create a new connection string to use with the test runner
 export PGRST_DB_URI="postgres://${TEST_USER_NAME}:$TEST_USER_PASS@$HOST_PORT/$DB"
 export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
