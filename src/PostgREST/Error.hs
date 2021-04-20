@@ -29,9 +29,10 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ContentType (ContentType (..))
 import qualified PostgREST.ContentType as ContentType
 
-import PostgREST.DbStructure.Relation (Cardinality (..),
-                                       Junction (..), Relation (..))
-import PostgREST.DbStructure.Table    (Column (..), Table (..))
+import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           Junction (..),
+                                           Relationship (..))
+import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS, toSL)
@@ -55,10 +56,9 @@ data ApiRequestError
   | InvalidBody ByteString
   | ParseRequestError Text Text
   | NoRelBetween Text Text
-  | AmbiguousRelBetween Text Text [Relation]
+  | AmbiguousRelBetween Text Text [Relationship]
   | InvalidFilters
   | UnacceptableSchema [Text]
-  | UnknownRelation                -- Unreachable?
   | UnsupportedVerb                -- Unreachable?
 
 instance PgrstError ApiRequestError where
@@ -66,7 +66,6 @@ instance PgrstError ApiRequestError where
   status InvalidFilters          = HT.status405
   status (InvalidBody _)         = HT.status400
   status UnsupportedVerb         = HT.status405
-  status UnknownRelation         = HT.status404
   status ActionInappropriate     = HT.status405
   status (ParseRequestError _ _) = HT.status400
   status (NoRelBetween _ _)      = HT.status400
@@ -84,8 +83,6 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= (toS errorMessage :: Text)]
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
-  toJSON UnknownRelation = JSON.object [
-    "message" .= ("Unknown relation" :: Text)]
   toJSON (NoRelBetween parent child) = JSON.object [
     "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
@@ -99,8 +96,8 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (UnacceptableSchema schemas) = JSON.object [
     "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
 
-compressedRel :: Relation -> JSON.Value
-compressedRel Relation{..} =
+compressedRel :: Relationship -> JSON.Value
+compressedRel Relationship{..} =
   let
     fmtTbl Table{..} = tableSchema <> "." <> tableName
     fmtEls els = "[" <> T.intercalate ", " els <> "]"

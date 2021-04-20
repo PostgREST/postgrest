@@ -30,35 +30,35 @@ import Data.List               (delete)
 import Data.Text               (isInfixOf)
 import Data.Tree               (Tree (..))
 
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
-                                          Schema, TableName)
-import PostgREST.DbStructure.Relation    (Cardinality (..),
-                                          Junction (..),
-                                          Relation (..))
-import PostgREST.DbStructure.Table       (Column (..), Table (..),
-                                          tableQi)
-import PostgREST.Error                   (ApiRequestError (..),
-                                          Error (..))
-import PostgREST.Query.SqlFragment       (sourceCTEName)
-import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          restrictRange)
-import PostgREST.Request.ApiRequest      (Action (..),
-                                          ApiRequest (..),
-                                          PayloadJSON (..))
+import PostgREST.DbStructure.Identifiers  (FieldName,
+                                           QualifiedIdentifier (..),
+                                           Schema, TableName)
+import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           Junction (..),
+                                           Relationship (..))
+import PostgREST.DbStructure.Table        (Column (..), Table (..),
+                                           tableQi)
+import PostgREST.Error                    (ApiRequestError (..),
+                                           Error (..))
+import PostgREST.Query.SqlFragment        (sourceCTEName)
+import PostgREST.RangeQuery               (NonnegRange, allRange,
+                                           restrictRange)
+import PostgREST.Request.ApiRequest       (Action (..),
+                                           ApiRequest (..),
+                                           PayloadJSON (..))
 
 import PostgREST.Request.Parsers
 import PostgREST.Request.Preferences
 import PostgREST.Request.Types
 
-import qualified PostgREST.DbStructure.Relation as Relation
+import qualified PostgREST.DbStructure.Relationship as Relationship
 
 import Protolude hiding (from)
 
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> [Relation] -> ApiRequest -> Either Error ReadRequest
+readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequest -> Either Error ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
@@ -73,17 +73,17 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
 -- This is done because of the shape of the final SQL Query. The mutation cases
 -- are wrapped in a WITH {sourceCTEName}(see Statements.hs).  So we need a FROM
 -- {sourceCTEName} instead of FROM {tableName}.
-rootWithRels :: Schema -> TableName -> [Relation] -> Action -> (QualifiedIdentifier, [Relation])
+rootWithRels :: Schema -> TableName -> [Relationship] -> Action -> (QualifiedIdentifier, [Relationship])
 rootWithRels schema rootTableName allRels action = case action of
   ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
   _            -> (QualifiedIdentifier mempty _sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
   where
     _sourceCTEName = decodeUtf8 sourceCTEName
     -- To enable embedding in the sourceCTEName cases we need to replace the
-    -- foreign key tableName in the Relation with {sourceCTEName}. This way
+    -- foreign key tableName in the Relationship with {sourceCTEName}. This way
     -- findRel can find relationships with sourceCTEName.
-    toSourceRel :: Relation -> Maybe Relation
-    toSourceRel r@Relation{relTable=t}
+    toSourceRel :: Relationship -> Maybe Relationship
+    toSourceRel r@Relationship{relTable=t}
       | rootTableName == tableName t = Just $ r {relTable=t {tableName=_sourceCTEName}}
       | otherwise                    = Nothing
 
@@ -117,12 +117,12 @@ treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augmentRequestWithJoin :: Schema -> [Relation] -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin :: Schema -> [Relationship] -> ReadRequest -> Either ApiRequestError ReadRequest
 augmentRequestWithJoin schema allRels request =
   addRels schema allRels Nothing request
   >>= addJoinConditions Nothing
 
-addRels :: Schema -> [Relation] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
@@ -148,7 +148,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- target = table / view / constraint / column-from-origin
 -- hint   = table / view / constraint / column-from-origin / column-from-target
 -- (hint can take table / view values to aid in finding the junction in an m2m relationship)
-findRel :: Schema -> [Relation] -> NodeName -> NodeName -> Maybe EmbedHint -> Either ApiRequestError Relation
+findRel :: Schema -> [Relationship] -> NodeName -> NodeName -> Maybe EmbedHint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rel of
     []  -> Left $ NoRelBetween origin target
@@ -173,7 +173,7 @@ findRel schema allRels origin target hint =
       M2M Junction{junTable} -> hint_ == Just (tableName junTable)
       _                      -> False
     rel = filter (
-      \Relation{..} ->
+      \Relationship{..} ->
         -- Both relationship ends need to be on the exposed schema
         schema == tableSchema relTable && schema == tableSchema relForeignTable &&
         (
@@ -210,13 +210,13 @@ findRel schema allRels origin target hint =
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
 addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, depth)) forest) =
   case rel of
-    Just r@Relation{relCardinality=M2M Junction{junTable}} ->
+    Just r@Relationship{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
       Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Nothing -> Node node <$> updatedForest
   where
-    newAlias = case Relation.isSelfReference <$> rel of
+    newAlias = case Relationship.isSelfReference <$> rel of
       Just True
         | depth /= 0 -> Just (qiName tbl <> "_" <> show depth) -- root node doesn't get aliased
         | otherwise  -> Nothing
@@ -229,8 +229,8 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
     updatedForest = addJoinConditions newAlias `traverse` forest
 
 -- previousAlias and newAlias are used in the case of self joins
-getJoinConditions :: Maybe Alias -> Maybe Alias -> Relation -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relation Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols card) =
+getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
+getJoinConditions previousAlias newAlias (Relationship Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols card) =
   case card of
     M2M (Junction Table{tableName=jtn} _ jc1 _ jc2) ->
       zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
@@ -359,7 +359,7 @@ returningCols rr@(Node _ forest) pkCols
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relation{relColumns=cols}, _, _, _)) _ -> Just cols
+        Node (_, (_, Just Relationship{relColumns=cols}, _, _, _)) _ -> Just cols
         _                                                        -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to

@@ -21,15 +21,15 @@ import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..))
-import PostgREST.DbStructure.Proc        (PgArg (..))
-import PostgREST.DbStructure.Relation    (Cardinality (..),
-                                          Relation (..))
-import PostgREST.DbStructure.Table       (Table (..))
-import PostgREST.Request.ApiRequest      (PayloadJSON (..))
-import PostgREST.Request.Preferences     (PreferParameters (..),
-                                          PreferResolution (..))
+import PostgREST.DbStructure.Identifiers  (FieldName,
+                                           QualifiedIdentifier (..))
+import PostgREST.DbStructure.Proc         (PgArg (..))
+import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           Relationship (..))
+import PostgREST.DbStructure.Table        (Table (..))
+import PostgREST.Request.ApiRequest       (PayloadJSON (..))
+import PostgREST.Request.Preferences      (PreferParameters (..),
+                                           PreferResolution (..))
 
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Types
@@ -53,7 +53,7 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([H.Snippet], [H.Snippet]) -> ([H.Snippet], [H.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relation{relCardinality=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
+getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->

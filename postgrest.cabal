@@ -45,7 +45,7 @@ library
                       PostgREST.DbStructure.Identifiers
                       PostgREST.DbStructure.PgVersion
                       PostgREST.DbStructure.Proc
-                      PostgREST.DbStructure.Relation
+                      PostgREST.DbStructure.Relationship
                       PostgREST.DbStructure.Table
                       PostgREST.Error
                       PostgREST.GucHeader

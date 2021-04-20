@@ -43,19 +43,19 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
-                                          Schema, TableName)
-import PostgREST.DbStructure.PgVersion   (PgVersion (..))
-import PostgREST.DbStructure.Proc        (PgArg (..), PgType (..),
-                                          ProcDescription (..),
-                                          ProcVolatility (..),
-                                          ProcsMap, RetType (..))
-import PostgREST.DbStructure.Relation    (Cardinality (..),
-                                          ForeignKey (..),
-                                          Junction (..),
-                                          PrimaryKey (..),
-                                          Relation (..))
-import PostgREST.DbStructure.Table       (Column (..), Table (..))
+import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
+                                           Schema, TableName)
+import PostgREST.DbStructure.PgVersion    (PgVersion (..))
+import PostgREST.DbStructure.Proc         (PgArg (..), PgType (..),
+                                           ProcDescription (..),
+                                           ProcVolatility (..),
+                                           ProcsMap, RetType (..))
+import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           ForeignKey (..),
+                                           Junction (..),
+                                           PrimaryKey (..),
+                                           Relationship (..))
+import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
 import Protolude        hiding (toS)
 import Protolude.Conv   (toS)
@@ -63,12 +63,12 @@ import Protolude.Unsafe (unsafeHead)
 
 
 data DbStructure = DbStructure
-  { dbTables      :: [Table]
-  , dbColumns     :: [Column]
-  , dbRelations   :: [Relation]
-  , dbPrimaryKeys :: [PrimaryKey]
-  , dbProcs       :: ProcsMap
-  , pgVersion     :: PgVersion
+  { dbTables        :: [Table]
+  , dbColumns       :: [Column]
+  , dbRelationships :: [Relationship]
+  , dbPrimaryKeys   :: [PrimaryKey]
+  , dbProcs         :: ProcsMap
+  , pgVersion       :: PgVersion
   }
   deriving (Generic, JSON.ToJSON)
 
@@ -104,7 +104,7 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
   return DbStructure {
       dbTables = tabs
     , dbColumns = cols'
-    , dbRelations = rels
+    , dbRelationships = rels
     , dbPrimaryKeys = keys'
     , dbProcs = procs
     , pgVersion = pgVer
@@ -135,7 +135,7 @@ decodeColumns tables =
       <*> nullableColumn HD.text
       <*> nullableColumn HD.text
 
-decodeRels :: [Table] -> [Column] -> HD.Result [Relation]
+decodeRels :: [Table] -> [Column] -> HD.Result [Relationship]
 decodeRels tables cols =
   mapMaybe (relFromRow tables cols) <$> HD.rowList relRow
  where
@@ -341,28 +341,28 @@ accessibleTables =
       )
     order by relname |]
 
-addForeignKeys :: [Relation] -> [Column] -> [Column]
+addForeignKeys :: [Relationship] -> [Column] -> [Column]
 addForeignKeys rels = map addFk
   where
     addFk col = col { colFK = fk col }
     fk col = find (lookupFn col) rels >>= relToFk col
-    lookupFn :: Column -> Relation -> Bool
+    lookupFn :: Column -> Relationship -> Bool
     lookupFn c rel = case rel of
-      Relation{relColumns=cs, relCardinality=M2O _} -> c `elem` cs
-      _                                             -> False
-    relToFk col Relation{relColumns=cols, relForeignColumns=colsF} = do
+      Relationship{relColumns=cs, relCardinality=M2O _} -> c `elem` cs
+      _                                                 -> False
+    relToFk col Relationship{relColumns=cols, relForeignColumns=colsF} = do
       pos <- L.elemIndex col cols
       colF <- atMay colsF pos
       return $ ForeignKey colF
 
 {-
-Adds Views M2O Relations based on SourceColumns found, the logic is as follows:
+Adds Views M2O Relationships based on SourceColumns found, the logic is as follows:
 
-Having a Relation{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCardinality=M2O} represented by:
+Having a Relationship{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCardinality=M2O} represented by:
 
 t1.c1------t2.c2
 
-When only having a t1_view.c1 source column, we need to add a View-Table M2O Relation
+When only having a t1_view.c1 source column, we need to add a View-Table M2O Relationship
 
          t1.c1----t2.c2         t1.c1----------t2.c2
                          ->            ________/
@@ -370,24 +370,24 @@ When only having a t1_view.c1 source column, we need to add a View-Table M2O Rel
       t1_view.c1             t1_view.c1
 
 
-When only having a t2_view.c2 source column, we need to add a Table-View M2O Relation
+When only having a t2_view.c2 source column, we need to add a Table-View M2O Relationship
 
          t1.c1----t2.c2               t1.c1----------t2.c2
                                ->          \________
                                                     \
                     t2_view.c2                      t2_view.c1
 
-When having t1_view.c1 and a t2_view.c2 source columns, we need to add a View-View M2O Relation in addition to the prior
+When having t1_view.c1 and a t2_view.c2 source columns, we need to add a View-View M2O Relationship in addition to the prior
 
          t1.c1----t2.c2               t1.c1----------t2.c2
                                ->          \________/
                                            /        \
     t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
 
-The logic for composite pks is similar just need to make sure all the Relation columns have source columns.
+The logic for composite pks is similar just need to make sure all the Relationship columns have source columns.
 -}
-addViewM2ORels :: [SourceColumn] -> [Relation] -> [Relation]
-addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
+addViewM2ORels :: [SourceColumn] -> [Relationship] -> [Relationship]
+addViewM2ORels allSrcCols = concatMap (\rel@Relationship{..} -> rel :
   let
     srcColsGroupedByView :: [Column] -> [[SourceColumn]]
     srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
@@ -397,26 +397,26 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
     getView :: [SourceColumn] -> Table
     getView = colTable . snd . unsafeHead
     srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
-    -- Relation is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
+    -- Relationship is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
     -- So we need to change the order of the SourceColumns to match the relColumns
-    -- TODO: This could be avoided if the Relation type is improved with a structure that maintains the association of relColumns and relFColumns
+    -- TODO: This could be avoided if the Relationship type is improved with a structure that maintains the association of relColumns and relFColumns
     srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
 
     viewTableM2O =
-      [ Relation
+      [ Relationship
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
           relForeignTable relForeignColumns relCardinality
       | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
 
     tableViewM2O =
-      [ Relation
+      [ Relationship
           relTable relColumns
           (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
           relCardinality
       | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
 
     viewViewM2O =
-      [ Relation
+      [ Relationship
           (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
           (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
           relCardinality
@@ -425,14 +425,14 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relation{..} -> rel :
 
   in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
-addO2MRels :: [Relation] -> [Relation]
-addO2MRels rels = rels ++ [ Relation ft fc t c (O2M cons)
-                          | Relation t c ft fc (M2O cons) <- rels ]
+addO2MRels :: [Relationship] -> [Relationship]
+addO2MRels rels = rels ++ [ Relationship ft fc t c (O2M cons)
+                          | Relationship t c ft fc (M2O cons) <- rels ]
 
-addM2MRels :: [Relation] -> [Relation]
-addM2MRels rels = rels ++ [ Relation t c ft fc (M2M $ Junction jt1 cons1 jc1 cons2 jc2)
-                          | Relation jt1 jc1 t c (M2O cons1) <- rels
-                          , Relation jt2 jc2 ft fc (M2O cons2) <- rels
+addM2MRels :: [Relationship] -> [Relationship]
+addM2MRels rels = rels ++ [ Relationship t c ft fc (M2M $ Junction jt1 cons1 jc1 cons2 jc2)
+                          | Relationship jt1 jc1 t c (M2O cons1) <- rels
+                          , Relationship jt2 jc2 ft fc (M2O cons2) <- rels
                           , jt1 == jt2
                           , cons1 /= cons2]
 
@@ -602,7 +602,7 @@ columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: [Table] -> [Column] -> Bool -> H.Statement () [Relation]
+allM2ORels :: [Table] -> [Column] -> Bool -> H.Statement () [Relationship]
 allM2ORels tabs cols =
   H.Statement sql HE.noParams (decodeRels tabs cols)
  where
@@ -629,9 +629,9 @@ allM2ORels tabs cols =
     WHERE confrelid != 0
     ORDER BY (conrelid, column_info.nums) |]
 
-relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relation
+relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relationship
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relation <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
+  Relationship <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
   where
     findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols

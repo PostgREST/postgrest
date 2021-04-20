@@ -36,11 +36,11 @@ import Data.Tree (Tree (..))
 
 import qualified GHC.Show (show)
 
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier)
-import PostgREST.DbStructure.Relation    (Relation)
-import PostgREST.RangeQuery              (NonnegRange)
-import PostgREST.Request.Preferences     (PreferResolution)
+import PostgREST.DbStructure.Identifiers  (FieldName,
+                                           QualifiedIdentifier)
+import PostgREST.DbStructure.Relationship (Relationship)
+import PostgREST.RangeQuery               (NonnegRange)
+import PostgREST.Request.Preferences      (PreferResolution)
 
 import Protolude
 
@@ -49,7 +49,7 @@ type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
 
 type ReadNode =
-  (ReadQuery, (NodeName, Maybe Relation, Maybe Alias, Maybe EmbedHint, Depth))
+  (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe EmbedHint, Depth))
 
 type NodeName = Text
 type Depth = Integer
@@ -121,10 +121,7 @@ data MutateQuery
       , returning :: [FieldName]
       }
 
--- | This type will hold information about which particular 'Relation' between
--- two tables to choose when there are multiple ones.
--- Specifically, it will contain the name of the foreign key or the join table
--- in many to many relations.
+-- | The select value in `/tbl?select=alias:field::cast`
 type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)
 
 type Field = (FieldName, JsonPath)

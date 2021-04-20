@@ -518,7 +518,7 @@ readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Rea
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
   liftEither $
     ReqBuilder.readRequest qiSchema qiName configDbMaxRows
-      (dbRelations dbStructure)
+      (dbRelationships dbStructure)
       apiRequest
 
 contentTypeHeaders :: RequestContext -> [HTTP.Header]
