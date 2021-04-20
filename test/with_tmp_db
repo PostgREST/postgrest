@@ -99,12 +99,7 @@ stop() {
 trap stop sigint sigterm exit
 
 log "Loading fixtures..."
-psql -v ON_ERROR_STOP=1 >> "$setuplog" << EOF
-  create extension pgcrypto;
-  alter database $PGDATABASE set request.jwt.claim.id = '-1';
-  alter role $PGUSER set default_text_search_config to english;
-  \i test/fixtures/load.sql
-EOF
+psql -v ON_ERROR_STOP=1 -f test/fixtures/load.sql >> "$setuplog"
 
 log "Done. Running command..."
 # Run the command that was given as an argument. The `exit` trap above will

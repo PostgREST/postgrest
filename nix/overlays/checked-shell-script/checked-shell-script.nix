@@ -77,9 +77,8 @@ let
       text =
         ''
           #!${bash_5}/bin/bash
-          set -euo pipefail
-
           source ${argsParser}
+          set -euo pipefail
         ''
 
         + lib.optionalString redirectTixFiles ''
