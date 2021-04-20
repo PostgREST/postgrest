@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructure.Relation
+module PostgREST.DbStructure.Relationship
   ( Cardinality(..)
   , ForeignKey(..)
   , PrimaryKey(..)
-  , Relation(..)
+  , Relationship(..)
   , Junction(..)
   , isSelfReference
   ) where
@@ -18,13 +18,13 @@ import PostgREST.DbStructure.Table (Column (..), ForeignKey (..),
 import Protolude
 
 
--- | "Relation"ship between two tables.
+-- | Relationship between two tables.
 --
--- The order of the relColumns and relFColumns should be maintained to get the
+-- The order of the relColumns and relForeignColumns should be maintained to get the
 -- join conditions right.
 --
--- TODO merge relColumns and relFColumns to a tuple or Data.Bimap
-data Relation = Relation
+-- TODO merge relColumns and relForeignColumns to a tuple or Data.Bimap
+data Relationship = Relationship
   { relTable          :: Table
   , relColumns        :: [Column]
   , relForeignTable   :: Table
@@ -54,7 +54,7 @@ data Junction = Junction
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
-isSelfReference :: Relation -> Bool
+isSelfReference :: Relationship -> Bool
 isSelfReference r = relTable r == relForeignTable r
 
 data PrimaryKey = PrimaryKey
