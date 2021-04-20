@@ -102,19 +102,43 @@ rec {
       )
     );
 
+  env =
+    postgrest.env;
+
+  # Tooling for analyzing Haskell imports and exports.
+  hsie =
+    pkgs.callPackage nix/hsie {
+      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
+    };
+
+  ### Tools
+
+  # Development tools.
+  devtools =
+    pkgs.callPackage nix/tools/devtools.nix { inherit tests style devCabalOptions hsie; };
+
   # Docker images and loading script.
   docker =
     pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 
-  env =
-    postgrest.env;
+  # Script for running memory tests.
+  memory =
+    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsTools =
     pkgs.callPackage nix/tools/nixpkgstools.nix { };
 
-  withTools =
-    pkgs.callPackage nix/tools/withtools.nix { inherit postgresqlVersions; };
+  # Scripts for publishing new releases.
+  release =
+    pkgs.callPackage nix/tools/release {
+      inherit docker;
+      postgrest = postgrestStatic;
+    };
+
+  # Linting and styling tools.
+  style =
+    pkgs.callPackage nix/tools/style.nix { };
 
   # Scripts for running tests.
   tests =
@@ -124,28 +148,6 @@ rec {
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
     };
 
-  # Script for running memory tests.
-  memory =
-    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
-
-  # Linting and styling tools.
-  style =
-    pkgs.callPackage nix/tools/style.nix { };
-
-  # Tooling for analyzing Haskell imports and exports.
-  hsie =
-    pkgs.callPackage nix/hsie {
-      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
-    };
-
-  # Development tools.
-  devtools =
-    pkgs.callPackage nix/tools/devtools.nix { inherit tests style devCabalOptions hsie; };
-
-  # Scripts for publishing new releases.
-  release =
-    pkgs.callPackage nix/tools/release {
-      inherit docker;
-      postgrest = postgrestStatic;
-    };
+  withTools =
+    pkgs.callPackage nix/tools/withtools.nix { inherit postgresqlVersions; };
 }
