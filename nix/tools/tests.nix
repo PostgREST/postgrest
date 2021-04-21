@@ -7,6 +7,7 @@
 , gnugrep
 , haskell
 , hpc-codecov
+, jq
 , postgrest
 , python3
 , runtimeShell
@@ -74,6 +75,8 @@ let
         withEnv = postgrest.env;
       }
       ''
+        export PATH="${jq}/bin:$PATH"
+        
         ${withTools.latest} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
