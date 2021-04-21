@@ -26,6 +26,11 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
     <tr></tr>
     <tr>
       <td align="center" valign="middle">
+        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/gnuhost.png">
+        </a>
+      </td>
+      <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
           <img width="296px" src="static/supabase.png">
         </a>
