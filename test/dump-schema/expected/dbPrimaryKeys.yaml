@@ -23,13 +23,6 @@
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: public_consumers
-    tableSchema: public
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
     tableName: consumers_extra_view
     tableSchema: test
 
@@ -46,13 +39,6 @@
     tableInsertable: true
     tableName: consumers_view_view
     tableSchema: test
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: public_orders
-    tableSchema: public
 
 - pkName: id
   pkTable:
@@ -220,21 +206,7 @@
     tableDescription: null
     tableInsertable: true
     tableName: articles
-    tableSchema: private
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: articles
     tableSchema: test
-
-- pkName: article_id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: article_stars
-    tableSchema: private
 
 - pkName: articleId
   pkTable:
@@ -249,13 +221,6 @@
     tableInsertable: true
     tableName: limited_article_stars
     tableSchema: test
-
-- pkName: user_id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: article_stars
-    tableSchema: private
 
 - pkName: userId
   pkTable:
@@ -277,13 +242,6 @@
     tableInsertable: true
     tableName: Escap3e;
     tableSchema: test
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: auth
-    tableSchema: postgrest
 
 - pkName: secret
   pkTable:
@@ -430,13 +388,6 @@
     tableDescription: null
     tableInsertable: true
     tableName: authors
-    tableSchema: private
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: authors
     tableSchema: test
 
 - pkName: id
@@ -466,20 +417,6 @@
     tableInsertable: true
     tableName: authors_w_entities
     tableSchema: test
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: publishers
-    tableSchema: private
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: books
-    tableSchema: private
 
 - pkName: id
   pkTable:
@@ -611,22 +548,8 @@
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: player
-    tableSchema: private
-
-- pkName: last_name
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
     tableName: player_view
     tableSchema: test
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: player
-    tableSchema: private
 
 - pkName: id
   pkTable:
@@ -639,22 +562,8 @@
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: player
-    tableSchema: private
-
-- pkName: first_name
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
     tableName: player_view
     tableSchema: test
-
-- pkName: birth_date
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: player
-    tableSchema: private
 
 - pkName: birth_date
   pkTable:
@@ -689,6 +598,20 @@
     tableDescription: null
     tableInsertable: true
     tableName: sites
+    tableSchema: test
+
+- pkName: film_id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: personnages
+    tableSchema: test
+
+- pkName: role_id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: personnages
     tableSchema: test
 
 - pkName: job_id
@@ -780,13 +703,6 @@
     tableDescription: null
     tableInsertable: true
     tableName: stuff
-    tableSchema: private
-
-- pkName: id
-  pkTable:
-    tableDescription: null
-    tableInsertable: true
-    tableName: stuff
     tableSchema: test
 
 - pkName: id
@@ -800,33 +716,68 @@
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: parents
-    tableSchema: v1
+    tableName: screens
+    tableSchema: test
 
 - pkName: id
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: children
-    tableSchema: v1
+    tableName: labels
+    tableSchema: test
+
+- pkName: label_id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: label_screen
+    tableSchema: test
+
+- pkName: screen_id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: label_screen
+    tableSchema: test
 
 - pkName: id
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: parents
-    tableSchema: v2
+    tableName: actors
+    tableSchema: test
 
 - pkName: id
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: children
-    tableSchema: v2
+    tableName: films
+    tableSchema: test
 
 - pkName: id
   pkTable:
     tableDescription: null
     tableInsertable: true
-    tableName: another_table
-    tableSchema: v2
+    tableName: end_1
+    tableSchema: test
+
+- pkName: id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: end_2
+    tableSchema: test
+
+- pkName: id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: schauspieler
+    tableSchema: test
+
+- pkName: id
+  pkTable:
+    tableDescription: null
+    tableInsertable: true
+    tableName: filme
+    tableSchema: test

@@ -49,29 +49,19 @@
       pdName: varied_arguments
       pdReturnType:
         contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: welcome
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: welcome
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -79,19 +69,12 @@
 
 - - qiName: set_cookie_twice
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: set_cookie_twice
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -99,19 +82,12 @@
 
 - - qiName: ret_base64_bin
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_base64_bin
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -137,9 +113,6 @@
       pdName: three_defaults
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -165,21 +138,27 @@
       pdSchema: test
       pdVolatility: Volatile
 
+- - qiName: reload_pgrst_config
+    qiSchema: test
+  - - pdArgs: []
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: reload_pgrst_config
+      pdReturnType:
+        contents:
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
 - - qiName: welcome.html
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: welcome.html
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -187,11 +166,7 @@
 
 - - qiName: ret_scalars
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_scalars
@@ -223,19 +198,12 @@
 
 - - qiName: overloaded
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: overloaded
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: SetOf
       pdSchema: test
@@ -271,9 +239,6 @@
       pdName: overloaded
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -296,9 +261,6 @@
       pdName: overloaded
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -306,19 +268,12 @@
 
 - - qiName: welcome_twice
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: welcome_twice
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: SetOf
       pdSchema: test
@@ -326,19 +281,12 @@
 
 - - qiName: raise_pt402
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: raise_pt402
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -346,11 +294,7 @@
 
 - - qiName: getallprojects
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: getallprojects
@@ -376,13 +320,10 @@
       pdName: json_argument
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: getproject_domain
     qiSchema: test
@@ -402,7 +343,7 @@
           tag: Composite
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: single_json_out_param
     qiSchema: test
@@ -430,19 +371,12 @@
 
 - - qiName: bad_guc_headers_1
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: bad_guc_headers_1
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -450,11 +384,7 @@
 
 - - qiName: reveal_big_jwt
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: reveal_big_jwt
@@ -466,7 +396,7 @@
           tag: Composite
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: ret_range
     qiSchema: test
@@ -484,9 +414,6 @@
       pdName: ret_range
       pdReturnType:
         contents:
-          contents:
-            qiName: int4range
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -514,59 +441,38 @@
 
 - - qiName: test_empty_rowset
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: test_empty_rowset
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: noparamsproc
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: noparamsproc
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: problem
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: problem
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -614,15 +520,11 @@
           tag: Composite
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: ret_composite_domain
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_composite_domain
@@ -638,19 +540,12 @@
 
 - - qiName: callcounter
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: callcounter
       pdReturnType:
         contents:
-          contents:
-            qiName: int8
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -668,9 +563,6 @@
       pdName: ret_point_overloaded
       pdReturnType:
         contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -699,11 +591,7 @@
 
 - - qiName: test
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: test
@@ -719,19 +607,33 @@
 
 - - qiName: root
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: root
       pdReturnType:
         contents:
-          contents:
-            qiName: jsonb
-            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: change_max_rows_config
+    qiSchema: test
+  - - pdArgs:
+      - pgaName: val
+        pgaReq: true
+        pgaType: integer
+        pgaVar: false
+      - pgaName: notify
+        pgaReq: false
+        pgaType: boolean
+        pgaVar: false
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: change_max_rows_config
+      pdReturnType:
+        contents:
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -739,19 +641,12 @@
 
 - - qiName: ret_setof_integers
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_setof_integers
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: SetOf
       pdSchema: test
@@ -770,9 +665,19 @@
       pdName: ret_setof_integers
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: reset_max_rows_config
+    qiSchema: test
+  - - pdArgs: []
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: reset_max_rows_config
+      pdReturnType:
+        contents:
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -794,29 +699,19 @@
       pdName: sayhello_variadic
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: send_body_status_403
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: send_body_status_403
       pdReturnType:
         contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -834,13 +729,10 @@
       pdName: anti_id
       pdReturnType:
         contents:
-          contents:
-            qiName: int8
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Stable
+      pdVolatility: Immutable
 
 - - qiName: always_true
     qiSchema: test
@@ -854,29 +746,19 @@
       pdName: always_true
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Stable
+      pdVolatility: Immutable
 
 - - qiName: ret_void
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_void
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -894,9 +776,6 @@
       pdName: ret_enum
       pdReturnType:
         contents:
-          contents:
-            qiName: enum_menagerie_type
-            qiSchema: test
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -922,9 +801,6 @@
       pdName: validate_json_schema
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -942,29 +818,19 @@
       pdName: is_first
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Stable
+      pdVolatility: Immutable
 
 - - qiName: raise_bad_pt
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: raise_bad_pt
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -992,19 +858,12 @@
 
 - - qiName: status_205_for_updated_stuff
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: status_205_for_updated_stuff
       pdReturnType:
         contents:
-          contents:
-            qiName: trigger
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1012,19 +871,12 @@
 
 - - qiName: send_bad_status
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: send_bad_status
       pdReturnType:
         contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1032,11 +884,7 @@
 
 - - qiName: ret_rows_with_base64_bin
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_rows_with_base64_bin
@@ -1062,9 +910,6 @@
       pdName: is_valid_isbn
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1086,9 +931,6 @@
       pdName: add_them
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1096,19 +938,12 @@
 
 - - qiName: switch_role
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: switch_role
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1116,11 +951,7 @@
 
 - - qiName: ret_point_2d
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_point_2d
@@ -1130,6 +961,19 @@
             qiName: point_2d
             qiSchema: test
           tag: Composite
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: invalid_role_claim_key_reload
+    qiSchema: test
+  - - pdArgs: []
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: invalid_role_claim_key_reload
+      pdReturnType:
+        contents:
+          tag: Scalar
         tag: Single
       pdSchema: test
       pdVolatility: Volatile
@@ -1146,9 +990,6 @@
       pdName: sayhello
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1166,9 +1007,6 @@
       pdName: get_guc_value
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1196,7 +1034,7 @@
           tag: Composite
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: setprojects
     qiSchema: test
@@ -1228,19 +1066,12 @@
 
 - - qiName: location_for_stuff
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: location_for_stuff
       pdReturnType:
         contents:
-          contents:
-            qiName: trigger
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1258,9 +1089,6 @@
       pdName: ret_domain
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1286,9 +1114,6 @@
       pdName: quotedFunction
       pdReturnType:
         contents:
-          contents:
-            qiName: jsonb
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1326,9 +1151,6 @@
       pdName: leak
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1346,13 +1168,10 @@
       pdName: variadic_param
       pdReturnType:
         contents:
-          contents:
-            qiName: _text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: single_out_param
     qiSchema: test
@@ -1376,11 +1195,7 @@
 
 - - qiName: get_tsearch
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: get_tsearch
@@ -1396,19 +1211,12 @@
 
 - - qiName: file_fdw_handler
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: file_fdw_handler
       pdReturnType:
         contents:
-          contents:
-            qiName: fdw_handler
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1426,9 +1234,6 @@
       pdName: get_int_and_guc_headers
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1474,13 +1279,10 @@
       pdName: computed_overload
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Stable
+      pdVolatility: Immutable
     - pdArgs:
       - pgaName: ''
         pgaReq: true
@@ -1491,13 +1293,10 @@
       pdName: computed_overload
       pdReturnType:
         contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Stable
+      pdVolatility: Immutable
 
 - - qiName: privileged_hello
     qiSchema: test
@@ -1511,9 +1310,6 @@
       pdName: privileged_hello
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1521,23 +1317,16 @@
 
 - - qiName: get_current_user
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: get_current_user
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: search
     qiSchema: test
@@ -1557,15 +1346,11 @@
           tag: Composite
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: get_projects_and_guc_headers
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: get_projects_and_guc_headers
@@ -1581,19 +1366,12 @@
 
 - - qiName: bad_guc_headers_3
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: bad_guc_headers_3
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1611,9 +1389,19 @@
       pdName: test_arg
       pdReturnType:
         contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: reset_invalid_role_claim_key
+    qiSchema: test
+  - - pdArgs: []
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: reset_invalid_role_claim_key
+      pdReturnType:
+        contents:
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1621,19 +1409,12 @@
 
 - - qiName: ret_array
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_array
       pdReturnType:
         contents:
-          contents:
-            qiName: _int4
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1641,11 +1422,7 @@
 
 - - qiName: getallusers
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: getallusers
@@ -1657,7 +1434,7 @@
           tag: Composite
         tag: SetOf
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Stable
 
 - - qiName: reset_sequence
     qiSchema: test
@@ -1675,9 +1452,6 @@
       pdName: reset_sequence
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1695,13 +1469,10 @@
       pdName: singlejsonparam
       pdReturnType:
         contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: file_fdw_validator
     qiSchema: test
@@ -1719,9 +1490,6 @@
       pdName: file_fdw_validator
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1729,11 +1497,7 @@
 
 - - qiName: ret_point_3d
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: ret_point_3d
@@ -1749,19 +1513,12 @@
 
 - - qiName: custom_headers
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: custom_headers
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1769,11 +1526,7 @@
 
 - - qiName: jwt_test
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: jwt_test
@@ -1785,23 +1538,33 @@
           tag: Composite
         tag: Single
       pdSchema: test
-      pdVolatility: Volatile
+      pdVolatility: Immutable
 
 - - qiName: bad_guc_headers_2
     qiSchema: test
-  - - pdArgs:
-      - pgaName: ''
-        pgaReq: true
-        pgaType: ''
-        pgaVar: false
+  - - pdArgs: []
       pdDescription: null
       pdHasVariadic: false
       pdName: bad_guc_headers_2
       pdReturnType:
         contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: change_db_schema_and_full_reload
+    qiSchema: test
+  - - pdArgs:
+      - pgaName: schemas
+        pgaReq: true
+        pgaType: text
+        pgaVar: false
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: change_db_schema_and_full_reload
+      pdReturnType:
+        contents:
           tag: Scalar
         tag: Single
       pdSchema: test
@@ -1819,9 +1582,19 @@
       pdName: number_of_labels
       pdReturnType:
         contents:
-          contents:
-            qiName: int4
-            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: test
+      pdVolatility: Volatile
+
+- - qiName: ret_null
+    qiSchema: test
+  - - pdArgs: []
+      pdDescription: null
+      pdHasVariadic: false
+      pdName: ret_null
+      pdReturnType:
+        contents:
           tag: Scalar
         tag: Single
       pdSchema: test
