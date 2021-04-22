@@ -41,6 +41,8 @@ let
         }
 
         mkdir -p "$tmpdir"/{db,socket}
+        # remove data dir, even if we keep tmpdir - no need to upload it to artifacts
+        trap 'rm -rf $tmpdir/db' EXIT
 
         export PGDATA="$tmpdir/db"
         export PGHOST="$tmpdir/socket"

@@ -67,6 +67,8 @@ jobs:
           name: run spec tests
           command: |
             test/create_test_db "postgres://circleci@localhost" postgrest_test stack test
+      - store_artifacts:
+          path: /tmp/postgrest
 
   # Publish a new release. This only runs when a release is tagged (see
   # workflow below).
@@ -111,6 +113,8 @@ jobs:
             then
               postgrest-release-dockerhub-description
             fi
+      - store_artifacts:
+          path: /tmp/postgrest
 
   # Build everything in default.nix and push to the Cachix binary cache if running on main
   nix-build:
@@ -154,6 +158,8 @@ jobs:
               echo "Building all derivations (caching skipped for outside pull requests)..."
               nix-build
             fi
+      - store_artifacts:
+          path: /tmp/postgrest
 
   # Run tests
   nix-test:
@@ -218,7 +224,8 @@ jobs:
           name: Run memory tests
           command: postgrest-test-memory
           when: always
-
+      - store_artifacts:
+          path: /tmp/postgrest
 
 workflows:
   version: 2
