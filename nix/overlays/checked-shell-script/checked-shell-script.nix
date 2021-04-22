@@ -3,6 +3,7 @@
 # to be used in a path for example.
 { argbash
 , bash_5
+, coreutils
 , git
 , lib
 , runCommand
@@ -83,7 +84,7 @@ let
 
         + lib.optionalString redirectTixFiles ''
           # storing tix files in a temporary throw away directory avoids mix/tix conflicts after changes
-          hpctixdir=$(mktemp -d)
+          hpctixdir=$(${coreutils}/bin/mktemp -d)
           export HPCTIXFILE="$hpctixdir"/postgrest.tix
           trap 'rm -rf $hpctixdir' EXIT
         ''
@@ -99,7 +100,8 @@ let
         ''
 
         + lib.optionalString withTmpDir ''
-          tmpdir="$(mktemp -d)"
+          mkdir -p "''${TMPDIR:-/tmp}/postgrest"
+          tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir postgrest/${name}-XXX)"
 
           # we keep the tmpdir when an error occurs for debugging
           trap 'echo Temporary directory kept at: $tmpdir' ERR
