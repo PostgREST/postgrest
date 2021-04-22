@@ -16,40 +16,40 @@ spec = describe "Allow header" $ do
     r <- request methodOptions "/items" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET,POST,PATCH,DELETE"
+        matchHeader "Allow" "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
 
   it "includes read verbs for read-only table" $ do
     r <- request methodOptions "/has_count_column" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET"
+        matchHeader "Allow" "GET,HEAD,OPTIONS"
 
   it "includes read verbs for non auto updatable views" $ do
     r <- request methodOptions "/projects_view_without_triggers" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET"
+        matchHeader "Allow" "GET,HEAD,OPTIONS"
 
   it "includes read/write verbs for insertable, updatable and deletable views" $ do
     r <- request methodOptions "/projects_view_with_all_triggers" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET,POST,PATCH,DELETE"
+        matchHeader "Allow" "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
 
   it "includes read and insertable verbs for insertable views" $ do
     r <- request methodOptions "/projects_view_with_insert_trigger" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET,POST"
+        matchHeader "Allow" "GET,POST,HEAD,OPTIONS"
 
   it "includes read and updatable verbs for updatable views" $ do
     r <- request methodOptions "/projects_view_with_update_trigger" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET,PATCH"
+        matchHeader "Allow" "GET,PATCH,HEAD,OPTIONS"
 
   it "includes read and insertable verbs for deletable views" $ do
     r <- request methodOptions "/projects_view_with_delete_trigger" [] ""
     liftIO $
       simpleHeaders r `shouldSatisfy`
-        matchHeader "Allow" "GET,DELETE"
+        matchHeader "Allow" "GET,DELETE,HEAD,OPTIONS"
