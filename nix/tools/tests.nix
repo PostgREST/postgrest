@@ -102,7 +102,7 @@ let
         rm -rf coverage/*
 
         # build once before running all the tests
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} --enable-tests all
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:spec-querycost
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
