@@ -359,12 +359,11 @@ handleInfo identifier RequestContext{..} =
     allowH table =
       ( HTTP.hAllow
       , BS8.intercalate "," $
-          ["GET"]
+          ["OPTIONS,GET,HEAD"]
           ++ ["POST" | tableInsertable table]
           ++ ["PUT" | tableInsertable table && tableUpdatable table && hasPK]
           ++ ["PATCH" | tableUpdatable table]
           ++ ["DELETE" | tableDeletable table]
-          ++ ["HEAD,OPTIONS"]
       )
     tableMatches table =
       tableName table == qiName identifier
