@@ -19,12 +19,6 @@ spec = describe "Allow header" $ do
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
 
-    it "includes read verbs for read-only table" $ do
-      r <- request methodOptions "/has_count_column" [] ""
-      liftIO $
-        simpleHeaders r `shouldSatisfy`
-          matchHeader "Allow" "OPTIONS,GET,HEAD"
-
   context "a view" $ do
     context "auto updatable" $ do
       it "includes read/write verbs for auto updatable views with pk" $ do
