@@ -21,7 +21,10 @@ data Table = Table
   { tableSchema      :: Schema
   , tableName        :: TableName
   , tableDescription :: Maybe Text
+    -- The following fields identify what can be done on the table/view, they're not related to the privileges granted to it
   , tableInsertable  :: Bool
+  , tableUpdatable   :: Bool
+  , tableDeletable   :: Bool
   }
   deriving (Show, Ord, Generic, JSON.ToJSON)
 

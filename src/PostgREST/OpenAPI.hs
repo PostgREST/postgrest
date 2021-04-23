@@ -218,7 +218,7 @@ makeRowFilters :: Text -> [Column] -> [(Text, Param)]
 makeRowFilters tn = fmap (makeRowFilter tn)
 
 makePathItem :: (Table, [Column], [Text]) -> (FilePath, PathItem)
-makePathItem (t, cs, _) = ("/" ++ T.unpack tn, p $ tableInsertable t)
+makePathItem (t, cs, _) = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t || tableDeletable t)
   where
     -- Use first line of table description as summary; rest as description (if present)
     -- We strip leading newlines from description so that users can include a blank line between summary and description

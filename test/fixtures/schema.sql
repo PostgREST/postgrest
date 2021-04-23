@@ -1544,6 +1544,73 @@ $$A materialized view for projects
 
 Just a test for materialized views$$;
 
+-- Tests for updatable, insertable and deletable views
+create view test.projects_auto_updatable_view_with_pk as
+select id, name, client_id from test.projects;
+
+create view test.projects_auto_updatable_view_without_pk as
+select name, client_id from test.projects;
+
+create view test.projects_view_without_triggers as
+select distinct id, name, client_id from test.projects;
+
+create or replace function test.test_for_views_with_triggers() returns trigger as $$
+begin
+    return null;
+end;
+$$ language plpgsql;
+
+create view test.projects_view_with_all_triggers_with_pk as
+select distinct id, name, client_id from test.projects;
+
+create trigger projects_view_with_all_triggers_with_pk_insert
+    instead of insert on test.projects_view_with_all_triggers_with_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create trigger projects_view_with_all_triggers_with_pk_update
+    instead of update on test.projects_view_with_all_triggers_with_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create trigger projects_view_with_all_triggers_with_pk_delete
+    instead of delete on test.projects_view_with_all_triggers_with_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create view test.projects_view_with_all_triggers_without_pk as
+select distinct name, client_id from test.projects;
+
+create trigger projects_view_with_all_triggers_without_pk_insert
+    instead of insert on test.projects_view_with_all_triggers_without_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create trigger projects_view_with_all_triggers_without_pk_update
+    instead of update on test.projects_view_with_all_triggers_without_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create trigger projects_view_with_all_triggers_without_pk_delete
+    instead of delete on test.projects_view_with_all_triggers_without_pk
+    for each row execute procedure test_for_views_with_triggers();
+
+create view test.projects_view_with_insert_trigger as
+select distinct id, name, client_id from test.projects;
+
+create trigger projects_view_with_insert_trigger_insert
+    instead of insert on test.projects_view_with_insert_trigger
+    for each row execute procedure test_for_views_with_triggers();
+
+create view test.projects_view_with_update_trigger as
+select distinct id, name, client_id from test.projects;
+
+create trigger projects_view_with_update_trigger_update
+    instead of update on test.projects_view_with_update_trigger
+    for each row execute procedure test_for_views_with_triggers();
+
+create view test.projects_view_with_delete_trigger as
+select distinct id, name, client_id from test.projects;
+
+create trigger projects_view_with_delete_trigger_delete
+    instead of delete on test.projects_view_with_delete_trigger
+    for each row execute procedure test_for_views_with_triggers();
+
 create or replace function test."quotedFunction"("user" text, "fullName" text, "SSN" text)
 returns jsonb AS $$
   select format('{"user": "%s", "fullName": "%s", "SSN": "%s"}', "user", "fullName", "SSN")::jsonb;

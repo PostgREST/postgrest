@@ -136,6 +136,8 @@ decodeTables =
                  <*> column HD.text
                  <*> nullableColumn HD.text
                  <*> column HD.bool
+                 <*> column HD.bool
+                 <*> column HD.bool
 
 decodeColumns :: [Table] -> HD.Result [Column]
 decodeColumns tables =
@@ -329,22 +331,40 @@ accessibleTables =
       relname as table_name,
       d.description as table_description,
       (
-        c.relkind in ('r', 'v', 'f')
-        and (pg_relation_is_updatable(c.oid::regclass, false) & 8) = 8
-        -- The function `pg_relation_is_updateable` returns a bitmask where 8
-        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
-        -- it's possible to insert into the relation.
-        or (exists (
-          select 1
-          from pg_trigger
-          where
+        c.relkind IN ('r', 'v','f')
+        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+        OR EXISTS (
+          SELECT 1
+          FROM pg_trigger
+          WHERE
             pg_trigger.tgrelid = c.oid
-            and (pg_trigger.tgtype::integer & 69) = 69)
-            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
-            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
-            -- in the PostgreSQL source code.
+            AND (pg_trigger.tgtype::integer & 69) = 69
         )
-      ) as insertable
+      ) AS insertable,
+      (
+        c.relkind IN ('r', 'v','f')
+        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
+        -- CMD_UPDATE
+        OR EXISTS (
+          SELECT 1
+          FROM pg_trigger
+          WHERE
+            pg_trigger.tgrelid = c.oid
+            and (pg_trigger.tgtype::integer & 81) = 81
+        )
+      ) as updatable,
+      (
+        c.relkind IN ('r', 'v','f')
+        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
+        -- CMD_DELETE
+        OR EXISTS (
+          SELECT 1
+          FROM pg_trigger
+          WHERE
+            pg_trigger.tgrelid = c.oid
+            and (pg_trigger.tgtype::integer & 73) = 73
+        )
+      ) as deletable
     from
       pg_class c
       join pg_namespace n on n.oid = c.relnamespace
@@ -470,21 +490,61 @@ allTables =
       c.relname AS table_name,
       NULL AS table_description,
       (
-        c.relkind IN ('r', 'v','f')
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-        OR EXISTS (
-          SELECT 1
-          FROM pg_trigger
-          WHERE
-            pg_trigger.tgrelid = c.oid
+        c.relkind = 'r'
+        OR (
+          c.relkind in ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+          -- The function `pg_relation_is_updateable` returns a bitmask where 8
+          -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
+          -- it's possible to insert into the relation.
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
             AND (pg_trigger.tgtype::integer & 69) = 69
+            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
+            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
+            -- in the PostgreSQL source code.
+          )
         )
-      ) AS insertable
+      ) AS insertable,
+      (
+        c.relkind = 'r'
+        OR (
+          c.relkind in ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
+          -- CMD_UPDATE
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
+              and (pg_trigger.tgtype::integer & 81) = 81
+              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_UPDATE
+          )
+        )
+      ) AS updatable,
+      (
+        c.relkind = 'r'
+        OR (
+          c.relkind in ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
+          -- CMD_DELETE
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
+              and (pg_trigger.tgtype::integer & 73) = 73
+              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_DELETE
+          )
+        )
+      ) AS deletable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('v','r','m','f')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-    GROUP BY table_schema, table_name, insertable
     ORDER BY table_schema, table_name |]
 
 allColumns :: [Table] -> Bool -> H.Statement [Schema] [Column]

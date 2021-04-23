@@ -358,11 +358,18 @@ handleInfo identifier RequestContext{..} =
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
-      , if tableInsertable table then "GET,POST,PATCH,DELETE" else "GET"
+      , BS8.intercalate "," $
+          ["OPTIONS,GET,HEAD"]
+          ++ ["POST" | tableInsertable table]
+          ++ ["PUT" | tableInsertable table && tableUpdatable table && hasPK]
+          ++ ["PATCH" | tableUpdatable table]
+          ++ ["DELETE" | tableDeletable table]
       )
     tableMatches table =
       tableName table == qiName identifier
       && tableSchema table == qiSchema identifier
+    hasPK =
+      not $ null $ tablePKCols ctxDbStructure (qiSchema identifier) (qiName identifier)
 
 handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
