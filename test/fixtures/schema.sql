@@ -1593,7 +1593,7 @@ create trigger projects_view_with_all_triggers_without_pk_delete
 create view test.projects_view_with_insert_trigger as
 select distinct id, name, client_id from test.projects;
 
-create trigger projects_view_with_update_trigger_insert
+create trigger projects_view_with_insert_trigger_insert
     instead of insert on test.projects_view_with_insert_trigger
     for each row execute procedure test_for_views_with_triggers();
 
