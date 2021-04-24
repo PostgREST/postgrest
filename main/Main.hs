@@ -31,11 +31,11 @@ installSignalHandlers = Unix.installSignalHandlers
 installSignalHandlers _ = pass
 #endif
 
-runAppInSocket :: App.SocketRunner
+runAppInSocket :: Maybe App.SocketRunner
 #ifndef mingw32_HOST_OS
-runAppInSocket = Unix.runAppInSocket
+runAppInSocket = Just Unix.runAppWithSocket
 #else
-runAppInSocket _ _ _ _ = pass
+runAppInSocket = Nothing
 #endif
 
 setBuffering :: IO ()

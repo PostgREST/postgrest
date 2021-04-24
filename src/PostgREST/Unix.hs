@@ -1,5 +1,5 @@
 module PostgREST.Unix
-  ( runAppInSocket
+  ( runAppWithSocket
   , installSignalHandlers
   ) where
 
@@ -20,8 +20,8 @@ import Protolude
 
 
 -- | Run the PostgREST application with user defined socket.
-runAppInSocket :: Warp.Settings -> Application -> FileMode -> FilePath -> IO ()
-runAppInSocket settings app socketFileMode socketFilePath =
+runAppWithSocket :: Warp.Settings -> Application -> FileMode -> FilePath -> IO ()
+runAppWithSocket settings app socketFileMode socketFilePath =
   bracket createAndBindSocket Socket.close $ \socket -> do
     putStrLn $ ("Listening on unix socket " :: Text) <> show socketFilePath
     Socket.listen socket Socket.maxListenQueue
