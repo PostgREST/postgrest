@@ -1,3 +1,4 @@
+{ stack ? false }:
 let
   name =
     "postgrest";
@@ -109,12 +110,15 @@ rec {
 
   ### Tools
 
+  buildTools =
+    if stack then stackTools else cabalTools;
+
   cabalTools =
     pkgs.callPackage nix/tools/cabalTools.nix { inherit postgrest; };
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit cabalTools hsie style tests; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit buildTools cabalTools hsie style tests; };
 
   # Docker images and loading script.
   docker =
@@ -135,6 +139,9 @@ rec {
       postgrest = postgrestStatic;
     };
 
+  stackTools =
+    pkgs.callPackage nix/tools/stackTools.nix { };
+
   # Linting and styling tools.
   style =
     pkgs.callPackage nix/tools/style.nix { };
@@ -142,7 +149,7 @@ rec {
   # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tools/tests.nix {
-      inherit cabalTools withTools;
+      inherit buildTools withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
     };

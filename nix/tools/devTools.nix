@@ -1,6 +1,7 @@
 { buildToolbox
-, cabalTools
+, buildTools
 , cachix
+, cabalTools
 , checkedShellScript
 , entr
 , graphviz
@@ -88,6 +89,8 @@ let
       }
       ''
         mkdir -p "$_arg_dumpdir"
+        # Running cabalTools instead of buildTools on purpose,
+        # because the cabal arguments don't work with stack
         ${cabalTools.build} \
           --builddir="$tmpdir" \
           --ghc-option=-ddump-minimal-imports \

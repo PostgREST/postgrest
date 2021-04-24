@@ -1,5 +1,5 @@
 { buildToolbox
-, cabalTools
+, buildTools
 , checkedShellScript
 , ghc
 , glibcLocales
@@ -21,7 +21,7 @@ let
         inRootDir = true;
       }
       ''
-        ${withTools.latest} ${cabalTools.test}
+        ${withTools.latest} ${buildTools.test}
       '';
 
   testSpecIdempotence =
@@ -33,8 +33,8 @@ let
       }
       ''
         ${withTools.latest} ${runtimeShell} -c " \
-          ${cabalTools.test} && \
-          ${cabalTools.test}"
+          ${buildTools.test} && \
+          ${buildTools.test}"
       '';
 
   ioTestPython =
@@ -56,7 +56,7 @@ let
         inRootDir = true;
       }
       ''
-        ${withTools.latest} ${cabalTools.exec} \
+        ${withTools.latest} ${buildTools.exec} \
           ${ioTestPython}/bin/pytest -v test/io-tests "''${_arg_leftovers[@]}"
       '';
 
@@ -70,7 +70,7 @@ let
       ''
         export PATH="${jq}/bin:$PATH"
         
-        ${withTools.latest} ${cabalTools.run} --dump-schema \
+        ${withTools.latest} ${buildTools.run} --dump-schema \
           | ${yq}/bin/yq -y .
       '';
 
@@ -96,7 +96,7 @@ let
         ${testIO}
           
         HPCTIXFILE="$tmpdir"/spec.tix \
-        ${withTools.latest} ${cabalTools.test}
+        ${withTools.latest} ${buildTools.test}
 
         # collect all the tix files
         ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io*.tix "$tmpdir"/spec.tix
