@@ -21,12 +21,11 @@ import Protolude
 
 -- | Run the PostgREST application with user defined socket.
 runAppInSocket :: Warp.Settings -> Application -> FileMode -> FilePath -> IO ()
-runAppInSocket settings app socketFileMode socketFilePath = do
-  sock <- createAndBindSocket
-  putStrLn $ ("Listening on unix socket " :: Text) <> show socketFilePath
-  Socket.listen sock Socket.maxListenQueue
-  Warp.runSettingsSocket settings sock app
-  Socket.close sock
+runAppInSocket settings app socketFileMode socketFilePath =
+  bracket createAndBindSocket Socket.close $ \socket -> do
+    putStrLn $ ("Listening on unix socket " :: Text) <> show socketFilePath
+    Socket.listen socket Socket.maxListenQueue
+    Warp.runSettingsSocket settings socket app
   where
     createAndBindSocket = do
       deleteSocketFileIfExist socketFilePath
