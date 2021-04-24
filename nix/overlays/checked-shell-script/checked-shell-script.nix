@@ -83,10 +83,12 @@ let
         ''
 
         + lib.optionalString redirectTixFiles ''
-          # storing tix files in a temporary throw away directory avoids mix/tix conflicts after changes
-          hpctixdir=$(${coreutils}/bin/mktemp -d)
-          export HPCTIXFILE="$hpctixdir"/postgrest.tix
-          trap 'rm -rf $hpctixdir' EXIT
+          if ! test -v HPCTIXFILE; then
+            # storing tix files in a temporary throw away directory avoids mix/tix conflicts after changes
+            hpctixdir=$(${coreutils}/bin/mktemp -d)
+            export HPCTIXFILE="$hpctixdir"/postgrest.tix
+            trap 'rm -rf $hpctixdir' EXIT
+          fi
         ''
 
         + lib.optionalString inRootDir ''

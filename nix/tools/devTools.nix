@@ -1,8 +1,7 @@
 { buildToolbox
-, cabal-install
+, cabalTools
 , cachix
 , checkedShellScript
-, devCabalOptions
 , entr
 , graphviz
 , hsie
@@ -89,7 +88,7 @@ let
       }
       ''
         mkdir -p "$_arg_dumpdir"
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
+        ${cabalTools.build} \
           --builddir="$tmpdir" \
           --ghc-option=-ddump-minimal-imports \
           --ghc-option=-dumpdir="$_arg_dumpdir" \

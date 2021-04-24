@@ -65,10 +65,6 @@ let
   staticHaskellPackage =
     import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
 
-  # Options passed to cabal in dev tools and tests
-  devCabalOptions =
-    "-f dev --test-show-detail=direct";
-
   profiledHaskellPackages =
     pkgs.haskell.packages."${compiler}".extend (self: super:
       {
@@ -114,11 +110,11 @@ rec {
   ### Tools
 
   cabalTools =
-    pkgs.callPackage nix/tools/cabalTools.nix { inherit devCabalOptions postgrest; };
+    pkgs.callPackage nix/tools/cabalTools.nix { inherit postgrest; };
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit cabalTools hsie style tests; };
 
   # Docker images and loading script.
   docker =
@@ -146,7 +142,7 @@ rec {
   # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tools/tests.nix {
-      inherit postgrest devCabalOptions withTools;
+      inherit cabalTools withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
     };
