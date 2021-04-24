@@ -152,7 +152,7 @@ jobs:
               nix-build | cachix push postgrest
 
               # Make sure that everything, including .drv files, is pushed
-              nix-env -f default.nix -iA devtools
+              nix-env -f default.nix -iA devTools
               postgrest-push-cachix
             else
               echo "Building all derivations (caching skipped for outside pull requests)..."
