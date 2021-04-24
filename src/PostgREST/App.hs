@@ -101,8 +101,8 @@ type SignalHandlerInstaller = AppState -> IO()
 type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
 
 
-run :: SignalHandlerInstaller -> SocketRunner -> AppState -> IO ()
-run installHandlers runInSocket appState = do
+run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
+run installHandlers maybeRunWithSocket appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   connectionWorker appState -- Loads the initial DbStructure
   installHandlers appState
@@ -113,8 +113,12 @@ run installHandlers runInSocket appState = do
 
   case configServerUnixSocket of
     Just socket ->
-      -- run the postgrest application with user defined socket. Only for UNIX systems.
-      runInSocket (serverSettings conf) app configServerUnixSocketMode socket
+      -- run the postgrest application with user defined socket. Only for UNIX systems
+      case maybeRunWithSocket of
+        Just runWithSocket ->
+          runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
+        Nothing ->
+          panic "Cannot run with socket on non-unix plattforms."
     Nothing ->
       do
         putStrLn $ ("Listening on port " :: Text) <> show configServerPort

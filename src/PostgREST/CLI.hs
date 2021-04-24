@@ -31,8 +31,8 @@ import qualified PostgREST.Config   as Config
 import Protolude hiding (hPutStrLn)
 
 
-main :: App.SignalHandlerInstaller -> App.SocketRunner -> CLI -> IO ()
-main installSignalHandlers runAppInSocket CLI{cliCommand, cliPath} = do
+main :: App.SignalHandlerInstaller -> Maybe App.SocketRunner -> CLI -> IO ()
+main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing
   appState <- AppState.init conf
@@ -47,7 +47,7 @@ main installSignalHandlers runAppInSocket CLI{cliCommand, cliPath} = do
     exec :: Command -> AppState -> IO ()
     exec CmdDumpConfig appState = putStr . Config.toText =<< AppState.getConfig appState
     exec CmdDumpSchema appState = putStrLn =<< dumpSchema appState
-    exec CmdRun appState = App.run installSignalHandlers runAppInSocket appState
+    exec CmdRun appState = App.run installSignalHandlers runAppWithSocket appState
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
