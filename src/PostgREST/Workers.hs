@@ -204,7 +204,6 @@ listener appState = do
       putStrLn $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
-
       -- retry the listener
       listener appState
 
@@ -234,10 +233,10 @@ reReadConfig startingUp appState = do
       if startingUp then
         panic err -- die on invalid config if the program is starting up
       else
-        hPutStrLn stderr $ "Failed loading in-database config. " <> err
+        hPutStrLn stderr $ "Failed re-loading config: " <> err
     Right newConf -> do
       AppState.putConfig appState newConf
       if startingUp then
         pass
       else
-        putStrLn ("In-database config loaded" :: Text)
+        putStrLn ("Config re-loaded" :: Text)
