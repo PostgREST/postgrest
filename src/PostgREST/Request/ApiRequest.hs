@@ -37,7 +37,7 @@ import Data.Ranged.Boundaries    (Boundary (..))
 import Data.Ranged.Ranges        (Range (..), emptyRange,
                                   rangeIntersection)
 import Network.HTTP.Base         (urlEncodeVars)
-import Network.HTTP.Types.Header (hAuthorization, hCookie)
+import Network.HTTP.Types.Header (hCookie)
 import Network.HTTP.Types.URI    (parseQueryReplacePlus,
                                   parseSimpleQuery)
 import Network.Wai               (Request (..))
@@ -168,7 +168,6 @@ data ApiRequest = ApiRequest {
   , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
   , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
   , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
-  , iJWT                  :: Text                             -- ^ JSON Web Token
   , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
@@ -184,6 +183,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
+  | action == ActionSingleUpsert && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
@@ -219,7 +219,6 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         . L.sortOn fst
         . map (join (***) toS . second (fromMaybe BS.empty))
         $ qString
-      , iJWT = tokenStr
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
       , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
@@ -365,11 +364,6 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     | hasPrefer (show None)        = None
     | hasPrefer (show HeadersOnly) = HeadersOnly
     | otherwise                    = None
-  auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (toS auth) of
-    ("Bearer" : t : _) -> t
-    ("bearer" : t : _) -> t
-    _                  -> ""
   endingIn:: [Text] -> Text -> Bool
   endingIn xx key = lastWord `elem` xx
     where lastWord = last $ T.split (=='.') key

@@ -7,8 +7,6 @@ module PostgREST.Middleware
   ( runPgLocals
   , pgrstFormat
   , pgrstMiddleware
-  , defaultCorsPolicy
-  , corsPolicy
   , optionalRollback
   ) where
 
@@ -53,14 +51,12 @@ import Protolude.Conv (toS)
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
-               (ApiRequest -> ExceptT Error H.Transaction Wai.Response) ->
-               ApiRequest  -> ByteString -> ExceptT Error H.Transaction Wai.Response
-runPgLocals conf claims app req jsonDbS = do
+               ApiRequest  -> ByteString -> ExceptT Error H.Transaction ()
+runPgLocals conf claims req jsonDbS = do
   lift $ H.statement mempty $ H.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
   lift $ traverse_ H.sql preReqSql
-  app req
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
     pathSql = setConfigLocal mempty ("request.path", iPath req)
