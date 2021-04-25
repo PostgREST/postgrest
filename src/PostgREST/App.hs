@@ -160,7 +160,7 @@ postgrestResponse
   -> UTCTime
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf@AppConfig{..} maybeDbStructure pool time req = do
+postgrestResponse conf maybeDbStructure pool time req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-

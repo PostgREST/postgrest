@@ -138,7 +138,6 @@ data ApiRequest = ApiRequest {
   , iRange                :: M.HashMap ByteString NonnegRange -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
-  , iAccepts              :: [ContentType]                    -- ^ Content types the client will accept, [CTAny] if no Accept header
   , iPayload              :: Maybe PayloadJSON                -- ^ Data sent by client and used for mutation actions
   , iPreferRepresentation :: PreferRepresentation             -- ^ If client wants created items echoed back
   , iPreferParameters     :: Maybe PreferParameters           -- ^ How to pass parameters to a stored procedure
@@ -164,8 +163,8 @@ data ApiRequest = ApiRequest {
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf dbStructure req reqBody
-  | isJust profile && fromJust profile `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
+userApiRequest conf@AppConfig{..} dbStructure req reqBody
+  | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
@@ -177,7 +176,6 @@ userApiRequest conf dbStructure req reqBody
       , iTarget = target
       , iRange = ranges
       , iTopLevelRange = topLevelRange
-      , iAccepts = accepts
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
       , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
@@ -213,8 +211,6 @@ userApiRequest conf dbStructure req reqBody
       , iAcceptContentType = acceptContentType
       }
  where
-  confSchemas = configDbSchemas conf
-  rootSpec = configDbRootSpec conf
   accepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
   -- queryString with '+' converted to ' '(space)
   qString = parseQueryReplacePlus True $ rawQueryString req
@@ -295,9 +291,9 @@ userApiRequest conf dbStructure req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
 
-  defaultSchema = head confSchemas
+  defaultSchema = head configDbSchemas
   profile
-    | length confSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
+    | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
     | otherwise = case action of
         -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
@@ -316,7 +312,7 @@ userApiRequest conf dbStructure req reqBody
       callFindProc proc = findProc (QualifiedIdentifier schema proc) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
-      []             -> case rootSpec of
+      []             -> case configDbRootSpec of
                         Just pName -> TargetProc (callFindProc pName) True
                         Nothing    -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
