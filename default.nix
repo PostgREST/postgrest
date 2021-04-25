@@ -116,6 +116,9 @@ rec {
   cabalTools =
     pkgs.callPackage nix/tools/cabalTools.nix { inherit postgrest; };
 
+  ciTools =
+    pkgs.callPackage nix/tools/ciTools.nix { };
+
   # Development tools.
   devTools =
     pkgs.callPackage nix/tools/devTools.nix { inherit buildTools cabalTools hsie style tests; };
