@@ -73,10 +73,9 @@ let
         docs = "Dump the loaded schema's DbStructure as a yaml file.";
         inRootDir = true;
         withEnv = postgrest.env;
+        withPath = [ jq ];
       }
       ''
-        export PATH="${jq}/bin:$PATH"
-        
         ${withTools.latest} \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
