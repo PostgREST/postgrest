@@ -66,10 +66,9 @@ let
         name = "postgrest-dump-schema";
         docs = "Dump the loaded schema's DbStructure as a yaml file.";
         inRootDir = true;
+        withPath = [ jq ];
       }
       ''
-        export PATH="${jq}/bin:$PATH"
-        
         ${withTools.latest} ${buildTools.run} --dump-schema \
           | ${yq}/bin/yq -y .
       '';
