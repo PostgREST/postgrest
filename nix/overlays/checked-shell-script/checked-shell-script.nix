@@ -18,6 +18,7 @@
 , inRootDir ? false
 , redirectTixFiles ? true
 , withEnv ? null
+, withPath ? [ ]
 , withTmpDir ? false
 }: text:
 let
@@ -112,6 +113,10 @@ let
         + lib.optionalString (withEnv != null) ''
           env="$(cat ${withEnv})"
           export PATH="$env/bin:$PATH"
+        ''
+
+        + lib.optionalString (lib.length withPath > 0) ''
+          export PATH="${lib.concatMapStrings (p: p + "/bin:") withPath}$PATH"
         ''
 
         + "(${text})"
