@@ -17,7 +17,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-          - v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+          - v0-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
           name: install stack & dependencies
           command: |
@@ -36,7 +36,7 @@ jobs:
           paths:
             - "~/.stack"
             - ".stack-work"
-          key: v1-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
+          key: v0-stack-dependencies-{{ checksum "postgrest.cabal" }}-{{ checksum "stack.yaml" }}
       - run:
           name: build src and tests
           command: |
