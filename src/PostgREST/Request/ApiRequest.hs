@@ -2,9 +2,10 @@
 Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
-{-# LANGUAGE LambdaCase     #-}
-{-# LANGUAGE MultiWayIf     #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE MultiWayIf      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Request.ApiRequest
   ( ApiRequest(..)
@@ -13,7 +14,6 @@ module PostgREST.Request.ApiRequest
   , Action(..)
   , Target(..)
   , PayloadJSON(..)
-  , mutuallyAgreeable
   , userApiRequest
   ) where
 
@@ -30,7 +30,7 @@ import qualified Data.Vector          as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (last, lookup, partition)
+import Data.List                 (last, lookup, partition, union)
 import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Boundaries    (Boundary (..))
@@ -44,6 +44,7 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookiesText)
 
+import PostgREST.Config                  (AppConfig (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -158,22 +159,25 @@ data ApiRequest = ApiRequest {
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
   , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
+  , iAcceptContentType    :: ContentType
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: NonEmpty Schema -> Maybe Text -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest confSchemas rootSpec dbStructure req reqBody
+userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest conf dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` confSchemas = Left $ UnacceptableSchema $ toList confSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
-  | otherwise = Right ApiRequest {
+  | otherwise = do
+     acceptContentType <- findAcceptContentType conf action target accepts
+     return ApiRequest {
       iAction = action
       , iTarget = target
       , iRange = ranges
       , iTopLevelRange = topLevelRange
-      , iAccepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
+      , iAccepts = accepts
       , iPayload = relevantPayload
       , iPreferRepresentation = representation
       , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
@@ -206,8 +210,12 @@ userApiRequest confSchemas rootSpec dbStructure req reqBody
       , iMethod = method
       , iProfile = profile
       , iSchema = schema
+      , iAcceptContentType = acceptContentType
       }
  where
+  confSchemas = configDbSchemas conf
+  rootSpec = configDbRootSpec conf
+  accepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
   -- queryString with '+' converted to ' '(space)
   qString = parseQueryReplacePlus True $ rawQueryString req
   -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
@@ -423,3 +431,31 @@ payloadAttributes raw json =
     _ -> Just emptyPJArray
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
+
+findAcceptContentType :: AppConfig -> Action -> Target -> [ContentType] -> Either ApiRequestError ContentType
+findAcceptContentType conf action target accepts =
+  case mutuallyAgreeable (requestContentTypes conf action target) accepts of
+    Just ct ->
+      Right ct
+    Nothing ->
+      Left . ContentTypeError $ map ContentType.toMime accepts
+
+requestContentTypes :: AppConfig -> Action -> Target -> [ContentType]
+requestContentTypes conf action target =
+  case action of
+    ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
+    ActionInvoke _  -> invokeContentTypes
+    ActionInspect _ -> [CTOpenAPI, CTApplicationJSON]
+    ActionInfo      -> [CTTextCSV]
+    _               -> defaultContentTypes
+  where
+    invokeContentTypes =
+      defaultContentTypes
+        ++ rawContentTypes conf
+        ++ [CTOpenAPI | tpIsRootSpec target]
+    defaultContentTypes =
+      [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+
+rawContentTypes :: AppConfig -> [ContentType]
+rawContentTypes AppConfig{..} =
+  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]

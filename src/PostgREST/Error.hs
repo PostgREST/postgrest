@@ -59,6 +59,7 @@ data ApiRequestError
   | AmbiguousRelBetween Text Text [Relationship]
   | InvalidFilters
   | UnacceptableSchema [Text]
+  | ContentTypeError [ByteString]
   | UnsupportedVerb                -- Unreachable?
 
 instance PgrstError ApiRequestError where
@@ -71,6 +72,7 @@ instance PgrstError ApiRequestError where
   status (NoRelBetween _ _)      = HT.status400
   status AmbiguousRelBetween{}   = HT.status300
   status (UnacceptableSchema _)  = HT.status406
+  status (ContentTypeError _)    = HT.status415
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -95,6 +97,8 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
   toJSON (UnacceptableSchema schemas) = JSON.object [
     "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
+  toJSON (ContentTypeError cts)    = JSON.object [
+    "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
 
 compressedRel :: Relationship -> JSON.Value
 compressedRel Relationship{..} =
@@ -237,7 +241,6 @@ data Error
   | JwtTokenMissing
   | JwtTokenInvalid Text
   | SingularityError Integer
-  | ContentTypeError [ByteString]
   | NotFound
   | ApiRequestError ApiRequestError
   | PgErr PgError
@@ -252,7 +255,6 @@ instance PgrstError Error where
   status JwtTokenMissing         = HT.status500
   status (JwtTokenInvalid _)     = HT.unauthorized401
   status (SingularityError _)    = HT.status406
-  status (ContentTypeError _)    = HT.status415
   status NotFound                = HT.status404
   status (PgErr err)             = status err
   status (ApiRequestError err)   = status err
@@ -278,8 +280,6 @@ instance JSON.ToJSON Error where
   toJSON PutMatchingPkError        = JSON.object [
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text)]
 
-  toJSON (ContentTypeError cts)    = JSON.object [
-    "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
   toJSON (SingularityError n)      = JSON.object [
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", toS (ContentType.toMime CTSingularJSON), "requires 1 row"]]
