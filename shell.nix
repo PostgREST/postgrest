@@ -44,6 +44,7 @@ lib.overrideDerivation postgrest.env (
       base.buildInputs ++ [
         pkgs.cabal-install
         pkgs.cabal2nix
+        pkgs.circleci-cli
         pkgs.postgresql
         pkgs.stack
         postgrest.hsie.bin
