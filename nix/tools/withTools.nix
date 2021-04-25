@@ -72,6 +72,7 @@ let
         stop () {
           log "Stopping the database cluster..."
           pg_ctl stop -m i >> "$setuplog"
+          rm -rf "$tmpdir/db"
         }
         trap stop EXIT
 
