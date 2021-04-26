@@ -24,19 +24,10 @@ jobs:
 
   # Run tests based on stack
   stack-test:
-    machine: true
+    docker:
+      - image: technowledgy/nix:latest
     steps:
       - checkout
-      - run:
-          name: Install Nix
-          command: |
-            curl -L https://nixos.org/nix/install | sh
-            echo "source $HOME/.nix-profile/etc/profile.d/nix.sh" >> $BASH_ENV
-      - run:
-          name: Install and use the Cachix binary cache
-          command: |
-            nix-env -iA cachix -f https://cachix.org/api/v1/install
-            cachix use postgrest
       - run:
           name: Install testing scripts
           command: nix-env -f default.nix --arg stack true -iA buildTools tests withTools
@@ -55,8 +46,37 @@ jobs:
           name: Build src and tests
           command: postgrest-build -j1
       - run:
-          name: Run spec tests
-          command: postgrest-test-spec
+          name: Skip tests on build or primary test failure
+          command: circleci-agent step halt
+          when: on_fail
+      - run:
+          name: Run coverage (io tests and spec tests against PostgreSQL 13)
+          command: postgrest-coverage
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 12
+          command: postgrest-with-postgresql-12 postgrest-test-spec
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 11
+          command: postgrest-with-postgresql-11 postgrest-test-spec
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 10
+          command: postgrest-with-postgresql-10 postgrest-test-spec
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 9.6
+          command: postgrest-with-postgresql-9.6 postgrest-test-spec
+          when: always
+      - run:
+          name: Run the spec tests against PostgreSQL 9.5
+          command: postgrest-with-postgresql-9.5 postgrest-test-spec
+          when: always
+      - run:
+          name: Check the spec tests for idempotence
+          command: postgrest-test-spec-idempotence
+          when: always
       - store_artifacts:
           path: /tmp/postgrest
 
