@@ -84,7 +84,7 @@ spec = describe "Allow header" $ do
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
 
-      it "includes POST verb for immutable functions" $ do
+      it "includes GET verb for immutable functions" $ do
         r <- request methodOptions "/rpc/options_test_immutable" [] ""
         liftIO $
           simpleHeaders r `shouldSatisfy`
@@ -97,7 +97,7 @@ spec = describe "Allow header" $ do
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,HEAD,POST"
 
-      it "includes GET verb for at lest one non volatile overloaded functions" $ do
+      it "includes GET verb for at lest one non volatile overloaded function" $ do
         r <- request methodOptions "/rpc/options_test_overloaded_at_least_one_non_volatile" [] ""
         liftIO $
           simpleHeaders r `shouldSatisfy`
