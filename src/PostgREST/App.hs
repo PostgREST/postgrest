@@ -28,6 +28,7 @@ import System.Posix.Types       (FileMode)
 
 import qualified Data.ByteString.Char8           as BS8
 import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as Set
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Pool                      as SQL
@@ -210,7 +211,9 @@ handleRequest context@(RequestContext _ _ ApiRequest{..}) =
     (ActionDelete, TargetIdent identifier) ->
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
-      handleInfo identifier context
+      handleInfoTable identifier context
+    (ActionInfo, TargetProc proc _) ->
+      handleInfoProc proc context
     (ActionInvoke invMethod, TargetProc proc _) ->
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
@@ -379,8 +382,39 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..}) = do
     else
       response HTTP.status204 [contentRangeHeader] mempty
 
-handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
-handleInfo identifier RequestContext{..} =
+handleInfoProc :: Monad m => ProcDescription -> RequestContext -> Handler m Wai.Response
+handleInfoProc procedure RequestContext{..} =
+  case M.lookup identifier $ dbProcs ctxDbStructure of
+    Nothing ->
+      throwError Error.NotFound
+    Just [proc] ->
+      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH proc] mempty
+    -- TODO: Handle overloaded functions
+    -- TODO: Handle composite retType
+    Just [] ->
+      throwError Error.NotFound
+    Just (_:_:_) ->
+      throwError Error.NotFound
+  where
+    allOrigins = ("Access-Control-Allow-Origin", "*")
+    allowH proc =
+      ( HTTP.hAllow
+      , BS8.intercalate "," $
+          ["OPTIONS"]
+          ++ ["GET" | isNotVolatile proc]
+          ++ ["HEAD,POST"]
+      )
+    identifier =
+      QualifiedIdentifier
+        (pdSchema procedure)
+        (fromMaybe (pdName procedure) $ Proc.procTableName procedure)
+    isNotVolatile proc =
+      case pdVolatility proc of
+        Volatile -> False
+        _        -> True
+
+handleInfoTable :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
+handleInfoTable identifier RequestContext{..} =
   case find tableMatches $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty

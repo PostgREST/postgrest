@@ -165,7 +165,7 @@ data ApiRequest = ApiRequest {
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
-  | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
+  | isTargetingProc && method `notElem` ["HEAD", "GET", "POST", "OPTIONS"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
