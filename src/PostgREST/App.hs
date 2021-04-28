@@ -383,31 +383,29 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..}) = do
       response HTTP.status204 [contentRangeHeader] mempty
 
 handleInfoProc :: Monad m => ProcDescription -> RequestContext -> Handler m Wai.Response
-handleInfoProc procedure RequestContext{..} =
-  case M.lookup identifier $ dbProcs ctxDbStructure of
+handleInfoProc procedure RequestContext{..} = do
+  case M.lookup (identifier procedure) (dbProcs ctxDbStructure) of
     Nothing ->
       throwError Error.NotFound
     Just [proc] ->
-      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH proc] mempty
-    -- TODO: Handle overloaded functions
+      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH $ isNotVolatile proc] mempty
     -- TODO: Handle composite retType
-    Just [] ->
-      throwError Error.NotFound
-    Just (_:_:_) ->
-      throwError Error.NotFound
+    Just procs ->
+      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH $ any procMatches procs] mempty
   where
     allOrigins = ("Access-Control-Allow-Origin", "*")
-    allowH proc =
+    allowH isNotVol =
       ( HTTP.hAllow
       , BS8.intercalate "," $
           ["OPTIONS"]
-          ++ ["GET" | isNotVolatile proc]
+          ++ ["GET" | isNotVol]
           ++ ["HEAD,POST"]
       )
-    identifier =
+    identifier proc =
       QualifiedIdentifier
-        (pdSchema procedure)
-        (fromMaybe (pdName procedure) $ Proc.procTableName procedure)
+        (pdSchema proc)
+        (fromMaybe (pdName proc) $ Proc.procTableName proc)
+    procMatches proc = isNotVolatile proc
     isNotVolatile proc =
       case pdVolatility proc of
         Volatile -> False
