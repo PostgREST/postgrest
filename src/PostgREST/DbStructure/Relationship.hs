@@ -3,7 +3,6 @@
 
 module PostgREST.DbStructure.Relationship
   ( Cardinality(..)
-  , ForeignKey(..)
   , PrimaryKey(..)
   , Relationship(..)
   , Junction(..)
@@ -12,8 +11,7 @@ module PostgREST.DbStructure.Relationship
 
 import qualified Data.Aeson as JSON
 
-import PostgREST.DbStructure.Table (Column (..), ForeignKey (..),
-                                    Table (..))
+import PostgREST.DbStructure.Table (Column (..), Table (..))
 
 import Protolude
 
