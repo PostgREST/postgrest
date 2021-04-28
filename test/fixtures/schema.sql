@@ -1611,6 +1611,34 @@ create trigger projects_view_with_delete_trigger_delete
     instead of delete on test.projects_view_with_delete_trigger
     for each row execute procedure test_for_views_with_triggers();
 
+create or replace function test.options_test_volatile(num int) returns int AS $$
+select num;
+$$ language sql volatile;
+
+create or replace function test.options_test_stable(num int) returns int AS $$
+select num;
+$$ language sql stable;
+
+create or replace function test.options_test_immutable(num int) returns int AS $$
+select num;
+$$ language sql immutable;
+
+create or replace function test.options_test_overloaded_all_volatile(num int) returns int AS $$
+select num;
+$$ language sql volatile ;
+
+create or replace function test.options_test_overloaded_all_volatile(num1 int, num2 int) returns int AS $$
+select num1 + num2;
+$$ language sql volatile ;
+
+create or replace function test.options_test_overloaded_at_least_one_non_volatile(num int) returns int AS $$
+select num;
+$$ language sql stable ;
+
+create or replace function test.options_test_overloaded_at_least_one_non_volatile(num1 int, num2 int) returns int AS $$
+select num1 + num2;
+$$ language sql volatile;
+
 create or replace function test."quotedFunction"("user" text, "fullName" text, "SSN" text)
 returns jsonb AS $$
   select format('{"user": "%s", "fullName": "%s", "SSN": "%s"}', "user", "fullName", "SSN")::jsonb;

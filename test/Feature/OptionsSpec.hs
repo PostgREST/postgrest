@@ -69,3 +69,36 @@ spec = describe "Allow header" $ do
         liftIO $
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,GET,HEAD,DELETE"
+
+  context "a function" $ do
+    context "non overloaded" $ do
+      it "does not include GET verb for volatile functions" $ do
+        r <- request methodOptions "/rpc/options_test_volatile" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,HEAD,POST"
+
+      it "includes GET verb for stable functions" $ do
+        r <- request methodOptions "/rpc/options_test_stable" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
+
+      it "includes POST verb for immutable functions" $ do
+        r <- request methodOptions "/rpc/options_test_immutable" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
+
+    context "overloaded" $ do
+      it "does not include GET verb for volatile only overloaded functions" $ do
+        r <- request methodOptions "/rpc/options_test_overloaded_all_volatile" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,HEAD,POST"
+
+      it "includes GET verb for at lest one non volatile overloaded functions" $ do
+        r <- request methodOptions "/rpc/options_test_overloaded_at_least_one_non_volatile" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
