@@ -2,6 +2,8 @@
 Module      : PostgREST.OpenAPI
 Description : Generates the OpenAPI output
 -}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.OpenAPI (encode) where
 
@@ -27,10 +29,10 @@ import PostgREST.DbStructure              (DbStructure (..),
                                            tableCols, tablePKCols)
 import PostgREST.DbStructure.Proc         (PgArg (..),
                                            ProcDescription (..))
-import PostgREST.DbStructure.Relationship (PrimaryKey (..))
-import PostgREST.DbStructure.Table        (Column (..),
-                                           ForeignKey (..),
-                                           Table (..))
+import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           PrimaryKey (..),
+                                           Relationship (..))
+import PostgREST.DbStructure.Table        (Column (..), Table (..))
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
 import PostgREST.ContentType
@@ -42,6 +44,7 @@ encode :: AppConfig -> DbStructure -> [Table] -> Maybe Text -> HashMap.HashMap k
 encode conf dbStructure tables schemaDescription procs =
   JSON.encode $
     postgrestSpec
+      (dbRelationships dbStructure)
       (concat $ HashMap.elems procs)
       (openApiTableInfo dbStructure <$> tables)
       (proxyUri conf)
@@ -64,27 +67,38 @@ toSwaggerType "real"              = SwaggerNumber
 toSwaggerType "double precision"  = SwaggerNumber
 toSwaggerType _                   = SwaggerString
 
-makeTableDef :: [PrimaryKey] -> (Table, [Column], [Text]) -> (Text, Schema)
-makeTableDef pks (t, cs, _) =
+makeTableDef :: [Relationship] -> [PrimaryKey] -> (Table, [Column], [Text]) -> (Text, Schema)
+makeTableDef rels pks (t, cs, _) =
   let tn = tableName t in
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ ?~ SwaggerObject
-        & properties .~ fromList (fmap (makeProperty pks) cs)
+        & properties .~ fromList (fmap (makeProperty rels pks) cs)
         & required .~ fmap colName (filter (not . colNullable) cs))
 
-makeProperty :: [PrimaryKey] -> Column -> (Text, Referenced Schema)
-makeProperty pks c = (colName c, Inline s)
+makeProperty :: [Relationship] -> [PrimaryKey] -> Column -> (Text, Referenced Schema)
+makeProperty rels pks c = (colName c, Inline s)
   where
     e = if null $ colEnum c then Nothing else JSON.decode $ JSON.encode $ colEnum c
-    fk ForeignKey{fkCol=Column{colTable=Table{tableName=a}, colName=b}} =
-      T.intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]
+    fk :: Maybe Text
+    fk =
+      let
+        -- Finds the relationship that has a single column foreign key
+        rel = find (\case
+          Relationship{relColumns, relCardinality=M2O _} -> [c] == relColumns
+          _                                                 -> False
+          ) rels
+        fCol = colName <$> (headMay =<< (relForeignColumns <$> rel))
+        fTbl = tableName . relForeignTable <$> rel
+        fTblCol = (,) <$> fTbl <*> fCol
+      in
+        (\(a, b) -> T.intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]) <$> fTblCol
     pk :: Bool
     pk = any (\p -> pkTable p == colTable c && pkName p == colName c) pks
     n = catMaybes
       [ Just "Note:"
       , if pk then Just "This is a Primary Key.<pk/>" else Nothing
-      , fk <$> colFK c
+      , fk
       ]
     d =
       if length n > 1 then
@@ -294,8 +308,8 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec :: [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> [PrimaryKey] -> Swagger
-postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
+postgrestSpec :: [Relationship] -> [ProcDescription] -> [(Table, [Column], [Text])] -> (Text, Text, Integer, Text) -> Maybe Text -> [PrimaryKey] -> Swagger
+postgrestSpec rels pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']
   & info .~ ((mempty :: Info)
@@ -306,7 +320,7 @@ postgrestSpec pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
     & description ?~ "PostgREST Documentation"
     & url .~ URL ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
   & host .~ h'
-  & definitions .~ fromList (makeTableDef pks <$> ti)
+  & definitions .~ fromList (makeTableDef rels pks <$> ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
   & produces .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]

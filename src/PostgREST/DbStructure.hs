@@ -51,7 +51,6 @@ import PostgREST.DbStructure.Proc         (PgArg (..), PgType (..),
                                            ProcVolatility (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
-                                           ForeignKey (..),
                                            Junction (..),
                                            PrimaryKey (..),
                                            Relationship (..))
@@ -98,12 +97,11 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
   procs   <- HT.statement schemas $ allProcs prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
-      cols' = addForeignKeys rels cols
       keys' = addViewPrimaryKeys srcCols keys
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabs
-    , dbColumns = cols'
+    , dbColumns = cols
     , dbRelationships = rels
     , dbPrimaryKeys = keys'
     , dbProcs = procs
@@ -378,20 +376,6 @@ accessibleTables =
         or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
       )
     order by relname |]
-
-addForeignKeys :: [Relationship] -> [Column] -> [Column]
-addForeignKeys rels = map addFk
-  where
-    addFk col = col { colFK = fk col }
-    fk col = find (lookupFn col) rels >>= relToFk col
-    lookupFn :: Column -> Relationship -> Bool
-    lookupFn c rel = case rel of
-      Relationship{relColumns=cs, relCardinality=M2O _} -> c `elem` cs
-      _                                                 -> False
-    relToFk col Relationship{relColumns=cols, relForeignColumns=colsF} = do
-      pos <- L.elemIndex col cols
-      colF <- atMay colsF pos
-      return $ ForeignKey colF
 
 {-
 Adds Views M2O Relationships based on SourceColumns found, the logic is as follows:
@@ -675,7 +659,7 @@ columnFromRow :: [Table] ->
                  -> Maybe Column
 columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
   where
-    buildColumn tbl = Column tbl n desc nul typ l d (parseEnum e) Nothing
+    buildColumn tbl = Column tbl n desc nul typ l d (parseEnum e)
     table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))

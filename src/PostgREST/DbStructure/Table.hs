@@ -3,7 +3,6 @@
 
 module PostgREST.DbStructure.Table
   ( Column(..)
-  , ForeignKey(..)
   , Table(..)
   , tableQi
   ) where
@@ -34,10 +33,6 @@ instance Eq Table where
 tableQi :: Table -> QualifiedIdentifier
 tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
 
-newtype ForeignKey = ForeignKey
-  { fkCol :: Column }
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
-
 data Column = Column
   { colTable       :: Table
   , colName        :: FieldName
@@ -47,7 +42,6 @@ data Column = Column
   , colMaxLen      :: Maybe Int32
   , colDefault     :: Maybe Text
   , colEnum        :: [Text]
-  , colFK          :: Maybe ForeignKey
   }
   deriving (Ord, Generic, JSON.ToJSON)
 
