@@ -20,7 +20,7 @@ import Text.Heredoc (str)
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
-import PostgREST.DbStructure (getDbStructure, getPgVersion)
+import PostgREST.DbStructure (getDbStructure)
 import PostgREST.Version     (prettyVersion)
 import PostgREST.Workers     (reReadConfig)
 
@@ -54,13 +54,11 @@ dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
-    P.use (AppState.getPool appState) $ do
-      pgVersion <- getPgVersion
+    P.use (AppState.getPool appState) $
       HT.transaction HT.ReadCommitted HT.Read $
         getDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
-          pgVersion
           configDbPreparedStatements
   P.release $ AppState.getPool appState
   case result of
