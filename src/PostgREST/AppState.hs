@@ -16,6 +16,8 @@ module PostgREST.AppState
   , putIsWorkerOn
   , putPgVersion
   , releasePool
+  , signalListener
+  , waitListener
   ) where
 
 import qualified Hasql.Pool as P
@@ -28,7 +30,8 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                (AppConfig (..))
 import PostgREST.DbStructure           (DbStructure)
-import PostgREST.DbStructure.PgVersion (PgVersion (..))
+import PostgREST.DbStructure.PgVersion (PgVersion (..),
+                                        minimumPgVersion)
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS)
@@ -36,13 +39,13 @@ import Protolude.Conv (toS)
 
 data AppState = AppState
   { statePool         :: P.Pool -- | Connection pool, either a 'Connection' or a 'ConnectionError'
-  -- | Used to sync the listener(NOTIFY reload) with the connectionWorker. No
-  -- connection for the listener at first. Only used if dbChannelEnabled=true.
-  , statePgVersion    :: MVar PgVersion
+  , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateDbStructure  :: IORef (Maybe DbStructure)
   -- | Helper ref to make sure just one connectionWorker can run at a time
   , stateIsWorkerOn   :: IORef Bool
+  -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
+  , stateListener     :: MVar ()
   -- | Config that can change at runtime
   , stateConf         :: IORef AppConfig
   , stateGetTime      :: IO UTCTime
@@ -57,9 +60,11 @@ init conf = do
 initWithPool :: P.Pool -> AppConfig -> IO AppState
 initWithPool newPool conf =
   AppState newPool
-    <$> newEmptyMVar
+    -- assume we're in a supported version when starting, this will be corrected on a later step
+    <$> newIORef minimumPgVersion
     <*> newIORef Nothing
     <*> newIORef False
+    <*> newEmptyMVar
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
@@ -74,14 +79,11 @@ getPool = statePool
 releasePool :: AppState -> IO ()
 releasePool AppState{..} = P.release statePool >> throwTo stateMainThreadId UserInterrupt
 
--- | As this IO action uses `takeMVar` internally, it will only return once
--- `statePgVersion` has been set using `putPgVersion`. This is currently used
--- to syncronize workers.
 getPgVersion :: AppState -> IO PgVersion
-getPgVersion = takeMVar . statePgVersion
+getPgVersion = readIORef . statePgVersion
 
 putPgVersion :: AppState -> PgVersion -> IO ()
-putPgVersion appState pgVer = void $ tryPutMVar (statePgVersion appState) pgVer
+putPgVersion = atomicWriteIORef . statePgVersion
 
 getDbStructure :: AppState -> IO (Maybe DbStructure)
 getDbStructure = readIORef . stateDbStructure
@@ -107,3 +109,14 @@ getTime = stateGetTime
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
+
+-- | As this IO action uses `takeMVar` internally, it will only return once
+-- `stateListener` has been set using `signalListener`. This is currently used
+-- to syncronize workers.
+waitListener :: AppState -> IO ()
+waitListener = takeMVar . stateListener
+
+-- tryPutMVar doesn't lock the thread. It should always succeed since
+-- the connectionWorker is the only mvar producer.
+signalListener :: AppState -> IO ()
+signalListener appState = void $ tryPutMVar (stateListener appState) ()

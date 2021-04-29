@@ -67,7 +67,6 @@ data DbStructure = DbStructure
   , dbRelationships :: [Relationship]
   , dbPrimaryKeys   :: [PrimaryKey]
   , dbProcs         :: ProcsMap
-  , pgVersion       :: PgVersion
   }
   deriving (Generic, JSON.ToJSON)
 
@@ -86,8 +85,8 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-getDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> HT.Transaction DbStructure
-getDbStructure schemas extraSearchPath pgVer prepared = do
+getDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
+getDbStructure schemas extraSearchPath prepared = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement mempty $ allTables prepared
   cols    <- HT.statement schemas $ allColumns tabs prepared
@@ -105,7 +104,6 @@ getDbStructure schemas extraSearchPath pgVer prepared = do
     , dbRelationships = rels
     , dbPrimaryKeys = keys'
     , dbProcs = procs
-    , pgVersion = pgVer
     }
 
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
@@ -119,7 +117,6 @@ removeInternal schemas dbStruct =
                                       not (hasInternalJunction x)) $ dbRelationships dbStruct
     , dbPrimaryKeys   = filter (\x -> tableSchema (pkTable x) `elem` schemas) $ dbPrimaryKeys dbStruct
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
-    , pgVersion       = pgVersion dbStruct
     }
   where
     hasInternalJunction rel = case relCardinality rel of
