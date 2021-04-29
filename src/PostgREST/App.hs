@@ -387,9 +387,6 @@ handleInfoProc procedure RequestContext{..} = do
   case M.lookup (identifier procedure) (dbProcs ctxDbStructure) of
     Nothing ->
       throwError Error.NotFound
-    Just [proc] ->
-      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH $ isNotVolatile proc] mempty
-    -- TODO: Handle composite retType
     Just procs ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH $ any procMatches procs] mempty
   where
@@ -401,10 +398,7 @@ handleInfoProc procedure RequestContext{..} = do
           ++ ["GET" | isNotVol]
           ++ ["HEAD,POST"]
       )
-    identifier proc =
-      QualifiedIdentifier
-        (pdSchema proc)
-        (fromMaybe (pdName proc) $ Proc.procTableName proc)
+    identifier proc = QualifiedIdentifier (pdSchema proc) (pdName proc)
     procMatches proc = isNotVolatile proc
     isNotVolatile proc =
       case pdVolatility proc of
