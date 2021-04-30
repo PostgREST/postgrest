@@ -77,12 +77,9 @@ type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
   An overloaded function can have a different volatility or even a different return type.
   Ideally, handling overloaded functions should be left to pg itself. But we need to know certain proc attributes in advance.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ProcDescription
-findProc qi payloadKeys paramsAsSingleObject allProcs = fromMaybe fallback bestMatch
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Maybe ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs = bestMatch
   where
-    -- instead of passing Maybe ProcDescription around, we create a fallback description here when we can't find a matching function
-    -- args is empty, but because "specifiedProcArgs" will fill the missing arguments with default type text, this is not a problem
-    fallback = ProcDescription (qiSchema qi) (qiName qi) Nothing mempty (SetOf $ Composite $ QualifiedIdentifier mempty "record") Volatile False
     bestMatch =
       case M.lookup qi allProcs of
         Nothing     -> Nothing

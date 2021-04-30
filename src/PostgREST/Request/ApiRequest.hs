@@ -96,7 +96,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
+            | TargetProc{tProc :: Maybe ProcDescription, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown
 
@@ -114,14 +114,20 @@ toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
     argIsVariadic arg = isJust $ find (\PgArg{pgaName, pgaVar} -> pgaName == arg && pgaVar) $ pdArgs proc
 
 -- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
-jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
-jsonRpcParams proc prms =
-  if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
-    ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
-  else
-    let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
-    ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
+jsonRpcParams :: Maybe ProcDescription -> [(Text, Text)] -> PayloadJSON
+jsonRpcParams maybeProc prms =
+  case maybeProc of
+    Nothing   -> jsonAllParams
+    Just proc -> jsonProcParams proc
   where
+    jsonAllParams =
+      ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
+    jsonProcParams proc =
+      if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
+        jsonAllParams
+      else
+        let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
+        ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
     mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged

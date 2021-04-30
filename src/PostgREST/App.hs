@@ -403,8 +403,13 @@ handleInfo identifier RequestContext{..} =
     hasPK =
       not $ null $ tablePKCols ctxDbStructure (qiSchema identifier) (qiName identifier)
 
-handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
-handleInvoke invMethod proc context@RequestContext{..} = do
+handleInvoke :: InvokeMethod -> Maybe ProcDescription -> RequestContext -> DbHandler Wai.Response
+handleInvoke invMethod maybeProc context@RequestContext{..} = do
+  proc <-
+    case maybeProc of
+      Just proc -> return proc
+      Nothing   ->  throwError $ Error.NotFound
+
   let
     ApiRequest{..} = ctxApiRequest
 
@@ -413,8 +418,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _) = Proc.procReturnsSingle target
-    returnsSingle _                                = False
+    returnsSingle (ApiRequest.TargetProc (Just target) _) = Proc.procReturnsSingle target
+    returnsSingle _                                       = False
 
   req <- readRequest identifier context
   bField <- binaryField context req
@@ -480,9 +485,9 @@ txMode ApiRequest{..} =
       SQL.Read
     (ActionInvoke InvHead, _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _) ->
+    (ActionInvoke InvPost, TargetProc (Just ProcDescription{pdVolatility=Stable}) _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) ->
+    (ActionInvoke InvPost, TargetProc (Just ProcDescription{pdVolatility=Immutable}) _) ->
       SQL.Read
     _ ->
       SQL.Write
@@ -550,8 +555,8 @@ shouldCount preferCount =
   preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
-returnsScalar _                   = False
+returnsScalar (TargetProc (Just proc) _) = Proc.procReturnsScalar proc
+returnsScalar _                          = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest) =
