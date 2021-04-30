@@ -115,10 +115,7 @@ toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
 
 -- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 jsonRpcParams :: Maybe ProcDescription -> [(Text, Text)] -> PayloadJSON
-jsonRpcParams maybeProc prms =
-  case maybeProc of
-    Nothing   -> jsonAllParams
-    Just proc -> jsonProcParams proc
+jsonRpcParams maybeProc prms = maybe jsonAllParams jsonProcParams maybeProc
   where
     jsonAllParams =
       ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
