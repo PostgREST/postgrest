@@ -405,10 +405,7 @@ handleInfo identifier RequestContext{..} =
 
 handleInvoke :: InvokeMethod -> Maybe ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod maybeProc context@RequestContext{..} = do
-  proc <-
-    case maybeProc of
-      Just proc -> return proc
-      Nothing   ->  throwError Error.RpcNotFound
+  proc <- maybe (throwError Error.RpcNotFound) return maybeProc
 
   let
     ApiRequest{..} = ctxApiRequest
