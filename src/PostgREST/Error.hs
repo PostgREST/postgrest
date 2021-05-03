@@ -242,6 +242,7 @@ data Error
   | JwtTokenInvalid Text
   | SingularityError Integer
   | NotFound
+  | RpcNotFound
   | ApiRequestError ApiRequestError
   | PgErr PgError
 
@@ -256,6 +257,7 @@ instance PgrstError Error where
   status (JwtTokenInvalid _)     = HT.unauthorized401
   status (SingularityError _)    = HT.status406
   status NotFound                = HT.status404
+  status RpcNotFound             = HT.status404
   status (PgErr err)             = status err
   status (ApiRequestError err)   = status err
 
@@ -289,6 +291,9 @@ instance JSON.ToJSON Error where
   toJSON (JwtTokenInvalid message) = JSON.object [
     "message" .= (message :: Text)]
   toJSON NotFound = JSON.object []
+  toJSON RpcNotFound = JSON.object [
+    "hint"    .= ("No function matches the given name and argument types. If a new function was created in the database with this name, try updating the schema cache." :: Text),
+    "message" .= ("This function does not exist" :: Text)]
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
 

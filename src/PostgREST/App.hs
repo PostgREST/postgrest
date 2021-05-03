@@ -408,7 +408,7 @@ handleInvoke invMethod maybeProc context@RequestContext{..} = do
   proc <-
     case maybeProc of
       Just proc -> return proc
-      Nothing   ->  throwError Error.NotFound
+      Nothing   ->  throwError Error.RpcNotFound
 
   let
     ApiRequest{..} = ctxApiRequest
