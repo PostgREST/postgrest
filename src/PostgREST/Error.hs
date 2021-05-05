@@ -57,6 +57,7 @@ data ApiRequestError
   | ParseRequestError Text Text
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relationship]
+  | RpcNotFound Text Text [Text]
   | InvalidFilters
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
@@ -71,6 +72,7 @@ instance PgrstError ApiRequestError where
   status (ParseRequestError _ _) = HT.status400
   status (NoRelBetween _ _)      = HT.status400
   status AmbiguousRelBetween{}   = HT.status300
+  status (RpcNotFound _ _ _)     = HT.status404
   status (UnacceptableSchema _)  = HT.status406
   status (ContentTypeError _)    = HT.status415
 
@@ -91,6 +93,9 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
+  toJSON (RpcNotFound schema procName payloadKeys)  = JSON.object [
+    "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
+    "message" .= T.unwords ["Couldn't find the", schema <> "." <> procName <> "(" <> (T.intercalate ", " payloadKeys) <> ")", "function"]]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [
@@ -242,7 +247,6 @@ data Error
   | JwtTokenInvalid Text
   | SingularityError Integer
   | NotFound
-  | RpcNotFound
   | ApiRequestError ApiRequestError
   | PgErr PgError
 
@@ -257,7 +261,6 @@ instance PgrstError Error where
   status (JwtTokenInvalid _)     = HT.unauthorized401
   status (SingularityError _)    = HT.status406
   status NotFound                = HT.status404
-  status RpcNotFound             = HT.status404
   status (PgErr err)             = status err
   status (ApiRequestError err)   = status err
 
@@ -291,9 +294,6 @@ instance JSON.ToJSON Error where
   toJSON (JwtTokenInvalid message) = JSON.object [
     "message" .= (message :: Text)]
   toJSON NotFound = JSON.object []
-  toJSON RpcNotFound = JSON.object [
-    "hint"    .= ("No function matches the given name and argument types. If a new function was created in the database with this name, try updating the schema cache." :: Text),
-    "message" .= ("This function does not exist" :: Text)]
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
 

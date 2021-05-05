@@ -96,7 +96,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: Maybe ProcDescription, tpIsRootSpec :: Bool}
+            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool, tpFoundInSchema :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown
 
@@ -114,17 +114,14 @@ toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
     argIsVariadic arg = isJust $ find (\PgArg{pgaName, pgaVar} -> pgaName == arg && pgaVar) $ pdArgs proc
 
 -- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
-jsonRpcParams :: Maybe ProcDescription -> [(Text, Text)] -> PayloadJSON
-jsonRpcParams maybeProc prms = maybe jsonAllParams jsonProcParams maybeProc
+jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
+jsonRpcParams proc prms =
+  if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
+    ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
+  else
+    let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
+    ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
   where
-    jsonAllParams =
-      ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
-    jsonProcParams proc =
-      if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
-        jsonAllParams
-      else
-        let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
-        ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
     mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
@@ -174,9 +171,10 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
      acceptContentType <- findAcceptContentType conf action target accepts
+     checkedTarget <- checkTarget target payloadColumns
      return ApiRequest {
       iAction = action
-      , iTarget = target
+      , iTarget = checkedTarget
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
@@ -234,8 +232,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = case target of
-    TargetProc _ _ -> True
-    _              -> False
+    TargetProc _ _ _ -> True
+    _                -> False
   isTargetingDefaultSpec = case target of
     TargetDefaultSpec _ -> True
     _                   -> False
@@ -312,14 +310,15 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindProc proc = findProc (QualifiedIdentifier schema proc) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+      callFindProc procName = findProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+      targetProc (proc, isProcInSchema) isRootSpec = TargetProc proc isRootSpec isProcInSchema
     in
     case path of
       []             -> case configDbRootSpec of
-                        Just pName -> TargetProc (callFindProc pName) True
+                        Just pName -> targetProc (callFindProc pName) True
                         Nothing    -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> TargetProc (callFindProc pName) False
+      ["rpc", pName] -> targetProc (callFindProc pName) False
       _              -> TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
@@ -458,3 +457,9 @@ requestContentTypes conf action target =
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
   (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+
+checkTarget :: Target -> S.Set FieldName -> Either ApiRequestError Target
+checkTarget target payloadKeys =
+  case target of
+    TargetProc tProc _ False -> Left $ RpcNotFound (pdSchema tProc) (pdName tProc) (S.toList payloadKeys)
+    _                        -> Right target
