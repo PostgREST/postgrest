@@ -72,7 +72,7 @@ instance PgrstError ApiRequestError where
   status (ParseRequestError _ _) = HT.status400
   status (NoRelBetween _ _)      = HT.status400
   status AmbiguousRelBetween{}   = HT.status300
-  status (RpcNotFound _ _ _)     = HT.status404
+  status RpcNotFound{}           = HT.status404
   status (UnacceptableSchema _)  = HT.status406
   status (ContentTypeError _)    = HT.status415
 
@@ -95,7 +95,7 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= (compressedRel <$> rels) ]
   toJSON (RpcNotFound schema procName payloadKeys)  = JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
-    "message" .= T.unwords ["Couldn't find the", schema <> "." <> procName <> "(" <> (T.intercalate ", " payloadKeys) <> ")", "function"]]
+    "message" .= T.unwords ["Couldn't find the", schema <> "." <> procName <> "(" <> T.intercalate ", " payloadKeys <> ")", "function"]]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [

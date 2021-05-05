@@ -232,8 +232,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = case target of
-    TargetProc _ _ _ -> True
-    _                -> False
+    TargetProc{} -> True
+    _            -> False
   isTargetingDefaultSpec = case target of
     TargetDefaultSpec _ -> True
     _                   -> False
