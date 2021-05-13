@@ -77,16 +77,15 @@ connectionWorker appState = do
           -- Unreachable because connectionStatus will keep trying to connect
           return ()
         Connected actualPgVersion -> do
-          when configDbChannelEnabled $
-            -- tryPutMVar doesn't lock the thread. It should always succeed since
-            -- the worker is the only mvar producer.
-            AppState.putPgVersion appState actualPgVersion
           -- Procede with initialization
+          AppState.putPgVersion appState actualPgVersion
+          when configDbChannelEnabled $
+            AppState.signalListener appState
           putStrLn ("Connection successful" :: Text)
           -- this could be fail because the connection drops, but the
           -- loadSchemaCache will pick the error and retry again
           when configDbConfig $ reReadConfig False appState
-          scStatus <- loadSchemaCache appState actualPgVersion
+          scStatus <- loadSchemaCache appState
           case scStatus of
             SCLoaded ->
               -- do nothing and proceed if the load was successful
@@ -148,12 +147,12 @@ connectionStatus pool =
       return itShould
 
 -- | Load the DbStructure by using a connection from the pool.
-loadSchemaCache :: AppState -> PgVersion -> IO SCacheStatus
-loadSchemaCache appState actualPgVersion = do
+loadSchemaCache :: AppState -> IO SCacheStatus
+loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
     P.use (AppState.getPool appState) . HT.transaction HT.ReadCommitted HT.Read $
-      getDbStructure (toList configDbSchemas) configDbExtraSearchPath actualPgVersion configDbPreparedStatements
+      getDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
       let
@@ -185,9 +184,12 @@ listener appState = do
   AppConfig{..} <- AppState.getConfig appState
   let dbChannel = toS configDbChannel
 
-  -- AppState.getPgVersion makes the thread wait until the pgVersion has been
-  -- set by the connectionWorker
-  actualPgVersion <- AppState.getPgVersion appState
+  -- The listener has to wait for a signal from the connectionWorker.
+  -- This is because when the connection to the db is lost, the listener also
+  -- tries to recover the connection, but not with the same pace as the connectionWorker.
+  -- Not waiting makes stdout quickly fill with connection retries messages from the listener.
+  AppState.waitListener appState
+
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel) $ do
     dbOrError <- C.acquire $ toS configDbUri
@@ -195,7 +197,7 @@ listener appState = do
       Right db -> do
         putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
         N.listen db $ N.toPgIdentifier dbChannel
-        N.waitForNotifications (handleNotification actualPgVersion) db
+        N.waitForNotifications handleNotification db
       _ ->
         die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
   where
@@ -207,17 +209,17 @@ listener appState = do
       -- retry the listener
       listener appState
 
-    handleNotification actualPgVersion _ msg
-      | BS.null msg            = scLoader actualPgVersion -- reload the schema cache
-      | msg == "reload schema" = scLoader actualPgVersion -- reload the schema cache
+    handleNotification _ msg
+      | BS.null msg            = scLoader -- reload the schema cache
+      | msg == "reload schema" = scLoader -- reload the schema cache
       | msg == "reload config" = reReadConfig False appState -- reload the config
       | otherwise              = pure () -- Do nothing if anything else than an empty message is sent
 
-    scLoader actualPgVersion =
+    scLoader =
       -- It's not necessary to check the loadSchemaCache success
       -- here. If the connection drops, the thread will die and
-      -- proceed to recover below.
-      void $ loadSchemaCache appState actualPgVersion
+      -- proceed to recover.
+      void $ loadSchemaCache appState
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()

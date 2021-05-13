@@ -60,6 +60,7 @@ import PostgREST.DbStructure             (DbStructure (..),
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
+import PostgREST.DbStructure.PgVersion   (PgVersion (..))
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..))
 import PostgREST.DbStructure.Table       (Table (..))
@@ -89,6 +90,7 @@ data RequestContext = RequestContext
   { ctxConfig      :: AppConfig
   , ctxDbStructure :: DbStructure
   , ctxApiRequest  :: ApiRequest
+  , ctxPgVersion   :: PgVersion
   }
 
 type Handler = ExceptT Error
@@ -138,11 +140,12 @@ postgrest logLev appState connWorker =
       time <- AppState.getTime appState
       conf <- AppState.getConfig appState
       maybeDbStructure <- AppState.getDbStructure appState
+      pgVer <- AppState.getPgVersion appState
 
       let
         eitherResponse :: IO (Either Error Wai.Response)
         eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure (AppState.getPool appState) time req
+          runExceptT $ postgrestResponse conf maybeDbStructure pgVer (AppState.getPool appState) time req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
 
@@ -156,11 +159,12 @@ postgrest logLev appState connWorker =
 postgrestResponse
   :: AppConfig
   -> Maybe DbStructure
+  -> PgVersion
   -> SQL.Pool
   -> UTCTime
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure pool time req = do
+postgrestResponse conf maybeDbStructure pgVer pool time req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -179,7 +183,7 @@ postgrestResponse conf maybeDbStructure pool time req = do
 
   let
     handleReq apiReq =
-      handleRequest $ RequestContext conf dbStructure apiReq
+      handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
   runDbHandler pool (txMode apiRequest) jwtClaims .
     Middleware.optionalRollback conf apiRequest $
@@ -197,7 +201,7 @@ runDbHandler pool mode jwtClaims handler = do
   liftEither resp
 
 handleRequest :: RequestContext -> DbHandler Wai.Response
-handleRequest context@(RequestContext _ _ ApiRequest{..}) =
+handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
@@ -242,7 +246,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         (shouldCount iPreferCount)
         (iAcceptContentType == CTTextCSV)
         bField
-        (pgVersion ctxDbStructure)
+        ctxPgVersion
         configDbPreparedStatements
 
   total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
@@ -316,7 +320,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..}) = do
+handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
@@ -338,7 +342,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..}) = do
       response status [contentRangeHeader] mempty
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..}) = do
+handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
@@ -362,7 +366,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..}) = do
       response HTTP.status204 (contentTypeHeaders context) mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..}) = do
+handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
@@ -439,7 +443,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (iAcceptContentType == CTTextCSV)
         (iPreferParameters == Just MultipleObjects)
         bField
-        (pgVersion ctxDbStructure)
+        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
@@ -454,7 +458,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       (if invMethod == InvHead then mempty else toS body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest) = do
+handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
   body <-
     lift $
       OpenAPI.encode conf dbStructure
@@ -516,7 +520,7 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
         (iAcceptContentType ctxApiRequest == CTTextCSV)
         (iPreferRepresentation ctxApiRequest)
         pkCols
-        (pgVersion ctxDbStructure)
+        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
@@ -554,7 +558,7 @@ returnsScalar (TargetProc proc _ _) = Proc.procReturnsScalar proc
 returnsScalar _                     = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
-readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest) =
+readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
   liftEither $
     ReqBuilder.readRequest qiSchema qiName configDbMaxRows
       (dbRelationships dbStructure)

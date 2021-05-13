@@ -657,6 +657,34 @@ spec actualPgVersion =
       it "overloaded(text, text, text)" $
         get "/rpc/overloaded?a=1&b=2&c=3" `shouldRespondWith` [json|"123"|]
 
+      it "overloaded_html_form()" $
+        request methodPost "/rpc/overloaded_html_form"
+            [("Content-Type", "application/x-www-form-urlencoded")]
+            ""
+          `shouldRespondWith`
+            [json|[1,2,3]|]
+
+      it "overloaded_html_form(json) single-object" $
+        request methodPost "/rpc/overloaded_html_form"
+            [("Content-Type", "application/x-www-form-urlencoded"), ("Prefer","params=single-object")]
+            "a=1&b=2&c=3"
+          `shouldRespondWith`
+            [json|{"a": "1", "b": "2", "c": "3"}|]
+
+      it "overloaded_html_form(int, int)" $
+        request methodPost "/rpc/overloaded_html_form"
+            [("Content-Type", "application/x-www-form-urlencoded")]
+            "a=1&b=2"
+          `shouldRespondWith`
+            [str|3|]
+
+      it "overloaded_html_form(text, text, text)" $
+        request methodPost "/rpc/overloaded_html_form"
+            [("Content-Type", "application/x-www-form-urlencoded")]
+            "a=1&b=2&c=3"
+          `shouldRespondWith`
+            [json|"123"|]
+
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
         post "/rpc/sayhello?name=John" [json|{name: "John"}|] `shouldRespondWith` 400
