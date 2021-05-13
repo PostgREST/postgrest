@@ -1267,6 +1267,22 @@ create or replace function test.overloaded(a text, b text, c text) returns text 
   select a || b || c
 $$ language sql;
 
+create or replace function test.overloaded_html_form() returns setof int as $$
+values (1), (2), (3);
+$$ language sql;
+
+create or replace function test.overloaded_html_form(single_param json) returns json as $$
+select single_param;
+$$ language sql;
+
+create or replace function test.overloaded_html_form(a int, b int) returns int as $$
+select a + b
+$$ language sql;
+
+create or replace function test.overloaded_html_form(a text, b text, c text) returns text as $$
+select a || b || c
+$$ language sql;
+
 create table test.leak(
   id serial primary key,
   blob bytea
