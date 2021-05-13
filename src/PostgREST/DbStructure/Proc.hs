@@ -17,6 +17,7 @@ module PostgREST.DbStructure.Proc
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
 import qualified Data.Set            as S
 
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -86,14 +87,21 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = (fromMaybe fallback best
     isFoundInSchema = isJust bestMatch
     bestMatch =
       case M.lookup qi allProcs of
-        Nothing     -> Nothing
-        Just [proc] -> Just proc           -- if it's not an overloaded function then immediately get the ProcDescription
-        Just procs  -> find matches procs  -- Handle overloaded functions case
-    matches proc =
-      if paramsAsSingleObject
-        -- if the arg is not of json type let the db give the err
-        then length (pdArgs proc) == 1
-        else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs proc)
+        Nothing    -> Nothing
+        Just procs -> find matches procs
+    -- Find the exact arguments match
+    matches proc
+      | paramsAsSingleObject = case pdArgs proc of
+                               [arg] -> pgaType arg `elem` ["json", "jsonb"]
+                               _     -> False
+      | otherwise            = case pdArgs proc of
+                               []   -> null payloadKeys
+                               args -> matchesArg args
+    matchesArg args =
+      case L.partition pgaReq args of
+        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
+        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
+        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)
 
 {-|
   Search the procedure parameters by matching them with the specified keys.

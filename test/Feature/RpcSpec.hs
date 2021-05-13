@@ -104,10 +104,8 @@ spec actualPgVersion =
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
-          "code": "42883",
-          "details": null,
-          "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
-          "message": "function test.add_them(a => integer, b => integer, smthelse => text) does not exist" } |]
+          "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+          "message":"Couldn't find the test.add_them(a, b, smthelse) function" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -661,7 +659,7 @@ spec actualPgVersion =
 
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
-        post "/rpc/sayhello?name=John" [json|{}|] `shouldRespondWith` 400
+        post "/rpc/sayhello?name=John" [json|{name: "John"}|] `shouldRespondWith` 400
 
       it "ignores json keys not included in ?columns" $
         post "/rpc/sayhello?columns=name"

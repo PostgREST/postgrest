@@ -244,9 +244,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   parsedColumns = pRequestColumns columns
   payloadColumns =
     case (contentType, action) of
-      (_, ActionInvoke InvGet)                         -> S.fromList $ fst <$> rpcQParams
-      (_, ActionInvoke InvHead)                        -> S.fromList $ fst <$> rpcQParams
-      (CTOther "application/x-www-form-urlencoded", _) -> S.fromList $ map (toS . fst) $ parseSimpleQuery $ toS reqBody
+      (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> rpcQParams
+      (_, ActionInvoke InvHead) -> S.fromList $ fst <$> rpcQParams
+      (CTUrlEncoded, _)         -> S.fromList $ map (toS . fst) $ parseSimpleQuery $ toS reqBody
       _ -> case (relevantPayload, fromRight Nothing parsedColumns) of
         (Just ProcessedJSON{pjKeys}, _) -> pjKeys
         (Just RawJSON{}, Just cls)      -> cls
