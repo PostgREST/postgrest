@@ -29,6 +29,8 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ContentType (ContentType (..))
 import qualified PostgREST.ContentType as ContentType
 
+import PostgREST.DbStructure.Proc         (PgArg (..),
+                                           ProcDescription (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
@@ -57,6 +59,7 @@ data ApiRequestError
   | ParseRequestError Text Text
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relationship]
+  | RpcNotUnique [ProcDescription]
   | RpcNotFound Text Text [Text]
   | InvalidFilters
   | UnacceptableSchema [Text]
@@ -72,6 +75,7 @@ instance PgrstError ApiRequestError where
   status (ParseRequestError _ _) = HT.status400
   status (NoRelBetween _ _)      = HT.status400
   status AmbiguousRelBetween{}   = HT.status300
+  status (RpcNotUnique _)        = HT.status300
   status RpcNotFound{}           = HT.status404
   status (UnacceptableSchema _)  = HT.status406
   status (ContentTypeError _)    = HT.status415
@@ -93,6 +97,9 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
+  toJSON (RpcNotUnique procs)  = JSON.object [
+    "hint"    .= ("Explicit casts are needed. Possible endpoints are: " <> T.intercalate " , " ["/rpc/" <> pdName p <> "?" <> T.intercalate "&" [pgaName a <> "::" <> pgaType a | a <- pdArgs p] <> "=value" | p <- procs] :: Text),
+    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [pgaName a <> " => " <> pgaType a | a <- pdArgs p] <> ")" | p <- procs])]
   toJSON (RpcNotFound schema procName payloadKeys)  = JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
     "message" .= T.unwords ["Couldn't find the", schema <> "." <> procName <> "(" <> T.intercalate ", " payloadKeys <> ")", "function"]]

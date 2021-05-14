@@ -215,7 +215,7 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
       handleInfo identifier context
-    (ActionInvoke invMethod, TargetProc proc _ _) ->
+    (ActionInvoke invMethod, TargetProc proc _ _ _) ->
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
@@ -417,7 +417,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _ _) = Proc.procReturnsSingle target
+    returnsSingle (ApiRequest.TargetProc target _ _ _) = Proc.procReturnsSingle target
     returnsSingle _                                = False
 
   req <- readRequest identifier context
@@ -484,9 +484,9 @@ txMode ApiRequest{..} =
       SQL.Read
     (ActionInvoke InvHead, _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _ _) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _ _ _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _ _) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _ _ _) ->
       SQL.Read
     _ ->
       SQL.Write
@@ -554,8 +554,8 @@ shouldCount preferCount =
   preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _ _) = Proc.procReturnsScalar proc
-returnsScalar _                     = False
+returnsScalar (TargetProc proc _ _ _) = Proc.procReturnsScalar proc
+returnsScalar _                       = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =

@@ -96,7 +96,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool, tpFoundInSchema :: Bool}
+            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool, tpFoundInSchema :: Bool, tpDuplicated :: NonEmpty ProcDescription}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown
 
@@ -311,7 +311,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   target =
     let
       callFindProc procName = findProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
-      targetProc (proc, isProcInSchema) isRootSpec = TargetProc proc isRootSpec isProcInSchema
+      targetProc (procs, isProcInSchema) isRootSpec = TargetProc (head procs) isRootSpec isProcInSchema procs
     in
     case path of
       []             -> case configDbRootSpec of
@@ -461,5 +461,8 @@ rawContentTypes AppConfig{..} =
 checkTarget :: Target -> S.Set FieldName -> Either ApiRequestError Target
 checkTarget target payloadKeys =
   case target of
-    TargetProc tProc _ False -> Left $ RpcNotFound (pdSchema tProc) (pdName tProc) (S.toList payloadKeys)
-    _                        -> Right target
+    TargetProc {tProc, tpFoundInSchema, tpDuplicated}
+      | not tpFoundInSchema     -> Left $ RpcNotFound (pdSchema tProc) (pdName tProc) (S.toList payloadKeys)
+      | length tpDuplicated > 1 -> Left $ RpcNotUnique (toList tpDuplicated)
+      | otherwise               -> Right target
+    _ -> Right target
