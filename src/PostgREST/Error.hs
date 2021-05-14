@@ -98,7 +98,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (RpcNotUnique procs)  = JSON.object [
-    "hint"    .= ("Explicit casts are needed. Possible endpoints are: " <> T.intercalate " , " ["/rpc/" <> pdName p <> "?" <> T.intercalate "&" [pgaName a <> "::" <> pgaType a | a <- pdArgs p] <> "=value" | p <- procs] :: Text),
+    "hint"    .= ("Explicit argument type casts are needed. Possible endpoints are: " <> T.intercalate " , " ["/rpc/" <> pdName p <> "?" <> T.intercalate "&" [pgaName a <> "::" <> pgaType a <> "=value" | a <- pdArgs p] | p <- procs] :: Text),
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [pgaName a <> " => " <> pgaType a | a <- pdArgs p] <> ")" | p <- procs])]
   toJSON (RpcNotFound schema procName payloadKeys)  = JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
