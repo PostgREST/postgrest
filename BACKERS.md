@@ -43,6 +43,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 - Evans Fernandes
 - [Jan Sommer](https://github.com/nerfpops)
+- [Franz Gusenbauer](https://www.igutech.com)
 
 ## Backers
 
@@ -59,7 +60,6 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 - Severin Ibarluzea
 - Tom Saleeba
 - Pawel Tyll
-- Franz Gusenbauer
 
 ## Former Backers
 
