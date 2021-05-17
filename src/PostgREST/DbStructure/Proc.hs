@@ -20,6 +20,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
 import qualified Data.Set            as S
+import qualified Data.Text           as T
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -101,9 +102,13 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = ( NE.fromList (if isFoun
                                args -> matchesArg args
     matchesArg args =
       case L.partition pgaReq args of
-        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
-        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
-        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)
+        (reqArgs, [])      -> payloadKeys == S.fromList (castedArgs reqArgs)
+        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (castedArgs defArgs)
+        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (castedArgs defArgs) == S.fromList (castedArgs reqArgs)
+    castedKeys =
+      S.filter (not . T.null . snd) (S.map (T.breakOn "::") payloadKeys)
+    castedArgs args=
+      [if (pgaName a) `S.member` (S.map fst castedKeys) then pgaName a <> "::" <> pgaType a else pgaName a | a <- args]
 
 {-|
   Search the procedure parameters by matching them with the specified keys.
@@ -111,7 +116,7 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = ( NE.fromList (if isFoun
 -}
 specifiedProcArgs :: S.Set FieldName -> ProcDescription -> [PgArg]
 specifiedProcArgs keys proc =
-  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
+  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList (S.map (fst . T.breakOn "::") keys)
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
