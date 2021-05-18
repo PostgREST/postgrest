@@ -96,11 +96,14 @@ spec actualPgVersion =
     context "unknown function" $ do
       it "returns 404" $
         post "/rpc/fakefunc" [json| {} |] `shouldRespondWith` 404
+
       it "should fail with 404 on unknown proc name" $
         get "/rpc/fake" `shouldRespondWith` 404
+
       it "should fail with 404 on unknown proc args" $ do
         get "/rpc/sayhello" `shouldRespondWith` 404
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
+
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
@@ -109,6 +112,67 @@ spec actualPgVersion =
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
+
+      it "should fail with 404 when no json arg is found with prefer single object" $
+        request methodPost "/rpc/sayhello"
+          [("Prefer","params=single-object")]
+          [json|{}|]
+        `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Couldn't find the test.sayhello() function" } |]
+        { matchStatus  = 404
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+      it "should fail with 404 for overloaded functions with unknown args" $ do
+        get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Couldn't find the test.overloaded(wrong_arg) function" } |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Couldn't find the test.overloaded(a, b, wrong_arg) function" } |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "should fail with 404 for unkown explicit argument type casts on overloaded functions" $
+        get "/rpc/overloaded_same_args?arg::integer=123" `shouldRespondWith`
+        [json| {
+          "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+          "message":"Couldn't find the test.overloaded_same_args(arg::integer) function" } |]
+        { matchStatus  = 404
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    context "ambiguous overloaded functions with same arguments but different types" $ do
+      it "should fail with 300 Multiple Choises without explicit argument type casts" $
+        get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"Explicit argument type casts are needed. Possible endpoints are: /rpc/overloaded_same_args?arg::json=value , /rpc/overloaded_same_args?arg::xml=value , /rpc/overloaded_same_args?arg::text=value&num::integer=value",
+            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => json), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)" } |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "should work with explicit argument type casts" $ do
+        post "/rpc/overloaded_same_args" [json| { "arg": {} } |] `shouldRespondWith`
+          [json| [ {"id": 3}, {"id":4} ] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/overloaded_same_args?arg::json={}" `shouldRespondWith`
+          [str|"json"|]
+          { matchStatus  = 200 }
+        get "/rpc/overloaded_same_args?arg::xml=<test></test>" `shouldRespondWith`
+          [str|"xml"|]
+          { matchStatus  = 200 }
+        get "/rpc/overloaded_same_args?arg::text=test" `shouldRespondWith`
+          [str|"text"|]
+          { matchStatus  = 200 }
 
     it "works when having uppercase identifiers" $ do
       get "/rpc/quotedFunction?user=mscott&fullName=Michael Scott&SSN=401-32-XXXX" `shouldRespondWith`
