@@ -1283,16 +1283,25 @@ create or replace function test.overloaded_html_form(a text, b text, c text) ret
 select a || b || c
 $$ language sql;
 
-create or replace function test.overloaded_same_args(arg json) returns text as $$
-select pg_typeof(arg)::text
+create or replace function test.overloaded_same_args(arg integer) returns json as $$
+select json_build_object(
+    'type', pg_typeof(arg),
+    'value', arg
+  );
 $$ language sql;
 
-create or replace function test.overloaded_same_args(arg xml) returns text as $$
-select pg_typeof(arg)::text
+create or replace function test.overloaded_same_args(arg xml) returns json as $$
+select json_build_object(
+    'type', pg_typeof(arg),
+    'value', arg
+  );
 $$ language sql;
 
-create or replace function test.overloaded_same_args(arg text, num int default 0) returns text as $$
-select pg_typeof(arg)::text
+create or replace function test.overloaded_same_args(arg text, num integer default 0) returns json as $$
+select json_build_object(
+    'type', pg_typeof(arg),
+    'value', arg
+  );
 $$ language sql;
 
 create table test.leak(
