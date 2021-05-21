@@ -54,13 +54,13 @@ import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 import PostgREST.AppState                (AppState)
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..))
+import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
                                           tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.DbStructure.PgVersion   (PgVersion (..))
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..))
 import PostgREST.DbStructure.Table       (Table (..))

@@ -8,12 +8,13 @@ import Data.List.NonEmpty (toList)
 
 import Test.Hspec
 
-import PostgREST.App                   (postgrest)
-import PostgREST.Config                (AppConfig (..), LogLevel (..))
-import PostgREST.DbStructure           (getDbStructure, getPgVersion)
-import PostgREST.DbStructure.PgVersion (pgVersion96)
-import Protolude                       hiding (toList, toS)
-import Protolude.Conv                  (toS)
+import PostgREST.App              (postgrest)
+import PostgREST.Config           (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database  (queryPgVersion)
+import PostgREST.Config.PgVersion (pgVersion96)
+import PostgREST.DbStructure      (queryDbStructure)
+import Protolude                  hiding (toList, toS)
+import Protolude.Conv             (toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
@@ -57,7 +58,7 @@ main = do
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
-  actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
+  actualPgVersion <- either (panic.show) id <$> P.use pool queryPgVersion
 
   baseDbStructure <-
     loadDbStructure pool
@@ -204,4 +205,4 @@ main = do
 
   where
     loadDbStructure pool schemas extraSearchPath =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath True)
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)

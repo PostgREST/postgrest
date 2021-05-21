@@ -20,11 +20,10 @@ These queries are executed once at startup or when PostgREST is reloaded.
 
 module PostgREST.DbStructure
   ( DbStructure(..)
-  , getDbStructure
+  , queryDbStructure
   , accessibleTables
   , accessibleProcs
   , schemaDescription
-  , getPgVersion
   , tableCols
   , tablePKCols
   ) where
@@ -34,7 +33,6 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
-import qualified Hasql.Session       as H
 import qualified Hasql.Statement     as H
 import qualified Hasql.Transaction   as HT
 
@@ -45,7 +43,6 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
-import PostgREST.DbStructure.PgVersion    (PgVersion (..))
 import PostgREST.DbStructure.Proc         (PgArg (..), PgType (..),
                                            ProcDescription (..),
                                            ProcVolatility (..),
@@ -85,8 +82,8 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-getDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
-getDbStructure schemas extraSearchPath prepared = do
+queryDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
+queryDbStructure schemas extraSearchPath prepared = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement mempty $ allTables prepared
   cols    <- HT.statement schemas $ allColumns tabs prepared
@@ -936,12 +933,6 @@ pfkSourceColumns cols =
       join pg_namespace sch on sch.oid = tbl.relnamespace
       join pks_fks using (resorigtbl, resorigcol)
       order by view_schema, view_name, view_column_name; |]
-
-getPgVersion :: H.Session PgVersion
-getPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
-  where
-    sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
-    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
