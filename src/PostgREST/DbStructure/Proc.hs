@@ -108,7 +108,7 @@ findProc qi payloadKeys paramsAsSingleObject allProcs = ( NE.fromList (if isFoun
     castedKeys =
       S.filter (not . T.null . snd) (S.map (T.breakOn "::") payloadKeys)
     castedArgs args=
-      [if (pgaName a) `S.member` (S.map fst castedKeys) then pgaName a <> "::" <> pgaType a else pgaName a | a <- args]
+      [if pgaName a `S.member` S.map fst castedKeys then pgaName a <> "::" <> pgaType a else pgaName a | a <- args]
 
 {-|
   Search the procedure parameters by matching them with the specified keys.
