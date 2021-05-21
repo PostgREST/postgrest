@@ -114,7 +114,6 @@ pgrstFormat minStatus date req status responseSize =
 pgrstMiddleware :: LogLevel -> Wai.Application -> Wai.Application
 pgrstMiddleware logLevel =
     logger
-  . Wai.gzip Wai.def
   . Wai.cors corsPolicy
   . Wai.staticPolicy (Wai.only [("favicon.ico", "static/favicon.ico")])
   where
