@@ -1,12 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module PostgREST.Config.Database
-  ( loadDbSettings
+  ( queryDbSettings
+  , queryPgVersion
   ) where
+
+import PostgREST.Config.PgVersion (PgVersion (..))
 
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import qualified Hasql.Pool                 as P
+import qualified Hasql.Session              as H
 import qualified Hasql.Statement            as H
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
@@ -16,9 +20,14 @@ import Text.InterpolatedString.Perl6 (q)
 
 import Protolude hiding (hPutStrLn)
 
+queryPgVersion :: H.Session PgVersion
+queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
+  where
+    sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
+    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-loadDbSettings :: P.Pool -> IO [(Text, Text)]
-loadDbSettings pool = do
+queryDbSettings :: P.Pool -> IO [(Text, Text)]
+queryDbSettings pool = do
   result <-
     P.use pool . HT.transaction HT.ReadCommitted HT.Read $
       HT.statement mempty dbSettingsStatement

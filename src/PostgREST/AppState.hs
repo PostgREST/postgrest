@@ -28,10 +28,9 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Config                (AppConfig (..))
-import PostgREST.DbStructure           (DbStructure)
-import PostgREST.DbStructure.PgVersion (PgVersion (..),
-                                        minimumPgVersion)
+import PostgREST.Config           (AppConfig (..))
+import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
+import PostgREST.DbStructure      (DbStructure)
 
 import Protolude      hiding (toS)
 import Protolude.Conv (toS)

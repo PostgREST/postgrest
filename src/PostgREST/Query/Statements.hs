@@ -29,9 +29,9 @@ import Data.Maybe                (fromJust)
 import Data.Text.Read            (decimal)
 import Network.HTTP.Types.Status (Status)
 
-import PostgREST.DbStructure.PgVersion (PgVersion)
-import PostgREST.Error                 (Error (..))
-import PostgREST.GucHeader             (GucHeader)
+import PostgREST.Config.PgVersion (PgVersion)
+import PostgREST.Error            (Error (..))
+import PostgREST.GucHeader        (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.Query.SqlFragment

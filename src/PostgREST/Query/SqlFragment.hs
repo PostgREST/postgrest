@@ -46,9 +46,9 @@ import qualified Hasql.Encoders                  as HE
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
+import PostgREST.Config.PgVersion        (PgVersion, pgVersion96)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
-import PostgREST.DbStructure.PgVersion   (PgVersion, pgVersion96)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
