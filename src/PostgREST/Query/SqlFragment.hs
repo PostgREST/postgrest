@@ -171,7 +171,7 @@ asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldNam
 locationF :: [Text] -> SqlFragment
 locationF pKeys = [qc|(
   WITH data AS (SELECT row_to_json(_) AS row FROM {sourceCTEName} AS _ LIMIT 1)
-  SELECT array_agg(json_data.key || '=eq.' || json_data.value)
+  SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
   FROM data CROSS JOIN json_each_text(data.row) AS json_data
   WHERE json_data.key IN ('{fmtPKeys}')
 )|]
