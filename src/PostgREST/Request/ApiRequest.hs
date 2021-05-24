@@ -52,7 +52,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema)
 import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
-                                          findProc)
+                                          filterProc)
 import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -96,7 +96,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool, tpFoundInSchema :: Bool, tpDuplicated :: NonEmpty ProcDescription}
+            | TargetProc{tProc :: ProcDescription}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown
 
@@ -126,6 +126,12 @@ jsonRpcParams proc castedParams =
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
     mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
+
+targetToJsonRpcParams :: Maybe Target -> [(Text, Text)] -> Maybe PayloadJSON
+targetToJsonRpcParams target castedParams =
+  case target of
+    Just TargetProc{tProc} -> Just $ jsonRpcParams tProc castedParams
+    _                      -> Nothing
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -171,8 +177,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
-     acceptContentType <- findAcceptContentType conf action target accepts
-     checkedTarget <- checkTarget target payloadColumns
+     acceptContentType <- findAcceptContentType conf action targetProcIsRootSpec accepts
+     checkedTarget <- target
      return ApiRequest {
       iAction = action
       , iTarget = checkedTarget
@@ -232,12 +238,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  isTargetingProc = case target of
-    TargetProc{} -> True
-    _            -> False
-  isTargetingDefaultSpec = case target of
-    TargetDefaultSpec _ -> True
-    _                   -> False
+  (isTargetingProc, targetProcIsRootSpec, isTargetingDefaultSpec) = case path of
+    [] | isJust configDbRootSpec -> (True, True, False)
+       | otherwise               -> (False, False, True)
+    ["rpc", _]                   -> (True, False, False)
+    _                            -> (False, False, False)
   contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
@@ -264,13 +269,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       json <- csvToJson <$> CSV.decodeByName reqBody
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
     CTUrlEncoded ->
-      let urlEncodedBody = parseSimpleQuery $ toS reqBody in
-      case target of
-        TargetProc{tProc} ->
-          Right $ jsonRpcParams tProc $ (toS *** toS) <$> urlEncodedBody
-        _ ->
-          let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> urlEncodedBody in
-          Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
+      let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> parseSimpleQuery (toS reqBody) in
+      Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
       Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
@@ -311,25 +311,29 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindProc procName = findProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
-      targetProc (procs, isProcInSchema) isRootSpec = TargetProc (head procs) isRootSpec isProcInSchema procs
+      callFilterProc procName = filterProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+      targetProc procName = case callFilterProc procName of
+          []     -> Left $ RpcNotFound schema procName (S.toList payloadColumns)
+          [proc] -> Right $ TargetProc proc
+          procs  -> Left $ RpcNotUnique (toList procs)
     in
     case path of
       []             -> case configDbRootSpec of
-                        Just pName -> targetProc (callFindProc pName) True
-                        Nothing    -> TargetDefaultSpec schema
-      [table]        -> TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> targetProc (callFindProc pName) False
-      _              -> TargetUnknown
+                        Just pName -> targetProc pName
+                        Nothing    -> Right $ TargetDefaultSpec schema
+      [table]        -> Right $ TargetIdent $ QualifiedIdentifier schema table
+      ["rpc", pName] -> targetProc pName
+      _              -> Right TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
-  relevantPayload = case (target, action) of
+  relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
-    (TargetProc{tProc}, ActionInvoke InvGet)  -> Just $ jsonRpcParams tProc rpcQParams
-    (TargetProc{tProc}, ActionInvoke InvHead) -> Just $ jsonRpcParams tProc rpcQParams
-    _ | shouldParsePayload                    -> rightToMaybe payload
-      | otherwise                             -> Nothing
+    (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
+    (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
+    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (toS *** toS) <$> parseSimpleQuery (toS reqBody)
+    _ | shouldParsePayload               -> rightToMaybe payload
+      | otherwise                        -> Nothing
   path            = pathInfo req
   method          = requestMethod req
   hdrs            = requestHeaders req
@@ -431,16 +435,16 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptContentType :: AppConfig -> Action -> Target -> [ContentType] -> Either ApiRequestError ContentType
-findAcceptContentType conf action target accepts =
-  case mutuallyAgreeable (requestContentTypes conf action target) accepts of
+findAcceptContentType :: AppConfig -> Action -> Bool -> [ContentType] -> Either ApiRequestError ContentType
+findAcceptContentType conf action targetProcIsRootSpec accepts =
+  case mutuallyAgreeable (requestContentTypes conf action targetProcIsRootSpec) accepts of
     Just ct ->
       Right ct
     Nothing ->
       Left . ContentTypeError $ map ContentType.toMime accepts
 
-requestContentTypes :: AppConfig -> Action -> Target -> [ContentType]
-requestContentTypes conf action target =
+requestContentTypes :: AppConfig -> Action -> Bool -> [ContentType]
+requestContentTypes conf action targetProcIsRootSpec =
   case action of
     ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
     ActionInvoke _  -> invokeContentTypes
@@ -451,19 +455,10 @@ requestContentTypes conf action target =
     invokeContentTypes =
       defaultContentTypes
         ++ rawContentTypes conf
-        ++ [CTOpenAPI | tpIsRootSpec target]
+        ++ [CTOpenAPI | targetProcIsRootSpec]
     defaultContentTypes =
       [CTApplicationJSON, CTSingularJSON, CTTextCSV]
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
   (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
-
-checkTarget :: Target -> S.Set FieldName -> Either ApiRequestError Target
-checkTarget target payloadKeys =
-  case target of
-    TargetProc {tProc, tpFoundInSchema, tpDuplicated}
-      | not tpFoundInSchema     -> Left $ RpcNotFound (pdSchema tProc) (pdName tProc) (S.toList payloadKeys)
-      | length tpDuplicated > 1 -> Left $ RpcNotUnique (toList tpDuplicated)
-      | otherwise               -> Right target
-    _ -> Right target
