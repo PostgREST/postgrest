@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1636, Fix `application/octet-stream` appending `charset=utf-8` - @steve-chavez
  - #1615, Fix RPC return type handling and embedding for domains with composite base type - @wolfgangwalther
  - #1469, #1638 Fix overloading of functions with unnamed arguments - @wolfgangwalther
+ - #1832, #1855 Fix regression on null PK - @drTr0jan
 
 ### Changed
 
