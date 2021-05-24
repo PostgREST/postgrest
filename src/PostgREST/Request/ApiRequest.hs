@@ -313,9 +313,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     let
       callFilterProc procName = filterProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
       targetProc procName = case callFilterProc procName of
-          []     -> Left $ RpcNotFound schema procName (S.toList payloadColumns)
+          []     -> Left $ NoRpc schema procName (S.toList payloadColumns)
           [proc] -> Right $ TargetProc proc
-          procs  -> Left $ RpcNotUnique (toList procs)
+          procs  -> Left $ AmbiguousRpc (toList procs)
     in
     case path of
       []             -> case configDbRootSpec of
