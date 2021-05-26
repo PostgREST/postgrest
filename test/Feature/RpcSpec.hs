@@ -151,7 +151,7 @@ spec actualPgVersion =
         }
 
     context "ambiguous overloaded functions with same arguments but different types" $ do
-      it "should fail with 300 Multiple Choises without explicit argument type casts" $
+      it "should fail with 300 Multiple Choices without explicit argument type casts" $
         get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
           [json| {
             "hint":"Explicit argument type casts are needed. Possible endpoints are: /rpc/overloaded_same_args?arg::integer=value , /rpc/overloaded_same_args?arg::xml=value , /rpc/overloaded_same_args?arg::text=value&num::integer=value",
