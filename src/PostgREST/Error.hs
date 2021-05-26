@@ -60,7 +60,7 @@ data ApiRequestError
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
-  | NoRpc Text Text [Text]
+  | NoRpc Text Text [Text] Bool
   | InvalidFilters
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
@@ -100,9 +100,9 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "hint"    .= ("Explicit argument type casts are needed. Possible endpoints are: " <> T.intercalate " , " ["/rpc/" <> pdName p <> "?" <> T.intercalate "&" [pgaName a <> "::" <> pgaType a <> "=value" | a <- pdArgs p] | p <- procs] :: Text),
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [pgaName a <> " => " <> pgaType a | a <- pdArgs p] <> ")" | p <- procs])]
-  toJSON (NoRpc schema procName payloadKeys)  = JSON.object [
+  toJSON (NoRpc schema procName payloadKeys hasPreferSingleObject)  = JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
-    "message" .= T.unwords ["Couldn't find the", schema <> "." <> procName <> "(" <> T.intercalate ", " payloadKeys <> ")", "function"]]
+    "message" .= ("Couldn't find the " <> schema <> "." <> procName <> if hasPreferSingleObject then " function with a single json or jsonb argument" else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function")]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [

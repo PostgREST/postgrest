@@ -120,7 +120,7 @@ spec actualPgVersion =
         `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-            "message":"Couldn't find the test.sayhello() function" } |]
+            "message":"Couldn't find the test.sayhello function with a single json or jsonb argument" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
