@@ -52,7 +52,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema)
 import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
-                                          filterProc)
+                                          ProcsMap)
 import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -310,18 +310,14 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFilterProc procName = filterProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
-      targetProc procName = case callFilterProc procName of
-          []     -> Left $ NoRpc schema procName (S.toList payloadColumns) (hasPrefer (show SingleObject))
-          [proc] -> Right $ TargetProc proc
-          procs  -> Left $ AmbiguousRpc (toList procs)
+      callFindTargetProc procName = findTargetProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
       []             -> case configDbRootSpec of
-                        Just pName -> targetProc pName
+                        Just pName -> callFindTargetProc pName
                         Nothing    -> Right $ TargetDefaultSpec schema
       [table]        -> Right $ TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> targetProc pName
+      ["rpc", pName] -> callFindTargetProc pName
       _              -> Right TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
@@ -461,3 +457,39 @@ requestContentTypes conf action targetProcIsRootSpec =
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
   (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+
+{-|
+  Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
+  An overloaded function can have a different volatility or even a different return type.
+-}
+findTargetProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Either ApiRequestError Target
+findTargetProc qi payloadKeys paramsAsSingleObject allProcs =
+  case bestMatch of
+    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList payloadKeys) paramsAsSingleObject
+    [proc] -> Right $ TargetProc proc
+    procs  -> Left $ AmbiguousRpc (toList procs)
+  where
+    bestMatch =
+      case M.lookup qi allProcs of
+        Nothing     -> []
+        Just [proc] -> [proc | matches proc]
+        Just procs  -> filter matches procs
+    -- Find the exact arguments match
+    matches proc
+      | paramsAsSingleObject = case pdArgs proc of
+                               [arg] -> pgaType arg `elem` ["json", "jsonb"]
+                               _     -> False
+      | otherwise            = case pdArgs proc of
+                               []   -> null payloadKeys
+                               args -> matchesArg args
+    matchesArg args =
+      -- The function's required arguments are separated from the ones with a default value assigned.
+      -- The set of names of those arguments is compared to the set of keys supplied by the client
+      -- 1. If only required arguments are found, the keys must be exactly the same as those arguments
+      -- 2. If only optional arguments are found, the keys must be a subset of those arguments
+      -- 3. If both required and optional arguments are found, the result of taking away the optional arguments
+      --    from the keys must be exactly the same as the required arguments
+      case L.partition pgaReq args of
+        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
+        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
+        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)
