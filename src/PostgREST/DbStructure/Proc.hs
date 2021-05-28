@@ -96,6 +96,12 @@ filterProc qi payloadKeys paramsAsSingleObject allProcs = bestMatch
                                []   -> null payloadKeys
                                args -> matchesArg args
     matchesArg args =
+      -- The function's required arguments are separated from the ones with a default value assigned.
+      -- The set of keys supplied by the client are compared with a set of those arguments' names.
+      -- 1. If only required arguments are found, the keys must be exactly the same as those arguments
+      -- 2. If only optional arguments are found, the keys must be a subset of those arguments
+      -- 3. If both required and optional arguments are found, the result of taking away the optional arguments
+      --    from the keys must be exactly the same as the required arguments
       case L.partition pgaReq args of
         (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
         ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
