@@ -115,8 +115,7 @@ toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
 
 -- | Convert rpc params `/rpc/func?a::type=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
-jsonRpcParams proc castedParams =
-  let prms = first (fst . T.breakOn "::") <$> castedParams in
+jsonRpcParams proc prms =
   if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
     ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
   else
@@ -128,9 +127,9 @@ jsonRpcParams proc castedParams =
     mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
 
 targetToJsonRpcParams :: Maybe Target -> [(Text, Text)] -> Maybe PayloadJSON
-targetToJsonRpcParams target castedParams =
+targetToJsonRpcParams target params =
   case target of
-    Just TargetProc{tProc} -> Just $ jsonRpcParams tProc castedParams
+    Just TargetProc{tProc} -> Just $ jsonRpcParams tProc params
     _                      -> Nothing
 
 {-|

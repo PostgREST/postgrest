@@ -141,67 +141,15 @@ spec actualPgVersion =
           , matchHeaders = [matchContentTypeJson]
           }
 
-      it "should fail with 404 for unkown explicit argument type casts on overloaded functions" $
-        get "/rpc/overloaded_same_args?arg::numeric=123" `shouldRespondWith`
-        [json| {
-          "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-          "message":"Couldn't find the test.overloaded_same_args(arg::numeric) function" } |]
-        { matchStatus  = 404
-        , matchHeaders = [matchContentTypeJson]
-        }
-
     context "ambiguous overloaded functions with same arguments but different types" $ do
       it "should fail with 300 Multiple Choices without explicit argument type casts" $
         get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
           [json| {
-            "hint":"Explicit argument type casts are needed. Possible endpoints are: /rpc/overloaded_same_args?arg::integer=value , /rpc/overloaded_same_args?arg::xml=value , /rpc/overloaded_same_args?arg::text=value&num::integer=value",
+            "hint":"Overloaded functions with the same argument name but different types are not supported",
             "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)" } |]
           { matchStatus  = 300
           , matchHeaders = [matchContentTypeJson]
           }
-
-      it "should work with explicit argument type casts from a GET request" $ do
-        get "/rpc/overloaded_same_args?arg::integer=123" `shouldRespondWith`
-          [json|{type: "integer", value: 123}|]
-          { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/rpc/overloaded_same_args?arg::xml=<test></test>" `shouldRespondWith`
-          [json|{type: "xml", value: "<test></test>"}|]
-          { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/rpc/overloaded_same_args?arg::text=123" `shouldRespondWith`
-          [json|{type: "text", value: "123"}|]
-          { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
-          }
-
-      it "should work with explicit argument type casts from an html form" $ do
-        request methodPost "/rpc/overloaded_same_args"
-            [("Content-Type", "application/x-www-form-urlencoded")]
-            "arg::integer=123"
-          `shouldRespondWith`
-            [json|{type: "integer", value: 123}|]
-            { matchStatus  = 200
-            , matchHeaders = [matchContentTypeJson]
-            }
-        request methodPost "/rpc/overloaded_same_args"
-            [("Content-Type", "application/x-www-form-urlencoded")]
-            "arg::xml=<test></test>"
-          `shouldRespondWith`
-            [json|{type: "xml", value: "<test></test>"}|]
-            { matchStatus  = 200
-            , matchHeaders = [matchContentTypeJson]
-            }
-        request methodPost "/rpc/overloaded_same_args"
-            [("Content-Type", "application/x-www-form-urlencoded")]
-            "arg::text=123"
-          `shouldRespondWith`
-            [json|{type: "text", value: "123"}|]
-            { matchStatus  = 200
-            , matchHeaders = [matchContentTypeJson]
-            }
 
     it "works when having uppercase identifiers" $ do
       get "/rpc/quotedFunction?user=mscott&fullName=Michael Scott&SSN=401-32-XXXX" `shouldRespondWith`

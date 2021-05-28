@@ -97,13 +97,9 @@ filterProc qi payloadKeys paramsAsSingleObject allProcs = bestMatch
                                args -> matchesArg args
     matchesArg args =
       case L.partition pgaReq args of
-        (reqArgs, [])      -> payloadKeys == S.fromList (castedArgs reqArgs)
-        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (castedArgs defArgs)
-        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (castedArgs defArgs) == S.fromList (castedArgs reqArgs)
-    castedKeys =
-      S.filter (not . T.null . snd) (S.map (T.breakOn "::") payloadKeys)
-    castedArgs args=
-      [if pgaName a `S.member` S.map fst castedKeys then pgaName a <> "::" <> pgaType a else pgaName a | a <- args]
+        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
+        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
+        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)
 
 {-|
   Search the procedure parameters by matching them with the specified keys.
