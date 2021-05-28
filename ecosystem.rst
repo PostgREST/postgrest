@@ -101,3 +101,6 @@ Client-Side Libraries
 * `py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
 * `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
 * `vue-postgrest <https://github.com/technowledgy/vue-postgrest>`_ - Vue.js
+* `postgrest-ex <https://github.com/J0/postgrest-ex>`_ - Elixir
+
+
