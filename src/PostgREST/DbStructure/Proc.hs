@@ -17,7 +17,6 @@ module PostgREST.DbStructure.Proc
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
-import qualified Data.Text           as T
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -78,7 +77,7 @@ type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
 -}
 specifiedProcArgs :: S.Set FieldName -> ProcDescription -> [PgArg]
 specifiedProcArgs keys proc =
-  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList (S.map (fst . T.breakOn "::") keys)
+  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
