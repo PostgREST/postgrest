@@ -5,6 +5,7 @@ module PostgREST.AppState
   , getConfig
   , getDbStructure
   , getIsWorkerOn
+  , getJsonDbS
   , getMainThreadId
   , getPgVersion
   , getPool
@@ -14,6 +15,7 @@ module PostgREST.AppState
   , putConfig
   , putDbStructure
   , putIsWorkerOn
+  , putJsonDbS
   , putPgVersion
   , releasePool
   , signalListener
@@ -41,6 +43,8 @@ data AppState = AppState
   , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateDbStructure  :: IORef (Maybe DbStructure)
+  -- | Cached DbStructure in json
+  , stateJsonDbS      :: IORef ByteString
   -- | Helper ref to make sure just one connectionWorker can run at a time
   , stateIsWorkerOn   :: IORef Bool
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
@@ -62,6 +66,7 @@ initWithPool newPool conf =
     -- assume we're in a supported version when starting, this will be corrected on a later step
     <$> newIORef minimumPgVersion
     <*> newIORef Nothing
+    <*> newIORef mempty
     <*> newIORef False
     <*> newEmptyMVar
     <*> newIORef conf
@@ -90,6 +95,12 @@ getDbStructure = readIORef . stateDbStructure
 putDbStructure :: AppState -> DbStructure -> IO ()
 putDbStructure appState structure =
   atomicWriteIORef (stateDbStructure appState) $ Just structure
+
+getJsonDbS :: AppState -> IO ByteString
+getJsonDbS = readIORef . stateJsonDbS
+
+putJsonDbS :: AppState -> ByteString -> IO ()
+putJsonDbS appState = atomicWriteIORef (stateJsonDbS appState)
 
 getIsWorkerOn :: AppState -> IO Bool
 getIsWorkerOn = readIORef . stateIsWorkerOn

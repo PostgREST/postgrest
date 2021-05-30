@@ -165,7 +165,7 @@ testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configDbExtraSearchPath = ["public", "extensions"] }
 
 testCfgRootSpec :: Text -> AppConfig
-testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just "root"}
+testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
 
 testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }

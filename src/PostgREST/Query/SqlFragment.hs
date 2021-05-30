@@ -32,7 +32,7 @@ module PostgREST.Query.SqlFragment
   , returningF
   , selectBody
   , sourceCTEName
-  , unknownLiteral
+  , unknownEncoder
   , intercalateSnippet
   ) where
 

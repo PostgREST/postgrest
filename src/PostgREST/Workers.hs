@@ -7,6 +7,7 @@ module PostgREST.Workers
   , listener
   ) where
 
+import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
@@ -172,6 +173,8 @@ loadSchemaCache appState = do
 
     Right dbStructure -> do
       AppState.putDbStructure appState dbStructure
+      when (isJust configDbRootSpec) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode dbStructure
       putStrLn ("Schema cache loaded" :: Text)
       return SCLoaded
 

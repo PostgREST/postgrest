@@ -72,7 +72,7 @@ data AppConfig = AppConfig
   , configDbPoolTimeout         :: NominalDiffTime
   , configDbPreRequest          :: Maybe QualifiedIdentifier
   , configDbPreparedStatements  :: Bool
-  , configDbRootSpec            :: Maybe Text
+  , configDbRootSpec            :: Maybe QualifiedIdentifier
   , configDbSchemas             :: NonEmpty Text
   , configDbConfig              :: Bool
   , configDbTxAllowOverride     :: Bool
@@ -117,7 +117,7 @@ toText conf =
       ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
       ,("db-pre-request",            q . maybe mempty show . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
-      ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
+      ,("db-root-spec",              q . maybe mempty show . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
@@ -202,8 +202,8 @@ parser optPath env dbSettings =
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
-    <*> optWithAlias (optString "db-root-spec")
-                     (optString "root-spec")
+    <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
+                                    (optString "root-spec"))
     <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
                                                    (optValue "db-schema")
                                                    "missing key: either db-schemas or db-schema must be set")
