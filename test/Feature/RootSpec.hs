@@ -26,5 +26,9 @@ spec =
     it "accepts application/json" $
       request methodGet "/"
         [("Accept", "application/json")] "" `shouldRespondWith`
-        [json| [{"table": "items"}, {"table": "subitems"}] |]
+        [json| {
+            "tableName": "orders_view", "tableSchema": "test",
+            "tableDeletable": true, "tableUpdatable": true,
+            "tableInsertable": true, "tableDescription": null
+          } |]
         { matchHeaders = [matchContentTypeJson] }

@@ -42,7 +42,7 @@ import Network.HTTP.Types.URI    (parseQueryReplacePlus,
                                   parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
-import Web.Cookie                (parseCookiesText)
+import Web.Cookie                (parseCookies)
 
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.ContentType             (ContentType (..))
@@ -152,8 +152,8 @@ data ApiRequest = ApiRequest {
   , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
   , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
   , iJWT                  :: Text                             -- ^ JSON Web Token
-  , iHeaders              :: [(Text, Text)]                   -- ^ HTTP request headers
-  , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
+  , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
+  , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
@@ -202,8 +202,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         . map (join (***) toS . second (fromMaybe BS.empty))
         $ qString
       , iJWT = tokenStr
-      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hCookie]
-      , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
+      , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
+      , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
       , iProfile = profile
@@ -309,14 +309,14 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindProc proc = findProc (QualifiedIdentifier schema proc) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+      callFindProc procSch procNam = findProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
       []             -> case configDbRootSpec of
-                        Just pName -> TargetProc (callFindProc pName) True
-                        Nothing    -> TargetDefaultSpec schema
+                          Just (QualifiedIdentifier pSch pName) -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
+                          Nothing                               -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> TargetProc (callFindProc pName) False
+      ["rpc", pName] -> TargetProc (callFindProc schema pName) False
       _              -> TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]

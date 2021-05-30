@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Aeson                 as JSON
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
@@ -68,19 +69,25 @@ main = do
   let
     -- For tests that run with the same refDbStructure
     app cfg = do
-      appState <- AppState.initWithPool pool $ cfg testDbConn
+      let config = cfg testDbConn
+      appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState baseDbStructure
+      when (isJust $ configDbRootSpec config) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
+      let config = cfg testDbConn
       customDbStructure <-
         loadDbStructure pool
-          (configDbSchemas $ cfg testDbConn)
-          (configDbExtraSearchPath $ cfg testDbConn)
-      appState <- AppState.initWithPool pool $ cfg testDbConn
+          (configDbSchemas config)
+          (configDbExtraSearchPath config)
+      appState <- AppState.initWithPool pool config
       AppState.putDbStructure appState customDbStructure
+      when (isJust $ configDbRootSpec config) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())
 
   let withApp              = app testCfg
