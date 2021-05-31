@@ -113,7 +113,7 @@ toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
   where
     argIsVariadic arg = isJust $ find (\PgArg{pgaName, pgaVar} -> pgaName == arg && pgaVar) $ pdArgs proc
 
--- | Convert rpc params `/rpc/func?a::type=val1&b=val2` to json `{"a": "val1", "b": "val2"}
+-- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
 jsonRpcParams proc prms =
   if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
