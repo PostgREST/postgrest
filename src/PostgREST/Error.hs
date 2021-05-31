@@ -86,7 +86,8 @@ instance JSON.ToJSON ApiRequestError where
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
   toJSON (NoRelBetween parent child) = JSON.object [
-    "message" .= ("Could not find foreign keys between these entities. No relationship found between " <> parent <> " and " <> child :: Text)]
+    "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text),
+    "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
