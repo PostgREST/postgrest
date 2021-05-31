@@ -217,7 +217,7 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
       handleInfo identifier context
-    (ActionInvoke invMethod, TargetProc proc) ->
+    (ActionInvoke invMethod, TargetProc proc _) ->
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
@@ -419,8 +419,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target) = Proc.procReturnsSingle target
-    returnsSingle _                              = False
+    returnsSingle (ApiRequest.TargetProc target _) = Proc.procReturnsSingle target
+    returnsSingle _                                = False
 
   req <- readRequest identifier context
   bField <- binaryField context req
@@ -486,9 +486,9 @@ txMode ApiRequest{..} =
       SQL.Read
     (ActionInvoke InvHead, _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable}) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _) ->
       SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable}) ->
+    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) ->
       SQL.Read
     _ ->
       SQL.Write
@@ -556,8 +556,8 @@ shouldCount preferCount =
   preferCount == Just ExactCount || preferCount == Just EstimatedCount
 
 returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc) = Proc.procReturnsScalar proc
-returnsScalar _                 = False
+returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
+returnsScalar _                   = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
