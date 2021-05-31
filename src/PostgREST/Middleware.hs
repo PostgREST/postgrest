@@ -42,9 +42,9 @@ import System.Log.FastLogger     (toLogStr)
 import PostgREST.Config             (AppConfig (..), LogLevel (..))
 import PostgREST.Error              (Error, errorResponseFor)
 import PostgREST.GucHeader          (addHeadersIfNotIncluded)
-import PostgREST.Query.SqlFragment  (intercalateSnippet,
-                                     unknownLiteral)
-import PostgREST.Request.ApiRequest (ApiRequest (..))
+import PostgREST.Query.SqlFragment  (fromQi, intercalateSnippet,
+                                     unknownEncoder)
+import PostgREST.Request.ApiRequest (ApiRequest (..), Target (..))
 
 import PostgREST.Request.Preferences
 
@@ -54,33 +54,35 @@ import Protolude.Conv (toS)
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
                (ApiRequest -> ExceptT Error H.Transaction Wai.Response) ->
-               ApiRequest  -> ExceptT Error H.Transaction Wai.Response
-runPgLocals conf claims app req = do
+               ApiRequest  -> ByteString -> ExceptT Error H.Transaction Wai.Response
+runPgLocals conf claims app req jsonDbS = do
   lift $ H.statement mempty $ H.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
   lift $ traverse_ H.sql preReqSql
   app req
   where
-    methodSql = setConfigLocal mempty ("request.method", toS $ iMethod req)
-    pathSql = setConfigLocal mempty ("request.path", toS $ iPath req)
+    methodSql = setConfigLocal mempty ("request.method", iMethod req)
+    pathSql = setConfigLocal mempty ("request.path", iPath req)
     headersSql = setConfigLocal "request.header." <$> iHeaders req
     cookiesSql = setConfigLocal "request.cookie." <$> iCookies req
     claimsWithRole =
       let anon = JSON.String . toS $ configDbAnonRole conf in -- role claim defaults to anon if not specified in jwt
       M.union claims (M.singleton "role" anon)
-    claimsSql = setConfigLocal "request.jwt.claim." <$> [(c,unquoted v) | (c,v) <- M.toList claimsWithRole]
-    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", unquoted x)) <$> M.lookup "role" claimsWithRole
-    appSettingsSql = setConfigLocal mempty <$> configAppSettings conf
+    claimsSql = setConfigLocal "request.jwt.claim." <$> [(toS c, toS $ unquoted v) | (c,v) <- M.toList claimsWithRole]
+    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", toS $ unquoted x)) <$> M.lookup "role" claimsWithRole
+    appSettingsSql = setConfigLocal mempty <$> (join bimap toS <$> configAppSettings conf)
     searchPathSql =
       let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
-      setConfigLocal mempty ("search_path", schemas)
-    preReqSql = (\f -> "select " <> toS f <> "();") <$> configDbPreRequest conf
-
+      setConfigLocal mempty ("search_path", toS schemas)
+    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
+    specSql = case iTarget req of
+      TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
+      _                             -> mempty
     -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-    setConfigLocal :: Text -> (Text, Text) -> H.Snippet
+    setConfigLocal :: ByteString -> (ByteString, ByteString) -> H.Snippet
     setConfigLocal prefix (k, v) =
-      "set_config(" <> unknownLiteral (prefix <> k) <> ", " <> unknownLiteral v <> ", true)"
+      "set_config(" <> unknownEncoder (prefix <> k) <> ", " <> unknownEncoder v <> ", true)"
 
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
@@ -114,7 +116,6 @@ pgrstFormat minStatus date req status responseSize =
 pgrstMiddleware :: LogLevel -> Wai.Application -> Wai.Application
 pgrstMiddleware logLevel =
     logger
-  . Wai.gzip Wai.def
   . Wai.cors corsPolicy
   . Wai.staticPolicy (Wai.only [("favicon.ico", "static/favicon.ico")])
   where

@@ -32,7 +32,7 @@ module PostgREST.Query.SqlFragment
   , returningF
   , selectBody
   , sourceCTEName
-  , unknownLiteral
+  , unknownEncoder
   , intercalateSnippet
   ) where
 
@@ -46,9 +46,9 @@ import qualified Hasql.Encoders                  as HE
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
+import PostgREST.Config.PgVersion        (PgVersion, pgVersion96)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
-import PostgREST.DbStructure.PgVersion   (PgVersion, pgVersion96)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
@@ -135,6 +135,7 @@ pgFmtLit x =
    then "E" <> slashed
    else slashed
 
+-- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SqlFragment
 pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 

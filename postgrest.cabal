@@ -41,11 +41,11 @@ library
                       PostgREST.Config
                       PostgREST.Config.Database
                       PostgREST.Config.JSPath
+                      PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.ContentType
                       PostgREST.DbStructure
                       PostgREST.DbStructure.Identifiers
-                      PostgREST.DbStructure.PgVersion
                       PostgREST.DbStructure.Proc
                       PostgREST.DbStructure.Relationship
                       PostgREST.DbStructure.Table

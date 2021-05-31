@@ -54,13 +54,13 @@ import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 import PostgREST.AppState                (AppState)
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..))
+import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
                                           tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.DbStructure.PgVersion   (PgVersion (..))
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..))
 import PostgREST.DbStructure.Table       (Table (..))
@@ -141,11 +141,12 @@ postgrest logLev appState connWorker =
       conf <- AppState.getConfig appState
       maybeDbStructure <- AppState.getDbStructure appState
       pgVer <- AppState.getPgVersion appState
+      jsonDbS <- AppState.getJsonDbS appState
 
       let
         eitherResponse :: IO (Either Error Wai.Response)
         eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure pgVer (AppState.getPool appState) time req
+          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
 
@@ -159,12 +160,13 @@ postgrest logLev appState connWorker =
 postgrestResponse
   :: AppConfig
   -> Maybe DbStructure
+  -> ByteString
   -> PgVersion
   -> SQL.Pool
   -> UTCTime
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure pgVer pool time req = do
+postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -187,7 +189,7 @@ postgrestResponse conf maybeDbStructure pgVer pool time req = do
 
   runDbHandler pool (txMode apiRequest) jwtClaims .
     Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf jwtClaims handleReq apiRequest
+      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS
 
 runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> DbHandler a -> Handler IO a
 runDbHandler pool mode jwtClaims handler = do

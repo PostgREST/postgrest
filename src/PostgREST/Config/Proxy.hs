@@ -1,4 +1,3 @@
-
 {-|
 Module      : PostgREST.Private.ProxyUri
 Description : Proxy Uri validator

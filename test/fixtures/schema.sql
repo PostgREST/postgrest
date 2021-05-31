@@ -1734,9 +1734,9 @@ returns integer as $$
   select a + b;
 $$ language sql;
 
-create function root() returns jsonb as $_$
+create or replace function root() returns json as $_$
 declare
-openapi jsonb = $$
+openapi json = $$
   {
     "swagger": "2.0",
     "info":{
@@ -1745,22 +1745,12 @@ openapi jsonb = $$
     }
   }
 $$;
-simple jsonb = $$
-  [
-    {
-      "table":"items"
-    },
-    {
-      "table":"subitems"
-    }
-  ]
-$$;
 begin
 case current_setting('request.header.accept', true)
   when 'application/openapi+json' then
     return openapi;
   when 'application/json' then
-    return simple;
+    return (current_setting('request.spec', true)::json)->'dbRelationships'->0->'relTable';
   else
     return openapi;
   end case;

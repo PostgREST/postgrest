@@ -42,7 +42,7 @@ import Network.HTTP.Types.URI    (parseQueryReplacePlus,
                                   parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
-import Web.Cookie                (parseCookiesText)
+import Web.Cookie                (parseCookies)
 
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.ContentType             (ContentType (..))
@@ -96,7 +96,7 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             deriving Eq
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: ProcDescription}
+            | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
             | TargetUnknown
 
@@ -158,8 +158,8 @@ data ApiRequest = ApiRequest {
   , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
   , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
   , iJWT                  :: Text                             -- ^ JSON Web Token
-  , iHeaders              :: [(Text, Text)]                   -- ^ HTTP request headers
-  , iCookies              :: [(Text, Text)]                   -- ^ Request Cookies
+  , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
+  , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
@@ -209,8 +209,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         . map (join (***) toS . second (fromMaybe BS.empty))
         $ qString
       , iJWT = tokenStr
-      , iHeaders = [ (toS $ CI.foldedCase k, toS v) | (k,v) <- hdrs, k /= hCookie]
-      , iCookies = maybe [] parseCookiesText $ lookupHeader "Cookie"
+      , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
+      , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
       , iProfile = profile
@@ -310,14 +310,14 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindTargetProc procName = findTargetProc (QualifiedIdentifier schema procName) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
+      callFindTargetProc procSch procNam isRootSpec = findTargetProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) isRootSpec $ dbProcs dbStructure
     in
     case path of
       []             -> case configDbRootSpec of
-                        Just pName -> callFindTargetProc pName
-                        Nothing    -> Right $ TargetDefaultSpec schema
+                          Just (QualifiedIdentifier pSch pName) -> callFindTargetProc (if pSch == mempty then schema else pSch) pName True
+                          Nothing                               -> Right $ TargetDefaultSpec schema
       [table]        -> Right $ TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> callFindTargetProc pName
+      ["rpc", pName] -> callFindTargetProc schema pName False
       _              -> Right TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
@@ -462,11 +462,11 @@ rawContentTypes AppConfig{..} =
   Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
   An overloaded function can have a different volatility or even a different return type.
 -}
-findTargetProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Either ApiRequestError Target
-findTargetProc qi payloadKeys paramsAsSingleObject allProcs =
+findTargetProc :: QualifiedIdentifier -> S.Set Text -> Bool -> Bool -> ProcsMap -> Either ApiRequestError Target
+findTargetProc qi payloadKeys paramsAsSingleObject isRootSpec allProcs =
   case bestMatch of
     []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList payloadKeys) paramsAsSingleObject
-    [proc] -> Right $ TargetProc proc
+    [proc] -> Right $ TargetProc proc isRootSpec
     procs  -> Left $ AmbiguousRpc (toList procs)
   where
     bestMatch =

@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Aeson                 as JSON
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
@@ -8,12 +9,13 @@ import Data.List.NonEmpty (toList)
 
 import Test.Hspec
 
-import PostgREST.App                   (postgrest)
-import PostgREST.Config                (AppConfig (..), LogLevel (..))
-import PostgREST.DbStructure           (getDbStructure, getPgVersion)
-import PostgREST.DbStructure.PgVersion (pgVersion96)
-import Protolude                       hiding (toList, toS)
-import Protolude.Conv                  (toS)
+import PostgREST.App              (postgrest)
+import PostgREST.Config           (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database  (queryPgVersion)
+import PostgREST.Config.PgVersion (pgVersion96)
+import PostgREST.DbStructure      (queryDbStructure)
+import Protolude                  hiding (toList, toS)
+import Protolude.Conv             (toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
@@ -57,7 +59,7 @@ main = do
 
   pool <- P.acquire (3, 10, toS testDbConn)
 
-  actualPgVersion <- either (panic.show) id <$> P.use pool getPgVersion
+  actualPgVersion <- either (panic.show) id <$> P.use pool queryPgVersion
 
   baseDbStructure <-
     loadDbStructure pool
@@ -67,19 +69,25 @@ main = do
   let
     -- For tests that run with the same refDbStructure
     app cfg = do
-      appState <- AppState.initWithPool pool $ cfg testDbConn
+      let config = cfg testDbConn
+      appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState baseDbStructure
+      when (isJust $ configDbRootSpec config) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
     appDbs cfg = do
+      let config = cfg testDbConn
       customDbStructure <-
         loadDbStructure pool
-          (configDbSchemas $ cfg testDbConn)
-          (configDbExtraSearchPath $ cfg testDbConn)
-      appState <- AppState.initWithPool pool $ cfg testDbConn
+          (configDbSchemas config)
+          (configDbExtraSearchPath config)
+      appState <- AppState.initWithPool pool config
       AppState.putDbStructure appState customDbStructure
+      when (isJust $ configDbRootSpec config) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())
 
   let withApp              = app testCfg
@@ -204,4 +212,4 @@ main = do
 
   where
     loadDbStructure pool schemas extraSearchPath =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ getDbStructure (toList schemas) extraSearchPath True)
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)

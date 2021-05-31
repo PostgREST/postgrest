@@ -51,9 +51,11 @@ import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
-import PostgREST.Config.JSPath (JSPath, JSPathExp (..), pRoleClaimKey)
-import PostgREST.Config.Proxy  (Proxy (..), isMalformedProxyUri,
-                                toURI)
+import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
+                                          pRoleClaimKey)
+import PostgREST.Config.Proxy            (Proxy (..),
+                                          isMalformedProxyUri, toURI)
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, toQi)
 
 import Protolude      hiding (Proxy, toList, toS)
 import Protolude.Conv (toS)
@@ -68,9 +70,9 @@ data AppConfig = AppConfig
   , configDbMaxRows             :: Maybe Integer
   , configDbPoolSize            :: Int
   , configDbPoolTimeout         :: NominalDiffTime
-  , configDbPreRequest          :: Maybe Text
+  , configDbPreRequest          :: Maybe QualifiedIdentifier
   , configDbPreparedStatements  :: Bool
-  , configDbRootSpec            :: Maybe Text
+  , configDbRootSpec            :: Maybe QualifiedIdentifier
   , configDbSchemas             :: NonEmpty Text
   , configDbConfig              :: Bool
   , configDbTxAllowOverride     :: Bool
@@ -113,9 +115,9 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
-      ,("db-pre-request",            q . fromMaybe mempty . configDbPreRequest)
+      ,("db-pre-request",            q . maybe mempty show . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
-      ,("db-root-spec",              q . fromMaybe mempty . configDbRootSpec)
+      ,("db-root-spec",              q . maybe mempty show . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
@@ -197,11 +199,11 @@ parser optPath env dbSettings =
                      (optInt "max-rows")
     <*> (fromMaybe 10 <$> optInt "db-pool")
     <*> (fromIntegral . fromMaybe 10 <$> optInt "db-pool-timeout")
-    <*> optWithAlias (optString "db-pre-request")
-                     (optString "pre-request")
+    <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
+                                    (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
-    <*> optWithAlias (optString "db-root-spec")
-                     (optString "root-spec")
+    <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
+                                    (optString "root-spec"))
     <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
                                                    (optValue "db-schema")
                                                    "missing key: either db-schemas or db-schema must be set")

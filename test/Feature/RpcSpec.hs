@@ -11,10 +11,10 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.DbStructure.PgVersion (PgVersion, pgVersion100,
-                                        pgVersion109, pgVersion110,
-                                        pgVersion112, pgVersion114,
-                                        pgVersion96)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion109, pgVersion110,
+                                   pgVersion112, pgVersion114,
+                                   pgVersion96)
 
 import Protolude  hiding (get)
 import SpecHelper

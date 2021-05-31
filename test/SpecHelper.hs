@@ -22,10 +22,12 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
-import PostgREST.Config (AppConfig (..), JSPathExp (..),
-                         LogLevel (..), parseSecret)
-import Protolude        hiding (toS)
-import Protolude.Conv   (toS)
+import PostgREST.Config                  (AppConfig (..),
+                                          JSPathExp (..),
+                                          LogLevel (..), parseSecret)
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
+import Protolude                         hiding (toS)
+import Protolude.Conv                    (toS)
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
@@ -79,7 +81,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbMaxRows             = Nothing
   , configDbPoolSize            = 10
   , configDbPoolTimeout         = 10
-  , configDbPreRequest          = Just "test.switch_role"
+  , configDbPreRequest          = Just $ QualifiedIdentifier "test" "switch_role"
   , configDbPreparedStatements  = True
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
@@ -163,13 +165,13 @@ testCfgExtraSearchPath :: Text -> AppConfig
 testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configDbExtraSearchPath = ["public", "extensions"] }
 
 testCfgRootSpec :: Text -> AppConfig
-testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just "root"}
+testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
 
 testCfgHtmlRawOutput :: Text -> AppConfig
 testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
 
 testCfgResponseHeaders :: Text -> AppConfig
-testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = Just "custom_headers" }
+testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }
 
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["v1", "v2"] }

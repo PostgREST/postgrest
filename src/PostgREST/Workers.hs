@@ -7,6 +7,7 @@ module PostgREST.Workers
   , listener
   ) where
 
+import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Hasql.Connection           as C
 import qualified Hasql.Notifications        as N
@@ -17,14 +18,13 @@ import Control.Retry (RetryStatus, capDelay, exponentialBackoff,
                       retrying, rsPreviousDelay)
 import Data.Text.IO  (hPutStrLn)
 
-import PostgREST.AppState              (AppState)
-import PostgREST.Config                (AppConfig (..), readAppConfig)
-import PostgREST.Config.Database       (loadDbSettings)
-import PostgREST.DbStructure           (getDbStructure, getPgVersion)
-import PostgREST.DbStructure.PgVersion (PgVersion (..),
-                                        minimumPgVersion)
-import PostgREST.Error                 (PgError (PgError),
-                                        checkIsFatal, errorPayload)
+import PostgREST.AppState         (AppState)
+import PostgREST.Config           (AppConfig (..), readAppConfig)
+import PostgREST.Config.Database  (queryDbSettings, queryPgVersion)
+import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
+import PostgREST.DbStructure      (queryDbStructure)
+import PostgREST.Error            (PgError (PgError), checkIsFatal,
+                                   errorPayload)
 
 import qualified PostgREST.AppState as AppState
 
@@ -117,7 +117,7 @@ connectionStatus pool =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- P.use pool getPgVersion
+      pgVersion <- P.use pool queryPgVersion
       case pgVersion of
         Left e -> do
           let err = PgError False e
@@ -152,7 +152,7 @@ loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
     P.use (AppState.getPool appState) . HT.transaction HT.ReadCommitted HT.Read $
-      getDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
+      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
       let
@@ -173,6 +173,8 @@ loadSchemaCache appState = do
 
     Right dbStructure -> do
       AppState.putDbStructure appState dbStructure
+      when (isJust configDbRootSpec) $
+        AppState.putJsonDbS appState $ toS $ JSON.encode dbStructure
       putStrLn ("Schema cache loaded" :: Text)
       return SCLoaded
 
@@ -227,7 +229,7 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
     if configDbConfig then
-      loadDbSettings (AppState.getPool appState)
+      queryDbSettings (AppState.getPool appState)
     else
       pure mempty
   readAppConfig dbSettings configFilePath (Just configDbUri) >>= \case
