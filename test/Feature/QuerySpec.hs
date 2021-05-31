@@ -227,8 +227,8 @@ spec actualPgVersion = do
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects(id,tasks2(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
         [json| {
-          "hint":"If a new relationship was created between these entities in the database, try reloading the schema cache.",
-          "message":"Could not find foreign keys between these entities in the schema cache. No relationship found between projects and tasks2"}|]
+          "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+          "message":"Could not find a relationship between projects and tasks2 in the schema cache"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
