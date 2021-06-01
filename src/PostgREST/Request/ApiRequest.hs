@@ -176,7 +176,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
-     acceptContentType <- findAcceptContentType conf action targetProcIsRootSpec accepts
+     acceptContentType <- findAcceptContentType conf action isTarProcRootSpec accepts
      checkedTarget <- target
      return ApiRequest {
       iAction = action
@@ -237,7 +237,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  (isTargetingProc, targetProcIsRootSpec, isTargetingDefaultSpec) = case path of
+  (isTargetingProc, isTarProcRootSpec, isTargetingDefaultSpec) = case path of
     [] | isJust configDbRootSpec -> (True, True, False)
        | otherwise               -> (False, False, True)
     ["rpc", _]                   -> (True, False, False)
@@ -310,14 +310,14 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindTargetProc procSch procNam isRootSpec = findTargetProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) isRootSpec $ dbProcs dbStructure
+      callFindTargetProc procSch procNam = findTargetProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) isTarProcRootSpec $ dbProcs dbStructure
     in
     case path of
       []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName) -> callFindTargetProc (if pSch == mempty then schema else pSch) pName True
+                          Just (QualifiedIdentifier pSch pName) -> callFindTargetProc (if pSch == mempty then schema else pSch) pName
                           Nothing                               -> Right $ TargetDefaultSpec schema
       [table]        -> Right $ TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> callFindTargetProc schema pName False
+      ["rpc", pName] -> callFindTargetProc schema pName
       _              -> Right TargetUnknown
 
   shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
@@ -431,15 +431,15 @@ payloadAttributes raw json =
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
 findAcceptContentType :: AppConfig -> Action -> Bool -> [ContentType] -> Either ApiRequestError ContentType
-findAcceptContentType conf action targetProcIsRootSpec accepts =
-  case mutuallyAgreeable (requestContentTypes conf action targetProcIsRootSpec) accepts of
+findAcceptContentType conf action isTarProcRootSpec accepts =
+  case mutuallyAgreeable (requestContentTypes conf action isTarProcRootSpec) accepts of
     Just ct ->
       Right ct
     Nothing ->
       Left . ContentTypeError $ map ContentType.toMime accepts
 
 requestContentTypes :: AppConfig -> Action -> Bool -> [ContentType]
-requestContentTypes conf action targetProcIsRootSpec =
+requestContentTypes conf action isTarProcRootSpec =
   case action of
     ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
     ActionInvoke _  -> invokeContentTypes
@@ -450,7 +450,7 @@ requestContentTypes conf action targetProcIsRootSpec =
     invokeContentTypes =
       defaultContentTypes
         ++ rawContentTypes conf
-        ++ [CTOpenAPI | targetProcIsRootSpec]
+        ++ [CTOpenAPI | isTarProcRootSpec]
     defaultContentTypes =
       [CTApplicationJSON, CTSingularJSON, CTTextCSV]
 
