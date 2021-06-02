@@ -21,7 +21,7 @@ PostgREST Documentation
   :target: https://www.patreon.com/postgrest
 
 .. image:: https://img.shields.io/badge/Donate-PayPal-green.svg
-  :target: https://www.paypal.me/postgrest
+  :target: https://www.paypal.com/paypalme/postgrest
 
 |
 
@@ -219,7 +219,6 @@ Here are some companies that use PostgREST in production.
 * `Datrium <https://www.datrium.com>`_
 * `Drip Depot <https://www.dripdepot.com>`_
 * `eGull <https://www.egull.co>`_
-* `Elyios <https://elyios.com>`_
 * `Image-charts <https://www.image-charts.com>`_
 * `Moat <https://moat.com>`_
 * `MotionDynamic - Fast highly dynamic video generation at scale <https://motiondynamic.tech>`_

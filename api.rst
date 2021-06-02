@@ -472,7 +472,7 @@ If we make a similar request on ``bigtable``, which has 3573458 rows, we would g
 Response Format
 ---------------
 
-PostgREST uses proper HTTP content negotiation (`RFC7231 <https://tools.ietf.org/html/rfc7231#section-5.3>`_) to deliver the desired representation of a resource. That is to say the same API endpoint can respond in different formats like JSON or CSV depending on the client request.
+PostgREST uses proper HTTP content negotiation (`RFC7231 <https://datatracker.ietf.org/doc/html/rfc7231#section-5.3>`_) to deliver the desired representation of a resource. That is to say the same API endpoint can respond in different formats like JSON or CSV depending on the client request.
 
 Use the Accept request header to specify the acceptable format (or formats) for the response:
 

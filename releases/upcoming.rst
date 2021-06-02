@@ -25,5 +25,5 @@ Changed
 -------
 
 * Docker images are now optimized to be built from the scratch image. This reduces the compressed image size from over 30 MB to about 4 MB.
-  For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/docker#user-content-docker-image-built-with-nix>`_.
+  For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
   |br| -- `@monacoremo <https://github.com/monacoremo>`_
