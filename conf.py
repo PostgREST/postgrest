@@ -289,3 +289,7 @@ texinfo_documents = [
 
 def setup(app):
     app.add_css_file('css/custom.css')
+
+# taken from https://github.com/sphinx-doc/sphinx/blob/82dad44e5bd3776ecb6fd8ded656bc8151d0e63d/sphinx/util/requests.py#L42
+user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0'
+
