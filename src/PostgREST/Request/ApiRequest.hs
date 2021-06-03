@@ -49,7 +49,7 @@ import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
-                                          Schema)
+                                          Schema, TableName)
 import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
                                           ProcsMap)
@@ -94,6 +94,11 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             | ActionSingleUpsert | ActionInvoke InvokeMethod
             | ActionInfo         | ActionInspect{isHead :: Bool}
             deriving Eq
+-- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
+data Path   = PathIdent Schema TableName
+            | PathProc{pSchema :: Schema, pName :: Text, pIsRootSpec :: Bool}
+            | PathDefaultSpec Schema
+            | PathUnknown
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
@@ -176,7 +181,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
-     acceptContentType <- findAcceptContentType conf action isTarProcRootSpec accepts
+     acceptContentType <- findAcceptContentType conf action path accepts
      checkedTarget <- target
      return ApiRequest {
       iAction = action
@@ -237,11 +242,12 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  (isTargetingProc, isTarProcRootSpec, isTargetingDefaultSpec) = case path of
-    [] | isJust configDbRootSpec -> (True, True, False)
-       | otherwise               -> (False, False, True)
-    ["rpc", _]                   -> (True, False, False)
-    _                            -> (False, False, False)
+  isTargetingProc = case path of
+    PathProc{} -> True
+    _          -> False
+  isTargetingDefaultSpec = case path of
+    PathDefaultSpec _ -> True
+    _                 -> False
   contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
@@ -310,17 +316,17 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   schema = fromMaybe defaultSchema profile
   target =
     let
-      callFindTargetProc procSch procNam = findTargetProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) isTarProcRootSpec $ dbProcs dbStructure
+      callFindProc procSch procNam = findProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
-      []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName) -> callFindTargetProc (if pSch == mempty then schema else pSch) pName
-                          Nothing                               -> Right $ TargetDefaultSpec schema
-      [table]        -> Right $ TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> callFindTargetProc schema pName
-      _              -> Right TargetUnknown
+      PathIdent pathSch pathTable           -> Right $ TargetIdent $ QualifiedIdentifier pathSch pathTable
+      PathDefaultSpec pathSch               -> Right $ TargetDefaultSpec pathSch
+      PathProc{pSchema, pName, pIsRootSpec} -> (`TargetProc` pIsRootSpec) <$> callFindProc pSchema pName
+      PathUnknown                           -> Right TargetUnknown
 
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
+  shouldParsePayload = case (contentType, action) of
+    (CTUrlEncoded, ActionInvoke InvPost) -> False
+    (_, act)                             -> act `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
   relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
@@ -329,7 +335,14 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (toS *** toS) <$> parseSimpleQuery (toS reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
-  path            = pathInfo req
+  path =
+    case pathInfo req of
+      []             -> case configDbRootSpec of
+                          Just (QualifiedIdentifier pSch pName) -> PathProc (if pSch == mempty then schema else pSch) pName True
+                          Nothing                               -> PathDefaultSpec schema
+      [table]        -> PathIdent schema table
+      ["rpc", pName] -> PathProc schema pName False
+      _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
   qParams         = [(toS k, v)|(k,v) <- qString]
@@ -430,16 +443,16 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptContentType :: AppConfig -> Action -> Bool -> [ContentType] -> Either ApiRequestError ContentType
-findAcceptContentType conf action isTarProcRootSpec accepts =
-  case mutuallyAgreeable (requestContentTypes conf action isTarProcRootSpec) accepts of
+findAcceptContentType :: AppConfig -> Action -> Path -> [ContentType] -> Either ApiRequestError ContentType
+findAcceptContentType conf action path accepts =
+  case mutuallyAgreeable (requestContentTypes conf action path) accepts of
     Just ct ->
       Right ct
     Nothing ->
       Left . ContentTypeError $ map ContentType.toMime accepts
 
-requestContentTypes :: AppConfig -> Action -> Bool -> [ContentType]
-requestContentTypes conf action isTarProcRootSpec =
+requestContentTypes :: AppConfig -> Action -> Path -> [ContentType]
+requestContentTypes conf action path =
   case action of
     ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
     ActionInvoke _  -> invokeContentTypes
@@ -450,7 +463,7 @@ requestContentTypes conf action isTarProcRootSpec =
     invokeContentTypes =
       defaultContentTypes
         ++ rawContentTypes conf
-        ++ [CTOpenAPI | isTarProcRootSpec]
+        ++ [CTOpenAPI | pIsRootSpec path]
     defaultContentTypes =
       [CTApplicationJSON, CTSingularJSON, CTTextCSV]
 
@@ -462,11 +475,11 @@ rawContentTypes AppConfig{..} =
   Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
   An overloaded function can have a different volatility or even a different return type.
 -}
-findTargetProc :: QualifiedIdentifier -> S.Set Text -> Bool -> Bool -> ProcsMap -> Either ApiRequestError Target
-findTargetProc qi payloadKeys paramsAsSingleObject isRootSpec allProcs =
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Either ApiRequestError ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs =
   case bestMatch of
     []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList payloadKeys) paramsAsSingleObject
-    [proc] -> Right $ TargetProc proc isRootSpec
+    [proc] -> Right proc
     procs  -> Left $ AmbiguousRpc (toList procs)
   where
     bestMatch =
