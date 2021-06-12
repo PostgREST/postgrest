@@ -15,10 +15,9 @@ import qualified Hasql.Statement            as H
 import qualified Hasql.Transaction          as HT
 import qualified Hasql.Transaction.Sessions as HT
 
-import Data.Text.IO                  (hPutStrLn)
 import Text.InterpolatedString.Perl6 (q)
 
-import Protolude hiding (hPutStrLn)
+import Protolude
 
 queryPgVersion :: H.Session PgVersion
 queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
@@ -26,18 +25,10 @@ queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow Fal
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-queryDbSettings :: P.Pool -> IO [(Text, Text)]
-queryDbSettings pool = do
-  result <-
-    P.use pool . HT.transaction HT.ReadCommitted HT.Read $
-      HT.statement mempty dbSettingsStatement
-  case result of
-    Left  e -> do
-      hPutStrLn stderr $
-        "An error ocurred when trying to query database settings for the config parameters:\n"
-        <> show e
-      pure []
-    Right x -> pure x
+queryDbSettings :: P.Pool -> IO (Either P.UsageError [(Text, Text)])
+queryDbSettings pool =
+  P.use pool . HT.transaction HT.ReadCommitted HT.Read $
+    HT.statement mempty dbSettingsStatement
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
 dbSettingsStatement :: H.Statement () [(Text, Text)]
