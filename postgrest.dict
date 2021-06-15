@@ -17,6 +17,7 @@ centric
 changelog
 ClojureScript
 config
+CORS
 cryptographically
 CSV
 Daemonizing
@@ -146,6 +147,7 @@ UI
 ui
 unicode
 unix
+updatable
 UPSERT
 uri
 url

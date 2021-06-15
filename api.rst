@@ -1452,6 +1452,57 @@ You can use a tool like `Swagger UI <https://swagger.io/tools/swagger-ui/>`_ to 
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
 
+.. _options_requests:
+
+OPTIONS
+=======
+
+You can verify which HTTP methods are allowed on endpoints for tables and views by using an OPTIONS request. These methods are allowed depending on what operations *can* be done on the table or view, not on the database permissions assigned to them.
+
+For example, the OPTIONS request and response for a table named ``people`` are:
+
+.. code-block:: http
+
+  OPTIONS /people HTTP/1.1
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Allow: OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE
+
+For a view, the methods are determined by the presence of INSTEAD OF TRIGGERS:
+
+.. table::
+   :widths: auto
+
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | Method allowed     | View's requirements                                                                             |
+   +====================+=================================================================================================+
+   | OPTIONS, GET, HEAD | None (Always allowed)                                                                           |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | POST               | INSTEAD OF INSERT TRIGGER                                                                       |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | PUT                | INSTEAD OF INSERT TRIGGER, INSTEAD OF UPDATE TRIGGER, also requires the presence of a           |
+   |                    | primary key                                                                                     |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | PATCH              | INSTEAD OF UPDATE TRIGGER                                                                       |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | DELETE             | INSTEAD OF DELETE TRIGGER                                                                       |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+   | All the above methods are allowed for                                                                                |
+   | `auto-updatable views <https://www.postgresql.org/docs/current/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ |
+   +--------------------+-------------------------------------------------------------------------------------------------+
+
+For database function endpoints, OPTIONS requests are not supported.
+
+.. important::
+  Whenever you add or remove tables or views, or modify a view's INSTEAD OF TRIGGERS on the database, you must refresh PostgREST's schema cache for OPTIONS requests to work properly. See the section :ref:`schema_reloading`.
+
+CORS
+----
+
+PostgREST sets highly permissive cross origin resource sharing, that is why it accepts Ajax requests from any domain.
+
 .. _multiple-schemas:
 
 Switching Schemas
