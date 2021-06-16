@@ -49,7 +49,7 @@ import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
-                                          Schema, TableName)
+                                          Schema)
 import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
                                           ProcsMap)
@@ -95,10 +95,15 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             | ActionInfo         | ActionInspect{isHead :: Bool}
             deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
-data Path   = PathIdent Schema TableName
-            | PathProc{pSchema :: Schema, pName :: Text, pIsRootSpec :: Bool}
-            | PathDefaultSpec Schema
-            | PathUnknown
+data Path
+  = PathInfo
+      { pSchema :: Schema,
+        pName :: Text,
+        pHasRpc :: Bool,
+        pIsDefaultSpec :: Bool,
+        pIsRootSpec :: Bool
+      }
+  | PathUnknown
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
@@ -243,11 +248,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
   isTargetingProc = case path of
-    PathProc{} -> True
-    _          -> False
+    PathInfo{pHasRpc, pIsRootSpec} -> pHasRpc || pIsRootSpec
+    _                              -> False
   isTargetingDefaultSpec = case path of
-    PathDefaultSpec _ -> True
-    _                 -> False
+    PathInfo{pIsDefaultSpec=True} -> True
+    _                             -> False
   contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
@@ -319,10 +324,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       callFindProc procSch procNam = findProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
-      PathIdent pathSch pathTable           -> Right $ TargetIdent $ QualifiedIdentifier pathSch pathTable
-      PathDefaultSpec pathSch               -> Right $ TargetDefaultSpec pathSch
-      PathProc{pSchema, pName, pIsRootSpec} -> (`TargetProc` pIsRootSpec) <$> callFindProc pSchema pName
-      PathUnknown                           -> Right TargetUnknown
+      PathInfo{pSchema, pName, pHasRpc, pIsRootSpec, pIsDefaultSpec}
+        | pHasRpc || pIsRootSpec -> (`TargetProc` pIsRootSpec) <$> callFindProc pSchema pName
+        | pIsDefaultSpec         -> Right $ TargetDefaultSpec pSchema
+        | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
+      PathUnknown -> Right TargetUnknown
 
   shouldParsePayload = case (contentType, action) of
     (CTUrlEncoded, ActionInvoke InvPost) -> False
@@ -338,10 +344,10 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   path =
     case pathInfo req of
       []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName) -> PathProc (if pSch == mempty then schema else pSch) pName True
-                          Nothing                               -> PathDefaultSpec schema
-      [table]        -> PathIdent schema table
-      ["rpc", pName] -> PathProc schema pName False
+                          Just (QualifiedIdentifier pSch pName) -> PathInfo (if pSch == mempty then schema else pSch) pName False False True
+                          Nothing                               -> PathInfo schema "" False True False
+      [table]        -> PathInfo schema table False False False
+      ["rpc", pName] -> PathInfo schema pName True False False
       _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
