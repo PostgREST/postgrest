@@ -19,6 +19,8 @@ Added
 * Documentation improvements
 
   + Added the :ref:`OPTIONS requests <options_requests>` section.
+  + Added the :ref:`schema_cache` section.
+  + Moved the :ref:`schema_reloading` reference from :ref:`admin` to :ref:`schema_cache`
 
 Fixed
 -----
