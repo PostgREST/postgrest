@@ -103,7 +103,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [pgaName a <> " => " <> pgaType a | a <- pdArgs p] <> ")" | p <- procs])]
   toJSON (NoRpc schema procName payloadKeys hasPreferSingleObject)  = JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
-    "message" .= ("Couldn't find the " <> schema <> "." <> procName <> if hasPreferSingleObject then " function with a single json or jsonb argument" else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function")]
+    "message" .= ("Could not find the " <> schema <> "." <> procName <> (if hasPreferSingleObject then " function with a single json or jsonb argument" else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function") <> " in the schema cache")]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [

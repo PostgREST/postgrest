@@ -108,7 +108,7 @@ spec actualPgVersion =
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
           "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-          "message":"Couldn't find the test.add_them(a, b, smthelse) function" } |]
+          "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -120,7 +120,7 @@ spec actualPgVersion =
         `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-            "message":"Couldn't find the test.sayhello function with a single json or jsonb argument" } |]
+            "message":"Could not find the test.sayhello function with a single json or jsonb argument in the schema cache" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -129,14 +129,14 @@ spec actualPgVersion =
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-            "message":"Couldn't find the test.overloaded(wrong_arg) function" } |]
+            "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache" } |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-            "message":"Couldn't find the test.overloaded(a, b, wrong_arg) function" } |]
+            "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache" } |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
