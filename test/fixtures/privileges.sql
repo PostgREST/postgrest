@@ -37,6 +37,7 @@ GRANT ALL ON TABLE
     , projects
     , projects_view
     , projects_view_alt
+    , test_null_pk_competitors_sponsors
     , simple_pk
     , simple_pk2
     , tasks
