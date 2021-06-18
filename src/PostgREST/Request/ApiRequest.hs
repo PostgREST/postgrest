@@ -97,11 +97,11 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
 data Path
   = PathInfo
-      { pSchema :: Schema,
-        pName :: Text,
-        pHasRpc :: Bool,
+      { pSchema        :: Schema,
+        pName          :: Text,
+        pHasRpc        :: Bool,
         pIsDefaultSpec :: Bool,
-        pIsRootSpec :: Bool
+        pIsRootSpec    :: Bool
       }
   | PathUnknown
 -- | The target db object of a user action
