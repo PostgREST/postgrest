@@ -117,13 +117,13 @@ run installHandlers maybeRunWithSocket appState = do
       -- run the postgrest application with user defined socket. Only for UNIX systems
       case maybeRunWithSocket of
         Just runWithSocket -> do
-          AppState.logWithZTime appState stdout $ "Listening on unix socket " <> show socket
+          AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
           runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
         Nothing ->
           panic "Cannot run with socket on non-unix plattforms."
     Nothing ->
       do
-        AppState.logWithZTime appState stdout $ "Listening on port " <> show configServerPort
+        AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
         Warp.runSettings (serverSettings conf) app
 
 serverSettings :: AppConfig -> Warp.Settings

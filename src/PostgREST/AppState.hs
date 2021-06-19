@@ -124,11 +124,11 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
--- | Log with local time
-logWithZTime :: AppState -> Handle -> Text -> IO ()
-logWithZTime appState hdl txt = do
+-- | Log to stderr with local time
+logWithZTime :: AppState -> Text -> IO ()
+logWithZTime appState txt = do
   zTime <- stateGetZTime appState
-  hPutStrLn hdl $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
+  hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
