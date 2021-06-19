@@ -684,6 +684,10 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
     with run(env=env) as postgrest:
         postgrest.session.post("/rpc/invalid_role_claim_key_reload")
 
+        # skips the first lines from stderr, the "Attempting to connect to database", "Connection successful", etc.
+        # this is a hack to avoid readline() from locking up the test
+        for _ in range(6):
+            postgrest.process.stderr.readline()
         assert "failed to parse role-claim-key value" in str(
             postgrest.process.stderr.readline()
         )

@@ -23,7 +23,6 @@ import Protolude
 runAppWithSocket :: Warp.Settings -> Application -> FileMode -> FilePath -> IO ()
 runAppWithSocket settings app socketFileMode socketFilePath =
   bracket createAndBindSocket Socket.close $ \socket -> do
-    putStrLn $ ("Listening on unix socket " :: Text) <> show socketFilePath
     Socket.listen socket Socket.maxListenQueue
     Warp.runSettingsSocket settings socket app
   where

@@ -12,6 +12,7 @@ module PostgREST.AppState
   , getTime
   , init
   , initWithPool
+  , logWithZTime
   , putConfig
   , putDbStructure
   , putIsWorkerOn
@@ -28,6 +29,8 @@ import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
+import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
+                           getZonedTime)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config           (AppConfig (..))
@@ -51,7 +54,11 @@ data AppState = AppState
   , stateListener     :: MVar ()
   -- | Config that can change at runtime
   , stateConf         :: IORef AppConfig
+  -- | Time used for verifying JWT expiration
   , stateGetTime      :: IO UTCTime
+  -- | Time with time zone used for worker logs
+  , stateGetZTime     :: IO ZonedTime
+  -- | Used for killing the main thread in case a subthread fails
   , stateMainThreadId :: ThreadId
   }
 
@@ -63,14 +70,14 @@ init conf = do
 initWithPool :: P.Pool -> AppConfig -> IO AppState
 initWithPool newPool conf =
   AppState newPool
-    -- assume we're in a supported version when starting, this will be corrected on a later step
-    <$> newIORef minimumPgVersion
+    <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef mempty
     <*> newIORef False
     <*> newEmptyMVar
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+    <*> mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
     <*> myThreadId
 
 initPool :: AppConfig -> IO P.Pool
@@ -116,6 +123,12 @@ putConfig = atomicWriteIORef . stateConf
 
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
+
+-- | Log to stderr with local time
+logWithZTime :: AppState -> Text -> IO ()
+logWithZTime appState txt = do
+  zTime <- stateGetZTime appState
+  hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
