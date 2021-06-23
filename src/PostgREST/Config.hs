@@ -193,7 +193,7 @@ parser optPath env dbSettings =
     <$> parseAppSettings "app.settings"
     <*> reqString "db-anon-role"
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
-    <*> (fromMaybe False <$> optBool "db-channel-enabled")
+    <*> (fromMaybe True <$> optBool "db-channel-enabled")
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")

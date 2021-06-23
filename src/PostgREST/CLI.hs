@@ -160,7 +160,7 @@ exampleConfigFile =
       |db-channel = "pgrst"
       |
       |## Enable or disable the notification channel
-      |db-channel-enabled = false
+      |db-channel-enabled = true
       |
       |## Enable in-database configuration
       |db-config = true
