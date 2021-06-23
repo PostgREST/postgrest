@@ -3,7 +3,7 @@ freebsd_instance:
 
 build_task:
   env:
-    TOKEN: ENCRYPTED[c99babbf04e8a33962ffbbc75bf20d3abe408f9bede5ed5d8956cd24da6fdb34266c920984cc43f8106ef3423fba0e98]
+    GITHUB_TOKEN: ENCRYPTED[!1ecc3020fe8c6463c06ebc22153533239e132ee56e4faad95ce336bd2ee2bde6aa89c0352e89faaa2c10f4a5bac9b7fc!]
   # caches the freebsd package downloads
   # saves probably just a couple of seconds, but hey...
   pkg_cache:
@@ -65,7 +65,7 @@ build_task:
 
         ## We don't use ghr here because it doesn't provide freebsd binaries: https://github.com/tcnksm/ghr/issues/127
         curl -X POST --data-binary @$bin_name \
-          -H "Authorization:token $TOKEN" \
+          -H "Authorization:token $GITHUB_TOKEN" \
           -H "Content-Type:application/octet-stream" \
           "https://uploads.github.com/repos/$CIRRUS_REPO_FULL_NAME/releases/$release_id/assets?name=$bin_name"
       fi
