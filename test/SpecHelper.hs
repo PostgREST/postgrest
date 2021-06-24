@@ -24,7 +24,9 @@ import Text.Heredoc
 
 import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
-                                          LogLevel (..), parseSecret)
+                                          LogLevel (..),
+                                          OpenAPIMode (..),
+                                          parseSecret)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (toS)
 import Protolude.Conv                    (toS)
@@ -94,6 +96,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret             = secret
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
+  , configOpenApiMode           = OAIFollowACL
   , configOpenApiServerProxyUri = Nothing
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"
