@@ -192,6 +192,10 @@ exampleConfigFile =
       |## when none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |
+      |## determine if swagger output should follow or ignore ACL constraints or be disabled entirely
+      |## admitted values: follow-acl, ignore-acl, disabled
+      |openapi-mode = "follow-acl"
+      |
       |## base url for swagger output
       |openapi-server-proxy-uri = ""
       |

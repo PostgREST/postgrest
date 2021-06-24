@@ -106,6 +106,11 @@ instance Show LogLevel where
 data OpenAPIMode = OAFollowACL | OAIgnoreACL | OADisabled
   deriving Eq
 
+instance Show OpenAPIMode where
+  show OAFollowACL = "follow-acl"
+  show OAIgnoreACL = "ignore-acl"
+  show OADisabled  = "disabled"
+
 -- | Dump the config
 toText :: AppConfig -> Text
 toText conf =
@@ -132,7 +137,7 @@ toText conf =
       ,("jwt-secret",                q . toS . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . show . configLogLevel)
-      ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
+      ,("openapi-mode",              q . show . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
       ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
