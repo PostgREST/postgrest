@@ -96,7 +96,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret             = secret
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
-  , configOpenApiMode           = OAIFollowACL
+  , configOpenApiMode           = OAFollowACL
   , configOpenApiServerProxyUri = Nothing
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"

@@ -314,9 +314,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     in
     case path of
       []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName)      -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
-                          Nothing | configOpenApiMode == OAIDisabled -> TargetUnknown
-                                  | otherwise                        -> TargetDefaultSpec schema
+                          Just (QualifiedIdentifier pSch pName)     -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
+                          Nothing | configOpenApiMode == OADisabled -> TargetUnknown
+                                  | otherwise                       -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
       ["rpc", pName] -> TargetProc (callFindProc schema pName) False
       _              -> TargetUnknown
