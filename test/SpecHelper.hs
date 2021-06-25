@@ -76,7 +76,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
     configAppSettings           = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
   , configDbAnonRole            = "postgrest_test_anonymous"
   , configDbChannel             = mempty
-  , configDbChannelEnabled      = False
+  , configDbChannelEnabled      = True
   , configDbExtraSearchPath     = []
   , configDbMaxRows             = Nothing
   , configDbPoolSize            = 10
