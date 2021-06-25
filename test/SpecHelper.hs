@@ -125,6 +125,12 @@ testUnicodeCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["
 testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
 
+testDisabledOpenApiCfg :: Text -> AppConfig
+testDisabledOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OADisabled }
+
+testIgnoreAclOpenApiCfg :: Text -> AppConfig
+testIgnoreAclOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OAIgnoreACL }
+
 testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
 
