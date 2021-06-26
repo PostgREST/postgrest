@@ -53,7 +53,8 @@ import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
 import PostgREST.AppState                (AppState)
 import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..))
+                                          LogLevel (..),
+                                          OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
@@ -463,11 +464,19 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
   body <-
-    lift $
-      OpenAPI.encode conf dbStructure
-        <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
-        <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
-        <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+    lift $ case configOpenApiMode of
+      OAFollowACL ->
+        OpenAPI.encode conf dbStructure
+           <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+      OAIgnoreACL ->
+        OpenAPI.encode conf dbStructure
+              (DbStructure.dbTables dbStructure)
+              (DbStructure.dbProcs dbStructure)
+          <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+      OADisabled ->
+        pure mempty
 
   return $
     Wai.responseLBS HTTP.status200

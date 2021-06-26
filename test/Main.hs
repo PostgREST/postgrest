@@ -28,9 +28,11 @@ import qualified Feature.BinaryJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
+import qualified Feature.DisabledOpenApiSpec
 import qualified Feature.EmbedDisambiguationSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
+import qualified Feature.IgnoreAclOpenApiSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.MultipleSchemaSpec
@@ -92,6 +94,8 @@ main = do
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
+      disabledOpenApi      = app testDisabledOpenApiCfg
+      ignoreAclOpenApi     = app testIgnoreAclOpenApiCfg
       proxyApp             = app testProxyCfg
       noJwtApp             = app testCfgNoJWT
       binaryJwtApp         = app testCfgBinaryJWT
@@ -151,6 +155,14 @@ main = do
     -- this test runs with a different schema
     parallel $ before unicodeApp $
       describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
+
+    -- this test runs with openapi-mode set to disabled
+    parallel $ before disabledOpenApi $
+      describe "Feature.DisabledOpenApiSpec" Feature.DisabledOpenApiSpec.spec
+
+    -- this test runs with openapi-mode set to ignore-acl
+    parallel $ before ignoreAclOpenApi $
+      describe "Feature.IgnoreAclOpenApiSpec" Feature.IgnoreAclOpenApiSpec.spec
 
     -- this test runs with a proxy
     parallel $ before proxyApp $

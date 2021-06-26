@@ -44,7 +44,8 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
-import PostgREST.Config                  (AppConfig (..))
+import PostgREST.Config                  (AppConfig (..),
+                                          OpenAPIMode (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -313,8 +314,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     in
     case path of
       []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName) -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
-                          Nothing                               -> TargetDefaultSpec schema
+                          Just (QualifiedIdentifier pSch pName)     -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
+                          Nothing | configOpenApiMode == OADisabled -> TargetUnknown
+                                  | otherwise                       -> TargetDefaultSpec schema
       [table]        -> TargetIdent $ QualifiedIdentifier schema table
       ["rpc", pName] -> TargetProc (callFindProc schema pName) False
       _              -> TargetUnknown

@@ -40,8 +40,8 @@ import PostgREST.ContentType
 import Protolude      hiding (Proxy, get, toS)
 import Protolude.Conv (toS)
 
-encode :: AppConfig -> DbStructure -> [Table] -> Maybe Text -> HashMap.HashMap k [ProcDescription] -> LBS.ByteString
-encode conf dbStructure tables schemaDescription procs =
+encode :: AppConfig -> DbStructure -> [Table] -> HashMap.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode conf dbStructure tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
       (dbRelationships dbStructure)

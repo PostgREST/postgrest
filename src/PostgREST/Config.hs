@@ -16,6 +16,7 @@ module PostgREST.Config
   , JSPath
   , JSPathExp(..)
   , LogLevel(..)
+  , OpenAPIMode(..)
   , Proxy(..)
   , toText
   , isMalformedProxyUri
@@ -85,6 +86,7 @@ data AppConfig = AppConfig
   , configJwtSecret             :: Maybe B.ByteString
   , configJwtSecretIsBase64     :: Bool
   , configLogLevel              :: LogLevel
+  , configOpenApiMode           :: OpenAPIMode
   , configOpenApiServerProxyUri :: Maybe Text
   , configRawMediaTypes         :: [B.ByteString]
   , configServerHost            :: Text
@@ -100,6 +102,14 @@ instance Show LogLevel where
   show LogError = "error"
   show LogWarn  = "warn"
   show LogInfo  = "info"
+
+data OpenAPIMode = OAFollowACL | OAIgnoreACL | OADisabled
+  deriving Eq
+
+instance Show OpenAPIMode where
+  show OAFollowACL = "follow-acl"
+  show OAIgnoreACL = "ignore-acl"
+  show OADisabled  = "disabled"
 
 -- | Dump the config
 toText :: AppConfig -> Text
@@ -127,6 +137,7 @@ toText conf =
       ,("jwt-secret",                q . toS . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . show . configLogLevel)
+      ,("openapi-mode",              q . show . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
       ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
@@ -220,6 +231,7 @@ parser optPath env dbSettings =
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
     <*> parseLogLevel "log-level"
+    <*> parseOpenAPIMode "openapi-mode"
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
@@ -246,6 +258,15 @@ parser optPath env dbSettings =
               if fileMode < 384 || fileMode > 511
                 then fail "Invalid server-unix-socket-mode: needs to be between 600 and 777"
                 else pure fileMode
+
+    parseOpenAPIMode :: C.Key -> C.Parser C.Config OpenAPIMode
+    parseOpenAPIMode k =
+      optString k >>= \case
+        Nothing           -> pure OAFollowACL
+        Just "follow-acl" -> pure OAFollowACL
+        Just "ignore-acl" -> pure OAIgnoreACL
+        Just "disabled"   -> pure OADisabled
+        Just _            -> fail "Invalid openapi-mode. Check your configuration."
 
     parseOpenAPIServerProxyURI :: C.Key -> C.Parser C.Config (Maybe Text)
     parseOpenAPIServerProxyURI k =
