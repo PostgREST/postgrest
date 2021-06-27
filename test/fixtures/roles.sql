@@ -59,3 +59,4 @@ ALTER ROLE other_authenticator SET pgrst.db_prepared_statements = 'false';
 ALTER ROLE other_authenticator SET pgrst.db_pre_request = 'test.other_custom_headers';
 ALTER ROLE other_authenticator SET pgrst.db_max_rows = '100';
 ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensions, other';
+ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';

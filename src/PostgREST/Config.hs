@@ -103,13 +103,13 @@ instance Show LogLevel where
   show LogWarn  = "warn"
   show LogInfo  = "info"
 
-data OpenAPIMode = OAFollowACL | OAIgnoreACL | OADisabled
+data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
 
 instance Show OpenAPIMode where
-  show OAFollowACL = "follow-acl"
-  show OAIgnoreACL = "ignore-acl"
-  show OADisabled  = "disabled"
+  show OAFollowPriv = "follow-privileges"
+  show OAIgnorePriv = "ignore-privileges"
+  show OADisabled   = "disabled"
 
 -- | Dump the config
 toText :: AppConfig -> Text
@@ -262,11 +262,11 @@ parser optPath env dbSettings =
     parseOpenAPIMode :: C.Key -> C.Parser C.Config OpenAPIMode
     parseOpenAPIMode k =
       optString k >>= \case
-        Nothing           -> pure OAFollowACL
-        Just "follow-acl" -> pure OAFollowACL
-        Just "ignore-acl" -> pure OAIgnoreACL
-        Just "disabled"   -> pure OADisabled
-        Just _            -> fail "Invalid openapi-mode. Check your configuration."
+        Nothing                  -> pure OAFollowPriv
+        Just "follow-privileges" -> pure OAFollowPriv
+        Just "ignore-privileges" -> pure OAIgnorePriv
+        Just "disabled"          -> pure OADisabled
+        Just _                   -> fail "Invalid openapi-mode. Check your configuration."
 
     parseOpenAPIServerProxyURI :: C.Key -> C.Parser C.Config (Maybe Text)
     parseOpenAPIServerProxyURI k =

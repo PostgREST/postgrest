@@ -28,6 +28,7 @@ import System.Posix.Types       (FileMode)
 
 import qualified Data.ByteString.Char8           as BS8
 import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.HashMap.Strict             as Map
 import qualified Data.Set                        as Set
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Pool                      as SQL
@@ -465,15 +466,15 @@ handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
   body <-
     lift $ case configOpenApiMode of
-      OAFollowACL ->
+      OAFollowPriv ->
         OpenAPI.encode conf dbStructure
            <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
-      OAIgnoreACL ->
+      OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
-              (DbStructure.dbTables dbStructure)
-              (DbStructure.dbProcs dbStructure)
+              (filter (\x -> tableSchema x == tSchema) $ DbStructure.dbTables dbStructure)
+              (Map.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
           <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OADisabled ->
         pure mempty

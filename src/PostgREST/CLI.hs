@@ -192,11 +192,11 @@ exampleConfigFile =
       |## when none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |
-      |## determine if swagger output should follow or ignore ACL constraints or be disabled entirely
-      |## admitted values: follow-acl, ignore-acl, disabled
-      |openapi-mode = "follow-acl"
+      |## determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely
+      |## admitted values: follow-privileges, ignore-privileges, disabled
+      |openapi-mode = "follow-privileges"
       |
-      |## base url for swagger output
+      |## base url for the OpenAPI output
       |openapi-server-proxy-uri = ""
       |
       |## choose a secret, JSON Web Key (or set) to enable JWT auth

@@ -96,7 +96,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret             = secret
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
-  , configOpenApiMode           = OAFollowACL
+  , configOpenApiMode           = OAFollowPriv
   , configOpenApiServerProxyUri = Nothing
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"
@@ -128,8 +128,8 @@ testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
 testDisabledOpenApiCfg :: Text -> AppConfig
 testDisabledOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OADisabled }
 
-testIgnoreAclOpenApiCfg :: Text -> AppConfig
-testIgnoreAclOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OAIgnoreACL }
+testIgnorePrivOpenApiCfg :: Text -> AppConfig
+testIgnorePrivOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OAIgnorePriv, configDbSchemas = fromList ["test", "v1"] }
 
 testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }

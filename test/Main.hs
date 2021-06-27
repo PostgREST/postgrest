@@ -32,7 +32,7 @@ import qualified Feature.DisabledOpenApiSpec
 import qualified Feature.EmbedDisambiguationSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
-import qualified Feature.IgnoreAclOpenApiSpec
+import qualified Feature.IgnorePrivOpenApiSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.MultipleSchemaSpec
@@ -95,7 +95,6 @@ main = do
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
-      ignoreAclOpenApi     = app testIgnoreAclOpenApiCfg
       proxyApp             = app testProxyCfg
       noJwtApp             = app testCfgNoJWT
       binaryJwtApp         = app testCfgBinaryJWT
@@ -112,6 +111,7 @@ main = do
       unicodeApp           = appDbs testUnicodeCfg
       nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
+      ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
 
   let analyze :: IO ()
       analyze = do
@@ -161,8 +161,8 @@ main = do
       describe "Feature.DisabledOpenApiSpec" Feature.DisabledOpenApiSpec.spec
 
     -- this test runs with openapi-mode set to ignore-acl
-    parallel $ before ignoreAclOpenApi $
-      describe "Feature.IgnoreAclOpenApiSpec" Feature.IgnoreAclOpenApiSpec.spec
+    parallel $ before ignorePrivOpenApi $
+      describe "Feature.IgnorePrivOpenApiSpec" Feature.IgnorePrivOpenApiSpec.spec
 
     -- this test runs with a proxy
     parallel $ before proxyApp $
