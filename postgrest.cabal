@@ -179,7 +179,7 @@ test-suite spec
                       Feature.ExtraSearchPathSpec
                       Feature.HtmlRawOutputSpec
                       Feature.InsertSpec
-                      Feature.IgnoreAclOpenApiSpec
+                      Feature.IgnorePrivOpenApiSpec
                       Feature.JsonOperatorSpec
                       Feature.MultipleSchemaSpec
                       Feature.NoJwtSpec

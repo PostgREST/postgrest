@@ -16,7 +16,7 @@ import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWith ((), Application)
-spec = describe "OpenAPI Ignore ACL" $ do
+spec = describe "OpenAPI Ignore Privileges" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
     request methodHead "/" (acceptHdrs "application/openapi+json") ""

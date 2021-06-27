@@ -174,3 +174,8 @@ invalidroleclaimkeys:
   - '.my_role;;domain'
   - '.#$$%&$%/'
   - '1234'
+
+invalidopenapimodes:
+  - 'follow-'
+  - 'ignore-'
+  - '.#$$%&$%/'
