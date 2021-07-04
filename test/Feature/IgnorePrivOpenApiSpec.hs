@@ -43,6 +43,17 @@ spec = describe "OpenAPI Ignore Privileges" $ do
 
       liftIO $ tableKey2 `shouldNotBe` Nothing
 
+    it "includes comments on tables" $ do
+      r <- simpleBody <$> get "/"
+
+      let grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
+          grandChildGetSummary = r ^? grandChildGet "summary"
+          grandChildGetDescription = r ^? grandChildGet "description"
+
+      liftIO $ do
+        grandChildGetSummary `shouldBe` Just "grandchild_entities summary"
+        grandChildGetDescription `shouldBe` Just "grandchild_entities description\nthat spans\nmultiple lines"
+
   describe "RPC" $ do
 
     it "includes privileged function even if user does not have permission" $ do
