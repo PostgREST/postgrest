@@ -151,7 +151,8 @@ loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
-    P.use (AppState.getPool appState) . HT.transaction HT.ReadCommitted HT.Read $
+    let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
+    P.use (AppState.getPool appState) . transaction HT.ReadCommitted HT.Read $
       queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
@@ -229,7 +230,7 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- queryDbSettings $ AppState.getPool appState
+      qDbSettings <- queryDbSettings (AppState.getPool appState) configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           AppState.logWithZTime appState $
