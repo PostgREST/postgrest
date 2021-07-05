@@ -24,7 +24,9 @@ import Text.Heredoc
 
 import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
-                                          LogLevel (..), parseSecret)
+                                          LogLevel (..),
+                                          OpenAPIMode (..),
+                                          parseSecret)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (toS)
 import Protolude.Conv                    (toS)
@@ -76,7 +78,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
     configAppSettings           = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
   , configDbAnonRole            = "postgrest_test_anonymous"
   , configDbChannel             = mempty
-  , configDbChannelEnabled      = False
+  , configDbChannelEnabled      = True
   , configDbExtraSearchPath     = []
   , configDbMaxRows             = Nothing
   , configDbPoolSize            = 10
@@ -94,6 +96,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret             = secret
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
+  , configOpenApiMode           = OAFollowPriv
   , configOpenApiServerProxyUri = Nothing
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"
@@ -121,6 +124,12 @@ testUnicodeCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["
 
 testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
+
+testDisabledOpenApiCfg :: Text -> AppConfig
+testDisabledOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OADisabled }
+
+testIgnorePrivOpenApiCfg :: Text -> AppConfig
+testIgnorePrivOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OAIgnorePriv, configDbSchemas = fromList ["test", "v1"] }
 
 testProxyCfg :: Text -> AppConfig
 testProxyCfg testDbConn = (testCfg testDbConn) { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }

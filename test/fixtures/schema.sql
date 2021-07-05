@@ -670,6 +670,28 @@ CREATE VIEW projects_view_alt AS
     projects.client_id as t_client_id
    FROM projects;
 
+CREATE TABLE sponsors (
+    id integer primary key,
+    name varchar(20) not null
+);
+
+CREATE TABLE competitors (
+    id integer primary key,
+    sponsor_id integer references sponsors(id),
+    full_name varchar(40) not null
+);
+
+CREATE VIEW test_null_pk_competitors_sponsors  AS
+SELECT c.id, s.id as sponsor_id
+FROM competitors c
+    LEFT JOIN sponsors s on c.sponsor_id = s.id;
+
+CREATE RULE test_null_pk_competitors_sponsors  AS
+    ON INSERT TO test_null_pk_competitors_sponsors DO INSTEAD
+    INSERT INTO competitors(id, full_name, sponsor_id)
+    VALUES (new.id, 'Competitor without sponsor', new.sponsor_id)
+    RETURNING id, sponsor_id;
+
 --
 -- Name: simple_pk; Type: TABLE; Schema: test; Owner: -
 --

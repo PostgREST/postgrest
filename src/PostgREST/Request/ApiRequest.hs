@@ -44,7 +44,8 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
-import PostgREST.Config                  (AppConfig (..))
+import PostgREST.Config                  (AppConfig (..),
+                                          OpenAPIMode (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -344,8 +345,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   path =
     case pathInfo req of
       []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName) -> PathInfo (if pSch == mempty then schema else pSch) pName False False True
-                          Nothing                               -> PathInfo schema "" False True False
+                          Just (QualifiedIdentifier pSch pName)     -> PathInfo (if pSch == mempty then schema else pSch) pName False False True
+                          Nothing | configOpenApiMode == OADisabled -> PathUnknown
+                                  | otherwise                       -> PathInfo schema "" False True False
       [table]        -> PathInfo schema table False False False
       ["rpc", pName] -> PathInfo schema pName True False False
       _              -> PathUnknown

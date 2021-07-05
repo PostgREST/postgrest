@@ -425,6 +425,21 @@ def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
                 print(line)
 
 
+@pytest.mark.parametrize("invalidopenapimodes", FIXTURES["invalidopenapimodes"])
+def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
+    "Given an invalid openapi-mode, Postgrest should exit with a non-zero exit code."
+    env = {
+        **defaultenv,
+        "PGRST_OPENAPI_MODE": invalidopenapimodes,
+    }
+
+    with pytest.raises(PostgrestError):
+        dump = dumpconfig(CONFIGSDIR / "defaults.config", env=env)
+        for line in dump.split("\n"):
+            if line.startswith("openapi-mode"):
+                print(line)
+
+
 def test_iat_claim(defaultenv):
     """
     A claim with an 'iat' (issued at) attribute should be successful.
@@ -684,6 +699,10 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
     with run(env=env) as postgrest:
         postgrest.session.post("/rpc/invalid_role_claim_key_reload")
 
+        # skips the first lines from stderr, the "Attempting to connect to database", "Connection successful", etc.
+        # this is a hack to avoid readline() from locking up the test
+        for _ in range(6):
+            postgrest.process.stderr.readline()
         assert "failed to parse role-claim-key value" in str(
             postgrest.process.stderr.readline()
         )

@@ -28,6 +28,7 @@ import System.Posix.Types       (FileMode)
 
 import qualified Data.ByteString.Char8           as BS8
 import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.HashMap.Strict             as Map
 import qualified Data.Set                        as Set
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Pool                      as SQL
@@ -53,7 +54,8 @@ import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
 import PostgREST.AppState                (AppState)
 import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..))
+                                          LogLevel (..),
+                                          OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
@@ -116,13 +118,14 @@ run installHandlers maybeRunWithSocket appState = do
     Just socket ->
       -- run the postgrest application with user defined socket. Only for UNIX systems
       case maybeRunWithSocket of
-        Just runWithSocket ->
+        Just runWithSocket -> do
+          AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
           runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
         Nothing ->
           panic "Cannot run with socket on non-unix plattforms."
     Nothing ->
       do
-        putStrLn $ ("Listening on port " :: Text) <> show configServerPort
+        AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
         Warp.runSettings (serverSettings conf) app
 
 serverSettings :: AppConfig -> Warp.Settings
@@ -462,11 +465,19 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
   body <-
-    lift $
-      OpenAPI.encode conf dbStructure
-        <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
-        <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
-        <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+    lift $ case configOpenApiMode of
+      OAFollowPriv ->
+        OpenAPI.encode conf dbStructure
+           <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+      OAIgnorePriv ->
+        OpenAPI.encode conf dbStructure
+              (filter (\x -> tableSchema x == tSchema) $ DbStructure.dbTables dbStructure)
+              (Map.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
+          <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+      OADisabled ->
+        pure mempty
 
   return $
     Wai.responseLBS HTTP.status200

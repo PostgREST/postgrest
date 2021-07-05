@@ -44,5 +44,4 @@ setBuffering = do
   -- output, the buffer overflows, a hFlush is issued or the handle is closed
   hSetBuffering stdout LineBuffering
   hSetBuffering stdin LineBuffering
-  -- NoBuffering: output is written immediately and never stored in the buffer
-  hSetBuffering stderr NoBuffering
+  hSetBuffering stderr LineBuffering

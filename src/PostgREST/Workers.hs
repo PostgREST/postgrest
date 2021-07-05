@@ -16,7 +16,6 @@ import qualified Hasql.Transaction.Sessions as HT
 
 import Control.Retry (RetryStatus, capDelay, exponentialBackoff,
                       retrying, rsPreviousDelay)
-import Data.Text.IO  (hPutStrLn)
 
 import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
@@ -28,7 +27,7 @@ import PostgREST.Error            (PgError (PgError), checkIsFatal,
 
 import qualified PostgREST.AppState as AppState
 
-import Protolude      hiding (hPutStrLn, head, toS)
+import Protolude      hiding (head, toS)
 import Protolude.Conv (toS)
 
 
@@ -67,12 +66,12 @@ connectionWorker appState = do
   where
     work = do
       AppConfig{..} <- AppState.getConfig appState
-      putStrLn ("Attempting to connect to the database..." :: Text)
-      connected <- connectionStatus $ AppState.getPool appState
+      AppState.logWithZTime appState "Attempting to connect to the database..."
+      connected <- connectionStatus appState
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
-          hPutStrLn stderr reason >> killThread (AppState.getMainThreadId appState)
+          AppState.logWithZTime appState reason >> killThread (AppState.getMainThreadId appState)
         NotConnected ->
           -- Unreachable because connectionStatus will keep trying to connect
           return ()
@@ -81,7 +80,7 @@ connectionWorker appState = do
           AppState.putPgVersion appState actualPgVersion
           when configDbChannelEnabled $
             AppState.signalListener appState
-          putStrLn ("Connection successful" :: Text)
+          AppState.logWithZTime appState "Connection successful"
           -- this could be fail because the connection drops, but the
           -- loadSchemaCache will pick the error and retry again
           when configDbConfig $ reReadConfig False appState
@@ -106,11 +105,12 @@ connectionWorker appState = do
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
-connectionStatus :: P.Pool -> IO ConnectionStatus
-connectionStatus pool =
+connectionStatus :: AppState -> IO ConnectionStatus
+connectionStatus appState =
   retrying retrySettings shouldRetry $
     const $ P.release pool >> getConnectionStatus
   where
+    pool = AppState.getPool appState
     retrySettings = capDelay delayMicroseconds $ exponentialBackoff backoffMicroseconds
     delayMicroseconds = 32000000 -- 32 seconds
     backoffMicroseconds = 1000000 -- 1 second
@@ -121,7 +121,7 @@ connectionStatus pool =
       case pgVersion of
         Left e -> do
           let err = PgError False e
-          hPutStrLn stderr . toS $ errorPayload err
+          AppState.logWithZTime appState . toS $ errorPayload err
           case checkIsFatal err of
             Just reason ->
               return $ FatalConnectionError reason
@@ -140,7 +140,7 @@ connectionStatus pool =
       let
         delay = fromMaybe 0 (rsPreviousDelay rs) `div` backoffMicroseconds
         itShould = NotConnected == isConnSucc
-      when itShould . putStrLn $
+      when itShould . AppState.logWithZTime appState $
         "Attempting to reconnect to the database in "
         <> (show delay::Text)
         <> " seconds..."
@@ -157,17 +157,17 @@ loadSchemaCache appState = do
     Left e -> do
       let
         err = PgError False e
-        putErr = hPutStrLn stderr . toS . errorPayload $ err
+        putErr = AppState.logWithZTime appState . toS $ errorPayload err
       case checkIsFatal err of
         Just _  -> do
-          hPutStrLn stderr "A fatal error ocurred when loading the schema cache"
+          AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
           putErr
-          hPutStrLn stderr $
+          AppState.logWithZTime appState $
             "This is probably a bug in PostgREST, please report it at "
             <> "https://github.com/PostgREST/postgrest/issues"
           return SCFatalFail
         Nothing -> do
-          hPutStrLn stderr "An error ocurred when loading the schema cache"
+          AppState.logWithZTime appState "An error ocurred when loading the schema cache"
           putErr
           return SCOnRetry
 
@@ -175,7 +175,7 @@ loadSchemaCache appState = do
       AppState.putDbStructure appState dbStructure
       when (isJust configDbRootSpec) $
         AppState.putJsonDbS appState $ toS $ JSON.encode dbStructure
-      putStrLn ("Schema cache loaded" :: Text)
+      AppState.logWithZTime appState "Schema cache loaded"
       return SCLoaded
 
 -- | Starts a dedicated pg connection to LISTEN for notifications.  When a
@@ -189,7 +189,7 @@ listener appState = do
   -- The listener has to wait for a signal from the connectionWorker.
   -- This is because when the connection to the db is lost, the listener also
   -- tries to recover the connection, but not with the same pace as the connectionWorker.
-  -- Not waiting makes stdout quickly fill with connection retries messages from the listener.
+  -- Not waiting makes stderr quickly fill with connection retries messages from the listener.
   AppState.waitListener appState
 
   -- forkFinally allows to detect if the thread dies
@@ -197,7 +197,7 @@ listener appState = do
     dbOrError <- C.acquire $ toS configDbUri
     case dbOrError of
       Right db -> do
-        putStrLn $ "Listening for notifications on the " <> dbChannel <> " channel"
+        AppState.logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
         N.listen db $ N.toPgIdentifier dbChannel
         N.waitForNotifications handleNotification db
       _ ->
@@ -205,7 +205,7 @@ listener appState = do
   where
     handleFinally dbChannel _ = do
       -- if the thread dies, we try to recover
-      putStrLn $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
+      AppState.logWithZTime appState $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
       -- retry the listener
@@ -228,8 +228,15 @@ reReadConfig :: Bool -> AppState -> IO ()
 reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
-    if configDbConfig then
-      queryDbSettings (AppState.getPool appState)
+    if configDbConfig then do
+      qDbSettings <- queryDbSettings $ AppState.getPool appState
+      case qDbSettings of
+        Left e -> do
+          AppState.logWithZTime appState $
+            "An error ocurred when trying to query database settings for the config parameters:\n"
+            <> show e
+          pure []
+        Right x -> pure x
     else
       pure mempty
   readAppConfig dbSettings configFilePath (Just configDbUri) >>= \case
@@ -237,10 +244,10 @@ reReadConfig startingUp appState = do
       if startingUp then
         panic err -- die on invalid config if the program is starting up
       else
-        hPutStrLn stderr $ "Failed re-loading config: " <> err
+        AppState.logWithZTime appState $ "Failed re-loading config: " <> err
     Right newConf -> do
       AppState.putConfig appState newConf
       if startingUp then
         pass
       else
-        putStrLn ("Config re-loaded" :: Text)
+        AppState.logWithZTime appState "Config re-loaded"

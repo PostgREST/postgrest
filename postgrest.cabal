@@ -174,10 +174,12 @@ test-suite spec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.DeleteSpec
+                      Feature.DisabledOpenApiSpec
                       Feature.EmbedDisambiguationSpec
                       Feature.ExtraSearchPathSpec
                       Feature.HtmlRawOutputSpec
                       Feature.InsertSpec
+                      Feature.IgnorePrivOpenApiSpec
                       Feature.JsonOperatorSpec
                       Feature.MultipleSchemaSpec
                       Feature.NoJwtSpec

@@ -160,7 +160,7 @@ exampleConfigFile =
       |db-channel = "pgrst"
       |
       |## Enable or disable the notification channel
-      |db-channel-enabled = false
+      |db-channel-enabled = true
       |
       |## Enable in-database configuration
       |db-config = true
@@ -192,7 +192,11 @@ exampleConfigFile =
       |## when none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |
-      |## base url for swagger output
+      |## determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely
+      |## admitted values: follow-privileges, ignore-privileges, disabled
+      |openapi-mode = "follow-privileges"
+      |
+      |## base url for the OpenAPI output
       |openapi-server-proxy-uri = ""
       |
       |## choose a secret, JSON Web Key (or set) to enable JWT auth
