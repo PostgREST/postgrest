@@ -8,7 +8,6 @@ module PostgREST.DbStructure.Proc
   , ProcVolatility(..)
   , ProcsMap
   , RetType(..)
-  , findProc
   , procReturnsScalar
   , procReturnsSingle
   , procTableName
@@ -71,28 +70,6 @@ instance Ord ProcDescription where
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.
 type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
-
-{-|
-  Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
-  An overloaded function can have a different volatility or even a different return type.
-  Ideally, handling overloaded functions should be left to pg itself. But we need to know certain proc attributes in advance.
--}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ProcDescription
-findProc qi payloadKeys paramsAsSingleObject allProcs = fromMaybe fallback bestMatch
-  where
-    -- instead of passing Maybe ProcDescription around, we create a fallback description here when we can't find a matching function
-    -- args is empty, but because "specifiedProcArgs" will fill the missing arguments with default type text, this is not a problem
-    fallback = ProcDescription (qiSchema qi) (qiName qi) Nothing mempty (SetOf $ Composite $ QualifiedIdentifier mempty "record") Volatile False
-    bestMatch =
-      case M.lookup qi allProcs of
-        Nothing     -> Nothing
-        Just [proc] -> Just proc           -- if it's not an overloaded function then immediately get the ProcDescription
-        Just procs  -> find matches procs  -- Handle overloaded functions case
-    matches proc =
-      if paramsAsSingleObject
-        -- if the arg is not of json type let the db give the err
-        then length (pdArgs proc) == 1
-        else payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> pdArgs proc)
 
 {-|
   Search the procedure parameters by matching them with the specified keys.
