@@ -195,9 +195,9 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS
 
 runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
-runDbHandler pool mode jwtClaims preparedStatements handler = do
+runDbHandler pool mode jwtClaims prepared handler = do
   dbResp <-
-    let transaction = if preparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
     lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-

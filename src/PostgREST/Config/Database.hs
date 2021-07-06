@@ -26,8 +26,8 @@ queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow Fal
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
 queryDbSettings :: P.Pool -> Bool -> IO (Either P.UsageError [(Text, Text)])
-queryDbSettings pool preparedStatement =
-  let transaction = if preparedStatement then HT.transaction else HT.unpreparedTransaction in
+queryDbSettings pool prepared =
+  let transaction = if prepared then HT.transaction else HT.unpreparedTransaction in
   P.use pool . transaction HT.ReadCommitted HT.Read $
     HT.statement mempty dbSettingsStatement
 
