@@ -160,12 +160,10 @@ loadSchemaCache appState = do
         err = PgError False e
         putErr = AppState.logWithZTime appState . toS $ errorPayload err
       case checkIsFatal err of
-        Just _  -> do
+        Just hint -> do
           AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
           putErr
-          AppState.logWithZTime appState $
-            "This is probably a bug in PostgREST, please report it at "
-            <> "https://github.com/PostgREST/postgrest/issues"
+          AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
@@ -233,9 +231,18 @@ reReadConfig startingUp appState = do
       qDbSettings <- queryDbSettings (AppState.getPool appState) configDbPreparedStatements
       case qDbSettings of
         Left e -> do
-          AppState.logWithZTime appState $
-            "An error ocurred when trying to query database settings for the config parameters:\n"
-            <> show e
+          let
+            err = PgError False e
+            putErr = AppState.logWithZTime appState . toS $ errorPayload err
+          AppState.logWithZTime appState
+            "An error ocurred when trying to query database settings for the config parameters"
+          case checkIsFatal err of
+            Just hint -> do
+              putErr
+              AppState.logWithZTime appState hint
+              killThread (AppState.getMainThreadId appState)
+            Nothing -> do
+              AppState.logWithZTime appState $ show e
           pure []
         Right x -> pure x
     else
