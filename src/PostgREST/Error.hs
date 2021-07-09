@@ -239,20 +239,22 @@ checkIsFatal (PgError _ (P.ConnectionError e))
   | otherwise = Nothing
   where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS failureMessage
         failureMessage = fromMaybe mempty e
--- Chek for a syntax error(42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
-checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError (H.ServerError "42601" _ _ _))))) =
-  Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
--- Check for a "prepared statement already exists" (Code 42P05: duplicate_prepared_statement).
--- This would mean that a connection pooler in transaction mode is being used
--- and incompatible features such as prepared statements or notification channels are enabled in the PostgREST configuration.
-checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError (H.ServerError "42P05" _ _ _))))) =
-  Just $
-    "Hint: If you are using connection poolers in transaction mode,"
-    <> "try setting db-prepared-statements and db-channel-enabled to false."
--- Check for "transaction blocks not allowed in statement pooling mode" errors (Code 08P01: protocol_violation).
--- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST
-checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError (H.ServerError "08P01" _ _ _))))) =
-  Just "Hint: Connection poolers in statement mode are not supported."
+checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError serverError))))
+  = case serverError of
+      -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
+      H.ServerError "42601" _ _ _
+        -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
+      -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
+      -- This would mean that a connection pooler in transaction mode is being used
+      -- while prepared statements are enabled in the PostgREST configuration,
+      -- both of which are incompatible with each other.
+      H.ServerError "42P05" _ _ _
+        -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
+      -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
+      -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
+      H.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _
+        -> Just "Hint: Connection poolers in statement mode are not supported."
+      _ -> Nothing
 checkIsFatal _ = Nothing
 
 
