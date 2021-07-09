@@ -190,14 +190,15 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
     handleReq apiReq =
       handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  runDbHandler pool (txMode apiRequest) jwtClaims .
+  runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
     Middleware.optionalRollback conf apiRequest $
       Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS
 
-runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> DbHandler a -> Handler IO a
-runDbHandler pool mode jwtClaims handler = do
+runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
+runDbHandler pool mode jwtClaims prepared handler = do
   dbResp <-
-    lift . SQL.use pool . SQL.transaction SQL.ReadCommitted mode $ runExceptT handler
+    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+    lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $

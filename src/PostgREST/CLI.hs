@@ -54,8 +54,9 @@ dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
+    let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
     P.use (AppState.getPool appState) $
-      HT.transaction HT.ReadCommitted HT.Read $
+      transaction HT.ReadCommitted HT.Read $
         queryDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
