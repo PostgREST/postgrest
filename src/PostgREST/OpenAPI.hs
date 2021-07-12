@@ -88,7 +88,7 @@ makeProperty rels pks c = (colName c, Inline s)
           Relationship{relColumns, relCardinality=M2O _} -> [c] == relColumns
           _                                                 -> False
           ) rels
-        fCol = colName <$> (headMay =<< (relForeignColumns <$> rel))
+        fCol = colName <$> (headMay . relForeignColumns =<< rel)
         fTbl = tableName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol
       in

@@ -1,18 +1,8 @@
-From 2aabdaca408d22ce2b6aa078ba58a115f5bd7fe4 Mon Sep 17 00:00:00 2001
-From: Remo <remo>
-Date: Fri, 15 May 2020 10:13:43 +0200
-Subject: [PATCH] openssl: split runtime dependencies of static builds into a
- separate output
-
----
- .../development/libraries/openssl/default.nix | 38 ++++++++++++++++---
- 1 file changed, 32 insertions(+), 6 deletions(-)
-
 diff --git a/pkgs/development/libraries/openssl/default.nix b/pkgs/development/libraries/openssl/default.nix
-index 43170f25d38..6336a060911 100644
+index d4be8cc2428..3979698711f 100644
 --- a/pkgs/development/libraries/openssl/default.nix
 +++ b/pkgs/development/libraries/openssl/default.nix
-@@ -34,9 +34,22 @@ let
+@@ -50,9 +50,21 @@ let
        substituteInPlace crypto/async/arch/async_posix.h \
          --replace '!defined(__ANDROID__) && !defined(__OpenBSD__)' \
                    '!defined(__ANDROID__) && !defined(__OpenBSD__) && 0'
@@ -28,15 +18,14 @@ index 43170f25d38..6336a060911 100644
      '';
  
 -    outputs = [ "bin" "dev" "out" "man" ] ++ optional withDocs "doc";
-+    outputs =
-+      [ "bin" "dev" "out" "man" ]
++    outputs = [ "bin" "dev" "out" "man" ]
 +      ++ optional withDocs "doc"
 +      # Separate output for the runtime dependencies of the static build.
 +      ++ optional static "etc";
      setOutputFlags = false;
-     separateDebugInfo = !(stdenv.hostPlatform.useLLVM or false) && stdenv.cc.isGNU;
- 
-@@ -72,7 +85,17 @@ let
+     separateDebugInfo =
+       !stdenv.hostPlatform.isDarwin &&
+@@ -101,7 +113,17 @@ let
      configureFlags = [
        "shared" # "shared" builds both shared and static libraries
        "--libdir=lib"
@@ -52,19 +41,20 @@ index 43170f25d38..6336a060911 100644
 +         # prepended to it otherwise.
 +         "--openssldir=/.$(etc)/etc/ssl"
 +      )
-     ] ++ stdenv.lib.optionals withCryptodev [
+     ] ++ lib.optionals withCryptodev [
        "-DHAVE_CRYPTODEV"
        "-DUSE_CRYPTODEV_DIGESTS"
-@@ -103,6 +126,8 @@ let
+@@ -131,6 +153,9 @@ let
+       if [ -n "$(echo $out/lib/*.so $out/lib/*.dylib $out/lib/*.dll)" ]; then
            rm "$out/lib/"*.a
        fi
- 
++
 +      # 'etc' is a separate output on static builds only.
 +      etc=$out
-     '' +
-     ''
-       mkdir -p $bin
-@@ -117,14 +142,15 @@ let
+     '' + lib.optionalString (!stdenv.hostPlatform.isWindows)
+       # Fix bin/c_rehash's perl interpreter line
+       #
+@@ -152,14 +177,15 @@ let
        mv $out/include $dev/
  
        # remove dependency on Perl at runtime
@@ -75,7 +65,7 @@ index 43170f25d38..6336a060911 100644
 +      rmdir $etc/etc/ssl/{certs,private}
      '';
  
-     postFixup = stdenv.lib.optionalString (!stdenv.hostPlatform.isWindows) ''
+     postFixup = lib.optionalString (!stdenv.hostPlatform.isWindows) ''
 -      # Check to make sure the main output doesn't depend on perl
 -      if grep -r '${buildPackages.perl}' $out; then
 +      # Check to make sure the main output and the static runtime dependencies
@@ -84,6 +74,3 @@ index 43170f25d38..6336a060911 100644
          echo "Found an erroneous dependency on perl ^^^" >&2
          exit 1
        fi
--- 
-2.25.1
-

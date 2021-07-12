@@ -377,9 +377,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   headerRange = rangeRequested hdrs
   replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
   limitParams :: M.HashMap ByteString NonnegRange
-  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
+  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe . toS =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
   offsetParams :: M.HashMap ByteString NonnegRange
-  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe =<< (toS <$> v))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
+  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe . toS =<< v)) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
   urlRange = M.unionWith f limitParams offsetParams
     where

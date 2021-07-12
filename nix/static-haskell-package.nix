@@ -6,19 +6,18 @@ let
   # The nh2/static-haskell-nix project does all the hard work for us.
   static-haskell-nix =
     let
-      rev = "749707fc90b781c3e653e67917a7d571fe82ae7b";
+      rev = "66fce684a20451514cb68d71bcb62fb246cb2080";
     in
     builtins.fetchTarball {
       url = "https://github.com/nh2/static-haskell-nix/archive/${rev}.tar.gz";
-      sha256 = "155spda2lww378bhx68w6dxwqd5y6s9kin3qbgl2m23r3vmk3m3w";
+      sha256 = "0322s6hpdwfyw56galvcgla97rnxd2xigcmc0pkiahzs061dcykn";
     };
 
   patched-static-haskell-nix =
     patches.applyPatches "patched-static-haskell-nix"
       static-haskell-nix
       [
-        patches.static-haskell-nix-postgrest-openssl-linking-fix
-        patches.static-haskell-nix-hasql-notifications-openssl-linking-fix
+        # No patches currently required.
       ];
 
   patchedNixpkgs =
@@ -26,7 +25,6 @@ let
       nixpkgs
       [
         patches.nixpkgs-openssl-split-runtime-dependencies-of-static-builds
-        patches.nixpkgs-gdb-fix-libintl
       ];
 
   extraOverrides =
@@ -36,8 +34,7 @@ let
       # static-haskell-nix. Using callCabal2nix on the haskellPackages that
       # it returns would result in a dynamic build based on musl, and not the
       # fully static build that we want.
-      "${name}" =
-        prev.callCabal2nix name src { };
+      "${name}" = prev.callCabal2nix name src { };
     };
 
   overlays =

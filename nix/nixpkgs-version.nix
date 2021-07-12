@@ -1,6 +1,6 @@
-# Pinned version of Nixpkgs, generated with nixpkgs-upgrade.
+# Pinned version of Nixpkgs, generated with postgrest-nixpkgs-upgrade.
 {
-  date = "2020-12-22";
-  rev = "2a058487cb7a50e7650f1657ee0151a19c59ec3b";
-  tarballHash = "1h8c0mk6jlxdmjqch6ckj30pax3hqh6kwjlvp2021x3z4pdzrn9p";
+  date = "2021-07-12";
+  rev = "c114cd459e1bac0d05e4e27c9ea43c99799cbbd1";
+  tarballHash = "1hpspw8jbzq03k8a6izxnbqww42mihqaa6c8nszw30igiaqc98i2";
 }
