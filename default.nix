@@ -36,6 +36,7 @@ let
       allOverlays.ghr
       allOverlays.gitignore
       allOverlays.postgresql-default
+      allOverlays.postgresql-legacy
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -92,7 +93,7 @@ rec {
 
   # Static executable.
   postgrestStatic =
-    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
+    lib.doStrip (lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src)));
 
   # Profiled dynamic executable.
   postgrestProfiled =

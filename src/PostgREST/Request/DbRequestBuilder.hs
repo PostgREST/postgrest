@@ -63,8 +63,7 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
   augmentRequestWithJoin schema rootRels =<<
-  addFiltersOrdersRanges apiRequest =<<
-  (initReadRequest rootName <$> pRequestSelect sel)
+  (addFiltersOrdersRanges apiRequest . initReadRequest rootName =<< pRequestSelect sel)
   where
     sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
     (rootName, rootRels) = rootWithRels schema rootTableName allRels (iAction apiRequest)

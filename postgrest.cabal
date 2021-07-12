@@ -85,7 +85,7 @@ library
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-dynamic-statements  == 0.3.1
-                    , hasql-notifications       >= 0.1 && < 0.2
+                    , hasql-notifications       >= 0.1 && < 0.3
                     , hasql-pool                >= 0.5 && < 0.6
                     , hasql-transaction         >= 0.7.2 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
