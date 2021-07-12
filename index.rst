@@ -50,12 +50,16 @@ Sponsors
   :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
   :width:  13em
 
+.. image:: _static/oblivious.jpg
+  :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
 .. The static/empty.png(created with `convert -size 320x95 xc:#fcfcfc empty.png`) is an ugly workaround
    to create space and center the logos. It's not easy to layout with restructuredText.
 
-.. image:: _static/empty.png
-  :target: #sponsors
-  :width:  13em
+.. .. image:: _static/empty.png
+     :target: #sponsors
+     :width:  13em
 
 |
 
