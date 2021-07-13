@@ -2020,10 +2020,6 @@ returns setof v2.parents as $$
   select * from v2.parents where id < $1;
 $$ language sql;
 
--- Only used for manually testing creating prepared statements
-create view prepared_statements as
-select * from pg_catalog.pg_prepared_statements;
-
 -- Used to test if prepared statements are used
 create function uses_prepared_statements() returns bool as $$
     select c > 0 from (
