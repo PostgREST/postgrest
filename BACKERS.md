@@ -35,6 +35,11 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
           <img width="296px" src="static/supabase.png">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/oblivious.jpg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
