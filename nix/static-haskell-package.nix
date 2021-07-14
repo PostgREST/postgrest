@@ -46,15 +46,9 @@ let
   normalPkgs =
     import patchedNixpkgs { inherit overlays; };
 
-  # Each version of GHC needs a specific version of Cabal.
-  defaultCabalPackageVersionComingWithGhc =
-    {
-      ghc884 = "Cabal_3_2_1_0";
-    }."${compiler}";
-
   # The static-haskell-nix 'survey' derives a full static set of Haskell
   # packages, applying fixes where necessary.
   survey =
-    import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
+    import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler; };
 in
 survey.haskellPackages."${name}"
