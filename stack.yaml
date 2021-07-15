@@ -1,4 +1,4 @@
-resolver: lts-16.26 # 2020-12-13, GHC 8.8.4
+resolver: lts-18.2 # 2021-07-10, GHC 8.10.4
 
 nix:
   packages:
@@ -10,9 +10,7 @@ nix:
   pure: false
 
 extra-deps:
-  - protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
-  - hasql-notifications-0.1.0.0@sha256:9ab112d2bb5da0d55abd65f0d27a7bb1dc4aeb792518d9a2ea8a16e243e19985,2156
   - hasql-dynamic-statements-0.3.1@sha256:c3a2c89c4a8b3711368dbd33f0ccfe46a493faa7efc2c85d3e354c56a01dfc48,2673
   - hasql-implicits-0.1.0.2@sha256:5d54e09cb779a209681b139fb3cc726bae75134557932156340cc0a56dd834a8,1361
-  - ptr-0.16.7.2@sha256:4a91e1342db8e627435a002798d65329a0c09c8632b2e415461b9928785327f9,2686
+  - ptr-0.16.8.1@sha256:525219ec5f5da5c699725f7efcef91b00a7d44120fc019878b85c09440bf51d6,2686
   - hasql-transaction-1.0.1@sha256:0a24dfc3be08bd95bf968db6acfb5ec00e14aaf4af2480d4cf7006788431e648,2890

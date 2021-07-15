@@ -207,7 +207,7 @@ def authheader(token):
 
 def jwtauthheader(claim, secret):
     "Authorization header with signed JWT."
-    return authheader(jwt.encode(claim, secret).decode("utf-8"))
+    return authheader(jwt.encode(claim, secret))
 
 
 @pytest.mark.parametrize(

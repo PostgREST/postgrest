@@ -53,7 +53,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema)
 import PostgREST.DbStructure.Proc        (PgArg (..),
                                           ProcDescription (..),
-                                          findProc)
+                                          ProcsMap)
 import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -95,6 +95,16 @@ data Action = ActionCreate       | ActionRead{isHead :: Bool}
             | ActionSingleUpsert | ActionInvoke InvokeMethod
             | ActionInfo         | ActionInspect{isHead :: Bool}
             deriving Eq
+-- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
+data Path
+  = PathInfo
+      { pSchema        :: Schema,
+        pName          :: Text,
+        pHasRpc        :: Bool,
+        pIsDefaultSpec :: Bool,
+        pIsRootSpec    :: Bool
+      }
+  | PathUnknown
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
@@ -126,6 +136,12 @@ jsonRpcParams proc prms =
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
     mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
+
+targetToJsonRpcParams :: Maybe Target -> [(Text, Text)] -> Maybe PayloadJSON
+targetToJsonRpcParams target params =
+  case target of
+    Just TargetProc{tProc} -> Just $ jsonRpcParams tProc params
+    _                      -> Nothing
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -171,10 +187,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
-     acceptContentType <- findAcceptContentType conf action target accepts
+     acceptContentType <- findAcceptContentType conf action path accepts
+     checkedTarget <- target
      return ApiRequest {
       iAction = action
-      , iTarget = target
+      , iTarget = checkedTarget
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
@@ -231,12 +248,12 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                       ((<> ".") <$> "not":M.keys operators) ++
                       ((<> "(") <$> M.keys ftsOperators)
   isEmbedPath = T.isInfixOf "."
-  isTargetingProc = case target of
-    TargetProc _ _ -> True
-    _              -> False
-  isTargetingDefaultSpec = case target of
-    TargetDefaultSpec _ -> True
-    _                   -> False
+  isTargetingProc = case path of
+    PathInfo{pHasRpc, pIsRootSpec} -> pHasRpc || pIsRootSpec
+    _                              -> False
+  isTargetingDefaultSpec = case path of
+    PathInfo{pIsDefaultSpec=True} -> True
+    _                             -> False
   contentType = ContentType.decodeContentType . fromMaybe "application/json" $ lookupHeader "content-type"
   columns
     | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
@@ -263,13 +280,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       json <- csvToJson <$> CSV.decodeByName reqBody
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
     CTUrlEncoded ->
-      let urlEncodedBody = parseSimpleQuery $ toS reqBody in
-      case target of
-        TargetProc{tProc} ->
-          Right $ jsonRpcParams tProc $ (toS *** toS) <$> urlEncodedBody
-        _ ->
-          let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> urlEncodedBody in
-          Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
+      let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> parseSimpleQuery (toS reqBody) in
+      Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
       Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
@@ -313,23 +325,32 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       callFindProc procSch procNam = findProc (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) $ dbProcs dbStructure
     in
     case path of
-      []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName)     -> TargetProc (callFindProc (if pSch == mempty then schema else pSch) pName) True
-                          Nothing | configOpenApiMode == OADisabled -> TargetUnknown
-                                  | otherwise                       -> TargetDefaultSpec schema
-      [table]        -> TargetIdent $ QualifiedIdentifier schema table
-      ["rpc", pName] -> TargetProc (callFindProc schema pName) False
-      _              -> TargetUnknown
+      PathInfo{pSchema, pName, pHasRpc, pIsRootSpec, pIsDefaultSpec}
+        | pHasRpc || pIsRootSpec -> (`TargetProc` pIsRootSpec) <$> callFindProc pSchema pName
+        | pIsDefaultSpec         -> Right $ TargetDefaultSpec pSchema
+        | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
+      PathUnknown -> Right TargetUnknown
 
-  shouldParsePayload = action `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
-  relevantPayload = case (target, action) of
+  shouldParsePayload = case (contentType, action) of
+    (CTUrlEncoded, ActionInvoke InvPost) -> False
+    (_, act)                             -> act `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
+  relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
-    (TargetProc{tProc}, ActionInvoke InvGet)  -> Just $ jsonRpcParams tProc rpcQParams
-    (TargetProc{tProc}, ActionInvoke InvHead) -> Just $ jsonRpcParams tProc rpcQParams
-    _ | shouldParsePayload                    -> rightToMaybe payload
-      | otherwise                             -> Nothing
-  path            = pathInfo req
+    (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
+    (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
+    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (toS *** toS) <$> parseSimpleQuery (toS reqBody)
+    _ | shouldParsePayload               -> rightToMaybe payload
+      | otherwise                        -> Nothing
+  path =
+    case pathInfo req of
+      []             -> case configDbRootSpec of
+                          Just (QualifiedIdentifier pSch pName)     -> PathInfo (if pSch == mempty then schema else pSch) pName False False True
+                          Nothing | configOpenApiMode == OADisabled -> PathUnknown
+                                  | otherwise                       -> PathInfo schema "" False True False
+      [table]        -> PathInfo schema table False False False
+      ["rpc", pName] -> PathInfo schema pName True False False
+      _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
   qParams         = [(toS k, v)|(k,v) <- qString]
@@ -356,9 +377,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   headerRange = rangeRequested hdrs
   replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
   limitParams :: M.HashMap ByteString NonnegRange
-  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe =<< (toS <$> v)) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
+  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe . toS =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
   offsetParams :: M.HashMap ByteString NonnegRange
-  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe =<< (toS <$> v))) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
+  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe . toS =<< v)) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
   urlRange = M.unionWith f limitParams offsetParams
     where
@@ -430,16 +451,16 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptContentType :: AppConfig -> Action -> Target -> [ContentType] -> Either ApiRequestError ContentType
-findAcceptContentType conf action target accepts =
-  case mutuallyAgreeable (requestContentTypes conf action target) accepts of
+findAcceptContentType :: AppConfig -> Action -> Path -> [ContentType] -> Either ApiRequestError ContentType
+findAcceptContentType conf action path accepts =
+  case mutuallyAgreeable (requestContentTypes conf action path) accepts of
     Just ct ->
       Right ct
     Nothing ->
       Left . ContentTypeError $ map ContentType.toMime accepts
 
-requestContentTypes :: AppConfig -> Action -> Target -> [ContentType]
-requestContentTypes conf action target =
+requestContentTypes :: AppConfig -> Action -> Path -> [ContentType]
+requestContentTypes conf action path =
   case action of
     ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
     ActionInvoke _  -> invokeContentTypes
@@ -450,10 +471,46 @@ requestContentTypes conf action target =
     invokeContentTypes =
       defaultContentTypes
         ++ rawContentTypes conf
-        ++ [CTOpenAPI | tpIsRootSpec target]
+        ++ [CTOpenAPI | pIsRootSpec path]
     defaultContentTypes =
       [CTApplicationJSON, CTSingularJSON, CTTextCSV]
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
   (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+
+{-|
+  Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
+  An overloaded function can have a different volatility or even a different return type.
+-}
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Either ApiRequestError ProcDescription
+findProc qi payloadKeys paramsAsSingleObject allProcs =
+  case bestMatch of
+    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList payloadKeys) paramsAsSingleObject
+    [proc] -> Right proc
+    procs  -> Left $ AmbiguousRpc (toList procs)
+  where
+    bestMatch =
+      case M.lookup qi allProcs of
+        Nothing     -> []
+        Just [proc] -> [proc | matches proc]
+        Just procs  -> filter matches procs
+    -- Find the exact arguments match
+    matches proc
+      | paramsAsSingleObject = case pdArgs proc of
+                               [arg] -> pgaType arg `elem` ["json", "jsonb"]
+                               _     -> False
+      | otherwise            = case pdArgs proc of
+                               []   -> null payloadKeys
+                               args -> matchesArg args
+    matchesArg args =
+      -- The function's required arguments are separated from the ones with a default value assigned.
+      -- The set of names of those arguments is compared to the set of keys supplied by the client
+      -- 1. If only required arguments are found, the keys must be exactly the same as those arguments
+      -- 2. If only optional arguments are found, the keys must be a subset of those arguments
+      -- 3. If both required and optional arguments are found, the result of taking away the optional arguments
+      --    from the keys must be exactly the same as the required arguments
+      case L.partition pgaReq args of
+        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
+        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
+        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)

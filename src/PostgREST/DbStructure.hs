@@ -466,7 +466,7 @@ allTables =
     SELECT
       n.nspname AS table_schema,
       c.relname AS table_name,
-      NULL AS table_description,
+      d.description AS table_description,
       (
         c.relkind = 'r'
         OR (
@@ -521,6 +521,7 @@ allTables =
       ) AS deletable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     ORDER BY table_schema, table_name |]

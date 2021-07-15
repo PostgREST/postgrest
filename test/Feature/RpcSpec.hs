@@ -96,21 +96,60 @@ spec actualPgVersion =
     context "unknown function" $ do
       it "returns 404" $
         post "/rpc/fakefunc" [json| {} |] `shouldRespondWith` 404
+
       it "should fail with 404 on unknown proc name" $
         get "/rpc/fake" `shouldRespondWith` 404
+
       it "should fail with 404 on unknown proc args" $ do
         get "/rpc/sayhello" `shouldRespondWith` 404
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
+
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
-          "code": "42883",
-          "details": null,
-          "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
-          "message": "function test.add_them(a => integer, b => integer, smthelse => text) does not exist" } |]
+          "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+          "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
+
+      it "should fail with 404 when no json arg is found with prefer single object" $
+        request methodPost "/rpc/sayhello"
+          [("Prefer","params=single-object")]
+          [json|{}|]
+        `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Could not find the test.sayhello function with a single json or jsonb argument in the schema cache" } |]
+        { matchStatus  = 404
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+      it "should fail with 404 for overloaded functions with unknown args" $ do
+        get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache" } |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache" } |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    context "ambiguous overloaded functions with same arguments but different types" $ do
+      it "should fail with 300 Multiple Choices without explicit argument type casts" $
+        get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
+          [json| {
+            "hint":"Overloaded functions with the same argument name but different types are not supported",
+            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)" } |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
 
     it "works when having uppercase identifiers" $ do
       get "/rpc/quotedFunction?user=mscott&fullName=Michael Scott&SSN=401-32-XXXX" `shouldRespondWith`
@@ -689,7 +728,7 @@ spec actualPgVersion =
 
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
-        post "/rpc/sayhello?name=John" [json|{}|] `shouldRespondWith` 400
+        post "/rpc/sayhello?name=John" [json|{name: "John"}|] `shouldRespondWith` 400
 
       it "ignores json keys not included in ?columns" $
         post "/rpc/sayhello?columns=name"

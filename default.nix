@@ -3,7 +3,7 @@ let
     "postgrest";
 
   compiler =
-    "ghc884";
+    "ghc8104";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as litte as possible, as the files
@@ -36,6 +36,7 @@ let
       allOverlays.ghr
       allOverlays.gitignore
       allOverlays.postgresql-default
+      allOverlays.postgresql-legacy
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -108,7 +109,7 @@ rec {
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
+      ghcWithPackages = pkgs.haskell.packages.ghc884.ghcWithPackages;
     };
 
   ### Tools
