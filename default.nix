@@ -93,7 +93,7 @@ rec {
 
   # Static executable.
   postgrestStatic =
-    lib.doStrip (lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src)));
+    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
 
   # Profiled dynamic executable.
   postgrestProfiled =
