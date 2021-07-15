@@ -2043,9 +2043,7 @@ $$ language sql;
 
 -- Used to test if prepared statements are used
 create function uses_prepared_statements() returns bool as $$
-    select c > 0 from (
-      select count(name) as c from pg_catalog.pg_prepared_statements
-    ) ps;
+  select count(name) > 0 from pg_catalog.pg_prepared_statements
 $$ language sql;
 
 create or replace function change_max_rows_config(val int, notify bool default false) returns void as $_$
