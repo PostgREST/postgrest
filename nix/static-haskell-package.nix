@@ -6,11 +6,11 @@ let
   # The nh2/static-haskell-nix project does all the hard work for us.
   static-haskell-nix =
     let
-      rev = "66fce684a20451514cb68d71bcb62fb246cb2080";
+      rev = "cdc1a9a36add24fac3b98e32b03e0e3c41bd17ee";
     in
     builtins.fetchTarball {
       url = "https://github.com/nh2/static-haskell-nix/archive/${rev}.tar.gz";
-      sha256 = "0322s6hpdwfyw56galvcgla97rnxd2xigcmc0pkiahzs061dcykn";
+      sha256 = "0ba2jqi25p01jmd827xkw05wrv40pa46vh3j0dvyx6b6bsyj4xqx";
     };
 
   patched-static-haskell-nix =
