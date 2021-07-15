@@ -25,9 +25,10 @@ queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow Fal
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-queryDbSettings :: P.Pool -> IO (Either P.UsageError [(Text, Text)])
-queryDbSettings pool =
-  P.use pool . HT.transaction HT.ReadCommitted HT.Read $
+queryDbSettings :: P.Pool -> Bool -> IO (Either P.UsageError [(Text, Text)])
+queryDbSettings pool prepared =
+  let transaction = if prepared then HT.transaction else HT.unpreparedTransaction in
+  P.use pool . transaction HT.ReadCommitted HT.Read $
     HT.statement mempty dbSettingsStatement
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
