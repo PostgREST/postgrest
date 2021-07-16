@@ -56,8 +56,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1846, Fix requests for overloaded functions from html forms to no longer hang (#1848) - @laurenceisla
  - #1858, Add a hint and clarification to the no relationship found error - @laurenceisla
  - #1875, Fix Location headers in headers only representation for null PK inserts on views - @laurenceisla
- - #1882, Correct openapi ignore mode to filter schemas - @steve-chavez
- - #1886, Correct openapi ignore-privs table comments - @steve-chavez
 
 ### Changed
 
