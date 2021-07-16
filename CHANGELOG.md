@@ -46,7 +46,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1560, Return 405 Method not Allowed for GET of volatile RPC instead of 500 - @wolfgangwalther
  - #1608, Fix embedding through views with subqueries inside function calls - @wolfgangwalther
  - #1631, perf: change Text queries to ByteString - @steve-chavez
- - #1632, Fix embedding through views with subqueries inside function calls - @wolfgangwalther
  - #1636, Improve performance with shortcut for proc with no variadic arg - @steve-chavez
  - #1639, Fix variadic mixed repeated args - @wolfgangwalther
  - #1654, Fix RPC returns - @wolfgangwalther
