@@ -50,7 +50,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1636, Improve performance with shortcut for proc with no variadic arg - @steve-chavez
  - #1639, Fix variadic mixed repeated args - @wolfgangwalther
  - #1654, Fix RPC returns - @wolfgangwalther
- - #1685, Fix retry connection on failed schema cache load - @steve-chavez
  - #1737, Fix notify config - @steve-chavez
  - #1814, Fix panic when attempting to run with unix socket on non-unix host and properly close unix domain socket on exit - @monacoremo
  - #1824, Make OPTIONS consider view instead of triggers - @laurenceisla
