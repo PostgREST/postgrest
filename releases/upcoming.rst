@@ -37,3 +37,7 @@ Changed
 * Docker images are now optimized to be built from the scratch image. This reduces the compressed image size from over 30 MB to about 4 MB.
   For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
   |br| -- `@monacoremo <https://github.com/monacoremo>`_
+
+* Improved error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
+  overloaded functions with the same argument names but different types.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_

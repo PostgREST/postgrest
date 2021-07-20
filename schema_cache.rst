@@ -53,6 +53,8 @@ But instead, you get an error message that looks like this:
 
 As you can see, PostgREST couldn't find the newly created foreign key in the schema cache. See the section :ref:`schema_reloading` to solve this issue.
 
+.. _stale_function_signature:
+
 Stale Function Signature
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -71,16 +73,14 @@ Then, you make this request:
 
   GET /rpc/plus_one?num=1 HTTP/1.1
 
-On a stale schema, PostgREST will assume :code:`text` as the default type for the function argument ``num``. Thus, the response you get is:
+Next, PostgREST tries to find the function on the stale schema to no avail:
 
 .. code-block:: json
 
- {
-  "hint":"No function matches the given name and argument types. You might need to add explicit type casts.",
-  "details":null,
-  "code":"42883",
-  "message":"function test.plus_one(num => text) does not exist"
- }
+  {
+    "hint": "If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+    "message": "Could not find the api.plus_one(num) function in the schema cache"
+  }
 
 See the section :ref:`schema_reloading` to solve this issue.
 

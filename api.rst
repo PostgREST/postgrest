@@ -1346,6 +1346,10 @@ You can call overloaded functions with different number of arguments.
 
   GET /rpc/rental_duration?customer_id=232&from_date=2018-07-01 HTTP/1.1
 
+.. important::
+
+  Overloaded functions with the same argument names but different types are not supported.
+
 .. _binary_output:
 
 Binary Output
