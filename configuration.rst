@@ -30,12 +30,12 @@ The user specified in the db-uri is also known as the authenticator role. For mo
 
 Here is the full list of configuration parameters.
 
-======================== ======= =========  ========
-Name                     Type    Default    Required
-======================== ======= =========  ========
-db-uri                   String             Y
-db-schema                String             Y
-db-anon-role             String             Y
+======================== ======= ================= ========
+Name                     Type    Default           Required
+======================== ======= ================= ========
+db-uri                   String                    Y
+db-schema                String                    Y
+db-anon-role             String                    Y
 db-pool                  Int     10
 db-pool-timeout          Int     10
 db-extra-search-path     String  public
@@ -43,6 +43,7 @@ server-host              String  !4
 server-port              Int     3000
 server-unix-socket       String
 server-unix-socket-mode  String  660
+openapi-mode             String  follow-privileges
 openapi-server-proxy-uri String
 jwt-secret               String
 jwt-aud                  String
@@ -52,7 +53,7 @@ pre-request              String
 app.settings.*           String
 role-claim-key           String  .role
 raw-media-types          String
-======================== ======= =========  ========
+======================== ======= ================= ========
 
 .. _db-uri:
 
@@ -174,6 +175,27 @@ server-unix-socket-mode
   .. code:: bash
 
     server-unix-socket-mode = "660"
+
+.. _openapi-mode:
+
+openapi-mode
+------------
+
+  Specifies how the OpenAPI output should be displayed:
+
+  .. code:: bash
+
+    # Follows the privileges of the JWT role claim (or from db-anon-role if the JWT is not sent)
+    # Shows information depending on the permissions that the role making the request has
+    openapi-mode = "follow-privileges"
+
+    # Ignores the privileges of the JWT role claim (or from db-anon-role if the JWT is not sent)
+    # Shows all the exposed information, regardless of the permissions that the role making the request has
+    openapi-mode = "ignore-privileges"
+
+    # Disables the OpenApi output altogether.
+    # Throws a `404 Not Found` error when accessing the API root path
+    openapi-mode = "disabled"
 
 .. _openapi-server-proxy-uri:
 
