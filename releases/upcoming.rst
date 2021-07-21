@@ -19,6 +19,9 @@ Added
 * Config options for showing a full OpenAPI output regardless of the JWT role privileges and for disabling it altogether. See :ref:`openapi-mode`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Config option for logging level. See :ref:`log-level`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Documentation improvements
 
   + Added the :ref:`OPTIONS requests <options_requests>` section.
@@ -41,3 +44,6 @@ Changed
 * Improved error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
   overloaded functions with the same argument names but different types.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Modified the default logging level from ``info`` to ``error``. See :ref:`log-level`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
