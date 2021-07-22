@@ -22,6 +22,9 @@ Added
 * Config option for logging level. See :ref:`log-level`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Config option for specifying how to terminate the transactions (allowing rollbacks, useful for testing). See :ref:`db-tx-end`.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
 * Documentation improvements
 
   + Added the :ref:`OPTIONS requests <options_requests>` section.
