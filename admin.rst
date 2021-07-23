@@ -120,6 +120,19 @@ The burst argument tells Nginx to start dropping requests if more than five queu
 
 Nginx rate limiting is general and indiscriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
 
+.. _connection_poolers:
+
+Using Connection Poolers
+------------------------
+
+In order to increase performance, PostgREST uses prepared statements by default. However, this setting is incompatible with connection poolers such as PgBouncer working in transaction pooling mode. In this case, you need to set the :ref:`db-prepared-statements` config option to ``false``. On the other hand, session pooling is fully compatible with PostgREST, while statement pooling is not compatible at all.
+
+.. note::
+
+  If prepared statements are enabled, PostgREST will quit after detecting that transaction or statement pooling is being used.
+
+You should also set the ``db-channel-enabled`` config option to ``false``, due to the ``LISTEN`` command not being compatible with transaction pooling, although it should not give any errors if it's left enabled by default.
+
 Debugging
 =========
 

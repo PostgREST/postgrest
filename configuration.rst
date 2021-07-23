@@ -39,6 +39,7 @@ db-anon-role             String                    Y
 db-pool                  Int     10
 db-pool-timeout          Int     10
 db-extra-search-path     String  public
+db-prepared-statements   Boolean True
 db-tx-end                String  commit
 server-host              String  !4
 server-port              Int     3000
@@ -133,6 +134,17 @@ db-extra-search-path
   This parameter was meant to make it easier to use **PostgreSQL extensions** (like PostGIS) that are outside of the :ref:`db-schema`.
 
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
+
+.. _db-prepared-statements:
+
+db-prepared-statements
+----------------------
+
+  Enables or disables prepared statements.
+
+  When disabled, the generated queries will be parameterized (invulnerable to SQL injection) but they will not be prepared (cached in the database session). Not using prepared statements will noticeably decrease performance, so it's recommended to always have this setting enabled.
+
+  You should only set this to ``false`` when using PostgresSQL behind a connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <connection_poolers>` for more information.
 
 .. _db-tx-end:
 
