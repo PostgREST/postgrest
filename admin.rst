@@ -131,7 +131,7 @@ In order to increase performance, PostgREST uses prepared statements by default.
 
   If prepared statements are enabled, PostgREST will quit after detecting that transaction or statement pooling is being used.
 
-You should also set the ``db-channel-enabled`` config option to ``false``, due to the ``LISTEN`` command not being compatible with transaction pooling, although it should not give any errors if it's left enabled by default.
+You should also set the :ref:`db-channel-enabled` config option to ``false``, due to the ``LISTEN`` command not being compatible with transaction pooling, although it should not give any errors if it's left enabled by default.
 
 Debugging
 =========

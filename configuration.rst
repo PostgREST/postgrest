@@ -39,6 +39,8 @@ db-anon-role             String                    Y
 db-pool                  Int     10
 db-pool-timeout          Int     10
 db-extra-search-path     String  public
+db-channel               String  pgrst
+db-channel-enabled       Boolean True
 db-prepared-statements   Boolean True
 db-tx-end                String  commit
 server-host              String  !4
@@ -134,6 +136,22 @@ db-extra-search-path
   This parameter was meant to make it easier to use **PostgreSQL extensions** (like PostGIS) that are outside of the :ref:`db-schema`.
 
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
+
+.. _db-channel:
+
+db-channel
+----------
+
+  The name of the notification channel that PostgREST uses for :ref:`schema_reloading` and configuration reloading.
+
+.. _db-channel-enabled:
+
+db-channel-enabled
+------------------
+
+  When this is set to :code:`true`, the notification channel specified in :ref:`db-channel` is enabled.
+
+  You should set this to ``false`` when using PostgresSQL behind a connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <connection_poolers>` for more information.
 
 .. _db-prepared-statements:
 

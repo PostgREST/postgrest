@@ -16,6 +16,9 @@ Added
 * Allow :ref:`s_procs_variadic`.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Allow sending the header ``Prefer: headers-only`` to get a response with a ``Location`` header. See :ref:`insert_update`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
@@ -52,6 +55,10 @@ Changed
 * Docker images are now optimized to be built from the scratch image. This reduces the compressed image size from over 30 MB to about 4 MB.
   For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
   |br| -- `@monacoremo <https://github.com/monacoremo>`_
+
+* The ``pg_listen`` `utility <https://github.com/begriffs/pg_listen>`_ is no longer needed to automatically reload the schema cache
+  and it's replaced entirely by database notifications. See :ref:`schema_reloading_notify`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Improved error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
   overloaded functions with the same argument names but different types.
