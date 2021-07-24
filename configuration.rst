@@ -60,6 +60,40 @@ role-claim-key           String  .role
 raw-media-types          String
 ======================== ======= ================= ========
 
+.. _config_reloading:
+
+Configuration Reloading
+-----------------------
+
+To reload the configuration without restarting the PostgREST server send a SIGUSR2 signal to the server process.
+
+.. code:: bash
+
+  killall -SIGUSR2 postgrest
+
+.. note::
+
+   To refresh the cache in docker:
+
+   .. code:: bash
+
+     docker kill -s SIGUSR2 <container>
+
+     # or in docker-compose
+     docker-compose kill -s SIGUSR2 <service>
+
+.. important::
+
+  The following settings will not be reread when reloading the configuration. You will need to restart PostgREST in that case.
+
+    * ``db-uri``
+    * ``db-pool``
+    * ``db-pool-timeout``
+    * ``server-host``
+    * ``server-port``
+    * ``server-unix-socket``
+    * ``server-unix-socket-mode``
+
 .. _db-uri:
 
 db-uri
