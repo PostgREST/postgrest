@@ -16,6 +16,9 @@ Added
 * Allow :ref:`s_procs_variadic`.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* Allow :ref:`embedding_view_chains` recursively to any depth.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
 * Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
