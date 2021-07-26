@@ -9,6 +9,10 @@ PostgREST reads a configuration file to determine information about the database
 
   ./postgrest /path/to/postgrest.conf
 
+.. note::
+
+   Configuration can be reloaded without restarting the server. See :ref:`config_reloading`.
+
 The configuration file must contain a set of key value pairs. At minimum you must include these keys:
 
 .. code::
@@ -61,40 +65,6 @@ raw-media-types          String
 ======================== ======= ================= ========
 
 You can also set these configuration parameters using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri``.
-
-.. _config_reloading:
-
-Configuration Reloading
------------------------
-
-To reload the configuration without restarting the PostgREST server send a SIGUSR2 signal to the server process.
-
-.. code:: bash
-
-  killall -SIGUSR2 postgrest
-
-.. note::
-
-   To refresh the cache in docker:
-
-   .. code:: bash
-
-     docker kill -s SIGUSR2 <container>
-
-     # or in docker-compose
-     docker-compose kill -s SIGUSR2 <service>
-
-.. important::
-
-  The following settings will not be reread when reloading the configuration. You will need to restart PostgREST in that case.
-
-    * ``db-uri``
-    * ``db-pool``
-    * ``db-pool-timeout``
-    * ``server-host``
-    * ``server-port``
-    * ``server-unix-socket``
-    * ``server-unix-socket-mode``
 
 .. _db-uri:
 
@@ -407,4 +377,36 @@ raw-media-types
  .. code:: bash
 
    raw-media-types="image/png, text/xml"
+
+.. _config_reloading:
+
+Configuration Reloading
+=======================
+
+To reload the configuration without restarting the PostgREST server send a SIGUSR2 signal to the server process.
+
+.. code:: bash
+
+  killall -SIGUSR2 postgrest
+
+To refresh the cache in docker:
+
+.. code:: bash
+
+  docker kill -s SIGUSR2 <container>
+
+  # or in docker-compose
+  docker-compose kill -s SIGUSR2 <service>
+
+.. important::
+
+  The following settings will not be reread when reloading the configuration. You will need to restart PostgREST in that case.
+
+    * ``db-uri``
+    * ``db-pool``
+    * ``db-pool-timeout``
+    * ``server-host``
+    * ``server-port``
+    * ``server-unix-socket``
+    * ``server-unix-socket-mode``
 
