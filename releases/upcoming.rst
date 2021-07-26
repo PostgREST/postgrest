@@ -37,6 +37,9 @@ Added
 * Allow ``Bearer`` with and without capitalization as authentication schema. See :ref:`client_auth`.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* Show timestamps for server diagnostic information. See :ref:`pgrst_logging`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Config options for showing a full OpenAPI output regardless of the JWT role privileges and for disabling it altogether. See :ref:`openapi-mode`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 

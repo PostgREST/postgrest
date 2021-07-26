@@ -141,10 +141,27 @@ Server Version
 
 When debugging a problem it's important to verify the PostgREST version. At any time you can make a request to the running server and determine exactly which version is deployed. Look for the :code:`Server` HTTP response header, which contains the version number.
 
+.. _pgrst_logging:
+
 Logging
 -------
 
-The PostgREST server logs basic request information to stdout, including the requesting IP address and user agent, the URL requested, and HTTP response status. However this provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
+PostgREST logs basic request information to ``stdout``, including the requesting IP address and user agent, the URL requested, and HTTP response status.
+
+.. code-block::
+
+   127.0.0.1 - - [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
+   127.0.0.1 - - [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
+
+For diagnostic information about the server itself, PostgREST logs to ``stderr``.
+
+.. code-block::
+
+   12/Jun/2021:17:47:39 -0500: Attempting to connect to the database...
+   12/Jun/2021:17:47:39 -0500: Listening on port 3000
+   12/Jun/2021:17:47:39 -0500: Connection successful
+   12/Jun/2021:17:47:39 -0500: Config re-loaded
+   12/Jun/2021:17:47:40 -0500: Schema cache loaded
 
 .. note::
 
@@ -156,6 +173,8 @@ The PostgREST server logs basic request information to stdout, including the req
        'postgrest foo.conf </dev/null >/var/log/postgrest.log 2>&1 &'
 
      # another option is to pipe the output into "logger -t postgrest"
+
+PostgREST logging provides limited information for debugging server errors. It's helpful to get full information about both client requests and the corresponding SQL commands executed against the underlying database.
 
 HTTP Requests
 -------------
