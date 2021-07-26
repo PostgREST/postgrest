@@ -16,23 +16,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #504, Add `log-level` config option. The admitted levels are: crit, error, warn and info - @steve-chavez
  - #1607, Enable embedding through multiple views recursively - @wolfgangwalther
  - #1598, Allow rollback of the transaction with Prefer tx=rollback - @wolfgangwalther
- - #1633, #1600, Enable prepared statements for filters. When behind a connection pooler, you can disable preparing with `db-prepared-statements=false` - @steve-chavez
- - #1593, Remove single column limit from join table M2M mapping detection. - @goteguru
- - #1604, Add log level config - @steve-chavez
- - #1625, Enable embedding through multiple layers of views recursively - @wolfgangwalther
- - #1659, Add support for Prefer tx=rollback header - @wolfgangwalther
- - #1678, Add --dump-config CLI option that prints loaded config and exits - @wolfgangwalther
- - #1680, Improve parsing of boolean config values - @wolfgangwalther
- - #1691, Read config directly from environment variables - @wolfgangwalther
- - #1691, Add --example CLI option to show example config file - @wolfgangwalther
- - #1697, #1723, Add --dump-schema CLI option for debugging purposes - @monacoremo, @wolfgangwalther
+ - #1633, Enable prepared statements for GET filters. When behind a connection pooler, you can disable preparing with `db-prepared-statements=false`
+   + This increases throughput by around 30% for simple GET queries(no embedding, with filters applied).
  - #1729, #1760, Get configuration parameters from the db and allow reloading config with NOTIFY  - @steve-chavez
- - #1794, Add `request.spec` GUC for db-root-spec - @steve-chavez
- - #1813, Allow `Prefer=headers-only` on POST requests and change default to `minimal` - @laurenceisla
- - #1824, Allow options to generate certain HTTP methods for a DB view - @laurenceisla
- - #1841, Show comprehensive error when an RPC is not found in a stale schema cache - @laurenceisla
+ - #1824, Allow OPTIONS to generate certain HTTP methods for a DB view - @laurenceisla
  - #1872, Show timestamps in startup/worker logs - @steve-chavez
- - #1881, Add `openapi-mode` config option - @steve-chavez
+ - #1881, Add `openapi-mode` config option that allows ignoring roles privileges when showing the OpenAPI output - @steve-chavez
+ - CLI options(for debugging):
+   + #1678, Add --dump-config CLI option that prints loaded config and exits - @wolfgangwalther
+   + #1691, Add --example CLI option to show example config file - @wolfgangwalther
+   + #1697, #1723, Add --dump-schema CLI option for debugging purposes - @monacoremo, @wolfgangwalther
+ - #1794, (Experimental) Add `request.spec` GUC for db-root-spec - @steve-chavez
 
 ### Fixed
 
@@ -44,16 +38,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1636, Fix `application/octet-stream` appending `charset=utf-8` - @steve-chavez
  - #1469, #1638 Fix overloading of functions with unnamed arguments - @wolfgangwalther
  - #1560, Return 405 Method not Allowed for GET of volatile RPC instead of 500 - @wolfgangwalther
- - #1608, Fix embedding through views with subqueries inside function calls - @wolfgangwalther
- - #1631, perf: change Text queries to ByteString - @steve-chavez
- - #1636, Improve performance with shortcut for proc with no variadic arg - @steve-chavez
- - #1639, Fix variadic mixed repeated args - @wolfgangwalther
- - #1654, Fix RPC returns - @wolfgangwalther
+ - #1584, Fix RPC return type handling and embedding for domains with composite base type (#1615) - @wolfgangwalther
+ - #1608, #1635, Fix embedding through views that have COALESCE with subselect - @wolfgangwalther
+ - #1572, Fix parsing of boolean config values for Docker environment variables, now it accepts double quoted truth values ("true", "false") and numbers("1", "0") - @wolfgangwalther
+ - #1624, Fix using `app.settings.xxx` config options in Docker, now they can be used as `PGRST_APP_SETTINGS_xxx` - @wolfgangwalther
  - #1814, Fix panic when attempting to run with unix socket on non-unix host and properly close unix domain socket on exit - @monacoremo
- - #1824, Make OPTIONS consider view instead of triggers - @laurenceisla
- - #1825, Disregard internal junction when embedding - @steve-chavez
+ - #1825, Disregard internal junction(in non-exposed schema) when embedding - @steve-chavez
  - #1846, Fix requests for overloaded functions from html forms to no longer hang (#1848) - @laurenceisla
  - #1858, Add a hint and clarification to the no relationship found error - @laurenceisla
+ - #1841, Show comprehensive error when an RPC is not found in a stale schema cache - @laurenceisla
  - #1875, Fix Location headers in headers only representation for null PK inserts on views - @laurenceisla
 
 ### Changed
@@ -61,13 +54,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1522, #1528, #1535, Docker images are now built from scratch based on a the static PostgREST executable (#1494) and with Nix instead of a `Dockerfile`. This reduces the compressed image size from over 30mb to about 4mb - @monacoremo
  - #1461, Location header for POST request is only included when PK is available on the table - @wolfgangwalther
  - #1560, Volatile RPC called with GET now returns 405 Method not Allowed instead of 500 - @wolfgangwalther
- - #1584, Fix RPC return type handling and embedding for domains with composite base type (#1615) - @wolfgangwalther
- - #1600, Change SET LOCAL gucs to set_config - @steve-chavez
+ - #1584, #1849 Functions that declare `returns composite_type` no longer return a single object array by default, only functions with `returns setof composite_type` return an array of objects - @wolfgangwalther
  - #1604, Change the default logging level to `log-level=error`. Only requests with a status greater or equal than 500 will be logged. If you wish to go back to the previous behaviour and log all the requests, use `log-level=info` - @steve-chavez
+   + Because currently there's no buffering for logging, defaulting to the `error` level(minimum logging) increases throughput by around 15% for simple GET queries(no embedding, with filters applied).
  - #1617, Dropped support for PostgreSQL 9.4 - @wolfgangwalther
- - #1679, Renamed config settings with fallback aliases - @wolfgangwalther
- - #1736, #1587, Disregard internal junctions when embedding (#1825) - @steve-chavez
- - #1795, Void functions return null instead of empty body - @laurenceisla
+ - #1679, Renamed config settings with fallback aliases. e.g. `max-rows` is now `db-max-rows`, but `max-rows` is still accepted - @wolfgangwalther
  - #1656, Allow `Prefer=headers-only` on POST requests and change default to `minimal` (#1813) - @laurenceisla
  - #1854, Dropped undocumented support for gzip compression (which was surprisingly slow and easily enabled by mistake). In some use-cases this makes Postgres up to 3x faster - @aljungberg
  - #1872, Send startup/worker logs to stderr to differentiate from access logs on stdout - @steve-chavez
