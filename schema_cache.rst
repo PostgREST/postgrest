@@ -95,16 +95,19 @@ To refresh the cache without restarting the PostgREST server, send a SIGUSR1 sig
 
   killall -SIGUSR1 postgrest
 
+
+For docker you can do:
+
+.. code:: bash
+
+  docker kill -s SIGUSR1 <container>
+
+  # or in docker-compose
+  docker-compose kill -s SIGUSR1 <service>
+
 .. note::
 
-   To refresh the cache in docker:
-
-   .. code:: bash
-
-     docker kill -s SIGUSR1 <container>
-
-     # or in docker-compose
-     docker-compose kill -s SIGUSR1 <service>
+   There's no downtime when reloading the schema cache. The reloading will happen on a background thread while requests keep being served.
 
 .. _schema_reloading_notify:
 

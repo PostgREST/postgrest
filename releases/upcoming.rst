@@ -19,6 +19,9 @@ Added
 * Allow :ref:`embedding_view_chains` recursively to any depth.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* No downtime when reloading the schema cache. See the note in :ref:`schema_reloading`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
