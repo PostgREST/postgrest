@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+### Fixed
+
+## [8.0.0] - 2021-07-25
+
+### Added
+
  - #1525, Allow http status override through response.status guc - @steve-chavez
  - #1512, Allow schema cache reloading with NOTIFY - @steve-chavez
  - #1119, Allow config file reloading with SIGUSR2 - @steve-chavez
