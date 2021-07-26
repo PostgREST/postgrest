@@ -92,7 +92,7 @@ See the section :ref:`schema_reloading` to solve this issue.
 Schema Cache Reloading
 ----------------------
 
-To refresh the cache without restarting the PostgREST server, send a SIGUSR1 signal to the server process.
+To reload the cache without restarting the PostgREST server, send a SIGUSR1 signal to the server process.
 
 .. code:: bash
 

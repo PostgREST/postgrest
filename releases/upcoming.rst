@@ -37,6 +37,9 @@ Added
 * Allow ``Bearer`` with and without capitalization as authentication schema. See :ref:`client_auth`.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* :ref:`in_db_config` that can be :ref:`reloaded with NOTIFY <in_db_config_reloading>`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Allow OPTIONS to generate HTTP methods based on views triggers. See :ref:`OPTIONS requests <options_requests>`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
