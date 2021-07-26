@@ -37,6 +37,9 @@ Added
 * Allow ``Bearer`` with and without capitalization as authentication schema. See :ref:`client_auth`.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
+* Allow OPTIONS to generate HTTP methods based on views triggers. See :ref:`OPTIONS requests <options_requests>`.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
 * Show timestamps for server diagnostic information. See :ref:`pgrst_logging`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
@@ -54,8 +57,7 @@ Added
 
 * Documentation improvements
 
-  + Added the :ref:`OPTIONS requests <options_requests>` section.
-  + Added the :ref:`schema_cache` section.
+  + Added the :ref:`schema_cache` page.
   + Moved the :ref:`schema_reloading` reference from :ref:`admin` to :ref:`schema_cache`
 
 Fixed

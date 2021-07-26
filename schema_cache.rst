@@ -3,7 +3,10 @@
 Schema Cache
 ============
 
-PostgREST caches metadata from the database schema to avoid repeating expensive queries. This metadata is not required by all of the PostgREST features, only the following:
+Certain PostgREST features require metadata from the database schema. Getting this metadata requires executing expensive queries, so
+in order to avoid repeating this work, PostgREST uses a schema cache.
+
+The following features are the ones that require metadata from the schema cache.
 
 +--------------------------------------------+-------------------------------------------------------------------------------+
 | Feature                                    | Required Metadata                                                             |
