@@ -143,6 +143,8 @@ In the function you can run arbitrary code to check the request and raise an exc
   END
   $$ LANGUAGE plpgsql;
 
+.. _client_auth:
+
 Client Auth
 ===========
 
@@ -152,6 +154,8 @@ To make an authenticated request the client must include an :code:`Authorization
 
   GET /foo HTTP/1.1
   Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImV4cCI6MTQ3NTUxNjI1MH0.GYDZV3yM0gqvuEtJmfpplLBXSGYnke_Pvnl0tbKAjB4
+
+The ``Bearer`` header value can be used with or without capitalization(``bearer``).
 
 JWT Generation
 --------------
