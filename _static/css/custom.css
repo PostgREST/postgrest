@@ -2,10 +2,6 @@
   max-width: initial;
 }
 
-#postgrest-documentation {
-  max-width: 800px;
-}
-
 #postgrest-documentation > h1 {
   display: none;
 }
@@ -52,4 +48,12 @@ div.line-block {
 
 #thanks ul{
   text-align: left;
+}
+
+.image-container {
+  max-width: 800px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 24px;
 }

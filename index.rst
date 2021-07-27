@@ -3,7 +3,9 @@
 PostgREST Documentation
 =======================
 
-.. figure:: _static/logo.png
+.. container:: image-container
+
+  .. figure:: _static/logo.png
 
 .. image:: https://img.shields.io/github/stars/postgrest/postgrest.svg?style=social
   :target: https://github.com/PostgREST/postgrest
@@ -30,36 +32,38 @@ PostgREST is a standalone web server that turns your PostgreSQL database directl
 Sponsors
 --------
 
-.. image:: _static/cybertec-new.png
-  :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
-  :width:  13em
+.. container:: image-container
 
-.. image:: _static/2ndquadrant.png
-  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
-  :width:  13em
+  .. image:: _static/cybertec-new.png
+    :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
+    :width:  13em
 
-.. image:: _static/retool.png
-  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
-  :width:  13em
+  .. image:: _static/2ndquadrant.png
+    :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+    :width:  13em
 
-.. image:: _static/gnuhost.png
-  :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
-  :width:  13em
+  .. image:: _static/retool.png
+    :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
 
-.. image:: _static/supabase.png
-  :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
-  :width:  13em
+  .. image:: _static/gnuhost.png
+    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
 
-.. image:: _static/oblivious.jpg
-  :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
-  :width:  13em
+  .. image:: _static/supabase.png
+    :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :width:  13em
 
-.. The static/empty.png(created with `convert -size 320x95 xc:#fcfcfc empty.png`) is an ugly workaround
-   to create space and center the logos. It's not easy to layout with restructuredText.
+  .. image:: _static/oblivious.jpg
+    :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
 
-.. .. image:: _static/empty.png
-     :target: #sponsors
-     :width:  13em
+  .. The static/empty.png(created with `convert -size 320x95 xc:#fcfcfc empty.png`) is an ugly workaround
+     to create space and center the logos. It's not easy to layout with restructuredText.
+
+  .. .. image:: _static/empty.png
+       :target: #sponsors
+       :width:  13em
 
 |
 
