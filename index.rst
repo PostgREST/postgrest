@@ -217,6 +217,7 @@ Release Notes
 Here we'll include the most relevant changes so you can migrate to newer versions easily.
 You can see the full changelog of each release in the `PostgREST repository <https://github.com/PostgREST/postgrest/releases>`_.
 
+- :doc:`releases/v8.0.0`
 - :doc:`releases/v7.0.0`
 - :doc:`releases/v6.0.2`
 - :doc:`releases/v5.2.0`
