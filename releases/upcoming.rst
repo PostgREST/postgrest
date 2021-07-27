@@ -2,10 +2,10 @@
 
    <br />
 
-Upcoming
-========
+v8.0.0
+======
 
-These are changes yet unreleased. If you'd like to try them out before a new official release, you can use a `nightly release <https://github.com/PostgREST/postgrest/releases/tag/nightly>`_.
+You can download this release at the `PostgREST v8.0.0 release page <https://github.com/PostgREST/postgrest/releases/tag/v8.0.0>`_.
 
 Added
 -----
@@ -69,6 +69,60 @@ Fixed
 * Fix showing UNKNOWN on ``postgrest --help`` invocation.
   |br| -- `@monacoremo <https://github.com/monacoremo>`_
 
+* Removed single column restriction to allow composite foreign keys in join tables.
+  |br| -- `@goteguru <https://github.com/goteguru>`_
+
+* Fix how the PostgREST version is shown in the help text when the .git directory is not available.
+  |br| -- `@monacoremo <https://github.com/monacoremo>`_
+
+* Fix expired JWTs starting an empty transaction on the db.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix location header for POST request with ``select=`` without PK.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix error messages on connection failure for localized PostgreSQL on Windows.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix ``application/octet-stream`` appending ``charset=utf-8``.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix overloading of functions with unnamed arguments.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Return ``405 Method not Allowed`` for GET of volatile RPC instead of 500.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix RPC return type handling and embedding for domains with composite base type.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix embedding through views that have COALESCE with subselect.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix parsing of boolean config values for Docker environment variables, now it accepts double quoted truth values ``("true", "false")`` and numbers ``("1", "0")``.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix using ``app.settings.xxx`` config options in Docker, now they can be used as ``PGRST_APP_SETTINGS_xxx``.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix panic when attempting to run with unix socket on non-unix host and properly close unix domain socket on exit.
+  |br| -- `@monacoremo <https://github.com/monacoremo>`_
+
+* Disregard internal junction (in non-exposed schema) when embedding.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix requests for overloaded functions from HTML forms to no longer hang.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Add a hint and clarification to the no relationship found error.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Show comprehensive error when an RPC is not found in a stale schema cache.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Fix Location headers in headers only representation for null PK inserts on views.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
 Changed
 -------
 
@@ -90,3 +144,50 @@ Changed
 * POST requests for insertions no longer include a ``Location`` header in the response by default and behave the same way as having a
   ``Prefer: return=minimal`` header in the request. This prevents permissions errors when having a write-only table. See :ref:`insert_update`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+Thanks
+------
+
+.. image:: ../_static/cybertec-new.png
+  :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
+  :width:  13em
+
+.. image:: ../_static/2ndquadrant.png
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+  :width:  13em
+
+.. image:: ../_static/retool.png
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+.. image:: ../_static/gnuhost.png
+  :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+.. image:: ../_static/supabase.png
+  :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+  :width:  13em
+
+.. image:: ../_static/oblivious.jpg
+  :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* `Franz Gusenbauer <https://www.igutech.at/>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+* Remo Rechkemmer
+* Severin Ibarluzea
+* Tom Saleeba
+* Pawel Tyll
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.
