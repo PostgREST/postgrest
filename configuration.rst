@@ -60,6 +60,8 @@ role-claim-key           String  .role
 raw-media-types          String
 ======================== ======= ================= ========
 
+You can also set these configuration parameters using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri``.
+
 .. _config_reloading:
 
 Configuration Reloading
