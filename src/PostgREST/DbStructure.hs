@@ -323,38 +323,47 @@ accessibleTables =
       relname as table_name,
       d.description as table_description,
       (
-        c.relkind IN ('r', 'v','f')
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-        OR EXISTS (
-          SELECT 1
-          FROM pg_trigger
-          WHERE
-            pg_trigger.tgrelid = c.oid
-            AND (pg_trigger.tgtype::integer & 69) = 69
+        c.relkind IN ('r','p')
+        OR (
+          c.relkind in ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
+              AND (pg_trigger.tgtype::integer & 69) = 69
+          )
         )
       ) AS insertable,
       (
-        c.relkind IN ('r', 'v','f')
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
-        -- CMD_UPDATE
-        OR EXISTS (
-          SELECT 1
-          FROM pg_trigger
-          WHERE
-            pg_trigger.tgrelid = c.oid
-            and (pg_trigger.tgtype::integer & 81) = 81
+        c.relkind IN ('r','p')
+        OR (
+          c.relkind IN ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
+          -- CMD_UPDATE
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
+              and (pg_trigger.tgtype::integer & 81) = 81
+          )
         )
       ) as updatable,
       (
-        c.relkind IN ('r', 'v','f')
-        AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
-        -- CMD_DELETE
-        OR EXISTS (
-          SELECT 1
-          FROM pg_trigger
-          WHERE
-            pg_trigger.tgrelid = c.oid
-            and (pg_trigger.tgtype::integer & 73) = 73
+        c.relkind IN ('r','p')
+        OR (
+          c.relkind IN ('v','f')
+          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
+          -- CMD_DELETE
+          OR EXISTS (
+            SELECT 1
+            FROM pg_trigger
+            WHERE
+              pg_trigger.tgrelid = c.oid
+              and (pg_trigger.tgtype::integer & 73) = 73
+          )
         )
       ) as deletable
     from
@@ -362,7 +371,7 @@ accessibleTables =
       join pg_namespace n on n.oid = c.relnamespace
       left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
-      c.relkind in ('v', 'r', 'm', 'f')
+      c.relkind in ('v','r','m','f','p')
       and n.nspname = $1
       and (
         pg_has_role(c.relowner, 'USAGE')
@@ -468,7 +477,7 @@ allTables =
       c.relname AS table_name,
       d.description AS table_description,
       (
-        c.relkind = 'r'
+        c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
           AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
@@ -488,7 +497,7 @@ allTables =
         )
       ) AS insertable,
       (
-        c.relkind = 'r'
+        c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
           AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
@@ -504,7 +513,7 @@ allTables =
         )
       ) AS updatable,
       (
-        c.relkind = 'r'
+        c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
           AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
@@ -522,7 +531,7 @@ allTables =
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
-    WHERE c.relkind IN ('v','r','m','f')
+    WHERE c.relkind IN ('v','r','m','f','p')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     ORDER BY table_schema, table_name |]
 
@@ -559,7 +568,7 @@ allColumns tabs =
                pg_catalog.pg_namespace n
              WHERE
                r.contype IN ('f', 'p', 'u')
-               AND c.relkind IN ('r', 'v', 'f', 'm')
+               AND c.relkind IN ('r', 'v', 'f', 'm', 'p')
                AND r.conrelid = c.oid
                AND c.relnamespace = n.oid
                AND n.nspname <> ANY (ARRAY['pg_catalog', 'information_schema'] || $1)
@@ -617,7 +626,7 @@ allColumns tabs =
                 NOT pg_is_other_temp_schema(nc.oid)
                 AND a.attnum > 0
                 AND NOT a.attisdropped
-                AND c.relkind in ('r', 'v', 'f', 'm')
+                AND c.relkind in ('r', 'v', 'f', 'm', 'p')
                 -- Filter only columns that are FK/PK or in the api schema:
                 AND (nc.nspname = ANY ($1) OR kc.r_oid IS NOT NULL)
         )
@@ -716,7 +725,7 @@ allPrimaryKeys tabs =
             nc.oid = c.connamespace
             AND nr.oid = r.relnamespace
             AND c.conrelid = r.oid
-            AND r.relkind = 'r'
+            AND r.relkind IN ('r', 'p')
             AND NOT pg_is_other_temp_schema(nr.oid)
             AND c.contype = 'p'
     ),
@@ -753,7 +762,7 @@ allPrimaryKeys tabs =
                 AND r.oid = c.conrelid
                 AND nc.oid = c.connamespace
                 AND c.contype in ('p', 'u', 'f')
-                AND r.relkind = 'r'
+                AND r.relkind IN ('r', 'p')
                 AND NOT pg_is_other_temp_schema(nr.oid)
             ) ss
         WHERE
