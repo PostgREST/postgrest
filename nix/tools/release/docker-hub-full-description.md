@@ -4,7 +4,7 @@
 [![Donate](https://img.shields.io/badge/Donate-Patreon-orange.svg?colorB=F96854)](https://www.patreon.com/postgrest)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/postgrest)
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
-[![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/main.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/main)
+[![Build Status](https://github.com/postgrest/postgrest/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/PostgREST/postgrest/actions?query=branch%3Amain)
 
 PostgREST serves a fully RESTful API from any existing PostgreSQL database. It
 provides a cleaner, more standards-compliant, faster API than you are likely to

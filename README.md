@@ -8,7 +8,7 @@
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
 [![Docker Stars](https://img.shields.io/docker/pulls/postgrest/postgrest.svg)](https://hub.docker.com/r/postgrest/postgrest/)
-[![Build Status](https://circleci.com/gh/PostgREST/postgrest/tree/main.svg?style=shield)](https://circleci.com/gh/PostgREST/postgrest/tree/main)
+[![Build Status](https://github.com/postgrest/postgrest/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/PostgREST/postgrest/actions?query=branch%3Amain)
 [![Coverage Status](https://img.shields.io/codecov/c/github/postgrest/postgrest/main)](https://app.codecov.io/gh/PostgREST/postgrest)
 [![Hackage docs](https://img.shields.io/hackage/v/postgrest.svg?label=hackage)](http://hackage.haskell.org/package/postgrest)
 
