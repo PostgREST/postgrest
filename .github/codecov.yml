@@ -9,10 +9,10 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 0%
+        threshold: 1%
         only_pulls: false
     patch:
       default:
         target: auto
-        threshold: 0%
+        threshold: 1%
         only_pulls: true
