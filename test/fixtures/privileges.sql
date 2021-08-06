@@ -150,6 +150,13 @@ GRANT ALL ON TABLE
     , schauspieler
     , filme
     , rollen
+    , partitioned_a
+    , first_partition_a
+    , second_partition_a
+    , partitioned_b
+    , first_partition_b
+    , second_partition_b
+    , reference_partitioned
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

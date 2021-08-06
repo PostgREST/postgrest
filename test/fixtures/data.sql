@@ -663,3 +663,16 @@ INSERT INTO private.films (id, title) VALUES (12,'douze commandements'), (2001,'
 
 TRUNCATE TABLE private.personnages CASCADE;
 INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méchant'), (2001,2,'astronaute');
+
+insert into test.partitioned_a(id, name) values (1,'first');
+insert into test.partitioned_a(id, name) values (2,'first');
+insert into test.partitioned_a(id, name) values (3,'second');
+insert into test.partitioned_a(id, name) values (4,'second');
+
+insert into test.partitioned_b(id, name) values (1,'first_b');
+insert into test.partitioned_b(id, name, id_a, name_a) values (2,'first_b', 2, 'first');
+insert into test.partitioned_b(id, name) values (3,'second_b');
+insert into test.partitioned_b(id, name, id_a, name_a) values (4,'second_b', 4, 'second');
+
+insert into test.reference_partitioned(id) values (1);
+insert into test.reference_partitioned(id, id_a, name_a) values (2, 2, 'first');

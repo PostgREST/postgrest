@@ -2185,3 +2185,39 @@ create table private.rollen (
   foreign key (film_id) references test.filme(id),
   foreign key (rolle_id) references test.schauspieler(id)
 );
+
+-- Tables used for testing embedding between partitioned tables
+
+create table test.partitioned_a(
+  id int not null,
+  name varchar(64) not null,
+  primary key (id, name)
+) partition by list (name);
+
+create table test.first_partition_a partition of test.partitioned_a
+  for values in ('first');
+
+create table test.second_partition_a partition of test.partitioned_a
+  for values in ('second');
+
+create table test.partitioned_b(
+  id int not null,
+  name varchar(64) not null,
+  id_a int,
+  name_a varchar(64),
+  primary key (id, name),
+  foreign key (id_a, name_a) references test.partitioned_a (id, name)
+) partition by list (name);
+
+create table test.first_partition_b partition of test.partitioned_b
+  for values in ('first_b');
+
+create table test.second_partition_b partition of test.partitioned_b
+  for values in ('second_b');
+
+create table test.reference_partitioned (
+  id int not null primary key,
+  id_a int,
+  name_a varchar(64),
+  foreign key (id_a, name_a) references test.partitioned_a (id, name)
+);
