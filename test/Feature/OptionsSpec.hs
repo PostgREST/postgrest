@@ -19,6 +19,13 @@ spec = describe "Allow header" $ do
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
 
+  context "a partitioned table" $ do
+    it "includes read/write verbs for writeable partitioned tables" $ do
+      r <- request methodOptions "/partitioned_a" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+
   context "a view" $ do
     context "auto updatable" $ do
       it "includes read/write verbs for auto updatable views with pk" $ do
