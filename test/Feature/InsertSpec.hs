@@ -111,12 +111,20 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
-    context "requesting headers only representation" $
+    context "requesting headers only representation" $ do
       it "should not throw and return location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" [("Prefer", "return=headers-only")]
           [json|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
+                           , "Content-Range" <:> "*/*" ]
+          }
+          
+      it "should not throw and return location header for partitioned tables when selecting without PK" $
+        request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
+          [json|{"id":5,"name":"first"}|] `shouldRespondWith` ""
+          { matchStatus  = 201
+          , matchHeaders = [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
                            , "Content-Range" <:> "*/*" ]
           }
 
