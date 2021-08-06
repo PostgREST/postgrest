@@ -33,7 +33,6 @@ let
     [
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
-      allOverlays.ghr
       allOverlays.gitignore
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
@@ -135,10 +134,7 @@ rec {
 
   # Scripts for publishing new releases.
   release =
-    pkgs.callPackage nix/tools/release {
-      inherit docker;
-      postgrest = postgrestStatic;
-    };
+    pkgs.callPackage nix/tools/release { };
 
   # Linting and styling tools.
   style =
