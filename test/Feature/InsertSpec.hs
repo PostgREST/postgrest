@@ -11,8 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
+                                   pgVersion112, pgVersion130)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -119,14 +119,19 @@ spec actualPgVersion = do
           , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
                            , "Content-Range" <:> "*/*" ]
           }
-          
-      it "should not throw and return location header for partitioned tables when selecting without PK" $
-        request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
-          [json|{"id":5,"name":"first"}|] `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
-                           , "Content-Range" <:> "*/*" ]
-          }
+
+      when (actualPgVersion >= pgVersion110) $
+        it "should not throw and return location header for partitioned tables when selecting without PK" $
+          request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
+            [json|{"id":5,"name":"first"}|] `shouldRespondWith` ""
+            { matchStatus  = 201
+            , matchHeaders =
+                if actualPgVersion >= pgVersion110 then
+                  [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
+                  , "Content-Range" <:> "*/*" ]
+                else
+                  [ matchHeaderAbsent hLocation ]
+            }
 
     context "requesting no representation" $
       it "should not throw and return no location header when selecting without PK" $

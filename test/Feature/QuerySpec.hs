@@ -8,8 +8,9 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion121, pgVersion96)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
+                                   pgVersion112, pgVersion121,
+                                   pgVersion96)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -395,60 +396,75 @@ spec actualPgVersion = do
           [json|[{"id":1,"computed_overload":true}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-    describe "partitioned tables embedding" $ do
-      it "can request parents and children between partitioned tables" $ do
-        get "/partitioned_a?id=in.(1,2,4)&select=id,name,partitioned_b(id,name)" `shouldRespondWith`
-          [json|
-            [{"id":1,"name":"first","partitioned_b":[]},
-             {"id":2,"name":"first","partitioned_b":[{"id":2,"name":"first_b"}]},
-             {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
-          { matchHeaders = [matchContentTypeJson] }
+    when (actualPgVersion >= pgVersion110) $ do
+      describe "partitioned tables embedding" $ do
+        it "can request parents and children between a partitioned table and a table" $ do
+          get "/partitioned_a?id=in.(1,2)&select=id,name,reference_from_partitioned(id)&order=id.asc" `shouldRespondWith`
+            [json|
+              [{"id":1,"name":"first","reference_from_partitioned":{"id":1}},
+               {"id":2,"name":"first","reference_from_partitioned":null}] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-        get "/partitioned_b?id=in.(2,4)&select=id,name,partitioned_a(*)" `shouldRespondWith`
-          [json|
-            [{"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}},
-             {"id":4,"name":"second_b","partitioned_a":{"id":4,"name":"second"}}] |]
-          { matchHeaders = [matchContentTypeJson] }
+          get "/reference_from_partitioned?select=id,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+            [json|
+              [{"id":1,"partitioned_a":[{"id":1,"name":"first"}]},
+               {"id":2,"partitioned_a":[]}] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-      it "can request parents and children between a partitioned table and a partition" $ do
-        get "/partitioned_a?id=in.(1,2,4)&select=id,name,first_partition_b(id)" `shouldRespondWith`
-          [json|
-            [{"id":1,"name":"first","first_partition_b":[]},
-             {"id":2,"name":"first","first_partition_b":[{"id":2}]},
-             {"id":4,"name":"second","first_partition_b":[]}] |]
-          { matchHeaders = [matchContentTypeJson] }
+        when (actualPgVersion >= pgVersion121) $ do
+          it "can request parents and children between partitioned tables" $ do
+            get "/partitioned_a?id=in.(1,2,4)&select=id,name,partitioned_b(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first","partitioned_b":[]},
+                 {"id":2,"name":"first","partitioned_b":[{"id":2,"name":"first_b"}]},
+                 {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-        get "/first_partition_b?select=id,name,partitioned_a(id,name)" `shouldRespondWith`
-          [json|
-            [{"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}},
-             {"id":1,"name":"first_b","partitioned_a":null}] |]
-          { matchHeaders = [matchContentTypeJson] }
+            get "/partitioned_b?id=in.(2,4)&select=id,name,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}},
+                 {"id":4,"name":"second_b","partitioned_a":{"id":4,"name":"second"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-        get "/partitioned_b?id=in.(1,3,4)&select=id,name,second_partition_a(id,name)" `shouldRespondWith`
-          [json|
-            [{"id":4,"name":"second_b","second_partition_a":{"id":4,"name":"second"}},
-             {"id":3,"name":"second_b","second_partition_a":null},
-             {"id":1,"name":"first_b","second_partition_a":null}] |]
-          { matchHeaders = [matchContentTypeJson] }
+          it "can request parents and children between a partitioned table and a partition" $ do
+            get "/partitioned_a?id=in.(1,2,4)&select=id,name,first_partition_b(id)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first","first_partition_b":[]},
+                 {"id":2,"name":"first","first_partition_b":[{"id":2}]},
+                 {"id":4,"name":"second","first_partition_b":[]}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-        get "/second_partition_a?select=id,name,partitioned_b(id,name)" `shouldRespondWith`
-          [json|
-            [{"id":3,"name":"second","partitioned_b":[]},
-             {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
-          { matchHeaders = [matchContentTypeJson] }
+            get "/first_partition_b?select=id,name,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first_b","partitioned_a":null},
+                 {"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-      it "can request parents and children between a table and a partitioned table" $ do
-        get "/partitioned_a?id=in.(1,2)&select=id,name,reference_partitioned(id)" `shouldRespondWith`
-          [json|
-            [{"id":1,"name":"first","reference_partitioned":[]},
-             {"id":2,"name":"first","reference_partitioned":[{"id":2}]}] |]
-          { matchHeaders = [matchContentTypeJson] }
+            get "/partitioned_b?id=in.(1,3,4)&select=id,name,second_partition_a(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first_b","second_partition_a":null},
+                 {"id":3,"name":"second_b","second_partition_a":null},
+                 {"id":4,"name":"second_b","second_partition_a":{"id":4,"name":"second"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-        get "/reference_partitioned?select=id,partitioned_a(id,name)" `shouldRespondWith`
-          [json|
-            [{"id":2,"partitioned_a":{"id":2,"name":"first"}},
-             {"id":1,"partitioned_a":null}] |]
-          { matchHeaders = [matchContentTypeJson] }
+            get "/second_partition_a?select=id,name,partitioned_b(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":3,"name":"second","partitioned_b":[]},
+                 {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "can request parents and children between a table and a partitioned table" $ do
+            get "/partitioned_a?id=in.(1,2)&select=id,name,reference_to_partitioned(id)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first","reference_to_partitioned":[]},
+                 {"id":2,"name":"first","reference_to_partitioned":[{"id":2}]}] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+            get "/reference_to_partitioned?select=id,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"partitioned_a":null},
+                 {"id":2,"partitioned_a":{"id":2,"name":"first"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $

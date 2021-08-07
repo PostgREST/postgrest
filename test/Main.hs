@@ -128,7 +128,7 @@ main = do
         , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec)
-        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
+        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)

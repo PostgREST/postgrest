@@ -7,11 +7,14 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion110)
+
 import Protolude
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "Allow header" $ do
+spec :: PgVersion -> SpecWith ((), Application)
+spec actualPgVersion = describe "Allow header" $ do
   context "a table" $ do
     it "includes read/write verbs for writeable table" $ do
       r <- request methodOptions "/items" [] ""
@@ -19,12 +22,18 @@ spec = describe "Allow header" $ do
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
 
-  context "a partitioned table" $ do
-    it "includes read/write verbs for writeable partitioned tables" $ do
-      r <- request methodOptions "/partitioned_a" [] ""
-      liftIO $
-        simpleHeaders r `shouldSatisfy`
-          matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+  when (actualPgVersion >= pgVersion100) $
+    context "a partitioned table" $ do
+      it "includes read/write verbs for writeable partitioned tables" $ do
+        r <- request methodOptions "/partitioned_a" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" (
+              if actualPgVersion >= pgVersion110 then
+                "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+              else
+                "OPTIONS,GET,HEAD,POST,PATCH,DELETE"
+            )
 
   context "a view" $ do
     context "auto updatable" $ do

@@ -2188,36 +2188,53 @@ create table private.rollen (
 
 -- Tables used for testing embedding between partitioned tables
 
-create table test.partitioned_a(
-  id int not null,
-  name varchar(64) not null,
-  primary key (id, name)
-) partition by list (name);
+DO $do$BEGIN
+    -- partitioned tables using the PARTITION syntax are supported from pg v10
+    IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
+      create table test.partitioned_a(
+        id int not null,
+        name varchar(64) not null
+      ) partition by list (name);
 
-create table test.first_partition_a partition of test.partitioned_a
-  for values in ('first');
+      create table test.first_partition_a partition of test.partitioned_a
+        for values in ('first');
 
-create table test.second_partition_a partition of test.partitioned_a
-  for values in ('second');
+      create table test.second_partition_a partition of test.partitioned_a
+        for values in ('second');
+    END IF;
 
-create table test.partitioned_b(
-  id int not null,
-  name varchar(64) not null,
-  id_a int,
-  name_a varchar(64),
-  primary key (id, name),
-  foreign key (id_a, name_a) references test.partitioned_a (id, name)
-) partition by list (name);
+    -- primary keys for partitioned tables are supported from pg v11
+    IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
+      create table test.reference_from_partitioned (
+        id int primary key
+      );
 
-create table test.first_partition_b partition of test.partitioned_b
-  for values in ('first_b');
+      alter table test.partitioned_a add primary key (id, name);
+      alter table test.partitioned_a add column id_ref int references test.reference_from_partitioned(id);
+    END IF;
 
-create table test.second_partition_b partition of test.partitioned_b
-  for values in ('second_b');
+    -- foreign keys referencing partitioned tables are supported from pg v12
+    IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
+      create table test.partitioned_b(
+        id int not null,
+        name varchar(64) not null,
+        id_a int,
+        name_a varchar(64),
+        primary key (id, name),
+        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      ) partition by list (name);
 
-create table test.reference_partitioned (
-  id int not null primary key,
-  id_a int,
-  name_a varchar(64),
-  foreign key (id_a, name_a) references test.partitioned_a (id, name)
-);
+      create table test.first_partition_b partition of test.partitioned_b
+        for values in ('first_b');
+
+      create table test.second_partition_b partition of test.partitioned_b
+        for values in ('second_b');
+
+      create table test.reference_to_partitioned (
+        id int not null primary key,
+        id_a int,
+        name_a varchar(64),
+        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      );
+    END IF;
+END$do$;
