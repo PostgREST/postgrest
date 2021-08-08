@@ -324,7 +324,7 @@ jobs:
     needs: Prepare-Release
     env:
       DOCKER_REPO: postgrest
-      DOCKER_USER: postgrest-bot
+      DOCKER_USER: stevechavez
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
