@@ -6,8 +6,6 @@ Schema Cache
 Certain PostgREST features require metadata from the database schema. Getting this metadata requires executing expensive queries, so
 in order to avoid repeating this work, PostgREST uses a schema cache.
 
-The following features are the ones that require metadata from the schema cache.
-
 +--------------------------------------------+-------------------------------------------------------------------------------+
 | Feature                                    | Required Metadata                                                             |
 +============================================+===============================================================================+
@@ -34,18 +32,18 @@ The Stale Schema Cache
 
 When you make changes on the metadata mentioned above, the schema cache will turn stale on a running PostgREST. Future requests that use the above features will need the :ref:`schema cache to be reloaded <schema_reloading>`; otherwise, you'll get an error instead of the expected result.
 
-For instance, let's see what would happen if you have a stale schema for foreign key relationships and function signature:
+For instance, let's see what would happen if you have a stale schema cache for foreign key relationships and function signatures.
 
 Stale Foreign Key Relationships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Suppose you add a ``cities`` table to your database. This table has a foreign key referencing an existing ``countries`` table. Then, you make a request to get the ``cities`` and their belonging ``countries``:
+Suppose you add a ``cities`` table to your database and define a foreign key that references an existing ``countries`` table. Then, you make a request to get the ``cities`` and their belonging ``countries``.
 
 .. code-block:: http
 
   GET /cities?select=name,country:countries(id,name) HTTP/1.1
 
-But instead, you get an error message that looks like this:
+The result will be an error:
 
 .. code-block:: json
 
@@ -54,14 +52,14 @@ But instead, you get an error message that looks like this:
     "message": "Could not find a relationship between cities and countries in the schema cache"
   }
 
-As you can see, PostgREST couldn't find the newly created foreign key in the schema cache. See the section :ref:`schema_reloading` to solve this issue.
+As you can see, PostgREST couldn't find the newly created foreign key in the schema cache. See :ref:`schema_reloading` and :ref:`auto_schema_reloading` to solve this issue.
 
 .. _stale_function_signature:
 
 Stale Function Signature
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Suppose you create the following function while PostgREST is running:
+The same issue will occur on newly created functions on a running PostgREST.
 
 .. code-block:: plpgsql
 
@@ -70,13 +68,9 @@ Suppose you create the following function while PostgREST is running:
    SELECT num + 1;
   $$ LANGUAGE SQL IMMUTABLE;
 
-Then, you make this request:
-
 .. code-block:: http
 
   GET /rpc/plus_one?num=1 HTTP/1.1
-
-Next, PostgREST tries to find the function on the stale schema to no avail:
 
 .. code-block:: json
 
@@ -85,7 +79,7 @@ Next, PostgREST tries to find the function on the stale schema to no avail:
     "message": "Could not find the api.plus_one(num) function in the schema cache"
   }
 
-See the section :ref:`schema_reloading` to solve this issue.
+Here, PostgREST tries to find the function on the stale schema to no avail. See :ref:`schema_reloading` and :ref:`auto_schema_reloading` to solve this issue.
 
 .. _schema_reloading:
 
@@ -125,10 +119,12 @@ There are environments where you can't send the SIGUSR1 Unix Signal (like on man
 
 The ``"pgrst"`` notification channel is enabled by default. For configuring the channel, see :ref:`db-channel` and :ref:`db-channel-enabled`.
 
-Automatic schema cache reloading
-********************************
+.. _auto_schema_reloading:
 
-You can do automatic schema cache reloading in a pure SQL way with an `event trigger <https://www.postgresql.org/docs/current/event-trigger-definition.html>`_ and ``NOTIFY``.
+Automatic Schema Cache Reloading
+--------------------------------
+
+You can do automatic schema cache reloading in a pure SQL way and forget about stale schema cache errors with an `event trigger <https://www.postgresql.org/docs/current/event-trigger-definition.html>`_ and ``NOTIFY``.
 
 .. code-block:: postgresql
 
@@ -137,7 +133,7 @@ You can do automatic schema cache reloading in a pure SQL way with an `event tri
     LANGUAGE plpgsql
     AS $$
   BEGIN
-    NOTIFY pgrst;
+    NOTIFY pgrst, 'reload schema';
   END;
   $$;
 

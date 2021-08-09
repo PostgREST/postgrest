@@ -22,7 +22,7 @@ Added
 * No downtime when reloading the schema cache. See the note in :ref:`schema_reloading`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command.
+* Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command. This enables :ref:`auto_schema_reloading`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Allow sending the header ``Prefer: headers-only`` to get a response with a ``Location`` header. See :ref:`insert_update`.

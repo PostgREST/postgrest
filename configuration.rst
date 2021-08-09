@@ -391,13 +391,13 @@ raw-media-types
 Configuration Reloading
 =======================
 
-To reload the configuration without restarting the PostgREST server send a SIGUSR2 signal to the server process.
+To reload the configuration without restarting the PostgREST server, send a SIGUSR2 signal to the server process.
 
 .. code:: bash
 
   killall -SIGUSR2 postgrest
 
-To refresh the cache in docker:
+To reload the config in docker:
 
 .. code:: bash
 

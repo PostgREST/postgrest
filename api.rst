@@ -1459,7 +1459,7 @@ OPTIONS
 
 You can verify which HTTP methods are allowed on endpoints for tables and views by using an OPTIONS request. These methods are allowed depending on what operations *can* be done on the table or view, not on the database permissions assigned to them.
 
-For example, the OPTIONS request and response for a table named ``people`` are:
+For a table named ``people``, OPTIONS would show:
 
 .. code-block:: http
 
@@ -1470,7 +1470,7 @@ For example, the OPTIONS request and response for a table named ``people`` are:
   HTTP/1.1 200 OK
   Allow: OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE
 
-For a view, the methods are determined by the presence of INSTEAD OF TRIGGERS:
+For a view, the methods are determined by the presence of INSTEAD OF TRIGGERS.
 
 .. table::
    :widths: auto
@@ -1493,9 +1493,10 @@ For a view, the methods are determined by the presence of INSTEAD OF TRIGGERS:
    | `auto-updatable views <https://www.postgresql.org/docs/current/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ |
    +--------------------+-------------------------------------------------------------------------------------------------+
 
-For database function endpoints, OPTIONS requests are not supported.
+For functions, OPTIONS requests are not supported.
 
 .. important::
+
   Whenever you add or remove tables or views, or modify a view's INSTEAD OF TRIGGERS on the database, you must refresh PostgREST's schema cache for OPTIONS requests to work properly. See the section :ref:`schema_reloading`.
 
 CORS
@@ -1583,7 +1584,7 @@ PostgREST reads the ``response.headers`` SQL variable to add extra headers to th
 
   SELECT set_config('response.headers',
     '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]', true);
-  
+
 Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
 
 .. note::
