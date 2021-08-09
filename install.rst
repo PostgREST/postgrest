@@ -99,19 +99,7 @@ You can get the `official PostgREST Docker image <https://hub.docker.com/r/postg
 
   docker pull postgrest/postgrest
 
-The image consults an internal ``/etc/postgrest.conf`` file. To customize this file you can either mount a replacement configuration file into the container, or use environment variables. The environment variables will be interpolated into the default config file.
-
-These variables match the options shown in our :ref:`configuration` section, except they are capitalized, have a ``PGRST_`` prefix, and use underscores. To get a list of the available environment variables, run this:
-
-.. code-block:: bash
-
-  docker inspect -f "{{.Config.Env}}" postgrest/postgrest
-
-You can also specify a config file by mounting the file to the container:
-
-.. code-block:: bash
-
-  docker run -v /absolute/path/to/config:/etc/postgrest.conf postgrest/postgrest
+To configure the container image, use :ref:`env_variables_config`.
 
 There are two ways to run the PostgREST container: with an existing external database, or through docker-compose.
 
@@ -125,6 +113,7 @@ The first way to run PostgREST in Docker is to connect it to an existing native 
   # Run the server
   docker run --rm --net=host -p 3000:3000 \
     -e PGRST_DB_URI="postgres://postgres@localhost/postgres" \
+    -e PGRST_DB_SCHEMA="public" \
     -e PGRST_DB_ANON_ROLE="postgres" \
     postgrest/postgrest
 

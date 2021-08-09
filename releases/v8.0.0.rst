@@ -127,6 +127,9 @@ Changed
   For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
   |br| -- `@monacoremo <https://github.com/monacoremo>`_
 
+* The Docker image no longer has an internal ``/etc/postgrest.conf`` file, you must use :ref:`env_variables_config` to configure it.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
 * The ``pg_listen`` `utility <https://github.com/begriffs/pg_listen>`_ is no longer needed to automatically reload the schema cache
   and it's replaced entirely by database notifications. See :ref:`schema_reloading_notify`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
