@@ -34,6 +34,8 @@ When you make changes on the metadata mentioned above, the schema cache will tur
 
 For instance, let's see what would happen if you have a stale schema cache for foreign key relationships and function signatures.
 
+.. _stale_fk_relationships:
+
 Stale Foreign Key Relationships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -102,9 +104,7 @@ For docker you can do:
   # or in docker-compose
   docker-compose kill -s SIGUSR1 <service>
 
-.. note::
-
-   There's no downtime when reloading the schema cache. The reloading will happen on a background thread while requests keep being served.
+There's no downtime when reloading the schema cache. The reloading will happen on a background thread while requests keep being served.
 
 .. _schema_reloading_notify:
 

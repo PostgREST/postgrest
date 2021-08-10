@@ -19,7 +19,7 @@ Added
 * Allow :ref:`embedding_view_chains` recursively to any depth.
   |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
 
-* No downtime when reloading the schema cache. See the note in :ref:`schema_reloading`.
+* No downtime when reloading the schema cache. See :ref:`schema_reloading`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command. This enables :ref:`auto_schema_reloading`.
@@ -62,6 +62,34 @@ Added
 
   + Added the :ref:`schema_cache` page.
   + Moved the :ref:`schema_reloading` reference from :ref:`admin` to :ref:`schema_cache`
+
+Changed
+-------
+
+* Docker images are now optimized to be built from the scratch image. This reduces the compressed image size from over 30 MB to about 4 MB.
+  For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
+  |br| -- `@monacoremo <https://github.com/monacoremo>`_
+
+* The Docker image no longer has an internal ``/etc/postgrest.conf`` file, you must use :ref:`env_variables_config` to configure it.
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* The ``pg_listen`` `utility <https://github.com/begriffs/pg_listen>`_ is no longer needed to automatically reload the schema cache
+  and it's replaced entirely by database notifications. See :ref:`auto_schema_reloading`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* POST requests for insertions no longer include a ``Location`` header in the response by default and behave the same way as having a
+  ``Prefer: return=minimal`` header in the request. This prevents permissions errors when having a write-only table. See :ref:`insert_update`.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Modified the default logging level from ``info`` to ``error``. See :ref:`log-level`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Changed the error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
+  overloaded functions with the same argument names but different types.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Changed the error message for the no relationship found error. See :ref:`stale_fk_relationships`.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
 Fixed
 -----
@@ -109,40 +137,6 @@ Fixed
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Fix requests for overloaded functions from HTML forms to no longer hang.
-  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
-
-* Add a hint and clarification to the no relationship found error.
-  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
-
-* Show comprehensive error when an RPC is not found in a stale schema cache.
-  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
-
-* Fix Location headers in headers only representation for null PK inserts on views.
-  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
-
-Changed
--------
-
-* Docker images are now optimized to be built from the scratch image. This reduces the compressed image size from over 30 MB to about 4 MB.
-  For more details, see `Docker image built with Nix <https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker#user-content-docker-image-built-with-nix>`_.
-  |br| -- `@monacoremo <https://github.com/monacoremo>`_
-
-* The Docker image no longer has an internal ``/etc/postgrest.conf`` file, you must use :ref:`env_variables_config` to configure it.
-  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
-
-* The ``pg_listen`` `utility <https://github.com/begriffs/pg_listen>`_ is no longer needed to automatically reload the schema cache
-  and it's replaced entirely by database notifications. See :ref:`schema_reloading_notify`.
-  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
-
-* Improved error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
-  overloaded functions with the same argument names but different types.
-  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
-
-* Modified the default logging level from ``info`` to ``error``. See :ref:`log-level`.
-  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
-
-* POST requests for insertions no longer include a ``Location`` header in the response by default and behave the same way as having a
-  ``Prefer: return=minimal`` header in the request. This prevents permissions errors when having a write-only table. See :ref:`insert_update`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
 Thanks

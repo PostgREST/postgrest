@@ -404,7 +404,7 @@ To reload the configuration without restarting the PostgREST server, send a SIGU
 
   killall -SIGUSR2 postgrest
 
-This method does not reload :ref:`env_variables_config` and it will not work for reloading a Docker container configuration. In these cases, you need to restart the PostgREST server or use :ref:`in_db_config` as an alternative.
+This method does not reload :ref:`env_variables_config` and it will not work for reloading a Docker container configuration. In these cases, you need to restart the PostgREST server or use the :ref:`in_db_config` as an alternative.
 
 .. important::
 
@@ -433,11 +433,11 @@ For example, you can configure :ref:`db-schema` and :ref:`jwt-secret` like this:
    ALTER ROLE authenticator SET pgrst.db_schema = "tenant1, tenant2, tenant3"
    ALTER ROLE authenticator SET pgrst.jwt_secret = "REALLYREALLYREALLYREALLYVERYSAFE"
 
+Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config options.
+
 .. important::
 
    For altering a role in this way, you need a SUPERUSER. You might not be able to use this configuration mode on cloud-hosted databases.
-
-Note that underscores(``_``) need to be used instead of dashes(``-``) for the options when the configuration is inside the database.
 
 When using both the configuration file and the in-database configuration, the latter takes precedence.
 
